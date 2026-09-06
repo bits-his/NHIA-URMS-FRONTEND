@@ -1,6 +1,6 @@
 import * as React from "react";
 import {
-  ArrowLeft, Plus, RefreshCw, Loader2, Eye, MessageSquare,
+  ArrowLeft, Plus, RefreshCw, Loader2, Eye,
 } from "lucide-react";
 import { motion } from "motion/react";
 import { Button } from "@/components/ui/button";
@@ -172,12 +172,6 @@ export default function StateOfficeComplaintsPage({ onBack, defaultStateId, defa
           <Button variant="ghost" size="icon" onClick={() => { setMode("dashboard"); setDrilldownRows([]); }} className="rounded-full">
             <ArrowLeft className="w-5 h-5" />
           </Button>
-          <div>
-            <h2 className="text-xl font-bold tracking-tight flex items-center gap-2">
-              <MessageSquare className="w-5 h-5" />
-              {drilldownTitle}
-            </h2>
-          </div>
         </div>
         <ScrollArea className="flex-1">
           <div className="w-full px-4 md:px-6 py-4">
@@ -226,16 +220,6 @@ export default function StateOfficeComplaintsPage({ onBack, defaultStateId, defa
     const entityLabel = f.against_type === "against_hmo" ? "HMO" : "HCP";
     return (
       <div className="flex flex-col h-full bg-slate-50/30">
-        <div className="bg-white border-b px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={() => setMode("dashboard")} className="rounded-full">
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
-            <div>
-              <h2 className="text-xl font-bold tracking-tight">Register Complaint</h2>
-            </div>
-          </div>
-        </div>
         <ScrollArea className="flex-1">
           <div className="w-full px-4 md:px-6 py-4 pb-24">
             <Card className="rounded-2xl border-[#d4e8dc] w-full overflow-visible">
@@ -343,15 +327,7 @@ export default function StateOfficeComplaintsPage({ onBack, defaultStateId, defa
 
   return (
     <div className="flex flex-col h-full bg-slate-50/30">
-      <div className="bg-white border-b px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={onBack} className="rounded-full">
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-          <div>
-            <h2 className="text-xl font-bold tracking-tight">Enrollee Complaints</h2>
-          </div>
-        </div>
+      <div className="bg-white border-b px-4 md:px-6 py-3 flex items-center justify-end sticky top-0 z-30">
         <div className="flex items-center gap-3">
           <Button variant="outline" size="sm" onClick={loadSummary} disabled={loading} className="gap-2">
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh

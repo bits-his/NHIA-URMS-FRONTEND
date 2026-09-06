@@ -537,9 +537,6 @@ export default function ComplianceReportForm(props: ComplianceReportFormProps) {
           <Button variant="ghost" size="icon" onClick={onCancel} className="rounded-full">
             <ArrowLeft className="w-5 h-5" />
           </Button>
-          <div className="min-w-0">
-            <h2 className="text-xl font-bold tracking-tight">Facility Compliance Report</h2>
-          </div>
         </div>
 
         <ScrollArea className="flex-1">
@@ -568,9 +565,6 @@ export default function ComplianceReportForm(props: ComplianceReportFormProps) {
         <Button variant="ghost" size="icon" onClick={onCancel} className="rounded-full">
           <ArrowLeft className="w-5 h-5" />
         </Button>
-        <div className="min-w-0">
-          <h2 className="text-xl font-bold tracking-tight">Facility Compliance Report</h2>
-        </div>
       </div>
 
       <ScrollArea className="flex-1">

@@ -141,14 +141,9 @@ export default function ReportEntry({ onBack, onPreview }: ReportEntryProps) {
     <div className="flex flex-col h-full bg-slate-50/30">
       {/* Header */}
       <div className="bg-white border-b border-border/50 px-8 py-4 flex items-center justify-between sticky top-0 z-30">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={onBack} className="rounded-full">
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-          <div>
-            <h2 className="text-xl font-bold tracking-tight">Unified Report Entry</h2>
-          </div>
-        </div>
+        <Button variant="ghost" size="icon" onClick={handleBack} className="rounded-full">
+          <ArrowLeft className="w-5 h-5" />
+        </Button>
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="sm" onClick={handleSaveDraft} disabled={isSaving} className="gap-2">
             <Save className="w-4 h-4" /> {isSaving ? "Saving..." : "Save Draft"}

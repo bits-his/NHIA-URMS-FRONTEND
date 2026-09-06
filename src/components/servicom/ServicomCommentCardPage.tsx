@@ -163,11 +163,33 @@ export default function ServicomCommentCardPage({
   };
 
   const renderDetailsCard = (readOnly: boolean, row?: any) => (
-    <Card className="rounded-2xl border-[#d4e8dc] shadow-sm">
-      <CardHeader className="pb-3 border-b bg-[#f8fbf9]">
-        <CardTitle className="text-sm font-bold text-[#145c3f]">Response Details</CardTitle>
-      </CardHeader>
-      <CardContent className="pt-5 pb-5">
+    <></>
+    // <Card className="rounded-2xl border-[#d4e8dc] shadow-sm">
+    //   <CardHeader className="pb-3 border-b bg-[#f8fbf9]">
+    //     <CardTitle className="text-sm font-bold text-[#145c3f]">Response Details</CardTitle>
+    //   </CardHeader>
+    //   <CardContent className="pt-5 pb-5">
+       
+    //   </CardContent>
+    // </Card>
+  );
+
+  const renderQuestions = (responses: Record<string, string>, readOnly = false) => {
+    const answered = COMMENT_CARD_QUESTIONS.filter((q) => responses[q.id]).length;
+
+    return (
+      <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden">
+        <CardHeader className="pb-3 border-b bg-[#f8fbf9]">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <CardTitle className="text-xl font-bold d text-center text-[#145c3f]">Citizens&apos; Comment Card</CardTitle>
+            {!readOnly && (
+              <Badge variant="outline" className="text-[10px] font-semibold bg-white">
+                {answered} / {COMMENT_CARD_QUESTIONS.length} answered
+              </Badge>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent className="p-4 md:p-5 space-y-4">
         {readOnly && row?.reference_id && (
           <div className="mb-5 pb-4 border-b border-slate-100">
             <p className="text-[10px] uppercase tracking-wide text-slate-400 font-medium">Response ID</p>
@@ -214,26 +236,6 @@ export default function ServicomCommentCardPage({
             )}
           </div>
         </div>
-      </CardContent>
-    </Card>
-  );
-
-  const renderQuestions = (responses: Record<string, string>, readOnly = false) => {
-    const answered = COMMENT_CARD_QUESTIONS.filter((q) => responses[q.id]).length;
-
-    return (
-      <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden">
-        <CardHeader className="pb-3 border-b bg-[#f8fbf9]">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <CardTitle className="text-sm font-bold text-[#145c3f]">Citizens&apos; Comment Card</CardTitle>
-            {!readOnly && (
-              <Badge variant="outline" className="text-[10px] font-semibold bg-white">
-                {answered} / {COMMENT_CARD_QUESTIONS.length} answered
-              </Badge>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent className="p-4 md:p-5 space-y-4">
           {COMMENT_CARD_QUESTIONS.map((q, i) => {
             const val = responses[q.id] ?? "";
             const options = commentCardScaleOptions(q.scale);
@@ -301,6 +303,13 @@ export default function ServicomCommentCardPage({
               </div>
             );
           })}
+           <div className="flex items-center justify-end gap-3 ml-auto">
+              <Button variant="outline" onClick={closeSub}>Cancel</Button>
+              <Button onClick={handleSave} disabled={saving} className="bg-orange-action hover:bg-orange-600 gap-2">
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                Save Record
+              </Button>
+            </div>
         </CardContent>
       </Card>
     );
@@ -312,38 +321,28 @@ export default function ServicomCommentCardPage({
 
     return (
       <div className="flex flex-col h-full bg-slate-50/30">
-        <div className="bg-white border-b px-4 md:px-6 py-3 flex items-center sticky top-0 z-30">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={closeSub} className="rounded-full">
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
-            <div>
-              <h2 className="text-xl font-bold tracking-tight">Charter Performance</h2>
-            </div>
-          </div>
-        </div>
+        {/* <div className="bg-white border-b px-4 md:px-6 py-3 flex items-center sticky top-0 z-30">
+          <Button variant="ghost" size="icon" onClick={closeSub} className="rounded-full">
+            <ArrowLeft className="w-5 h-5" />
+          </Button>
+        </div> */}
 
         <ScrollArea className="flex-1">
           <div className="w-full px-4 md:px-6 py-4 pb-24 space-y-4">
             {renderDetailsCard(mode === "view", row ?? undefined)}
             {renderQuestions(responses, mode === "view")}
+            {mode === "form" && (
+          <div>
+            <p className="text-xs text-slate-500 hidden sm:block">
+            
+            </p>
+           
+          </div>
+        )}
           </div>
         </ScrollArea>
 
-        {mode === "form" && (
-          <div className="sticky bottom-0 z-30 bg-white border-t border-border/50 px-4 md:px-6 py-3 flex items-center justify-between gap-3">
-            <p className="text-xs text-slate-500 hidden sm:block">
-              Response ID is assigned automatically when you save.
-            </p>
-            <div className="flex items-center gap-3 ml-auto">
-              <Button variant="outline" onClick={closeSub}>Cancel</Button>
-              <Button onClick={handleSave} disabled={saving} className="bg-orange-action hover:bg-orange-600 gap-2">
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                Save Record
-              </Button>
-            </div>
-          </div>
-        )}
+        
       </div>
     );
   }
@@ -351,22 +350,20 @@ export default function ServicomCommentCardPage({
   return (
     <div className="flex flex-col h-full bg-slate-50/30">
       <div className="bg-white border-b px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={onBack} className="rounded-full">
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-          <div>
-            <h2 className="text-xl font-bold tracking-tight">Charter Performance</h2>
-          </div>
-        </div>
+        
         <div className="flex items-center gap-3">
-          <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">
+          <Button variant="ghost" size="icon" onClick={onBack} className="rounded-full"><ArrowLeft className="w-5 h-5" /></Button>
+         <h2 className="text-xl font-bold tracking-tight">Charter  Performance</h2>
+         </div>
+       
+         <div className="flex items-center gap-3"> <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
           </Button>
           <Button className="bg-orange-action hover:bg-orange-600 gap-2" onClick={openForm}>
-            <Plus className="w-4 h-4" /> New Record
-          </Button>
-        </div>
+            <Plus className="w-4 h-4" /> New Comment Card
+          </Button></div>
+         
+        
       </div>
 
       <ScrollArea className="flex-1">

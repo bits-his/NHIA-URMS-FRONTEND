@@ -1,19 +1,16 @@
 import * as React from "react";
 import {
   Home, FileText, CheckSquare, Compass, Database, Archive, Shield,
-  Bell, Settings, LogOut, ChevronDown, ChevronRight, TrendingUp,
-  Clock, AlertCircle, Plus, Search, Filter, Download, BarChart3,
+  Bell, Settings, LogOut, ChevronRight, TrendingUp,
+  Clock, AlertCircle, Plus, Filter, Download, BarChart3,
   Map as MapIcon, Flag, History, Users, Activity, Zap
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -102,7 +99,7 @@ import { VIEW_MODULE_ACCESS } from "@/src/access/moduleConfig";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 import AppSidebar from "./AppSidebar";
-import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
+import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 
 type Role = "state-officer" | "zonal-coordinator" | "state-coordinator" | "department-officer" | "sdo" | "hq-department" | "audit" | "dg-ceo" | "admin";
 type View = "home" | "report-entry" | "report-preview" | "zonal-review" | "zonal-compose" | "annual-report" | "annual-reports-list" | "annual-report-detail" | "settings" | "stock-verifications-list" | "stock-assets" | "servicom-dashboard" | "servicom-visits" | "servicom-complaints" | "servicom-satisfaction" | "servicom-comment-card" | "finance-monthly" | "admin-monthly" | "programmes-monthly" | "outreach-monthly" | "sqa-monthly" | "sqa-compliance" | "complaints-monthly" | "monthly-reports-list" | "report-review" | "notifications" | "soc-zones-dashboard" | "soc-operation-monitoring-visit" | "soc-spot-check-visit" | "state-enrolment" | "state-migration" | "state-cemonc" | "state-complaints" | "state-compliance-monitoring" | "state-reconciliation" | "state-accreditation" | "state-stakeholder" | "state-hmo-selection" | "state-challenges" | "state-igr" | "state-sshia-financial" | "state-expenditure-profile" | "state-weekly-actionable" | "state-contracted-services" | "store-assets-list" | "store-assets-register" | "store-inventory-catalog" | "store-goods-receipt" | "store-stock-issues" | "store-directory" | "store-stock-returns" | "store-asset-transfers" | "store-supply-verification" | "store-asset-maintenance" | "store-asset-disposal" | "store-asset-reports";
@@ -164,31 +161,6 @@ function getMenuItems(role: Role, view: View, setView: (v: View) => void) {
     if (item.roles === "!admin")  return role !== "admin";
     return item.roles.split(",").includes(role);
   });
-}
-
-// ─── Role helpers ─────────────────────────────────────────────────────────────
-function getRoleLabel(r: Role) {
-  const map: Record<Role, string> = {
-    "state-officer": "State Officer", "zonal-coordinator": "Zonal Coordinator",
-    "state-coordinator": "State Coordinator", "department-officer": "Department Officer",
-    "sdo": "SDO / DGO", "hq-department": "HQ Department",
-    "audit": "Audit Team", "dg-ceo": "DG / CEO", "admin": "Administrator",
-  };
-  return map[r] ?? "User";
-}
-function getUserInfo(r: Role) {
-  const map: Record<Role, { name: string; initials: string; email: string; dept: string }> = {
-    "state-officer":      { name: "State Officer",      initials: "SO",  email: "so@nhia.gov.ng",  dept: "State Office"       },
-    "zonal-coordinator":  { name: "Zonal Coordinator",  initials: "ZC",  email: "zc@nhia.gov.ng",  dept: "Zonal Coordination" },
-    "state-coordinator":  { name: "State Coordinator",  initials: "SC",  email: "sc@nhia.gov.ng",  dept: "State Coordination" },
-    "department-officer": { name: "Department Officer", initials: "DO",  email: "do@nhia.gov.ng",  dept: "Department"         },
-    "sdo":                { name: "SDO / DGO",          initials: "SDO", email: "sdo@nhia.gov.ng", dept: "State Directorate"  },
-    "hq-department":      { name: "HQ Department",      initials: "HQ",  email: "hq@nhia.gov.ng",  dept: "Headquarters"       },
-    "audit":              { name: "Audit Team",         initials: "AUD", email: "audit@nhia.gov.ng",dept: "Audit & Compliance" },
-    "dg-ceo":             { name: "DG / CEO",           initials: "DG",  email: "dg@nhia.gov.ng",  dept: "Executive Office"   },
-    "admin":              { name: "Administrator",      initials: "ADM", email: "admin@nhia.gov.ng",dept: "System Admin"       },
-  };
-  return map[r];
 }
 
 // ─── KPI Card ─────────────────────────────────────────────────────────────────
@@ -448,7 +420,6 @@ export default function Dashboard({ role, user, access = [], functionalities = "
   const [view, setView] = React.useState<View>(role === "admin" ? "home" : "home");
   // Sidebar state is now managed by shadcn SidebarProvider
   const [selectedReportRef, setSelectedReportRef] = React.useState<string | null>(null);
-  const userInfo = getUserInfo(role) ?? { name: "User", initials: "U", email: "user@nhia.gov.ng", dept: "NHIA" };
   const monthlyCtx = getMonthlyReportContext(role, user);
 
   React.useEffect(() => {
@@ -479,64 +450,6 @@ export default function Dashboard({ role, user, access = [], functionalities = "
 
       {/* ── Main area ── */}
       <SidebarInset className="flex flex-col overflow-hidden bg-[#f4f7f5]">
-
-        {/* Top navbar */}
-        <header className="h-16 bg-white/80 backdrop-blur-md border-b border-[#d4e8dc] flex items-center justify-between px-6 z-20 shrink-0">
-          <div className="flex items-center gap-3">
-            <SidebarTrigger className="text-slate-500 hover:bg-[#e8f5ee] hover:text-[#145c3f]" />
-            <Separator orientation="vertical" className="h-5 bg-[#d4e8dc]" />
-            <div>
-              <p className="text-sm font-bold text-slate-800 leading-tight">
-                {view === "home" ? "Dashboard Overview" : view === "report-entry" ? "Submit Report" : view === "zonal-review" ? "Review Reports" : view === "report-review" ? "Report Review" : view === "notifications" ? "Notifications" : "Dashboard"}
-              </p>
-              <p className="text-[10px] text-slate-400">NHIA Reporting Management Dashboard</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <div className="relative hidden sm:block">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-              <input type="text" placeholder="Search reports, directives..."
-                className="pl-9 pr-4 py-2 bg-[#f4f7f5] border border-[#d4e8dc] rounded-xl text-xs w-56 focus:ring-2 focus:ring-[#25a872] outline-none transition-all placeholder:text-slate-400"
-              />
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setView("notifications")}
-              className="relative w-9 h-9 rounded-xl flex items-center justify-center text-slate-500 hover:bg-[#e8f5ee] hover:text-[#145c3f] transition-colors border border-[#d4e8dc]"
-            >
-              <Bell className="w-4 h-4" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-500 border-2 border-white" />
-            </button>
-
-            <DropdownMenu>
-              <DropdownMenuTrigger className="flex items-center gap-2 pl-1 pr-3 py-1 rounded-xl hover:bg-[#e8f5ee] transition-colors outline-none cursor-pointer border border-[#d4e8dc]">
-                <Avatar className="w-7 h-7">
-                  <AvatarImage src={`https://picsum.photos/seed/${user?.staff_id || userInfo.initials}/200`} />
-                  <AvatarFallback className="bg-[#25a872] text-white text-[10px] font-bold">
-                    {user?.name?.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase() || userInfo.initials}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="text-left hidden md:block">
-                  <p className="text-xs font-bold text-slate-800 leading-none">{user?.name || userInfo.name}</p>
-                  <p className="text-[10px] text-slate-400">{user?.email || userInfo.email}</p>
-                </div>
-                <ChevronDown className="w-3 h-3 text-slate-400" />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-52 rounded-xl border-[#d4e8dc]">
-                <DropdownMenuGroup>
-                  <DropdownMenuLabel className="text-xs text-slate-500">My Account</DropdownMenuLabel>
-                  <DropdownMenuSeparator className="bg-[#d4e8dc]" />
-                  <DropdownMenuItem className="text-xs rounded-lg">Profile Settings</DropdownMenuItem>
-                  <DropdownMenuItem className="text-xs rounded-lg">Security</DropdownMenuItem>
-                  <DropdownMenuSeparator className="bg-[#d4e8dc]" />
-                  <DropdownMenuItem onClick={onLogout} className="text-xs text-rose-600 rounded-lg">Logout</DropdownMenuItem>
-                </DropdownMenuGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </header>
 
         {/* Content */}
         <main className="flex-1 overflow-y-auto scrollbar-thin">

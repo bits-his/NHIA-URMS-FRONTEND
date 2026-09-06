@@ -373,9 +373,6 @@ export default function AnnualReportsList({
           <Button variant="ghost" size="icon" onClick={onBack} className="rounded-full shrink-0">
             <ArrowLeft className="w-5 h-5" />
           </Button>
-          <div className="min-w-0">
-            <h2 className="text-xl font-bold tracking-tight">Annual Report</h2>
-          </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <div className="flex rounded-lg border border-slate-200 p-0.5 bg-slate-50">

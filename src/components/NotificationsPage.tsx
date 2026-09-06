@@ -51,21 +51,7 @@ export default function NotificationsPage({ onBack }: Props) {
       exit={{ opacity: 0 }}
       className="relative z-10 flex flex-col h-full"
     >
-      <div className="bg-white border-b border-[#d4e8dc] px-8 py-4 flex items-center justify-between sticky top-0 z-30">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={onBack} className="rounded-full">
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-          <div>
-            <h2 className="text-xl font-bold tracking-tight flex items-center gap-2">
-              <Bell className="w-5 h-5 text-[#25a872]" />
-              Notifications
-              {unread > 0 && (
-                <Badge className="bg-rose-500 text-white text-[10px] px-1.5 py-0">{unread}</Badge>
-              )}
-            </h2>
-          </div>
-        </div>
+      <div className="bg-white border-b border-[#d4e8dc] px-8 py-4 flex items-center justify-end sticky top-0 z-30">
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={markAllRead} disabled={unread === 0} className="gap-2 text-xs">
             <CheckCircle2 className="w-3.5 h-3.5" /> Mark all read

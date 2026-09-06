@@ -60,16 +60,7 @@ export default function ZonalCompose({ onBack, onForward }: ZonalComposeProps) {
       {/* Header & Breadcrumbs */}
       <div className="bg-white border-b border-border/50 px-8 py-4 sticky top-0 z-30">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground font-medium uppercase tracking-wider">
-              <span>Dashboard</span>
-              <ChevronRight className="w-3 h-3" />
-              <span>Review Reports</span>
-              <ChevronRight className="w-3 h-3" />
-              <span className="text-primary">Compose Zonal Report</span>
-            </div>
-            <h2 className="text-xl font-bold tracking-tight">Compose Zonal Report</h2>
-          </div>
+          
           <div className="flex items-center gap-3">
             <Button variant="ghost" onClick={onBack}>Cancel</Button>
             <Button variant="outline" className="gap-2">

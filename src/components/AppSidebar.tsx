@@ -345,7 +345,7 @@ function flattenSdoForNonAdmin(trees: TreeNode[], role: string): TreeNode[] {
   return out;
 }
 
-function getUserDepartmentLabel(
+export function getUserDepartmentLabel(
   user?: import("@/src/store/authSlice").AuthUser,
   role?: string,
 ): string | null {
