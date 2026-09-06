@@ -25,7 +25,7 @@ export const ROUTE_CONFIG: RouteConfig[] = [
   { path: "/sdo/servicom/complaints",     label: "Complaints Management",         module: "SDO", functionality: "Complaints Management"         },
   { path: "/sdo/servicom/satisfaction",   label: "Customer Satisfaction Survey",  module: "SDO", functionality: "Customer Satisfaction Survey"  },
   { path: "/sdo/servicom/comment-card",   label: "Charter Performance",           module: "SDO", functionality: "Charter Performance"           },
-  { path: "/sdo/projects",                label: "Special Project",           module: "SDO",               functionality: "Special Project"           },
+  { path: "/sdo/projects",                label: "SPECIAL PROJECT",           module: "SDO",               functionality: "SPECIAL PROJECT"           },
   { path: "/notifications",               label: "Notifications",             module: "Notifications",     functionality: "Notifications"             },
   { path: "/settings/users",              label: "Users",                     module: "Settings",          functionality: "Users"                     },
   { path: "/settings/privileges",         label: "Privileges",                module: "Settings",          functionality: "Privileges"                },
