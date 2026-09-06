@@ -53,6 +53,21 @@ function buildResponsesPayload(responses: Record<string, string>) {
   });
 }
 
+function scoreTone(score: number, max: number) {
+  const ratio = max > 0 ? score / max : 0;
+  if (ratio >= 0.8) return { bar: "bg-[#25a872]", text: "text-[#145c3f]", chip: "bg-[#e8f5ee] text-[#145c3f] border-[#c6ead7]" };
+  if (ratio >= 0.6) return { bar: "bg-emerald-400", text: "text-emerald-700", chip: "bg-emerald-50 text-emerald-700 border-emerald-200" };
+  if (ratio >= 0.4) return { bar: "bg-amber-400", text: "text-amber-700", chip: "bg-amber-50 text-amber-700 border-amber-200" };
+  return { bar: "bg-rose-400", text: "text-rose-700", chip: "bg-rose-50 text-rose-700 border-rose-200" };
+}
+
+function formatCardDate(value?: string | null) {
+  if (!value) return "—";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return value;
+  return d.toLocaleDateString("en-NG", { day: "2-digit", month: "short", year: "numeric" });
+}
+
 export default function ServicomCommentCardPage({
   onBack,
   defaultStateId,
@@ -66,6 +81,7 @@ export default function ServicomCommentCardPage({
   const [saving, setSaving] = React.useState(false);
   const [zones, setZones] = React.useState<any[]>([]);
   const [filterStates, setFilterStates] = React.useState<any[]>([]);
+  const [formStates, setFormStates] = React.useState<any[]>([]);
   const [f, setF] = React.useState(emptyForm(defaultZoneId, defaultStateId));
 
   const [filterZone, setFilterZone] = React.useState(defaultZoneId ?? "all");
@@ -95,6 +111,10 @@ export default function ServicomCommentCardPage({
     stockApi.getStates(filterZone).then((r) => setFilterStates(r.data)).catch(() => {});
   }, [filterZone, geoLocked]);
 
+  React.useEffect(() => {
+    stockApi.getStates().then((r) => setFormStates(r.data)).catch(() => setFormStates([]));
+  }, []);
+
   const filteredCards = React.useMemo(() => {
     const q = filterSearch.trim().toLowerCase();
     return cards.filter((c) => {
@@ -107,6 +127,29 @@ export default function ServicomCommentCardPage({
       return true;
     });
   }, [cards, filterSearch, filterDate]);
+
+  const questionKpis = React.useMemo(() => {
+    const shortLabels: Record<string, string> = {
+      Q01: "Reception",
+      Q02: "Courteous",
+      Q03: "Professional",
+      Q04: "Prompt",
+      Q05: "Overall",
+    };
+    return COMMENT_CARD_QUESTIONS.map((q) => {
+      let answered = 0;
+      for (const card of filteredCards) {
+        const responses = parseStoredResponses(card.responses);
+        if (responses[q.id]) answered += 1;
+      }
+      return {
+        id: q.id,
+        label: shortLabels[q.id] || q.section,
+        answered,
+        total: filteredCards.length,
+      };
+    });
+  }, [filteredCards]);
 
   const openForm = () => {
     setF(emptyForm(defaultZoneId, defaultStateId));
@@ -135,6 +178,10 @@ export default function ServicomCommentCardPage({
   };
 
   const handleSave = async () => {
+    if (!f.state_id) {
+      toast.error("Please select a State.");
+      return;
+    }
     if (!f.card_date) {
       toast.error("Date is required.");
       return;
@@ -143,14 +190,20 @@ export default function ServicomCommentCardPage({
       toast.error("Please answer all questions.");
       return;
     }
+    const selectedState = formStates.find((s) => String(s.id) === String(f.state_id));
+    const zoneId = f.zone_id || (selectedState?.zone_id != null ? String(selectedState.zone_id) : "");
+    if (!zoneId) {
+      toast.error("Could not resolve zone for the selected state.");
+      return;
+    }
     setSaving(true);
     try {
       const payload = {
         respondent_name: f.respondent_name || undefined,
         organisation: f.organisation || undefined,
         card_date: f.card_date,
-        zone_id: f.zone_id ? Number(f.zone_id) : null,
-        state_id: f.state_id ? Number(f.state_id) : null,
+        zone_id: Number(zoneId),
+        state_id: Number(f.state_id),
         responses: buildResponsesPayload(f.responses),
       };
       if (selected?.id) await servicomApi.updateCommentCard(selected.id, payload);
@@ -176,70 +229,215 @@ export default function ServicomCommentCardPage({
 
   const renderQuestions = (responses: Record<string, string>, readOnly = false, row?: any) => {
     const answered = COMMENT_CARD_QUESTIONS.filter((q) => responses[q.id]).length;
+    const viewScore = readOnly
+      ? {
+          total: Number(row?.total_score) || computeCommentCardScore(responses).total,
+          average: Number(row?.average_score) || computeCommentCardScore(responses).average,
+        }
+      : null;
+
+    if (readOnly) {
+      const avg = viewScore ? Number(viewScore.average) : 0;
+      const avgMax = 5;
+      const avgPct = Math.min(100, Math.round((avg / avgMax) * 100));
+      const avgTone = scoreTone(avg, avgMax);
+      const metaItems = [
+        { label: "State", value: row?.state?.description },
+        { label: "Date", value: formatCardDate(row?.card_date) },
+        { label: "Respondent", value: row?.respondent_name },
+        { label: "Organisation", value: row?.organisation },
+      ].filter((m) => !!m.value);
+
+      return (
+        <div className="space-y-5">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon" onClick={closeSub} className="rounded-full hover:bg-[#e8f5ee]">
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+            <h2 className="text-xl font-bold tracking-tight text-slate-900">Citizens&apos; Comment Card</h2>
+          </div>
+
+          <div className="rounded-3xl border border-[#d4e8dc] bg-white overflow-hidden">
+            <div className="px-5 md:px-7 py-6 bg-[#f6fbf8] border-b border-[#e6f2eb]">
+              <div className="flex flex-col md:flex-row md:items-center gap-6">
+                <div className="flex items-center gap-4 shrink-0">
+                  <div className="relative h-20 w-20">
+                    <svg viewBox="0 0 36 36" className="h-20 w-20 -rotate-90">
+                      <circle cx="18" cy="18" r="15.5" fill="none" stroke="#e8f0eb" strokeWidth="3" />
+                      <circle
+                        cx="18"
+                        cy="18"
+                        r="15.5"
+                        fill="none"
+                        stroke="#25a872"
+                        strokeWidth="3"
+                        strokeLinecap="round"
+                        strokeDasharray={`${avgPct} ${100 - avgPct}`}
+                      />
+                    </svg>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      <span className={`text-xl font-bold tabular-nums leading-none ${avgTone.text}`}>
+                        {avg.toFixed(1)}
+                      </span>
+                      <span className="text-[10px] text-slate-400 mt-0.5">avg</span>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Score</p>
+                    <p className="text-sm text-slate-600 mt-1">
+                      Total <span className="font-bold text-slate-900 tabular-nums">{viewScore?.total ?? 0}</span>
+                      <span className="text-slate-300 mx-1.5">·</span>
+                      {COMMENT_CARD_QUESTIONS.length} questions
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex-1 flex flex-wrap gap-2">
+                  {metaItems.map((m) => (
+                    <div
+                      key={m.label}
+                      className="rounded-2xl border border-[#dcefe4] bg-white px-3.5 py-2.5 min-w-[120px]"
+                    >
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{m.label}</p>
+                      <p className="text-sm font-semibold text-slate-800 mt-0.5">{m.value}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="divide-y divide-slate-100">
+              <div className="hidden md:grid grid-cols-[minmax(0,1.6fr)_minmax(0,0.9fr)_110px] gap-4 px-5 md:px-7 py-3 bg-slate-50/80">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Question</p>
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Answer</p>
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 text-right">Score</p>
+              </div>
+
+              {COMMENT_CARD_QUESTIONS.map((q, i) => {
+                const val = responses[q.id] ?? "";
+                const options = commentCardScaleOptions(q.scale);
+                const max = Number(options[options.length - 1]?.value || 5);
+                const selected = options.find((o) => o.value === val);
+                const answer = selected ? commentCardResponseLabel(selected.label) : "—";
+                const score = val ? Number(val) : null;
+                const tone = score != null ? scoreTone(score, max) : null;
+                const fill = score != null && max ? Math.round((score / max) * 100) : 0;
+
+                return (
+                  <motion.div
+                    key={q.id}
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.04 }}
+                    className="grid grid-cols-1 md:grid-cols-[minmax(0,1.6fr)_minmax(0,0.9fr)_110px] gap-3 md:gap-4 px-5 md:px-7 py-4 hover:bg-[#f8fbf9] transition-colors"
+                  >
+                    <div className="flex items-start gap-3 min-w-0">
+                      <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#e8f5ee] text-xs font-bold text-[#145c3f]">
+                        {i + 1}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-slate-800 leading-snug">{q.question}</p>
+                        <p className="text-[11px] text-slate-400 mt-1">{q.section}</p>
+                      </div>
+                    </div>
+
+                    <div className="md:pt-0.5 pl-10 md:pl-0">
+                      <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${tone?.chip ?? "bg-slate-50 text-slate-500 border-slate-200"}`}>
+                        {answer}
+                      </span>
+                    </div>
+
+                    <div className="pl-10 md:pl-0 md:pt-0.5">
+                      <div className="flex md:flex-col md:items-end gap-2">
+                        <span className={`text-base font-bold tabular-nums leading-none ${tone?.text ?? "text-slate-400"}`}>
+                          {score != null ? score : "—"}
+                          {score != null && <span className="text-[11px] font-medium text-slate-400">/{max}</span>}
+                        </span>
+                        <div className="h-1.5 w-full md:w-20 rounded-full bg-slate-100 overflow-hidden">
+                          <div className={`h-full rounded-full transition-all ${tone?.bar ?? "bg-slate-300"}`} style={{ width: `${fill}%` }} />
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      );
+    }
 
     return (
       <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden">
         <CardHeader className="pb-3 border-b bg-[#f8fbf9]">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <CardTitle className="text-xl font-bold d text-center text-[#145c3f]">Citizens&apos; Comment Card</CardTitle>
-            {!readOnly && (
-              <Badge variant="outline" className="text-[10px] font-semibold bg-white">
-                {answered} / {COMMENT_CARD_QUESTIONS.length} answered
-              </Badge>
-            )}
+            <CardTitle className="text-xl font-bold text-center text-[#145c3f]">Citizens&apos; Comment Card</CardTitle>
+            <Badge variant="outline" className="text-[10px] font-semibold bg-white">
+              {answered} / {COMMENT_CARD_QUESTIONS.length} answered
+            </Badge>
           </div>
         </CardHeader>
         <CardContent className="p-4 md:p-5 space-y-4">
-        {readOnly && row?.reference_id && (
-          <div className="mb-5 pb-4 border-b border-slate-100">
-            <p className="text-[10px] uppercase tracking-wide text-slate-400 font-medium">Response ID</p>
-            <p className="text-sm font-mono font-bold text-primary mt-0.5">{row.reference_id}</p>
-          </div>
-        )}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          <div className="space-y-1.5">
-            <Label className="text-xs text-slate-500">Date *</Label>
-            {readOnly ? (
-              <p className="text-sm font-medium text-slate-800">{row?.card_date}</p>
-            ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            <div className="space-y-1.5">
+              <Label className="text-xs text-slate-500">State *</Label>
+              <Select
+                value={f.state_id}
+                disabled={geoLocked}
+                onValueChange={(v) => {
+                  const st = formStates.find((s) => String(s.id) === v);
+                  setF((p) => ({
+                    ...p,
+                    state_id: v,
+                    zone_id: st?.zone_id != null ? String(st.zone_id) : p.zone_id,
+                  }));
+                }}
+              >
+                <SelectTrigger
+                  className={`w-full ${geoLocked ? "opacity-70 bg-slate-50" : ""}`}
+                  displayValue={pickGeoLabel(formStates, f.state_id, "Select State")}
+                >
+                  <SelectValue placeholder="Select State" />
+                </SelectTrigger>
+                <SelectContent>
+                  {formStates.map((s) => (
+                    <SelectItem key={s.id} value={String(s.id)}>{s.description}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs text-slate-500">Date *</Label>
               <Input
                 type="date"
                 value={f.card_date}
                 onChange={(e) => setF((p) => ({ ...p, card_date: e.target.value }))}
               />
-            )}
-          </div>
+            </div>
 
-          <div className="space-y-1.5">
-            <Label className="text-xs text-slate-500">Respondent Name</Label>
-            {readOnly ? (
-              <p className="text-sm font-medium text-slate-800">{row?.respondent_name || "—"}</p>
-            ) : (
+            <div className="space-y-1.5">
+              <Label className="text-xs text-slate-500">Respondent Name</Label>
               <Input
                 placeholder="Optional"
                 value={f.respondent_name}
                 onChange={(e) => setF((p) => ({ ...p, respondent_name: e.target.value }))}
               />
-            )}
-          </div>
+            </div>
 
-          <div className="space-y-1.5">
-            <Label className="text-xs text-slate-500">Organisation</Label>
-            {readOnly ? (
-              <p className="text-sm font-medium text-slate-800">{row?.organisation || "—"}</p>
-            ) : (
+            <div className="space-y-1.5 md:col-span-2 lg:col-span-3">
+              <Label className="text-xs text-slate-500">Organisation</Label>
               <Input
                 placeholder="Organisation name"
                 value={f.organisation}
                 onChange={(e) => setF((p) => ({ ...p, organisation: e.target.value }))}
               />
-            )}
+            </div>
           </div>
-        </div>
+
           {COMMENT_CARD_QUESTIONS.map((q, i) => {
             const val = responses[q.id] ?? "";
             const options = commentCardScaleOptions(q.scale);
-            const selectedLabel = options.find((o) => o.value === val)?.label;
 
             return (
               <div
@@ -253,65 +451,58 @@ export default function ServicomCommentCardPage({
                     {i + 1}
                   </span>
                   <p className="text-sm font-semibold text-slate-800 leading-snug pt-0.5">{q.question}</p>
-                  {val && !readOnly && (
+                  {val && (
                     <CheckCircle2 className="w-5 h-5 text-[#25a872] shrink-0 ml-auto" />
                   )}
                 </div>
 
-                {readOnly ? (
-                  <p className="pl-10 text-sm font-medium text-[#145c3f]">
-                    {selectedLabel ? commentCardResponseLabel(selectedLabel) : "—"}
-                  </p>
-                ) : (
-                  <fieldset className="pl-10">
-                    <legend className="sr-only">{q.question}</legend>
-                    <div className="flex flex-wrap gap-2">
-                      {options.map((o) => {
-                        const checked = val === o.value;
-                        const display = commentCardResponseLabel(o.label);
-                        return (
-                          <label
-                            key={o.value}
-                            className={`inline-flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-all ${
-                              checked
-                                ? "border-[#25a872] bg-[#e8f5ee] text-[#145c3f] shadow-sm"
-                                : "border-slate-200 bg-white text-slate-600 hover:border-[#d4e8dc] hover:bg-[#f8fbf9]"
+                <fieldset className="pl-10">
+                  <legend className="sr-only">{q.question}</legend>
+                  <div className="flex flex-wrap gap-2">
+                    {options.map((o) => {
+                      const checked = val === o.value;
+                      const display = commentCardResponseLabel(o.label);
+                      return (
+                        <label
+                          key={o.value}
+                          className={`inline-flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-all ${
+                            checked
+                              ? "border-[#25a872] bg-[#e8f5ee] text-[#145c3f] shadow-sm"
+                              : "border-slate-200 bg-white text-slate-600 hover:border-[#d4e8dc] hover:bg-[#f8fbf9]"
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name={`cc-${q.id}`}
+                            value={o.value}
+                            checked={checked}
+                            onChange={() => setResponse(q.id, o.value)}
+                            className="sr-only"
+                          />
+                          <span
+                            className={`h-4 w-4 shrink-0 rounded-full border-2 flex items-center justify-center ${
+                              checked ? "border-[#25a872]" : "border-slate-300"
                             }`}
                           >
-                            <input
-                              type="radio"
-                              name={`cc-${q.id}`}
-                              value={o.value}
-                              checked={checked}
-                              onChange={() => setResponse(q.id, o.value)}
-                              className="sr-only"
-                            />
-                            <span
-                              className={`h-4 w-4 shrink-0 rounded-full border-2 flex items-center justify-center ${
-                                checked ? "border-[#25a872]" : "border-slate-300"
-                              }`}
-                            >
-                              {checked && <span className="h-2 w-2 rounded-full bg-[#25a872]" />}
-                            </span>
-                            {display}
-                          </label>
-                        );
-                      })}
-                    </div>
-                  </fieldset>
-                )}
+                            {checked && <span className="h-2 w-2 rounded-full bg-[#25a872]" />}
+                          </span>
+                          {display}
+                        </label>
+                      );
+                    })}
+                  </div>
+                </fieldset>
               </div>
             );
           })}
-          {!readOnly && (
-            <div className="flex items-center justify-end gap-3 ml-auto">
-              <Button variant="outline" onClick={closeSub}>Cancel</Button>
-              <Button onClick={handleSave} disabled={saving} className="bg-orange-action hover:bg-orange-600 gap-2">
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                Save Record
-              </Button>
-            </div>
-          )}
+
+          <div className="flex items-center justify-end gap-3 ml-auto">
+            <Button variant="outline" onClick={closeSub}>Cancel</Button>
+            <Button onClick={handleSave} disabled={saving} className="bg-orange-action hover:bg-orange-600 gap-2">
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+              Save Record
+            </Button>
+          </div>
         </CardContent>
       </Card>
     );
@@ -370,6 +561,36 @@ export default function ServicomCommentCardPage({
 
       <ScrollArea className="flex-1">
         <div className="w-full px-4 md:px-6 py-4 space-y-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
+            {questionKpis.map((kpi) => {
+              const pct = kpi.total ? Math.round((kpi.answered / kpi.total) * 100) : 0;
+              return (
+                <div
+                  key={kpi.id}
+                  className="rounded-2xl border border-[#d4e8dc] bg-white px-3.5 py-3"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-[11px] font-semibold text-slate-500 truncate pt-0.5">{kpi.label}</p>
+                    <p className="text-xl font-bold tabular-nums text-[#145c3f] leading-none">
+                      {loading ? "—" : kpi.answered}
+                    </p>
+                  </div>
+                  <div className="mt-2.5 flex items-center gap-2">
+                    <div className="h-1 flex-1 rounded-full bg-slate-100 overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-[#25a872] transition-all"
+                        style={{ width: loading ? "0%" : `${pct}%` }}
+                      />
+                    </div>
+                    <span className="text-[10px] font-semibold tabular-nums text-slate-400 w-8 text-right">
+                      {loading ? "—" : `${pct}%`}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
           <Card className="rounded-2xl border-[#d4e8dc]">
             <CardContent className="pt-4 pb-4">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
