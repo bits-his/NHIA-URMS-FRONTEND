@@ -53,6 +53,21 @@ function buildResponsesPayload(responses: Record<string, string>) {
   });
 }
 
+function scoreTone(score: number, max: number) {
+  const ratio = max > 0 ? score / max : 0;
+  if (ratio >= 0.8) return { bar: "bg-[#25a872]", text: "text-[#145c3f]", chip: "bg-[#e8f5ee] text-[#145c3f] border-[#c6ead7]" };
+  if (ratio >= 0.6) return { bar: "bg-emerald-400", text: "text-emerald-700", chip: "bg-emerald-50 text-emerald-700 border-emerald-200" };
+  if (ratio >= 0.4) return { bar: "bg-amber-400", text: "text-amber-700", chip: "bg-amber-50 text-amber-700 border-amber-200" };
+  return { bar: "bg-rose-400", text: "text-rose-700", chip: "bg-rose-50 text-rose-700 border-rose-200" };
+}
+
+function formatCardDate(value?: string | null) {
+  if (!value) return "—";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return value;
+  return d.toLocaleDateString("en-NG", { day: "2-digit", month: "short", year: "numeric" });
+}
+
 export default function ServicomCommentCardPage({
   onBack,
   defaultStateId,
@@ -222,110 +237,132 @@ export default function ServicomCommentCardPage({
       : null;
 
     if (readOnly) {
+      const avg = viewScore ? Number(viewScore.average) : 0;
+      const avgMax = 5;
+      const avgPct = Math.min(100, Math.round((avg / avgMax) * 100));
+      const avgTone = scoreTone(avg, avgMax);
+      const metaItems = [
+        { label: "State", value: row?.state?.description },
+        { label: "Date", value: formatCardDate(row?.card_date) },
+        { label: "Respondent", value: row?.respondent_name },
+        { label: "Organisation", value: row?.organisation },
+      ].filter((m) => !!m.value);
+
       return (
-        <div className="space-y-4">
-          <div className="bg-white border-b border-border/50 px-0 py-1 flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={closeSub} className="rounded-full">
+        <div className="space-y-5">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon" onClick={closeSub} className="rounded-full hover:bg-[#e8f5ee]">
               <ArrowLeft className="w-5 h-5" />
             </Button>
-            <div>
-              <h2 className="text-xl font-bold tracking-tight text-[#145c3f]">Citizens&apos; Comment Card</h2>
-              <p className="text-xs text-muted-foreground">Charter Performance response</p>
-            </div>
+            <h2 className="text-xl font-bold tracking-tight text-slate-900">Citizens&apos; Comment Card</h2>
           </div>
 
-          <Card className="rounded-2xl border-[#d4e8dc] shadow-sm">
-            <CardHeader className="pb-3 border-b bg-[#f8fbf9]">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <CardTitle className="text-sm font-bold text-[#145c3f]">Response Summary</CardTitle>
-                {viewScore && (
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="text-xs font-semibold bg-white">
-                      Total: {viewScore.total}
-                    </Badge>
-                    <Badge className="text-xs font-semibold bg-[#e8f5ee] text-[#145c3f] border-[#d4e8dc]">
-                      Avg: {Number(viewScore.average).toFixed(2)}
-                    </Badge>
+          <div className="rounded-3xl border border-[#d4e8dc] bg-white overflow-hidden">
+            <div className="px-5 md:px-7 py-6 bg-[#f6fbf8] border-b border-[#e6f2eb]">
+              <div className="flex flex-col md:flex-row md:items-center gap-6">
+                <div className="flex items-center gap-4 shrink-0">
+                  <div className="relative h-20 w-20">
+                    <svg viewBox="0 0 36 36" className="h-20 w-20 -rotate-90">
+                      <circle cx="18" cy="18" r="15.5" fill="none" stroke="#e8f0eb" strokeWidth="3" />
+                      <circle
+                        cx="18"
+                        cy="18"
+                        r="15.5"
+                        fill="none"
+                        stroke="#25a872"
+                        strokeWidth="3"
+                        strokeLinecap="round"
+                        strokeDasharray={`${avgPct} ${100 - avgPct}`}
+                      />
+                    </svg>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      <span className={`text-xl font-bold tabular-nums leading-none ${avgTone.text}`}>
+                        {avg.toFixed(1)}
+                      </span>
+                      <span className="text-[10px] text-slate-400 mt-0.5">avg</span>
+                    </div>
                   </div>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent className="pt-5 pb-5">
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-5">
-                <div className="space-y-1">
-                  <p className="text-[10px] uppercase tracking-wide text-slate-400 font-medium">Zone</p>
-                  <p className="text-sm font-semibold text-slate-800">{row?.zone?.description || "—"}</p>
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Score</p>
+                    <p className="text-sm text-slate-600 mt-1">
+                      Total <span className="font-bold text-slate-900 tabular-nums">{viewScore?.total ?? 0}</span>
+                      <span className="text-slate-300 mx-1.5">·</span>
+                      {COMMENT_CARD_QUESTIONS.length} questions
+                    </p>
+                  </div>
                 </div>
-                <div className="space-y-1">
-                  <p className="text-[10px] uppercase tracking-wide text-slate-400 font-medium">State</p>
-                  <p className="text-sm font-semibold text-slate-800">{row?.state?.description || "—"}</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-[10px] uppercase tracking-wide text-slate-400 font-medium">Date</p>
-                  <p className="text-sm font-semibold text-slate-800">{row?.card_date || "—"}</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-[10px] uppercase tracking-wide text-slate-400 font-medium">Respondent</p>
-                  <p className="text-sm font-semibold text-slate-800">{row?.respondent_name || "—"}</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-[10px] uppercase tracking-wide text-slate-400 font-medium">Organisation</p>
-                  <p className="text-sm font-semibold text-slate-800">{row?.organisation || "—"}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
 
-          <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden">
-            <CardHeader className="pb-3 border-b bg-[#f8fbf9]">
-              <CardTitle className="text-sm font-bold text-[#145c3f]">Responses</CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-[#f0fdf7] hover:bg-[#f0fdf7]">
-                      <TableHead className="text-xs font-bold text-slate-600 w-12">#</TableHead>
-                      <TableHead className="text-xs font-bold text-slate-600">Question</TableHead>
-                      <TableHead className="text-xs font-bold text-slate-600">Answer</TableHead>
-                      <TableHead className="text-xs font-bold text-slate-600 text-right w-24">Score</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {COMMENT_CARD_QUESTIONS.map((q, i) => {
-                      const val = responses[q.id] ?? "";
-                      const options = commentCardScaleOptions(q.scale);
-                      const selected = options.find((o) => o.value === val);
-                      const answer = selected ? commentCardResponseLabel(selected.label) : "—";
-                      const score = val ? Number(val) : null;
-
-                      return (
-                        <TableRow key={q.id} className="hover:bg-[#f8fbf9]">
-                          <TableCell className="text-xs text-slate-400 align-top">{i + 1}</TableCell>
-                          <TableCell className="text-sm text-slate-800 align-top">
-                            <p className="font-medium leading-snug">{q.question}</p>
-                            <p className="text-[11px] text-slate-400 mt-1">{q.section}</p>
-                          </TableCell>
-                          <TableCell className="text-sm font-medium text-[#145c3f] align-top">{answer}</TableCell>
-                          <TableCell className="text-sm font-bold text-slate-800 text-right align-top tabular-nums">
-                            {score != null ? score : "—"}
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                    <TableRow className="bg-slate-50 font-bold border-t-2 border-[#d4e8dc]">
-                      <TableCell colSpan={3} className="text-sm text-right text-slate-600">
-                        Total / Average
-                      </TableCell>
-                      <TableCell className="text-sm text-right text-primary tabular-nums">
-                        {viewScore ? `${viewScore.total} / ${Number(viewScore.average).toFixed(2)}` : "—"}
-                      </TableCell>
-                    </TableRow>
-                  </TableBody>
-                </Table>
+                <div className="flex-1 flex flex-wrap gap-2">
+                  {metaItems.map((m) => (
+                    <div
+                      key={m.label}
+                      className="rounded-2xl border border-[#dcefe4] bg-white px-3.5 py-2.5 min-w-[120px]"
+                    >
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{m.label}</p>
+                      <p className="text-sm font-semibold text-slate-800 mt-0.5">{m.value}</p>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+
+            <div className="divide-y divide-slate-100">
+              <div className="hidden md:grid grid-cols-[minmax(0,1.6fr)_minmax(0,0.9fr)_110px] gap-4 px-5 md:px-7 py-3 bg-slate-50/80">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Question</p>
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Answer</p>
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 text-right">Score</p>
+              </div>
+
+              {COMMENT_CARD_QUESTIONS.map((q, i) => {
+                const val = responses[q.id] ?? "";
+                const options = commentCardScaleOptions(q.scale);
+                const max = Number(options[options.length - 1]?.value || 5);
+                const selected = options.find((o) => o.value === val);
+                const answer = selected ? commentCardResponseLabel(selected.label) : "—";
+                const score = val ? Number(val) : null;
+                const tone = score != null ? scoreTone(score, max) : null;
+                const fill = score != null && max ? Math.round((score / max) * 100) : 0;
+
+                return (
+                  <motion.div
+                    key={q.id}
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.04 }}
+                    className="grid grid-cols-1 md:grid-cols-[minmax(0,1.6fr)_minmax(0,0.9fr)_110px] gap-3 md:gap-4 px-5 md:px-7 py-4 hover:bg-[#f8fbf9] transition-colors"
+                  >
+                    <div className="flex items-start gap-3 min-w-0">
+                      <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#e8f5ee] text-xs font-bold text-[#145c3f]">
+                        {i + 1}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-slate-800 leading-snug">{q.question}</p>
+                        <p className="text-[11px] text-slate-400 mt-1">{q.section}</p>
+                      </div>
+                    </div>
+
+                    <div className="md:pt-0.5 pl-10 md:pl-0">
+                      <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${tone?.chip ?? "bg-slate-50 text-slate-500 border-slate-200"}`}>
+                        {answer}
+                      </span>
+                    </div>
+
+                    <div className="pl-10 md:pl-0 md:pt-0.5">
+                      <div className="flex md:flex-col md:items-end gap-2">
+                        <span className={`text-base font-bold tabular-nums leading-none ${tone?.text ?? "text-slate-400"}`}>
+                          {score != null ? score : "—"}
+                          {score != null && <span className="text-[11px] font-medium text-slate-400">/{max}</span>}
+                        </span>
+                        <div className="h-1.5 w-full md:w-20 rounded-full bg-slate-100 overflow-hidden">
+                          <div className={`h-full rounded-full transition-all ${tone?.bar ?? "bg-slate-300"}`} style={{ width: `${fill}%` }} />
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
+          </div>
         </div>
       );
     }
@@ -530,17 +567,25 @@ export default function ServicomCommentCardPage({
               return (
                 <div
                   key={kpi.id}
-                  className="rounded-xl border border-[#d4e8dc] bg-[#f8fbf9] px-3.5 py-2.5"
+                  className="rounded-2xl border border-[#d4e8dc] bg-white px-3.5 py-3"
                 >
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-[11px] font-semibold text-slate-500 truncate">{kpi.label}</p>
-                    <span className="text-[10px] font-semibold tabular-nums text-[#25a872] bg-white border border-[#d4e8dc] rounded-md px-1.5 py-0.5">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-[11px] font-semibold text-slate-500 truncate pt-0.5">{kpi.label}</p>
+                    <p className="text-xl font-bold tabular-nums text-[#145c3f] leading-none">
+                      {loading ? "—" : kpi.answered}
+                    </p>
+                  </div>
+                  <div className="mt-2.5 flex items-center gap-2">
+                    <div className="h-1 flex-1 rounded-full bg-slate-100 overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-[#25a872] transition-all"
+                        style={{ width: loading ? "0%" : `${pct}%` }}
+                      />
+                    </div>
+                    <span className="text-[10px] font-semibold tabular-nums text-slate-400 w-8 text-right">
                       {loading ? "—" : `${pct}%`}
                     </span>
                   </div>
-                  <p className="mt-1 text-xl font-bold tabular-nums text-[#145c3f] leading-none">
-                    {loading ? "—" : kpi.answered}
-                  </p>
                 </div>
               );
             })}
