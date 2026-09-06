@@ -174,7 +174,7 @@ export default function ServicomCommentCardPage({
     // </Card>
   );
 
-  const renderQuestions = (responses: Record<string, string>, readOnly = false) => {
+  const renderQuestions = (responses: Record<string, string>, readOnly = false, row?: any) => {
     const answered = COMMENT_CARD_QUESTIONS.filter((q) => responses[q.id]).length;
 
     return (
@@ -303,13 +303,15 @@ export default function ServicomCommentCardPage({
               </div>
             );
           })}
-           <div className="flex items-center justify-end gap-3 ml-auto">
+          {!readOnly && (
+            <div className="flex items-center justify-end gap-3 ml-auto">
               <Button variant="outline" onClick={closeSub}>Cancel</Button>
               <Button onClick={handleSave} disabled={saving} className="bg-orange-action hover:bg-orange-600 gap-2">
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
                 Save Record
               </Button>
             </div>
+          )}
         </CardContent>
       </Card>
     );
@@ -330,7 +332,7 @@ export default function ServicomCommentCardPage({
         <ScrollArea className="flex-1">
           <div className="w-full px-4 md:px-6 py-4 pb-24 space-y-4">
             {renderDetailsCard(mode === "view", row ?? undefined)}
-            {renderQuestions(responses, mode === "view")}
+            {renderQuestions(responses, mode === "view", row ?? undefined)}
             {mode === "form" && (
           <div>
             <p className="text-xs text-slate-500 hidden sm:block">
