@@ -1006,13 +1006,17 @@ export default function ServicomComplaintsPage({ onBack, defaultStateId, default
 
   return (
     <div className="flex flex-col h-full bg-slate-50/30">
-      <div className="bg-white border-b px-4 md:px-6 py-3 flex items-center justify-end sticky top-0 z-30">
+      <div className="bg-white border-b px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="icon" onClick={onBack} className="rounded-full"><ArrowLeft className="w-5 h-5" /></Button>
+          <h2 className="text-xl font-bold tracking-tight">Complaints Management</h2>
+        </div>
         <div className="flex items-center gap-3">
           <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
           </Button>
           <Button className="bg-orange-action hover:bg-orange-600 gap-2" onClick={openRegister}>
-            <Plus className="w-4 h-4" /> Register Complaint
+            <Plus className="w-4 h-4" /> Register New Complaint
           </Button>
         </div>
       </div>
@@ -1126,7 +1130,20 @@ export default function ServicomComplaintsPage({ onBack, defaultStateId, default
               <div className="flex items-center justify-between gap-3">
                 <CardTitle className="text-sm font-bold flex items-center gap-2 text-[#145c3f]">
                   <MessageSquare className="w-4 h-4" />
-                  {loading ? "Loading..." : `${filtered.length} complaint${filtered.length === 1 ? "" : "s"}`}
+                  {loading ? (
+                    "Loading..."
+                  ) : (
+                    <>
+                      <span className="font-bold text-base">
+                        Complaint{filtered.length === 1 ? "" : "s"} Register
+                      </span>
+                      <span className="text-slate-500 text-sm ml-2">
+                        {filtered.length} Complaint{filtered.length === 1 ? "" : "s"}
+                      </span>
+                    </>
+                  )}
+             
+
                 </CardTitle>
                 {!loading && filtered.length > 0 && (
                   <span className="text-[10px] text-slate-500">Click Manage to continue the lifecycle</span>
