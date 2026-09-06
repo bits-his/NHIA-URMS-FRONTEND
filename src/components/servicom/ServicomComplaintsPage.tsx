@@ -158,7 +158,7 @@ function DerivedTextBlock({ label, value }: { label: string; value?: string | nu
 function SlaHint({ priority, slaRow }: { priority?: string; slaRow: ReturnType<typeof slaForPriority> }) {
   if (!priority || !slaRow) return null;
   return (
-    <div className="md:col-span-2 pt-3 mt-1 border-t border-[#d4e8dc]">
+    <div className="rounded-xl bg-[#f8fbf9] border border-[#d4e8dc] px-3.5 py-3">
       <p className="text-[11px] text-slate-500 leading-relaxed">
         <span className="font-semibold text-[#145c3f]">{priority} priority SLA — </span>
         Acknowledge {slaRow.acknowledge}; investigation commences {slaRow.investigate}; escalate after {slaRow.escalate}; target resolution {slaRow.resolve}.
@@ -593,7 +593,7 @@ export default function ServicomComplaintsPage({ onBack, defaultStateId, default
       ? row?.complaint_type && row.complaint_type !== "HCF"
       : f.complaint_type && f.complaint_type !== "HCF";
     const offenceSelected = isHcf && !!(readOnly ? row?.offence_reference : f.offence_reference);
-    const showReceiptFields = isManualType || offenceSelected;
+    const showAfterOffence = isManualType || offenceSelected;
 
     const priority = readOnly ? row?.priority_rating : f.priority_rating;
     const domain = readOnly ? row?.complaint_domain : f.complaint_domain;
@@ -604,116 +604,162 @@ export default function ServicomComplaintsPage({ onBack, defaultStateId, default
     const slaRow = slaForPriority(priority ?? "", slaRules);
 
     return (
-      <Card className="rounded-2xl border-[#d4e8dc] shadow-sm">
-        <CardHeader className="pb-3 border-b bg-[#f8fbf9]">
-          <CardTitle className="text-xl font-bold text-[#145c3f]">Complaint Registration Form</CardTitle>
+      <Card className="rounded-3xl border-[#d4e8dc] bg-white overflow-hidden shadow-none py-0 gap-0">
+        <CardHeader className="pb-3 pt-4 px-4 md:px-6 border-b border-[#e6f2eb] bg-[#f6fbf8]">
+          <div className="flex items-center gap-2 min-w-0">
+            {!readOnly && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={closeSub}
+                className="rounded-full hover:bg-[#e8f5ee] shrink-0"
+                aria-label="Back"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </Button>
+            )}
+            <CardTitle className="text-base font-bold text-slate-900 tracking-tight">
+              {readOnly ? "Complaint" : "New Complaint"}
+            </CardTitle>
+            {readOnly && row?.complaint_number ? (
+              <Badge variant="outline" className="text-[10px] font-bold bg-white border-[#d4e8dc] text-[#145c3f] ml-auto">
+                {row.complaint_number}
+              </Badge>
+            ) : null}
+          </div>
         </CardHeader>
-        <CardContent className="pt-4 pb-4 grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-3">
-          {readOnly && (
-            <AutoField label="Complaint ID" value={row?.complaint_number} />
-          )}
+        <CardContent className="p-5 md:p-7 space-y-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <FieldText
+              label="Date Received *"
+              type="date"
+              value={dateReceived ?? ""}
+              onChange={(v) => set("date_received", v)}
+              readOnly={readOnly}
+            />
+            {renderGeoFields(readOnly, row)}
 
-          {renderGeoFields(readOnly, row)}
+            <FieldSelect
+              label="Complaint Type *"
+              value={readOnly ? row?.complaint_type : f.complaint_type}
+              options={COMPLAINT_TYPES}
+              readOnly={readOnly}
+              onChange={onComplaintTypeChange}
+            />
+            <FieldSelect
+              label="Complainant Category"
+              value={readOnly ? row?.complainant_category : f.complainant_category}
+              options={COMPLAINANT_CATEGORIES}
+              readOnly={readOnly}
+              onChange={(v) => set("complainant_category", v)}
+            />
+            <FieldSelect
+              label="Respondent Category"
+              value={readOnly ? row?.respondent_category : f.respondent_category}
+              options={RESPONDENT_CATEGORIES}
+              readOnly={readOnly}
+              onChange={(v) => set("respondent_category", v)}
+            />
 
-          <FieldSelect
-            label="Complaint Type"
-            value={readOnly ? row?.complaint_type : f.complaint_type}
-            options={COMPLAINT_TYPES}
-            readOnly={readOnly}
-            onChange={onComplaintTypeChange}
-          />
+            {isHcf && (
+              <div className="md:col-span-2">
+                <FieldSelect
+                  label="Offence / Complaint *"
+                  value={readOnly ? row?.offence_reference : f.offence_reference}
+                  options={HCF_OFFENCE_OPTIONS}
+                  readOnly={readOnly}
+                  onChange={onHcfOffenceChange}
+                  placeholder="Select offence"
+                />
+              </div>
+            )}
 
-          {isHcf && (
-            <div className={geoLocked ? "md:col-span-2" : undefined}>
-              <FieldSelect
-                label="Offence / Complaint"
-                value={readOnly ? row?.offence_reference : f.offence_reference}
-                options={HCF_OFFENCE_OPTIONS}
-                readOnly={readOnly}
-                onChange={onHcfOffenceChange}
-                placeholder="Select offence"
-              />
+            {isManualType && (
+              <>
+                <FieldSelect
+                  label="Domain"
+                  value={domain ?? ""}
+                  options={COMPLAINT_DOMAINS}
+                  readOnly={readOnly}
+                  onChange={(v) => setF((p) => ({ ...p, complaint_domain: v, domain_code: domainCodeFromDomain(v) }))}
+                />
+                <FieldSelect
+                  label="Category"
+                  value={category ?? ""}
+                  options={COMPLAINT_CATEGORIES}
+                  readOnly={readOnly}
+                  onChange={(v) => set("complaint_category", v)}
+                />
+                <FieldSelect
+                  label="Priority Rating"
+                  value={priority ?? ""}
+                  options={PRIORITY_RATINGS}
+                  readOnly={readOnly}
+                  onChange={(v) => set("priority_rating", v)}
+                />
+                {!readOnly && (
+                  <div className="md:col-span-2">
+                    <FieldText
+                      label="Offence *"
+                      value={offenceText ?? ""}
+                      onChange={(v) => set("description", v)}
+                      readOnly={readOnly}
+                    />
+                  </div>
+                )}
+                {readOnly && offenceText && (
+                  <div className="md:col-span-2">
+                    <DerivedTextBlock label="Offence" value={offenceText} />
+                  </div>
+                )}
+              </>
+            )}
+
+            {offenceSelected && (
+              <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-3 rounded-xl bg-[#f8fbf9] border border-[#d4e8dc] px-3 py-2.5">
+                <DerivedField label="Domain" value={domain} />
+                <DerivedField label="Category" value={category} />
+                <DerivedField label="Priority" value={priority} />
+              </div>
+            )}
+
+            {offenceSelected && offenceText && (
+              <div className="md:col-span-2">
+                <DerivedTextBlock label="Offence" value={offenceText} />
+              </div>
+            )}
+
+            {showAfterOffence && (
+              <div className="md:col-span-2">
+                <FieldSelect
+                  label="Transmission Route"
+                  value={transmissionRoute ?? ""}
+                  options={TRANSMISSION_ROUTES}
+                  readOnly={readOnly}
+                  onChange={(v) => set("transmission_route", v)}
+                />
+              </div>
+            )}
+
+            {showAfterOffence && (priority || readOnly) && (
+              <div className="md:col-span-2">
+                <SlaHint priority={priority} slaRow={slaRow} />
+              </div>
+            )}
+          </div>
+
+          {!readOnly && (
+            <div className="flex justify-end pt-2 border-t border-[#e6f2eb]">
+              <Button
+                onClick={handleSaveRegistration}
+                disabled={saving}
+                className="bg-orange-action hover:bg-orange-600 gap-2 rounded-xl shadow-none"
+              >
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                Register Complaint
+              </Button>
             </div>
-          )}
-
-          {isManualType && (
-            <>
-              <FieldSelect
-                label="Domain"
-                value={domain ?? ""}
-                options={COMPLAINT_DOMAINS}
-                readOnly={readOnly}
-                onChange={(v) => setF((p) => ({ ...p, complaint_domain: v, domain_code: domainCodeFromDomain(v) }))}
-              />
-              <FieldSelect
-                label="Category"
-                value={category ?? ""}
-                options={COMPLAINT_CATEGORIES}
-                readOnly={readOnly}
-                onChange={(v) => set("complaint_category", v)}
-              />
-              <FieldSelect
-                label="Priority Rating"
-                value={priority ?? ""}
-                options={PRIORITY_RATINGS}
-                readOnly={readOnly}
-                onChange={(v) => set("priority_rating", v)}
-              />
-            </>
-          )}
-
-          {offenceSelected && (
-            <div className="md:col-span-2 grid grid-cols-2 sm:grid-cols-3 gap-3 rounded-lg bg-[#f8fbf9] border border-[#d4e8dc] px-3 py-2.5">
-              <DerivedField label="Domain" value={domain} />
-              <DerivedField label="Category" value={category} />
-              <DerivedField label="Priority" value={priority} />
-            </div>
-          )}
-
-          {offenceSelected && offenceText && (
-            <div className="md:col-span-2">
-              <DerivedTextBlock label="Offence" value={offenceText} />
-            </div>
-          )}
-
-          {showReceiptFields && (
-            <>
-              <FieldText
-                label="Date Received"
-                type="date"
-                value={dateReceived ?? ""}
-                onChange={(v) => set("date_received", v)}
-                readOnly={readOnly}
-              />
-              <FieldSelect
-                label="Transmission Route"
-                value={transmissionRoute ?? ""}
-                options={TRANSMISSION_ROUTES}
-                readOnly={readOnly}
-                onChange={(v) => set("transmission_route", v)}
-              />
-            </>
-          )}
-
-          {isManualType && !readOnly && (
-            <div className="md:col-span-2">
-              <FieldText
-                label="Offence"
-                value={offenceText ?? ""}
-                onChange={(v) => set("description", v)}
-                readOnly={readOnly}
-              />
-            </div>
-          )}
-
-          {isManualType && readOnly && offenceText && (
-            <div className="md:col-span-2">
-              <DerivedTextBlock label="Offence" value={offenceText} />
-            </div>
-          )}
-
-          {(showReceiptFields || (readOnly && priority)) && (
-            <SlaHint priority={priority} slaRow={slaRow} />
           )}
         </CardContent>
       </Card>
@@ -758,20 +804,6 @@ export default function ServicomComplaintsPage({ onBack, defaultStateId, default
     if (activeStage === "escalation") return renderEscalationSection(readOnly, row);
     return renderResolutionSection(readOnly, row);
   };
-
-  const renderPartiesSection = (readOnly: boolean, row?: any) => (
-    <Card className="rounded-2xl border-[#d4e8dc] shadow-sm">
-      <CardHeader className="pb-3 border-b bg-[#f8fbf9]">
-        <CardTitle className="text-sm font-bold text-[#145c3f]">Complainant & Respondent</CardTitle>
-      </CardHeader>
-      <CardContent className="pt-5 pb-5 grid grid-cols-1 md:grid-cols-2 gap-5">
-        <FieldSelect label="Complainant Category" value={readOnly ? row?.complainant_category : f.complainant_category}
-          options={COMPLAINANT_CATEGORIES} readOnly={readOnly} onChange={(v) => set("complainant_category", v)} />
-        <FieldSelect label="Respondent Category" value={readOnly ? row?.respondent_category : f.respondent_category}
-          options={RESPONDENT_CATEGORIES} readOnly={readOnly} onChange={(v) => set("respondent_category", v)} />
-      </CardContent>
-    </Card>
-  );
 
   const renderInvestigationSection = (readOnly: boolean, row?: any) => (
     <Card className="rounded-2xl border-[#d4e8dc] shadow-sm">
@@ -958,21 +990,12 @@ export default function ServicomComplaintsPage({ onBack, defaultStateId, default
 
   if (mode === "register") {
     return (
-      <div className="flex flex-col h-full bg-slate-50/30">
+      <div key="complaint-register" className="flex flex-col h-full bg-slate-50/30">
         <ScrollArea className="flex-1">
-          <div className="w-full px-4 md:px-6 py-4 pb-24 space-y-4">
+          <div className="w-full px-4 md:px-6 py-4 pb-8">
             {renderComplaintSection(false)}
-            {renderPartiesSection(false)}
           </div>
         </ScrollArea>
-
-        <div className="sticky bottom-0 z-30 bg-white border-t px-4 md:px-6 py-3 flex items-center justify-end gap-3">
-          <Button variant="outline" onClick={closeSub}>Cancel</Button>
-          <Button onClick={handleSaveRegistration} disabled={saving} className="bg-orange-action hover:bg-orange-600 gap-2">
-            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-           Save
-          </Button>
-        </div>
       </div>
     );
   }

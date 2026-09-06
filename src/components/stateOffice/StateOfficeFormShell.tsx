@@ -1,12 +1,9 @@
 import * as React from "react";
-import { ArrowLeft, Save, Send, Loader2 } from "lucide-react";
+import { Save, Send, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { stateOfficeApi } from "@/lib/api";
-import { REPORT_CONFIG } from "./constants";
 import { useStateOfficeHeader } from "./shared/useStateOfficeHeader";
 import ReportBasicInfo from "./shared/ReportBasicInfo";
 
@@ -24,13 +21,16 @@ interface Props {
   validate?: () => string | null;
   reportType: keyof typeof stateOfficeApi;
   onLoaded?: (data: any) => void;
+  /** Optional reporting week for weekly-actionable forms */
+  reportWeek?: string;
+  setReportWeek?: (v: string) => void;
 }
 
 export default function StateOfficeFormShell({
   reportId, onBack, defaultZoneId, defaultStateId, children,
   buildPayload, validate, reportType, onLoaded,
+  reportWeek, setReportWeek,
 }: Props) {
-  const cfg = REPORT_CONFIG[reportType];
   const api = stateOfficeApi[reportType];
   const header = useStateOfficeHeader(defaultZoneId, defaultStateId);
 
@@ -70,6 +70,7 @@ export default function StateOfficeFormShell({
   const persist = async (status: "draft" | "submitted") => {
     const headerErr = header.validateHeader();
     if (headerErr) { toast.error(headerErr); return; }
+    if (setReportWeek && !reportWeek) { toast.error("Please select a Reporting Week"); return; }
     const extraErr = validate?.();
     if (extraErr) { toast.error(extraErr); return; }
 
@@ -88,6 +89,7 @@ export default function StateOfficeFormShell({
       toast.success(status === "draft" ? "Draft saved" : "Report submitted", {
         description: `Ref: ${res.data.reference_id}`,
       });
+      if (status === "submitted") onBack();
     } catch (err: any) {
       toast.error(status === "draft" ? "Save failed" : "Submission failed", { description: err.message });
     } finally { setter(false); }
@@ -95,37 +97,47 @@ export default function StateOfficeFormShell({
 
   return (
     <div className="flex flex-col h-full bg-slate-50/30">
-      <div className="bg-white border-b border-border/50 px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30">
-        <Button variant="ghost" size="icon" onClick={onBack} className="rounded-full">
-          <ArrowLeft className="w-5 h-5" />
-        </Button>
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" onClick={() => persist("draft")} disabled={saving} className="gap-2">
-            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-            Save Draft
-          </Button>
-          <Separator orientation="vertical" className="h-6" />
-          <Button className="bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20"
-            onClick={() => persist("submitted")} disabled={submitting}>
-            {submitting ? <><Loader2 className="w-4 h-4 animate-spin" /> Submitting...</> : <><Send className="w-4 h-4" /> Submit</>}
-          </Button>
-        </div>
-      </div>
-
       <ScrollArea className="flex-1">
-        <div className="w-full px-4 md:px-6 py-4 space-y-4 pb-8">
+        <div className="w-full px-4 md:px-6 py-4 space-y-4 pb-28">
           {loadingRecord ? (
             <div className="flex items-center justify-center py-24 gap-3 text-slate-400">
               <Loader2 className="w-6 h-6 animate-spin" /><span className="text-sm">Loading report...</span>
             </div>
           ) : (
             <>
-              <ReportBasicInfo {...header} lockZone={header.lockZone} lockState={header.lockState} />
+              <ReportBasicInfo
+                {...header}
+                lockZone={header.lockZone}
+                lockState={header.lockState}
+                reportWeek={reportWeek}
+                setReportWeek={setReportWeek}
+              />
               {children({ saving, submitting, savedId })}
             </>
           )}
         </div>
       </ScrollArea>
+
+      {!loadingRecord && (
+        <div className="sticky bottom-0 z-30 bg-white border-t border-border/50 px-4 md:px-6 py-3 flex flex-wrap items-center justify-end gap-3">
+          <Button variant="outline" onClick={onBack}>
+            Cancel
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => persist("draft")} disabled={saving} className="gap-2">
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            Save Draft
+          </Button>
+          <Button
+            className="bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20"
+            onClick={() => persist("submitted")}
+            disabled={submitting}
+          >
+            {submitting
+              ? <><Loader2 className="w-4 h-4 animate-spin" /> Submitting...</>
+              : <><Send className="w-4 h-4" /> Submit</>}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

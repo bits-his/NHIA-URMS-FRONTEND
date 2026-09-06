@@ -201,7 +201,7 @@ export const MODULE_CONFIG: ParentModule[] = [
       ]},
       { type: "group", label: "SOC/ZONES", children: [] },
       { type: "group", label: "SPECIAL PROJECT", children: [
-        { title: "Special Project", view: "special-projects", path: "/sdo/projects" },
+        { title: "SPECIAL PROJECT", view: "special-projects", path: "/sdo/projects" },
       ]},
     ],
   },

@@ -320,11 +320,7 @@ export default function SshiaFinancialReportPage({
           <>
             <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
               <Card className="rounded-2xl border-[#d4e8dc]">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base">Basic Information</CardTitle>
-                  <CardDescription>State, zone, and reporting period for this submission.</CardDescription>
-                </CardHeader>
-                <CardContent>
+                <CardContent className="pt-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                     <div className="space-y-2">
                       <Label>Zone <span className="text-red-500">*</span></Label>

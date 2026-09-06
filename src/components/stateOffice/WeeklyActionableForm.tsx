@@ -36,14 +36,7 @@ const USER_DEPARTMENTS = [
   { value: "State",           label: "State Office"                     },
 ];
 
-// Every month has 4 weeks
-const WEEKS_OF_MONTH = [
-  { value: "1", label: "Week 1  (1st – 7th)"   },
-  { value: "2", label: "Week 2  (8th – 14th)"  },
-  { value: "3", label: "Week 3  (15th – 21st)" },
-  { value: "4", label: "Week 4  (22nd – 31st)" },
-];
-
+// Every month has 4 weeks — week options live in ReportBasicInfo
 const STATUS_BADGE: Record<string, string> = {
   escalated:             "bg-rose-100 text-rose-700 border-rose-200",
   awaiting_further_info: "bg-amber-100 text-amber-700 border-amber-200",
@@ -87,7 +80,6 @@ const blankEntry = (): Omit<ActionableLine, "_key" | "priority_level"> => ({
 export default function WeeklyActionableForm({ reportId, onBack, defaultZoneId, defaultStateId }: Props) {
   const [lines, setLines] = React.useState<ActionableLine[]>([]);
   const [entry, setEntry] = React.useState(blankEntry());
-  // Week of month — stored separately from the shell's reporting_month
   const [reportingWeek, setReportingWeek] = React.useState("1");
 
   // Priority auto-derived from selected department
@@ -129,6 +121,8 @@ export default function WeeklyActionableForm({ reportId, onBack, defaultZoneId, 
       defaultZoneId={defaultZoneId}
       defaultStateId={defaultStateId}
       onLoaded={loadData}
+      reportWeek={reportingWeek}
+      setReportWeek={setReportingWeek}
       validate={() => lines.length === 0 ? "Add at least one actionable item" : null}
       buildPayload={(base) => ({
         ...base,
@@ -138,43 +132,11 @@ export default function WeeklyActionableForm({ reportId, onBack, defaultZoneId, 
     >
       {() => (
         <div className="space-y-4">
-
-          {/* ── Week selector ── */}
-          <Card className="rounded-2xl border-[#d4e8dc]">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">Reporting Week</CardTitle>
-              <CardDescription>
-                Select which week of the reporting month this actionable covers.
-                Every month is divided into 4 weeks.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="max-w-xs space-y-1">
-                <Label>Week of Month <span className="text-red-500">*</span></Label>
-                <Select value={reportingWeek} onValueChange={setReportingWeek}>
-                  <SelectTrigger
-                    displayValue={WEEKS_OF_MONTH.find(w => w.value === reportingWeek)?.label ?? "Select Week"}
-                  >
-                    <SelectValue placeholder="Select Week" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {WEEKS_OF_MONTH.map(w => (
-                      <SelectItem key={w.value} value={w.value}>{w.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </CardContent>
-          </Card>
-
           {/* ── Actionable items ── */}
           <Card className="rounded-2xl border-[#d4e8dc]">
             <CardHeader className="pb-2">
-              <CardTitle className="text-base">Actionable Points</CardTitle>
-              <CardDescription>
-                Record issues / requests from SOC/Zonal offices. Priority Level is
-                auto-populated from the User Department you select.
-              </CardDescription>
+              <CardTitle className="text-xl font-bold text-[#145c3f]">Actionable Points</CardTitle>
+           
             </CardHeader>
             <CardContent className="space-y-5">
 

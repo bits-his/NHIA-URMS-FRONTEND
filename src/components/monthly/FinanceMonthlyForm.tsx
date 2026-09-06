@@ -62,7 +62,8 @@ export default function FinanceMonthlyForm({ onBack, defaultZoneId, defaultState
         ? await monthlyApi.finance.update(savedId, buildPayload("submitted"))
         : await monthlyApi.finance.create(buildPayload("submitted"));
       setRefId(res.data.reference_id);
-      toast.success("Report submitted", { description: `Ref: ${res.data.reference_id}` }); onSubmitted?.();
+      toast.success("Report submitted", { description: `Ref: ${res.data.reference_id}` });
+      (onSubmitted ?? onBack)();
     } catch (err: any) { toast.error("Submission failed", { description: err.message }); }
     finally { setIsSubmitting(false); }
   };

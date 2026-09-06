@@ -63,7 +63,8 @@ export default function OutreachMonthlyForm({ onBack, defaultZoneId, defaultStat
         ? await monthlyApi.programmes.update(savedId, buildPayload("submitted"))
         : await monthlyApi.programmes.create(buildPayload("submitted"));
       setRefId(res.data.reference_id);
-      toast.success("Report submitted", { description: `Ref: ${res.data.reference_id}` }); onSubmitted?.();
+      toast.success("Report submitted", { description: `Ref: ${res.data.reference_id}` });
+      (onSubmitted ?? onBack)();
     } catch (err: any) { toast.error("Submission failed", { description: err.message }); }
     finally { setIsSubmitting(false); }
   };

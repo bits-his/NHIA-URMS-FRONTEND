@@ -4,7 +4,7 @@ import {
 } from "lucide-react";
 import { motion } from "motion/react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -222,12 +222,25 @@ export default function StateOfficeComplaintsPage({ onBack, defaultStateId, defa
       <div className="flex flex-col h-full bg-slate-50/30">
         <ScrollArea className="flex-1">
           <div className="w-full px-4 md:px-6 py-4 pb-24">
-            <Card className="rounded-2xl border-[#d4e8dc] w-full overflow-visible">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm">New Complaint</CardTitle>
-                <CardDescription>Reporting period: {monthLabel(filterMonth)} {filterYear}</CardDescription>
+            <Card className="rounded-2xl border-[#d4e8dc] w-full overflow-visible py-0 gap-0">
+              <CardHeader className="pb-3 pt-4 px-4 md:px-6 border-b border-[#e6f2eb] bg-[#f6fbf8]">
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setMode("dashboard")}
+                    className="rounded-full hover:bg-[#e8f5ee] shrink-0"
+                    aria-label="Back"
+                  >
+                    <ArrowLeft className="w-5 h-5" />
+                  </Button>
+                  <CardTitle className="text-base font-bold text-slate-900 tracking-tight">
+                    New Complaint
+                  </CardTitle>
+                </div>
               </CardHeader>
-              <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4 p-5 md:p-6">
                 <div className="space-y-2">
                   <Label>Zone *</Label>
                   <Select

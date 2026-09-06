@@ -391,11 +391,13 @@ function NavTreeItem({
   node,
   currentView,
   setView,
+  role,
   depth = 0,
 }: {
   node: TreeNode;
   currentView: View;
   setView: (v: View) => void;
+  role: string;
   depth?: number;
 }) {
   const location = useLocation();
@@ -411,11 +413,13 @@ function NavTreeItem({
     const path = node.path || VIEW_TO_PATH[node.view || ""] || "/";
     const isActive = location.pathname === path || currentView === node.view;
     const LeafIcon = ICON_MAP[node.title] || File;
+    const label =
+      role === "sdo" && node.title === "Dashboard" ? "SDO Dashboard" : node.title;
 
     return (
       <SidebarMenuButton
         isActive={isActive}
-        tooltip={node.title}
+        tooltip={label}
         className={navItemClass}
         render={
           <NavLink
@@ -428,23 +432,25 @@ function NavTreeItem({
         }
       >
         <LeafIcon className="mt-0.5" />
-        <span>{node.title}</span>
+        <span>{label}</span>
       </SidebarMenuButton>
     );
   }
 
   const FolderIcon = ICON_MAP[node.title] || Folder;
+  const folderLabel =
+    role === "sdo" && node.title === "Dashboard" ? "SDO Dashboard" : node.title;
 
   return (
     <SidebarMenuItem>
       <Collapsible open={open} onOpenChange={setOpen} className="group/collapsible w-full">
         <CollapsibleTrigger
           render={
-            <SidebarMenuButton tooltip={node.title} className={navItemClass} />
+            <SidebarMenuButton tooltip={folderLabel} className={navItemClass} />
           }
         >
           <FolderIcon className="mt-0.5" />
-          <span className="flex-1 text-left">{node.title}</span>
+          <span className="flex-1 text-left">{folderLabel}</span>
           <ChevronRight
             className={`mt-0.5 ml-auto shrink-0 transition-transform duration-200 ${
               open ? "rotate-90" : "rotate-0"
@@ -459,6 +465,7 @@ function NavTreeItem({
                 node={child}
                 currentView={currentView}
                 setView={setView}
+                role={role}
                 depth={depth + 1}
               />
             ))}
@@ -524,6 +531,7 @@ function NavMain({
               node={node}
               currentView={currentView}
               setView={setView}
+              role={role}
             />
           ))}
         </SidebarMenu>

@@ -1,8 +1,15 @@
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MONTHS, monthLabel, labelOf } from "../constants";
+
+export const WEEKS_OF_MONTH = [
+  { value: "1", label: "Week 1  (1st – 7th)" },
+  { value: "2", label: "Week 2  (8th – 14th)" },
+  { value: "3", label: "Week 3  (15th – 21st)" },
+  { value: "4", label: "Week 4  (22nd – 31st)" },
+];
 
 interface Props {
   zones: { id: number; label: string }[];
@@ -14,24 +21,26 @@ interface Props {
   submitDate: string; setSubmitDate: (v: string) => void;
   lockZone?: boolean;
   lockState?: boolean;
+  /** When provided, shows Reporting Week in the basic info grid */
+  reportWeek?: string;
+  setReportWeek?: (v: string) => void;
 }
 
 export default function ReportBasicInfo({
   zones, states, zoneId, setZoneId, stateId, setStateId,
   reportYear, setReportYear, reportMonth, setReportMonth, submitDate, setSubmitDate,
   lockZone, lockState,
+  reportWeek, setReportWeek,
 }: Props) {
   const zoneLabel  = labelOf(zones.map(z => ({ value: String(z.id), label: z.label })), zoneId, "—");
   const stateLabel = labelOf(states.map(s => ({ value: String(s.id), label: s.label })), stateId, "—");
+  const showWeek = reportWeek !== undefined && setReportWeek !== undefined;
+  const weekLabel = WEEKS_OF_MONTH.find(w => w.value === reportWeek)?.label ?? "Select Week";
 
   return (
     <Card className="rounded-2xl border-[#d4e8dc]">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-base">Basic Information</CardTitle>
-        <CardDescription>State, zone, and reporting period for this submission.</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+      <CardContent className="pt-6">
+        <div className={`grid grid-cols-1 md:grid-cols-2 ${showWeek ? "lg:grid-cols-3" : "lg:grid-cols-5"} gap-4`}>
           <div className="space-y-2">
             <Label>Zone <span className="text-red-500">*</span></Label>
             <Select value={zoneId} onValueChange={setZoneId} disabled={lockZone}>
@@ -69,10 +78,26 @@ export default function ReportBasicInfo({
               </SelectContent>
             </Select>
           </div>
+          {showWeek && (
+            <div className="space-y-2">
+              <Label>Reporting Week <span className="text-red-500">*</span></Label>
+              <Select value={reportWeek} onValueChange={setReportWeek}>
+                <SelectTrigger className="w-full" displayValue={weekLabel}>
+                  <SelectValue placeholder="Select Week" />
+                </SelectTrigger>
+                <SelectContent>
+                  {WEEKS_OF_MONTH.map(w => (
+                    <SelectItem key={w.value} value={w.value}>{w.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <div className="space-y-2">
             <Label>Reporting Year <span className="text-red-500">*</span></Label>
             <Input type="number" min="2000" max="2100" value={reportYear} onChange={e => setReportYear(e.target.value)} />
           </div>
+       
         </div>
       </CardContent>
     </Card>

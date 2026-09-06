@@ -92,7 +92,7 @@ export function normalizeFunctionalityTitle(title: string, moduleTitle?: string)
 
     if (title === "Stock Verification") return "Physical Asset Verification";
 
-    if (title === "Special Projects") return "Special Project";
+    if (title === "Special Projects" || title === "Special Project") return "SPECIAL PROJECT";
 
   }
 
@@ -128,7 +128,7 @@ export function normalizeFunctionalityTitle(title: string, moduleTitle?: string)
 
     if (title === "Overview" || title === "Statistics") return "Dashboard";
 
-    if (title === "Special Projects") return "Special Project";
+    if (title === "Special Projects" || title === "Special Project") return "SPECIAL PROJECT";
 
   }
 
