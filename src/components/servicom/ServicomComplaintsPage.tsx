@@ -655,6 +655,13 @@ export default function ServicomComplaintsPage({ onBack, defaultStateId, default
               onChange={(v) => set("complainant_category", v)}
             />
             <FieldSelect
+              label="Transmission Route"
+              value={transmissionRoute ?? ""}
+              options={TRANSMISSION_ROUTES}
+              readOnly={readOnly}
+              onChange={(v) => set("transmission_route", v)}
+            />
+            <FieldSelect
               label="Respondent Category"
               value={readOnly ? row?.respondent_category : f.respondent_category}
               options={RESPONDENT_CATEGORIES}
@@ -727,18 +734,6 @@ export default function ServicomComplaintsPage({ onBack, defaultStateId, default
             {offenceSelected && offenceText && (
               <div className="md:col-span-2">
                 <DerivedTextBlock label="Offence" value={offenceText} />
-              </div>
-            )}
-
-            {showAfterOffence && (
-              <div className="md:col-span-2">
-                <FieldSelect
-                  label="Transmission Route"
-                  value={transmissionRoute ?? ""}
-                  options={TRANSMISSION_ROUTES}
-                  readOnly={readOnly}
-                  onChange={(v) => set("transmission_route", v)}
-                />
               </div>
             )}
 
