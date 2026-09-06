@@ -606,7 +606,7 @@ export default function ServicomComplaintsPage({ onBack, defaultStateId, default
     return (
       <Card className="rounded-2xl border-[#d4e8dc] shadow-sm">
         <CardHeader className="pb-3 border-b bg-[#f8fbf9]">
-          <CardTitle className="text-sm font-bold text-[#145c3f]">Complaint</CardTitle>
+          <CardTitle className="text-xl font-bold text-[#145c3f]">Complaint Registration Form</CardTitle>
         </CardHeader>
         <CardContent className="pt-4 pb-4 grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-3">
           {readOnly && (
@@ -970,7 +970,7 @@ export default function ServicomComplaintsPage({ onBack, defaultStateId, default
           <Button variant="outline" onClick={closeSub}>Cancel</Button>
           <Button onClick={handleSaveRegistration} disabled={saving} className="bg-orange-action hover:bg-orange-600 gap-2">
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-            Register Complaint
+           Save
           </Button>
         </div>
       </div>
@@ -1166,7 +1166,7 @@ export default function ServicomComplaintsPage({ onBack, defaultStateId, default
                     <p className="text-xs text-slate-400 mt-1">Register a new complaint or adjust your filters</p>
                   </div>
                   <Button className="bg-orange-action hover:bg-orange-600 gap-2" onClick={openRegister}>
-                    <Plus className="w-4 h-4" /> Register Complaint
+                    <Plus className="w-4 h-4" /> Register  Complaint
                   </Button>
                 </div>
               ) : (
