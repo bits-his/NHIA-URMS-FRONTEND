@@ -650,7 +650,7 @@ export default function ServicomComplaintsPage({
         startingInvestigation = !selected.investigation_start_date;
         payload = {
           officer_assigned: f.officer_assigned,
-          investigation_start_date: f.investigation_start_date || today,
+          investigation_start_date: f.investigation_start_date || selected.investigation_start_date || today,
           status: startingInvestigation ? "Under Investigation" : f.status,
           actions_taken: f.actions_taken || (startingInvestigation ? "Investigation commenced" : null),
           actions_details: f.actions_details || null,
@@ -684,11 +684,7 @@ export default function ServicomComplaintsPage({
         };
       }
       await servicomApi.updateComplaint(selected.id, payload);
-      toast.success(
-        stage === "investigation" && startingInvestigation
-          ? "Investigation started"
-          : `${lifecycleStageLabel(stage)} updated`,
-      );
+      toast.success(`${lifecycleStageLabel(stage)} submitted`);
       await refreshSelected();
       load();
     } catch (err: any) {
@@ -1122,6 +1118,83 @@ export default function ServicomComplaintsPage({
     );
   };
 
+  const renderEscalationFields = (readOnly: boolean, row?: any) => (
+    <>
+      {readOnly ? (
+        <div className="space-y-1.5">
+          <Label className="text-xs text-slate-500">Escalated</Label>
+          <Badge variant="outline">{row?.escalated ? "Yes" : "No"}</Badge>
+        </div>
+      ) : (
+        <FieldSelect label="Escalated" value={f.escalated ? "yes" : "no"}
+          options={[{ value: "no", label: "No" }, { value: "yes", label: "Yes" }]}
+          onChange={(v) => set("escalated", v === "yes")} />
+      )}
+      <FieldSelect label="Escalation Level" value={readOnly ? row?.escalation_level : f.escalation_level}
+        options={ESCALATION_LEVELS} readOnly={readOnly} onChange={(v) => set("escalation_level", v)} />
+      <FieldText label="Escalation Date" type="date" value={readOnly ? row?.escalation_date : f.escalation_date}
+        onChange={(v) => set("escalation_date", v)} readOnly={readOnly} />
+      {readOnly || !officerOptions.length ? (
+        <FieldSelect label="Escalated To" value={readOnly ? row?.escalated_to : f.escalated_to}
+          options={ESCALATED_TO} readOnly={readOnly}
+          onChange={(v) => set("escalated_to", v)} />
+      ) : (
+        <FieldSelect
+          label="Escalated To"
+          value={readOnly ? row?.escalated_to : f.escalated_to}
+          options={[
+            ...officerOptions,
+            ...ESCALATED_TO.filter((o) => !officerOptions.some((p) => p.value === o.value)),
+          ]}
+          readOnly={readOnly}
+          onChange={(v) => set("escalated_to", v)}
+          placeholder="Select officer or authority"
+        />
+      )}
+    </>
+  );
+
+  const renderResolutionFields = (readOnly: boolean, row?: any) => {
+    const preview = readOnly
+      ? { resolution_days: row?.resolution_days, resolution_within_sla: row?.resolution_within_sla }
+      : resolutionPreview;
+    const slaLabel = preview.resolution_within_sla == null
+      ? ""
+      : preview.resolution_within_sla ? "Yes" : "No";
+
+    return (
+      <>
+        {readOnly ? (
+          <>
+            <AutoField label="Resolution Days" value={preview.resolution_days} />
+            <div className="space-y-1.5">
+              <Label className="text-xs text-slate-500">Within SLA</Label>
+              <Badge variant="outline" className={preview.resolution_within_sla ? "text-emerald-700" : "text-rose-700"}>
+                {preview.resolution_within_sla == null ? "—" : preview.resolution_within_sla ? "Yes" : "No"}
+              </Badge>
+            </div>
+          </>
+        ) : (
+          <>
+            <DisabledInput
+              label="Resolution Days"
+              value={preview.resolution_days != null ? String(preview.resolution_days) : ""}
+            />
+            <DisabledInput label="Resolution Within SLA" value={slaLabel} />
+          </>
+        )}
+        <FieldText label="Date Closed" type="date" value={readOnly ? (row?.date_closed ?? row?.resolution_date) : f.date_closed}
+          onChange={(v) => set("date_closed", v)} readOnly={readOnly} max={readOnly ? undefined : today} />
+        <FieldSelect label="Outcome" value={readOnly ? row?.outcome : f.outcome}
+          options={COMPLAINT_OUTCOMES} readOnly={readOnly} onChange={(v) => set("outcome", v)} />
+        <div className="col-span-full">
+          <FieldText label="Remarks" value={readOnly ? (row?.remarks ?? row?.resolution_notes) : f.remarks}
+            onChange={(v) => set("remarks", v)} readOnly={readOnly} />
+        </div>
+      </>
+    );
+  };
+
   const renderInvestigationSection = (readOnly: boolean, row?: any, actionLabel?: string | null) => {
     const started = !!(readOnly ? row?.investigation_start_date : f.investigation_start_date)
       || ["Under Investigation", "Awaiting Information", "Awaiting Respondent Action"].includes(
@@ -1134,7 +1207,7 @@ export default function ServicomComplaintsPage({
           {!readOnly && !started && (
             <div className="col-span-full rounded-xl border border-amber-200/80 bg-amber-50/80 px-4 py-3.5">
               <p className="text-sm text-amber-950 leading-relaxed">
-                Investigation has not started. Use <span className="font-semibold">Start Investigation</span> below when you are ready to begin.
+                Investigation has not started. Click <span className="font-semibold">Submit</span> below when you are ready to begin.
               </p>
             </div>
           )}
@@ -1176,37 +1249,7 @@ export default function ServicomComplaintsPage({
   const renderEscalationSection = (readOnly: boolean, row?: any, actionLabel?: string | null) => (
     <Card className="rounded-2xl border-[#d4e8dc] bg-white shadow-sm w-full py-0 gap-0">
       <CardContent className="p-6 md:p-8 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
-        {readOnly ? (
-          <div className="space-y-1.5">
-            <Label className="text-xs text-slate-500">Escalated</Label>
-            <Badge variant="outline">{row?.escalated ? "Yes" : "No"}</Badge>
-          </div>
-        ) : (
-          <FieldSelect label="Escalated" value={f.escalated ? "yes" : "no"}
-            options={[{ value: "no", label: "No" }, { value: "yes", label: "Yes" }]}
-            onChange={(v) => set("escalated", v === "yes")} />
-        )}
-        <FieldSelect label="Escalation Level" value={readOnly ? row?.escalation_level : f.escalation_level}
-          options={ESCALATION_LEVELS} readOnly={readOnly} onChange={(v) => set("escalation_level", v)} />
-        <FieldText label="Escalation Date" type="date" value={readOnly ? row?.escalation_date : f.escalation_date}
-          onChange={(v) => set("escalation_date", v)} readOnly={readOnly} />
-        {readOnly || !officerOptions.length ? (
-          <FieldSelect label="Escalated To" value={readOnly ? row?.escalated_to : f.escalated_to}
-            options={ESCALATED_TO} readOnly={readOnly}
-            onChange={(v) => set("escalated_to", v)} />
-        ) : (
-          <FieldSelect
-            label="Escalated To"
-            value={readOnly ? row?.escalated_to : f.escalated_to}
-            options={[
-              ...officerOptions,
-              ...ESCALATED_TO.filter((o) => !officerOptions.some((p) => p.value === o.value)),
-            ]}
-            readOnly={readOnly}
-            onChange={(v) => set("escalated_to", v)}
-            placeholder="Select officer or authority"
-          />
-        )}
+        {renderEscalationFields(readOnly, row)}
       </CardContent>
       {actionLabel && (
         <StageActionFooter
@@ -1218,45 +1261,10 @@ export default function ServicomComplaintsPage({
     </Card>
   );
 
-  const renderResolutionSection = (readOnly: boolean, row?: any, actionLabel?: string | null) => {
-    const preview = readOnly
-      ? { resolution_days: row?.resolution_days, resolution_within_sla: row?.resolution_within_sla }
-      : resolutionPreview;
-
-    const slaLabel = preview.resolution_within_sla == null
-      ? ""
-      : preview.resolution_within_sla ? "Yes" : "No";
-
-    return (
+  const renderResolutionSection = (readOnly: boolean, row?: any, actionLabel?: string | null) => (
     <Card className="rounded-2xl border-[#d4e8dc] bg-white shadow-sm w-full py-0 gap-0">
       <CardContent className="p-6 md:p-8 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
-        {readOnly ? (
-          <>
-            <AutoField label="Resolution Days" value={preview.resolution_days} />
-            <div className="space-y-1.5">
-              <Label className="text-xs text-slate-500">Within SLA</Label>
-              <Badge variant="outline" className={preview.resolution_within_sla ? "text-emerald-700" : "text-rose-700"}>
-                {preview.resolution_within_sla == null ? "—" : preview.resolution_within_sla ? "Yes" : "No"}
-              </Badge>
-            </div>
-          </>
-        ) : (
-          <>
-            <DisabledInput
-              label="Resolution Days"
-              value={preview.resolution_days != null ? String(preview.resolution_days) : ""}
-            />
-            <DisabledInput label="Resolution Within SLA" value={slaLabel} />
-          </>
-        )}
-        <FieldText label="Date Closed" type="date" value={readOnly ? (row?.date_closed ?? row?.resolution_date) : f.date_closed}
-          onChange={(v) => set("date_closed", v)} readOnly={readOnly} max={readOnly ? undefined : today} />
-        <FieldSelect label="Outcome" value={readOnly ? row?.outcome : f.outcome}
-          options={COMPLAINT_OUTCOMES} readOnly={readOnly} onChange={(v) => set("outcome", v)} />
-        <div className="col-span-full">
-          <FieldText label="Remarks" value={readOnly ? (row?.remarks ?? row?.resolution_notes) : f.remarks}
-            onChange={(v) => set("remarks", v)} readOnly={readOnly} />
-        </div>
+        {renderResolutionFields(readOnly, row)}
       </CardContent>
       {actionLabel && (
         <StageActionFooter
@@ -1266,13 +1274,12 @@ export default function ServicomComplaintsPage({
         />
       )}
     </Card>
-    );
-  };
+  );
 
   const renderStageContent = (row?: any) => {
     const closed = isComplaintClosed(row?.status);
     const readOnly = closed || activeStage === "registration";
-    const actionLabel = row && !readOnly ? getStageActionLabel(row, activeStage) : null;
+    const actionLabel = row && !readOnly ? "Submit" : null;
     return renderActiveStageForm(row, readOnly, actionLabel);
   };
 
@@ -1305,22 +1312,6 @@ export default function ServicomComplaintsPage({
         })}
       </div>
     );
-  };
-
-  const getStageActionLabel = (row: any, stage: LifecycleStage): string | null => {
-    if (stage === "registration" || isComplaintClosed(row?.status)) return null;
-    if (stage === "investigation") {
-      const started = !!(row?.investigation_start_date
-        || ["Under Investigation", "Awaiting Information", "Awaiting Respondent Action"].includes(row?.status ?? ""));
-      return started ? "Update" : "Start Investigation";
-    }
-    if (stage === "escalation") {
-      return row?.escalated || row?.escalation_date ? "Update" : "Save Escalation";
-    }
-    if (stage === "resolution") {
-      return row?.date_closed || row?.outcome ? "Update" : "Close Complaint";
-    }
-    return "Update";
   };
 
   if (mode === "register") {
