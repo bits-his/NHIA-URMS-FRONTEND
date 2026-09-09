@@ -430,12 +430,6 @@ export default function ServicomSatisfactionSurveyPage({
 
     return (
       <div className="flex flex-col h-full bg-slate-50/30">
-        {/* <div className="bg-white border-b px-4 md:px-6 py-3 flex items-center sticky top-0 z-30">
-          <Button variant="ghost" size="icon" onClick={closeSub} className="rounded-full">
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-        </div> */}
-
         <ScrollArea className="flex-1">
           <div className="w-full px-4 md:px-6 py-4 pb-24 space-y-4">
             {renderDetailsCard(mode === "view", row ?? undefined)}
@@ -453,29 +447,17 @@ export default function ServicomSatisfactionSurveyPage({
                 Save Survey
               </Button>
             </div>
-                {/* <div><span className="text-slate-500">Total Score:</span> <strong>{summary.total}</strong></div>
-                <div><span className="text-slate-500">Max Score:</span> <strong>{summary.max}</strong></div>
-                <div><span className="text-slate-500">Percentage:</span> <strong>{summary.percentage}%</strong></div> */}
               </CardContent>
             </Card>
             )}
           </div>
         </ScrollArea>
 
-        {/* {mode === "form" && (
-          <div className="sticky bottom-0 z-30 bg-white border-t border-border/50 px-4 md:px-6 py-3 flex items-center justify-between gap-3">
-            <p className="text-xs text-slate-500 hidden sm:block">
-              Survey ID is assigned automatically when you save.
-            </p>
-            <div className="flex items-center gap-3 ml-auto">
-              <Button variant="outline" onClick={closeSub}>Cancel</Button>
-              <Button onClick={handleSave} disabled={saving} className="bg-orange-action hover:bg-orange-600 gap-2">
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                Save Survey
-              </Button>
-            </div>
+        {mode === "view" && (
+          <div className="sticky bottom-0 z-30 bg-white border-t border-border/50 px-4 md:px-6 py-3 flex items-center justify-end gap-3">
+            <Button variant="outline" onClick={closeSub}>Back to List</Button>
           </div>
-        )} */}
+        )}
       </div>
     );
   }

@@ -1009,13 +1009,17 @@ export default function ServicomComplaintsPage({ onBack, defaultStateId, default
           </div>
         </ScrollArea>
 
-        {canSaveStage && (
+        {canSaveStage ? (
           <div className="sticky bottom-0 z-30 bg-white border-t px-4 md:px-6 py-3 flex items-center justify-end gap-3">
             <Button variant="outline" onClick={closeSub}>Back to List</Button>
             <Button onClick={() => handleSaveStage(activeStage)} disabled={saving} className="bg-orange-action hover:bg-orange-600 gap-2">
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
               {stageSaveLabel[activeStage]}
             </Button>
+          </div>
+        ) : (
+          <div className="sticky bottom-0 z-30 bg-white border-t px-4 md:px-6 py-3 flex items-center justify-end gap-3">
+            <Button variant="outline" onClick={closeSub}>Back to List</Button>
           </div>
         )}
       </div>
