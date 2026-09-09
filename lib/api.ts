@@ -475,6 +475,14 @@ export const servicomApi = {
     });
   },
 
+  listInvestigatingOfficers: (filters?: Record<string, string | undefined>) =>
+    request<{ success: boolean; data: {
+      id: number; name: string; staff_id?: string; role?: string;
+      department?: string | null; department_code?: string | null; unit?: string | null;
+    }[] }>(
+      `/servicom/investigating-officers${servicomFilters(filters)}`,
+    ),
+
   listComplaints: (filters?: Record<string, string | undefined>) =>
     request<{ success: boolean; data: any[] }>(`/servicom/complaints${servicomFilters(filters)}`),
 
@@ -614,6 +622,32 @@ export const stateOfficeEnrolleeComplaintsApi = {
     request<{ success: boolean; data: any }>(`/state-office/enrollee-complaints/${id}`, {
       method: "PUT", body: JSON.stringify(payload),
     }),
+};
+
+export const hmoProvidersApi = {
+  list: (filters?: { q?: string; limit?: string }) => {
+    const p = new URLSearchParams(
+      Object.entries(filters || {}).filter(([, v]) => !!v) as [string, string][],
+    ).toString();
+    return request<{ success: boolean; data: any[] }>(`/hmo-providers${p ? `?${p}` : ""}`);
+  },
+  get: (id: number | string) =>
+    request<{ success: boolean; data: any }>(`/hmo-providers/${id}`),
+};
+
+export const hcfFacilitiesApi = {
+  list: (filters?: { q?: string; state_id?: string; service?: string; unique?: string; limit?: string }) => {
+    const p = new URLSearchParams(
+      Object.entries(filters || {}).filter(([, v]) => !!v) as [string, string][],
+    ).toString();
+    return request<{ success: boolean; data: any[] }>(
+      `/servicom/hcf-facilities${p ? `?${p}` : ""}`,
+    );
+  },
+  listServices: () =>
+    request<{ success: boolean; data: string[] }>("/servicom/hcf-facilities/services"),
+  get: (id: number | string) =>
+    request<{ success: boolean; data: any }>(`/hcf-facilities/${id}`),
 };
 
 export const stateOfficeAccreditedProvidersApi = {

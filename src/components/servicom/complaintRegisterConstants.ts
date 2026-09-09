@@ -266,8 +266,9 @@ export function getStageCompletion(row: any): Record<LifecycleStage, boolean> {
     return { registration: false, investigation: false, escalation: false, resolution: false };
   }
   return {
-    registration: !!(row.complaint_number && row.complaint_type),
-    investigation: !!(row.officer_assigned || row.investigation_start_date || row.actions_taken),
+    registration: !!(row.complaint_number && (row.complainant_category || row.complaint_type)),
+    investigation: !!(row.investigation_start_date || row.actions_taken
+      || ["Under Investigation", "Awaiting Information", "Awaiting Respondent Action"].includes(row.status)),
     escalation: !!row.escalated,
     resolution: !!(row.date_closed || row.outcome),
   };

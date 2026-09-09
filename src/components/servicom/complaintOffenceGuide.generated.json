@@ -1,0 +1,842 @@
+[
+  {
+    "complainant": "HCF",
+    "respondent": "HMO",
+    "sn": 1,
+    "issue": "Refusal/Delay in remitting appropriate payments",
+    "domain": "Financial",
+    "category": "Fraud",
+    "priority": "Top",
+    "id": "HCF-HMO-01"
+  },
+  {
+    "complainant": "HCF",
+    "respondent": "HMO",
+    "sn": 2,
+    "issue": "Deliberate issuance of Dud cheque(s).",
+    "domain": "Financial",
+    "category": "Fraud",
+    "priority": "Top",
+    "id": "HCF-HMO-02"
+  },
+  {
+    "complainant": "HCF",
+    "respondent": "HMO",
+    "sn": 3,
+    "issue": "Refusal to authorize a referral",
+    "domain": "Service Delivery",
+    "category": "Referral",
+    "priority": "Top",
+    "id": "HCF-HMO-03"
+  },
+  {
+    "complainant": "HCF",
+    "respondent": "HMO",
+    "sn": 4,
+    "issue": "Delay in authorizing a referral",
+    "domain": "Service Delivery",
+    "category": "Referral",
+    "priority": "Top",
+    "id": "HCF-HMO-04"
+  },
+  {
+    "complainant": "HCF",
+    "respondent": "HMO",
+    "sn": 5,
+    "issue": "Refusal to settle an agreed amount after reconciliation exercise.",
+    "domain": "Financial",
+    "category": "Fraud",
+    "priority": "Medium",
+    "id": "HCF-HMO-05"
+  },
+  {
+    "complainant": "HCF",
+    "respondent": "HMO",
+    "sn": 6,
+    "issue": "Refusal to attend reconciliation exercise.",
+    "domain": "Operational",
+    "category": "Administrative",
+    "priority": "Medium",
+    "id": "HCF-HMO-06"
+  },
+  {
+    "complainant": "HCF",
+    "respondent": "HMO",
+    "sn": 7,
+    "issue": "Breach of contractual agreement.",
+    "domain": "Operational",
+    "category": "Administrative",
+    "priority": "Top",
+    "id": "HCF-HMO-07"
+  },
+  {
+    "complainant": "HCF",
+    "respondent": "HMO",
+    "sn": 8,
+    "issue": "Unauthorized disclosure of Health Insurance Information Data.",
+    "domain": "Relationship",
+    "category": "Abuse",
+    "priority": "Medium",
+    "id": "HCF-HMO-08"
+  },
+  {
+    "complainant": "HCF",
+    "respondent": "HMO",
+    "sn": 9,
+    "issue": "Non-compliance with Claims Management portal",
+    "domain": "Financial",
+    "category": "Billing",
+    "priority": "Medium",
+    "id": "HCF-HMO-09"
+  },
+  {
+    "complainant": "HCF",
+    "respondent": "HMO",
+    "sn": 10,
+    "issue": "Inappropriate / aggressive behaviour to HCFs / enrollees",
+    "domain": "Relationship",
+    "category": "Abuse",
+    "priority": "Medium",
+    "id": "HCF-HMO-10"
+  },
+  {
+    "complainant": "HCF",
+    "respondent": "HMO",
+    "sn": 11,
+    "issue": "Failure to remit required payments despite repeated notices and reminders.",
+    "domain": "Operational",
+    "category": "Administrative",
+    "priority": "Top",
+    "id": "HCF-HMO-11"
+  },
+  {
+    "complainant": "HCF",
+    "respondent": "HMO",
+    "sn": 12,
+    "issue": "Failure to notify Facility before relocating.",
+    "domain": "Operational",
+    "category": "Administrative",
+    "priority": "High",
+    "id": "HCF-HMO-12"
+  },
+  {
+    "complainant": "HCF",
+    "respondent": "HMO",
+    "sn": 13,
+    "issue": "Failure to notify the enrollees and Facilities of its intention to exit from the Authority.",
+    "domain": "Operational",
+    "category": "Administrative",
+    "priority": "High",
+    "id": "HCF-HMO-13"
+  },
+  {
+    "complainant": "HCF",
+    "respondent": "HMO",
+    "sn": 14,
+    "issue": "Failure to enter into agreement with NHIA accredited facilities.",
+    "domain": "Operational",
+    "category": "Administrative",
+    "priority": "Medium",
+    "id": "HCF-HMO-14"
+  },
+  {
+    "complainant": "HCF",
+    "respondent": "HMO",
+    "sn": 15,
+    "issue": "Grave fraudulent activity.",
+    "domain": "Financial",
+    "category": "Fraud",
+    "priority": "Top",
+    "id": "HCF-HMO-15"
+  },
+  {
+    "complainant": "HCF",
+    "respondent": "HMO",
+    "sn": 16,
+    "issue": "Where it is discovered that the HMO is involved in direct healthcare service delivery.",
+    "domain": "Financial",
+    "category": "Fraud",
+    "priority": "Medium",
+    "id": "HCF-HMO-16"
+  },
+  {
+    "complainant": "HCF",
+    "respondent": "HMO",
+    "sn": 17,
+    "issue": "Non-compliance with directives/agreements/sanctions",
+    "domain": "Operational",
+    "category": "Administrative",
+    "priority": "Medium",
+    "id": "HCF-HMO-17"
+  },
+  {
+    "complainant": "Enrollee",
+    "respondent": "HMO",
+    "sn": 1,
+    "issue": "Refusal/Delay in remitting appropriate payments",
+    "domain": "Financial",
+    "category": "Fraud",
+    "priority": "Top",
+    "id": "ENR-HMO-01"
+  },
+  {
+    "complainant": "Enrollee",
+    "respondent": "HMO",
+    "sn": 2,
+    "issue": "Deliberate issuance of Dud cheque(s).",
+    "domain": "Financial",
+    "category": "Fraud",
+    "priority": "Top",
+    "id": "ENR-HMO-02"
+  },
+  {
+    "complainant": "Enrollee",
+    "respondent": "HMO",
+    "sn": 3,
+    "issue": "Refusal to authorize a referral",
+    "domain": "Service Delivery",
+    "category": "Referral",
+    "priority": "Top",
+    "id": "ENR-HMO-03"
+  },
+  {
+    "complainant": "Enrollee",
+    "respondent": "HMO",
+    "sn": 4,
+    "issue": "Delay in authorizing a referral",
+    "domain": "Service Delivery",
+    "category": "Referral",
+    "priority": "Top",
+    "id": "ENR-HMO-04"
+  },
+  {
+    "complainant": "Enrollee",
+    "respondent": "HMO",
+    "sn": 5,
+    "issue": "Refusal to settle an agreed amount after reconciliation exercise.",
+    "domain": "Financial",
+    "category": "Fraud",
+    "priority": "Medium",
+    "id": "ENR-HMO-05"
+  },
+  {
+    "complainant": "Enrollee",
+    "respondent": "HMO",
+    "sn": 6,
+    "issue": "Refusal to attend reconciliation exercise.",
+    "domain": "Operational",
+    "category": "Administrative",
+    "priority": "Medium",
+    "id": "ENR-HMO-06"
+  },
+  {
+    "complainant": "Enrollee",
+    "respondent": "HMO",
+    "sn": 7,
+    "issue": "Breach of contractual agreement.",
+    "domain": "Operational",
+    "category": "Administrative",
+    "priority": "Top",
+    "id": "ENR-HMO-07"
+  },
+  {
+    "complainant": "Enrollee",
+    "respondent": "HMO",
+    "sn": 8,
+    "issue": "Unauthorized disclosure of Health Insurance Information Data.",
+    "domain": "Relationship",
+    "category": "Abuse",
+    "priority": "Medium",
+    "id": "ENR-HMO-08"
+  },
+  {
+    "complainant": "Enrollee",
+    "respondent": "HMO",
+    "sn": 9,
+    "issue": "Non-compliance with Claims Management portal",
+    "domain": "Financial",
+    "category": "Billing",
+    "priority": "Medium",
+    "id": "ENR-HMO-09"
+  },
+  {
+    "complainant": "Enrollee",
+    "respondent": "HMO",
+    "sn": 10,
+    "issue": "Inappropriate / aggressive behaviour to HCFs / enrollees",
+    "domain": "Relationship",
+    "category": "Abuse",
+    "priority": "Medium",
+    "id": "ENR-HMO-10"
+  },
+  {
+    "complainant": "Enrollee",
+    "respondent": "HMO",
+    "sn": 11,
+    "issue": "Failure to remit required payments despite repeated notices and reminders.",
+    "domain": "Operational",
+    "category": "Administrative",
+    "priority": "Top",
+    "id": "ENR-HMO-11"
+  },
+  {
+    "complainant": "Enrollee",
+    "respondent": "HMO",
+    "sn": 12,
+    "issue": "Failure to notify Facility before relocating.",
+    "domain": "Operational",
+    "category": "Administrative",
+    "priority": "High",
+    "id": "ENR-HMO-12"
+  },
+  {
+    "complainant": "Enrollee",
+    "respondent": "HMO",
+    "sn": 13,
+    "issue": "Failure to notify the enrollees and Facilities of its intention to exit from the Authority.",
+    "domain": "Operational",
+    "category": "Administrative",
+    "priority": "High",
+    "id": "ENR-HMO-13"
+  },
+  {
+    "complainant": "Enrollee",
+    "respondent": "HMO",
+    "sn": 14,
+    "issue": "Failure to enter into agreement with NHIA accredited facilities.",
+    "domain": "Operational",
+    "category": "Administrative",
+    "priority": "Medium",
+    "id": "ENR-HMO-14"
+  },
+  {
+    "complainant": "Enrollee",
+    "respondent": "HMO",
+    "sn": 15,
+    "issue": "Grave fraudulent activity.",
+    "domain": "Financial",
+    "category": "Fraud",
+    "priority": "Top",
+    "id": "ENR-HMO-15"
+  },
+  {
+    "complainant": "Enrollee",
+    "respondent": "HMO",
+    "sn": 16,
+    "issue": "Where it is discovered that the HMO is involved in direct healthcare service delivery.",
+    "domain": "Financial",
+    "category": "Fraud",
+    "priority": "Medium",
+    "id": "ENR-HMO-16"
+  },
+  {
+    "complainant": "Enrollee",
+    "respondent": "HMO",
+    "sn": 17,
+    "issue": "Non-compliance with directives/agreements/sanctions",
+    "domain": "Operational",
+    "category": "Administrative",
+    "priority": "Medium",
+    "id": "ENR-HMO-17"
+  },
+  {
+    "complainant": "Enrollee",
+    "respondent": "HCF",
+    "sn": 1,
+    "issue": "Denial of access to care",
+    "domain": "Service Delivery",
+    "category": "Access",
+    "priority": "Top",
+    "id": "ENR-HCF-01"
+  },
+  {
+    "complainant": "Enrollee",
+    "respondent": "HCF",
+    "sn": 2,
+    "issue": "Discrimination",
+    "domain": "Relationship",
+    "category": "Abuse",
+    "priority": "Top",
+    "id": "ENR-HCF-02"
+  },
+  {
+    "complainant": "Enrollee",
+    "respondent": "HCF",
+    "sn": 3,
+    "issue": "Out-Of-Pocket payment for covered services",
+    "domain": "Financial",
+    "category": "Billing",
+    "priority": "Top",
+    "id": "ENR-HCF-03"
+  },
+  {
+    "complainant": "Enrollee",
+    "respondent": "HCF",
+    "sn": 4,
+    "issue": "Illegal charges beyond allowed payments",
+    "domain": "Financial",
+    "category": "Billing",
+    "priority": "Top",
+    "id": "ENR-HCF-04"
+  },
+  {
+    "complainant": "Enrollee",
+    "respondent": "HCF",
+    "sn": 5,
+    "issue": "Not operating 24 hours a day, 7 days a week.",
+    "domain": "Operational",
+    "category": "Administrative",
+    "priority": "Medium",
+    "id": "ENR-HCF-05"
+  },
+  {
+    "complainant": "Enrollee",
+    "respondent": "HCF",
+    "sn": 6,
+    "issue": "Failure to dispense medications",
+    "domain": "Service Delivery",
+    "category": "Access",
+    "priority": "Top",
+    "id": "ENR-HCF-06"
+  },
+  {
+    "complainant": "Enrollee",
+    "respondent": "HCF",
+    "sn": 7,
+    "issue": "Refusal to refer.",
+    "domain": "Service Delivery",
+    "category": "Referral",
+    "priority": "Top",
+    "id": "ENR-HCF-07"
+  },
+  {
+    "complainant": "Enrollee",
+    "respondent": "HCF",
+    "sn": 8,
+    "issue": "Referral of enrollee despite being accredited to provide the service.",
+    "domain": "Service Delivery",
+    "category": "Referral",
+    "priority": "Top",
+    "id": "ENR-HCF-08"
+  },
+  {
+    "complainant": "Enrollee",
+    "respondent": "HCF",
+    "sn": 9,
+    "issue": "Failure to provide required relocation notice and notify stakeholders.",
+    "domain": "Operational",
+    "category": "Administrative",
+    "priority": "High",
+    "id": "ENR-HCF-09"
+  },
+  {
+    "complainant": "Enrollee",
+    "respondent": "HCF",
+    "sn": 10,
+    "issue": "Poor quality of care",
+    "domain": "Service Delivery",
+    "category": "Quality of Care",
+    "priority": "Top",
+    "id": "ENR-HCF-10"
+  },
+  {
+    "complainant": "Enrollee",
+    "respondent": "HCF",
+    "sn": 11,
+    "issue": "Fraudulent activity.",
+    "domain": "Financial",
+    "category": "Fraud",
+    "priority": "Medium",
+    "id": "ENR-HCF-11"
+  },
+  {
+    "complainant": "Enrollee",
+    "respondent": "HCF",
+    "sn": 12,
+    "issue": "Breach of confidentiality and privacy",
+    "domain": "Relationship",
+    "category": "Communication",
+    "priority": "Medium",
+    "id": "ENR-HCF-12"
+  },
+  {
+    "complainant": "Enrollee",
+    "respondent": "HCF",
+    "sn": 13,
+    "issue": "Assault / inappropriate behavior of personnel on any other stakeholder",
+    "domain": "Relationship",
+    "category": "Abuse",
+    "priority": "Medium",
+    "id": "ENR-HCF-13"
+  },
+  {
+    "complainant": "Enrollee",
+    "respondent": "HCF",
+    "sn": 14,
+    "issue": "Problems with the coordination of treatment in different services by clinical staff",
+    "domain": "Service Delivery",
+    "category": "Quality of Care",
+    "priority": "Top",
+    "id": "ENR-HCF-14"
+  },
+  {
+    "complainant": "Enrollee",
+    "respondent": "HCF",
+    "sn": 15,
+    "issue": "Refusal to obtain enrollees\u2019 consent or consent not adequately explained.",
+    "domain": "Relationship",
+    "category": "Communication",
+    "priority": "High",
+    "id": "ENR-HCF-15"
+  },
+  {
+    "complainant": "Enrollee",
+    "respondent": "HCF",
+    "sn": 16,
+    "issue": "Poor communication",
+    "domain": "Relationship",
+    "category": "Communication",
+    "priority": "High",
+    "id": "ENR-HCF-16"
+  },
+  {
+    "complainant": "HMO",
+    "respondent": "HCF",
+    "sn": 1,
+    "issue": "Denial of access to care",
+    "domain": "Service Delivery",
+    "category": "Access",
+    "priority": "Top",
+    "id": "HMO-HCF-01"
+  },
+  {
+    "complainant": "HMO",
+    "respondent": "HCF",
+    "sn": 2,
+    "issue": "Discrimination",
+    "domain": "Relationship",
+    "category": "Abuse",
+    "priority": "Top",
+    "id": "HMO-HCF-02"
+  },
+  {
+    "complainant": "HMO",
+    "respondent": "HCF",
+    "sn": 3,
+    "issue": "Out-Of-Pocket payment for covered services",
+    "domain": "Financial",
+    "category": "Billing",
+    "priority": "Top",
+    "id": "HMO-HCF-03"
+  },
+  {
+    "complainant": "HMO",
+    "respondent": "HCF",
+    "sn": 4,
+    "issue": "Illegal charges beyond allowed payments",
+    "domain": "Financial",
+    "category": "Billing",
+    "priority": "Top",
+    "id": "HMO-HCF-04"
+  },
+  {
+    "complainant": "HMO",
+    "respondent": "HCF",
+    "sn": 5,
+    "issue": "Not operating 24 hours a day, 7 days a week.",
+    "domain": "Operational",
+    "category": "Administrative",
+    "priority": "Medium",
+    "id": "HMO-HCF-05"
+  },
+  {
+    "complainant": "HMO",
+    "respondent": "HCF",
+    "sn": 6,
+    "issue": "Failure to dispense medications",
+    "domain": "Service Delivery",
+    "category": "Access",
+    "priority": "Top",
+    "id": "HMO-HCF-06"
+  },
+  {
+    "complainant": "HMO",
+    "respondent": "HCF",
+    "sn": 7,
+    "issue": "Refusal to refer.",
+    "domain": "Service Delivery",
+    "category": "Referral",
+    "priority": "Top",
+    "id": "HMO-HCF-07"
+  },
+  {
+    "complainant": "HMO",
+    "respondent": "HCF",
+    "sn": 8,
+    "issue": "Referral of enrollee despite being accredited to provide the service.",
+    "domain": "Service Delivery",
+    "category": "Referral",
+    "priority": "Top",
+    "id": "HMO-HCF-08"
+  },
+  {
+    "complainant": "HMO",
+    "respondent": "HCF",
+    "sn": 9,
+    "issue": "Failure to provide required relocation notice and notify stakeholders.",
+    "domain": "Operational",
+    "category": "Administrative",
+    "priority": "High",
+    "id": "HMO-HCF-09"
+  },
+  {
+    "complainant": "HMO",
+    "respondent": "HCF",
+    "sn": 10,
+    "issue": "Poor quality of care",
+    "domain": "Service Delivery",
+    "category": "Quality of Care",
+    "priority": "Top",
+    "id": "HMO-HCF-10"
+  },
+  {
+    "complainant": "HMO",
+    "respondent": "HCF",
+    "sn": 11,
+    "issue": "Fraudulent activity.",
+    "domain": "Financial",
+    "category": "Fraud",
+    "priority": "Medium",
+    "id": "HMO-HCF-11"
+  },
+  {
+    "complainant": "HMO",
+    "respondent": "HCF",
+    "sn": 12,
+    "issue": "Breach of confidentiality and privacy",
+    "domain": "Relationship",
+    "category": "Communication",
+    "priority": "Medium",
+    "id": "HMO-HCF-12"
+  },
+  {
+    "complainant": "HMO",
+    "respondent": "HCF",
+    "sn": 13,
+    "issue": "Assault / inappropriate behavior of personnel on any other stakeholder",
+    "domain": "Relationship",
+    "category": "Abuse",
+    "priority": "Medium",
+    "id": "HMO-HCF-13"
+  },
+  {
+    "complainant": "HMO",
+    "respondent": "HCF",
+    "sn": 14,
+    "issue": "Problems with the coordination of treatment in different services by clinical staff",
+    "domain": "Service Delivery",
+    "category": "Quality of Care",
+    "priority": "Top",
+    "id": "HMO-HCF-14"
+  },
+  {
+    "complainant": "HMO",
+    "respondent": "HCF",
+    "sn": 15,
+    "issue": "Refusal to obtain enrollees\u2019 consent or consent not adequately explained.",
+    "domain": "Relationship",
+    "category": "Communication",
+    "priority": "High",
+    "id": "HMO-HCF-15"
+  },
+  {
+    "complainant": "HMO",
+    "respondent": "HCF",
+    "sn": 16,
+    "issue": "Poor communication",
+    "domain": "Relationship",
+    "category": "Communication",
+    "priority": "High",
+    "id": "HMO-HCF-16"
+  },
+  {
+    "complainant": "HCF",
+    "respondent": "Enrollee",
+    "sn": 1,
+    "issue": "Willfully or intentionally engages in multiple enrolment / registration.",
+    "domain": "Financial",
+    "category": "Fraud",
+    "priority": "Top",
+    "id": "HCF-ENR-01"
+  },
+  {
+    "complainant": "HCF",
+    "respondent": "Enrollee",
+    "sn": 2,
+    "issue": "Falsification of personal / medical records.",
+    "domain": "Financial",
+    "category": "Fraud",
+    "priority": "Top",
+    "id": "HCF-ENR-02"
+  },
+  {
+    "complainant": "HCF",
+    "respondent": "Enrollee",
+    "sn": 3,
+    "issue": "Allowing unauthorized persons to use NHIA ID Card to access services.",
+    "domain": "Financial",
+    "category": "Fraud",
+    "priority": "Top",
+    "id": "HCF-ENR-03"
+  },
+  {
+    "complainant": "HCF",
+    "respondent": "Enrollee",
+    "sn": 4,
+    "issue": "Inappropriate / aggressive behaviour on NHIA/HCF/HMO personnel or any other stakeholder",
+    "domain": "Relationship",
+    "category": "Abuse",
+    "priority": "Medium",
+    "id": "HCF-ENR-04"
+  },
+  {
+    "complainant": "HCF",
+    "respondent": "Enrollee",
+    "sn": 5,
+    "issue": "Engaging in any other fraudulent activity.",
+    "domain": "Financial",
+    "category": "Fraud",
+    "priority": "Top",
+    "id": "HCF-ENR-05"
+  },
+  {
+    "complainant": "HCF",
+    "respondent": "Enrollee",
+    "sn": 6,
+    "issue": "Receiving free health services under the vulnerable group health insurance by persons already covered under a private health plan.",
+    "domain": "Financial",
+    "category": "Fraud",
+    "priority": "Top",
+    "id": "HCF-ENR-06"
+  },
+  {
+    "complainant": "HCF",
+    "respondent": "Enrollee",
+    "sn": 7,
+    "issue": "Misuse of services by falsely presenting with complaints.",
+    "domain": "Financial",
+    "category": "Fraud",
+    "priority": "Medium",
+    "id": "HCF-ENR-07"
+  },
+  {
+    "complainant": "HCF",
+    "respondent": "Enrollee",
+    "sn": 8,
+    "issue": "Willfully access services as fee-paying patients and thereafter reporting the HCF to the NHIA for redress.",
+    "domain": "Service Delivery",
+    "category": "Access",
+    "priority": "Medium",
+    "id": "HCF-ENR-08"
+  },
+  {
+    "complainant": "HCF",
+    "respondent": "Enrollee",
+    "sn": 9,
+    "issue": "Refusal to comply with Referral Protocol.",
+    "domain": "Service Delivery",
+    "category": "Referral",
+    "priority": "Medium",
+    "id": "HCF-ENR-09"
+  },
+  {
+    "complainant": "HMO",
+    "respondent": "Enrollee",
+    "sn": 1,
+    "issue": "Willfully or intentionally engages in multiple enrolment / registration.",
+    "domain": "Financial",
+    "category": "Fraud",
+    "priority": "Top",
+    "id": "HMO-ENR-01"
+  },
+  {
+    "complainant": "HMO",
+    "respondent": "Enrollee",
+    "sn": 2,
+    "issue": "Falsification of personal / medical records.",
+    "domain": "Financial",
+    "category": "Fraud",
+    "priority": "Top",
+    "id": "HMO-ENR-02"
+  },
+  {
+    "complainant": "HMO",
+    "respondent": "Enrollee",
+    "sn": 3,
+    "issue": "Allowing unauthorized persons to use NHIA ID Card to access services.",
+    "domain": "Financial",
+    "category": "Fraud",
+    "priority": "Top",
+    "id": "HMO-ENR-03"
+  },
+  {
+    "complainant": "HMO",
+    "respondent": "Enrollee",
+    "sn": 4,
+    "issue": "Inappropriate / aggressive behaviour on NHIA/HCF/HMO personnel or any other stakeholder",
+    "domain": "Relationship",
+    "category": "Abuse",
+    "priority": "Medium",
+    "id": "HMO-ENR-04"
+  },
+  {
+    "complainant": "HMO",
+    "respondent": "Enrollee",
+    "sn": 5,
+    "issue": "Engaging in any other fraudulent activity.",
+    "domain": "Financial",
+    "category": "Fraud",
+    "priority": "Top",
+    "id": "HMO-ENR-05"
+  },
+  {
+    "complainant": "HMO",
+    "respondent": "Enrollee",
+    "sn": 6,
+    "issue": "Receiving free health services under the vulnerable group health insurance by persons already covered under a private health plan.",
+    "domain": "Financial",
+    "category": "Fraud",
+    "priority": "Top",
+    "id": "HMO-ENR-06"
+  },
+  {
+    "complainant": "HMO",
+    "respondent": "Enrollee",
+    "sn": 7,
+    "issue": "Misuse of services by falsely presenting with complaints.",
+    "domain": "Financial",
+    "category": "Fraud",
+    "priority": "Medium",
+    "id": "HMO-ENR-07"
+  },
+  {
+    "complainant": "HMO",
+    "respondent": "Enrollee",
+    "sn": 8,
+    "issue": "Willfully access services as fee-paying patients and thereafter reporting the HCF to the NHIA for redress.",
+    "domain": "Service Delivery",
+    "category": "Access",
+    "priority": "Medium",
+    "id": "HMO-ENR-08"
+  },
+  {
+    "complainant": "HMO",
+    "respondent": "Enrollee",
+    "sn": 9,
+    "issue": "Refusal to comply with Referral Protocol.",
+    "domain": "Service Delivery",
+    "category": "Referral",
+    "priority": "Medium",
+    "id": "HMO-ENR-09"
+  }
+]
