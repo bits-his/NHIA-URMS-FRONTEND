@@ -6,7 +6,29 @@ import { storeManagementApi } from "@/src/services/storeManagementApi";
 import { stockApi } from "@/lib/api";
 import PageLayout from "../../components/PageLayout";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, ClipboardCheck, Loader2, AlertCircle } from "lucide-react";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
+import {
+  ArrowLeft,
+  ClipboardCheck,
+  Loader2,
+  AlertCircle,
+  CheckCircle2,
+  ShieldCheck,
+  MapPin,
+  User,
+  Tag,
+  Calendar,
+  Building,
+  FileText,
+  AlertTriangle,
+  Info,
+} from "lucide-react";
 import { toast } from "sonner";
 import { PHYSICAL_CONDITIONS } from "../../lib/storeOptions";
 
@@ -17,6 +39,15 @@ function toItemCondition(label: string) {
   if (["MISSING", "DAMAGED", "POOR", "FAIR", "GOOD", "DEFECTIVE", "OBSOLETE", "RETIRED"].includes(u)) return u;
   if (u === "EXCELLENT") return "GOOD";
   return "GOOD";
+}
+
+function conditionTone(raw: string) {
+  const v = String(raw || "").toLowerCase();
+  if (/\bretir|\bdispos/.test(v)) return { label: "Retired", className: "bg-slate-200 text-slate-800 border-slate-300" };
+  if (/\bobsolete/.test(v)) return { label: "Obsolete", className: "bg-amber-100 text-amber-950 border-amber-300" };
+  if (/\bmissing|\blost/.test(v)) return { label: "Missing", className: "bg-rose-100 text-rose-900 border-rose-300" };
+  if (/\bdefect|\bpoor|\bdamaged|\brepair/.test(v)) return { label: "Defective", className: "bg-rose-50 text-rose-800 border-rose-200" };
+  return { label: raw || "Good", className: "bg-[#e8f5ee] text-[#0f3d2e] border-[#25a872]/40" };
 }
 
 export default function VerifyAssetView() {
@@ -79,7 +110,7 @@ export default function VerifyAssetView() {
       return;
     }
     if (hasException && !form.remarks.trim()) {
-      setError("Add a remark for the variance, missing count, or exception.");
+      setError("Please provide an explanatory remark for the variance, missing count, or exception condition.");
       return;
     }
     setSaving(true);
@@ -122,7 +153,7 @@ export default function VerifyAssetView() {
         ],
       });
 
-      toast.success(hasException ? "Verification saved with exception" : "Asset verification saved");
+      toast.success(hasException ? "Verification saved with exception" : "Physical asset verification saved successfully");
       navigate("/store-management/verification/verify");
     } catch (err: any) {
       toast.error(err?.message || "Failed to save verification");
@@ -131,14 +162,16 @@ export default function VerifyAssetView() {
     }
   };
 
-  const inputCls =
-    "w-full h-9 px-3 rounded-lg border border-slate-200 bg-white text-sm font-medium text-slate-900 placeholder:text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#25a872]/40 disabled:bg-slate-50";
-  const labelCls = "block text-[11px] font-semibold text-slate-600 mb-1";
-
   if (loading) {
     return (
-      <PageLayout title="Verify Asset" description="Loading…">
-        <div className="h-48 rounded-lg border border-slate-200 bg-slate-50 animate-pulse" />
+      <PageLayout title="Physical Asset Verification" description="Loading asset details…">
+        <div className="space-y-4 animate-pulse">
+          <div className="h-28 rounded-2xl bg-slate-200/70" />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="h-96 rounded-2xl bg-slate-100" />
+            <div className="h-96 rounded-2xl bg-slate-100" />
+          </div>
+        </div>
       </PageLayout>
     );
   }
@@ -146,161 +179,325 @@ export default function VerifyAssetView() {
   if (!asset) {
     return (
       <PageLayout
-        title="Asset not found"
-        description="Cannot verify this record"
+        title="Asset Not Found"
+        description="Cannot verify this asset record"
         actions={
           <Button variant="outline" size="sm" className="text-xs" onClick={() => navigate("/store-management/verification/verify")}>
-            <ArrowLeft className="h-3.5 w-3.5 mr-1" aria-hidden="true" /> Back
+            <ArrowLeft className="h-3.5 w-3.5 mr-1" aria-hidden="true" /> Back to List
           </Button>
         }
       >
-        <p className="text-sm text-slate-700">No asset for reference {assetId}.</p>
+        <div className="p-12 text-center bg-white rounded-2xl border border-slate-200">
+          <AlertTriangle className="h-12 w-12 text-amber-500 mx-auto mb-3" />
+          <h3 className="text-lg font-bold text-slate-800">Asset Record Not Found</h3>
+          <p className="text-sm text-slate-500 mt-1">No asset matches reference: {assetId}</p>
+          <Button
+            onClick={() => navigate("/store-management/verification/verify")}
+            className="mt-5 bg-[#145c3f] hover:bg-[#0f3d2e] text-white"
+          >
+            Return to Verification List
+          </Button>
+        </div>
       </PageLayout>
     );
   }
 
   const tag = asset.assetId || asset.assetNumber || asset.nhiaTagNumber || `AST-${asset.id}`;
+  const recordedCond = conditionTone(asset.physicalCondition || "Good");
 
   return (
     <PageLayout
-      title="Verify Asset"
-      description={`${tag} · ${asset.name || ""}`}
+      title={
+        <span className="flex items-center gap-2">
+          <ClipboardCheck className="w-5 h-5 text-[#25a872]" /> Physical Asset Verification
+        </span>
+      }
+      description={`Conduct physical stocktaking and condition assessment for ${tag}`}
       actions={
         <Button
           variant="outline"
           size="sm"
-          className="text-xs"
+          className="text-xs h-8 font-semibold border-slate-300 hover:bg-slate-50"
           onClick={() => navigate("/store-management/verification/verify")}
         >
-          <ArrowLeft className="h-3.5 w-3.5 mr-1" aria-hidden="true" /> Back to list
+          <ArrowLeft className="h-3.5 w-3.5 mr-1" aria-hidden="true" /> Back to List
         </Button>
       }
-      contentClassName="gap-3"
+      contentClassName="gap-3.5"
     >
-      <form onSubmit={handleSubmit} className="rounded-lg border border-slate-200 bg-white overflow-hidden">
-        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-slate-200 bg-[#f4f7f5] px-4 py-3">
-          <span className="font-mono text-sm font-bold text-[#145c3f]" translate="no">{tag}</span>
-          <span className="text-sm font-semibold text-slate-900">{asset.name}</span>
-          <span className="text-xs text-slate-600">{asset.primaryCategory || asset.category || "—"}</span>
-          <span className="text-xs text-slate-600">{asset.assignedCustodian || asset.custodian || "Unassigned"}</span>
-          <span className="text-xs text-slate-600">{asset.officeDeptUnit || asset.location || "—"}</span>
-          <span className="ml-auto text-[11px] font-semibold text-slate-500 tabular-nums">
-            Last verified {asset.lastVerificationDate || "Never"}
-          </span>
+      {/* ─── Compact Asset Information Profile Banner ──────────────────────── */}
+      <div className="bg-white border border-slate-200/90 rounded-xl shadow-sm px-4 py-3">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div className="space-y-1 min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="px-2.5 py-0.5 rounded-lg text-xs font-mono font-bold bg-[#e8f5ee] text-[#145c3f] border border-[#25a872]/40">
+                {tag}
+              </span>
+              <span className="px-2.5 py-0.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">
+                {asset.primaryCategory || "General Asset"}
+              </span>
+              <span className={`inline-flex items-center rounded-lg border px-2 py-0.5 text-[11px] font-bold ${recordedCond.className}`}>
+                Current: {recordedCond.label}
+              </span>
+            </div>
+
+            <h1 className="text-lg sm:text-xl font-bold tracking-tight text-slate-900 truncate">
+              {asset.name || "Asset"}
+            </h1>
+
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-xs text-slate-600">
+              <span className="flex items-center gap-1">
+                <User className="w-3.5 h-3.5 text-slate-400" />
+                <strong>Custodian:</strong> {asset.assignedCustodian || asset.custodian || "Unassigned"}
+              </span>
+              <span className="flex items-center gap-1">
+                <Building className="w-3.5 h-3.5 text-slate-400" />
+                <strong>Dept:</strong> {asset.department_name || asset.officeDeptUnit || asset.location || "—"}
+              </span>
+              <span className="flex items-center gap-1">
+                <MapPin className="w-3.5 h-3.5 text-slate-400" />
+                <strong>Spot:</strong> {asset.specificLocation || "—"}
+              </span>
+            </div>
+          </div>
+
+          <div className="shrink-0 bg-slate-50 px-3.5 py-2 rounded-lg border border-slate-200/70 text-right">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Last Verified</p>
+            <p className="text-xs font-bold text-slate-800 tabular-nums">
+              {asset.lastVerificationDate || "Never Verified"}
+            </p>
+            <p className="text-[10px] text-slate-500">Status: {asset.verificationStatus || "Unverified"}</p>
+          </div>
         </div>
+      </div>
 
-        <div className="p-4 space-y-3">
-          {error ? (
-            <div role="alert" className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-800 flex items-center gap-2">
-              <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" /> {error}
-            </div>
-          ) : null}
+      {/* ─── Main Form: 2-Column Balanced Compact Layout ───────────────────── */}
+      <form onSubmit={handleSubmit} className="space-y-3.5">
+        {error && (
+          <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-semibold text-rose-800 flex items-center gap-2.5 shadow-sm">
+            <AlertCircle className="h-4 w-4 shrink-0 text-rose-600" aria-hidden="true" />
+            <div>{error}</div>
+          </div>
+        )}
 
-          {hasException ? (
-            <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900 flex items-start gap-2">
-              <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" aria-hidden="true" />
-              Variance or missing count will be recorded as an exception. Add a remark before saving.
-            </div>
-          ) : null}
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        {hasException && (
+          <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs font-semibold text-amber-900 flex items-start gap-2.5 shadow-sm">
+            <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-amber-600" aria-hidden="true" />
             <div>
-              <label className={labelCls} htmlFor="book-balance">Book</label>
-              <input
-                id="book-balance"
-                name="bookBalance"
-                type="number"
-                min={0}
-                inputMode="numeric"
-                className={`${inputCls} tabular-nums`}
-                value={form.bookBalance}
-                onChange={(e) => setForm((p) => ({ ...p, bookBalance: Number(e.target.value) || 0 }))}
-              />
-            </div>
-            <div>
-              <label className={labelCls} htmlFor="physical-count">Physical</label>
-              <input
-                id="physical-count"
-                name="physicalCount"
-                type="number"
-                min={0}
-                inputMode="numeric"
-                className={`${inputCls} tabular-nums`}
-                value={form.physicalCount}
-                onChange={(e) => setForm((p) => ({ ...p, physicalCount: Number(e.target.value) || 0 }))}
-              />
-            </div>
-            <div>
-              <label className={labelCls}>Variance</label>
-              <p className={`h-9 flex items-center px-3 rounded-lg border text-sm font-semibold tabular-nums ${
-                variance !== 0 ? "border-amber-200 bg-amber-50 text-amber-900" : "border-slate-200 bg-slate-50 text-slate-700"
-              }`}>
-                {variance}
+              <p className="font-bold">Verification Exception Detected</p>
+              <p className="font-normal text-amber-800 mt-0.5">
+                Variance or missing condition logged. Please state reason in remarks below.
               </p>
             </div>
-            <div>
-              <label className={labelCls} htmlFor="condition">Condition</label>
-              <select
-                id="condition"
-                name="physicalCondition"
-                className={inputCls}
-                value={form.physicalCondition}
-                onChange={(e) => setForm((p) => ({ ...p, physicalCondition: e.target.value }))}
-              >
-                {PHYSICAL_CONDITIONS.map((c) => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-              </select>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3.5">
+          {/* Column 1: Physical Count & Assessment */}
+          <div className="bg-white border border-slate-200/90 rounded-xl shadow-sm p-4 space-y-3.5">
+            <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
+              <div className="p-1.5 bg-[#e8f5ee] rounded-lg text-[#145c3f]">
+                <Tag className="w-4 h-4" />
+              </div>
+              <div>
+                <h2 className="text-xs font-bold uppercase tracking-wider text-slate-900">Physical Count & Condition</h2>
+              </div>
             </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1" htmlFor="book-balance">
+                  Book Balance
+                </label>
+                <input
+                  id="book-balance"
+                  name="bookBalance"
+                  type="number"
+                  min={0}
+                  inputMode="numeric"
+                  value={form.bookBalance}
+                  onChange={(e) => setForm((p) => ({ ...p, bookBalance: Number(e.target.value) || 0 }))}
+                  className="w-full h-10 px-3.5 rounded-lg border border-slate-300 bg-slate-50 font-semibold text-slate-800 tabular-nums focus:outline-none focus:ring-2 focus:ring-[#25a872]/40 text-sm"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1" htmlFor="physical-count">
+                  Physical Count <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  id="physical-count"
+                  name="physicalCount"
+                  type="number"
+                  min={0}
+                  inputMode="numeric"
+                  value={form.physicalCount}
+                  onChange={(e) => setForm((p) => ({ ...p, physicalCount: Number(e.target.value) || 0 }))}
+                  className="w-full h-10 px-3.5 rounded-lg border-2 border-[#145c3f] bg-white font-bold text-slate-900 tabular-nums focus:outline-none focus:ring-2 focus:ring-[#25a872]/40 text-sm"
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Dynamic Variance Banner */}
+            <div className={`p-2.5 rounded-lg border flex items-center justify-between ${
+              variance === 0
+                ? "bg-emerald-50 border-emerald-200 text-emerald-900"
+                : "bg-amber-50 border-amber-300 text-amber-950"
+            }`}>
+              <div className="flex items-center gap-2">
+                {variance === 0 ? (
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                ) : (
+                  <AlertCircle className="w-4 h-4 text-amber-600" />
+                )}
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-wider">Count Variance</p>
+                  <p className="text-xs font-medium opacity-85">
+                    {variance === 0 ? "Book balance matches physical count" : `Variance: Book (${form.bookBalance}) vs Actual (${form.physicalCount})`}
+                  </p>
+                </div>
+              </div>
+              <span className={`text-base font-extrabold tabular-nums px-2.5 py-0.5 rounded-md ${
+                variance === 0 ? "bg-emerald-100 text-emerald-800" : "bg-amber-200 text-amber-900"
+              }`}>
+                {variance > 0 ? `-${variance}` : variance < 0 ? `+${Math.abs(variance)}` : "0"}
+              </span>
+            </div>
+
+            {/* Condition Selection with Custom Select */}
             <div>
-              <label className={labelCls} htmlFor="verify-status">Status</label>
-              <select
-                id="verify-status"
-                name="verificationStatus"
-                className={inputCls}
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1">
+                Physical Condition Assessment <span className="text-rose-500">*</span>
+              </label>
+              <Select
+                value={form.physicalCondition}
+                onValueChange={(val) => setForm((p) => ({ ...p, physicalCondition: val }))}
+              >
+                <SelectTrigger displayValue={form.physicalCondition} className="bg-white border-slate-300 h-10">
+                  <SelectValue placeholder="Select Condition" />
+                </SelectTrigger>
+                <SelectContent>
+                  {PHYSICAL_CONDITIONS.map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {c}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Verification Status Selection with Custom Select */}
+            <div>
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1">
+                Verification Verdict
+              </label>
+              <Select
                 value={hasException ? "Exception" : form.verificationStatus}
                 disabled={hasException}
-                onChange={(e) => setForm((p) => ({ ...p, verificationStatus: e.target.value }))}
+                onValueChange={(val) => setForm((p) => ({ ...p, verificationStatus: val }))}
               >
-                {VERIFY_STATUSES.map((s) => (
-                  <option key={s} value={s}>{s}</option>
-                ))}
-              </select>
+                <SelectTrigger
+                  displayValue={hasException ? "Exception (Auto-flagged)" : form.verificationStatus}
+                  className="bg-white border-slate-300 h-10"
+                >
+                  <SelectValue placeholder="Select Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  {VERIFY_STATUSES.map((s) => (
+                    <SelectItem key={s} value={s}>
+                      {s}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-            <div>
-              <label className={labelCls} htmlFor="verify-date">Date</label>
-              <input
-                id="verify-date"
-                name="verificationDate"
-                type="date"
-                className={inputCls}
-                value={form.verificationDate}
-                onChange={(e) => setForm((p) => ({ ...p, verificationDate: e.target.value }))}
-              />
+          </div>
+
+          {/* Column 2: Sign-Off, Officer & Remarks */}
+          <div className="bg-white border border-slate-200/90 rounded-xl shadow-sm p-4 space-y-3.5 flex flex-col justify-between">
+            <div className="space-y-3.5">
+              <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
+                <div className="p-1.5 bg-[#e8f5ee] rounded-lg text-[#145c3f]">
+                  <ShieldCheck className="w-4 h-4" />
+                </div>
+                <div>
+                  <h2 className="text-xs font-bold uppercase tracking-wider text-slate-900">Sign-Off & Remarks</h2>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1" htmlFor="verify-date">
+                    Verification Date <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    id="verify-date"
+                    name="verificationDate"
+                    type="date"
+                    value={form.verificationDate}
+                    onChange={(e) => setForm((p) => ({ ...p, verificationDate: e.target.value }))}
+                    className="w-full h-10 px-3.5 rounded-lg border border-slate-300 bg-white font-medium text-slate-900 text-xs focus:outline-none focus:ring-2 focus:ring-[#25a872]/40"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1">
+                    Verifying Officer
+                  </label>
+                  <div className="h-10 px-3.5 rounded-lg border border-slate-200 bg-slate-50 flex items-center gap-2 text-xs font-bold text-slate-800 truncate">
+                    <User className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                    <span className="truncate">{user?.name || "Verifying Officer"}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1" htmlFor="remarks">
+                  Remarks {hasException ? <span className="text-rose-500">* (Required)</span> : <span className="text-slate-400 font-normal">(Optional)</span>}
+                </label>
+                <textarea
+                  id="remarks"
+                  name="remarks"
+                  rows={3}
+                  value={form.remarks}
+                  onChange={(e) => setForm((p) => ({ ...p, remarks: e.target.value }))}
+                  placeholder="Record observations regarding physical condition, defects, or reasons for count variance..."
+                  className="w-full p-3 rounded-lg border border-slate-300 bg-white text-xs font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#25a872]/40 resize-none"
+                  required={hasException}
+                />
+              </div>
             </div>
-            <div className="col-span-2 sm:col-span-3 lg:col-span-4">
-              <label className={labelCls} htmlFor="remarks">
-                Remarks {hasException ? <span className="text-rose-500">*</span> : null}
-              </label>
-              <input
-                id="remarks"
-                name="remarks"
-                className={inputCls}
-                value={form.remarks}
-                onChange={(e) => setForm((p) => ({ ...p, remarks: e.target.value }))}
-                placeholder="Condition notes, location changes, missing parts…"
-              />
-            </div>
-            <div>
-              <p className={labelCls}>Officer</p>
-              <p className="h-9 flex items-center px-3 rounded-lg border border-slate-200 bg-slate-50 text-sm font-semibold text-slate-900 truncate">
-                {user?.name || "Officer"}
-              </p>
-            </div>
-            <div className="flex items-end">
-              <Button type="submit" disabled={saving} className="w-full h-9 bg-[#145c3f] hover:bg-[#0f3d2e] text-white text-xs font-bold">
-                {saving ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" aria-hidden="true" /> : <ClipboardCheck className="h-4 w-4 mr-1.5" aria-hidden="true" />}
-                {saving ? "Saving…" : "Save"}
+
+            {/* Action CTAs */}
+            <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2.5">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => navigate("/store-management/verification/verify")}
+                className="h-10 px-5 rounded-lg font-semibold border-slate-300 hover:bg-slate-50 text-slate-700 text-xs"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={saving}
+                size="sm"
+                className="h-10 px-6 rounded-lg font-bold bg-[#145c3f] hover:bg-[#0f3d2e] text-white shadow-sm flex items-center gap-1.5 text-xs"
+              >
+                {saving ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                    Saving…
+                  </>
+                ) : (
+                  <>
+                    <ClipboardCheck className="h-4 w-4" aria-hidden="true" />
+                    Save & Submit Verification
+                  </>
+                )}
               </Button>
             </div>
           </div>
@@ -309,3 +506,4 @@ export default function VerifyAssetView() {
     </PageLayout>
   );
 }
+

@@ -24,6 +24,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
+import {
   SUPPLY_NATURES,
   getSupplySubcategories,
   getPrimaryCategoryKeys,
@@ -215,12 +222,8 @@ export function NewSupplyVerificationView() {
 
   const validateStep = (step: number): boolean => {
     if (step === 1) {
-      if (!formData.supplyNature) {
-        setValidationError("Select Goods, Services, or Works");
-        return false;
-      }
-      if (formData.supplyNature === "Goods" && !formData.goodsCategory) {
-        setValidationError("Select a goods category");
+      if (!formData.goodsCategory) {
+        setValidationError("Select a primary goods category");
         return false;
       }
       if (!formData.zone_id || !formData.state_id) {
@@ -356,7 +359,7 @@ export function NewSupplyVerificationView() {
   return (
     <PageLayout
       title="Verification of Supply"
-      description="Inspect the delivery — store items post to Inventory; Land, Building and Vehicles continue to the Asset Register"
+      description="Inspect delivered goods and generate verification certificate"
       actions={
         <Button
           variant="outline"
@@ -444,235 +447,184 @@ export function NewSupplyVerificationView() {
                 <FileText className="h-4 w-4 text-[#145c3f]" />
                 1. Classification & Location
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-[#f4f7f5] p-4 rounded-lg border border-slate-200">
                 <div>
-                  <label className={labelCls} htmlFor="supply-nature">
-                    Nature <span className="text-rose-500">*</span>
+                  <label className={labelCls} htmlFor="goods-category">
+                    Primary Category <span className="text-rose-500">*</span>
                   </label>
-                  <select
-                    id="supply-nature"
-                    name="supplyNature"
-                    className={inputCls}
-                    value={formData.supplyNature}
-                    onChange={(e) => {
-                      const nature = e.target.value as (typeof SUPPLY_NATURES)[number];
-                      const subs = getSupplySubcategories(nature, formData.goodsCategory);
-                      const types = nature === "Goods"
-                        ? getSpecificTypeKeys(formData.goodsCategory, subs[0] || "")
-                        : [];
+                  <Select
+                    value={formData.goodsCategory}
+                    onValueChange={(nextCategory) => {
+                      const nextSubs = getSubCategoryKeys(nextCategory);
+                      const nextSub = nextSubs[0] || "";
+                      const nextTypes = getSpecificTypeKeys(nextCategory, nextSub);
+                      const nextType = nextTypes[0] || "";
                       setFormData((p) => ({
                         ...p,
-                        supplyNature: nature,
-                        storeSubcategory: subs[0] || "",
-                        specificType: types[0] || "",
-                        classification: classificationForCategory(nature, p.goodsCategory),
+                        goodsCategory: nextCategory,
+                        storeSubcategory: nextSub,
+                        specificType: nextType,
+                        classification: classificationForCategory("Goods", nextCategory),
                       }));
+                      setLineItems((rows) => {
+                        const first = rows[0];
+                        if (!first) return rows;
+                        const prevType = formData.specificType;
+                        if (!first.description.trim() || first.description === prevType) {
+                          return rows.map((row, i) => (i === 0 ? { ...row, description: nextType } : row));
+                        }
+                        return rows;
+                      });
                     }}
                   >
-                    {SUPPLY_NATURES.map((n) => (
-                      <option key={n} value={n}>
-                        {n === "Goods" ? "Goods (Supply)" : n}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger size="sm" displayValue={formData.goodsCategory} className="bg-white">
+                      <SelectValue placeholder="Select primary category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {getPrimaryCategoryKeys().map((c) => (
+                        <SelectItem key={c} value={c}>{c}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-                <div className="flex flex-col justify-end">
-                  <p className="text-[11px] font-semibold text-slate-600 mb-1.5">After verification</p>
-                  <p className={`h-10 flex items-center px-3 rounded-lg border text-sm font-semibold ${
-                    classificationForCategory(formData.supplyNature, formData.goodsCategory) === "ASSET_REGISTER"
-                      ? "border-[#25a872]/40 bg-[#e8f5ee] text-[#0f3d2e]"
-                      : "border-slate-200 bg-slate-50 text-slate-800"
-                  }`}>
-                    {classificationForCategory(formData.supplyNature, formData.goodsCategory) === "ASSET_REGISTER"
-                      ? "Capitalise to Asset Register"
-                      : "Post to Inventory"}
-                  </p>
+                <div>
+                  <label className={labelCls} htmlFor="store-subcategory">Sub Category</label>
+                  <Select
+                    value={formData.storeSubcategory}
+                    onValueChange={(nextSub) => {
+                      const nextType = getSpecificTypeKeys(formData.goodsCategory, nextSub)[0] || "";
+                      setFormData((p) => ({ ...p, storeSubcategory: nextSub, specificType: nextType }));
+                      setLineItems((rows) => {
+                        const first = rows[0];
+                        if (!first) return rows;
+                        if (!first.description.trim() || first.description === formData.specificType) {
+                          return rows.map((row, i) => (i === 0 ? { ...row, description: nextType } : row));
+                        }
+                        return rows;
+                      });
+                    }}
+                  >
+                    <SelectTrigger size="sm" displayValue={formData.storeSubcategory} className="bg-white">
+                      <SelectValue placeholder="Select subcategory" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {getSubCategoryKeys(formData.goodsCategory).map((c) => (
+                        <SelectItem key={c} value={c}>{c}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className={labelCls} htmlFor="specific-type">Specific Item Type</label>
+                  <Select
+                    value={formData.specificType}
+                    onValueChange={(nextType) => {
+                      setFormData((p) => ({ ...p, specificType: nextType }));
+                      setLineItems((rows) => {
+                        const first = rows[0];
+                        if (!first) return rows;
+                        if (!first.description.trim() || first.description === formData.specificType) {
+                          return rows.map((row, i) => (i === 0 ? { ...row, description: nextType } : row));
+                        }
+                        return rows;
+                      });
+                    }}
+                  >
+                    <SelectTrigger size="sm" displayValue={formData.specificType} className="bg-white">
+                      <SelectValue placeholder="Select specific item type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {getSpecificTypeKeys(formData.goodsCategory, formData.storeSubcategory).map((t) => (
+                        <SelectItem key={t} value={t}>{t}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
-
-              {formData.supplyNature === "Goods" ? (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-[#f4f7f5] p-4 rounded-lg border border-slate-200">
-                  <div>
-                    <label className={labelCls} htmlFor="goods-category">Primary Category</label>
-                    <select
-                      id="goods-category"
-                      name="goodsCategory"
-                      className={inputCls}
-                      value={formData.goodsCategory}
-                      onChange={(e) => {
-                        const nextCategory = e.target.value;
-                        const nextSubs = getSubCategoryKeys(nextCategory);
-                        const nextSub = nextSubs[0] || "";
-                        const nextTypes = getSpecificTypeKeys(nextCategory, nextSub);
-                        const nextType = nextTypes[0] || "";
-                        setFormData((p) => ({
-                          ...p,
-                          goodsCategory: nextCategory,
-                          storeSubcategory: nextSub,
-                          specificType: nextType,
-                          classification: classificationForCategory("Goods", nextCategory),
-                        }));
-                        setLineItems((rows) => {
-                          const first = rows[0];
-                          if (!first) return rows;
-                          const prevType = formData.specificType;
-                          if (!first.description.trim() || first.description === prevType) {
-                            return rows.map((row, i) => (i === 0 ? { ...row, description: nextType } : row));
-                          }
-                          return rows;
-                        });
-                      }}
-                    >
-                      {getPrimaryCategoryKeys().map((c) => (
-                        <option key={c} value={c}>{c}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className={labelCls} htmlFor="store-subcategory">Sub Category</label>
-                    <select
-                      id="store-subcategory"
-                      name="storeSubcategory"
-                      className={inputCls}
-                      value={formData.storeSubcategory}
-                      onChange={(e) => {
-                        const nextSub = e.target.value;
-                        const nextType = getSpecificTypeKeys(formData.goodsCategory, nextSub)[0] || "";
-                        setFormData((p) => ({ ...p, storeSubcategory: nextSub, specificType: nextType }));
-                        setLineItems((rows) => {
-                          const first = rows[0];
-                          if (!first) return rows;
-                          if (!first.description.trim() || first.description === formData.specificType) {
-                            return rows.map((row, i) => (i === 0 ? { ...row, description: nextType } : row));
-                          }
-                          return rows;
-                        });
-                      }}
-                    >
-                      {getSubCategoryKeys(formData.goodsCategory).map((c) => (
-                        <option key={c} value={c}>{c}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className={labelCls} htmlFor="specific-type">Specific Item Type</label>
-                    <select
-                      id="specific-type"
-                      name="specificType"
-                      className={inputCls}
-                      value={formData.specificType}
-                      onChange={(e) => {
-                        const nextType = e.target.value;
-                        setFormData((p) => ({ ...p, specificType: nextType }));
-                        setLineItems((rows) => {
-                          const first = rows[0];
-                          if (!first) return rows;
-                          if (!first.description.trim() || first.description === formData.specificType) {
-                            return rows.map((row, i) => (i === 0 ? { ...row, description: nextType } : row));
-                          }
-                          return rows;
-                        });
-                      }}
-                    >
-                      {getSpecificTypeKeys(formData.goodsCategory, formData.storeSubcategory).map((t) => (
-                        <option key={t} value={t}>{t}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              ) : (
-                <div>
-                  <label className={labelCls} htmlFor="store-subcategory">Subcategory</label>
-                  <select
-                    id="store-subcategory"
-                    name="storeSubcategory"
-                    className={inputCls}
-                    value={formData.storeSubcategory}
-                    onChange={(e) => setField("storeSubcategory", e.target.value)}
-                  >
-                    {getSupplySubcategories(formData.supplyNature, formData.goodsCategory).map((c) => (
-                      <option key={c} value={c}>{c}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div>
                   <label className={labelCls} htmlFor="zone-select">
                     Zone <span className="text-rose-500">*</span>
                   </label>
-                  <select
-                    id="zone-select"
-                    name="zone_id"
-                    className={inputCls}
-                    value={formData.zone_id}
-                    onChange={(e) => handleZoneChange(e.target.value)}
+                  <Select
+                    value={formData.zone_id ? String(formData.zone_id) : ""}
+                    onValueChange={(val) => handleZoneChange(val)}
                   >
-                    <option value="">Select zone</option>
-                    {zones.map((z) => (
-                      <option key={z.id} value={z.id}>
-                        {z.label}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger size="sm" displayValue={formData.zone_name || undefined} className="bg-white">
+                      <SelectValue placeholder="Select zone" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {zones.map((z) => (
+                        <SelectItem key={z.id} value={String(z.id)}>{z.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div>
                   <label className={labelCls} htmlFor="state-select">
                     State office <span className="text-rose-500">*</span>
                   </label>
-                  <select
-                    id="state-select"
-                    name="state_id"
-                    className={inputCls}
-                    value={formData.state_id}
-                    onChange={(e) => handleStateChange(e.target.value)}
+                  <Select
+                    value={formData.state_id ? String(formData.state_id) : ""}
                     disabled={!formData.zone_id}
+                    onValueChange={(val) => handleStateChange(val)}
                   >
-                    <option value="">
-                      {formData.zone_id ? "Select state…" : "Select zone first"}
-                    </option>
-                    {states.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.label}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger
+                      size="sm"
+                      displayValue={formData.state_name || undefined}
+                      className="bg-white"
+                    >
+                      <SelectValue placeholder={formData.zone_id ? "Select state office…" : "Select zone first"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {states.map((s) => (
+                        <SelectItem key={s.id} value={String(s.id)}>{s.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div>
                   <label className={labelCls} htmlFor="dept-select">Department</label>
-                  <select
-                    id="dept-select"
-                    name="department_id"
-                    className={inputCls}
-                    value={formData.department_id}
-                    onChange={(e) => handleDeptChange(e.target.value)}
+                  <Select
+                    value={formData.department_id ? String(formData.department_id) : ""}
                     disabled={!formData.state_id}
+                    onValueChange={(val) => handleDeptChange(val)}
                   >
-                    <option value="">Select department</option>
-                    {departments.map((d) => (
-                      <option key={d.id} value={d.id}>
-                        {d.label}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger
+                      size="sm"
+                      displayValue={formData.department_name || undefined}
+                      className="bg-white"
+                    >
+                      <SelectValue placeholder={formData.state_id ? "Select department" : "Select state first"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {departments.map((d) => (
+                        <SelectItem key={d.id} value={String(d.id)}>{d.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div>
                   <label className={labelCls} htmlFor="unit-select">Unit</label>
-                  <select
-                    id="unit-select"
-                    name="unit_id"
-                    className={inputCls}
-                    value={formData.unit_id}
-                    onChange={(e) => handleUnitChange(e.target.value)}
+                  <Select
+                    value={formData.unit_id ? String(formData.unit_id) : ""}
                     disabled={!formData.department_id}
+                    onValueChange={(val) => handleUnitChange(val)}
                   >
-                    <option value="">Select unit</option>
-                    {units.map((u) => (
-                      <option key={u.id} value={u.id}>
-                        {u.label}
-                      </option>
-                    ))}
-                  </select>
+                    <SelectTrigger
+                      size="sm"
+                      displayValue={formData.unit_name || undefined}
+                      className="bg-white"
+                    >
+                      <SelectValue placeholder={formData.department_id ? "Select unit" : "Select dept first"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {units.map((u) => (
+                        <SelectItem key={u.id} value={String(u.id)}>{u.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
             </div>
@@ -778,49 +730,69 @@ export function NewSupplyVerificationView() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div>
                   <label className={labelCls}>Physical Condition</label>
-                  <select
-                    className={inputCls}
+                  <Select
                     value={formData.physicalCondition}
-                    onChange={(e) => setField("physicalCondition", e.target.value)}
+                    onValueChange={(val) => setField("physicalCondition", val)}
                   >
-                    {PHYSICAL_CONDITIONS.map((c) => (
-                      <option key={c} value={c}>{c}</option>
-                    ))}
-                  </select>
+                    <SelectTrigger size="sm" displayValue={formData.physicalCondition} className="bg-white">
+                      <SelectValue placeholder="Select condition" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PHYSICAL_CONDITIONS.map((c) => (
+                        <SelectItem key={c} value={c}>{c}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div>
                   <label className={labelCls}>Verification Status</label>
-                  <select
-                    className={inputCls}
+                  <Select
                     value={formData.verdict}
-                    onChange={(e) => setField("verdict", e.target.value)}
+                    onValueChange={(val) => setField("verdict", val)}
                   >
-                    {VERIFICATION_STATUSES.map((s) => (
-                      <option key={s.value} value={s.value}>{s.label}</option>
-                    ))}
-                  </select>
+                    <SelectTrigger
+                      size="sm"
+                      displayValue={VERIFICATION_STATUSES.find((s) => s.value === formData.verdict)?.label || formData.verdict}
+                      className="bg-white"
+                    >
+                      <SelectValue placeholder="Select verdict" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {VERIFICATION_STATUSES.map((s) => (
+                        <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div>
                   <label className={labelCls}>Specification Conformity</label>
-                  <select
-                    className={inputCls}
+                  <Select
                     value={formData.specificationMatch ? "Yes" : "No"}
-                    onChange={(e) => setField("specificationMatch", e.target.value === "Yes")}
+                    onValueChange={(val) => setField("specificationMatch", val === "Yes")}
                   >
-                    <option>Yes</option>
-                    <option>No</option>
-                  </select>
+                    <SelectTrigger size="sm" displayValue={formData.specificationMatch ? "Yes" : "No"} className="bg-white">
+                      <SelectValue placeholder="Conformity" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Yes">Yes</SelectItem>
+                      <SelectItem value="No">No</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div>
                   <label className={labelCls}>Price Conformance</label>
-                  <select
-                    className={inputCls}
+                  <Select
                     value={formData.priceConformance ? "Yes" : "No"}
-                    onChange={(e) => setField("priceConformance", e.target.value === "Yes")}
+                    onValueChange={(val) => setField("priceConformance", val === "Yes")}
                   >
-                    <option>Yes</option>
-                    <option>No</option>
-                  </select>
+                    <SelectTrigger size="sm" displayValue={formData.priceConformance ? "Yes" : "No"} className="bg-white">
+                      <SelectValue placeholder="Conformance" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Yes">Yes</SelectItem>
+                      <SelectItem value="No">No</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
             </div>
@@ -942,15 +914,23 @@ export function NewSupplyVerificationView() {
                 </div>
                 <div>
                   <label className={labelCls}>Approval Status</label>
-                  <select
-                    className={inputCls}
+                  <Select
                     value={formData.approvalStatus}
-                    onChange={(e) => setField("approvalStatus", e.target.value)}
+                    onValueChange={(val) => setField("approvalStatus", val)}
                   >
-                    {APPROVAL_STATUSES.map((s) => (
-                      <option key={s.value} value={s.value}>{s.label}</option>
-                    ))}
-                  </select>
+                    <SelectTrigger
+                      size="sm"
+                      displayValue={APPROVAL_STATUSES.find((s) => s.value === formData.approvalStatus)?.label || formData.approvalStatus}
+                      className="bg-white"
+                    >
+                      <SelectValue placeholder="Select approval status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {APPROVAL_STATUSES.map((s) => (
+                        <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="md:col-span-2 lg:col-span-4">
                   <label className={labelCls}>Remarks</label>

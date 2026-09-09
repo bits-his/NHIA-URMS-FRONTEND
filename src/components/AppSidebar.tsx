@@ -113,6 +113,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
   "Zonal Review": CheckSquare,
   "Stock Verification": ClipboardList,
   "STOCK VERIFICATION": ClipboardList,
+  "STOCK VERIFICATION (SVD)": ClipboardList,
   "SOC/ZONES": MapPin,
   Zonal: MapPin,
   "SOC/Zones Dashboard": Activity,
@@ -248,9 +249,9 @@ function filterModuleTree(
       } else {
         nested = filterModuleTree(child.children, allowedTitles, storeAllowed, socAllowed, zonalAllowed);
 
-        // Nest Asset Management (SVO) under STOCK VERIFICATION only when that privilege is granted
+        // Nest store privileges under STOCK VERIFICATION (SVD) when granted
         if (
-          child.label === "STOCK VERIFICATION" &&
+          (child.label === "STOCK VERIFICATION" || child.label === "STOCK VERIFICATION (SVD)") &&
           storeAllowed &&
           storeAllowed.size > 0
         ) {
@@ -259,11 +260,7 @@ function filterModuleTree(
             filterModuleTree(assetMod?.children ?? [], storeAllowed, storeAllowed, socAllowed, zonalAllowed),
           );
           if (storeKids.length > 0) {
-            nested.push({
-              kind: "folder",
-              title: "Asset Management (SVO)",
-              children: storeKids,
-            });
+            nested.push(...storeKids);
           }
         }
       }
@@ -499,7 +496,7 @@ function NavMain({
     const built = modules
       .filter(({ mod }) => {
         if (mod.title === "Notifications" || mod.title === "Settings") return false;
-        // When SDO is shown, Asset Management (SVO) is nested under STOCK VERIFICATION
+        // When SDO is shown, Asset Management (SVO) is nested under STOCK VERIFICATION (SVD)
         if (hasSdo && mod.title === "Asset Management (SVO)") return false;
         // When SDO is shown, SOC/Zones and Zonal are nested under SOC/ZONES
         if (hasSdo && mod.title === SOC_ZONES_MODULE) return false;

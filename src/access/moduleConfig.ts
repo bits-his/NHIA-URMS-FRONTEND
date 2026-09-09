@@ -190,7 +190,7 @@ export const MODULE_CONFIG: ParentModule[] = [
         { title: "Complaints Management",        view: "servicom-complaints",   path: "/sdo/servicom/complaints" },
         { title: "Customer Satisfaction Survey", view: "servicom-satisfaction", path: "/sdo/servicom/satisfaction" },
       ]},
-      { type: "group", label: "ASSET MANAGEMENT (SVO)", children: [
+      { type: "group", label: "STOCK VERIFICATION (SVD)", children: [
         { title: "Stock Verification Dashboard", view: "stock-verification-dashboard", path: "/sdo/stock-dashboard" },
         { title: "Physical Asset Verification", view: "store-verification-verify", path: "/store-management/verification/verify" },
         { title: "Verification of Supply",      view: "store-supply-verification", path: "/store-management/verification/supply" },
