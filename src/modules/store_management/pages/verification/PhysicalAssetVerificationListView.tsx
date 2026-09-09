@@ -1,14 +1,39 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { storeManagementApi } from "@/src/services/storeManagementApi";
+import { stockApi } from "@/lib/api";
 import { useNavigate } from "react-router-dom";
 import CustomTable, { CustomTableField } from "@/components/CustomTable";
 import { Button } from "@/components/ui/button";
-import { Plus, Eye, ClipboardCheck, Trash2 } from "lucide-react";
+import { Plus, Eye, ClipboardCheck, Trash2, X, Filter, Search } from "lucide-react";
 import PageLayout from "../../components/PageLayout";
-import ListSearchBar from "../../components/ListSearchBar";
 import MetricCards from "../../components/MetricCards";
+import { matchesStore } from "../../lib/storeOptions";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
 
 type ConditionBucket = "good" | "defective" | "missing" | "obsolete" | "retired";
+
+interface Option {
+  id: number | string;
+  label: string;
+  zone_id?: number | string;
+}
+
+const DEFAULT_CATEGORIES = [
+  "Office Equipment",
+  "Computer Equipment",
+  "Office Furniture",
+  "Motor Vehicles",
+  "Plant & Machinery",
+  "Furniture & Fittings",
+  "Land & Buildings",
+  "Medical Equipment",
+];
 
 const BUCKET_BADGE: Record<ConditionBucket, { label: string; className: string }> = {
   good: { label: "Good", className: "bg-[#e8f5ee] text-[#0f3d2e]" },
@@ -51,6 +76,13 @@ export default function PhysicalAssetVerificationListView() {
   const [query, setQuery] = useState("");
   const [bucket, setBucket] = useState<ConditionBucket | "all">("all");
 
+  // Zone, State, and Category Filter states
+  const [zones, setZones] = useState<Option[]>([]);
+  const [states, setStates] = useState<Option[]>([]);
+  const [zoneFilter, setZoneFilter] = useState<string>("");
+  const [stateFilter, setStateFilter] = useState<string>("");
+  const [categoryFilter, setCategoryFilter] = useState<string>("");
+
   const fetchAssets = async () => {
     try {
       setLoading(true);
@@ -71,17 +103,126 @@ export default function PhysicalAssetVerificationListView() {
     fetchAssets();
   }, []);
 
+  // Load Zones on Mount
+  useEffect(() => {
+    stockApi
+      .getZones()
+      .then((r: any) => {
+        setZones((r.data || []).map((z: any) => ({ id: z.id, label: z.description })));
+      })
+      .catch(() => {});
+  }, []);
+
+  // Load States on Zone change
+  useEffect(() => {
+    if (!zoneFilter) {
+      stockApi
+        .getStates()
+        .then((r: any) => {
+          setStates((r.data || []).map((s: any) => ({ id: s.id, label: s.description, zone_id: s.zonal_id })));
+        })
+        .catch(() => setStates([]));
+      return;
+    }
+    stockApi
+      .getStates(zoneFilter)
+      .then((r: any) => {
+        setStates((r.data || []).map((s: any) => ({ id: s.id, label: s.description, zone_id: s.zonal_id })));
+      })
+      .catch(() => setStates([]));
+  }, [zoneFilter]);
+
+  const zoneLabel = useMemo(() => {
+    const found = zones.find((z) => String(z.id) === String(zoneFilter));
+    return found ? found.label : "";
+  }, [zones, zoneFilter]);
+
+  const stateLabel = useMemo(() => {
+    const found = states.find((s) => String(s.id) === String(stateFilter));
+    return found ? found.label : "";
+  }, [states, stateFilter]);
+
+  const categoryOptions = useMemo(() => {
+    const list = new Set<string>(DEFAULT_CATEGORIES);
+    for (const a of assets) {
+      const cat = a.primaryCategory || a.category;
+      if (cat && typeof cat === "string") list.add(cat.trim());
+    }
+    return Array.from(list).sort();
+  }, [assets]);
+
+  const matchesLocation = (a: any) => {
+    if (zoneFilter) {
+      let zoneMatches = false;
+      if (a.zone_id && String(a.zone_id) === String(zoneFilter)) {
+        zoneMatches = true;
+      } else if (a.zone_name && zoneLabel && a.zone_name.toLowerCase().includes(zoneLabel.toLowerCase())) {
+        zoneMatches = true;
+      } else if (zoneLabel.toLowerCase().includes("headquarters") || zoneLabel.toLowerCase().includes("hq")) {
+        if ((a.facilitySite || "").toLowerCase().includes("hq") || (a.officeDeptUnit || "").toLowerCase().includes("hq")) {
+          zoneMatches = true;
+        }
+      }
+      if (!zoneMatches && states.length > 0) {
+        const stateMatchesInZone = states.some((s) =>
+          matchesStore(a.officeDeptUnit, s.label) ||
+          matchesStore(a.facilitySite, s.label) ||
+          matchesStore(a.location, s.label) ||
+          (a.state_id && String(a.state_id) === String(s.id))
+        );
+        if (stateMatchesInZone) zoneMatches = true;
+      }
+      if (!zoneMatches) return false;
+    }
+
+    if (stateFilter) {
+      if (a.state_id && String(a.state_id) === String(stateFilter)) {
+        return true;
+      }
+      if (stateLabel) {
+        return (
+          matchesStore(a.officeDeptUnit, stateLabel) ||
+          matchesStore(a.facilitySite, stateLabel) ||
+          matchesStore(a.location, stateLabel) ||
+          matchesStore(a.specificLocation, stateLabel)
+        );
+      }
+      return false;
+    }
+
+    return true;
+  };
+
+  const matchesCategory = (a: any) => {
+    if (!categoryFilter) return true;
+    const cat = (a.primaryCategory || a.category || "").toLowerCase();
+    return cat === categoryFilter.toLowerCase();
+  };
+
   const searched = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return assets;
-    return assets.filter((a) =>
-      [a.assetId, a.assetNumber, a.nhiaTagNumber, a.name, a.assignedCustodian, a.custodian, a.officeDeptUnit, a.primaryCategory]
+    return assets.filter((a) => {
+      if (!matchesLocation(a)) return false;
+      if (!matchesCategory(a)) return false;
+      if (!q) return true;
+      return [
+        a.assetId,
+        a.assetNumber,
+        a.nhiaTagNumber,
+        a.name,
+        a.assignedCustodian,
+        a.custodian,
+        a.officeDeptUnit,
+        a.primaryCategory,
+        a.serialNumber,
+        a.facilitySite,
+      ]
         .filter(Boolean)
         .join(" ")
         .toLowerCase()
-        .includes(q)
-    );
-  }, [assets, query]);
+        .includes(q);
+    });
+  }, [assets, zoneFilter, stateFilter, categoryFilter, query, states, zoneLabel, stateLabel]);
 
   const counts = useMemo(() => {
     const next = { good: 0, defective: 0, missing: 0, obsolete: 0, retired: 0 };
@@ -97,6 +238,16 @@ export default function PhysicalAssetVerificationListView() {
   const toggleBucket = (next: ConditionBucket | "all") => {
     setBucket((prev) => (prev === next ? "all" : next));
   };
+
+  const resetFilters = () => {
+    setZoneFilter("");
+    setStateFilter("");
+    setCategoryFilter("");
+    setQuery("");
+    setBucket("all");
+  };
+
+  const hasActiveFilters = Boolean(zoneFilter || stateFilter || categoryFilter || query || bucket !== "all");
 
   const openDisposal = (asset?: any) => {
     const params = new URLSearchParams({ reason: "OBSOLETE" });
@@ -269,12 +420,103 @@ export default function PhysicalAssetVerificationListView() {
         </div>
       ) : null}
 
-      <ListSearchBar
-        value={query}
-        onChange={setQuery}
-        placeholder="Search tag, name, custodian…"
-        id="verify-search"
-      />
+      {/* Compact Filters in One Row */}
+      <div className="flex flex-wrap md:flex-nowrap items-center gap-2.5 bg-white p-2.5 border border-slate-200 rounded-xl shadow-sm">
+        {/* Search */}
+        <div className="relative flex-1 min-w-[180px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" aria-hidden="true" />
+          <input
+            id="verify-search"
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search tag, name, custodian…"
+            className="w-full h-9 pl-9 pr-3 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#25a872]/40"
+          />
+        </div>
+
+        {/* Zone */}
+        <div className="w-40 shrink-0">
+          <Select
+            value={zoneFilter || "ALL"}
+            onValueChange={(val) => {
+              setZoneFilter(val === "ALL" ? "" : val);
+              setStateFilter("");
+            }}
+          >
+            <SelectTrigger size="sm" displayValue={zoneLabel || "All Zones"} className="bg-white">
+              <SelectValue placeholder="All Zones" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All Zones</SelectItem>
+              {zones.map((z) => (
+                <SelectItem key={z.id} value={String(z.id)}>
+                  {z.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* State */}
+        <div className="w-44 shrink-0">
+          <Select
+            value={stateFilter || "ALL"}
+            disabled={!zoneFilter && states.length === 0}
+            onValueChange={(val) => setStateFilter(val === "ALL" ? "" : val)}
+          >
+            <SelectTrigger
+              size="sm"
+              displayValue={stateLabel || (zoneFilter ? "All States in Zone" : "All States")}
+              className="bg-white"
+            >
+              <SelectValue placeholder={zoneFilter ? "All States in Zone" : "All States"} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">{zoneFilter ? "All States in Zone" : "All States"}</SelectItem>
+              {states.map((s) => (
+                <SelectItem key={s.id} value={String(s.id)}>
+                  {s.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Category */}
+        <div className="w-44 shrink-0">
+          <Select
+            value={categoryFilter || "ALL"}
+            onValueChange={(val) => setCategoryFilter(val === "ALL" ? "" : val)}
+          >
+            <SelectTrigger size="sm" displayValue={categoryFilter || "All Categories"} className="bg-white">
+              <SelectValue placeholder="All Categories" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All Categories</SelectItem>
+              {categoryOptions.map((cat) => (
+                <SelectItem key={cat} value={cat}>
+                  {cat}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Clear Button */}
+        {hasActiveFilters && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={resetFilters}
+            className="h-9 px-2.5 text-xs font-semibold text-rose-700 border-rose-200 hover:bg-rose-50 shrink-0"
+            title="Clear filters"
+          >
+            <X className="w-3.5 h-3.5 mr-1" /> Clear
+          </Button>
+        )}
+      </div>
 
       <div className="min-w-0 w-full overflow-x-auto">
         <CustomTable

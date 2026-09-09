@@ -4,6 +4,13 @@ import { useAssetManagement, LOOKUPS } from "@/src/store/useAssetManagement";
 import { useNavigate, useLocation } from "react-router-dom";
 import { stockApi } from "@/lib/api";
 import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
+import {
   CheckCircle2,
   ChevronRight,
   ChevronLeft,
@@ -263,6 +270,10 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
         setValidationError("Please enter the Asset Name / Item Description.");
         return false;
       }
+      if (!formData.nhiaTagNumber || !formData.nhiaTagNumber.trim()) {
+        setValidationError("Please enter the Asset Tag Name / Number.");
+        return false;
+      }
     }
     if (step === 2) {
       if (!formData.trackingOfficer || !formData.trackingOfficer.trim()) {
@@ -290,15 +301,22 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
     if (!validateStep(1) || !validateStep(2) || !validateStep(3)) {
       return;
     }
+    const tag = (formData.nhiaTagNumber || "").trim();
+    const payload = {
+      ...formData,
+      nhiaTagNumber: tag,
+      assetId: tag,
+      assetNumber: tag,
+    };
     try {
       if (capitaliseState?.inventoryItemId) {
         await stockApi.capitaliseInventory({
           inventoryItemId: capitaliseState.inventoryItemId,
           quantity: Number(capitaliseState.quantity || 1),
-          asset: formData,
+          asset: payload,
         });
       } else {
-        await registerAsset(formData);
+        await registerAsset(payload);
       }
       setSuccessMsg(true);
       setTimeout(() => {
@@ -451,13 +469,19 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">NHIA Serial Number / Tag (Optional)</label>
+                  <label className="block font-bold text-slate-700 mb-1">
+                    Asset Tag Name / Number <span className="text-rose-500">*</span>
+                  </label>
                   <input
                     type="text"
                     value={formData.nhiaTagNumber}
-                    onChange={(e) => setFormData({ ...formData, nhiaTagNumber: e.target.value })}
-                    className="w-full px-3 py-2 rounded border border-slate-300 font-mono"
-                    placeholder="Auto-generated on DB if blank"
+                    onChange={(e) => {
+                      setFormData({ ...formData, nhiaTagNumber: e.target.value });
+                      if (validationError) setValidationError(null);
+                    }}
+                    className="w-full px-3 py-2 rounded border border-slate-300 font-mono font-semibold focus:ring-1 focus:ring-[#25a872]"
+                    placeholder="e.g. NHIA/AST/2026/0045"
+                    required
                   />
                 </div>
               </div>
@@ -466,41 +490,53 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-[#f4f7f5] p-4 rounded-lg border border-slate-200">
                 <div>
                   <label className="block font-bold text-slate-800 mb-1">Primary Category</label>
-                  <select
+                  <Select
                     value={formData.primaryCategory}
-                    onChange={(e) => handlePrimaryCategoryChange(e.target.value)}
-                    className="w-full px-3 py-2 rounded border border-slate-300 font-bold bg-white text-slate-900 shadow-sm"
+                    onValueChange={(cat) => handlePrimaryCategoryChange(cat)}
                   >
-                    {Object.keys(LOOKUPS.primaryCategories).map((cat) => (
-                      <option key={cat} value={cat}>{cat}</option>
-                    ))}
-                  </select>
+                    <SelectTrigger size="sm" displayValue={formData.primaryCategory} className="bg-white">
+                      <SelectValue placeholder="Select Category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.keys(LOOKUPS.primaryCategories).map((cat) => (
+                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div>
                   <label className="block font-bold text-slate-800 mb-1">Sub Category</label>
-                  <select
+                  <Select
                     value={formData.subCategory}
-                    onChange={(e) => handleSubCategoryChange(e.target.value)}
-                    className="w-full px-3 py-2 rounded border border-slate-300 font-semibold bg-white text-slate-800 shadow-sm"
+                    onValueChange={(sub) => handleSubCategoryChange(sub)}
                   >
-                    {availableSubCats.map((sub) => (
-                      <option key={sub} value={sub}>{sub}</option>
-                    ))}
-                  </select>
+                    <SelectTrigger size="sm" displayValue={formData.subCategory} className="bg-white">
+                      <SelectValue placeholder="Select Subcategory" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableSubCats.map((sub) => (
+                        <SelectItem key={sub} value={sub}>{sub}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div>
                   <label className="block font-bold text-slate-800 mb-1">Specific Item Type</label>
-                  <select
+                  <Select
                     value={formData.specificType}
-                    onChange={(e) => setFormData({ ...formData, specificType: e.target.value })}
-                    className="w-full px-3 py-2 rounded border border-slate-300 bg-white text-slate-800 shadow-sm"
+                    onValueChange={(type) => setFormData({ ...formData, specificType: type })}
                   >
-                    {availableTypes.map((t: string) => (
-                      <option key={t} value={t}>{t}</option>
-                    ))}
-                  </select>
+                    <SelectTrigger size="sm" displayValue={formData.specificType} className="bg-white">
+                      <SelectValue placeholder="Select Type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableTypes.map((t: string) => (
+                        <SelectItem key={t} value={t}>{t}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
@@ -576,61 +612,85 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 bg-[#f4f7f5] p-4 rounded-lg border border-slate-200">
                 <div>
                   <label className="block font-bold text-slate-800 mb-1">Zone (Select)</label>
-                  <select
-                    value={formData.zone_id}
-                    onChange={(e) => handleZoneChange(e.target.value)}
-                    className="w-full px-3 py-2 rounded border border-slate-300 font-bold bg-white text-slate-900 shadow-sm"
+                  <Select
+                    value={formData.zone_id ? String(formData.zone_id) : ""}
+                    onValueChange={(val) => handleZoneChange(val)}
                   >
-                    <option value="">-- Select Zone --</option>
-                    {zones.map((z) => (
-                      <option key={z.id} value={z.id}>{z.label}</option>
-                    ))}
-                  </select>
+                    <SelectTrigger size="sm" displayValue={formData.zone_name || undefined} className="bg-white">
+                      <SelectValue placeholder="-- Select Zone --" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {zones.map((z) => (
+                        <SelectItem key={z.id} value={String(z.id)}>{z.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div>
                   <label className="block font-bold text-slate-800 mb-1">State (Select)</label>
-                  <select
-                    value={formData.state_id}
+                  <Select
+                    value={formData.state_id ? String(formData.state_id) : ""}
                     disabled={!formData.zone_id}
-                    onChange={(e) => handleStateChange(e.target.value)}
-                    className="w-full px-3 py-2 rounded border border-slate-300 font-bold bg-white text-slate-900 shadow-sm disabled:opacity-50"
+                    onValueChange={(val) => handleStateChange(val)}
                   >
-                    <option value="">-- Select State --</option>
-                    {states.map((s) => (
-                      <option key={s.id} value={s.id}>{s.label}</option>
-                    ))}
-                  </select>
+                    <SelectTrigger
+                      size="sm"
+                      displayValue={formData.state_name || undefined}
+                      className="bg-white"
+                    >
+                      <SelectValue placeholder={formData.zone_id ? "-- Select State --" : "Select Zone first"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {states.map((s) => (
+                        <SelectItem key={s.id} value={String(s.id)}>{s.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div>
                   <label className="block font-bold text-slate-800 mb-1">Department (Select)</label>
-                  <select
-                    value={formData.department_id}
+                  <Select
+                    value={formData.department_id ? String(formData.department_id) : ""}
                     disabled={!formData.state_id}
-                    onChange={(e) => handleDepartmentChange(e.target.value)}
-                    className="w-full px-3 py-2 rounded border border-slate-300 font-bold bg-white text-slate-900 shadow-sm disabled:opacity-50"
+                    onValueChange={(val) => handleDepartmentChange(val)}
                   >
-                    <option value="">-- Select Department --</option>
-                    {departments.map((d) => (
-                      <option key={d.id} value={d.id}>{d.label}</option>
-                    ))}
-                  </select>
+                    <SelectTrigger
+                      size="sm"
+                      displayValue={formData.department_name || undefined}
+                      className="bg-white"
+                    >
+                      <SelectValue placeholder={formData.state_id ? "-- Select Department --" : "Select State first"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {departments.map((d) => (
+                        <SelectItem key={d.id} value={String(d.id)}>{d.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div>
                   <label className="block font-bold text-slate-800 mb-1">Unit (Select)</label>
-                  <select
-                    value={formData.unit_id}
+                  <Select
+                    value={formData.unit_id ? String(formData.unit_id) : ""}
                     disabled={!formData.department_id}
-                    onChange={(e) => handleUnitChange(e.target.value)}
-                    className="w-full px-3 py-2 rounded border border-slate-300 font-bold bg-white text-slate-900 shadow-sm disabled:opacity-50"
+                    onValueChange={(val) => handleUnitChange(val)}
                   >
-                    <option value="">-- Select Unit --</option>
-                    {units.map((u) => (
-                      <option key={u.id} value={u.id}>{u.label}</option>
-                    ))}
-                  </select>
+                    <SelectTrigger
+                      size="sm"
+                      displayValue={formData.unit_name || undefined}
+                      className="bg-white"
+                    >
+                      <SelectValue placeholder={formData.department_id ? "-- Select Unit --" : "Select Dept first"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {units.map((u) => (
+                        <SelectItem key={u.id} value={String(u.id)}>{u.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
@@ -686,13 +746,19 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="block font-bold text-slate-700 mb-1">Facility Site</label>
-                  <select
+                  <Select
                     value={formData.facilitySite}
-                    onChange={(e) => setFormData({ ...formData, facilitySite: e.target.value })}
-                    className="w-full px-3 py-2 rounded border border-slate-300 font-bold bg-white"
+                    onValueChange={(val) => setFormData({ ...formData, facilitySite: val })}
                   >
-                    {LOOKUPS.facilitySites.map((s: string) => <option key={s} value={s}>{s}</option>)}
-                  </select>
+                    <SelectTrigger size="sm" displayValue={formData.facilitySite} className="bg-white">
+                      <SelectValue placeholder="Select Facility Site" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {LOOKUPS.facilitySites.map((s: string) => (
+                        <SelectItem key={s} value={s}>{s}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div>
@@ -708,13 +774,19 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
 
                 <div>
                   <label className="block font-bold text-slate-700 mb-1">Operational Status</label>
-                  <select
+                  <Select
                     value={formData.operationalStatus}
-                    onChange={(e) => setFormData({ ...formData, operationalStatus: e.target.value })}
-                    className="w-full px-3 py-2 rounded border border-slate-300 font-bold text-[#145c3f] bg-white"
+                    onValueChange={(val) => setFormData({ ...formData, operationalStatus: val })}
                   >
-                    {LOOKUPS.operationalStatuses.map((st: string) => <option key={st} value={st}>{st}</option>)}
-                  </select>
+                    <SelectTrigger size="sm" displayValue={formData.operationalStatus} className="bg-white text-[#145c3f] font-bold">
+                      <SelectValue placeholder="Select Operational Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {LOOKUPS.operationalStatuses.map((st: string) => (
+                        <SelectItem key={st} value={st}>{st}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
             </div>
@@ -785,13 +857,19 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block font-bold text-slate-700 mb-1">Physical Condition</label>
-                  <select
+                  <Select
                     value={formData.physicalCondition}
-                    onChange={(e) => setFormData({ ...formData, physicalCondition: e.target.value })}
-                    className="w-full px-3 py-2 rounded border border-slate-300 font-bold text-[#145c3f] bg-white"
+                    onValueChange={(val) => setFormData({ ...formData, physicalCondition: val })}
                   >
-                    {LOOKUPS.physicalConditions.map((c: string) => <option key={c} value={c}>{c}</option>)}
-                  </select>
+                    <SelectTrigger size="sm" displayValue={formData.physicalCondition} className="bg-white text-[#145c3f] font-bold">
+                      <SelectValue placeholder="Select Condition" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {LOOKUPS.physicalConditions.map((c: string) => (
+                        <SelectItem key={c} value={c}>{c}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div>
