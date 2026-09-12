@@ -15,6 +15,7 @@ interface SelectCtx {
   query: string;
   setQuery: (q: string) => void;
   triggerRef: React.RefObject<HTMLButtonElement | null>;
+  disabled?: boolean;
 }
 
 const Ctx = React.createContext<SelectCtx | null>(null);
@@ -50,7 +51,7 @@ function Select({ value: ctrl, defaultValue = "", onValueChange, children, disab
   };
 
   return (
-    <Ctx.Provider value={{ value, onValueChange: handleChange, open, setOpen, query, setQuery, triggerRef }}>
+    <Ctx.Provider value={{ value, onValueChange: handleChange, open, setOpen, query, setQuery, triggerRef, disabled }}>
       <div className="relative w-full" data-disabled={disabled || undefined}>
         {children}
       </div>
@@ -72,10 +73,12 @@ interface SelectTriggerProps {
   size?: "sm" | "default";
   id?: string;
   displayValue?: string;
+  disabled?: boolean;
 }
 
-function SelectTrigger({ children, className, size = "default", id, displayValue }: SelectTriggerProps) {
-  const { value, open, setOpen, triggerRef } = useCtx();
+function SelectTrigger({ children, className, size = "default", id, displayValue, disabled: propDisabled }: SelectTriggerProps) {
+  const { value, open, setOpen, triggerRef, disabled: ctxDisabled } = useCtx();
+  const isDisabled = propDisabled ?? ctxDisabled ?? false;
 
   // Extract placeholder from SelectValue child
   let placeholder = "Select…";
@@ -93,7 +96,8 @@ function SelectTrigger({ children, className, size = "default", id, displayValue
       ref={triggerRef}
       id={id}
       type="button"
-      onClick={() => setOpen(!open)}
+      disabled={isDisabled}
+      onClick={() => !isDisabled && setOpen(!open)}
       className={cn(
         "w-full flex items-center justify-between gap-2 text-left",
         "bg-[#f4f7f5] border-2 border-[#1a7a52] rounded-xl px-3.5",
@@ -102,6 +106,7 @@ function SelectTrigger({ children, className, size = "default", id, displayValue
         "focus-visible:border-[#0f3d2e] focus-visible:ring-3 focus-visible:ring-[#1a7a52]/25",
         open && "border-[#0f3d2e] bg-white",
         size === "default" ? "h-11 text-sm" : "h-9 text-xs rounded-lg",
+        isDisabled && "opacity-50 cursor-not-allowed hover:border-[#1a7a52] hover:bg-[#f4f7f5] pointer-events-none",
         className,
       )}
     >

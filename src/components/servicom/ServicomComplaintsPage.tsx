@@ -1,7 +1,7 @@
 import * as React from "react";
 import {
   ArrowLeft, Plus, RefreshCw, Loader2, MessageSquare, Search,
-  CheckCircle2, Circle, ChevronRight, AlertTriangle, Clock, ArrowRight,
+  CheckCircle2, Circle, AlertTriangle, Clock, ArrowRight,
 } from "lucide-react";
 import { motion } from "motion/react";
 import { Button } from "@/components/ui/button";
@@ -11,27 +11,37 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import { servicomApi, stockApi } from "@/lib/api";
 import { pickGeoLabel, pickLabel } from "./servicomConstants";
 import {
-  COMPLAINT_TYPES, COMPLAINT_DOMAINS, COMPLAINT_CATEGORIES, PRIORITY_RATINGS,
-  TRANSMISSION_ROUTES, COMPLAINANT_CATEGORIES, RESPONDENT_CATEGORIES,
-  COMPLAINT_STATUSES, ACTIONS_TAKEN, ESCALATION_LEVELS, ESCALATED_TO,
+  COMPLAINT_TYPES, TRANSMISSION_ROUTES, COMPLAINANT_CATEGORIES, RESPONDENT_CATEGORIES,
+  PRIORITY_RATINGS, COMPLAINT_STATUSES, ACTIONS_TAKEN, ESCALATION_LEVELS, ESCALATED_TO,
   COMPLAINT_OUTCOMES, SLA_SUMMARY, domainCodeFromDomain, computeResolutionPreview,
   slaForPriority, STATUS_BADGE_CLASS, COMPLAINT_LIFECYCLE, INVESTIGATION_STATUSES,
   lifecycleStageFromStatus, getStageCompletion, lifecycleStageLabel,
-  nextLifecycleStage, isComplaintClosed,
+  isComplaintClosed,
   slaColorDotClass, computeSlaOverdueDays, slaRowClass,
   type LifecycleStage, type ComplaintSlaRuleRow,
 } from "./complaintRegisterConstants";
-import { HCF_CLASSIFICATION_GUIDE } from "./hcfClassificationGuide";
+import {
+  COMPLAINT_PARTY_TYPES, respondentsForComplainant, offencesForParties,
+  findOffenceById, offenceSelectOptions, partyTypeFromComplainantCategory,
+  type PartyType,
+} from "./complaintOffenceGuide";
+import HmoProviderSelect from "./HmoProviderSelect";
+import HcfFacilitySelect from "./HcfFacilitySelect";
+
+/** Roles that receive investigation assignments and need the "Assigned to Me" filter. */
+const COMPLAINT_ASSIGNEE_ROLES = new Set(["state-officer", "department-officer"]);
 
 interface Props {
   onBack: () => void;
   defaultStateId?: string | null;
   defaultZoneId?: string | null;
+  userName?: string | null;
+  userStaffId?: string | null;
+  userRole?: string | null;
 }
 
 type Mode = "list" | "register" | "manage";
@@ -39,7 +49,8 @@ type Mode = "list" | "register" | "manage";
 const emptyForm = (defaultZoneId?: string | null, defaultStateId?: string | null) => ({
   zone_id: defaultZoneId ?? "",
   state_id: defaultStateId ?? "",
-  complaint_type: "",
+  complaint_type: "" as PartyType | "",
+  complaint_against: "" as PartyType | "",
   offence_reference: "",
   complaint_category: "",
   category_code: "",
@@ -52,6 +63,16 @@ const emptyForm = (defaultZoneId?: string | null, defaultStateId?: string | null
   complainant_id: "",
   respondent_category: "",
   respondent_id: "",
+  from_hmo_id: "",
+  from_hcf_id: "",
+  from_name: "",
+  from_phone: "",
+  from_nhis_id: "",
+  against_hmo_id: "",
+  against_hcf_id: "",
+  against_name: "",
+  against_phone: "",
+  against_nhis_id: "",
   officer_assigned: "",
   investigation_start_date: "",
   status: "New/Acknowledged",
@@ -68,10 +89,19 @@ const emptyForm = (defaultZoneId?: string | null, defaultStateId?: string | null
 });
 
 function rowToForm(row: any) {
+  const offence = row.offence_reference ? findOffenceById(row.offence_reference) : undefined;
+  let fromParty = (row.complaint_type ?? offence?.complainant ?? "") as PartyType | "";
+  let againstParty = (row.complaint_against ?? offence?.respondent ?? "") as PartyType | "";
+  if (!row.complaint_against && !offence && row.complaint_type && ["HCF", "HMO", "Enrollee"].includes(row.complaint_type)) {
+    againstParty = row.complaint_type as PartyType;
+    const fromCategory = partyTypeFromComplainantCategory(row.complainant_category ?? "");
+    if (fromCategory) fromParty = fromCategory;
+  }
   return {
     zone_id: row.zone_id ? String(row.zone_id) : "",
     state_id: row.state_id ? String(row.state_id) : "",
-    complaint_type: row.complaint_type ?? "",
+    complaint_type: fromParty,
+    complaint_against: againstParty,
     offence_reference: row.offence_reference ?? "",
     complaint_category: row.complaint_category ?? row.category ?? "",
     category_code: row.category_code ?? "",
@@ -84,6 +114,16 @@ function rowToForm(row: any) {
     complainant_id: row.complainant_id ?? "",
     respondent_category: row.respondent_category ?? "",
     respondent_id: row.respondent_id ?? "",
+    from_hmo_id: row.complainant_hmo_id ? String(row.complainant_hmo_id) : "",
+    from_hcf_id: row.complainant_hcf_id ? String(row.complainant_hcf_id) : "",
+    from_name: row.complainant_name ?? "",
+    from_phone: row.complainant_phone ?? "",
+    from_nhis_id: row.complainant_nhis_id ?? row.complainant_id ?? "",
+    against_hmo_id: row.respondent_hmo_id ? String(row.respondent_hmo_id) : "",
+    against_hcf_id: row.respondent_hcf_id ? String(row.respondent_hcf_id) : "",
+    against_name: row.respondent_name ?? "",
+    against_phone: row.respondent_phone ?? "",
+    against_nhis_id: row.respondent_nhis_id ?? row.respondent_id ?? "",
     officer_assigned: row.officer_assigned ?? row.assigned_officer ?? "",
     investigation_start_date: row.investigation_start_date ?? "",
     status: row.status ?? "New/Acknowledged",
@@ -167,10 +207,26 @@ function SlaHint({ priority, slaRow }: { priority?: string; slaRow: ReturnType<t
   );
 }
 
-const HCF_OFFENCE_OPTIONS = HCF_CLASSIFICATION_GUIDE.map((e) => ({
-  value: e.reference,
-  label: `${e.reference} — ${e.offence.length > 90 ? `${e.offence.slice(0, 90)}…` : e.offence}`,
-}));
+function StageActionFooter({
+  label, onClick, saving,
+}: {
+  label: string;
+  onClick: () => void;
+  saving: boolean;
+}) {
+  return (
+    <div className="flex justify-end px-6 md:px-8 py-4 border-t border-[#e6f2eb]">
+      <Button
+        onClick={onClick}
+        disabled={saving}
+        className="bg-orange-action hover:bg-orange-600 gap-2 rounded-xl shadow-none px-6"
+      >
+        {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+        {label}
+      </Button>
+    </div>
+  );
+}
 
 function FieldSelect({
   label, value, options, onChange, readOnly, placeholder,
@@ -258,7 +314,24 @@ function FieldText({
   );
 }
 
-export default function ServicomComplaintsPage({ onBack, defaultStateId, defaultZoneId }: Props) {
+function officerMatchesUser(
+  officer: string | null | undefined,
+  userName?: string | null,
+  userStaffId?: string | null,
+) {
+  if (!officer || (!userName && !userStaffId)) return false;
+  const stored = officer.trim().toLowerCase();
+  const name = userName?.trim().toLowerCase();
+  if (name && (stored === name || stored.startsWith(name))) return true;
+  const staffId = userStaffId?.trim().toLowerCase();
+  if (staffId && stored.includes(staffId)) return true;
+  return false;
+}
+
+export default function ServicomComplaintsPage({
+  onBack, defaultStateId, defaultZoneId, userName, userStaffId, userRole,
+}: Props) {
+  const showAssignedFilter = !!(userRole && COMPLAINT_ASSIGNEE_ROLES.has(userRole));
   const geoLocked = !!(defaultZoneId && defaultStateId);
   const today = new Date().toISOString().slice(0, 10);
   const [mode, setMode] = React.useState<Mode>("list");
@@ -277,8 +350,12 @@ export default function ServicomComplaintsPage({ onBack, defaultStateId, default
   const [filterPriority, setFilterPriority] = React.useState("all");
   const [filterSearch, setFilterSearch] = React.useState("");
   const [filterDate, setFilterDate] = React.useState("");
+  const [filterAssigned, setFilterAssigned] = React.useState<"all" | "mine">(
+    showAssignedFilter ? "mine" : "all",
+  );
   const [activeStage, setActiveStage] = React.useState<LifecycleStage>("registration");
   const [slaRules, setSlaRules] = React.useState<ComplaintSlaRuleRow[]>(SLA_SUMMARY as ComplaintSlaRuleRow[]);
+  const [officerOptions, setOfficerOptions] = React.useState<{ value: string; label: string }[]>([]);
 
   const set = (key: string, value: string | boolean) => setF((p) => ({ ...p, [key]: value }));
 
@@ -288,6 +365,21 @@ export default function ServicomComplaintsPage({ onBack, defaultStateId, default
       .catch(() => {});
   }, []);
 
+  React.useEffect(() => {
+    if (mode !== "register" && mode !== "manage") return;
+    servicomApi.listInvestigatingOfficers()
+      .then((r) => {
+        setOfficerOptions(r.data.map((u) => {
+          const dept = u.unit || u.department;
+          const parts = [u.name];
+          if (u.staff_id) parts.push(`(${u.staff_id})`);
+          if (dept) parts.push(`— ${dept}`);
+          return { value: u.name, label: parts.join(" ") };
+        }));
+      })
+      .catch(() => setOfficerOptions([]));
+  }, [mode]);
+
   const load = React.useCallback(async () => {
     setLoading(true);
     try {
@@ -296,12 +388,13 @@ export default function ServicomComplaintsPage({ onBack, defaultStateId, default
         zone_id: geoLocked ? (defaultZoneId ?? undefined) : (filterZone !== "all" ? filterZone : undefined),
         status: filterStatus !== "all" ? filterStatus : undefined,
         priority: filterPriority !== "all" ? filterPriority : undefined,
+        assigned_to_me: showAssignedFilter && filterAssigned === "mine" && userName ? "1" : undefined,
       });
       setComplaints(res.data);
     } catch (err: any) {
       toast.error("Failed to load complaints", { description: err.message });
     } finally { setLoading(false); }
-  }, [defaultStateId, defaultZoneId, filterState, filterZone, filterStatus, filterPriority, geoLocked]);
+  }, [defaultStateId, defaultZoneId, filterState, filterZone, filterStatus, filterPriority, filterAssigned, showAssignedFilter, userName, geoLocked]);
 
   React.useEffect(() => { if (mode === "list") load(); }, [load, mode]);
   React.useEffect(() => { stockApi.getZones().then((r) => setZones(r.data)).catch(() => {}); }, []);
@@ -325,9 +418,20 @@ export default function ServicomComplaintsPage({ onBack, defaultStateId, default
         if (!hay.includes(q)) return false;
       }
       if (filterDate && (c.date_received || c.complaint_date) !== filterDate) return false;
+      if (showAssignedFilter && filterAssigned === "mine" && userName) {
+        const officer = c.officer_assigned ?? c.assigned_officer;
+        if (!officerMatchesUser(officer, userName, userStaffId)) return false;
+      }
       return true;
     });
-  }, [complaints, filterSearch, filterDate]);
+  }, [complaints, filterSearch, filterDate, filterAssigned, showAssignedFilter, userName, userStaffId]);
+
+  const assignedToMeCount = React.useMemo(
+    () => (showAssignedFilter
+      ? complaints.filter((c) => officerMatchesUser(c.officer_assigned ?? c.assigned_officer, userName, userStaffId)).length
+      : 0),
+    [complaints, showAssignedFilter, userName, userStaffId],
+  );
 
   const listStats = React.useMemo(() => {
     const open = filtered.filter((c) => !["Closed", "Resolved", "Complaint Withdrawn"].includes(c.status));
@@ -394,13 +498,24 @@ export default function ServicomComplaintsPage({ onBack, defaultStateId, default
     setMode("register");
   };
 
+  const defaultStageForComplaint = (row: any): LifecycleStage => {
+    const status = row?.status ?? "";
+    if (officerMatchesUser(row?.officer_assigned ?? row?.assigned_officer, userName, userStaffId)) {
+      if (!row?.investigation_start_date && status === "New/Acknowledged") return "investigation";
+      if (["Under Investigation", "Awaiting Information", "Awaiting Respondent Action"].includes(status)) {
+        return "investigation";
+      }
+      if (row?.escalated || status === "Escalated") return "escalation";
+    }
+    return lifecycleStageFromStatus(status, row);
+  };
+
   const openManage = async (row: any, stage?: LifecycleStage) => {
     try {
       const res = await servicomApi.getComplaint(row.id);
       setSelected(res.data);
       setF(rowToForm(res.data));
-      const current = lifecycleStageFromStatus(res.data.status, res.data);
-      setActiveStage(stage ?? nextLifecycleStage(current));
+      setActiveStage(stage ?? defaultStageForComplaint(res.data));
       setMode("manage");
     } catch (err: any) {
       toast.error("Failed to load complaint", { description: err.message });
@@ -427,25 +542,60 @@ export default function ServicomComplaintsPage({ onBack, defaultStateId, default
     </Badge>
   );
 
+  const validatePartyDetails = (
+    role: "from" | "against",
+    partyType: PartyType | "",
+  ) => {
+    if (!partyType) return role === "from" ? "Complaint type is required." : "Complaint against is required.";
+    if (partyType === "HMO") {
+      const id = role === "from" ? f.from_hmo_id : f.against_hmo_id;
+      if (!id) return role === "from" ? "Select the filing HMO." : "Select the HMO.";
+    }
+    if (partyType === "HCF") {
+      const id = role === "from" ? f.from_hcf_id : f.against_hcf_id;
+      if (!id) return role === "from" ? "Select the filing HCF." : "Select the HCF.";
+    }
+    if (partyType === "Enrollee") {
+      const name = role === "from" ? f.from_name : f.against_name;
+      const nhis = role === "from" ? f.from_nhis_id : f.against_nhis_id;
+      if (!name?.trim() || !nhis?.trim()) {
+        return role === "from" ? "Enter filing enrollee name and NHIS ID." : "Enter enrollee name and NHIS ID.";
+      }
+    }
+    return null;
+  };
+
   const handleSaveRegistration = async () => {
-    if (!f.complaint_type || !f.date_received) {
-      toast.error("Complaint type and date received are required.");
+    if (!f.date_received) {
+      toast.error("Date received is required.");
       return;
     }
-    if (f.complaint_type === "HCF") {
-      if (!f.offence_reference) {
-        toast.error("Select an offence from the HCF classification guide.");
-        return;
-      }
-    } else if (!f.complaint_category || !f.complaint_domain || !f.priority_rating || !f.description?.trim()) {
-      toast.error("Domain, category, priority, and offence are required.");
+    if (!f.complaint_type || !f.complaint_against) {
+      toast.error("Complaint type and complaint against are required.");
+      return;
+    }
+    if (f.complaint_type === f.complaint_against) {
+      toast.error("Complaint type and complaint against must be different.");
+      return;
+    }
+    const fromErr = validatePartyDetails("from", f.complaint_type);
+    if (fromErr) { toast.error(fromErr); return; }
+    const againstErr = validatePartyDetails("against", f.complaint_against);
+    if (againstErr) { toast.error(againstErr); return; }
+    if (!f.offence_reference) {
+      toast.error("Select an issue from the complaint register.");
+      return;
+    }
+    if (!f.officer_assigned) {
+      toast.error("Assign an investigating officer.");
       return;
     }
     setSaving(true);
     try {
       const payload = {
         complaint_type: f.complaint_type,
-        offence_reference: f.offence_reference || undefined,
+        complaint_against: f.complaint_against,
+        offence_reference: f.offence_reference,
         complaint_category: f.complaint_category,
         category_code: f.category_code || undefined,
         complaint_domain: f.complaint_domain,
@@ -454,17 +604,30 @@ export default function ServicomComplaintsPage({ onBack, defaultStateId, default
         date_received: f.date_received,
         transmission_route: f.transmission_route,
         description: f.description,
-        complainant_category: f.complainant_category,
-        respondent_category: f.respondent_category,
+        complainant_category: f.complainant_category || undefined,
+        complainant_id: f.from_nhis_id || f.complainant_id || undefined,
+        complainant_hmo_id: f.from_hmo_id ? Number(f.from_hmo_id) : null,
+        complainant_hcf_id: f.from_hcf_id ? Number(f.from_hcf_id) : null,
+        complainant_name: f.from_name || undefined,
+        complainant_phone: f.from_phone || undefined,
+        complainant_nhis_id: f.from_nhis_id || undefined,
+        respondent_category: f.respondent_category || undefined,
+        respondent_id: f.against_nhis_id || f.respondent_id || undefined,
+        respondent_hmo_id: f.against_hmo_id ? Number(f.against_hmo_id) : null,
+        respondent_hcf_id: f.against_hcf_id ? Number(f.against_hcf_id) : null,
+        respondent_name: f.against_name || undefined,
+        respondent_phone: f.against_phone || undefined,
+        respondent_nhis_id: f.against_nhis_id || undefined,
         zone_id: f.zone_id ? Number(f.zone_id) : null,
         state_id: f.state_id ? Number(f.state_id) : null,
+        officer_assigned: f.officer_assigned,
         status: "New/Acknowledged",
       };
       const res = await servicomApi.createComplaint(payload);
-      toast.success("Complaint registered — proceed to investigation");
+      toast.success("Complaint registered and assigned to officer");
       setSelected(res.data);
       setF(rowToForm(res.data));
-      setActiveStage("investigation");
+      setActiveStage("registration");
       setMode("manage");
       load();
     } catch (err: any) {
@@ -477,17 +640,19 @@ export default function ServicomComplaintsPage({ onBack, defaultStateId, default
     setSaving(true);
     try {
       let payload: Record<string, unknown> = {};
+      let startingInvestigation = false;
       if (stage === "investigation") {
         if (!f.officer_assigned) {
           toast.error("Officer assigned is required to start investigation.");
           setSaving(false);
           return;
         }
+        startingInvestigation = !selected.investigation_start_date;
         payload = {
           officer_assigned: f.officer_assigned,
-          investigation_start_date: f.investigation_start_date || new Date().toISOString().slice(0, 10),
-          status: ["New/Acknowledged", ""].includes(f.status) ? "Under Investigation" : f.status,
-          actions_taken: f.actions_taken || null,
+          investigation_start_date: f.investigation_start_date || selected.investigation_start_date || today,
+          status: startingInvestigation ? "Under Investigation" : f.status,
+          actions_taken: f.actions_taken || (startingInvestigation ? "Investigation commenced" : null),
           actions_details: f.actions_details || null,
         };
       } else if (stage === "escalation") {
@@ -519,44 +684,161 @@ export default function ServicomComplaintsPage({ onBack, defaultStateId, default
         };
       }
       await servicomApi.updateComplaint(selected.id, payload);
-      toast.success(`${lifecycleStageLabel(stage)} saved`);
+      toast.success(`${lifecycleStageLabel(stage)} submitted`);
       await refreshSelected();
       load();
-      if (stage === "investigation") setActiveStage("escalation");
-      else if (stage === "escalation") setActiveStage("resolution");
     } catch (err: any) {
       toast.error("Failed to save", { description: err.message });
     } finally { setSaving(false); }
   };
 
-  const onComplaintTypeChange = (v: string) => {
+  const clearOffence = () => ({
+    offence_reference: "",
+    complaint_domain: "",
+    domain_code: "",
+    complaint_category: "",
+    category_code: "",
+    priority_rating: "",
+    description: "",
+  });
+
+  const onComplaintTypeChange = (v: PartyType) => {
     setF((p) => ({
-      ...emptyForm(defaultZoneId, defaultStateId),
-      zone_id: p.zone_id,
-      state_id: p.state_id,
-      date_received: p.date_received,
-      transmission_route: p.transmission_route,
-      complainant_category: p.complainant_category,
-      complainant_id: p.complainant_id,
-      respondent_category: p.respondent_category,
-      respondent_id: p.respondent_id,
+      ...p,
       complaint_type: v,
+      from_hmo_id: "",
+      from_hcf_id: "",
+      from_name: "",
+      from_phone: "",
+      from_nhis_id: "",
+      complaint_against: "",
+      against_hmo_id: "",
+      against_hcf_id: "",
+      against_name: "",
+      against_phone: "",
+      against_nhis_id: "",
+      ...clearOffence(),
     }));
   };
 
-  const onHcfOffenceChange = (reference: string) => {
-    const entry = HCF_CLASSIFICATION_GUIDE.find((e) => e.reference === reference);
+  const onComplaintAgainstChange = (v: PartyType) => {
+    setF((p) => ({
+      ...p,
+      complaint_against: v,
+      against_hmo_id: "",
+      against_hcf_id: "",
+      against_name: "",
+      against_phone: "",
+      against_nhis_id: "",
+      ...clearOffence(),
+    }));
+  };
+
+  const onOffenceChange = (reference: string) => {
+    const entry = findOffenceById(reference);
     if (!entry) return;
     setF((p) => ({
       ...p,
-      offence_reference: entry.reference,
+      offence_reference: entry.id,
       complaint_domain: entry.domain,
       domain_code: domainCodeFromDomain(entry.domain),
       complaint_category: entry.category,
-      category_code: entry.categoryCode,
       priority_rating: entry.priority,
-      description: entry.offence,
+      description: entry.issue,
     }));
+  };
+
+  const activeStateId = defaultStateId ?? f.state_id;
+
+  const renderInlinePartyPicker = (
+    role: "from" | "against",
+    partyType: PartyType | "",
+    readOnly: boolean,
+    row?: any,
+  ) => {
+    if (!partyType) return null;
+    const isFrom = role === "from";
+
+    if (partyType === "HMO") {
+      const hmoId = readOnly
+        ? String(isFrom ? row?.complainant_hmo_id : row?.respondent_hmo_id ?? "")
+        : (isFrom ? f.from_hmo_id : f.against_hmo_id);
+      const hmoName = isFrom
+        ? row?.complainant_hmo?.name ?? row?.complainant_name
+        : row?.respondent_hmo?.name ?? row?.respondent_name;
+      if (readOnly) {
+        return <AutoField label="HMO *" value={hmoName} />;
+      }
+      return (
+        <div className="space-y-1.5 min-w-0">
+          <Label className="text-xs text-slate-500">HMO *</Label>
+          <HmoProviderSelect
+            value={hmoId}
+            onChange={(p) => setF((prev) => isFrom
+              ? { ...prev, from_hmo_id: p?.id ?? "", from_name: p?.name ?? "" }
+              : { ...prev, against_hmo_id: p?.id ?? "", against_name: p?.name ?? "" })}
+          />
+        </div>
+      );
+    }
+
+    if (partyType === "HCF") {
+      const hcfId = readOnly
+        ? String(isFrom ? row?.complainant_hcf_id : row?.respondent_hcf_id ?? row?.facility_id ?? "")
+        : (isFrom ? f.from_hcf_id : f.against_hcf_id);
+      const hcfName = isFrom
+        ? row?.complainant_hcf?.name ?? row?.complainant_name
+        : row?.facility_name ?? row?.respondent_name;
+      if (readOnly) {
+        return <AutoField label="HCF *" value={hcfName} />;
+      }
+      return (
+        <div className="space-y-1.5 min-w-0">
+          <Label className="text-xs text-slate-500">HCF *</Label>
+          <HcfFacilitySelect
+            stateId={activeStateId || undefined}
+            value={hcfId}
+            onChange={(fac) => setF((prev) => isFrom
+              ? { ...prev, from_hcf_id: fac?.id ?? "", from_name: fac?.name ?? "" }
+              : { ...prev, against_hcf_id: fac?.id ?? "", against_name: fac?.name ?? "" })}
+          />
+        </div>
+      );
+    }
+
+    const name = readOnly
+      ? (isFrom ? row?.complainant_name : row?.respondent_name)
+      : (isFrom ? f.from_name : f.against_name);
+    const nhis = readOnly
+      ? (isFrom ? row?.complainant_nhis_id ?? row?.complainant_id : row?.respondent_nhis_id ?? row?.respondent_id)
+      : (isFrom ? f.from_nhis_id : f.against_nhis_id);
+    const phone = readOnly
+      ? (isFrom ? row?.complainant_phone : row?.respondent_phone)
+      : (isFrom ? f.from_phone : f.against_phone);
+
+    return (
+      <div className="col-span-full grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <FieldText
+          label="Full Name *"
+          value={name ?? ""}
+          onChange={(v) => set(isFrom ? "from_name" : "against_name", v)}
+          readOnly={readOnly}
+        />
+        <FieldText
+          label="NHIS ID *"
+          value={nhis ?? ""}
+          onChange={(v) => set(isFrom ? "from_nhis_id" : "against_nhis_id", v)}
+          readOnly={readOnly}
+          mono
+        />
+        <FieldText
+          label="Phone"
+          value={phone ?? ""}
+          onChange={(v) => set(isFrom ? "from_phone" : "against_phone", v)}
+          readOnly={readOnly}
+        />
+      </div>
+    );
   };
 
   const resolutionPreview = React.useMemo(
@@ -587,13 +869,11 @@ export default function ServicomComplaintsPage({ onBack, defaultStateId, default
     </>
   );
 
-  const renderComplaintSection = (readOnly: boolean, row?: any) => {
-    const isHcf = readOnly ? row?.complaint_type === "HCF" : f.complaint_type === "HCF";
-    const isManualType = readOnly
-      ? row?.complaint_type && row.complaint_type !== "HCF"
-      : f.complaint_type && f.complaint_type !== "HCF";
-    const offenceSelected = isHcf && !!(readOnly ? row?.offence_reference : f.offence_reference);
-    const showAfterOffence = isManualType || offenceSelected;
+  const renderComplaintSection = (readOnly: boolean, row?: any, embedded = false) => {
+    const fromParty = (readOnly ? rowToForm(row).complaint_type : f.complaint_type) as PartyType | "";
+    const againstParty = (readOnly ? rowToForm(row).complaint_against : f.complaint_against) as PartyType | "";
+    const offenceOptions = offencesForParties(fromParty, againstParty);
+    const offenceSelected = !!(readOnly ? row?.offence_reference : f.offence_reference);
 
     const priority = readOnly ? row?.priority_rating : f.priority_rating;
     const domain = readOnly ? row?.complaint_domain : f.complaint_domain;
@@ -602,34 +882,15 @@ export default function ServicomComplaintsPage({ onBack, defaultStateId, default
     const transmissionRoute = readOnly ? row?.transmission_route : f.transmission_route;
     const offenceText = readOnly ? row?.description : f.description;
     const slaRow = slaForPriority(priority ?? "", slaRules);
+    const againstOptions = fromParty
+      ? respondentsForComplainant(fromParty).map((v) => ({
+          value: v,
+          label: COMPLAINT_PARTY_TYPES.find((p) => p.value === v)?.label ?? v,
+        }))
+      : [];
+    const showAgainstStep = !!fromParty;
 
-    return (
-      <Card className="rounded-3xl border-[#d4e8dc] bg-white overflow-hidden shadow-none py-0 gap-0">
-        <CardHeader className="pb-3 pt-4 px-4 md:px-6 border-b border-[#e6f2eb] bg-[#f6fbf8]">
-          <div className="flex items-center gap-2 min-w-0">
-            {!readOnly && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                onClick={closeSub}
-                className="rounded-full hover:bg-[#e8f5ee] shrink-0"
-                aria-label="Back"
-              >
-                <ArrowLeft className="w-5 h-5" />
-              </Button>
-            )}
-            <CardTitle className="text-base font-bold text-slate-900 tracking-tight">
-              {readOnly ? "Complaint" : "New Complaint"}
-            </CardTitle>
-            {readOnly && row?.complaint_number ? (
-              <Badge variant="outline" className="text-[10px] font-bold bg-white border-[#d4e8dc] text-[#145c3f] ml-auto">
-                {row.complaint_number}
-              </Badge>
-            ) : null}
-          </div>
-        </CardHeader>
-        <CardContent className="p-5 md:p-7 space-y-5">
+    const formGrid = (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FieldText
               label="Date Received *"
@@ -642,11 +903,26 @@ export default function ServicomComplaintsPage({ onBack, defaultStateId, default
 
             <FieldSelect
               label="Complaint Type *"
-              value={readOnly ? row?.complaint_type : f.complaint_type}
+              value={fromParty}
               options={COMPLAINT_TYPES}
               readOnly={readOnly}
-              onChange={onComplaintTypeChange}
+              onChange={(v) => onComplaintTypeChange(v as PartyType)}
+              placeholder="HCF, HMO, or Enrollee"
             />
+            {renderInlinePartyPicker("from", fromParty, readOnly, row)}
+            {showAgainstStep && (
+              <>
+                <FieldSelect
+                  label="Complaint Against *"
+                  value={againstParty}
+                  options={againstOptions}
+                  readOnly={readOnly}
+                  onChange={(v) => onComplaintAgainstChange(v as PartyType)}
+                  placeholder="Select who the complaint is against"
+                />
+                {renderInlinePartyPicker("against", againstParty, readOnly, row)}
+              </>
+            )}
             <FieldSelect
               label="Complainant Category"
               value={readOnly ? row?.complainant_category : f.complainant_category}
@@ -669,62 +945,21 @@ export default function ServicomComplaintsPage({ onBack, defaultStateId, default
               onChange={(v) => set("respondent_category", v)}
             />
 
-            {isHcf && (
-              <div className="md:col-span-2">
+            {fromParty && againstParty && (
+              <div className="col-span-full">
                 <FieldSelect
-                  label="Offence / Complaint *"
+                  label="Issue / Complaint *"
                   value={readOnly ? row?.offence_reference : f.offence_reference}
-                  options={HCF_OFFENCE_OPTIONS}
+                  options={offenceSelectOptions(offenceOptions)}
                   readOnly={readOnly}
-                  onChange={onHcfOffenceChange}
-                  placeholder="Select offence"
+                  onChange={onOffenceChange}
+                  placeholder="Select issue from register"
                 />
               </div>
             )}
 
-            {isManualType && (
-              <>
-                <FieldSelect
-                  label="Domain"
-                  value={domain ?? ""}
-                  options={COMPLAINT_DOMAINS}
-                  readOnly={readOnly}
-                  onChange={(v) => setF((p) => ({ ...p, complaint_domain: v, domain_code: domainCodeFromDomain(v) }))}
-                />
-                <FieldSelect
-                  label="Category"
-                  value={category ?? ""}
-                  options={COMPLAINT_CATEGORIES}
-                  readOnly={readOnly}
-                  onChange={(v) => set("complaint_category", v)}
-                />
-                <FieldSelect
-                  label="Priority Rating"
-                  value={priority ?? ""}
-                  options={PRIORITY_RATINGS}
-                  readOnly={readOnly}
-                  onChange={(v) => set("priority_rating", v)}
-                />
-                {!readOnly && (
-                  <div className="md:col-span-2">
-                    <FieldText
-                      label="Offence *"
-                      value={offenceText ?? ""}
-                      onChange={(v) => set("description", v)}
-                      readOnly={readOnly}
-                    />
-                  </div>
-                )}
-                {readOnly && offenceText && (
-                  <div className="md:col-span-2">
-                    <DerivedTextBlock label="Offence" value={offenceText} />
-                  </div>
-                )}
-              </>
-            )}
-
             {offenceSelected && (
-              <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-3 rounded-xl bg-[#f8fbf9] border border-[#d4e8dc] px-3 py-2.5">
+              <div className="col-span-full grid grid-cols-1 sm:grid-cols-3 gap-3 rounded-xl bg-[#f8fbf9] border border-[#d4e8dc] px-3 py-2.5">
                 <DerivedField label="Domain" value={domain} />
                 <DerivedField label="Category" value={category} />
                 <DerivedField label="Priority" value={priority} />
@@ -732,24 +967,59 @@ export default function ServicomComplaintsPage({ onBack, defaultStateId, default
             )}
 
             {offenceSelected && offenceText && (
-              <div className="md:col-span-2">
-                <DerivedTextBlock label="Offence" value={offenceText} />
+              <div className="col-span-full">
+                <DerivedTextBlock label="Issue" value={offenceText} />
               </div>
             )}
 
-            {showAfterOffence && (priority || readOnly) && (
-              <div className="md:col-span-2">
+            {offenceSelected && (priority || readOnly) && (
+              <div className="col-span-full">
                 <SlaHint priority={priority} slaRow={slaRow} />
               </div>
             )}
-          </div>
 
+            {!readOnly && (
+              officerOptions.length ? (
+                <FieldSelect
+                  label="Assign To *"
+                  value={f.officer_assigned}
+                  options={officerOptions}
+                  onChange={(v) => set("officer_assigned", v)}
+                  placeholder="Select investigating officer"
+                />
+              ) : (
+                <FieldText
+                  label="Assign To *"
+                  value={f.officer_assigned}
+                  onChange={(v) => set("officer_assigned", v)}
+                  placeholder="Officer name"
+                />
+              )
+            )}
+            {readOnly && (
+              <AutoField label="Assigned To" value={row?.officer_assigned ?? row?.assigned_officer} />
+            )}
+          </div>
+    );
+
+    if (embedded) {
+      return (
+        <Card className="rounded-2xl border-[#d4e8dc] bg-white shadow-sm w-full py-0 gap-0">
+          <CardContent className="p-6 md:p-8">{formGrid}</CardContent>
+        </Card>
+      );
+    }
+
+    return (
+      <Card className="rounded-2xl border-[#d4e8dc] bg-white shadow-sm w-full py-0 gap-0">
+        <CardContent className="p-6 md:p-8 space-y-6">
+          {formGrid}
           {!readOnly && (
-            <div className="flex justify-end pt-2 border-t border-[#e6f2eb]">
+            <div className="flex justify-end pt-4 border-t border-[#e6f2eb]">
               <Button
                 onClick={handleSaveRegistration}
                 disabled={saving}
-                className="bg-orange-action hover:bg-orange-600 gap-2 rounded-xl shadow-none"
+                className="bg-orange-action hover:bg-orange-600 gap-2 rounded-xl shadow-none px-6"
               >
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
                 Register Complaint
@@ -768,9 +1038,9 @@ export default function ServicomComplaintsPage({ onBack, defaultStateId, default
 
   const renderRegistrationSummary = (row?: any) => {
     if (!row) return null;
-    const offenceRef = row.offence_reference
-      ? HCF_CLASSIFICATION_GUIDE.find((e) => e.reference === row.offence_reference)?.reference ?? row.offence_reference
-      : null;
+    const mapped = rowToForm(row);
+    const fromLabel = COMPLAINT_PARTY_TYPES.find((p) => p.value === mapped.complaint_type)?.label ?? mapped.complaint_type;
+    const againstLabel = COMPLAINT_PARTY_TYPES.find((p) => p.value === mapped.complaint_against)?.label ?? mapped.complaint_against;
     return (
       <StageSummaryCard title="Complaint">
         {!geoLocked && (
@@ -779,93 +1049,121 @@ export default function ServicomComplaintsPage({ onBack, defaultStateId, default
             <SummaryField label="State" value={stateLabel(row)} />
           </>
         )}
-        <SummaryField label="Complaint Type" value={row.complaint_type} />
         <SummaryField label="Date Received" value={row.date_received ?? row.complaint_date} />
         <SummaryField label="Transmission Route" value={row.transmission_route} />
+        <SummaryField label="Complaint Type" value={fromLabel} />
+        <SummaryField label="Complainant Category" value={row.complainant_category} />
+        <SummaryField label="Respondent Category" value={row.respondent_category} />
+        <SummaryField label="Complaint Against" value={againstLabel} />
+        <SummaryField label="Filing Party" value={row.complainant_name ?? row.complainant_hmo?.name ?? row.complainant_hcf?.name} />
+        <SummaryField label="Against Party" value={row.respondent_name ?? row.facility_name ?? row.respondent_hmo?.name} />
         <SummaryField label="Domain" value={row.complaint_domain} />
         <SummaryField label="Category" value={row.complaint_category ?? row.category} />
         <SummaryField label="Priority" value={row.priority_rating} />
-        {offenceRef ? <SummaryField label="Offence Reference" value={offenceRef} /> : null}
-        <SummaryField label="Offence" value={row.description} fullWidth />
-        <SummaryField label="Complainant Category" value={row.complainant_category} />
-        <SummaryField label="Respondent Category" value={row.respondent_category} />
+        <SummaryField label="Assigned To" value={row.officer_assigned ?? row.assigned_officer} />
+        <SummaryField label="Issue" value={row.description} fullWidth />
       </StageSummaryCard>
     );
   };
 
-  const renderActiveStageForm = (row?: any, readOnly = false) => {
-    if (activeStage === "registration") return renderRegistrationSummary(row);
-    if (activeStage === "investigation") return renderInvestigationSection(readOnly, row);
-    if (activeStage === "escalation") return renderEscalationSection(readOnly, row);
-    return renderResolutionSection(readOnly, row);
+  const renderActiveStageForm = (row?: any, readOnly = false, actionLabel?: string | null) => {
+    if (activeStage === "registration") return renderComplaintSection(true, row, true);
+    if (activeStage === "investigation") return renderInvestigationSection(readOnly, row, actionLabel);
+    if (activeStage === "escalation") return renderEscalationSection(readOnly, row, actionLabel);
+    return renderResolutionSection(readOnly, row, actionLabel);
   };
 
-  const renderInvestigationSection = (readOnly: boolean, row?: any) => (
-    <Card className="rounded-2xl border-[#d4e8dc] shadow-sm">
-      <CardHeader className="pb-3 border-b bg-[#f8fbf9]">
-        <CardTitle className="text-sm font-bold text-[#145c3f]">Investigation</CardTitle>
-      </CardHeader>
-      <CardContent className="pt-5 pb-5 grid grid-cols-1 md:grid-cols-2 gap-5">
-        <FieldText label="Officer Assigned" value={readOnly ? (row?.officer_assigned ?? row?.assigned_officer) : f.officer_assigned}
-          onChange={(v) => set("officer_assigned", v)} readOnly={readOnly} />
-        <FieldText label="Investigation Start Date" type="date"
-          value={readOnly ? row?.investigation_start_date : f.investigation_start_date}
-          onChange={(v) => set("investigation_start_date", v)} readOnly={readOnly} />
-        <FieldSelect label="Status" value={readOnly ? row?.status : f.status}
-          options={readOnly ? COMPLAINT_STATUSES : INVESTIGATION_STATUSES}
-          readOnly={readOnly} onChange={(v) => set("status", v)} />
-        <FieldSelect label="Actions Taken" value={readOnly ? row?.actions_taken : f.actions_taken}
-          options={ACTIONS_TAKEN} readOnly={readOnly} onChange={(v) => set("actions_taken", v)} />
-        <div className="md:col-span-2">
-          <FieldText label="Actions Details" value={readOnly ? row?.actions_details : f.actions_details}
-            onChange={(v) => set("actions_details", v)} readOnly={readOnly} />
-        </div>
-      </CardContent>
-    </Card>
-  );
+  const renderComplaintSlaBar = (row?: any) => {
+    if (!row) return null;
+    const slaRow = slaForPriority(row.priority_rating ?? "", slaRules);
 
-  const renderEscalationSection = (readOnly: boolean, row?: any) => (
-    <Card className="rounded-2xl border-[#d4e8dc] shadow-sm">
-      <CardHeader className="pb-3 border-b bg-[#f8fbf9]">
-        <CardTitle className="text-sm font-bold text-[#145c3f]">Escalation</CardTitle>
-      </CardHeader>
-      <CardContent className="pt-5 pb-5 grid grid-cols-1 md:grid-cols-2 gap-5">
-        {readOnly ? (
-          <div className="space-y-1.5">
-            <Label className="text-xs text-slate-500">Escalated</Label>
-            <Badge variant="outline">{row?.escalated ? "Yes" : "No"}</Badge>
-          </div>
-        ) : (
-          <FieldSelect label="Escalated" value={f.escalated ? "yes" : "no"}
-            options={[{ value: "no", label: "No" }, { value: "yes", label: "Yes" }]}
-            onChange={(v) => set("escalated", v === "yes")} />
+    return (
+      <div className="px-4 md:px-6 py-2.5 border-t border-[#d4e8dc] bg-[#f8fbf9] flex flex-wrap items-center gap-x-3 gap-y-2">
+        {statusBadge(row.status ?? "New/Acknowledged", true)}
+        {row.priority_rating && (
+          <>
+            <span className="text-xs text-slate-300">|</span>
+            <Badge variant="outline" className="text-[10px] font-bold">{row.priority_rating} priority</Badge>
+          </>
         )}
-        <FieldSelect label="Escalation Level" value={readOnly ? row?.escalation_level : f.escalation_level}
-          options={ESCALATION_LEVELS} readOnly={readOnly} onChange={(v) => set("escalation_level", v)} />
-        <FieldText label="Escalation Date" type="date" value={readOnly ? row?.escalation_date : f.escalation_date}
-          onChange={(v) => set("escalation_date", v)} readOnly={readOnly} />
+        {row.sla ? (
+          <>
+            <span className="text-xs text-slate-300">|</span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className={`h-3 w-3 shrink-0 rounded-full ${slaColorDotClass(row.sla.color)}`} />
+              {computeSlaOverdueDays(row.sla) > 0 && (
+                <span className="text-[11px] font-bold text-slate-700 tabular-nums">
+                  {computeSlaOverdueDays(row.sla)} overdue
+                </span>
+              )}
+            </span>
+            <span className="text-[11px] text-slate-600">
+              {row.sla.working_days_elapsed} working day(s) since received
+            </span>
+            {(row.sla.flags ?? []).map((flag: { code: string; label: string }) => (
+              <Badge key={flag.code} variant="outline" className="text-[10px] text-rose-700 border-rose-200 bg-rose-50">
+                {flag.label}
+              </Badge>
+            ))}
+          </>
+        ) : slaRow ? (
+          <>
+            <span className="text-xs text-slate-300">|</span>
+            <span className="text-[11px] text-slate-600">
+              Ack {slaRow.acknowledge} · Investigate {slaRow.investigate} · Escalate {slaRow.escalate} · Resolve {slaRow.resolve}
+            </span>
+          </>
+        ) : null}
+      </div>
+    );
+  };
+
+  const renderEscalationFields = (readOnly: boolean, row?: any) => (
+    <>
+      {readOnly ? (
+        <div className="space-y-1.5">
+          <Label className="text-xs text-slate-500">Escalated</Label>
+          <Badge variant="outline">{row?.escalated ? "Yes" : "No"}</Badge>
+        </div>
+      ) : (
+        <FieldSelect label="Escalated" value={f.escalated ? "yes" : "no"}
+          options={[{ value: "no", label: "No" }, { value: "yes", label: "Yes" }]}
+          onChange={(v) => set("escalated", v === "yes")} />
+      )}
+      <FieldSelect label="Escalation Level" value={readOnly ? row?.escalation_level : f.escalation_level}
+        options={ESCALATION_LEVELS} readOnly={readOnly} onChange={(v) => set("escalation_level", v)} />
+      <FieldText label="Escalation Date" type="date" value={readOnly ? row?.escalation_date : f.escalation_date}
+        onChange={(v) => set("escalation_date", v)} readOnly={readOnly} />
+      {readOnly || !officerOptions.length ? (
         <FieldSelect label="Escalated To" value={readOnly ? row?.escalated_to : f.escalated_to}
           options={ESCALATED_TO} readOnly={readOnly}
           onChange={(v) => set("escalated_to", v)} />
-      </CardContent>
-    </Card>
+      ) : (
+        <FieldSelect
+          label="Escalated To"
+          value={readOnly ? row?.escalated_to : f.escalated_to}
+          options={[
+            ...officerOptions,
+            ...ESCALATED_TO.filter((o) => !officerOptions.some((p) => p.value === o.value)),
+          ]}
+          readOnly={readOnly}
+          onChange={(v) => set("escalated_to", v)}
+          placeholder="Select officer or authority"
+        />
+      )}
+    </>
   );
 
-  const renderResolutionSection = (readOnly: boolean, row?: any) => {
+  const renderResolutionFields = (readOnly: boolean, row?: any) => {
     const preview = readOnly
       ? { resolution_days: row?.resolution_days, resolution_within_sla: row?.resolution_within_sla }
       : resolutionPreview;
-
     const slaLabel = preview.resolution_within_sla == null
       ? ""
       : preview.resolution_within_sla ? "Yes" : "No";
 
     return (
-    <Card className="rounded-2xl border-[#d4e8dc] shadow-sm">
-      <CardHeader className="pb-3 border-b bg-[#f8fbf9]">
-        <CardTitle className="text-sm font-bold text-[#145c3f]">Resolution</CardTitle>
-      </CardHeader>
-      <CardContent className="pt-5 pb-5 grid grid-cols-1 md:grid-cols-2 gap-5">
+      <>
         {readOnly ? (
           <>
             <AutoField label="Resolution Days" value={preview.resolution_days} />
@@ -889,147 +1187,187 @@ export default function ServicomComplaintsPage({ onBack, defaultStateId, default
           onChange={(v) => set("date_closed", v)} readOnly={readOnly} max={readOnly ? undefined : today} />
         <FieldSelect label="Outcome" value={readOnly ? row?.outcome : f.outcome}
           options={COMPLAINT_OUTCOMES} readOnly={readOnly} onChange={(v) => set("outcome", v)} />
-        <div className="md:col-span-2">
+        <div className="col-span-full">
           <FieldText label="Remarks" value={readOnly ? (row?.remarks ?? row?.resolution_notes) : f.remarks}
             onChange={(v) => set("remarks", v)} readOnly={readOnly} />
         </div>
-      </CardContent>
-    </Card>
+      </>
     );
   };
 
-  const renderStageContent = (row?: any) => {
-    const closed = isComplaintClosed(row?.status);
-    return (
-      <div className="space-y-4">
-        {renderActiveStageForm(row, closed || activeStage === "registration")}
-      </div>
-    );
-  };
-
-  const renderLifecycleStepper = (row: any) => {
-    const completion = getStageCompletion(row);
-    const current = lifecycleStageFromStatus(row?.status ?? "", row);
+  const renderInvestigationSection = (readOnly: boolean, row?: any, actionLabel?: string | null) => {
+    const started = !!(readOnly ? row?.investigation_start_date : f.investigation_start_date)
+      || ["Under Investigation", "Awaiting Information", "Awaiting Respondent Action"].includes(
+        readOnly ? row?.status : f.status,
+      );
 
     return (
-      <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden">
-        <CardContent className="p-0">
-          <div className="grid grid-cols-2 lg:grid-cols-4 divide-y lg:divide-y-0 lg:divide-x divide-[#d4e8dc]">
-            {COMPLAINT_LIFECYCLE.map((stage) => {
-              const done = completion[stage.id];
-              const isActive = activeStage === stage.id;
-              const isCurrent = current === stage.id;
-              return (
-                <button
-                  key={stage.id}
-                  type="button"
-                  onClick={() => setActiveStage(stage.id)}
-                  className={`flex items-start gap-3 p-4 text-left transition-colors ${
-                    isActive ? "bg-[#e8f5ee]" : "bg-white hover:bg-[#f8fbf9]"
-                  }`}
-                >
-                  <div className={`mt-0.5 shrink-0 ${done ? "text-[#25a872]" : isCurrent ? "text-amber-600" : "text-slate-300"}`}>
-                    {done ? <CheckCircle2 className="w-5 h-5" /> : <Circle className="w-5 h-5" />}
-                  </div>
-                  <div className="min-w-0">
-                    <p className={`text-xs font-bold ${isActive ? "text-[#145c3f]" : "text-slate-700"}`}>{stage.label}</p>
-                  </div>
-                  {isActive && <ChevronRight className="w-4 h-4 text-[#25a872] ml-auto shrink-0" />}
-                </button>
-              );
-            })}
-          </div>
-          <div className="px-4 py-3 border-t border-[#d4e8dc] bg-[#f8fbf9] flex flex-wrap items-center gap-x-3 gap-y-2">
-            <span className="text-xs font-bold text-slate-700">{row?.complaint_number}</span>
-            <span className="text-xs text-slate-300">|</span>
-            {statusBadge(row?.status ?? "New/Acknowledged", true)}
-            {row?.priority_rating && (
-              <>
-                <span className="text-xs text-slate-300">|</span>
-                <Badge variant="outline" className="text-[10px] font-bold">{row.priority_rating} priority</Badge>
-              </>
-            )}
-            {row?.sla ? (
-              <>
-                <span className="text-xs text-slate-300">|</span>
-                <span className="inline-flex items-center gap-1.5">
-                  <span className={`h-3 w-3 shrink-0 rounded-full ${slaColorDotClass(row.sla.color)}`} />
-                  {computeSlaOverdueDays(row.sla) > 0 && (
-                    <span className="text-[11px] font-bold text-slate-700 tabular-nums">
-                      {computeSlaOverdueDays(row.sla)}
-                    </span>
-                  )}
-                </span>
-                <span className="text-[11px] text-slate-500">
-                  {row.sla.working_days_elapsed} working day(s) since received
-                </span>
-                {(row.sla.flags ?? []).map((flag: { code: string; label: string }) => (
-                  <Badge key={flag.code} variant="outline" className="text-[10px] text-rose-700 border-rose-200 bg-rose-50">
-                    {flag.label}
-                  </Badge>
-                ))}
-              </>
-            ) : null}
-          </div>
+      <Card className="rounded-2xl border-[#d4e8dc] bg-white shadow-sm w-full py-0 gap-0">
+        <CardContent className="p-6 md:p-8 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
+          {!readOnly && !started && (
+            <div className="col-span-full rounded-xl border border-amber-200/80 bg-amber-50/80 px-4 py-3.5">
+              <p className="text-sm text-amber-950 leading-relaxed">
+                Investigation has not started. Click <span className="font-semibold">Submit</span> below when you are ready to begin.
+              </p>
+            </div>
+          )}
+          <AutoField
+            label="Assigned Officer"
+            value={readOnly ? (row?.officer_assigned ?? row?.assigned_officer) : f.officer_assigned}
+          />
+          <AutoField
+            label="Investigation Start Date"
+            value={started
+              ? (readOnly ? row?.investigation_start_date : f.investigation_start_date) || today
+              : "Not started"}
+          />
+          {started && (
+            <>
+              <FieldSelect label="Status" value={readOnly ? row?.status : f.status}
+                options={readOnly ? COMPLAINT_STATUSES : INVESTIGATION_STATUSES}
+                readOnly={readOnly} onChange={(v) => set("status", v)} />
+              <FieldSelect label="Actions Taken" value={readOnly ? row?.actions_taken : f.actions_taken}
+                options={ACTIONS_TAKEN} readOnly={readOnly} onChange={(v) => set("actions_taken", v)} />
+              <div className="col-span-full">
+                <FieldText label="Actions Details" value={readOnly ? row?.actions_details : f.actions_details}
+                  onChange={(v) => set("actions_details", v)} readOnly={readOnly} />
+              </div>
+            </>
+          )}
         </CardContent>
+        {actionLabel && (
+          <StageActionFooter
+            label={actionLabel}
+            onClick={() => handleSaveStage("investigation")}
+            saving={saving}
+          />
+        )}
       </Card>
     );
   };
 
-  const stageSaveLabel: Record<LifecycleStage, string> = {
-    registration: "Save",
-    investigation: "Save Investigation",
-    escalation: "Save Escalation",
-    resolution: "Close Complaint",
+  const renderEscalationSection = (readOnly: boolean, row?: any, actionLabel?: string | null) => (
+    <Card className="rounded-2xl border-[#d4e8dc] bg-white shadow-sm w-full py-0 gap-0">
+      <CardContent className="p-6 md:p-8 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
+        {renderEscalationFields(readOnly, row)}
+      </CardContent>
+      {actionLabel && (
+        <StageActionFooter
+          label={actionLabel}
+          onClick={() => handleSaveStage("escalation")}
+          saving={saving}
+        />
+      )}
+    </Card>
+  );
+
+  const renderResolutionSection = (readOnly: boolean, row?: any, actionLabel?: string | null) => (
+    <Card className="rounded-2xl border-[#d4e8dc] bg-white shadow-sm w-full py-0 gap-0">
+      <CardContent className="p-6 md:p-8 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
+        {renderResolutionFields(readOnly, row)}
+      </CardContent>
+      {actionLabel && (
+        <StageActionFooter
+          label={actionLabel}
+          onClick={() => handleSaveStage("resolution")}
+          saving={saving}
+        />
+      )}
+    </Card>
+  );
+
+  const renderStageContent = (row?: any) => {
+    const closed = isComplaintClosed(row?.status);
+    const readOnly = closed || activeStage === "registration";
+    const actionLabel = row && !readOnly ? "Submit" : null;
+    return renderActiveStageForm(row, readOnly, actionLabel);
+  };
+
+  const renderStageTabs = (row: any) => {
+    const completion = getStageCompletion(row);
+    return (
+      <div className="flex flex-wrap gap-2">
+        {COMPLAINT_LIFECYCLE.map((stage) => {
+          const isActive = activeStage === stage.id;
+          const done = completion[stage.id];
+          return (
+            <button
+              key={stage.id}
+              type="button"
+              onClick={() => setActiveStage(stage.id)}
+              className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+                isActive
+                  ? "bg-[#145c3f] text-white"
+                  : "bg-white text-slate-700 border border-[#d4e8dc] hover:bg-[#f6fbf8]"
+              }`}
+            >
+              {done ? (
+                <CheckCircle2 className={`w-4 h-4 ${isActive ? "text-white" : "text-[#25a872]"}`} />
+              ) : (
+                <Circle className={`w-4 h-4 ${isActive ? "text-white/80" : "text-slate-300"}`} />
+              )}
+              {stage.label}
+            </button>
+          );
+        })}
+      </div>
+    );
   };
 
   if (mode === "register") {
     return (
-      <div key="complaint-register" className="flex flex-col h-full bg-slate-50/30">
-        <ScrollArea className="flex-1">
-          <div className="w-full px-4 md:px-6 py-4 pb-8">
-            {renderComplaintSection(false)}
-          </div>
-        </ScrollArea>
+      <div key="complaint-register" className="bg-[#f4f7f5]">
+        <div className="bg-white border-b px-4 md:px-6 py-3 flex items-center gap-3 sticky top-0 z-30">
+          <Button variant="ghost" size="icon" onClick={closeSub} className="rounded-full hover:bg-[#e8f5ee] shrink-0" aria-label="Back">
+            <ArrowLeft className="w-5 h-5" />
+          </Button>
+          <h1 className="text-lg font-bold text-slate-900">Register New Complaint</h1>
+        </div>
+        <div className="w-full px-4 md:px-6 py-4 md:py-6">
+          {renderComplaintSection(false)}
+        </div>
       </div>
     );
   }
 
   if (mode === "manage") {
     const row = selected;
-    const closed = isComplaintClosed(row?.status);
-    const canSaveStage = activeStage !== "registration" && !closed;
 
     return (
-      <div className="flex flex-col h-full bg-slate-50/30">
-        <ScrollArea className="flex-1">
-          <div className="w-full px-4 md:px-6 py-4 pb-24 space-y-4">
-            {row && renderLifecycleStepper(row)}
-            {renderStageContent(row)}
-          </div>
-        </ScrollArea>
-
-        {canSaveStage && (
-          <div className="sticky bottom-0 z-30 bg-white border-t px-4 md:px-6 py-3 flex items-center justify-end gap-3">
-            <Button variant="outline" onClick={closeSub}>Back to List</Button>
-            <Button onClick={() => handleSaveStage(activeStage)} disabled={saving} className="bg-orange-action hover:bg-orange-600 gap-2">
-              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-              {stageSaveLabel[activeStage]}
+      <div className="bg-[#f4f7f5]">
+        <div className="bg-white border-b sticky top-0 z-30">
+          <div className="px-4 md:px-6 py-3 flex items-center gap-3">
+            <Button variant="ghost" size="icon" onClick={closeSub} className="rounded-full shrink-0 hover:bg-[#e8f5ee]" aria-label="Back to list">
+              <ArrowLeft className="w-5 h-5" />
             </Button>
+            <div className="min-w-0">
+              <h2 className="text-lg font-bold tracking-tight truncate">{row?.complaint_number ?? "Complaint"}</h2>
+              <p className="text-xs text-slate-500 truncate">
+                {[row?.officer_assigned ?? row?.assigned_officer, row?.date_received].filter(Boolean).join(" · ")}
+              </p>
+            </div>
           </div>
-        )}
+          {renderComplaintSlaBar(row)}
+        </div>
+
+        <div className="w-full px-4 md:px-6 py-4 md:py-6 space-y-4">
+          {row && renderStageTabs(row)}
+          {renderStageContent(row)}
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-full bg-slate-50/30">
-      <div className="bg-white border-b px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={onBack} className="rounded-full"><ArrowLeft className="w-5 h-5" /></Button>
-          <h2 className="text-xl font-bold tracking-tight">Complaints Management</h2>
+    <div className="bg-[#f4f7f5]">
+      <div className="bg-white border-b px-4 md:px-6 py-3 flex items-center justify-between gap-3 sticky top-0 z-30">
+        <div className="flex items-center gap-3 min-w-0">
+          <Button variant="ghost" size="icon" onClick={onBack} className="rounded-full shrink-0 hover:bg-[#e8f5ee]">
+            <ArrowLeft className="w-5 h-5" />
+          </Button>
+          <h2 className="text-lg font-bold tracking-tight truncate">Complaints Management</h2>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 shrink-0">
           <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
           </Button>
@@ -1039,8 +1377,7 @@ export default function ServicomComplaintsPage({ onBack, defaultStateId, default
         </div>
       </div>
 
-      <ScrollArea className="flex-1">
-        <div className="w-full px-4 md:px-6 py-4 space-y-4">
+      <div className="w-full px-4 md:px-6 py-4 md:py-6 space-y-4">
           {/* Summary KPIs */}
           <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
             {[
@@ -1069,10 +1406,31 @@ export default function ServicomComplaintsPage({ onBack, defaultStateId, default
             ))}
           </div>
 
+          {showAssignedFilter && (
+            <div className="flex items-center gap-2">
+              <Button
+                variant={filterAssigned === "all" ? "default" : "outline"}
+                size="sm"
+                className={filterAssigned === "all" ? "bg-[#145c3f] hover:bg-[#0f4a31]" : ""}
+                onClick={() => setFilterAssigned("all")}
+              >
+                All Complaints
+              </Button>
+              <Button
+                variant={filterAssigned === "mine" ? "default" : "outline"}
+                size="sm"
+                className={filterAssigned === "mine" ? "bg-[#145c3f] hover:bg-[#0f4a31]" : ""}
+                onClick={() => setFilterAssigned("mine")}
+              >
+                Assigned to Me{assignedToMeCount > 0 ? ` (${assignedToMeCount})` : ""}
+              </Button>
+            </div>
+          )}
+
           {/* Filters */}
           <Card className="rounded-2xl border-[#d4e8dc]">
             <CardContent className="py-3 px-4">
-              <div className="flex flex-nowrap items-center gap-2 w-full">
+              <div className="flex flex-wrap items-center gap-2 w-full">
                 <div className="relative flex-[2] min-w-0">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                   <Input
@@ -1160,8 +1518,6 @@ export default function ServicomComplaintsPage({ onBack, defaultStateId, default
                       </span>
                     </>
                   )}
-             
-
                 </CardTitle>
                 {!loading && filtered.length > 0 && (
                   <span className="text-[10px] text-slate-500">Click Manage to continue the lifecycle</span>
@@ -1195,6 +1551,7 @@ export default function ServicomComplaintsPage({ onBack, defaultStateId, default
                         <TableHead className="text-xs font-black text-slate-800">Date</TableHead>
                         <TableHead className="text-xs font-black text-slate-800">Offence</TableHead>
                         <TableHead className="text-xs font-black text-slate-800">Priority</TableHead>
+                        <TableHead className="text-xs font-black text-slate-800">Assigned To</TableHead>
                         <TableHead className="text-xs font-black text-slate-800">Overdue</TableHead>
                         <TableHead className="text-xs font-black text-slate-800">Stage</TableHead>
                         <TableHead className="text-xs font-black text-slate-800">Status</TableHead>
@@ -1219,6 +1576,9 @@ export default function ServicomComplaintsPage({ onBack, defaultStateId, default
                             </p>
                           </TableCell>
                           <TableCell>{priorityBadge(c.priority_rating)}</TableCell>
+                          <TableCell className="text-xs text-slate-700 max-w-[140px] truncate" title={c.officer_assigned ?? c.assigned_officer}>
+                            {c.officer_assigned ?? c.assigned_officer ?? "—"}
+                          </TableCell>
                           <TableCell>{renderOverdueCell(c)}</TableCell>
                           <TableCell className="font-bold">{stageBadge(c, true)}</TableCell>
                           <TableCell className="font-bold">{statusBadge(c.status, true)}</TableCell>
@@ -1226,10 +1586,14 @@ export default function ServicomComplaintsPage({ onBack, defaultStateId, default
                             <Button
                               variant="outline"
                               size="sm"
-                              className="h-8 text-xs font-semibold gap-1.5 border-[#d4e8dc] hover:bg-[#e8f5ee] hover:text-[#145c3f]"
+                              className={`h-8 text-xs font-semibold gap-1.5 border-[#d4e8dc] hover:bg-[#e8f5ee] hover:text-[#145c3f] ${
+                                officerMatchesUser(c.officer_assigned ?? c.assigned_officer, userName, userStaffId)
+                                  ? "border-[#145c3f] bg-[#f0fdf7]"
+                                  : ""
+                              }`}
                               onClick={() => openManage(c)}
                             >
-                              Manage
+                              {officerMatchesUser(c.officer_assigned ?? c.assigned_officer, userName, userStaffId) ? "Open" : "Manage"}
                               <ArrowRight className="w-3 h-3" />
                             </Button>
                           </TableCell>
@@ -1241,8 +1605,7 @@ export default function ServicomComplaintsPage({ onBack, defaultStateId, default
               )}
             </CardContent>
           </Card>
-        </div>
-      </ScrollArea>
+      </div>
     </div>
   );
 }
