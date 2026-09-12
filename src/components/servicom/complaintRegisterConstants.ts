@@ -28,7 +28,7 @@ export const PRIORITY_RATINGS = [
 ];
 
 export const TRANSMISSION_ROUTES = [
-  "Walk-in", "Phone", "Email", "Letter", "Portal",
+  "Walk-in", "Phone", "Hotline", "Email", "Letter", "Portal",
   "Meetings, Conferences or Workshops", "Other",
 ].map(v => ({ value: v, label: v }));
 

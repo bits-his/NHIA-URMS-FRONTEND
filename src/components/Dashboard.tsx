@@ -49,6 +49,7 @@ import OutreachMonthlyForm from "./monthly/OutreachMonthlyForm";
 import SqaMonthlyForm from "./monthly/SqaMonthlyForm";
 import ComplaintsMonthlyForm from "./monthly/ComplaintsMonthlyForm";
 import ComplianceManagementPage from "./compliance/ComplianceManagementPage";
+import DirectorEnforcementDashboard, { isDirectorEnforcementUser } from "./enforcement/DirectorEnforcementDashboard";
 import MonthlyReportsList from "./monthly/MonthlyReportsList";
 import DeptMonthlyPage from "./monthly/DeptMonthlyPage";
 // SidebarNav logic is now inside AppSidebar.tsx
@@ -417,6 +418,7 @@ function AuditPanel() {
 
 // ─── Main Dashboard ───────────────────────────────────────────────────────────
 export default function Dashboard({ role, user, access = [], functionalities = "", onLogout }: DashboardProps) {
+  const navigate = useNavigate();
   const [view, setView] = React.useState<View>(role === "admin" ? "home" : "home");
   // Sidebar state is now managed by shadcn SidebarProvider
   const [selectedReportRef, setSelectedReportRef] = React.useState<string | null>(null);
@@ -479,6 +481,14 @@ export default function Dashboard({ role, user, access = [], functionalities = "
                   <StateOfficeDashboard user={user} role="state-officer" stateName={user?.state?.description ?? "Lagos"} zoneName={user?.zone?.description ?? "South West"} onNewReport={() => setView("report-entry")} onAnnualReport={() => setView("annual-report")} onViewSubmissions={() => setView("annual-reports-list")} onNewSubmission={(targetView) => setView(targetView as View)} />
                 ) : role === "state-coordinator" ? (
                   <StateOfficeDashboard user={user} role="state-coordinator" stateName={user?.state?.description ?? "Lagos"} zoneName={user?.zone?.description ?? "South West"} onNewReport={() => setView("report-entry")} onAnnualReport={() => setView("annual-report")} onViewSubmissions={() => setView("annual-reports-list")} onNewSubmission={(targetView) => setView(targetView as View)} />
+                ) : isDirectorEnforcementUser(user) ? (
+                  <DirectorEnforcementDashboard
+                    onNavigate={(path) => {
+                      navigate(path);
+                      if (path.includes("compliance")) setView("sqa-compliance");
+                      else if (path.includes("complaints")) setView("servicom-complaints");
+                    }}
+                  />
                 ) : role === "department-officer" ? (
                   <DepartmentalDashboard user={user} onNewSubmission={(targetView) => setView(targetView as View)} />
                 ) : role === "admin" ? (
@@ -538,6 +548,7 @@ export default function Dashboard({ role, user, access = [], functionalities = "
             <Route path="/monthly/outreach" element={<DeptMonthlyPage dept="programmes" title="Outreach Monthly Reports" section="outreach" onBack={() => setView("home")} defaultZoneId={monthlyCtx.defaultZoneId} defaultStateId={monthlyCtx.defaultStateId} canCreate={monthlyCtx.canCreateMonthly} FormComponent={OutreachMonthlyForm} />} />
             <Route path="/monthly/sqa" element={<DeptMonthlyPage dept="sqa" title="HMO/HCP Quality Assurance Monthly Reports" section="sqa" onBack={() => setView("home")} defaultZoneId={monthlyCtx.defaultZoneId} defaultStateId={monthlyCtx.defaultStateId} canCreate={monthlyCtx.canCreateMonthly} FormComponent={SqaMonthlyForm} />} />
             <Route path="/compliance" element={<ComplianceManagementPage onBack={() => setView("home")} defaultZoneId={monthlyCtx.defaultZoneId} defaultStateId={monthlyCtx.defaultStateId} />} />
+            <Route path="/enforcement/dashboard" element={<Navigate to="/" replace />} />
             <Route path="/monthly/complaints" element={<DeptMonthlyPage dept="sqa" title="Enrollee Complaints Monthly Reports" section="complaints" onBack={() => setView("home")} defaultZoneId={monthlyCtx.defaultZoneId} defaultStateId={monthlyCtx.defaultStateId} canCreate={monthlyCtx.canCreateMonthly} FormComponent={ComplaintsMonthlyForm} />} />
 
             {/* ── SOC / Zones ── */}

@@ -1,11 +1,13 @@
 import * as React from "react";
 import {
-  ArrowLeft, RefreshCw, Loader2, TrendingUp, CheckCircle2,
-  ClipboardCheck, MessageSquare,
+  RefreshCw, Loader2, TrendingUp, CheckCircle2,
+  ClipboardCheck, MessageSquare, XCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -13,10 +15,14 @@ import {
   LineChart, Line, PieChart, Pie, Cell, Legend,
 } from "recharts";
 import { toast } from "sonner";
-import { servicomApi } from "@/lib/api";
+import { servicomApi, stockApi } from "@/lib/api";
 import DashboardDrillPanel from "@/components/dashboard/DashboardDrillPanel";
 import { useDashboardDrill } from "@/components/dashboard/useDashboardDrill";
 import { ClickableKpi, DrillHint, COLORS, getUnitHeadScope } from "@/components/dashboard/dashboardUi";
+import { TRANSMISSION_ROUTES } from "./complaintRegisterConstants";
+import { pickGeoLabel } from "./servicomConstants";
+import HcfFacilitySelect from "./HcfFacilitySelect";
+import HmoProviderSelect from "./HmoProviderSelect";
 
 const UNIT_NAME = "SERVICOM Unit";
 
@@ -42,18 +48,50 @@ function ChartEmpty({ message = "No records in the system for this view yet." }:
 }
 
 export default function ServicomDashboard({ onBack, defaultStateId, defaultZoneId }: Props) {
+  const geoLocked = !!(defaultZoneId && defaultStateId);
   const [data, setData] = React.useState<any | null>(null);
   const [loading, setLoading] = React.useState(true);
+  const [zones, setZones] = React.useState<any[]>([]);
+  const [states, setStates] = React.useState<any[]>([]);
+  const [filterZone, setFilterZone] = React.useState(defaultZoneId ?? "all");
+  const [filterState, setFilterState] = React.useState(defaultStateId ?? "all");
+  const [filterFacilityId, setFilterFacilityId] = React.useState("");
+  const [filterFacilityName, setFilterFacilityName] = React.useState("");
+  const [filterHmoId, setFilterHmoId] = React.useState("");
+  const [filterTransmission, setFilterTransmission] = React.useState("all");
 
   const scope = React.useMemo(() => ({
-    state_id: defaultStateId ?? undefined,
-    zone_id: defaultZoneId ?? undefined,
-  }), [defaultStateId, defaultZoneId]);
+    state_id: geoLocked
+      ? (defaultStateId ?? undefined)
+      : (filterState !== "all" ? filterState : undefined),
+    zone_id: geoLocked
+      ? (defaultZoneId ?? undefined)
+      : (filterZone !== "all" ? filterZone : undefined),
+    facility_name: filterFacilityName || undefined,
+    hmo_id: filterHmoId || undefined,
+    transmission_route: filterTransmission !== "all" ? filterTransmission : undefined,
+  }), [
+    geoLocked, defaultStateId, defaultZoneId, filterState, filterZone,
+    filterFacilityName, filterHmoId, filterTransmission,
+  ]);
 
   const drill = useDashboardDrill(
     (params) => servicomApi.getDashboardDrill(params),
     scope,
   );
+
+  React.useEffect(() => {
+    stockApi.getZones().then((r) => setZones(r.data || [])).catch(() => setZones([]));
+  }, []);
+
+  React.useEffect(() => {
+    if (geoLocked) return;
+    setFilterState("all");
+    setFilterFacilityId("");
+    setFilterFacilityName("");
+    const zoneArg = filterZone === "all" ? undefined : filterZone;
+    stockApi.getStates(zoneArg).then((r) => setStates(r.data || [])).catch(() => setStates([]));
+  }, [filterZone, geoLocked]);
 
   const load = React.useCallback(async () => {
     setLoading(true);
@@ -67,7 +105,24 @@ export default function ServicomDashboard({ onBack, defaultStateId, defaultZoneI
 
   React.useEffect(() => { load(); }, [load]);
 
-  const unitScope = getUnitHeadScope(UNIT_NAME, defaultStateId, defaultZoneId);
+  const hasFilters = (!geoLocked && filterZone !== (defaultZoneId ?? "all"))
+    || (!geoLocked && filterState !== (defaultStateId ?? "all"))
+    || !!filterFacilityName
+    || !!filterHmoId
+    || filterTransmission !== "all";
+
+  const clearFilters = () => {
+    if (!geoLocked) {
+      setFilterZone(defaultZoneId ?? "all");
+      setFilterState(defaultStateId ?? "all");
+    }
+    setFilterFacilityId("");
+    setFilterFacilityName("");
+    setFilterHmoId("");
+    setFilterTransmission("all");
+  };
+
+  const unitScope = getUnitHeadScope(UNIT_NAME, scope.state_id, scope.zone_id);
   const drillCtx = { subtitle: unitScope.drillSubtitle, breadcrumbs: [UNIT_NAME] };
 
   const monthlyChart = React.useMemo(() => {
@@ -112,12 +167,91 @@ export default function ServicomDashboard({ onBack, defaultStateId, defaultZoneI
     );
   };
 
+  const zoneLabel = filterZone === "all" ? "All Zones" : pickGeoLabel(zones, filterZone, "Zone");
+  const stateLabel = filterState === "all" ? "All States" : pickGeoLabel(states, filterState, "State");
+
   return (
     <div className="flex flex-col h-full bg-slate-50/30">
-      <div className="bg-white border-b border-border/50 px-4 md:px-6 py-3 flex items-center justify-end sticky top-0 z-30">
-        <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">
-          <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
-        </Button>
+      <div className="bg-white border-b border-border/50 px-4 md:px-6 py-3 sticky top-0 z-30 space-y-3">
+        <div className="flex items-center justify-end">
+          <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">
+            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
+          </Button>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-2">
+          {!geoLocked && (
+            <>
+              <div className="space-y-1">
+                <Label className="text-[11px] text-slate-500">Zone</Label>
+                <Select value={filterZone} onValueChange={(v) => { setFilterZone(v); setFilterFacilityId(""); setFilterFacilityName(""); }}>
+                  <SelectTrigger className="h-9 w-full" displayValue={zoneLabel}>
+                    <SelectValue placeholder="Zone" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Zones</SelectItem>
+                    {zones.map((z) => <SelectItem key={z.id} value={String(z.id)}>{z.description}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[11px] text-slate-500">State</Label>
+                <Select value={filterState} onValueChange={(v) => { setFilterState(v); setFilterFacilityId(""); setFilterFacilityName(""); }}>
+                  <SelectTrigger className="h-9 w-full" displayValue={stateLabel}>
+                    <SelectValue placeholder="State" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All States</SelectItem>
+                    {states.map((s) => <SelectItem key={s.id} value={String(s.id)}>{s.description}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </>
+          )}
+          <div className="space-y-1">
+            <Label className="text-[11px] text-slate-500">Facility</Label>
+            <HcfFacilitySelect
+              requireState={false}
+              stateId={filterState !== "all" ? filterState : (defaultStateId ?? undefined)}
+              value={filterFacilityId}
+              onChange={(fac) => {
+                setFilterFacilityId(fac?.id ?? "");
+                setFilterFacilityName(fac?.name ?? "");
+              }}
+              placeholder="HCF facility"
+              className="h-9"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-[11px] text-slate-500">HMO</Label>
+            <HmoProviderSelect
+              value={filterHmoId}
+              onChange={(hmo) => setFilterHmoId(hmo?.id ?? "")}
+              placeholder="HMO"
+              className="h-9"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-[11px] text-slate-500">Transmission</Label>
+            <Select value={filterTransmission} onValueChange={setFilterTransmission}>
+              <SelectTrigger className="h-9 w-full" displayValue={filterTransmission === "all" ? "All channels" : filterTransmission}>
+                <SelectValue placeholder="Channel" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All channels</SelectItem>
+                {TRANSMISSION_ROUTES.map((r) => (
+                  <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          {hasFilters && (
+            <div className="flex items-end">
+              <Button variant="ghost" size="sm" className="h-9 text-slate-500 gap-1" onClick={clearFilters}>
+                <XCircle className="w-3.5 h-3.5" /> Clear filters
+              </Button>
+            </div>
+          )}
+        </div>
       </div>
 
       <ScrollArea className="flex-1">

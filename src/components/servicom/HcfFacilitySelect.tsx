@@ -4,16 +4,28 @@ import { hcfFacilitiesApi } from "@/lib/api";
 import { toast } from "sonner";
 
 interface Props {
+  /** Optional — when set, results are scoped to that state office id. */
   stateId?: string;
   value?: string;
   onChange: (facility: { id: string; name: string; code?: string; state_name?: string } | null) => void;
   disabled?: boolean;
   placeholder?: string;
+  className?: string;
+  /** When false, search works without selecting a state first (default true for form flows). */
+  requireState?: boolean;
 }
 
 type CachedOption = SearchSelectOption & { code?: string; state_name?: string };
 
-export default function HcfFacilitySelect({ stateId, value, onChange, disabled, placeholder }: Props) {
+export default function HcfFacilitySelect({
+  stateId,
+  value,
+  onChange,
+  disabled,
+  placeholder,
+  className,
+  requireState = true,
+}: Props) {
   const [options, setOptions] = React.useState<SearchSelectOption[]>([]);
   const [loading, setLoading] = React.useState(false);
   const cacheRef = React.useRef<Map<string, CachedOption>>(new Map());
@@ -22,7 +34,13 @@ export default function HcfFacilitySelect({ stateId, value, onChange, disabled, 
   const onChangeRef = React.useRef(onChange);
   onChangeRef.current = onChange;
 
+  const blocked = disabled || (requireState && !stateId);
+
   const load = React.useCallback(async (q?: string) => {
+    if (requireState && !stateId) {
+      setOptions([]);
+      return;
+    }
     setLoading(true);
     try {
       const res = await hcfFacilitiesApi.list({
@@ -49,7 +67,7 @@ export default function HcfFacilitySelect({ stateId, value, onChange, disabled, 
     } finally {
       setLoading(false);
     }
-  }, [stateId]);
+  }, [stateId, requireState]);
 
   React.useEffect(() => {
     if (prevStateId.current !== stateId) {
@@ -79,16 +97,15 @@ export default function HcfFacilitySelect({ stateId, value, onChange, disabled, 
     });
   };
 
-  const blocked = disabled || !stateId;
-
   return (
     <SearchSelect
       options={options}
       value={value}
       onChange={handleChange}
       disabled={blocked || loading}
+      className={className}
       placeholder={
-        !stateId
+        requireState && !stateId
           ? "Select state first"
           : loading
             ? "Loading facilities..."

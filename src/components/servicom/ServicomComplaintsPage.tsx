@@ -1,7 +1,7 @@
 import * as React from "react";
 import {
   ArrowLeft, Plus, RefreshCw, Loader2, MessageSquare, Search,
-  CheckCircle2, Circle, AlertTriangle, Clock, ArrowRight,
+  CheckCircle2, Circle, AlertTriangle, Clock, ArrowRight, XCircle,
 } from "lucide-react";
 import { motion } from "motion/react";
 import { Button } from "@/components/ui/button";
@@ -332,6 +332,8 @@ export default function ServicomComplaintsPage({
   onBack, defaultStateId, defaultZoneId, userName, userStaffId, userRole,
 }: Props) {
   const showAssignedFilter = !!(userRole && COMPLAINT_ASSIGNEE_ROLES.has(userRole));
+  /** HQ / national viewers (no fixed state) should see all complaints by default, not only assigned. */
+  const isNationalViewer = !defaultZoneId && !defaultStateId;
   const geoLocked = !!(defaultZoneId && defaultStateId);
   const today = new Date().toISOString().slice(0, 10);
   const [mode, setMode] = React.useState<Mode>("list");
@@ -350,8 +352,12 @@ export default function ServicomComplaintsPage({
   const [filterPriority, setFilterPriority] = React.useState("all");
   const [filterSearch, setFilterSearch] = React.useState("");
   const [filterDate, setFilterDate] = React.useState("");
+  const [filterFacilityId, setFilterFacilityId] = React.useState("");
+  const [filterFacilityName, setFilterFacilityName] = React.useState("");
+  const [filterHmoId, setFilterHmoId] = React.useState("");
+  const [filterTransmission, setFilterTransmission] = React.useState("all");
   const [filterAssigned, setFilterAssigned] = React.useState<"all" | "mine">(
-    showAssignedFilter ? "mine" : "all",
+    showAssignedFilter && !isNationalViewer ? "mine" : "all",
   );
   const [activeStage, setActiveStage] = React.useState<LifecycleStage>("registration");
   const [slaRules, setSlaRules] = React.useState<ComplaintSlaRuleRow[]>(SLA_SUMMARY as ComplaintSlaRuleRow[]);
@@ -389,12 +395,19 @@ export default function ServicomComplaintsPage({
         status: filterStatus !== "all" ? filterStatus : undefined,
         priority: filterPriority !== "all" ? filterPriority : undefined,
         assigned_to_me: showAssignedFilter && filterAssigned === "mine" && userName ? "1" : undefined,
+        facility_name: filterFacilityName || undefined,
+        hmo_id: filterHmoId || undefined,
+        transmission_route: filterTransmission !== "all" ? filterTransmission : undefined,
       });
       setComplaints(res.data);
     } catch (err: any) {
       toast.error("Failed to load complaints", { description: err.message });
     } finally { setLoading(false); }
-  }, [defaultStateId, defaultZoneId, filterState, filterZone, filterStatus, filterPriority, filterAssigned, showAssignedFilter, userName, geoLocked]);
+  }, [
+    defaultStateId, defaultZoneId, filterState, filterZone, filterStatus, filterPriority,
+    filterAssigned, showAssignedFilter, userName, geoLocked,
+    filterFacilityName, filterHmoId, filterTransmission,
+  ]);
 
   React.useEffect(() => { if (mode === "list") load(); }, [load, mode]);
   React.useEffect(() => { stockApi.getZones().then((r) => setZones(r.data)).catch(() => {}); }, []);
@@ -406,6 +419,33 @@ export default function ServicomComplaintsPage({
     if (geoLocked || filterZone === "all") { setFilterStates([]); return; }
     stockApi.getStates(filterZone).then((r) => setFilterStates(r.data)).catch(() => {});
   }, [filterZone, geoLocked]);
+
+  const hasFilters = filterSearch.trim() !== ""
+    || filterDate !== ""
+    || (!geoLocked && filterZone !== (defaultZoneId ?? "all"))
+    || (!geoLocked && filterState !== (defaultStateId ?? "all"))
+    || filterStatus !== "all"
+    || filterPriority !== "all"
+    || !!filterFacilityName
+    || !!filterHmoId
+    || filterTransmission !== "all"
+    || (showAssignedFilter && filterAssigned !== (isNationalViewer ? "all" : "mine"));
+
+  const clearFilters = () => {
+    setFilterSearch("");
+    setFilterDate("");
+    if (!geoLocked) {
+      setFilterZone(defaultZoneId ?? "all");
+      setFilterState(defaultStateId ?? "all");
+    }
+    setFilterStatus("all");
+    setFilterPriority("all");
+    setFilterFacilityId("");
+    setFilterFacilityName("");
+    setFilterHmoId("");
+    setFilterTransmission("all");
+    setFilterAssigned(showAssignedFilter && !isNationalViewer ? "mine" : "all");
+  };
 
   const filtered = React.useMemo(() => {
     const q = filterSearch.trim().toLowerCase();
@@ -1429,7 +1469,7 @@ export default function ServicomComplaintsPage({
 
           {/* Filters */}
           <Card className="rounded-2xl border-[#d4e8dc]">
-            <CardContent className="py-3 px-4">
+            <CardContent className="py-3 px-4 space-y-2">
               <div className="flex flex-wrap items-center gap-2 w-full">
                 <div className="relative flex-[2] min-w-0">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
@@ -1451,7 +1491,7 @@ export default function ServicomComplaintsPage({
                 {!geoLocked && (
                   <>
                     <div className="flex-1 min-w-0">
-                      <Select value={filterZone} onValueChange={(v) => { setFilterZone(v); setFilterState("all"); }}>
+                      <Select value={filterZone} onValueChange={(v) => { setFilterZone(v); setFilterState("all"); setFilterFacilityId(""); setFilterFacilityName(""); }}>
                         <SelectTrigger className="h-9 w-full" displayValue={filterZone === "all" ? "All Zones" : pickGeoLabel(zones, filterZone, "Zone")}>
                           <SelectValue placeholder="Zone" />
                         </SelectTrigger>
@@ -1462,7 +1502,7 @@ export default function ServicomComplaintsPage({
                       </Select>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <Select value={filterState} onValueChange={setFilterState}>
+                      <Select value={filterState} onValueChange={(v) => { setFilterState(v); setFilterFacilityId(""); setFilterFacilityName(""); }}>
                         <SelectTrigger className="h-9 w-full" displayValue={filterState === "all" ? "All States" : pickGeoLabel(filterStates, filterState, "State")}>
                           <SelectValue placeholder="State" />
                         </SelectTrigger>
@@ -1496,6 +1536,47 @@ export default function ServicomComplaintsPage({
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 w-full">
+                <div className="flex-[1.4] min-w-[180px]">
+                  <HcfFacilitySelect
+                    requireState={false}
+                    stateId={filterState !== "all" ? filterState : (defaultStateId ?? undefined)}
+                    value={filterFacilityId}
+                    onChange={(fac) => {
+                      setFilterFacilityId(fac?.id ?? "");
+                      setFilterFacilityName(fac?.name ?? "");
+                    }}
+                    placeholder="Facility (HCF)"
+                    className="h-9"
+                  />
+                </div>
+                <div className="flex-[1.4] min-w-[180px]">
+                  <HmoProviderSelect
+                    value={filterHmoId}
+                    onChange={(hmo) => setFilterHmoId(hmo?.id ?? "")}
+                    placeholder="HMO"
+                    className="h-9"
+                  />
+                </div>
+                <div className="flex-1 min-w-[160px]">
+                  <Select value={filterTransmission} onValueChange={setFilterTransmission}>
+                    <SelectTrigger className="h-9 w-full" displayValue={filterTransmission === "all" ? "All channels" : filterTransmission}>
+                      <SelectValue placeholder="Transmission" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All channels</SelectItem>
+                      {TRANSMISSION_ROUTES.map((r) => (
+                        <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {hasFilters && (
+                  <Button variant="ghost" size="sm" className="h-9 text-slate-500 gap-1 shrink-0" onClick={clearFilters}>
+                    <XCircle className="w-3.5 h-3.5" /> Clear filters
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>

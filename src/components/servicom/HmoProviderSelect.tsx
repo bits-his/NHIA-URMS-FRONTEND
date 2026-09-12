@@ -8,11 +8,12 @@ interface Props {
   onChange: (provider: { id: string; name: string; code: string } | null) => void;
   disabled?: boolean;
   placeholder?: string;
+  className?: string;
 }
 
 type CachedOption = SearchSelectOption & { code?: string };
 
-export default function HmoProviderSelect({ value, onChange, disabled, placeholder }: Props) {
+export default function HmoProviderSelect({ value, onChange, disabled, placeholder, className }: Props) {
   const [options, setOptions] = React.useState<SearchSelectOption[]>([]);
   const [loading, setLoading] = React.useState(false);
   const cacheRef = React.useRef<Map<string, CachedOption>>(new Map());
@@ -67,6 +68,7 @@ export default function HmoProviderSelect({ value, onChange, disabled, placehold
       value={value}
       onChange={handleChange}
       disabled={disabled || loading}
+      className={className}
       placeholder={loading ? "Loading HMOs..." : (placeholder ?? "Select HMO")}
       searchPlaceholder="Search accredited HMOs..."
       clearable

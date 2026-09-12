@@ -421,7 +421,7 @@ export const servicomApi = {
   getIndicators: () =>
     request<{ success: boolean; data: any[] }>("/servicom/indicators"),
 
-  getDashboard: (filters?: { state_id?: string; zone_id?: string; from?: string; to?: string }) =>
+  getDashboard: (filters?: Record<string, string | undefined>) =>
     request<{ success: boolean; data: any }>(`/servicom/dashboard${servicomFilters(filters)}`),
 
   getDashboardDrill: (filters?: Record<string, string | undefined>) =>
@@ -659,28 +659,6 @@ export const stateOfficeAccreditedProvidersApi = {
     request<{ success: boolean; data: { hmoCount: number; hcpCount: number; total: number } }>(
       "/state-office/accredited-providers/sync", { method: "POST" }
     ),
-};
-
-export const hcfFacilitiesApi = {
-  list: (filters?: {
-    q?: string; state_id?: string; service?: string; unique?: string; limit?: string;
-  }) =>
-    request<{ success: boolean; data: any[]; meta?: { count: number } }>(
-      `/hcf-facilities${stateOfficeFilters(filters)}`
-    ),
-  services: () =>
-    request<{ success: boolean; data: string[] }>("/hcf-facilities/services"),
-  get: (id: number | string) =>
-    request<{ success: boolean; data: any }>(`/hcf-facilities/${id}`),
-};
-
-export const hmoProvidersApi = {
-  list: (filters?: { q?: string; limit?: string }) =>
-    request<{ success: boolean; data: any[]; meta?: { count: number } }>(
-      `/hmo-providers${stateOfficeFilters(filters)}`
-    ),
-  get: (id: number | string) =>
-    request<{ success: boolean; data: any }>(`/hmo-providers/${id}`),
 };
 
 export const stateOfficeReconciliationApi = {
