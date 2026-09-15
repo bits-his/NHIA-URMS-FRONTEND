@@ -234,6 +234,11 @@ export const MODULE_CONFIG: ParentModule[] = [
       { type: "group", label: "Enrolment", children: [
         { title: "Enrolment", view: "state-enrolment", path: "/zonal/enrolment" },
       ]},
+      { type: "group", label: "Beneficiary Management", children: [
+        { title: "Additional / Extra Dependant", view: "state-extra-dependant", path: "/zonal/beneficiary/extra-dependant" },
+        { title: "HMO Selection Process", view: "state-hmo-selection", path: "/zonal/hmo-selection" },
+        { title: "Change of HCF", view: "state-hcf-change", path: "/zonal/beneficiary/hcf-change" },
+      ]},
       { type: "group", label: "Migration", children: [
         { title: "Migration / Update Requests", view: "state-migration", path: "/zonal/migration" },
       ]},
@@ -248,9 +253,6 @@ export const MODULE_CONFIG: ParentModule[] = [
       ]},
       { type: "group", label: "Stakeholder Engagement", children: [
         { title: "Stakeholder Engagement", view: "state-stakeholder", path: "/zonal/stakeholder" },
-      ]},
-      { type: "group", label: "HMO Selection", children: [
-        { title: "HMO Selection Process", view: "state-hmo-selection", path: "/zonal/hmo-selection" },
       ]},
       { type: "group", label: "Challenges & Recommendations", children: [
         { title: "Challenges & Recommendations", view: "state-challenges", path: "/zonal/challenges" },

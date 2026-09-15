@@ -14,11 +14,14 @@ import ContractedServicesForm from "./ContractedServicesForm";
 import ContractedServicesDetail from "./ContractedServicesDetail";
 import EnrolleeRegisterForm from "./EnrolleeRegisterForm";
 import EnrolleeRegisterDetail from "./EnrolleeRegisterDetail";
+import ExtraDependantForm from "./ExtraDependantForm";
+import HcpChangeForm from "./HcpChangeForm";
 import EtmcTmcActionPointForm from "./EtmcTmcActionPointForm";
 import EtmcTmcActionPointDetail from "./EtmcTmcActionPointDetail";
 
 const EXTENDED_DETAIL = new Set<StateOfficeReportType>([
   "complaints", "accreditation", "stakeholder", "hmo-selection", "challenges",
+  "extra-dependant", "hcf-change",
 ]);
 
 const FORM_COMPONENTS: Partial<Record<StateOfficeReportType, React.ComponentType<any>>> = {
@@ -29,6 +32,8 @@ const FORM_COMPONENTS: Partial<Record<StateOfficeReportType, React.ComponentType
   accreditation: AccreditationReportForm,
   stakeholder: StakeholderReportForm,
   "hmo-selection": HmoSelectionReportForm,
+  "extra-dependant": ExtraDependantForm,
+  "hcf-change": HcpChangeForm,
   challenges: ChallengesReportForm,
   "weekly-actionable": WeeklyActionableForm,
   "contracted-services": ContractedServicesForm,

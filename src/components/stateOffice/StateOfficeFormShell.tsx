@@ -16,6 +16,7 @@ interface Props {
     saving: boolean;
     submitting: boolean;
     savedId: number | null;
+    stateId: string;
   }) => React.ReactNode;
   buildPayload: (base: Record<string, unknown>) => Record<string, unknown>;
   validate?: () => string | null;
@@ -121,7 +122,7 @@ export default function StateOfficeFormShell({
                 setReportWeek={setReportWeek}
                 showGeoIds={showGeoIds}
               />
-              {children({ saving, submitting, savedId })}
+              {children({ saving, submitting, savedId, stateId: header.stateId })}
             </>
           )}
         </div>
