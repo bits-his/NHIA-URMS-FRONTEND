@@ -263,6 +263,18 @@ export const MODULE_CONFIG: ParentModule[] = [
         { title: "Expenditure Profile", view: "state-expenditure-profile", path: "/zonal/expenditure-profile", navLabel: "Expenditure" },
         { title: "Challenges & Recommendations", view: "state-challenges", path: "/zonal/challenges", navLabel: "Challenges" },
       ]},
+      { type: "group", label: "ICT", children: [
+        { title: "ICT Support", view: "state-ict-support", path: "/zonal/ict/support", navLabel: "Support" },
+      ]},
+      { type: "group", label: "Admin / Human Resource", children: [
+        { title: "Meetings", view: "state-admin-meetings", path: "/zonal/admin-hr/meetings" },
+        { title: "ETMC Cascading", view: "state-etmc-cascading", path: "/zonal/admin-hr/etmc-cascading" },
+        { title: "Accommodation", view: "state-accommodation", path: "/zonal/admin-hr/accommodation" },
+        { title: "Utilities", view: "state-utilities", path: "/zonal/admin-hr/utilities" },
+        { title: "Vehicles", view: "state-vehicles", path: "/zonal/admin-hr/vehicles" },
+        { title: "Staff Feedback", view: "state-staff-feedback", path: "/zonal/admin-hr/feedback", navLabel: "Feedback" },
+        { title: "Infractions", view: "state-infractions", path: "/zonal/admin-hr/infractions" },
+      ]},
     ],
   },
 
