@@ -188,7 +188,7 @@ export const MODULE_CONFIG: ParentModule[] = [
         { title: "SERVICOM Dashboard", view: "servicom-dashboard", path: "/sdo/servicom" },
         { title: "Charter Performance",          view: "servicom-comment-card", path: "/sdo/servicom/comment-card" },
         { title: "Complaints Management",        view: "servicom-complaints",   path: "/sdo/servicom/complaints" },
-        { title: "Customer Satisfaction Survey", view: "servicom-satisfaction", path: "/sdo/servicom/satisfaction" },
+        { title: "HCF Customer Satisfaction", view: "servicom-satisfaction", path: "/sdo/servicom/satisfaction" },
       ]},
       { type: "group", label: "STOCK VERIFICATION (SVD)", children: [
         { title: "Stock Verification Dashboard", view: "stock-verification-dashboard", path: "/sdo/stock-dashboard" },

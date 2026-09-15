@@ -133,6 +133,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
   Complaints: Scale,
   "Complaints Management": Scale,
   "Customer Satisfaction Survey": TrendingUp,
+  "HCF Customer Satisfaction": TrendingUp,
   "Charter Performance": Megaphone,
   "Satisfaction Ratings": TrendingUp,
   "Comment Cards": Megaphone,

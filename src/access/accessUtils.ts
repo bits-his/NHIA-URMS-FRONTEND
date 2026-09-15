@@ -114,6 +114,10 @@ export function normalizeFunctionalityTitle(title: string, moduleTitle?: string)
 
   if (title === "Citizens' Comment Card") return "Charter Performance";
 
+  if (title === "Customer Satisfaction Survey" || title === "HCF Customer Satisfaction Survey") {
+    return "HCF Customer Satisfaction";
+  }
+
   if (title === "Complaints") return "Complaints Management";
 
   if (title === "Complaints Register") return "Complaints Management";

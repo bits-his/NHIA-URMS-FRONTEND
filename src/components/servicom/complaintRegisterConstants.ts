@@ -296,6 +296,27 @@ export const CLOSED_COMPLAINT_STATUSES = [
   "Resolved", "Closed", "Referred to Appropriate Authority", "Complaint Withdrawn",
 ] as const;
 
+export function complaintPartyCode(party?: string | null) {
+  const p = String(party || "").trim();
+  if (/^enrollee$/i.test(p)) return "ENR";
+  if (/^hmo$/i.test(p)) return "HMO";
+  if (/^hcf$/i.test(p)) return "HCF";
+  return (p.slice(0, 3).toUpperCase() || "GEN");
+}
+
+const MONTH_ABBR = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+
+/** Preview of monthly complaint ID format: ENF/HCF/TR/JAN 26/… */
+export function previewComplaintNumber(against?: string | null, dateReceived?: string | null) {
+  const againstCode = complaintPartyCode(against || "HCF");
+  const d = dateReceived ? new Date(dateReceived) : new Date();
+  const month = Number.isNaN(d.getTime()) ? new Date().getMonth() : d.getMonth();
+  const year = Number.isNaN(d.getTime()) ? new Date().getFullYear() : d.getFullYear();
+  const mon = MONTH_ABBR[month];
+  const yy = String(year).slice(-2);
+  return `ENF/${againstCode}/TR/${mon} ${yy}/…`;
+}
+
 export function isComplaintClosed(status?: string) {
   return !!status && CLOSED_COMPLAINT_STATUSES.includes(status as typeof CLOSED_COMPLAINT_STATUSES[number]);
 }

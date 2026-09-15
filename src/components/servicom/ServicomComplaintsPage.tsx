@@ -22,6 +22,7 @@ import {
   lifecycleStageFromStatus, getStageCompletion, lifecycleStageLabel,
   isComplaintClosed,
   slaColorDotClass, computeSlaOverdueDays, slaRowClass,
+  previewComplaintNumber,
   type LifecycleStage, type ComplaintSlaRuleRow,
 } from "./complaintRegisterConstants";
 import {
@@ -66,6 +67,7 @@ const emptyForm = (defaultZoneId?: string | null, defaultStateId?: string | null
   from_hmo_id: "",
   from_hcf_id: "",
   from_name: "",
+  from_organization: "",
   from_phone: "",
   from_nhis_id: "",
   against_hmo_id: "",
@@ -117,6 +119,7 @@ function rowToForm(row: any) {
     from_hmo_id: row.complainant_hmo_id ? String(row.complainant_hmo_id) : "",
     from_hcf_id: row.complainant_hcf_id ? String(row.complainant_hcf_id) : "",
     from_name: row.complainant_name ?? "",
+    from_organization: row.complainant_organization ?? "",
     from_phone: row.complainant_phone ?? "",
     from_nhis_id: row.complainant_nhis_id ?? row.complainant_id ?? "",
     against_hmo_id: row.respondent_hmo_id ? String(row.respondent_hmo_id) : "",
@@ -373,7 +376,10 @@ export default function ServicomComplaintsPage({
 
   React.useEffect(() => {
     if (mode !== "register" && mode !== "manage") return;
-    servicomApi.listInvestigatingOfficers()
+    const stateId = defaultStateId || f.state_id || undefined;
+    servicomApi.listInvestigatingOfficers({
+      state_id: stateId || undefined,
+    })
       .then((r) => {
         setOfficerOptions(r.data.map((u) => {
           const dept = u.unit || u.department;
@@ -384,7 +390,7 @@ export default function ServicomComplaintsPage({
         }));
       })
       .catch(() => setOfficerOptions([]));
-  }, [mode]);
+  }, [mode, defaultStateId, f.state_id]);
 
   const load = React.useCallback(async () => {
     setLoading(true);
@@ -598,8 +604,14 @@ export default function ServicomComplaintsPage({
     if (partyType === "Enrollee") {
       const name = role === "from" ? f.from_name : f.against_name;
       const nhis = role === "from" ? f.from_nhis_id : f.against_nhis_id;
+      const org = role === "from" ? f.from_organization : "";
       if (!name?.trim() || !nhis?.trim()) {
-        return role === "from" ? "Enter filing enrollee name and NHIS ID." : "Enter enrollee name and NHIS ID.";
+        return role === "from"
+          ? "Enter enrollee name and NHIA number/code."
+          : "Enter respondent name and NHIA number/code.";
+      }
+      if (role === "from" && !org?.trim()) {
+        return "Enter enrollee organization.";
       }
     }
     return null;
@@ -649,6 +661,7 @@ export default function ServicomComplaintsPage({
         complainant_hmo_id: f.from_hmo_id ? Number(f.from_hmo_id) : null,
         complainant_hcf_id: f.from_hcf_id ? Number(f.from_hcf_id) : null,
         complainant_name: f.from_name || undefined,
+        complainant_organization: f.from_organization || undefined,
         complainant_phone: f.from_phone || undefined,
         complainant_nhis_id: f.from_nhis_id || undefined,
         respondent_category: f.respondent_category || undefined,
@@ -749,6 +762,7 @@ export default function ServicomComplaintsPage({
       from_hmo_id: "",
       from_hcf_id: "",
       from_name: "",
+      from_organization: "",
       from_phone: "",
       from_nhis_id: "",
       complaint_against: "",
@@ -806,18 +820,40 @@ export default function ServicomComplaintsPage({
       const hmoName = isFrom
         ? row?.complainant_hmo?.name ?? row?.complainant_name
         : row?.respondent_hmo?.name ?? row?.respondent_name;
-      if (readOnly) {
-        return <AutoField label="HMO *" value={hmoName} />;
-      }
-      return (
+      const hmoCode = readOnly
+        ? (isFrom ? row?.complainant_nhis_id ?? row?.complainant_id : row?.respondent_nhis_id ?? row?.respondent_id)
+        : (isFrom ? f.from_nhis_id : f.against_nhis_id);
+
+      const selectField = readOnly ? (
+        <AutoField label="HMO *" value={hmoName} />
+      ) : (
         <div className="space-y-1.5 min-w-0">
           <Label className="text-xs text-slate-500">HMO *</Label>
           <HmoProviderSelect
             value={hmoId}
             onChange={(p) => setF((prev) => isFrom
-              ? { ...prev, from_hmo_id: p?.id ?? "", from_name: p?.name ?? "" }
-              : { ...prev, against_hmo_id: p?.id ?? "", against_name: p?.name ?? "" })}
+              ? { ...prev, from_hmo_id: p?.id ?? "", from_name: p?.name ?? "", from_nhis_id: p?.code ?? "" }
+              : { ...prev, against_hmo_id: p?.id ?? "", against_name: p?.name ?? "", against_nhis_id: p?.code ?? "" })}
           />
+        </div>
+      );
+
+      if (isFrom) return selectField;
+
+      return (
+        <div className="col-span-full grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {selectField}
+          {readOnly ? (
+            <AutoField label="Respondent Code / NHIA Number" value={hmoCode} />
+          ) : (
+            <FieldText
+              label="Respondent Code / NHIA Number"
+              value={f.against_nhis_id}
+              onChange={(v) => set("against_nhis_id", v)}
+              placeholder="HMO code"
+              mono
+            />
+          )}
         </div>
       );
     }
@@ -829,19 +865,41 @@ export default function ServicomComplaintsPage({
       const hcfName = isFrom
         ? row?.complainant_hcf?.name ?? row?.complainant_name
         : row?.facility_name ?? row?.respondent_name;
-      if (readOnly) {
-        return <AutoField label="HCF *" value={hcfName} />;
-      }
-      return (
+      const hcfCode = readOnly
+        ? (isFrom ? row?.complainant_nhis_id ?? row?.complainant_id : row?.respondent_nhis_id ?? row?.respondent_id)
+        : (isFrom ? f.from_nhis_id : f.against_nhis_id);
+
+      const selectField = readOnly ? (
+        <AutoField label="HCF *" value={hcfName} />
+      ) : (
         <div className="space-y-1.5 min-w-0">
           <Label className="text-xs text-slate-500">HCF *</Label>
           <HcfFacilitySelect
             stateId={activeStateId || undefined}
             value={hcfId}
             onChange={(fac) => setF((prev) => isFrom
-              ? { ...prev, from_hcf_id: fac?.id ?? "", from_name: fac?.name ?? "" }
-              : { ...prev, against_hcf_id: fac?.id ?? "", against_name: fac?.name ?? "" })}
+              ? { ...prev, from_hcf_id: fac?.id ?? "", from_name: fac?.name ?? "", from_nhis_id: fac?.code ?? "" }
+              : { ...prev, against_hcf_id: fac?.id ?? "", against_name: fac?.name ?? "", against_nhis_id: fac?.code ?? "" })}
           />
+        </div>
+      );
+
+      if (isFrom) return selectField;
+
+      return (
+        <div className="col-span-full grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {selectField}
+          {readOnly ? (
+            <AutoField label="Respondent Code / NHIA Number" value={hcfCode} />
+          ) : (
+            <FieldText
+              label="Respondent Code / NHIA Number"
+              value={f.against_nhis_id}
+              onChange={(v) => set("against_nhis_id", v)}
+              placeholder="Facility accreditation code"
+              mono
+            />
+          )}
         </div>
       );
     }
@@ -849,6 +907,9 @@ export default function ServicomComplaintsPage({
     const name = readOnly
       ? (isFrom ? row?.complainant_name : row?.respondent_name)
       : (isFrom ? f.from_name : f.against_name);
+    const organization = readOnly
+      ? row?.complainant_organization
+      : f.from_organization;
     const nhis = readOnly
       ? (isFrom ? row?.complainant_nhis_id ?? row?.complainant_id : row?.respondent_nhis_id ?? row?.respondent_id)
       : (isFrom ? f.from_nhis_id : f.against_nhis_id);
@@ -856,25 +917,57 @@ export default function ServicomComplaintsPage({
       ? (isFrom ? row?.complainant_phone : row?.respondent_phone)
       : (isFrom ? f.from_phone : f.against_phone);
 
+    if (isFrom) {
+      return (
+        <div className="col-span-full grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <FieldText
+            label="Complainant Name *"
+            value={name ?? ""}
+            onChange={(v) => set("from_name", v)}
+            readOnly={readOnly}
+          />
+          <FieldText
+            label="Organization *"
+            value={organization ?? ""}
+            onChange={(v) => set("from_organization", v)}
+            readOnly={readOnly}
+          />
+          <FieldText
+            label="NHIA Number / Code *"
+            value={nhis ?? ""}
+            onChange={(v) => set("from_nhis_id", v)}
+            readOnly={readOnly}
+            mono
+          />
+          <FieldText
+            label="Phone"
+            value={phone ?? ""}
+            onChange={(v) => set("from_phone", v)}
+            readOnly={readOnly}
+          />
+        </div>
+      );
+    }
+
     return (
-      <div className="col-span-full grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="col-span-full grid grid-cols-1 sm:grid-cols-2 gap-4">
         <FieldText
-          label="Full Name *"
+          label="Respondent Name *"
           value={name ?? ""}
-          onChange={(v) => set(isFrom ? "from_name" : "against_name", v)}
+          onChange={(v) => set("against_name", v)}
           readOnly={readOnly}
         />
         <FieldText
-          label="NHIS ID *"
+          label="Respondent Code / NHIA Number *"
           value={nhis ?? ""}
-          onChange={(v) => set(isFrom ? "from_nhis_id" : "against_nhis_id", v)}
+          onChange={(v) => set("against_nhis_id", v)}
           readOnly={readOnly}
           mono
         />
         <FieldText
           label="Phone"
           value={phone ?? ""}
-          onChange={(v) => set(isFrom ? "from_phone" : "against_phone", v)}
+          onChange={(v) => set("against_phone", v)}
           readOnly={readOnly}
         />
       </div>
@@ -932,6 +1025,16 @@ export default function ServicomComplaintsPage({
 
     const formGrid = (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {readOnly ? (
+              <AutoField label="Complaint ID" value={row?.complaint_number} />
+            ) : (
+              <div className="space-y-1">
+                <Label className="text-[10px] uppercase tracking-wide text-slate-400 font-medium">Complaint ID</Label>
+                <p className="text-sm font-semibold text-slate-800 font-mono">
+                  Auto generated ({previewComplaintNumber(againstParty || "HCF", dateReceived).replace(/\/…$/, "/001")})
+                </p>
+              </div>
+            )}
             <FieldText
               label="Date Received *"
               type="date"
@@ -950,6 +1053,7 @@ export default function ServicomComplaintsPage({
               placeholder="HCF, HMO, or Enrollee"
             />
             {renderInlinePartyPicker("from", fromParty, readOnly, row)}
+
             {showAgainstStep && (
               <>
                 <FieldSelect
@@ -963,6 +1067,7 @@ export default function ServicomComplaintsPage({
                 {renderInlinePartyPicker("against", againstParty, readOnly, row)}
               </>
             )}
+
             <FieldSelect
               label="Complainant Category"
               value={readOnly ? row?.complainant_category : f.complainant_category}
@@ -1018,25 +1123,15 @@ export default function ServicomComplaintsPage({
               </div>
             )}
 
-            {!readOnly && (
-              officerOptions.length ? (
-                <FieldSelect
-                  label="Assign To *"
-                  value={f.officer_assigned}
-                  options={officerOptions}
-                  onChange={(v) => set("officer_assigned", v)}
-                  placeholder="Select investigating officer"
-                />
-              ) : (
-                <FieldText
-                  label="Assign To *"
-                  value={f.officer_assigned}
-                  onChange={(v) => set("officer_assigned", v)}
-                  placeholder="Officer name"
-                />
-              )
-            )}
-            {readOnly && (
+            {!readOnly ? (
+              <FieldSelect
+                label="Assign To *"
+                value={f.officer_assigned}
+                options={officerOptions}
+                onChange={(v) => set("officer_assigned", v)}
+                placeholder={officerOptions.length ? "Select investigating officer" : "No officers available for this state"}
+              />
+            ) : (
               <AutoField label="Assigned To" value={row?.officer_assigned ?? row?.assigned_officer} />
             )}
           </div>
@@ -1089,6 +1184,7 @@ export default function ServicomComplaintsPage({
             <SummaryField label="State" value={stateLabel(row)} />
           </>
         )}
+        <SummaryField label="Complaint ID" value={row.complaint_number} />
         <SummaryField label="Date Received" value={row.date_received ?? row.complaint_date} />
         <SummaryField label="Transmission Route" value={row.transmission_route} />
         <SummaryField label="Complaint Type" value={fromLabel} />
@@ -1096,7 +1192,12 @@ export default function ServicomComplaintsPage({
         <SummaryField label="Respondent Category" value={row.respondent_category} />
         <SummaryField label="Complaint Against" value={againstLabel} />
         <SummaryField label="Filing Party" value={row.complainant_name ?? row.complainant_hmo?.name ?? row.complainant_hcf?.name} />
+        {row.complainant_organization && (
+          <SummaryField label="Organization" value={row.complainant_organization} />
+        )}
+        <SummaryField label="Complainant NHIA No." value={row.complainant_nhis_id ?? row.complainant_id} />
         <SummaryField label="Against Party" value={row.respondent_name ?? row.facility_name ?? row.respondent_hmo?.name} />
+        <SummaryField label="Respondent Code / NHIA No." value={row.respondent_nhis_id ?? row.respondent_id} />
         <SummaryField label="Domain" value={row.complaint_domain} />
         <SummaryField label="Category" value={row.complaint_category ?? row.category} />
         <SummaryField label="Priority" value={row.priority_rating} />
