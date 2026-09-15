@@ -215,6 +215,8 @@ export const MODULE_CONFIG: ParentModule[] = [
     roles: "all",
     children: [
       { title: "SOC/Zones Dashboard", view: "soc-zones-dashboard", path: "/soc/dashboard" },
+      { title: "State/Zonal Office Profile", view: "soc-office-profile", path: "/soc/office-profile" },
+      { title: "State/Zonal Focal Persons Register", view: "soc-focal-persons", path: "/soc/focal-persons" },
       { title: "Weekly Actionable", view: "state-weekly-actionable", path: "/soc/weekly-actionable" },
       { title: "Contracted Services", view: "state-contracted-services", path: "/soc/contracted-services" },
       { title: "Operation Monitoring Visit", view: "soc-operation-monitoring-visit", path: "/soc/operation-monitoring-visit" },

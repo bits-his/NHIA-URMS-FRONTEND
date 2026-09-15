@@ -117,6 +117,8 @@ const ICON_MAP: Record<string, React.ElementType> = {
   "SOC/ZONES": MapPin,
   Zonal: MapPin,
   "SOC/Zones Dashboard": Activity,
+  "State/Zonal Office Profile": Building,
+  "State/Zonal Focal Persons Register": Users,
   "Stock Assets": PackageSearch,
   "Store Management": Warehouse,
   "Asset Management (SVO)": Warehouse,
