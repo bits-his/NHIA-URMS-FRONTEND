@@ -265,11 +265,13 @@ export function getStageCompletion(row: any): Record<LifecycleStage, boolean> {
   if (!row) {
     return { registration: false, investigation: false, escalation: false, resolution: false };
   }
+  const escalated = !!row.escalated || row.status === "Escalated";
   return {
     registration: !!(row.complaint_number && (row.complainant_category || row.complaint_type)),
-    investigation: !!(row.investigation_start_date || row.actions_taken
+    // Once escalated, investigation is treated as complete
+    investigation: escalated || !!(row.investigation_start_date || row.actions_taken
       || ["Under Investigation", "Awaiting Information", "Awaiting Respondent Action"].includes(row.status)),
-    escalation: !!row.escalated,
+    escalation: escalated,
     resolution: !!(row.date_closed || row.outcome),
   };
 }

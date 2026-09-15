@@ -225,7 +225,7 @@ export default function StateOfficeReportsList({
             className="bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20"
             onClick={() => { setSelectedId(null); setMode("create"); }}
           >
-            <Plus className="w-4 h-4" /> {reportType === "enrollee-register" || reportType === "etmc-tmc-action-point" ? "New Register" : "New Report"}
+            <Plus className="w-4 h-4" /> {reportType === "enrollee-register" || reportType === "etmc-tmc-action-point" || reportType === "ict-support-register" || reportType === "adhoc-special-assignment" ? "New Register" : "New Report"}
           </Button>
         </div>
       </div>
@@ -322,7 +322,7 @@ export default function StateOfficeReportsList({
               <CardTitle className="text-sm font-bold">
                 {loading
                   ? "Loading..."
-                  : reportType === "enrollee-register" || reportType === "etmc-tmc-action-point"
+                  : reportType === "enrollee-register" || reportType === "etmc-tmc-action-point" || reportType === "ict-support-register" || reportType === "adhoc-special-assignment"
                     ? `${reports.length} register${reports.length !== 1 ? "s" : ""}`
                     : `${reports.length} report${reports.length !== 1 ? "s" : ""}`}
               </CardTitle>
@@ -339,7 +339,7 @@ export default function StateOfficeReportsList({
                   {!hasFilters && (
                     <Button variant="outline" size="sm" className="mt-2 gap-2"
                       onClick={() => { setSelectedId(null); setMode("create"); }}>
-                      <Plus className="w-4 h-4" /> {reportType === "enrollee-register" || reportType === "etmc-tmc-action-point" ? "New Register" : "New Report"}
+                      <Plus className="w-4 h-4" /> {reportType === "enrollee-register" || reportType === "etmc-tmc-action-point" || reportType === "ict-support-register" || reportType === "adhoc-special-assignment" ? "New Register" : "New Report"}
                     </Button>
                   )}
                 </div>
@@ -360,6 +360,22 @@ export default function StateOfficeReportsList({
                               <TableHead key={s.key} className="text-xs font-bold text-slate-600 text-right whitespace-nowrap">{s.label}</TableHead>
                             ))}
                             <TableHead className="text-xs font-bold text-slate-600 text-right whitespace-nowrap">Total Lives</TableHead>
+                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Status</TableHead>
+                            <TableHead className="text-right text-xs font-bold text-slate-600 whitespace-nowrap">View</TableHead>
+                          </>
+                        ) : reportType === "ict-support-register" || reportType === "adhoc-special-assignment" ? (
+                          <>
+                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Date Submitted</TableHead>
+                            {showLocationCols && (
+                              <>
+                                <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Zone</TableHead>
+                                <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">State</TableHead>
+                              </>
+                            )}
+                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Year</TableHead>
+                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Month</TableHead>
+                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Quarter</TableHead>
+                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Submitted By</TableHead>
                             <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Status</TableHead>
                             <TableHead className="text-right text-xs font-bold text-slate-600 whitespace-nowrap">View</TableHead>
                           </>
@@ -417,6 +433,32 @@ export default function StateOfficeReportsList({
                                 <TableCell className="text-sm font-bold text-[#145c3f] text-right tabular-nums whitespace-nowrap">
                                   {formatCount(r.total_lives ?? 0)}
                                 </TableCell>
+                                <TableCell>
+                                  <Badge className={`text-[10px] px-2 py-0.5 flex items-center gap-1 w-fit border ${sc.cls}`}>
+                                    {sc.icon} {sc.label}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <Button variant="ghost" size="sm"
+                                    className="h-7 w-7 p-0 text-slate-400 hover:text-primary hover:bg-primary/10"
+                                    onClick={() => { setSelectedId(r.id); setMode("view"); }}>
+                                    <Eye className="w-3.5 h-3.5" />
+                                  </Button>
+                                </TableCell>
+                              </>
+                            ) : reportType === "ict-support-register" || reportType === "adhoc-special-assignment" ? (
+                              <>
+                                <TableCell className="text-xs text-slate-500 whitespace-nowrap">{formatDate(r.submission_date)}</TableCell>
+                                {showLocationCols && (
+                                  <>
+                                    <TableCell className="text-sm text-slate-600 whitespace-nowrap">{r.zone?.description || "—"}</TableCell>
+                                    <TableCell className="text-sm font-semibold text-slate-800 whitespace-nowrap">{r.state?.description || "—"}</TableCell>
+                                  </>
+                                )}
+                                <TableCell className="text-sm font-semibold text-slate-800 whitespace-nowrap">{r.reporting_year}</TableCell>
+                                <TableCell className="text-sm text-slate-600 whitespace-nowrap">{monthLabel(r.reporting_month)}</TableCell>
+                                <TableCell className="text-sm text-slate-500 whitespace-nowrap">Q{quarterFromMonth(r.reporting_month)}</TableCell>
+                                <TableCell className="text-sm text-slate-500 whitespace-nowrap">{r.submitted_by || "—"}</TableCell>
                                 <TableCell>
                                   <Badge className={`text-[10px] px-2 py-0.5 flex items-center gap-1 w-fit border ${sc.cls}`}>
                                     {sc.icon} {sc.label}

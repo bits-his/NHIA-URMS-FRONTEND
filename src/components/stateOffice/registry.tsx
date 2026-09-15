@@ -16,6 +16,10 @@ import EnrolleeRegisterForm from "./EnrolleeRegisterForm";
 import EnrolleeRegisterDetail from "./EnrolleeRegisterDetail";
 import EtmcTmcActionPointForm from "./EtmcTmcActionPointForm";
 import EtmcTmcActionPointDetail from "./EtmcTmcActionPointDetail";
+import IctSupportRegisterForm from "./IctSupportRegisterForm";
+import IctSupportRegisterDetail from "./IctSupportRegisterDetail";
+import AdhocSpecialAssignmentForm from "./AdhocSpecialAssignmentForm";
+import AdhocSpecialAssignmentDetail from "./AdhocSpecialAssignmentDetail";
 
 const EXTENDED_DETAIL = new Set<StateOfficeReportType>([
   "complaints", "accreditation", "stakeholder", "hmo-selection", "challenges",
@@ -34,6 +38,8 @@ const FORM_COMPONENTS: Partial<Record<StateOfficeReportType, React.ComponentType
   "contracted-services": ContractedServicesForm,
   "enrollee-register": EnrolleeRegisterForm,
   "etmc-tmc-action-point": EtmcTmcActionPointForm,
+  "ict-support-register": IctSupportRegisterForm,
+  "adhoc-special-assignment": AdhocSpecialAssignmentForm,
 };
 
 export function StateOfficeFormRouter(props: {
@@ -64,6 +70,12 @@ export function StateOfficeDetailRouter(props: {
   }
   if (props.reportType === "etmc-tmc-action-point") {
     return <EtmcTmcActionPointDetail {...props} />;
+  }
+  if (props.reportType === "ict-support-register") {
+    return <IctSupportRegisterDetail {...props} />;
+  }
+  if (props.reportType === "adhoc-special-assignment") {
+    return <AdhocSpecialAssignmentDetail {...props} />;
   }
   if (EXTENDED_DETAIL.has(props.reportType)) {
     return <ExtendedReportDetail {...props} />;

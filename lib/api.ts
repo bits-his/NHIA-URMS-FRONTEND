@@ -565,7 +565,8 @@ export type StateOfficeReportType =
   | "enrolment" | "migration" | "cemonc"
   | "complaints" | "accreditation" | "stakeholder" | "hmo-selection" | "challenges"
   | "igr" | "sshia-financial" | "expenditure-profile"
-  | "weekly-actionable" | "contracted-services" | "enrollee-register" | "etmc-tmc-action-point";
+  | "weekly-actionable" | "contracted-services" | "enrollee-register" | "etmc-tmc-action-point"
+  | "ict-support-register" | "adhoc-special-assignment";
 
 const makeStateOfficeApi = (type: StateOfficeReportType) => ({
   list: (filters?: { state_id?: string; zone_id?: string; year?: string; month?: string; status?: string }) => {
@@ -605,6 +606,8 @@ export const stateOfficeApi = {
   "weekly-actionable": makeStateOfficeApi("weekly-actionable"),
   "contracted-services": makeStateOfficeApi("contracted-services"),
   "enrollee-register": makeStateOfficeApi("enrollee-register"),
+  "ict-support-register": makeStateOfficeApi("ict-support-register"),
+  "adhoc-special-assignment": makeStateOfficeApi("adhoc-special-assignment"),
   "etmc-tmc-action-point": {
     ...makeStateOfficeApi("etmc-tmc-action-point"),
     uploadDocument: (id: number | string, file: File) => {
@@ -802,5 +805,14 @@ export const complianceApi = {
     request<{ success: boolean; data: any }>(`/sqa/compliance-reports/${id}/status`, {
       method: "PATCH", body: JSON.stringify({ status }),
     }),
+};
+
+export const notificationsApi = {
+  list: () =>
+    request<{ success: boolean; data: any[] }>("/notifications"),
+  markRead: (id: number | string) =>
+    request<{ success: boolean; data: any }>(`/notifications/${id}/read`, { method: "PUT" }),
+  markAllRead: () =>
+    request<{ success: boolean }>("/notifications/read-all", { method: "PUT" }),
 };
 

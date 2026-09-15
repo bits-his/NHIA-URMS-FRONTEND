@@ -33,9 +33,6 @@ import {
 import HmoProviderSelect from "./HmoProviderSelect";
 import HcfFacilitySelect from "./HcfFacilitySelect";
 
-/** Roles that receive investigation assignments and need the "Assigned to Me" filter. */
-const COMPLAINT_ASSIGNEE_ROLES = new Set(["state-officer", "department-officer"]);
-
 interface Props {
   onBack: () => void;
   defaultStateId?: string | null;
@@ -73,6 +70,7 @@ const emptyForm = (defaultZoneId?: string | null, defaultStateId?: string | null
   against_hmo_id: "",
   against_hcf_id: "",
   against_name: "",
+  against_organization: "",
   against_phone: "",
   against_nhis_id: "",
   officer_assigned: "",
@@ -125,6 +123,7 @@ function rowToForm(row: any) {
     against_hmo_id: row.respondent_hmo_id ? String(row.respondent_hmo_id) : "",
     against_hcf_id: row.respondent_hcf_id ? String(row.respondent_hcf_id) : "",
     against_name: row.respondent_name ?? "",
+    against_organization: row.respondent_organization ?? "",
     against_phone: row.respondent_phone ?? "",
     against_nhis_id: row.respondent_nhis_id ?? row.respondent_id ?? "",
     officer_assigned: row.officer_assigned ?? row.assigned_officer ?? "",
@@ -232,7 +231,7 @@ function StageActionFooter({
 }
 
 function FieldSelect({
-  label, value, options, onChange, readOnly, placeholder,
+  label, value, options, onChange, readOnly, placeholder, className,
 }: {
   label: string;
   value: string;
@@ -240,18 +239,19 @@ function FieldSelect({
   onChange?: (v: string) => void;
   readOnly?: boolean;
   placeholder?: string;
+  className?: string;
 }) {
   if (readOnly) {
     const display = pickLabel(options, value, value || "—");
     return (
-      <div className="space-y-1.5">
+      <div className={`space-y-1.5 ${className ?? ""}`}>
         <Label className="text-xs text-slate-500">{label}</Label>
         <p className="text-sm font-medium text-slate-900">{display || "—"}</p>
       </div>
     );
   }
   return (
-    <div className="space-y-1.5">
+    <div className={`space-y-1.5 ${className ?? ""}`}>
       <Label className="text-xs text-slate-500">{label}</Label>
       <Select value={value} onValueChange={onChange}>
         <SelectTrigger className="w-full" displayValue={pickLabel(options, value, placeholder ?? label)}>
@@ -334,7 +334,7 @@ function officerMatchesUser(
 export default function ServicomComplaintsPage({
   onBack, defaultStateId, defaultZoneId, userName, userStaffId, userRole,
 }: Props) {
-  const showAssignedFilter = !!(userRole && COMPLAINT_ASSIGNEE_ROLES.has(userRole));
+  const showAssignedFilter = !!(userName || userStaffId);
   /** HQ / national viewers (no fixed state) should see all complaints by default, not only assigned. */
   const isNationalViewer = !defaultZoneId && !defaultStateId;
   const geoLocked = !!(defaultZoneId && defaultStateId);
@@ -359,14 +359,22 @@ export default function ServicomComplaintsPage({
   const [filterFacilityName, setFilterFacilityName] = React.useState("");
   const [filterHmoId, setFilterHmoId] = React.useState("");
   const [filterTransmission, setFilterTransmission] = React.useState("all");
-  const [filterAssigned, setFilterAssigned] = React.useState<"all" | "mine">(
-    showAssignedFilter && !isNationalViewer ? "mine" : "all",
-  );
+  const [filterAssigned, setFilterAssigned] = React.useState<"all" | "mine">("all");
   const [activeStage, setActiveStage] = React.useState<LifecycleStage>("registration");
   const [slaRules, setSlaRules] = React.useState<ComplaintSlaRuleRow[]>(SLA_SUMMARY as ComplaintSlaRuleRow[]);
   const [officerOptions, setOfficerOptions] = React.useState<{ value: string; label: string }[]>([]);
+  const [escalationOfficerOptions, setEscalationOfficerOptions] = React.useState<{ value: string; label: string }[]>([]);
 
   const set = (key: string, value: string | boolean) => setF((p) => ({ ...p, [key]: value }));
+
+  const mapOfficerOptions = (rows: { name: string; staff_id?: string; unit?: string | null; department?: string | null }[]) =>
+    rows.map((u) => {
+      const dept = u.unit || u.department;
+      const parts = [u.name];
+      if (u.staff_id) parts.push(`(${u.staff_id})`);
+      if (dept) parts.push(`— ${dept}`);
+      return { value: u.name, label: parts.join(" ") };
+    });
 
   React.useEffect(() => {
     servicomApi.listComplaintSla()
@@ -380,17 +388,23 @@ export default function ServicomComplaintsPage({
     servicomApi.listInvestigatingOfficers({
       state_id: stateId || undefined,
     })
-      .then((r) => {
-        setOfficerOptions(r.data.map((u) => {
-          const dept = u.unit || u.department;
-          const parts = [u.name];
-          if (u.staff_id) parts.push(`(${u.staff_id})`);
-          if (dept) parts.push(`— ${dept}`);
-          return { value: u.name, label: parts.join(" ") };
-        }));
-      })
+      .then((r) => setOfficerOptions(mapOfficerOptions(r.data)))
       .catch(() => setOfficerOptions([]));
   }, [mode, defaultStateId, f.state_id]);
+
+  React.useEffect(() => {
+    if (mode !== "manage" || !f.escalation_level) {
+      setEscalationOfficerOptions([]);
+      return;
+    }
+    servicomApi.listInvestigatingOfficers({
+      escalation_level: f.escalation_level,
+      state_id: defaultStateId || f.state_id || undefined,
+      zone_id: defaultZoneId || f.zone_id || undefined,
+    })
+      .then((r) => setEscalationOfficerOptions(mapOfficerOptions(r.data)))
+      .catch(() => setEscalationOfficerOptions([]));
+  }, [mode, f.escalation_level, f.state_id, f.zone_id, defaultStateId, defaultZoneId]);
 
   const load = React.useCallback(async () => {
     setLoading(true);
@@ -435,7 +449,7 @@ export default function ServicomComplaintsPage({
     || !!filterFacilityName
     || !!filterHmoId
     || filterTransmission !== "all"
-    || (showAssignedFilter && filterAssigned !== (isNationalViewer ? "all" : "mine"));
+    || (showAssignedFilter && filterAssigned !== "all");
 
   const clearFilters = () => {
     setFilterSearch("");
@@ -450,7 +464,7 @@ export default function ServicomComplaintsPage({
     setFilterFacilityName("");
     setFilterHmoId("");
     setFilterTransmission("all");
-    setFilterAssigned(showAssignedFilter && !isNationalViewer ? "mine" : "all");
+    setFilterAssigned("all");
   };
 
   const filtered = React.useMemo(() => {
@@ -546,12 +560,14 @@ export default function ServicomComplaintsPage({
 
   const defaultStageForComplaint = (row: any): LifecycleStage => {
     const status = row?.status ?? "";
+    // Escalated complaints move straight to resolution for the assignee
+    if (row?.escalated || status === "Escalated") return "resolution";
     if (officerMatchesUser(row?.officer_assigned ?? row?.assigned_officer, userName, userStaffId)) {
       if (!row?.investigation_start_date && status === "New/Acknowledged") return "investigation";
       if (["Under Investigation", "Awaiting Information", "Awaiting Respondent Action"].includes(status)) {
         return "investigation";
       }
-      if (row?.escalated || status === "Escalated") return "escalation";
+      if (row?.escalated || status === "Escalated") return "resolution";
     }
     return lifecycleStageFromStatus(status, row);
   };
@@ -582,11 +598,33 @@ export default function ServicomComplaintsPage({
     setF(rowToForm(res.data));
   };
 
-  const statusBadge = (status: string, emphasis = false) => (
-    <Badge variant="outline" className={`${emphasis ? "text-xs font-black px-2.5 py-1" : "text-[10px] font-semibold"} ${STATUS_BADGE_CLASS[status] ?? ""}`}>
-      {status}
-    </Badge>
-  );
+  const statusBadge = (status: string, emphasis = false, opts?: { escalatedToMe?: boolean }) => {
+    if (opts?.escalatedToMe) {
+      return (
+        <Badge
+          variant="outline"
+          className={`${emphasis ? "text-xs font-black px-2.5 py-1" : "text-[10px] font-semibold"} bg-rose-600 text-white border-rose-600`}
+        >
+          Escalated to you
+        </Badge>
+      );
+    }
+    if (status === "Escalated" || status?.toLowerCase().includes("escalat")) {
+      return (
+        <Badge
+          variant="outline"
+          className={`${emphasis ? "text-xs font-black px-2.5 py-1" : "text-[10px] font-semibold"} bg-purple-50 text-purple-800 border-purple-200`}
+        >
+          Escalated
+        </Badge>
+      );
+    }
+    return (
+      <Badge variant="outline" className={`${emphasis ? "text-xs font-black px-2.5 py-1" : "text-[10px] font-semibold"} ${STATUS_BADGE_CLASS[status] ?? ""}`}>
+        {status}
+      </Badge>
+    );
+  };
 
   const validatePartyDetails = (
     role: "from" | "against",
@@ -604,14 +642,14 @@ export default function ServicomComplaintsPage({
     if (partyType === "Enrollee") {
       const name = role === "from" ? f.from_name : f.against_name;
       const nhis = role === "from" ? f.from_nhis_id : f.against_nhis_id;
-      const org = role === "from" ? f.from_organization : "";
+      const org = role === "from" ? f.from_organization : f.against_organization;
       if (!name?.trim() || !nhis?.trim()) {
         return role === "from"
           ? "Enter enrollee name and NHIA number/code."
-          : "Enter respondent name and NHIA number/code.";
+          : "Enter enrollee name and NHIS ID.";
       }
-      if (role === "from" && !org?.trim()) {
-        return "Enter enrollee organization.";
+      if (!org?.trim()) {
+        return role === "from" ? "Enter enrollee organization." : "Enter enrollee organization.";
       }
     }
     return null;
@@ -669,6 +707,7 @@ export default function ServicomComplaintsPage({
         respondent_hmo_id: f.against_hmo_id ? Number(f.against_hmo_id) : null,
         respondent_hcf_id: f.against_hcf_id ? Number(f.against_hcf_id) : null,
         respondent_name: f.against_name || undefined,
+        respondent_organization: f.against_organization || undefined,
         respondent_phone: f.against_phone || undefined,
         respondent_nhis_id: f.against_nhis_id || undefined,
         zone_id: f.zone_id ? Number(f.zone_id) : null,
@@ -677,7 +716,7 @@ export default function ServicomComplaintsPage({
         status: "New/Acknowledged",
       };
       const res = await servicomApi.createComplaint(payload);
-      toast.success("Complaint registered and assigned to officer");
+      toast.success("Complaint registered and officer notified");
       setSelected(res.data);
       setF(rowToForm(res.data));
       setActiveStage("registration");
@@ -709,11 +748,23 @@ export default function ServicomComplaintsPage({
           actions_details: f.actions_details || null,
         };
       } else if (stage === "escalation") {
+        if (f.escalated && !f.escalated_to) {
+          toast.error("Select who the complaint is escalated to.");
+          setSaving(false);
+          return;
+        }
+        if (f.escalated && !f.escalation_level) {
+          toast.error("Select an escalation level.");
+          setSaving(false);
+          return;
+        }
         payload = {
           escalated: !!f.escalated,
           escalation_level: f.escalation_level || null,
-          escalation_date: f.escalation_date || null,
+          escalation_date: f.escalation_date || (f.escalated ? today : null),
           escalated_to: f.escalated_to || null,
+          // Hand off ownership to the escalation officer
+          officer_assigned: f.escalated ? (f.escalated_to || f.officer_assigned) : f.officer_assigned,
           status: f.escalated ? "Escalated" : selected.status,
         };
       } else if (stage === "resolution") {
@@ -737,7 +788,13 @@ export default function ServicomComplaintsPage({
         };
       }
       await servicomApi.updateComplaint(selected.id, payload);
-      toast.success(`${lifecycleStageLabel(stage)} submitted`);
+      const stageToast =
+        stage === "investigation"
+          ? (startingInvestigation ? "Investigation started" : "Investigation updated")
+          : stage === "escalation" && f.escalated
+            ? "Complaint escalated — assigned officer notified"
+            : `${lifecycleStageLabel(stage)} submitted`;
+      toast.success(stageToast);
       await refreshSelected();
       load();
     } catch (err: any) {
@@ -769,6 +826,7 @@ export default function ServicomComplaintsPage({
       against_hmo_id: "",
       against_hcf_id: "",
       against_name: "",
+      against_organization: "",
       against_phone: "",
       against_nhis_id: "",
       ...clearOffence(),
@@ -782,6 +840,7 @@ export default function ServicomComplaintsPage({
       against_hmo_id: "",
       against_hcf_id: "",
       against_name: "",
+      against_organization: "",
       against_phone: "",
       against_nhis_id: "",
       ...clearOffence(),
@@ -841,7 +900,7 @@ export default function ServicomComplaintsPage({
       if (isFrom) return selectField;
 
       return (
-        <div className="col-span-full grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <>
           {selectField}
           {readOnly ? (
             <AutoField label="Respondent Code / NHIA Number" value={hmoCode} />
@@ -854,7 +913,7 @@ export default function ServicomComplaintsPage({
               mono
             />
           )}
-        </div>
+        </>
       );
     }
 
@@ -887,7 +946,7 @@ export default function ServicomComplaintsPage({
       if (isFrom) return selectField;
 
       return (
-        <div className="col-span-full grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <>
           {selectField}
           {readOnly ? (
             <AutoField label="Respondent Code / NHIA Number" value={hcfCode} />
@@ -900,7 +959,7 @@ export default function ServicomComplaintsPage({
               mono
             />
           )}
-        </div>
+        </>
       );
     }
 
@@ -908,8 +967,8 @@ export default function ServicomComplaintsPage({
       ? (isFrom ? row?.complainant_name : row?.respondent_name)
       : (isFrom ? f.from_name : f.against_name);
     const organization = readOnly
-      ? row?.complainant_organization
-      : f.from_organization;
+      ? (isFrom ? row?.complainant_organization : row?.respondent_organization)
+      : (isFrom ? f.from_organization : f.against_organization);
     const nhis = readOnly
       ? (isFrom ? row?.complainant_nhis_id ?? row?.complainant_id : row?.respondent_nhis_id ?? row?.respondent_id)
       : (isFrom ? f.from_nhis_id : f.against_nhis_id);
@@ -952,13 +1011,19 @@ export default function ServicomComplaintsPage({
     return (
       <div className="col-span-full grid grid-cols-1 sm:grid-cols-2 gap-4">
         <FieldText
-          label="Respondent Name *"
+          label="Full Name *"
           value={name ?? ""}
           onChange={(v) => set("against_name", v)}
           readOnly={readOnly}
         />
         <FieldText
-          label="Respondent Code / NHIA Number *"
+          label="Organization *"
+          value={organization ?? ""}
+          onChange={(v) => set("against_organization", v)}
+          readOnly={readOnly}
+        />
+        <FieldText
+          label="NHIS ID *"
           value={nhis ?? ""}
           onChange={(v) => set("against_nhis_id", v)}
           readOnly={readOnly}
@@ -1051,21 +1116,38 @@ export default function ServicomComplaintsPage({
               readOnly={readOnly}
               onChange={(v) => onComplaintTypeChange(v as PartyType)}
               placeholder="HCF, HMO, or Enrollee"
+              className={!fromParty || fromParty === "Enrollee" ? "md:col-span-2" : undefined}
             />
-            {renderInlinePartyPicker("from", fromParty, readOnly, row)}
+            {fromParty && fromParty !== "Enrollee" ? renderInlinePartyPicker("from", fromParty, readOnly, row) : null}
+            {fromParty === "Enrollee" ? renderInlinePartyPicker("from", fromParty, readOnly, row) : null}
 
             {showAgainstStep && (
-              <>
-                <FieldSelect
-                  label="Complaint Against *"
-                  value={againstParty}
-                  options={againstOptions}
-                  readOnly={readOnly}
-                  onChange={(v) => onComplaintAgainstChange(v as PartyType)}
-                  placeholder="Select who the complaint is against"
-                />
-                {renderInlinePartyPicker("against", againstParty, readOnly, row)}
-              </>
+              againstParty && againstParty !== "Enrollee" ? (
+                <div className="col-span-full grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <FieldSelect
+                    label="Complaint Against *"
+                    value={againstParty}
+                    options={againstOptions}
+                    readOnly={readOnly}
+                    onChange={(v) => onComplaintAgainstChange(v as PartyType)}
+                    placeholder="Select who the complaint is against"
+                  />
+                  {renderInlinePartyPicker("against", againstParty, readOnly, row)}
+                </div>
+              ) : (
+                <>
+                  <FieldSelect
+                    label="Complaint Against *"
+                    value={againstParty}
+                    options={againstOptions}
+                    readOnly={readOnly}
+                    onChange={(v) => onComplaintAgainstChange(v as PartyType)}
+                    placeholder="Select who the complaint is against"
+                    className="md:col-span-2"
+                  />
+                  {againstParty === "Enrollee" ? renderInlinePartyPicker("against", againstParty, readOnly, row) : null}
+                </>
+              )
             )}
 
             <FieldSelect
@@ -1089,6 +1171,17 @@ export default function ServicomComplaintsPage({
               readOnly={readOnly}
               onChange={(v) => set("respondent_category", v)}
             />
+            {!readOnly ? (
+              <FieldSelect
+                label="Assign To *"
+                value={f.officer_assigned}
+                options={officerOptions}
+                onChange={(v) => set("officer_assigned", v)}
+                placeholder={officerOptions.length ? "Select investigating officer" : "No officers available for this state"}
+              />
+            ) : (
+              <AutoField label="Assigned To" value={row?.officer_assigned ?? row?.assigned_officer} />
+            )}
 
             {fromParty && againstParty && (
               <div className="col-span-full">
@@ -1121,18 +1214,6 @@ export default function ServicomComplaintsPage({
               <div className="col-span-full">
                 <SlaHint priority={priority} slaRow={slaRow} />
               </div>
-            )}
-
-            {!readOnly ? (
-              <FieldSelect
-                label="Assign To *"
-                value={f.officer_assigned}
-                options={officerOptions}
-                onChange={(v) => set("officer_assigned", v)}
-                placeholder={officerOptions.length ? "Select investigating officer" : "No officers available for this state"}
-              />
-            ) : (
-              <AutoField label="Assigned To" value={row?.officer_assigned ?? row?.assigned_officer} />
             )}
           </div>
     );
@@ -1197,6 +1278,9 @@ export default function ServicomComplaintsPage({
         )}
         <SummaryField label="Complainant NHIA No." value={row.complainant_nhis_id ?? row.complainant_id} />
         <SummaryField label="Against Party" value={row.respondent_name ?? row.facility_name ?? row.respondent_hmo?.name} />
+        {row.respondent_organization && (
+          <SummaryField label="Respondent Organization" value={row.respondent_organization} />
+        )}
         <SummaryField label="Respondent Code / NHIA No." value={row.respondent_nhis_id ?? row.respondent_id} />
         <SummaryField label="Domain" value={row.complaint_domain} />
         <SummaryField label="Category" value={row.complaint_category ?? row.category} />
@@ -1208,7 +1292,7 @@ export default function ServicomComplaintsPage({
   };
 
   const renderActiveStageForm = (row?: any, readOnly = false, actionLabel?: string | null) => {
-    if (activeStage === "registration") return renderComplaintSection(true, row, true);
+    if (activeStage === "registration") return renderRegistrationSummary(row) ?? renderComplaintSection(true, row, true);
     if (activeStage === "investigation") return renderInvestigationSection(readOnly, row, actionLabel);
     if (activeStage === "escalation") return renderEscalationSection(readOnly, row, actionLabel);
     return renderResolutionSection(readOnly, row, actionLabel);
@@ -1220,7 +1304,9 @@ export default function ServicomComplaintsPage({
 
     return (
       <div className="px-4 md:px-6 py-2.5 border-t border-[#d4e8dc] bg-[#f8fbf9] flex flex-wrap items-center gap-x-3 gap-y-2">
-        {statusBadge(row.status ?? "New/Acknowledged", true)}
+        {statusBadge(row.status ?? "New/Acknowledged", true, {
+          escalatedToMe: !!row.escalated && isCurrentAssignee(row) && !isComplaintClosed(row.status),
+        })}
         {row.priority_rating && (
           <>
             <span className="text-xs text-slate-300">|</span>
@@ -1259,7 +1345,11 @@ export default function ServicomComplaintsPage({
     );
   };
 
-  const renderEscalationFields = (readOnly: boolean, row?: any) => (
+  const renderEscalationFields = (readOnly: boolean, row?: any) => {
+    const levelOptions = escalationOfficerOptions.length
+      ? escalationOfficerOptions
+      : officerOptions;
+    return (
     <>
       {readOnly ? (
         <div className="space-y-1.5">
@@ -1269,31 +1359,42 @@ export default function ServicomComplaintsPage({
       ) : (
         <FieldSelect label="Escalated" value={f.escalated ? "yes" : "no"}
           options={[{ value: "no", label: "No" }, { value: "yes", label: "Yes" }]}
-          onChange={(v) => set("escalated", v === "yes")} />
+          onChange={(v) => {
+            const yes = v === "yes";
+            setF((p) => ({
+              ...p,
+              escalated: yes,
+              escalation_date: yes ? (p.escalation_date || today) : p.escalation_date,
+            }));
+          }} />
       )}
-      <FieldSelect label="Escalation Level" value={readOnly ? row?.escalation_level : f.escalation_level}
-        options={ESCALATION_LEVELS} readOnly={readOnly} onChange={(v) => set("escalation_level", v)} />
+      <FieldSelect
+        label="Escalation Level"
+        value={readOnly ? row?.escalation_level : f.escalation_level}
+        options={ESCALATION_LEVELS}
+        readOnly={readOnly}
+        onChange={(v) => setF((p) => ({ ...p, escalation_level: v, escalated_to: "" }))}
+      />
       <FieldText label="Escalation Date" type="date" value={readOnly ? row?.escalation_date : f.escalation_date}
         onChange={(v) => set("escalation_date", v)} readOnly={readOnly} />
-      {readOnly || !officerOptions.length ? (
-        <FieldSelect label="Escalated To" value={readOnly ? row?.escalated_to : f.escalated_to}
-          options={ESCALATED_TO} readOnly={readOnly}
-          onChange={(v) => set("escalated_to", v)} />
+      {readOnly ? (
+        <AutoField label="Escalated To" value={row?.escalated_to} />
       ) : (
         <FieldSelect
-          label="Escalated To"
-          value={readOnly ? row?.escalated_to : f.escalated_to}
-          options={[
-            ...officerOptions,
-            ...ESCALATED_TO.filter((o) => !officerOptions.some((p) => p.value === o.value)),
-          ]}
-          readOnly={readOnly}
+          label="Escalation Officer *"
+          value={f.escalated_to}
+          options={levelOptions.length ? levelOptions : ESCALATED_TO}
           onChange={(v) => set("escalated_to", v)}
-          placeholder="Select officer or authority"
+          placeholder={
+            f.escalation_level
+              ? (levelOptions.length ? "Select officer for this escalation level" : "No officers for this level")
+              : "Select escalation level first"
+          }
         />
       )}
     </>
-  );
+    );
+  };
 
   const renderResolutionFields = (readOnly: boolean, row?: any) => {
     const preview = readOnly
@@ -1305,6 +1406,10 @@ export default function ServicomComplaintsPage({
 
     return (
       <>
+        <FieldText label="Date Closed" type="date" value={readOnly ? (row?.date_closed ?? row?.resolution_date) : f.date_closed}
+          onChange={(v) => set("date_closed", v)} readOnly={readOnly} max={readOnly ? undefined : today} />
+        <FieldSelect label="Outcome" value={readOnly ? row?.outcome : f.outcome}
+          options={COMPLAINT_OUTCOMES} readOnly={readOnly} onChange={(v) => set("outcome", v)} />
         {readOnly ? (
           <>
             <AutoField label="Resolution Days" value={preview.resolution_days} />
@@ -1324,10 +1429,6 @@ export default function ServicomComplaintsPage({
             <DisabledInput label="Resolution Within SLA" value={slaLabel} />
           </>
         )}
-        <FieldText label="Date Closed" type="date" value={readOnly ? (row?.date_closed ?? row?.resolution_date) : f.date_closed}
-          onChange={(v) => set("date_closed", v)} readOnly={readOnly} max={readOnly ? undefined : today} />
-        <FieldSelect label="Outcome" value={readOnly ? row?.outcome : f.outcome}
-          options={COMPLAINT_OUTCOMES} readOnly={readOnly} onChange={(v) => set("outcome", v)} />
         <div className="col-span-full">
           <FieldText label="Remarks" value={readOnly ? (row?.remarks ?? row?.resolution_notes) : f.remarks}
             onChange={(v) => set("remarks", v)} readOnly={readOnly} />
@@ -1348,7 +1449,7 @@ export default function ServicomComplaintsPage({
           {!readOnly && !started && (
             <div className="col-span-full rounded-xl border border-amber-200/80 bg-amber-50/80 px-4 py-3.5">
               <p className="text-sm text-amber-950 leading-relaxed">
-                Investigation has not started. Click <span className="font-semibold">Submit</span> below when you are ready to begin.
+                Investigation has not started. Click <span className="font-semibold">Start</span> below when you are ready to begin.
               </p>
             </div>
           )}
@@ -1417,10 +1518,38 @@ export default function ServicomComplaintsPage({
     </Card>
   );
 
+  const isCurrentAssignee = (row?: any) =>
+    officerMatchesUser(row?.officer_assigned ?? row?.assigned_officer, userName, userStaffId)
+    || officerMatchesUser(row?.escalated_to, userName, userStaffId);
+
+  const investigationActionLabel = (row?: any) => {
+    if (!row?.investigation_start_date) return "Start";
+    const filled = !!(
+      row.actions_details
+      || (row.actions_taken && row.actions_taken !== "Investigation commenced")
+      || ["Awaiting Information", "Awaiting Respondent Action"].includes(row.status)
+    );
+    return filled ? "Update" : "Submit";
+  };
+
   const renderStageContent = (row?: any) => {
     const closed = isComplaintClosed(row?.status);
-    const readOnly = closed || activeStage === "registration";
-    const actionLabel = row && !readOnly ? "Submit" : null;
+    const escalated = !!row?.escalated || row?.status === "Escalated";
+    const escalatedAway = escalated && !isCurrentAssignee(row) && !isNationalViewer
+      && userRole !== "admin" && userRole !== "hq-department" && userRole !== "sdo";
+    // After escalation, investigation + escalation are closed; only resolution stays open for the assignee
+    const stageClosedAfterEscalation = escalated && (activeStage === "investigation" || activeStage === "escalation");
+    const readOnly = closed
+      || activeStage === "registration"
+      || escalatedAway
+      || stageClosedAfterEscalation;
+    let actionLabel: string | null = null;
+    if (row && !readOnly) {
+      if (activeStage === "investigation") actionLabel = investigationActionLabel(row);
+      else if (activeStage === "escalation") actionLabel = "Submit";
+      else if (activeStage === "resolution") actionLabel = row.date_closed || row.outcome ? "Update" : "Submit";
+      else actionLabel = "Submit";
+    }
     return renderActiveStageForm(row, readOnly, actionLabel);
   };
 
@@ -1473,6 +1602,8 @@ export default function ServicomComplaintsPage({
 
   if (mode === "manage") {
     const row = selected;
+    const assignedToMe = isCurrentAssignee(row);
+    const escalatedOpen = !!row?.escalated && !isComplaintClosed(row?.status);
 
     return (
       <div className="bg-[#f4f7f5]">
@@ -1481,10 +1612,15 @@ export default function ServicomComplaintsPage({
             <Button variant="ghost" size="icon" onClick={closeSub} className="rounded-full shrink-0 hover:bg-[#e8f5ee]" aria-label="Back to list">
               <ArrowLeft className="w-5 h-5" />
             </Button>
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <h2 className="text-lg font-bold tracking-tight truncate">{row?.complaint_number ?? "Complaint"}</h2>
               <p className="text-xs text-slate-500 truncate">
-                {[row?.officer_assigned ?? row?.assigned_officer, row?.date_received].filter(Boolean).join(" · ")}
+                {[
+                  escalatedOpen && assignedToMe ? "Escalated to you" : escalatedOpen ? "Escalated" : null,
+                  row?.escalation_level && escalatedOpen ? row.escalation_level : null,
+                  row?.officer_assigned ?? row?.assigned_officer,
+                  row?.date_received,
+                ].filter(Boolean).join(" · ")}
               </p>
             </div>
           </div>
@@ -1492,6 +1628,14 @@ export default function ServicomComplaintsPage({
         </div>
 
         <div className="w-full px-4 md:px-6 py-4 md:py-6 space-y-4">
+          {escalatedOpen && !assignedToMe && (
+            <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+              <p className="text-sm text-slate-600">
+                Escalated to <span className="font-semibold text-slate-800">{row.escalated_to || row.officer_assigned}</span>
+                {row.escalation_level ? ` · ${row.escalation_level}` : ""}. You can view this complaint but can no longer update it.
+              </p>
+            </div>
+          )}
           {row && renderStageTabs(row)}
           {renderStageContent(row)}
         </div>
@@ -1763,19 +1907,29 @@ export default function ServicomComplaintsPage({
                           </TableCell>
                           <TableCell>{renderOverdueCell(c)}</TableCell>
                           <TableCell className="font-bold">{stageBadge(c, true)}</TableCell>
-                          <TableCell className="font-bold">{statusBadge(c.status, true)}</TableCell>
+                          <TableCell className="font-bold">
+                            {statusBadge(
+                              c.status,
+                              true,
+                              {
+                                escalatedToMe: !!c.escalated
+                                  && officerMatchesUser(c.officer_assigned ?? c.assigned_officer ?? c.escalated_to, userName, userStaffId)
+                                  && !isComplaintClosed(c.status),
+                              },
+                            )}
+                          </TableCell>
                           <TableCell className="text-right">
                             <Button
                               variant="outline"
                               size="sm"
                               className={`h-8 text-xs font-semibold gap-1.5 border-[#d4e8dc] hover:bg-[#e8f5ee] hover:text-[#145c3f] ${
-                                officerMatchesUser(c.officer_assigned ?? c.assigned_officer, userName, userStaffId)
+                                officerMatchesUser(c.officer_assigned ?? c.assigned_officer ?? c.escalated_to, userName, userStaffId)
                                   ? "border-[#145c3f] bg-[#f0fdf7]"
                                   : ""
                               }`}
                               onClick={() => openManage(c)}
                             >
-                              {officerMatchesUser(c.officer_assigned ?? c.assigned_officer, userName, userStaffId) ? "Open" : "Manage"}
+                              {officerMatchesUser(c.officer_assigned ?? c.assigned_officer ?? c.escalated_to, userName, userStaffId) ? "Open" : "Manage"}
                               <ArrowRight className="w-3 h-3" />
                             </Button>
                           </TableCell>

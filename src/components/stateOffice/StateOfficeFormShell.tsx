@@ -26,6 +26,8 @@ interface Props {
   setReportWeek?: (v: string) => void;
   /** Show Zone ID / State ID next to the geo dropdowns (enrollee register) */
   showGeoIds?: boolean;
+  /** Zone · State · Year · Month · Quarter header (ICT register) */
+  showQuarter?: boolean;
   afterPersist?: (saved: { id: number }) => Promise<void>;
 }
 
@@ -34,6 +36,7 @@ export default function StateOfficeFormShell({
   buildPayload, validate, reportType, onLoaded,
   reportWeek, setReportWeek,
   showGeoIds,
+  showQuarter,
   afterPersist,
 }: Props) {
   const api = stateOfficeApi[reportType];
@@ -120,6 +123,7 @@ export default function StateOfficeFormShell({
                 reportWeek={reportWeek}
                 setReportWeek={setReportWeek}
                 showGeoIds={showGeoIds}
+                showQuarter={showQuarter}
               />
               {children({ saving, submitting, savedId })}
             </>

@@ -222,6 +222,8 @@ export const MODULE_CONFIG: ParentModule[] = [
       { title: "Contracted Services", view: "state-contracted-services", path: "/soc/contracted-services" },
       { title: "Monthly Enrollee Register", view: "state-enrollee-register", path: "/soc/enrollee-register" },
       { title: "ETMC/TMC Action-Point Register", view: "state-etmc-tmc-action-point", path: "/soc/etmc-tmc-action-point" },
+      { title: "ICT Support Register", view: "state-ict-support-register", path: "/soc/ict-support-register" },
+      { title: "Ad-hoc / Special Assignment", view: "state-adhoc-special-assignment", path: "/soc/adhoc-special-assignment" },
       { title: "Operation Monitoring Visit", view: "soc-operation-monitoring-visit", path: "/soc/operation-monitoring-visit" },
       { title: "Spot Check Visit", view: "soc-spot-check-visit", path: "/soc/spot-check-visit" },
     ],
