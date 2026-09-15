@@ -2,7 +2,7 @@ export type StateOfficeReportType =
   | "enrolment" | "migration" | "cemonc"
   | "complaints" | "accreditation" | "stakeholder" | "hmo-selection" | "challenges"
   | "igr" | "sshia-financial" | "expenditure-profile"
-  | "weekly-actionable" | "contracted-services";
+  | "weekly-actionable" | "contracted-services" | "enrollee-register" | "etmc-tmc-action-point";
 
 export const MONTHS = [
   { value: 1, label: "January" },   { value: 2, label: "February" },
@@ -11,6 +11,59 @@ export const MONTHS = [
   { value: 7, label: "July" },      { value: 8, label: "August" },
   { value: 9, label: "September" }, { value: 10, label: "October" },
   { value: 11, label: "November" }, { value: 12, label: "December" },
+];
+
+export const ENROLLEE_REGISTER_SCHEMES = [
+  { key: "self_paying", label: "Self-Paying" },
+  { key: "ops", label: "OPS" },
+  { key: "retirees", label: "Retirees" },
+  { key: "constituency", label: "Constituency" },
+  { key: "gifship", label: "GIFSHIP" },
+  { key: "formal_sector", label: "Formal Sector" },
+] as const;
+
+export const ETMC_SESSIONS = [
+  { value: "Q1", label: "Q1" },
+  { value: "Q2", label: "Q2" },
+  { value: "Q3", label: "Q3" },
+  { value: "Q4", label: "Q4" },
+];
+
+export const ETMC_AGENDA_ITEMS = [
+  { value: "enrolment_ict", label: "Enrolment & ICT" },
+  { value: "accreditation", label: "Accreditation / Reaccreditation" },
+  { value: "finance_igr", label: "Finance & IGR" },
+  { value: "complaints_servicom", label: "Complaints & SERVICOM" },
+  { value: "operations_monitoring", label: "Operations & Monitoring" },
+  { value: "policy_governance", label: "Policy & Governance" },
+  { value: "human_resources", label: "Human Resources" },
+  { value: "special_projects", label: "Special Projects" },
+  { value: "aob", label: "Any Other Business" },
+];
+
+export const ETMC_DEPARTMENTS = [
+  { value: "DG", label: "DG Office" },
+  { value: "Finance", label: "Finance & Admin" },
+  { value: "Programmes", label: "Programmes" },
+  { value: "SQA", label: "Standards & Quality Assurance" },
+  { value: "ICT", label: "ICT Support" },
+  { value: "SOC", label: "State Office Coordination (SOC)" },
+  { value: "Audit", label: "Audit & Compliance" },
+  { value: "Legal", label: "Legal Services" },
+  { value: "HR", label: "Human Resources" },
+  { value: "Planning", label: "Planning & Research" },
+  { value: "Communications", label: "Communications" },
+  { value: "Special Projects", label: "Special Projects" },
+  { value: "Zonal", label: "Zonal Office" },
+  { value: "State", label: "State Office" },
+];
+
+export const ETMC_ACTION_STATUSES = [
+  { value: "not_started", label: "Not started" },
+  { value: "in_progress", label: "In progress" },
+  { value: "completed", label: "Completed" },
+  { value: "delayed", label: "Delayed" },
+  { value: "closed", label: "Closed" },
 ];
 
 export const ENROLMENT_CATEGORIES = [
@@ -289,6 +342,20 @@ export const REPORT_CONFIG: Record<StateOfficeReportType, {
     countLabel: "Amount (NGN)",
     totalLabel: "Total Amount (NGN)",
   },
+  "enrollee-register": {
+    title: "Monthly Enrollee Register (ICT)",
+    subtitle: "Zone · State · Scheme lives for the reporting month",
+    refLabel: "Scheme",
+    countLabel: "Lives",
+    totalLabel: "Total Lives",
+  },
+  "etmc-tmc-action-point": {
+    title: "ETMC/TMC Action-Point Register",
+    subtitle: "Track implementation of decisions agreed at ETMC/TMC for states and zones",
+    refLabel: "Action Point",
+    countLabel: "Resolutions",
+    totalLabel: "Action Points",
+  },
 };
 
 export function monthLabel(month: number | string) {
@@ -353,6 +420,12 @@ export function reportLineCount(reportType: StateOfficeReportType, report: any) 
   if (reportType === "challenges") {
     return (report.challenges ? 1 : 0) + (report.recommendations ? 1 : 0);
   }
+  if (reportType === "enrollee-register") {
+    return 6;
+  }
+  if (reportType === "etmc-tmc-action-point") {
+    return report.lines?.length ?? 0;
+  }
   if (reportType === "weekly-actionable" || reportType === "contracted-services") {
     return report.lines?.length ?? 0;
   }
@@ -391,6 +464,12 @@ export function reportLineTotal(reportType: StateOfficeReportType, report: any) 
   }
   if (reportType === "expenditure-profile") {
     return (report.lines ?? []).reduce((s: number, l: any) => s + (Number(l.amount) || 0), 0);
+  }
+  if (reportType === "enrollee-register") {
+    return Number(report.total_lives) || 0;
+  }
+  if (reportType === "etmc-tmc-action-point") {
+    return new Set((report.lines ?? []).map((l: any) => l.resolution_id).filter(Boolean)).size;
   }
   if (reportType === "weekly-actionable") {
     return report.lines?.length ?? 0;
