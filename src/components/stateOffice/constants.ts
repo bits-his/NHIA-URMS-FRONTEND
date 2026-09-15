@@ -3,7 +3,8 @@ export type StateOfficeReportType =
   | "complaints" | "accreditation" | "stakeholder" | "hmo-selection" | "challenges"
   | "igr" | "sshia-financial" | "expenditure-profile"
   | "weekly-actionable" | "contracted-services" | "enrollee-register" | "etmc-tmc-action-point"
-  | "ict-support-register" | "adhoc-special-assignment";
+  | "ict-support-register" | "adhoc-special-assignment"
+  | "extra-dependant" | "hcf-change";
 
 export const MONTHS = [
   { value: 1, label: "January" },   { value: 2, label: "February" },
@@ -22,6 +23,35 @@ export const ENROLLEE_REGISTER_SCHEMES = [
   { key: "gifship", label: "GIFSHIP" },
   { key: "formal_sector", label: "Formal Sector" },
 ] as const;
+
+export const YES_NO_OPTIONS = [
+  { value: "yes", label: "Yes" },
+  { value: "no", label: "No" },
+];
+
+export const EXTRA_DEPENDANT_RELATIONSHIPS = [
+  { value: "child", label: "Child" },
+  { value: "spouse", label: "Spouse" },
+  { value: "parent", label: "Parent" },
+];
+
+export const EXTRA_DEPENDANT_STATUSES = [
+  { value: "approved", label: "Approved" },
+  { value: "pending", label: "Pending" },
+];
+
+export const HCP_CHANGE_CHANNELS = [
+  { value: "walk_in", label: "Walk-in" },
+  { value: "online", label: "Online" },
+];
+
+export const HCP_CHANGE_STATUSES = [
+  { value: "approved", label: "Approved" },
+  { value: "pending", label: "Pending" },
+  { value: "denied", label: "Denied" },
+  { value: "incomplete_documentation", label: "Incomplete documentation" },
+  { value: "not_qualified", label: "Not qualified for change" },
+];
 
 export const ETMC_SESSIONS = [
   { value: "Q1", label: "Q1" },
@@ -299,9 +329,19 @@ export const REPORT_CONFIG: Record<StateOfficeReportType, {
     refLabel: "Activity", countLabel: "Audience Size", totalLabel: "Total Audience",
   },
   "hmo-selection": {
-    title: "HMO Selection Process",
-    subtitle: "",
-    refLabel: "MDA", countLabel: "HMOs in Attendance", totalLabel: "Total Meetings",
+    title: "MDA Change of HMO Selection Process",
+    subtitle: "MDA HMO selection, compliance, and supporting documents",
+    refLabel: "MDA", countLabel: "Records", totalLabel: "Total Records",
+  },
+  "extra-dependant": {
+    title: "Additional / Extra Dependent",
+    subtitle: "Extra-dependant requests for the reporting month",
+    refLabel: "Enrollee", countLabel: "Records", totalLabel: "Total Records",
+  },
+  "hcf-change": {
+    title: "Change of HCP",
+    subtitle: "Enrollee HCP/HMO transfer requests for the reporting month",
+    refLabel: "Enrollee", countLabel: "Records", totalLabel: "Total Records",
   },
   challenges: {
     title: "Challenges & Recommendations",
@@ -482,6 +522,22 @@ export function labelOf(
   return options.find(o => o.value === value)?.label ?? value;
 }
 
+export function parseSupportingDocuments(raw: unknown): { name: string; path?: string; label?: string }[] {
+  if (!raw) return [];
+  let value: unknown = raw;
+  if (typeof raw === "string") {
+    try { value = JSON.parse(raw); } catch { return []; }
+  }
+  if (!Array.isArray(value)) return [];
+  return value.map((item) => {
+    if (typeof item === "string") return { name: item, label: item };
+    if (item && typeof item === "object" && ("path" in item || "name" in item)) {
+      return { name: (item as any).name || "Document", path: (item as any).path };
+    }
+    return { name: "Document" };
+  });
+}
+
 export function formatCount(value: number | string | null | undefined) {
   return (Number(value) || 0).toLocaleString();
 }
@@ -563,7 +619,7 @@ export function reportLineTotal(reportType: StateOfficeReportType, report: any) 
   if (reportType === "stakeholder") {
     return (report.lines ?? []).reduce((s: number, l: any) => s + (Number(l.audience_size) || 0), 0);
   }
-  if (reportType === "hmo-selection") {
+  if (reportType === "hmo-selection" || reportType === "extra-dependant" || reportType === "hcf-change") {
     return report.lines?.length ?? 0;
   }
   if (reportType === "igr") {

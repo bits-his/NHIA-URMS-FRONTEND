@@ -6,11 +6,13 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
-import { stateOfficeApi } from "@/lib/api";
+import { stateOfficeApi, apiFileUrl } from "@/lib/api";
 import {
   REPORT_CONFIG, ACCREDITATION_INDICATORS, ACCREDITATION_PROCESS_TYPES,
   ACCREDITATION_ENTRY_TYPES, expandAccreditationLines,
   COMPLAINT_SUMMARY_CATEGORIES, COMPLAINT_STATUS_TYPES,
+  EXTRA_DEPENDANT_RELATIONSHIPS, EXTRA_DEPENDANT_STATUSES, parseSupportingDocuments,
+  YES_NO_OPTIONS, HCP_CHANGE_CHANNELS, HCP_CHANGE_STATUSES,
   monthLabel, quarterFromMonth, labelOf, formatCount, formatDate, type StateOfficeReportType,
 } from "./constants";
 
@@ -134,8 +136,65 @@ export default function ExtendedReportDetail({ reportType, reportId, onBack, onE
               )}
 
               {reportType === "hmo-selection" && (
-                <DataCard title="HMO Selection Process" headers={["MDA", "Date", "HMOs in Attendance"]}
-                  rows={(report.lines ?? []).map((l: any) => [l.mda, l.selection_date || "—", l.hmos_in_attendance || "—"])} />
+                <DataCard title="MDA Change of HMO Selection Process"
+                  headers={["Date", "MDA", "Former HMO", "Reason", "Invited", "Attended", "Guideline", "Transparent", "Selected HMO", "Evidence", "Full report"]}
+                  rows={(report.lines ?? []).map((l: any) => [
+                    l.selection_date || "—",
+                    l.mda,
+                    l.former_hmo || "—",
+                    l.reason_for_change || "—",
+                    l.hmos_invited ?? "—",
+                    l.hmos_attended ?? l.hmos_in_attendance ?? "—",
+                    labelOf(YES_NO_OPTIONS, l.compliance_guideline, l.compliance_guideline || "—"),
+                    labelOf(YES_NO_OPTIONS, l.transparent_process, l.transparent_process || "—"),
+                    l.selected_hmo || "—",
+                    l.evidence_path ? <a className="text-[#1a7a52] underline" href={apiFileUrl(l.evidence_path)} target="_blank" rel="noreferrer">{l.evidence_name || "Evidence"}</a> : "—",
+                    l.report_path ? <a className="text-[#1a7a52] underline" href={apiFileUrl(l.report_path)} target="_blank" rel="noreferrer">{l.report_name || "Report"}</a> : "—",
+                  ])} />
+              )}
+
+              {reportType === "extra-dependant" && (
+                <DataCard title="Additional / Extra Dependent"
+                  headers={["Enrollee", "Principle NHIA", "Age", "Relationship", "Program", "Request", "End date", "Status", "Documents"]}
+                  rows={(report.lines ?? []).map((l: any) => [
+                    l.enrollee_name,
+                    l.principle_nhia_number,
+                    l.age ?? "—",
+                    labelOf(EXTRA_DEPENDANT_RELATIONSHIPS, l.relationship, l.relationship),
+                    l.program || "—",
+                    l.request_date || "—",
+                    l.process_end_date || "—",
+                    labelOf(EXTRA_DEPENDANT_STATUSES, l.line_status, l.line_status),
+                    (() => {
+                      const docs = parseSupportingDocuments(l.supporting_documents).filter((d) => d.path);
+                      if (!docs.length) return "—";
+                      return (
+                        <div className="flex flex-col gap-1 min-w-[160px]">
+                          {docs.map((d) => (
+                            <a key={d.path} className="text-[#1a7a52] underline" href={apiFileUrl(d.path)} target="_blank" rel="noreferrer">{d.name || "Document"}</a>
+                          ))}
+                        </div>
+                      );
+                    })(),
+                  ])} />
+              )}
+
+              {reportType === "hcf-change" && (
+                <DataCard title="Change of HCP"
+                  headers={["Date", "Enrollee", "NHIA", "Current HCP/HMO", "New HCP/HMO", "Reason", "Criteria", "Channel", "Request", "End date", "Status"]}
+                  rows={(report.lines ?? []).map((l: any) => [
+                    l.record_date || "—",
+                    l.enrollee_name,
+                    l.nhia_number,
+                    l.current_hcp_hmo || "—",
+                    l.new_hcp_hmo || "—",
+                    l.reason_for_transfer || "—",
+                    labelOf(YES_NO_OPTIONS, l.met_criteria, l.met_criteria || "—"),
+                    labelOf(HCP_CHANGE_CHANNELS, l.request_channel, l.request_channel || "—"),
+                    l.request_date || "—",
+                    l.process_end_date || "—",
+                    labelOf(HCP_CHANGE_STATUSES, l.line_status, l.line_status),
+                  ])} />
               )}
 
               {reportType === "challenges" && (

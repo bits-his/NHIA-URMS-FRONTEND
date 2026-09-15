@@ -92,8 +92,9 @@ export function normalizeFunctionalityTitle(title: string, moduleTitle?: string)
 
     if (title === "Stock Verification") return "Physical Asset Verification";
 
-    if (title === "Special Projects" || title === "Special Project") return "SPECIAL PROJECT";
-
+    if (title === "Special Projects" || title === "Special Project" || title === "SPECIAL PROJECT" || title === "Ad-hoc Project") {
+      return "Ad-hoc / Special Assignment";
+    }
   }
 
 
@@ -105,6 +106,8 @@ export function normalizeFunctionalityTitle(title: string, moduleTitle?: string)
     if (title === "Enrollee Complaints") return "Monitoring Visits";
 
     if (title === "Reconciliation Meetings") return "Contracted Services";
+
+    if (title === "ICT Support" || title === "Support") return "ICT Support Register";
 
   }
 
@@ -132,7 +135,11 @@ export function normalizeFunctionalityTitle(title: string, moduleTitle?: string)
 
     if (title === "Overview" || title === "Statistics") return "Dashboard";
 
-    if (title === "Special Projects" || title === "Special Project") return "SPECIAL PROJECT";
+    if (title === "Special Projects" || title === "Special Project" || title === "SPECIAL PROJECT" || title === "Ad-hoc Project") {
+      return "Ad-hoc / Special Assignment";
+    }
+
+    if (title === "ICT Support" || title === "Support") return "ICT Support Register";
 
   }
 

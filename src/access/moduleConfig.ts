@@ -4,6 +4,8 @@ export type UserRole =
 
 export interface ChildModule {
   title: string;
+  /** Shorter label in the sidebar; privilege matching still uses `title`. */
+  navLabel?: string;
   view?: string;
   path?: string;
 }
@@ -11,7 +13,6 @@ export interface ChildModule {
 export interface SubGroup {
   type: "group";
   label: string;
-  /** Flat leaves and/or nested sub-groups (tree nav) */
   children: (ChildModule | SubGroup)[];
 }
 
@@ -35,8 +36,13 @@ export const ZONAL_MODULE = "Zonal";
 /** @deprecated Use ZONAL_MODULE */
 export const OTHERS_MODULE = ZONAL_MODULE;
 
-/** SDO privilege key (sidebar label: SDO) */
+/** SDO privilege key (sidebar parent) */
 export const SDO_MODULE = "SDO";
+
+/** SDO sidebar group that hosts SOC + State Office pillars */
+export const SDO_SOC_NAV_GROUP = "State Office Coordination";
+/** SDO sidebar group for stock verification */
+export const SDO_STOCK_NAV_GROUP = "Stock Verification";
 
 export const ZONAL_LEGACY_ALIASES = ["Others"] as const;
 
@@ -75,7 +81,7 @@ export function adminVisibleChildrenForModule(mod: ParentModule): ParentModule["
   for (const c of mod.children) {
     if (isSubGroup(c)) {
       const children = c.children.filter(
-        (leaf) => !isFunctionalityHiddenForAdmin(leaf.title),
+        (child) => isSubGroup(child) || !isFunctionalityHiddenForAdmin(child.title),
       );
       if (children.length > 0) out.push({ ...c, children });
     } else if (!isFunctionalityHiddenForAdmin(c.title)) {
@@ -185,24 +191,24 @@ export const MODULE_CONFIG: ParentModule[] = [
     roles: "all",
     children: [
       { type: "group", label: "SERVICOM", children: [
-        { title: "SERVICOM Dashboard", view: "servicom-dashboard", path: "/sdo/servicom" },
+        { title: "SERVICOM Dashboard", view: "servicom-dashboard", path: "/sdo/servicom", navLabel: "Dashboard" },
         { title: "Charter Performance",          view: "servicom-comment-card", path: "/sdo/servicom/comment-card" },
-        { title: "Complaints Management",        view: "servicom-complaints",   path: "/sdo/servicom/complaints" },
-        { title: "HCF Customer Satisfaction", view: "servicom-satisfaction", path: "/sdo/servicom/satisfaction" },
+        { title: "Complaints Management",        view: "servicom-complaints",   path: "/sdo/servicom/complaints", navLabel: "Complaints Register" },
+        { title: "HCF Customer Satisfaction", view: "servicom-satisfaction", path: "/sdo/servicom/satisfaction", navLabel: "Satisfaction Survey" },
       ]},
-      { type: "group", label: "STOCK VERIFICATION (SVD)", children: [
-        { title: "Stock Verification Dashboard", view: "stock-verification-dashboard", path: "/sdo/stock-dashboard" },
-        { title: "Physical Asset Verification", view: "store-verification-verify", path: "/store-management/verification/verify" },
-        { title: "Verification of Supply",      view: "store-supply-verification", path: "/store-management/verification/supply" },
-        { title: "Prepayment Analysis Register", view: "store-prepayment-analysis", path: "/store-management/prepayment-analysis" },
+      { type: "group", label: SDO_STOCK_NAV_GROUP, children: [
+        { title: "Stock Verification Dashboard", view: "stock-verification-dashboard", path: "/sdo/stock-dashboard", navLabel: "Dashboard" },
+        { title: "Physical Asset Verification", view: "store-verification-verify", path: "/store-management/verification/verify", navLabel: "Asset Verification" },
+        { title: "Verification of Supply",      view: "store-supply-verification", path: "/store-management/verification/supply", navLabel: "Supply Verification" },
+        { title: "Prepayment Analysis Register", view: "store-prepayment-analysis", path: "/store-management/prepayment-analysis", navLabel: "Prepayment Analysis" },
         { type: "group", label: "Store Management", children: [
-          { title: "Inventory Register",          view: "store-inventory-catalog",   path: "/store-management/inventory/items" },
-            { title: "Capitalisation & Issuance",   view: "store-asset-transfers",     path: "/store-management/transfers/requests" },
-          ]},
+          { title: "Inventory Register",          view: "store-inventory-catalog",   path: "/store-management/inventory/items", navLabel: "Inventory" },
+          { title: "Capitalisation & Issuance",   view: "store-asset-transfers",     path: "/store-management/transfers/requests", navLabel: "Issuance" },
+        ]},
       ]},
-      { type: "group", label: "SOC/ZONES", children: [] },
-      { type: "group", label: "SPECIAL PROJECT", children: [
-        { title: "SPECIAL PROJECT", view: "special-projects", path: "/sdo/projects" },
+      { type: "group", label: SDO_SOC_NAV_GROUP, children: [] },
+      { type: "group", label: "Special Project", children: [
+        { title: "Ad-hoc / Special Assignment", view: "special-projects", path: "/sdo/projects", navLabel: "Ad-hoc Project" },
       ]},
     ],
   },
@@ -215,17 +221,15 @@ export const MODULE_CONFIG: ParentModule[] = [
     title: SOC_ZONES_MODULE,
     roles: "all",
     children: [
-      { title: "SOC/Zones Dashboard", view: "soc-zones-dashboard", path: "/soc/dashboard" },
-      { title: "State/Zonal Office Profile", view: "soc-office-profile", path: "/soc/office-profile" },
-      { title: "State/Zonal Focal Persons Register", view: "soc-focal-persons", path: "/soc/focal-persons" },
-      { title: "Weekly Actionable", view: "state-weekly-actionable", path: "/soc/weekly-actionable" },
+      { title: "SOC/Zones Dashboard", view: "soc-zones-dashboard", path: "/soc/dashboard", navLabel: "Dashboard" },
+      { title: "State/Zonal Office Profile", view: "soc-office-profile", path: "/soc/office-profile", navLabel: "Office Profile" },
+      { title: "State/Zonal Focal Persons Register", view: "soc-focal-persons", path: "/soc/focal-persons", navLabel: "Focal Persons" },
+      { title: "Monthly Enrollee Register", view: "state-enrollee-register", path: "/soc/enrollee-register", navLabel: "Enrollee Register" },
+      { title: "ETMC/TMC Action-Point Register", view: "state-etmc-tmc-action-point", path: "/soc/etmc-tmc-action-point", navLabel: "ETMC Action Points" },
+      { title: "Weekly Actionable", view: "state-weekly-actionable", path: "/soc/weekly-actionable", navLabel: "Escalated Issues" },
       { title: "Contracted Services", view: "state-contracted-services", path: "/soc/contracted-services" },
-      { title: "Monthly Enrollee Register", view: "state-enrollee-register", path: "/soc/enrollee-register" },
-      { title: "ETMC/TMC Action-Point Register", view: "state-etmc-tmc-action-point", path: "/soc/etmc-tmc-action-point" },
-      { title: "ICT Support Register", view: "state-ict-support-register", path: "/soc/ict-support-register" },
-      { title: "Ad-hoc / Special Assignment", view: "state-adhoc-special-assignment", path: "/soc/adhoc-special-assignment" },
-      { title: "Operation Monitoring Visit", view: "soc-operation-monitoring-visit", path: "/soc/operation-monitoring-visit" },
-      { title: "Spot Check Visit", view: "soc-spot-check-visit", path: "/soc/spot-check-visit" },
+      { title: "Operation Monitoring Visit", view: "soc-operation-monitoring-visit", path: "/soc/operation-monitoring-visit", navLabel: "Operation Monitoring" },
+      { title: "Spot Check Visit", view: "soc-spot-check-visit", path: "/soc/spot-check-visit", navLabel: "Spot Check" },
     ],
   },
 
@@ -236,32 +240,40 @@ export const MODULE_CONFIG: ParentModule[] = [
     children: [
       { type: "group", label: "Enrolment", children: [
         { title: "Enrolment", view: "state-enrolment", path: "/zonal/enrolment" },
+        { title: "Migration / Update Requests", view: "state-migration", path: "/zonal/migration", navLabel: "Migration" },
+        { title: "CEmONC & FFP Beneficiaries", view: "state-cemonc", path: "/zonal/cemonc", navLabel: "CEmONC & FFP" },
       ]},
-      { type: "group", label: "Migration", children: [
-        { title: "Migration / Update Requests", view: "state-migration", path: "/zonal/migration" },
+      { type: "group", label: "Beneficiary Management", children: [
+        { title: "Additional / Extra Dependant", view: "state-extra-dependant", path: "/zonal/beneficiary/extra-dependant", navLabel: "Extra Dependant" },
+        { title: "HMO Selection Process", view: "state-hmo-selection", path: "/zonal/hmo-selection", navLabel: "MDA HMO Selection" },
+        { title: "Change of HCF", view: "state-hcf-change", path: "/zonal/beneficiary/hcf-change", navLabel: "Change of HCP" },
       ]},
-      { type: "group", label: "CEmONC & FFP", children: [
-        { title: "CEmONC & FFP Beneficiaries", view: "state-cemonc", path: "/zonal/cemonc" },
+      { type: "group", label: "Stakeholder Management", children: [
+        { title: "Stakeholder Engagement", view: "state-stakeholder", path: "/zonal/stakeholder", navLabel: "Engagements" },
       ]},
-      { type: "group", label: "Monitoring", children: [
+      { type: "group", label: "Provider Management", children: [
+        { title: "Accreditation / Reaccreditation", view: "state-accreditation", path: "/zonal/accreditation", navLabel: "Accreditation" },
+      ]},
+      { type: "group", label: "Complaint / Compliance", children: [
         { title: "Monitoring Visits", view: "servicom-visits", path: "/zonal/monitoring-visits" },
-      ]},
-      { type: "group", label: "Accreditation & Reaccreditation", children: [
-        { title: "Accreditation / Reaccreditation", view: "state-accreditation", path: "/zonal/accreditation" },
-      ]},
-      { type: "group", label: "Stakeholder Engagement", children: [
-        { title: "Stakeholder Engagement", view: "state-stakeholder", path: "/zonal/stakeholder" },
-      ]},
-      { type: "group", label: "HMO Selection", children: [
-        { title: "HMO Selection Process", view: "state-hmo-selection", path: "/zonal/hmo-selection" },
-      ]},
-      { type: "group", label: "Challenges & Recommendations", children: [
-        { title: "Challenges & Recommendations", view: "state-challenges", path: "/zonal/challenges" },
       ]},
       { type: "group", label: "Finance", children: [
         { title: "IGR", view: "state-igr", path: "/zonal/igr" },
-        { title: "SSHIA Financial Report", view: "state-sshia-financial", path: "/zonal/sshia-financial" },
-        { title: "Expenditure Profile", view: "state-expenditure-profile", path: "/zonal/expenditure-profile" },
+        { title: "SSHIA Financial Report", view: "state-sshia-financial", path: "/zonal/sshia-financial", navLabel: "SSHIA Report" },
+        { title: "Expenditure Profile", view: "state-expenditure-profile", path: "/zonal/expenditure-profile", navLabel: "Expenditure" },
+        { title: "Challenges & Recommendations", view: "state-challenges", path: "/zonal/challenges", navLabel: "Challenges" },
+      ]},
+      { type: "group", label: "ICT", children: [
+        { title: "ICT Support Register", view: "state-ict-support", path: "/zonal/ict/support", navLabel: "Support" },
+      ]},
+      { type: "group", label: "Admin / HR", children: [
+        { title: "State Office Meeting Report", view: "state-office-meeting", path: "/zonal/admin-hr/office-meeting" },
+        { title: "ETMC Cascading Report", view: "state-etmc-cascading", path: "/zonal/admin-hr/etmc-cascading" },
+        { title: "Office Accommodation", view: "state-office-accommodation", path: "/zonal/admin-hr/office-accommodation" },
+        { title: "Utility Services", view: "state-utility-services", path: "/zonal/admin-hr/utility-services" },
+        { title: "Vehicle Maintenance", view: "state-vehicle-maintenance", path: "/zonal/admin-hr/vehicle-maintenance" },
+        { title: "Conflict / Infraction Report", view: "state-conflict-infraction", path: "/zonal/admin-hr/conflict-infraction" },
+        { title: "Enrollee Feedback Survey", view: "state-enrollee-feedback", path: "/zonal/admin-hr/enrollee-feedback" },
       ]},
     ],
   },
