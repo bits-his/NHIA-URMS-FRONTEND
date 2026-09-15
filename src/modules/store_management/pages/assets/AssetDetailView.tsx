@@ -336,6 +336,15 @@ export function AssetDetailView() {
           </div>
         </div>
       )}
+
+      {asset.comments ? (
+        <div className="bg-white border border-slate-200/90 rounded-xl shadow-sm p-3.5">
+          <h2 className="text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+            Comment / Observations
+          </h2>
+          <p className="text-sm text-slate-800 whitespace-pre-wrap">{asset.comments}</p>
+        </div>
+      ) : null}
     </PageLayout>
   );
 }

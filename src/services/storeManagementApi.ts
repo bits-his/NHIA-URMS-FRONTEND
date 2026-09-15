@@ -50,4 +50,26 @@ export const storeManagementApi = {
   createMaintenance: (payload: any) => fetchWithAuth("/maintenance", { method: "POST", body: JSON.stringify(payload) }),
   getDisposals: () => fetchWithAuth("/disposal"),
   createDisposal: (payload: any) => fetchWithAuth("/disposal", { method: "POST", body: JSON.stringify(payload) }),
+
+  getPrepaymentAnalyses: () => fetchWithAuth("/prepayment-analysis"),
+  getPrepaymentAnalysisById: (id: number | string) => fetchWithAuth(`/prepayment-analysis/${id}`),
+  createPrepaymentAnalysis: async (payload: Record<string, any>, file?: File | null) => {
+    const token = tokenStore.get();
+    if (file) {
+      const fd = new FormData();
+      Object.entries(payload).forEach(([k, v]) => {
+        if (v !== undefined && v !== null) fd.append(k, String(v));
+      });
+      fd.append("awardLetter", file);
+      const res = await fetch(`${API_BASE}/prepayment-analysis`, {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: fd,
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || data.error || "API Request Failed");
+      return data;
+    }
+    return fetchWithAuth("/prepayment-analysis", { method: "POST", body: JSON.stringify(payload) });
+  },
 };

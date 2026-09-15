@@ -85,11 +85,12 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
     accumulatedDepreciation: 0,
     netBookValue: 0,
 
-    // Step 4: Lifecycle & Maintenance
-    physicalCondition: "Excellent",
-    lastVerificationDate: new Date().toISOString().split("T")[0],
-    verificationStatus: "Verified & Passed",
-    taggingMethod: "QR Code",
+    // Step 4: Lifecycle & Maintenance — left empty until the officer fills them in
+    physicalCondition: "",
+    lastVerificationDate: "",
+    verificationStatus: "",
+    taggingMethod: "",
+    comments: "",
 
     // Category Attributes
     categoryAttributes: {}
@@ -262,51 +263,81 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
     });
   };
 
-  // Step Validations
-  const validateStep = (step: number): boolean => {
-    setValidationError(null);
+  // Step Validations — returns false and sets error + optional jump target
+  const validateStep = (step: number, { silentJump = false }: { silentJump?: boolean } = {}): boolean => {
+    const fail = (message: string) => {
+      setValidationError(message);
+      if (!silentJump && step !== currentStep) setCurrentStep(step);
+      return false;
+    };
+
     if (step === 1) {
-      if (!formData.name || !formData.name.trim()) {
-        setValidationError("Please enter the Asset Name / Item Description.");
-        return false;
-      }
-      if (!formData.nhiaTagNumber || !formData.nhiaTagNumber.trim()) {
-        setValidationError("Please enter the Asset Tag Name / Number.");
-        return false;
-      }
+      if (!formData.name?.trim()) return fail("Please enter the Asset Name / Item Description.");
+      if (!formData.nhiaTagNumber?.trim()) return fail("Please enter the NHIA Serial Number / Tag.");
+      if (!formData.primaryCategory) return fail("Please select a Primary Category.");
+      if (!formData.subCategory) return fail("Please select a Sub Category.");
+      if (!formData.specificType) return fail("Please select a Specific Item Type.");
     }
     if (step === 2) {
-      if (!formData.trackingOfficer || !formData.trackingOfficer.trim()) {
-        setValidationError("Please specify the Tracking Officer.");
-        return false;
-      }
+      if (!formData.zone_id) return fail("Please select a Zone.");
+      if (!formData.state_id) return fail("Please select a State.");
+      if (!formData.trackingOfficer?.trim()) return fail("Please specify the Tracking Officer.");
+      if (!formData.assignedCustodian?.trim()) return fail("Please enter the Assigned Custodian.");
+      if (!formData.facilitySite) return fail("Please select a Facility Site.");
+      if (!formData.specificLocation?.trim()) return fail("Please enter the Specific Location (Floor / Room).");
+      if (!formData.yearOfAllocation?.trim()) return fail("Please enter the Year of Allocation.");
+      if (!formData.operationalStatus) return fail("Please select an Operational Status.");
     }
     if (step === 3) {
+      if (!formData.acquisitionDate) return fail("Please enter the Acquisition Date.");
       if (!formData.acquisitionCost || parseFloat(formData.acquisitionCost) <= 0) {
-        setValidationError("Please enter a valid Acquisition Cost greater than 0.");
-        return false;
+        return fail("Please enter a valid Acquisition Cost greater than 0.");
       }
+      if (!formData.usefulLifeYears || Number(formData.usefulLifeYears) <= 0) {
+        return fail("Please enter Useful Life in years.");
+      }
+      if (!formData.depreciationMethod) return fail("Please select a Depreciation Method.");
+    }
+    if (step === 4) {
+      if (!formData.physicalCondition) return fail("Please select the Physical Condition.");
+      if (!formData.lastVerificationDate) return fail("Please enter the Last Physical Verification Date.");
+      if (!formData.verificationStatus) return fail("Please select a Verification Status.");
+      if (!formData.taggingMethod) return fail("Please select a Tagging Method.");
+    }
+    setValidationError(null);
+    return true;
+  };
+
+  const validateAllSteps = (): boolean => {
+    for (const step of [1, 2, 3, 4]) {
+      if (!validateStep(step)) return false;
     }
     return true;
   };
 
-  const handleNextStep = () => {
+  const handleNextStep = (e?: React.MouseEvent) => {
+    e?.preventDefault();
+    e?.stopPropagation();
     if (validateStep(currentStep)) {
       setCurrentStep((prev) => Math.min(4, prev + 1));
     }
   };
 
-  const handleSave = async (e: React.FormEvent) => {
+  const handleSave = async (e?: React.FormEvent | React.MouseEvent) => {
     e?.preventDefault();
-    if (!validateStep(1) || !validateStep(2) || !validateStep(3)) {
+    e?.stopPropagation?.();
+    if (currentStep !== 4) {
+      // Never create from an earlier step (e.g. Enter key) — only advance
+      if (validateStep(currentStep)) setCurrentStep((s) => Math.min(4, s + 1));
       return;
     }
+    if (!validateAllSteps()) return;
     const tag = (formData.nhiaTagNumber || "").trim();
     const payload = {
       ...formData,
       nhiaTagNumber: tag,
-      assetId: tag,
-      assetNumber: tag,
+      category: formData.primaryCategory,
+      // Asset ID is auto-generated on the server from category (e.g. OFE-001)
     };
     try {
       if (capitaliseState?.inventoryItemId) {
@@ -441,7 +472,15 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
         )}
 
         {/* Form Body Area */}
-        <form onSubmit={handleSave} className="p-6 flex-1 flex flex-col justify-between text-xs space-y-6">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            // Block Enter-to-submit on steps 1–3; only Save on step 4 creates the asset
+            if (currentStep === 4) handleSave(e);
+            else handleNextStep();
+          }}
+          className="p-6 flex-1 flex flex-col justify-between text-xs space-y-6"
+        >
           {/* STEP 1: IDENTIFICATION & CLASSIFICATION */}
           {currentStep === 1 && (
             <div className="space-y-4">
@@ -450,40 +489,38 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
                 1. IDENTIFICATION & CLASSIFICATION
               </h3>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="md:col-span-2">
-                  <label className="block font-bold text-slate-700 mb-1">
-                    Asset Name / Item Description <span className="text-rose-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) => {
-                      setFormData({ ...formData, name: e.target.value });
-                      if (validationError) setValidationError(null);
-                    }}
-                    className="w-full px-3 py-2 rounded border border-slate-300 font-semibold focus:ring-1 focus:ring-[#25a872]"
-                    placeholder="e.g. HP LaserJet Enterprise MFP Printer"
-                    required
-                  />
-                </div>
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">
+                  Asset Name / Item Description <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => {
+                    setFormData({ ...formData, name: e.target.value });
+                    if (validationError) setValidationError(null);
+                  }}
+                  className="w-full px-3 py-2 rounded border border-slate-300 font-semibold focus:ring-1 focus:ring-[#25a872]"
+                  placeholder="e.g. HP LaserJet Enterprise MFP Printer"
+                  required
+                />
+              </div>
 
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">
-                    Asset Tag Name / Number <span className="text-rose-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.nhiaTagNumber}
-                    onChange={(e) => {
-                      setFormData({ ...formData, nhiaTagNumber: e.target.value });
-                      if (validationError) setValidationError(null);
-                    }}
-                    className="w-full px-3 py-2 rounded border border-slate-300 font-mono font-semibold focus:ring-1 focus:ring-[#25a872]"
-                    placeholder="e.g. NHIA/AST/2026/0045"
-                    required
-                  />
-                </div>
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">
+                  NHIA Serial Number / Tag <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.nhiaTagNumber}
+                  onChange={(e) => {
+                    setFormData({ ...formData, nhiaTagNumber: e.target.value });
+                    if (validationError) setValidationError(null);
+                  }}
+                  className="w-full px-3 py-2 rounded border border-slate-300 font-mono font-semibold focus:ring-1 focus:ring-[#25a872]"
+                  placeholder="e.g. NHIA/OG/SQA/OF/0018"
+                  required
+                />
               </div>
 
               {/* Dynamic Cascading Category Selects */}
@@ -547,8 +584,8 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
                   Category-Specific Attributes for {formData.primaryCategory}
                 </h4>
 
-                {(formData.primaryCategory === "Office Equipment" || formData.primaryCategory === "Plant & Machinery") && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-[#f4f7f5] p-3.5 rounded-lg border border-slate-200">
+                {(formData.primaryCategory === "Office Equipment" || formData.primaryCategory === "Plant & Machinery" || formData.primaryCategory === "Plant and Machinery") && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 bg-[#f4f7f5] p-3.5 rounded-lg border border-slate-200">
                     <div>
                       <label className="block font-bold text-slate-700 mb-1">Serial Number</label>
                       <input
@@ -560,13 +597,41 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
                       />
                     </div>
                     <div>
-                      <label className="block font-bold text-slate-700 mb-1">Power Rating (W)</label>
+                      <label className="block font-bold text-slate-700 mb-1">Power Specification (W)</label>
                       <input
                         type="text"
                         value={formData.categoryAttributes.powerSpecification || ""}
                         onChange={(e) => handleAttrChange("powerSpecification", e.target.value)}
                         className="w-full px-3 py-1.5 rounded border border-slate-300 bg-white"
                         placeholder="e.g. 500W"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-bold text-slate-700 mb-1">Capacity / Output Rating</label>
+                      <input
+                        type="text"
+                        value={formData.categoryAttributes.capacityOutputRating || ""}
+                        onChange={(e) => handleAttrChange("capacityOutputRating", e.target.value)}
+                        className="w-full px-3 py-1.5 rounded border border-slate-300 bg-white"
+                        placeholder="e.g. 40 ppm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-bold text-slate-700 mb-1">Last Maintenance Service Date</label>
+                      <input
+                        type="date"
+                        value={formData.categoryAttributes.lastMaintenanceDate || ""}
+                        onChange={(e) => handleAttrChange("lastMaintenanceDate", e.target.value)}
+                        className="w-full px-3 py-1.5 rounded border border-slate-300 font-mono bg-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-bold text-slate-700 mb-1">Next Maintenance Service Date</label>
+                      <input
+                        type="date"
+                        value={formData.categoryAttributes.nextMaintenanceDate || ""}
+                        onChange={(e) => handleAttrChange("nextMaintenanceDate", e.target.value)}
+                        className="w-full px-3 py-1.5 rounded border border-slate-300 font-mono bg-white"
                       />
                     </div>
                   </div>
@@ -611,7 +676,9 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
               {/* Dynamic Zone -> State -> Department -> Unit Cascading Selects */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 bg-[#f4f7f5] p-4 rounded-lg border border-slate-200">
                 <div>
-                  <label className="block font-bold text-slate-800 mb-1">Zone (Select)</label>
+                  <label className="block font-bold text-slate-800 mb-1">
+                    Zone <span className="text-rose-500">*</span>
+                  </label>
                   <Select
                     value={formData.zone_id ? String(formData.zone_id) : ""}
                     onValueChange={(val) => handleZoneChange(val)}
@@ -628,7 +695,9 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-800 mb-1">State (Select)</label>
+                  <label className="block font-bold text-slate-800 mb-1">
+                    State <span className="text-rose-500">*</span>
+                  </label>
                   <Select
                     value={formData.state_id ? String(formData.state_id) : ""}
                     disabled={!formData.zone_id}
@@ -732,20 +801,53 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
                   />
                 </div>
                 <div>
-                  <label className="block font-bold text-slate-800 mb-1">Assigned Custodian</label>
+                  <label className="block font-bold text-slate-800 mb-1">Date</label>
+                  <input
+                    type="date"
+                    value={formData.date}
+                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                    className="w-full px-3 py-2 rounded border border-slate-300 font-mono bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-800 mb-1">
+                    Assigned Custodian <span className="text-rose-500">*</span>
+                  </label>
                   <input
                     type="text"
                     value={formData.assignedCustodian}
-                    onChange={(e) => setFormData({ ...formData, assignedCustodian: e.target.value })}
+                    onChange={(e) => {
+                      setFormData({ ...formData, assignedCustodian: e.target.value });
+                      if (validationError) setValidationError(null);
+                    }}
                     className="w-full px-3 py-2 rounded border border-slate-300 font-semibold bg-white"
                     placeholder="e.g. Ahmadu Bello"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-800 mb-1">
+                    Year of Allocation <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.yearOfAllocation}
+                    onChange={(e) => {
+                      setFormData({ ...formData, yearOfAllocation: e.target.value });
+                      if (validationError) setValidationError(null);
+                    }}
+                    className="w-full px-3 py-2 rounded border border-slate-300 font-mono bg-white"
+                    placeholder="e.g. 2024"
+                    required
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Facility Site</label>
+                  <label className="block font-bold text-slate-700 mb-1">
+                    Facility Site <span className="text-rose-500">*</span>
+                  </label>
                   <Select
                     value={formData.facilitySite}
                     onValueChange={(val) => setFormData({ ...formData, facilitySite: val })}
@@ -762,18 +864,26 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Specific Location (Floor / Room)</label>
+                  <label className="block font-bold text-slate-700 mb-1">
+                    Specific Location (Floor / Room) <span className="text-rose-500">*</span>
+                  </label>
                   <input
                     type="text"
                     value={formData.specificLocation}
-                    onChange={(e) => setFormData({ ...formData, specificLocation: e.target.value })}
+                    onChange={(e) => {
+                      setFormData({ ...formData, specificLocation: e.target.value });
+                      if (validationError) setValidationError(null);
+                    }}
                     className="w-full px-3 py-2 rounded border border-slate-300"
                     placeholder="e.g. 2nd Floor, Room 204"
+                    required
                   />
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Operational Status</label>
+                  <label className="block font-bold text-slate-700 mb-1">
+                    Operational Status <span className="text-rose-500">*</span>
+                  </label>
                   <Select
                     value={formData.operationalStatus}
                     onValueChange={(val) => setFormData({ ...formData, operationalStatus: val })}
@@ -802,7 +912,9 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Acquisition Date</label>
+                  <label className="block font-bold text-slate-700 mb-1">
+                    Acquisition Date <span className="text-rose-500">*</span>
+                  </label>
                   <input
                     type="date"
                     value={formData.acquisitionDate}
@@ -829,7 +941,9 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Useful Life (Years)</label>
+                  <label className="block font-bold text-slate-700 mb-1">
+                    Useful Life (Years) <span className="text-rose-500">*</span>
+                  </label>
                   <input
                     type="number"
                     value={formData.usefulLifeYears}
@@ -839,9 +953,50 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
                 </div>
               </div>
 
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Salvage Value (₦)</label>
+                  <input
+                    type="number"
+                    value={formData.salvageValue}
+                    onChange={(e) => setFormData({ ...formData, salvageValue: e.target.value })}
+                    className="w-full px-3 py-2 rounded border border-slate-300 font-mono"
+                    placeholder="0.00"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">
+                    Depreciation Method <span className="text-rose-500">*</span>
+                  </label>
+                  <Select
+                    value={formData.depreciationMethod}
+                    onValueChange={(val) => setFormData({ ...formData, depreciationMethod: val })}
+                  >
+                    <SelectTrigger size="sm" displayValue={formData.depreciationMethod} className="bg-white">
+                      <SelectValue placeholder="Select method" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {LOOKUPS.depreciationMethods.map((m: string) => (
+                        <SelectItem key={m} value={m}>{m}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Accumulated Depreciation (₦)</label>
+                  <input
+                    type="number"
+                    value={formData.accumulatedDepreciation}
+                    onChange={(e) => setFormData({ ...formData, accumulatedDepreciation: e.target.value })}
+                    className="w-full px-3 py-2 rounded border border-slate-300 font-mono"
+                    placeholder="0.00"
+                  />
+                </div>
+              </div>
+
               <div className="p-3 bg-[#e8f5ee] border border-[#d4e8dc] rounded-md flex items-center justify-between font-mono">
-                <span className="font-bold text-[#145c3f] text-xs">Calculated Net Book Value (NBV):</span>
-                <span className="font-bold text-[#145c3f] text-base">₦{formData.netBookValue.toLocaleString()}</span>
+                <span className="font-bold text-[#145c3f] text-xs">Net Book Value (Acquisition − Accum. Dep.):</span>
+                <span className="font-bold text-[#145c3f] text-base">₦{Number(formData.netBookValue || 0).toLocaleString()}</span>
               </div>
             </div>
           )}
@@ -856,12 +1011,14 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Physical Condition</label>
+                  <label className="block font-bold text-slate-700 mb-1">
+                    Physical Condition <span className="text-rose-500">*</span>
+                  </label>
                   <Select
-                    value={formData.physicalCondition}
+                    value={formData.physicalCondition || undefined}
                     onValueChange={(val) => setFormData({ ...formData, physicalCondition: val })}
                   >
-                    <SelectTrigger size="sm" displayValue={formData.physicalCondition} className="bg-white text-[#145c3f] font-bold">
+                    <SelectTrigger size="sm" displayValue={formData.physicalCondition || undefined} className="bg-white text-[#145c3f] font-bold">
                       <SelectValue placeholder="Select Condition" />
                     </SelectTrigger>
                     <SelectContent>
@@ -873,14 +1030,64 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Last Physical Verification Date</label>
+                  <label className="block font-bold text-slate-700 mb-1">
+                    Last Physical Verification Date <span className="text-rose-500">*</span>
+                  </label>
                   <input
                     type="date"
-                    value={formData.lastVerificationDate}
+                    value={formData.lastVerificationDate || ""}
                     onChange={(e) => setFormData({ ...formData, lastVerificationDate: e.target.value })}
                     className="w-full px-3 py-2 rounded border border-slate-300 font-mono"
                   />
                 </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">
+                    Verification Status <span className="text-rose-500">*</span>
+                  </label>
+                  <Select
+                    value={formData.verificationStatus || undefined}
+                    onValueChange={(val) => setFormData({ ...formData, verificationStatus: val })}
+                  >
+                    <SelectTrigger size="sm" displayValue={formData.verificationStatus || undefined} className="bg-white">
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {LOOKUPS.verificationStatuses.map((s: string) => (
+                        <SelectItem key={s} value={s}>{s}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">
+                    Tagging Method <span className="text-rose-500">*</span>
+                  </label>
+                  <Select
+                    value={formData.taggingMethod || undefined}
+                    onValueChange={(val) => setFormData({ ...formData, taggingMethod: val })}
+                  >
+                    <SelectTrigger size="sm" displayValue={formData.taggingMethod || undefined} className="bg-white">
+                      <SelectValue placeholder="Select method" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {LOOKUPS.taggingMethods.map((t: string) => (
+                        <SelectItem key={t} value={t}>{t}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Comment / Observations</label>
+                <textarea
+                  value={formData.comments}
+                  onChange={(e) => setFormData({ ...formData, comments: e.target.value })}
+                  className="w-full min-h-[100px] px-3 py-2 rounded border border-slate-300 text-sm"
+                  placeholder="General notes or observations about this asset…"
+                />
               </div>
             </div>
           )}
@@ -909,7 +1116,8 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
                 </button>
               ) : (
                 <button
-                  type="submit"
+                  type="button"
+                  onClick={handleSave}
                   className="inline-flex items-center gap-1.5 px-6 py-2 rounded bg-emerald-600 text-white font-bold hover:bg-emerald-700 shadow-md cursor-pointer"
                 >
                   <Save className="h-4 w-4" />
