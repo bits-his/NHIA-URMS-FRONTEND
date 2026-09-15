@@ -181,7 +181,7 @@ type TreeNode =
   | { kind: "folder"; title: string; children: TreeNode[] };
 
 /** Folders that must stay as dropdowns even with a single child. */
-const PRESERVE_FOLDER_TITLES = new Set(["Zonal", "State Offices", "SOC/ZONES"]);
+const PRESERVE_FOLDER_TITLES = new Set(["Zonal", "State Offices", "SOC/ZONES", "Admin / HR"]);
 
 /** If a folder has only one child, promote that child (no redundant dropdown). */
 function collapseSingleChildFolders(nodes: TreeNode[]): TreeNode[] {

@@ -31,6 +31,7 @@ import AnnualReportDetail from "./AnnualReportDetail";
 import StockVerificationsList from "./StockVerificationsList";
 import StockAssetManager from "./StockAssetManager";
 import StateOfficeReportsList from "./stateOffice/StateOfficeReportsList";
+import AdminHrReportsList from "./stateOffice/adminHr/AdminHrReportsList";
 import StateOfficeComplaintsPage from "./stateOffice/StateOfficeComplaintsPage";
 import StateOfficeComplianceVisitsPage from "./stateOffice/StateOfficeComplianceVisitsPage";
 import StateOfficeReconciliationPage from "./stateOffice/StateOfficeReconciliationPage";
@@ -606,6 +607,13 @@ export default function Dashboard({ role, user, access = [], functionalities = "
             <Route path="/zonal/igr" element={<StateOfficeReportsList reportType="igr" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
             <Route path="/zonal/sshia-financial" element={<StateOfficeReportsList reportType="sshia-financial" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
             <Route path="/zonal/expenditure-profile" element={<StateOfficeReportsList reportType="expenditure-profile" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
+            <Route path="/zonal/admin-hr/office-meeting" element={<AdminHrReportsList key="office-meeting" reportType="office-meeting" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
+            <Route path="/zonal/admin-hr/etmc-cascading" element={<AdminHrReportsList key="etmc-cascading" reportType="etmc-cascading" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
+            <Route path="/zonal/admin-hr/office-accommodation" element={<AdminHrReportsList key="office-accommodation" reportType="office-accommodation" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
+            <Route path="/zonal/admin-hr/utility-services" element={<AdminHrReportsList key="utility-services" reportType="utility-services" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
+            <Route path="/zonal/admin-hr/vehicle-maintenance" element={<AdminHrReportsList key="vehicle-maintenance" reportType="vehicle-maintenance" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
+            <Route path="/zonal/admin-hr/conflict-infraction" element={<AdminHrReportsList key="conflict-infraction" reportType="conflict-infraction" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
+            <Route path="/zonal/admin-hr/enrollee-feedback" element={<AdminHrReportsList key="enrollee-feedback" reportType="enrollee-feedback" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
 
             {/* ── Store & Asset Management Module ── */}
             <Route path="/store-management" element={<DashboardView />} />

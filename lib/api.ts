@@ -565,7 +565,9 @@ export type StateOfficeReportType =
   | "enrolment" | "migration" | "cemonc"
   | "complaints" | "accreditation" | "stakeholder" | "hmo-selection" | "challenges"
   | "igr" | "sshia-financial" | "expenditure-profile"
-  | "weekly-actionable" | "contracted-services" | "enrollee-register" | "etmc-tmc-action-point";
+  | "weekly-actionable" | "contracted-services" | "enrollee-register" | "etmc-tmc-action-point"
+  | "office-meeting" | "etmc-cascading" | "office-accommodation" | "utility-services"
+  | "vehicle-maintenance" | "conflict-infraction" | "enrollee-feedback";
 
 const makeStateOfficeApi = (type: StateOfficeReportType) => ({
   list: (filters?: { state_id?: string; zone_id?: string; year?: string; month?: string; status?: string }) => {
@@ -605,6 +607,13 @@ export const stateOfficeApi = {
   "weekly-actionable": makeStateOfficeApi("weekly-actionable"),
   "contracted-services": makeStateOfficeApi("contracted-services"),
   "enrollee-register": makeStateOfficeApi("enrollee-register"),
+  "office-meeting": makeStateOfficeApi("office-meeting"),
+  "etmc-cascading": makeStateOfficeApi("etmc-cascading"),
+  "office-accommodation": makeStateOfficeApi("office-accommodation"),
+  "utility-services": makeStateOfficeApi("utility-services"),
+  "vehicle-maintenance": makeStateOfficeApi("vehicle-maintenance"),
+  "conflict-infraction": makeStateOfficeApi("conflict-infraction"),
+  "enrollee-feedback": makeStateOfficeApi("enrollee-feedback"),
   "etmc-tmc-action-point": {
     ...makeStateOfficeApi("etmc-tmc-action-point"),
     uploadDocument: (id: number | string, file: File) => {

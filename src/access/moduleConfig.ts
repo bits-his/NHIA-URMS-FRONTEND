@@ -261,6 +261,15 @@ export const MODULE_CONFIG: ParentModule[] = [
         { title: "SSHIA Financial Report", view: "state-sshia-financial", path: "/zonal/sshia-financial" },
         { title: "Expenditure Profile", view: "state-expenditure-profile", path: "/zonal/expenditure-profile" },
       ]},
+      { type: "group", label: "Admin / HR", children: [
+        { title: "State Office Meeting Report", view: "state-office-meeting", path: "/zonal/admin-hr/office-meeting" },
+        { title: "ETMC Cascading Report", view: "state-etmc-cascading", path: "/zonal/admin-hr/etmc-cascading" },
+        { title: "Office Accommodation", view: "state-office-accommodation", path: "/zonal/admin-hr/office-accommodation" },
+        { title: "Utility Services", view: "state-utility-services", path: "/zonal/admin-hr/utility-services" },
+        { title: "Vehicle Maintenance", view: "state-vehicle-maintenance", path: "/zonal/admin-hr/vehicle-maintenance" },
+        { title: "Conflict / Infraction Report", view: "state-conflict-infraction", path: "/zonal/admin-hr/conflict-infraction" },
+        { title: "Enrollee Feedback Survey", view: "state-enrollee-feedback", path: "/zonal/admin-hr/enrollee-feedback" },
+      ]},
     ],
   },
 
