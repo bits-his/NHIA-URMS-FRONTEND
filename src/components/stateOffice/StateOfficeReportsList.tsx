@@ -23,7 +23,7 @@ import ExpenditureProfileReportPage from "./ExpenditureProfileReportPage";
 import ExpenditureProfileReportDetail from "./ExpenditureProfileReportDetail";
 import {
   REPORT_CONFIG, MONTHS, monthLabel, quarterFromMonth, formatCount, formatDate,
-  reportLineTotal, reportLineCount, type StateOfficeReportType,
+  reportLineTotal, reportLineCount, ENROLLEE_REGISTER_SCHEMES, type StateOfficeReportType,
 } from "./constants";
 
 interface Report {
@@ -35,8 +35,17 @@ interface Report {
   submitted_by: string | null;
   status: "draft" | "submitted" | "approved";
   createdAt?: string;
-  zone?: { description: string };
-  state?: { description: string };
+  zone_id?: number;
+  state_id?: number;
+  self_paying?: number;
+  ops?: number;
+  retirees?: number;
+  constituency?: number;
+  gifship?: number;
+  formal_sector?: number;
+  total_lives?: number;
+  zone?: { id?: number; description: string };
+  state?: { id?: number; description: string };
   lines?: any[];
 }
 
@@ -216,7 +225,7 @@ export default function StateOfficeReportsList({
             className="bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20"
             onClick={() => { setSelectedId(null); setMode("create"); }}
           >
-            <Plus className="w-4 h-4" /> New Report
+            <Plus className="w-4 h-4" /> {reportType === "enrollee-register" || reportType === "etmc-tmc-action-point" ? "New Register" : "New Report"}
           </Button>
         </div>
       </div>
@@ -311,7 +320,11 @@ export default function StateOfficeReportsList({
           <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden">
             <CardHeader className="pb-3 border-b border-[#d4e8dc]">
               <CardTitle className="text-sm font-bold">
-                {loading ? "Loading..." : `${reports.length} report${reports.length !== 1 ? "s" : ""}`}
+                {loading
+                  ? "Loading..."
+                  : reportType === "enrollee-register" || reportType === "etmc-tmc-action-point"
+                    ? `${reports.length} register${reports.length !== 1 ? "s" : ""}`
+                    : `${reports.length} report${reports.length !== 1 ? "s" : ""}`}
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
@@ -326,7 +339,7 @@ export default function StateOfficeReportsList({
                   {!hasFilters && (
                     <Button variant="outline" size="sm" className="mt-2 gap-2"
                       onClick={() => { setSelectedId(null); setMode("create"); }}>
-                      <Plus className="w-4 h-4" /> New Report
+                      <Plus className="w-4 h-4" /> {reportType === "enrollee-register" || reportType === "etmc-tmc-action-point" ? "New Register" : "New Report"}
                     </Button>
                   )}
                 </div>
@@ -335,25 +348,50 @@ export default function StateOfficeReportsList({
                   <Table>
                     <TableHeader>
                       <TableRow className="bg-[#f0fdf7] hover:bg-[#f0fdf7]">
-                        <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Reference</TableHead>
-                        {showLocationCols && (
+                        {reportType === "enrollee-register" ? (
                           <>
+                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Year</TableHead>
+                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Month</TableHead>
+                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Zone ID</TableHead>
                             <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Zone</TableHead>
+                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">State ID</TableHead>
                             <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">State</TableHead>
+                            {ENROLLEE_REGISTER_SCHEMES.map((s) => (
+                              <TableHead key={s.key} className="text-xs font-bold text-slate-600 text-right whitespace-nowrap">{s.label}</TableHead>
+                            ))}
+                            <TableHead className="text-xs font-bold text-slate-600 text-right whitespace-nowrap">Total Lives</TableHead>
+                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Status</TableHead>
+                            <TableHead className="text-right text-xs font-bold text-slate-600 whitespace-nowrap">View</TableHead>
+                          </>
+                        ) : (
+                          <>
+                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Reference</TableHead>
+                            {showLocationCols && (
+                              <>
+                                <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Zone</TableHead>
+                                <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">State</TableHead>
+                              </>
+                            )}
+                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Year</TableHead>
+                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Month</TableHead>
+                            {reportType === "weekly-actionable" && (
+                              <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Week</TableHead>
+                            )}
+                            {reportType === "etmc-tmc-action-point" && (
+                              <>
+                                <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Session</TableHead>
+                                <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Meeting Date</TableHead>
+                              </>
+                            )}
+                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Quarter</TableHead>
+                            <TableHead className="text-xs font-bold text-slate-600 text-right whitespace-nowrap">Entries</TableHead>
+                            <TableHead className="text-xs font-bold text-slate-600 text-right whitespace-nowrap">{cfg.totalLabel}</TableHead>
+                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Submitted By</TableHead>
+                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Date Submitted</TableHead>
+                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Status</TableHead>
+                            <TableHead className="text-right text-xs font-bold text-slate-600 whitespace-nowrap">View</TableHead>
                           </>
                         )}
-                        <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Year</TableHead>
-                        <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Month</TableHead>
-                        {reportType === "weekly-actionable" && (
-                          <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Week</TableHead>
-                        )}
-                        <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Quarter</TableHead>
-                        <TableHead className="text-xs font-bold text-slate-600 text-right whitespace-nowrap">Entries</TableHead>
-                        <TableHead className="text-xs font-bold text-slate-600 text-right whitespace-nowrap">{cfg.totalLabel}</TableHead>
-                        <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Submitted By</TableHead>
-                        <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Date Submitted</TableHead>
-                        <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Status</TableHead>
-                        <TableHead className="text-right text-xs font-bold text-slate-600 whitespace-nowrap">View</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -363,6 +401,37 @@ export default function StateOfficeReportsList({
                           <motion.tr key={r.id} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: i * 0.02 }}
                             className="hover:bg-[#f8fdfb] transition-colors border-b border-slate-100 last:border-0">
+                            {reportType === "enrollee-register" ? (
+                              <>
+                                <TableCell className="text-sm font-semibold text-slate-800 whitespace-nowrap">{r.reporting_year}</TableCell>
+                                <TableCell className="text-sm text-slate-600 whitespace-nowrap">{monthLabel(r.reporting_month)}</TableCell>
+                                <TableCell className="text-sm tabular-nums text-slate-500 whitespace-nowrap">{r.zone_id ?? r.zone?.id ?? "—"}</TableCell>
+                                <TableCell className="text-sm text-slate-600 whitespace-nowrap">{r.zone?.description || "—"}</TableCell>
+                                <TableCell className="text-sm tabular-nums text-slate-500 whitespace-nowrap">{r.state_id ?? r.state?.id ?? "—"}</TableCell>
+                                <TableCell className="text-sm font-semibold text-slate-800 whitespace-nowrap">{r.state?.description || "—"}</TableCell>
+                                {ENROLLEE_REGISTER_SCHEMES.map((s) => (
+                                  <TableCell key={s.key} className="text-sm text-right tabular-nums text-slate-700 whitespace-nowrap">
+                                    {formatCount(r[s.key] ?? 0)}
+                                  </TableCell>
+                                ))}
+                                <TableCell className="text-sm font-bold text-[#145c3f] text-right tabular-nums whitespace-nowrap">
+                                  {formatCount(r.total_lives ?? 0)}
+                                </TableCell>
+                                <TableCell>
+                                  <Badge className={`text-[10px] px-2 py-0.5 flex items-center gap-1 w-fit border ${sc.cls}`}>
+                                    {sc.icon} {sc.label}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <Button variant="ghost" size="sm"
+                                    className="h-7 w-7 p-0 text-slate-400 hover:text-primary hover:bg-primary/10"
+                                    onClick={() => { setSelectedId(r.id); setMode("view"); }}>
+                                    <Eye className="w-3.5 h-3.5" />
+                                  </Button>
+                                </TableCell>
+                              </>
+                            ) : (
+                              <>
                             <TableCell>
                               <span className="font-mono text-xs font-bold text-primary">{r.reference_id}</span>
                             </TableCell>
@@ -378,6 +447,12 @@ export default function StateOfficeReportsList({
                               <TableCell className="text-sm text-slate-600 whitespace-nowrap">
                                 {(r as any).reporting_week ? `Wk ${(r as any).reporting_week}` : "—"}
                               </TableCell>
+                            )}
+                            {reportType === "etmc-tmc-action-point" && (
+                              <>
+                                <TableCell className="text-sm text-slate-600 whitespace-nowrap">{(r as any).etmc_session || "—"}</TableCell>
+                                <TableCell className="text-xs text-slate-500 whitespace-nowrap">{formatDate((r as any).meeting_date)}</TableCell>
+                              </>
                             )}
                             <TableCell className="text-sm text-slate-500 whitespace-nowrap">Q{quarterFromMonth(r.reporting_month)}</TableCell>
                             <TableCell className="text-sm text-slate-500 text-right tabular-nums">{reportLineCount(reportType, r)}</TableCell>
@@ -396,6 +471,8 @@ export default function StateOfficeReportsList({
                                 <Eye className="w-3.5 h-3.5" />
                               </Button>
                             </TableCell>
+                              </>
+                            )}
                           </motion.tr>
                         );
                       })}

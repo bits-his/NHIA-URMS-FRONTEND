@@ -540,7 +540,8 @@ export const servicomApi = {
 export type StateOfficeReportType =
   | "enrolment" | "migration" | "cemonc"
   | "complaints" | "accreditation" | "stakeholder" | "hmo-selection" | "challenges"
-  | "igr" | "sshia-financial" | "expenditure-profile";
+  | "igr" | "sshia-financial" | "expenditure-profile"
+  | "weekly-actionable" | "contracted-services" | "enrollee-register" | "etmc-tmc-action-point";
 
 const makeStateOfficeApi = (type: StateOfficeReportType) => ({
   list: (filters?: { state_id?: string; zone_id?: string; year?: string; month?: string; status?: string }) => {
@@ -579,6 +580,24 @@ export const stateOfficeApi = {
   "expenditure-profile": makeStateOfficeApi("expenditure-profile"),
   "weekly-actionable": makeStateOfficeApi("weekly-actionable"),
   "contracted-services": makeStateOfficeApi("contracted-services"),
+  "enrollee-register": makeStateOfficeApi("enrollee-register"),
+  "etmc-tmc-action-point": {
+    ...makeStateOfficeApi("etmc-tmc-action-point"),
+    uploadDocument: (id: number | string, file: File) => {
+      const token = tokenStore.get();
+      const form = new FormData();
+      form.append("file", file);
+      return fetch(`${BASE_URL}/state-office/etmc-tmc-action-point/reports/${id}/document`, {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: form,
+      }).then(async (res) => {
+        const json = await res.json();
+        if (!res.ok) throw new Error(json?.message || "Upload failed");
+        return json as { success: boolean; data: any };
+      });
+    },
+  },
 };
 
 const stateOfficeFilters = (filters?: Record<string, string | undefined>) => {

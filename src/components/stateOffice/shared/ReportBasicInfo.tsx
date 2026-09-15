@@ -24,6 +24,7 @@ interface Props {
   /** When provided, shows Reporting Week in the basic info grid */
   reportWeek?: string;
   setReportWeek?: (v: string) => void;
+  showGeoIds?: boolean;
 }
 
 export default function ReportBasicInfo({
@@ -31,6 +32,7 @@ export default function ReportBasicInfo({
   reportYear, setReportYear, reportMonth, setReportMonth, submitDate, setSubmitDate,
   lockZone, lockState,
   reportWeek, setReportWeek,
+  showGeoIds,
 }: Props) {
   const zoneLabel  = labelOf(zones.map(z => ({ value: String(z.id), label: z.label })), zoneId, "—");
   const stateLabel = labelOf(states.map(s => ({ value: String(s.id), label: s.label })), stateId, "—");
@@ -51,6 +53,9 @@ export default function ReportBasicInfo({
                 {zones.map(z => <SelectItem key={z.id} value={String(z.id)}>{z.label}</SelectItem>)}
               </SelectContent>
             </Select>
+            {showGeoIds && (
+              <p className="text-[11px] text-slate-500">Zone ID: <span className="font-semibold tabular-nums text-slate-700">{zoneId || "—"}</span></p>
+            )}
           </div>
           <div className="space-y-2">
             <Label>State <span className="text-red-500">*</span></Label>
@@ -62,6 +67,9 @@ export default function ReportBasicInfo({
                 {states.map(s => <SelectItem key={s.id} value={String(s.id)}>{s.label}</SelectItem>)}
               </SelectContent>
             </Select>
+            {showGeoIds && (
+              <p className="text-[11px] text-slate-500">State ID: <span className="font-semibold tabular-nums text-slate-700">{stateId || "—"}</span></p>
+            )}
           </div>
           <div className="space-y-2">
             <Label>Date of Submission</Label>
