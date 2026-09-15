@@ -566,6 +566,7 @@ export type StateOfficeReportType =
   | "complaints" | "accreditation" | "stakeholder" | "hmo-selection" | "challenges"
   | "igr" | "sshia-financial" | "expenditure-profile"
   | "weekly-actionable" | "contracted-services" | "enrollee-register" | "etmc-tmc-action-point"
+  | "extra-dependant" | "hcf-change"
   | "office-meeting" | "etmc-cascading" | "office-accommodation" | "utility-services"
   | "vehicle-maintenance" | "conflict-infraction" | "enrollee-feedback";
 
@@ -599,7 +600,24 @@ export const stateOfficeApi = {
   complaints: makeStateOfficeApi("complaints"),
   accreditation: makeStateOfficeApi("accreditation"),
   stakeholder: makeStateOfficeApi("stakeholder"),
-  "hmo-selection": makeStateOfficeApi("hmo-selection"),
+  "hmo-selection": {
+    ...makeStateOfficeApi("hmo-selection"),
+    uploadLineFile: (reportId: number | string, lineId: number | string, file: File, kind: "evidence" | "report") => {
+      const token = tokenStore.get();
+      const form = new FormData();
+      form.append("file", file);
+      form.append("kind", kind);
+      return fetch(`${BASE_URL}/state-office/hmo-selection/reports/${reportId}/lines/${lineId}/files`, {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: form,
+      }).then(async (res) => {
+        const json = await res.json();
+        if (!res.ok) throw new Error(json?.message || "Upload failed");
+        return json as { success: boolean; data: any };
+      });
+    },
+  },
   challenges: makeStateOfficeApi("challenges"),
   igr: makeStateOfficeApi("igr"),
   "sshia-financial": makeStateOfficeApi("sshia-financial"),
@@ -607,6 +625,24 @@ export const stateOfficeApi = {
   "weekly-actionable": makeStateOfficeApi("weekly-actionable"),
   "contracted-services": makeStateOfficeApi("contracted-services"),
   "enrollee-register": makeStateOfficeApi("enrollee-register"),
+  "extra-dependant": {
+    ...makeStateOfficeApi("extra-dependant"),
+    uploadLineFiles: (reportId: number | string, lineId: number | string, files: File[]) => {
+      const token = tokenStore.get();
+      const form = new FormData();
+      files.forEach((file) => form.append("files", file));
+      return fetch(`${BASE_URL}/state-office/extra-dependant/reports/${reportId}/lines/${lineId}/files`, {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: form,
+      }).then(async (res) => {
+        const json = await res.json();
+        if (!res.ok) throw new Error(json?.message || "Upload failed");
+        return json as { success: boolean; data: any };
+      });
+    },
+  },
+  "hcf-change": makeStateOfficeApi("hcf-change"),
   "office-meeting": makeStateOfficeApi("office-meeting"),
   "etmc-cascading": makeStateOfficeApi("etmc-cascading"),
   "office-accommodation": makeStateOfficeApi("office-accommodation"),

@@ -123,7 +123,15 @@ export default function AdminHrReportsList({
       <AdminHrFormRouter
         reportType={reportType}
         reportId={mode === "edit" ? selectedId : null}
-        onBack={() => { setSelectedId(null); setMode("list"); load(); }}
+        onBack={() => {
+          if (mode === "edit" && selectedId) {
+            setMode("view");
+            return;
+          }
+          setSelectedId(null);
+          setMode("list");
+          load();
+        }}
         defaultZoneId={defaultZoneId}
         defaultStateId={defaultStateId}
       />

@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import StateOfficeFormShell from "../StateOfficeFormShell";
-import { Section, Field, TextInput, TextArea, SelectField } from "./ui";
+import { Section, Field, TextInput, TextArea, SelectField, FormPageTitle } from "./ui";
 import {
   FEEDBACK_HEAR_ABOUT, FEEDBACK_VISIT_PURPOSE, RATING_AREAS, RATING_LEVELS,
   YES_NO_PARTIAL, ADMIN_HR_CONFIG,
@@ -63,7 +63,8 @@ export default function EnrolleeFeedbackForm({ reportId, onBack, defaultZoneId, 
     >
       {() => (
         <div className="space-y-4">
-          <Section title="1. How did you hear about NHIA?">
+          <FormPageTitle title="Enrollee Feedback / Satisfaction Survey" />
+          <Section title="1. How did you hear about health insurance or this office?">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {FEEDBACK_HEAR_ABOUT.map((item) => (
                 <label key={item} className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 cursor-pointer hover:bg-slate-50">
@@ -77,7 +78,7 @@ export default function EnrolleeFeedbackForm({ reportId, onBack, defaultZoneId, 
             )}
           </Section>
 
-          <Section title="2. Purpose of Visit">
+          <Section title="2. Purpose of today’s visit">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {FEEDBACK_VISIT_PURPOSE.map((item) => (
                 <label key={item} className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 cursor-pointer hover:bg-slate-50">
@@ -91,12 +92,12 @@ export default function EnrolleeFeedbackForm({ reportId, onBack, defaultZoneId, 
             )}
           </Section>
 
-          <Section title="3. Service Ratings">
+          <Section title="3. How would you rate the following?">
             <div className="overflow-x-auto rounded-lg border border-slate-200">
               <table className="w-full text-sm min-w-[480px]">
                 <thead>
-                  <tr className="bg-[#0f2f5b] text-white">
-                    <th className="px-3 py-2.5 text-left font-semibold">Area</th>
+                  <tr className="bg-[#145c3f] text-white">
+                    <th className="px-3 py-2.5 text-left font-semibold">Service Area</th>
                     {RATING_LEVELS.map((level) => (
                       <th key={level} className="px-3 py-2.5 text-center font-semibold whitespace-nowrap">{level}</th>
                     ))}
@@ -124,19 +125,19 @@ export default function EnrolleeFeedbackForm({ reportId, onBack, defaultZoneId, 
             </div>
           </Section>
 
-          <Section title="4. Issue Resolution">
-            <Field label="Was your issue resolved today?">
+          <Section title="4. Was your issue or request resolved today?">
+            <Field label="Resolution">
               <SelectField value={resolvedToday} onChange={setResolvedToday} options={YES_NO_PARTIAL} />
-            </Field>
-            <Field label="Comments">
-              <TextArea value={comments} onChange={(e) => setComments(e.target.value)} />
             </Field>
           </Section>
 
-          <Section title="5. Optional Meta">
+          <Section title="5. Comments / Suggestions">
+            <Field label="Comments">
+              <TextArea value={comments} onChange={(e) => setComments(e.target.value)} />
+            </Field>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <Field label="Prepared By"><TextInput value={preparedBy} onChange={(e) => setPreparedBy(e.target.value)} /></Field>
-              <Field label="Prepared Date"><TextInput type="date" value={preparedDate} onChange={(e) => setPreparedDate(e.target.value)} /></Field>
+              <Field label="Recorded By"><TextInput value={preparedBy} onChange={(e) => setPreparedBy(e.target.value)} /></Field>
+              <Field label="Date"><TextInput type="date" value={preparedDate} onChange={(e) => setPreparedDate(e.target.value)} /></Field>
             </div>
           </Section>
         </div>

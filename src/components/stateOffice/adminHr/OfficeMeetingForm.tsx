@@ -1,7 +1,7 @@
 import * as React from "react";
 import StateOfficeFormShell from "../StateOfficeFormShell";
 import {
-  Section, Field, TextInput, TextArea, SelectField, AddRowButton, RemoveRowButton,
+  Section, Field, TextInput, TextArea, SelectField, AddRowButton, RemoveRowButton, FormPageTitle,
 } from "./ui";
 import {
   MEETING_TYPES, VENUE_MODES, YES_NO, YES_NO_PARTIAL, ACTION_STATUSES,
@@ -118,7 +118,8 @@ export default function OfficeMeetingForm({ reportId, onBack, defaultZoneId, def
     >
       {() => (
         <div className="space-y-4">
-          <Section title="1. Meeting Information">
+          <FormPageTitle title="State Office Meeting Reporting Template" />
+          <Section title="1. MEETING INFORMATION">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               <Field label="Meeting Date" required>
                 <TextInput type="date" value={meetingDate} onChange={(e) => setMeetingDate(e.target.value)} />
@@ -154,7 +155,7 @@ export default function OfficeMeetingForm({ reportId, onBack, defaultZoneId, def
             </Field>
           </Section>
 
-          <Section title="2. Key Issue Items">
+          <Section title="2. KEY ISSUE ITEMS DISCUSSED">
             <div className="space-y-3">
               {keyIssues.map((row) => (
                 <div key={row._key} className="rounded-lg border border-slate-200 p-3 space-y-3 bg-slate-50/50">
@@ -171,7 +172,7 @@ export default function OfficeMeetingForm({ reportId, onBack, defaultZoneId, def
             </div>
           </Section>
 
-          <Section title="3. Decisions / Resolutions">
+          <Section title="3. DECISIONS / RESOLUTIONS">
             <div className="space-y-3">
               {decisions.map((row) => (
                 <div key={row._key} className="rounded-lg border border-slate-200 p-3 space-y-3 bg-slate-50/50">
@@ -190,7 +191,7 @@ export default function OfficeMeetingForm({ reportId, onBack, defaultZoneId, def
             </div>
           </Section>
 
-          <Section title="4. Follow-up on Previous Action Points" accent="yellow">
+          <Section title="4. FOLLOW-UP ON PREVIOUS MEETING ACTION POINTS" accent="yellow">
             <div className="space-y-3">
               {followups.map((row) => (
                 <div key={row._key} className="rounded-lg border border-amber-200 p-3 space-y-3 bg-amber-50/30">
@@ -209,7 +210,7 @@ export default function OfficeMeetingForm({ reportId, onBack, defaultZoneId, def
             </div>
           </Section>
 
-          <Section title="5. Matters Requiring Zonal / SDO Attention">
+          <Section title="5. MATTERS REQUIRING ZONAL / SDO ATTENTION">
             <div className="space-y-3">
               {matters.map((row) => (
                 <div key={row._key} className="rounded-lg border border-slate-200 p-3 space-y-3 bg-slate-50/50">
@@ -229,7 +230,7 @@ export default function OfficeMeetingForm({ reportId, onBack, defaultZoneId, def
             </div>
           </Section>
 
-          <Section title="6. Meeting Effectiveness">
+          <Section title="6. MEETING EFFECTIVENESS / MANAGEMENT OBSERVATIONS">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {([
                 ["previousReviewed", "Previous action points reviewed?"],
@@ -260,7 +261,7 @@ export default function OfficeMeetingForm({ reportId, onBack, defaultZoneId, def
             </Field>
           </Section>
 
-          <Section title="7. Submission">
+          <Section title="7. SUBMISSION AND CERTIFICATION">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
               <Field label="Prepared By"><TextInput value={preparedBy} onChange={(e) => setPreparedBy(e.target.value)} /></Field>
               <Field label="Designation"><TextInput value={designation} onChange={(e) => setDesignation(e.target.value)} /></Field>

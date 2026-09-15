@@ -10,6 +10,7 @@ import { stateOfficeApi } from "@/lib/api";
 import { monthLabel } from "../constants";
 import { ADMIN_HR_CONFIG, type AdminHrReportType } from "./constants";
 import { Section } from "./ui";
+import { normalizePayload } from "./normalizePayload";
 
 interface Props {
   reportType: AdminHrReportType;
@@ -36,7 +37,13 @@ function formatValue(value: unknown): string {
   if (value == null || value === "") return "—";
   if (typeof value === "boolean") return value ? "Yes" : "No";
   if (typeof value === "number") return value.toLocaleString();
-  if (Array.isArray(value)) return value.length ? value.join(", ") : "—";
+  if (Array.isArray(value)) {
+    if (!value.length) return "—";
+    if (value.every((v) => typeof v === "string" || typeof v === "number")) {
+      return value.join(", ");
+    }
+    return `${value.length} item(s)`;
+  }
   if (typeof value === "object") return JSON.stringify(value);
   return String(value);
 }
@@ -67,7 +74,7 @@ function PayloadTable({ rows }: { rows: Record<string, unknown>[] }) {
     <div className="overflow-x-auto rounded-lg border border-slate-200">
       <Table>
         <TableHeader>
-          <TableRow className="bg-[#f0fdf7] hover:bg-[#f0fdf7]">
+          <TableRow className="bg-[#e8f5ee] hover:bg-[#e8f5ee]">
             <TableHead className="text-xs font-bold w-10">#</TableHead>
             {headers.map((h) => (
               <TableHead key={h} className="text-xs font-bold whitespace-nowrap">{humanizeKey(h)}</TableHead>
@@ -76,7 +83,7 @@ function PayloadTable({ rows }: { rows: Record<string, unknown>[] }) {
         </TableHeader>
         <TableBody>
           {rows.map((row, i) => (
-            <TableRow key={i}>
+            <TableRow key={i} className={i % 2 ? "bg-[#f4f7f5]" : undefined}>
               <TableCell className="text-xs text-slate-400">{i + 1}</TableCell>
               {headers.map((h) => (
                 <TableCell key={h} className="text-sm max-w-[240px]">{formatValue(row[h])}</TableCell>
@@ -153,22 +160,28 @@ export default function AdminHrDetail({ reportType, reportId, onBack, onEdit }: 
   }, [api, reportId]);
 
   const statusCfg = report ? STATUS_CONFIG[report.status as keyof typeof STATUS_CONFIG] : null;
-  const payload = (report?.payload ?? {}) as Record<string, unknown>;
+  const payload = normalizePayload(report?.payload);
 
   return (
     <div className="flex flex-col h-full bg-slate-50/30">
-      <div className="bg-white border-b border-border/50 px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30">
+      <div className="bg-white border-b border-border/50 px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30 gap-3">
         <div className="flex items-center gap-3 min-w-0">
-          <Button variant="ghost" size="icon" onClick={onBack} className="rounded-full shrink-0">
-            <ArrowLeft className="w-5 h-5" />
+          <Button variant="outline" size="sm" onClick={onBack} className="gap-1.5 shrink-0 font-semibold">
+            <ArrowLeft className="w-4 h-4" /> Back
           </Button>
           <div className="min-w-0">
             <h2 className="text-lg font-bold truncate">{cfg.title}</h2>
-            <p className="text-xs text-slate-500 truncate">{cfg.subtitle}</p>
+            <p className="text-xs text-slate-500 truncate">
+              {report?.reference_id || cfg.subtitle}
+            </p>
           </div>
         </div>
-        {report?.status === "draft" && onEdit && (
-          <Button variant="outline" size="sm" onClick={onEdit} className="gap-2 shrink-0">
+        {onEdit && (
+          <Button
+            size="sm"
+            onClick={onEdit}
+            className="gap-2 shrink-0 bg-[#145c3f] hover:bg-[#0f3d2e] text-white"
+          >
             <Pencil className="w-4 h-4" /> Edit
           </Button>
         )}

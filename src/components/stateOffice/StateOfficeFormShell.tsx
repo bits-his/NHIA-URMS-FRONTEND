@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Save, Send, Loader2 } from "lucide-react";
+import { Save, Send, Loader2, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
@@ -16,6 +16,7 @@ interface Props {
     saving: boolean;
     submitting: boolean;
     savedId: number | null;
+    stateId: string;
   }) => React.ReactNode;
   buildPayload: (base: Record<string, unknown>) => Record<string, unknown>;
   validate?: () => string | null;
@@ -61,7 +62,15 @@ export default function StateOfficeFormShell({
         setSavedId(v.id);
         setRefId(v.reference_id);
         header.applyHeader(v);
-        onLoaded?.(v);
+        let loaded = v;
+        if (typeof v?.payload === "string") {
+          try {
+            loaded = { ...v, payload: JSON.parse(v.payload) };
+          } catch {
+            loaded = { ...v, payload: {} };
+          }
+        }
+        onLoaded?.(loaded);
       } catch (err: any) {
         if (!cancelled) toast.error("Failed to load report", { description: err.message });
       } finally {
@@ -105,6 +114,16 @@ export default function StateOfficeFormShell({
 
   return (
     <div className="flex flex-col h-full bg-slate-50/30">
+      <div className="bg-white border-b border-border/50 px-4 md:px-6 py-3 flex items-center gap-3 sticky top-0 z-30">
+        <Button variant="outline" size="sm" onClick={onBack} className="gap-1.5 shrink-0 font-semibold">
+          <ArrowLeft className="w-4 h-4" /> Back
+        </Button>
+        {refId && (
+          <span className="text-xs font-mono font-semibold text-[#145c3f] truncate">
+            {refId}
+          </span>
+        )}
+      </div>
       <ScrollArea className="flex-1">
         <div className="w-full px-4 md:px-6 py-4 space-y-4 pb-28">
           {loadingRecord ? (
@@ -121,7 +140,7 @@ export default function StateOfficeFormShell({
                 setReportWeek={setReportWeek}
                 showGeoIds={showGeoIds}
               />
-              {children({ saving, submitting, savedId })}
+              {children({ saving, submitting, savedId, stateId: header.stateId })}
             </>
           )}
         </div>
@@ -129,8 +148,8 @@ export default function StateOfficeFormShell({
 
       {!loadingRecord && (
         <div className="sticky bottom-0 z-30 bg-white border-t border-border/50 px-4 md:px-6 py-3 flex flex-wrap items-center justify-end gap-3">
-          <Button variant="outline" onClick={onBack}>
-            Cancel
+          <Button variant="outline" onClick={onBack} className="gap-1.5">
+            <ArrowLeft className="w-4 h-4" /> Back
           </Button>
           <Button variant="ghost" size="sm" onClick={() => persist("draft")} disabled={saving} className="gap-2">
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}

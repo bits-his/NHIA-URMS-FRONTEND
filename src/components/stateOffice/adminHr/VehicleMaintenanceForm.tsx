@@ -1,7 +1,9 @@
 import * as React from "react";
 import StateOfficeFormShell from "../StateOfficeFormShell";
-import { Section, SelectField, TextInput, TextArea, EditableTable, AddRowButton, RemoveRowButton } from "./ui";
-import { MAINTENANCE_TYPES, VEHICLE_STATUSES } from "./constants";
+import {
+  Section, SelectField, TextInput, TextArea, AddRowButton, EntryCard, FormPageTitle,
+} from "./ui";
+import { MAINTENANCE_TYPES, VEHICLE_STATUSES, ADMIN_HR_CONFIG } from "./constants";
 
 const uid = () => Math.random().toString(36).slice(2);
 
@@ -36,7 +38,15 @@ export default function VehicleMaintenanceForm({ reportId, onBack, defaultZoneId
 
   const onLoaded = (v: { payload?: Record<string, unknown> }) => {
     const loaded = (v.payload?.rows as Omit<Row, "_key">[] | undefined) ?? [];
-    setRows(loaded.length ? loaded.map((r) => ({ _key: uid(), ...r })) : [emptyRow()]);
+    setRows(loaded.length ? loaded.map((r) => ({
+      _key: uid(),
+      maintenanceType: String(r.maintenanceType ?? ""),
+      problemReported: String(r.problemReported ?? ""),
+      maintenanceDate: String(r.maintenanceDate ?? "").slice(0, 10),
+      nextServiceDate: String(r.nextServiceDate ?? "").slice(0, 10),
+      vehicleStatus: String(r.vehicleStatus ?? ""),
+      remarks: String(r.remarks ?? ""),
+    })) : [emptyRow()]);
   };
 
   const title = rows.find((r) => r.maintenanceType)?.maintenanceType || "Vehicle maintenance";
@@ -57,39 +67,49 @@ export default function VehicleMaintenanceForm({ reportId, onBack, defaultZoneId
       })}
     >
       {() => (
-        <Section title="Vehicle Maintenance Register">
-          <EditableTable headers={["S/N", "Maintenance Type", "Problem Reported", "Maintenance Date", "Next Service Date", "Vehicle Status", "Remarks", ""]}>
-            {rows.map((row, i) => (
-              <tr key={row._key}>
-                <td className="px-2 py-2 text-slate-500 tabular-nums">{i + 1}</td>
-                <td className="px-2 py-2 min-w-[150px]">
-                  <SelectField value={row.maintenanceType} onChange={(v) => updateRow(row._key, "maintenanceType", v)} options={MAINTENANCE_TYPES} />
-                </td>
-                <td className="px-2 py-2 min-w-[160px]">
-                  <TextInput value={row.problemReported} onChange={(e) => updateRow(row._key, "problemReported", e.target.value)} />
-                </td>
-                <td className="px-2 py-2 min-w-[130px]">
-                  <TextInput type="date" value={row.maintenanceDate} onChange={(e) => updateRow(row._key, "maintenanceDate", e.target.value)} />
-                </td>
-                <td className="px-2 py-2 min-w-[130px]">
-                  <TextInput type="date" value={row.nextServiceDate} onChange={(e) => updateRow(row._key, "nextServiceDate", e.target.value)} />
-                </td>
-                <td className="px-2 py-2 min-w-[140px]">
-                  <SelectField value={row.vehicleStatus} onChange={(v) => updateRow(row._key, "vehicleStatus", v)} options={VEHICLE_STATUSES} />
-                </td>
-                <td className="px-2 py-2 min-w-[160px]">
-                  <TextArea value={row.remarks} onChange={(e) => updateRow(row._key, "remarks", e.target.value)} className="min-h-[60px]" />
-                </td>
-                <td className="px-2 py-2">
-                  <RemoveRowButton disabled={rows.length <= 1} onClick={() => setRows((p) => (p.length <= 1 ? p : p.filter((r) => r._key !== row._key)))} />
-                </td>
-              </tr>
-            ))}
-          </EditableTable>
-          <div className="pt-3">
+        <div className="w-full space-y-4">
+          <FormPageTitle title={ADMIN_HR_CONFIG["vehicle-maintenance"].title} />
+          <Section title="Maintenance Entries">
+            <div className="w-full space-y-4">
+              {rows.map((row, i) => (
+                <EntryCard
+                  key={row._key}
+                  index={i + 1}
+                  removeDisabled={rows.length <= 1}
+                  onRemove={() => setRows((p) => (p.length <= 1 ? p : p.filter((r) => r._key !== row._key)))}
+                >
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                    <div className="space-y-1.5 min-w-0 w-full">
+                      <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-600">Maintenance Type</p>
+                      <SelectField value={row.maintenanceType} onChange={(v) => updateRow(row._key, "maintenanceType", v)} options={MAINTENANCE_TYPES} />
+                    </div>
+                    <div className="space-y-1.5 min-w-0 w-full">
+                      <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-600">Problem Reported</p>
+                      <TextInput value={row.problemReported} onChange={(e) => updateRow(row._key, "problemReported", e.target.value)} />
+                    </div>
+                    <div className="space-y-1.5 min-w-0 w-full">
+                      <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-600">Vehicle Status</p>
+                      <SelectField value={row.vehicleStatus} onChange={(v) => updateRow(row._key, "vehicleStatus", v)} options={VEHICLE_STATUSES} />
+                    </div>
+                    <div className="space-y-1.5 min-w-0 w-full">
+                      <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-600">Maintenance Date</p>
+                      <TextInput type="date" value={row.maintenanceDate} onChange={(e) => updateRow(row._key, "maintenanceDate", e.target.value)} />
+                    </div>
+                    <div className="space-y-1.5 min-w-0 w-full">
+                      <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-600">Next Service Date</p>
+                      <TextInput type="date" value={row.nextServiceDate} onChange={(e) => updateRow(row._key, "nextServiceDate", e.target.value)} />
+                    </div>
+                    <div className="space-y-1.5 min-w-0 w-full md:col-span-2 xl:col-span-1">
+                      <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-600">Remarks</p>
+                      <TextArea value={row.remarks} onChange={(e) => updateRow(row._key, "remarks", e.target.value)} className="min-h-[72px]" />
+                    </div>
+                  </div>
+                </EntryCard>
+              ))}
+            </div>
             <AddRowButton label="Add Row" onClick={() => setRows((p) => [...p, emptyRow()])} />
-          </div>
-        </Section>
+          </Section>
+        </div>
       )}
     </StateOfficeFormShell>
   );

@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import StateOfficeFormShell from "../StateOfficeFormShell";
-import { Section, Field, TextInput, TextArea } from "./ui";
+import { Section, Field, TextInput, TextArea, FormPageTitle, Notice } from "./ui";
 import { CONFLICT_NATURES, ADMIN_HR_CONFIG } from "./constants";
 
 interface Props {
@@ -94,7 +94,12 @@ export default function ConflictInfractionForm({ reportId, onBack, defaultZoneId
     >
       {() => (
         <div className="space-y-4">
-          <Section title="1. Report Identification">
+          <FormPageTitle title="CONFLICT / INFRACTION REPORT" />
+          <Notice>
+            Escalation Path: Forward to the Zonal Coordinator within 48 hours of filing.
+            Where unresolved at Zonal level, escalate to the Director, Special Duties Office (SDO).
+          </Notice>
+          <Section title="1. REPORT IDENTIFICATION">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <Field label="Reference No. (optional)"><TextInput value={refNo} onChange={(e) => setRefNo(e.target.value)} placeholder="Auto-generated if blank" /></Field>
               <Field label="Date of Report" required><TextInput type="date" value={dateOfReport} onChange={(e) => setDateOfReport(e.target.value)} /></Field>
@@ -103,14 +108,14 @@ export default function ConflictInfractionForm({ reportId, onBack, defaultZoneId
             </div>
           </Section>
 
-          <Section title="2. Parties Involved">
+          <Section title="2. PARTIES INVOLVED">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <Field label="Staff Member 1"><TextInput value={staff1} onChange={(e) => setStaff1(e.target.value)} /></Field>
-              <Field label="Staff Member 2"><TextInput value={staff2} onChange={(e) => setStaff2(e.target.value)} /></Field>
+              <Field label="State Office Staff (1) — Name / Designation"><TextInput value={staff1} onChange={(e) => setStaff1(e.target.value)} /></Field>
+              <Field label="State Office Staff (2) — Name / Designation"><TextInput value={staff2} onChange={(e) => setStaff2(e.target.value)} /></Field>
             </div>
           </Section>
 
-          <Section title="3. Incident Details">
+          <Section title="3. INCIDENT DETAILS">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <Field label="Incident Date" required><TextInput type="date" value={incidentDate} onChange={(e) => setIncidentDate(e.target.value)} /></Field>
               <Field label="Location"><TextInput value={location} onChange={(e) => setLocation(e.target.value)} /></Field>
@@ -137,15 +142,15 @@ export default function ConflictInfractionForm({ reportId, onBack, defaultZoneId
             <Field label="Recommended Resolution"><TextArea value={recommendedResolution} onChange={(e) => setRecommendedResolution(e.target.value)} /></Field>
           </Section>
 
-          <Section title="4. Escalation">
+          <Section title="4. ESCALATION">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <Field label="Escalated To"><TextInput value={escalatedTo} onChange={(e) => setEscalatedTo(e.target.value)} /></Field>
+              <Field label="Escalated To (Zonal Coordinator — Name)"><TextInput value={escalatedTo} onChange={(e) => setEscalatedTo(e.target.value)} /></Field>
               <Field label="Date Escalated"><TextInput type="date" value={dateEscalated} onChange={(e) => setDateEscalated(e.target.value)} /></Field>
               <Field label="Expected Response Date"><TextInput type="date" value={expectedResponseDate} onChange={(e) => setExpectedResponseDate(e.target.value)} /></Field>
             </div>
           </Section>
 
-          <Section title="5. Certification">
+          <Section title="5. CERTIFICATION & SIGNATURES">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
               <Field label="Prepared By"><TextInput value={preparedBy} onChange={(e) => setPreparedBy(e.target.value)} /></Field>
               <Field label="Designation"><TextInput value={designation} onChange={(e) => setDesignation(e.target.value)} /></Field>
