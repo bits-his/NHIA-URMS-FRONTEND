@@ -24,12 +24,17 @@ interface Props {
   /** Optional reporting week for weekly-actionable forms */
   reportWeek?: string;
   setReportWeek?: (v: string) => void;
+  /** Show Zone ID / State ID next to the geo dropdowns (enrollee register) */
+  showGeoIds?: boolean;
+  afterPersist?: (saved: { id: number }) => Promise<void>;
 }
 
 export default function StateOfficeFormShell({
   reportId, onBack, defaultZoneId, defaultStateId, children,
   buildPayload, validate, reportType, onLoaded,
   reportWeek, setReportWeek,
+  showGeoIds,
+  afterPersist,
 }: Props) {
   const api = stateOfficeApi[reportType];
   const header = useStateOfficeHeader(defaultZoneId, defaultStateId);
@@ -86,6 +91,9 @@ export default function StateOfficeFormShell({
         setSavedId(res.data.id);
       }
       setRefId(res.data.reference_id);
+      if (afterPersist) {
+        await afterPersist({ id: res.data.id });
+      }
       toast.success(status === "draft" ? "Draft saved" : "Report submitted", {
         description: `Ref: ${res.data.reference_id}`,
       });
@@ -111,6 +119,7 @@ export default function StateOfficeFormShell({
                 lockState={header.lockState}
                 reportWeek={reportWeek}
                 setReportWeek={setReportWeek}
+                showGeoIds={showGeoIds}
               />
               {children({ saving, submitting, savedId })}
             </>

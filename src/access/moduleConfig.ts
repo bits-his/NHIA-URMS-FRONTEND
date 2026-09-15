@@ -194,6 +194,7 @@ export const MODULE_CONFIG: ParentModule[] = [
         { title: "Stock Verification Dashboard", view: "stock-verification-dashboard", path: "/sdo/stock-dashboard" },
         { title: "Physical Asset Verification", view: "store-verification-verify", path: "/store-management/verification/verify" },
         { title: "Verification of Supply",      view: "store-supply-verification", path: "/store-management/verification/supply" },
+        { title: "Prepayment Analysis Register", view: "store-prepayment-analysis", path: "/store-management/prepayment-analysis" },
         { type: "group", label: "Store Management", children: [
           { title: "Inventory Register",          view: "store-inventory-catalog",   path: "/store-management/inventory/items" },
             { title: "Capitalisation & Issuance",   view: "store-asset-transfers",     path: "/store-management/transfers/requests" },
@@ -215,8 +216,12 @@ export const MODULE_CONFIG: ParentModule[] = [
     roles: "all",
     children: [
       { title: "SOC/Zones Dashboard", view: "soc-zones-dashboard", path: "/soc/dashboard" },
+      { title: "State/Zonal Office Profile", view: "soc-office-profile", path: "/soc/office-profile" },
+      { title: "State/Zonal Focal Persons Register", view: "soc-focal-persons", path: "/soc/focal-persons" },
       { title: "Weekly Actionable", view: "state-weekly-actionable", path: "/soc/weekly-actionable" },
       { title: "Contracted Services", view: "state-contracted-services", path: "/soc/contracted-services" },
+      { title: "Monthly Enrollee Register", view: "state-enrollee-register", path: "/soc/enrollee-register" },
+      { title: "ETMC/TMC Action-Point Register", view: "state-etmc-tmc-action-point", path: "/soc/etmc-tmc-action-point" },
       { title: "Operation Monitoring Visit", view: "soc-operation-monitoring-visit", path: "/soc/operation-monitoring-visit" },
       { title: "Spot Check Visit", view: "soc-spot-check-visit", path: "/soc/spot-check-visit" },
     ],

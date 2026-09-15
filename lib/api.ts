@@ -20,6 +20,30 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   return json;
 }
 
+const API_ORIGIN = BASE_URL.replace(/\/api\/?$/, "");
+
+export function apiFileUrl(rel?: string | null) {
+  if (!rel) return "";
+  if (/^https?:\/\//i.test(rel)) return rel;
+  return `${API_ORIGIN}${rel.startsWith("/") ? rel : `/${rel}`}`;
+}
+
+async function requestForm<T>(path: string, method: "POST" | "PUT", form: FormData): Promise<T> {
+  const token = tokenStore.get();
+  const res = await fetch(`${BASE_URL}${path}`, {
+    method,
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: form,
+  });
+  const json = await res.json();
+  if (!res.ok) {
+    const msg =
+      json?.errors?.[0]?.msg || json?.message || json?.error || `Request failed (${res.status})`;
+    throw new Error(msg);
+  }
+  return json;
+}
+
 // ─── Annual Reports ───────────────────────────────────────────────────────────
 
 export interface AnnualReportPayload {
@@ -540,7 +564,8 @@ export const servicomApi = {
 export type StateOfficeReportType =
   | "enrolment" | "migration" | "cemonc"
   | "complaints" | "accreditation" | "stakeholder" | "hmo-selection" | "challenges"
-  | "igr" | "sshia-financial" | "expenditure-profile";
+  | "igr" | "sshia-financial" | "expenditure-profile"
+  | "weekly-actionable" | "contracted-services" | "enrollee-register" | "etmc-tmc-action-point";
 
 const makeStateOfficeApi = (type: StateOfficeReportType) => ({
   list: (filters?: { state_id?: string; zone_id?: string; year?: string; month?: string; status?: string }) => {
@@ -579,6 +604,24 @@ export const stateOfficeApi = {
   "expenditure-profile": makeStateOfficeApi("expenditure-profile"),
   "weekly-actionable": makeStateOfficeApi("weekly-actionable"),
   "contracted-services": makeStateOfficeApi("contracted-services"),
+  "enrollee-register": makeStateOfficeApi("enrollee-register"),
+  "etmc-tmc-action-point": {
+    ...makeStateOfficeApi("etmc-tmc-action-point"),
+    uploadDocument: (id: number | string, file: File) => {
+      const token = tokenStore.get();
+      const form = new FormData();
+      form.append("file", file);
+      return fetch(`${BASE_URL}/state-office/etmc-tmc-action-point/reports/${id}/document`, {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: form,
+      }).then(async (res) => {
+        const json = await res.json();
+        if (!res.ok) throw new Error(json?.message || "Upload failed");
+        return json as { success: boolean; data: any };
+      });
+    },
+  },
 };
 
 const stateOfficeFilters = (filters?: Record<string, string | undefined>) => {
@@ -620,6 +663,44 @@ export const stateOfficeEnrolleeComplaintsApi = {
     }),
   update: (id: number | string, payload: any) =>
     request<{ success: boolean; data: any }>(`/state-office/enrollee-complaints/${id}`, {
+      method: "PUT", body: JSON.stringify(payload),
+    }),
+};
+
+export const stateZonalOfficeProfileApi = {
+  list: (filters?: { state_id?: string; zone_id?: string; year?: string; q?: string }) =>
+    request<{ success: boolean; data: any[] }>(
+      `/state-office/office-profiles${stateOfficeFilters(filters)}`,
+    ),
+  get: (id: number | string) =>
+    request<{ success: boolean; data: any }>(`/state-office/office-profiles/${id}`),
+  save: (payload: Record<string, string | number | null | undefined>, file?: File | null, id?: number | string | null) => {
+    const form = new FormData();
+    Object.entries(payload).forEach(([k, v]) => {
+      if (v === undefined || v === null) return;
+      form.append(k, String(v));
+    });
+    if (file) form.append("aop", file);
+    if (id) {
+      return requestForm<{ success: boolean; data: any }>(`/state-office/office-profiles/${id}`, "PUT", form);
+    }
+    return requestForm<{ success: boolean; data: any }>("/state-office/office-profiles", "POST", form);
+  },
+};
+
+export const stateZonalFocalPersonApi = {
+  list: (filters?: { state_id?: string; zone_id?: string; year?: string; domain?: string; q?: string }) =>
+    request<{ success: boolean; data: any[] }>(
+      `/state-office/focal-persons${stateOfficeFilters(filters)}`,
+    ),
+  get: (id: number | string) =>
+    request<{ success: boolean; data: any }>(`/state-office/focal-persons/${id}`),
+  create: (payload: any) =>
+    request<{ success: boolean; data: any }>("/state-office/focal-persons", {
+      method: "POST", body: JSON.stringify(payload),
+    }),
+  update: (id: number | string, payload: any) =>
+    request<{ success: boolean; data: any }>(`/state-office/focal-persons/${id}`, {
       method: "PUT", body: JSON.stringify(payload),
     }),
 };

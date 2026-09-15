@@ -12,6 +12,10 @@ import WeeklyActionableForm from "./WeeklyActionableForm";
 import WeeklyActionableDetail from "./WeeklyActionableDetail";
 import ContractedServicesForm from "./ContractedServicesForm";
 import ContractedServicesDetail from "./ContractedServicesDetail";
+import EnrolleeRegisterForm from "./EnrolleeRegisterForm";
+import EnrolleeRegisterDetail from "./EnrolleeRegisterDetail";
+import EtmcTmcActionPointForm from "./EtmcTmcActionPointForm";
+import EtmcTmcActionPointDetail from "./EtmcTmcActionPointDetail";
 
 const EXTENDED_DETAIL = new Set<StateOfficeReportType>([
   "complaints", "accreditation", "stakeholder", "hmo-selection", "challenges",
@@ -28,6 +32,8 @@ const FORM_COMPONENTS: Partial<Record<StateOfficeReportType, React.ComponentType
   challenges: ChallengesReportForm,
   "weekly-actionable": WeeklyActionableForm,
   "contracted-services": ContractedServicesForm,
+  "enrollee-register": EnrolleeRegisterForm,
+  "etmc-tmc-action-point": EtmcTmcActionPointForm,
 };
 
 export function StateOfficeFormRouter(props: {
@@ -52,6 +58,12 @@ export function StateOfficeDetailRouter(props: {
   }
   if (props.reportType === "contracted-services") {
     return <ContractedServicesDetail {...props} />;
+  }
+  if (props.reportType === "enrollee-register") {
+    return <EnrolleeRegisterDetail {...props} />;
+  }
+  if (props.reportType === "etmc-tmc-action-point") {
+    return <EtmcTmcActionPointDetail {...props} />;
   }
   if (EXTENDED_DETAIL.has(props.reportType)) {
     return <ExtendedReportDetail {...props} />;
