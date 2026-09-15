@@ -9,7 +9,7 @@ export const LOOKUPS: any = {
   depreciationMethods: ["Straight-Line", "Declining Balance", "None"],
   operationalStatuses: ["Active (in-use)", "In Store", "Under Repair", "Obsolete", "Retired", "Disposed"],
   physicalConditions: ["Excellent", "Good", "Fair", "Poor", "Defective", "Damaged", "Missing", "Obsolete", "Retired"],
-  verificationStatuses: ["Verified & Passed", "Partial Pass", "Failed", "Unverified", "Missing"],
+  verificationStatuses: ["Verified", "Unverified", "Missing", "Verified & Passed", "Partial Pass", "Failed"],
   approvalStatuses: ["Pending", "Approved", "Rejected"],
   taggingMethods: ["Barcode", "QR Code", "RFID", "Title Doc"],
 

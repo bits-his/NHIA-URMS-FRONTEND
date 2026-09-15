@@ -86,6 +86,9 @@ import VerifyAssetView from "../modules/store_management/pages/verification/Veri
 import PhysicalAssetVerificationDetailView from "../modules/store_management/pages/verification/PhysicalAssetVerificationDetailView";
 import VerificationCertificateView from "../modules/store_management/pages/verification/VerificationCertificateView";
 import ExceptionsView from "../modules/store_management/pages/verification/ExceptionsView";
+import PrepaymentAnalysisListView from "../modules/store_management/pages/PrepaymentAnalysisListView";
+import NewPrepaymentAnalysisView from "../modules/store_management/pages/NewPrepaymentAnalysisView";
+import PrepaymentAnalysisDetailView from "../modules/store_management/pages/PrepaymentAnalysisDetailView";
 import MaintenanceView from "../modules/store_management/pages/MaintenanceView";
 import AssetDisposalView from "../modules/store_management/pages/AssetDisposalView";
 import AssetReportsView from "../modules/store_management/pages/AssetReportsView";
@@ -634,6 +637,10 @@ export default function Dashboard({ role, user, access = [], functionalities = "
             <Route path="/store-management/verification/verify/:id" element={<PhysicalAssetVerificationDetailView />} />
             <Route path="/store-management/verification/certificates" element={<VerificationCertificateView />} />
             <Route path="/store-management/verification/exceptions" element={<ExceptionsView />} />
+            <Route path="/store-management/prepayment-analysis" element={<PrepaymentAnalysisListView />} />
+            <Route path="/store-management/prepayment-analysis/new" element={<NewPrepaymentAnalysisView />} />
+            <Route path="/store-management/prepayment-analysis/:id" element={<PrepaymentAnalysisDetailView />} />
+
             <Route path="/store-management/maintenance/repairs" element={<MaintenanceView />} />
             <Route path="/store-management/disposal/records" element={<AssetDisposalView />} />
             <Route path="/store-management/reports/analytics" element={<AssetReportsView />} />
