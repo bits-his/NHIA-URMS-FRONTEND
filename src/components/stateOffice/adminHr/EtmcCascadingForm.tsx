@@ -65,11 +65,11 @@ export default function EtmcCascadingForm({ reportId, onBack, defaultZoneId, def
     setPersonLeading(String(p.personLeading ?? ""));
     setStaffStrength(p.staffStrength != null ? String(p.staffStrength) : "");
     setStaffPresent(p.staffPresent != null ? String(p.staffPresent) : "");
-    setHighlights((p.highlights as Row[] | undefined)?.map((r) => ({ _key: uid(), ...r })) ?? []);
-    setDepartments((p.departments as Row[] | undefined)?.map((r) => ({ _key: uid(), ...r })) ?? []);
-    setResolutions((p.resolutions as Row[] | undefined)?.map((r) => ({ _key: uid(), ...r })) ?? []);
-    setComments((p.comments as Row[] | undefined)?.map((r) => ({ _key: uid(), ...r })) ?? []);
-    setFeedback((p.feedback as Row[] | undefined)?.map((r) => ({ _key: uid(), ...r })) ?? []);
+    setHighlights((p.highlights as Row[] | undefined)?.map((r) => ({ ...r, _key: uid() })) ?? []);
+    setDepartments((p.departments as Row[] | undefined)?.map((r) => ({ ...r, _key: uid() })) ?? []);
+    setResolutions((p.resolutions as Row[] | undefined)?.map((r) => ({ ...r, _key: uid() })) ?? []);
+    setComments((p.comments as Row[] | undefined)?.map((r) => ({ ...r, _key: uid() })) ?? []);
+    setFeedback((p.feedback as Row[] | undefined)?.map((r) => ({ ...r, _key: uid() })) ?? []);
     const ev = (p.evidence ?? {}) as Record<string, string>;
     setEvidence({
       attendanceList: ev.attendanceList ?? "", minutes: ev.minutes ?? "", presentation: ev.presentation ?? "",

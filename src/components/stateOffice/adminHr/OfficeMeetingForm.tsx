@@ -67,10 +67,10 @@ export default function OfficeMeetingForm({ reportId, onBack, defaultZoneId, def
     setStaffStrength(p.staffStrength != null ? String(p.staffStrength) : "");
     setAttendeesCount(p.attendeesCount != null ? String(p.attendeesCount) : "");
     setAttendanceNote(String(p.attendanceNote ?? ""));
-    setKeyIssues((p.keyIssues as Row[] | undefined)?.map((r) => ({ _key: uid(), ...r })) ?? []);
-    setDecisions((p.decisions as Row[] | undefined)?.map((r) => ({ _key: uid(), ...r })) ?? []);
-    setFollowups((p.followups as Row[] | undefined)?.map((r) => ({ _key: uid(), ...r })) ?? []);
-    setMatters((p.matters as Row[] | undefined)?.map((r) => ({ _key: uid(), ...r })) ?? []);
+    setKeyIssues((p.keyIssues as Row[] | undefined)?.map((r) => ({ ...r, _key: uid() })) ?? []);
+    setDecisions((p.decisions as Row[] | undefined)?.map((r) => ({ ...r, _key: uid() })) ?? []);
+    setFollowups((p.followups as Row[] | undefined)?.map((r) => ({ ...r, _key: uid() })) ?? []);
+    setMatters((p.matters as Row[] | undefined)?.map((r) => ({ ...r, _key: uid() })) ?? []);
     const eff = (p.effectiveness ?? {}) as Record<string, string>;
     setEffectiveness({
       previousReviewed: eff.previousReviewed ?? "",
