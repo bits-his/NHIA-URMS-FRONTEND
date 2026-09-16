@@ -21,6 +21,8 @@ export const ROUTE_CONFIG: RouteConfig[] = [
   { path: "/sdo/coordination",            label: "State Office Coordination", module: "SDO",               functionality: "State Office Coordination" },
   { path: "/sdo/stock",                   label: "Stock Verification",        module: "SDO",               functionality: "Stock Verification"        },
   { path: "/zonal/monitoring-visits",       label: "Monitoring Visits",             module: "Zonal", functionality: "Monitoring Visits"             },
+  { path: "/zonal/hmo-indebtedness",        label: "HMO Indebtedness Collation",    module: "Zonal", functionality: "HMO Indebtedness Collation"    },
+  { path: "/zonal/mystery-shopping",        label: "Mystery Shopping",              module: "Zonal", functionality: "Mystery Shopping"              },
   { path: "/sdo/servicom",                label: "SERVICOM Dashboard",        module: "SDO",               functionality: "SERVICOM Dashboard"        },
   { path: "/sdo/servicom/complaints",     label: "Complaints Management",         module: "SDO", functionality: "Complaints Management"         },
   { path: "/sdo/servicom/satisfaction",   label: "HCF Customer Satisfaction",  module: "SDO", functionality: "HCF Customer Satisfaction"  },

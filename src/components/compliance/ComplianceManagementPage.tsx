@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
-import { complianceApi, stockApi } from "@/lib/api";
+import { complianceApi, stockApi, apiFileUrl } from "@/lib/api";
 import { useAppSelector } from "@/src/store/hooks";
 import { buildReportingYearOptions } from "../monthly/reportingYears";
 import { ALL_STATES, useMonthlyStateFilter } from "../monthly/useMonthlyStateFilter";
@@ -124,6 +124,9 @@ export default function ComplianceManagementPage({ onBack, defaultZoneId, defaul
   const [statusConfirmed, setStatusConfirmed] = React.useState("pending");
   const [followUp, setFollowUp] = React.useState(false);
   const [certification, setCertification] = React.useState("");
+  const [certificationFile, setCertificationFile] = React.useState<File | null>(null);
+  const [existingCertName, setExistingCertName] = React.useState<string | null>(null);
+  const [removeCertification, setRemoveCertification] = React.useState(false);
   const [stateRemarks, setStateRemarks] = React.useState("");
 
   const [facilityName, setFacilityName] = React.useState("");
@@ -142,7 +145,7 @@ export default function ComplianceManagementPage({ onBack, defaultZoneId, defaul
   const [violations, setViolations] = React.useState<Violation[]>([]);
   const [enforcements, setEnforcements] = React.useState<Enforcement[]>([]);
 
-  const [findingDraft, setFindingDraft] = React.useState({ section: "", indicator: "", status: "fully_compliant", remarks: "" });
+  const [findingDraft, setFindingDraft] = React.useState({ section: "", indicators: [] as string[], statuses: ["fully_compliant"], remarks: "" });
   const [violationDraft, setViolationDraft] = React.useState({ nature_of_violation: "", nhia_act_section: "", occurrences: "", action_taken: "" });
   const [enforcementDraft, setEnforcementDraft] = React.useState({ enforcement_action: "", details: "" });
   const [formStep, setFormStep] = React.useState<FormStep>("header");
@@ -288,7 +291,7 @@ export default function ComplianceManagementPage({ onBack, defaultZoneId, defaul
     setOfficerName(authUser?.name ?? ""); setOfficerStaffId(authUser?.staff_id ?? "");
     setSubmitDate(new Date().toISOString().slice(0, 10));
     setReviewedBy(""); setStatusConfirmed("pending"); setFollowUp(false);
-    setCertification(""); setStateRemarks("");
+    setCertification(""); setCertificationFile(null); setExistingCertName(null); setRemoveCertification(false); setStateRemarks("");
     setFacilityProviderId(""); setFacilityName(""); setFacilityCode(""); setFacilityType("");
     setOwnership(""); setFacilityAddress("");
     setComplaintsReceived(""); setComplaintCategories([]);
@@ -312,6 +315,9 @@ export default function ComplianceManagementPage({ onBack, defaultZoneId, defaul
     setSubmitDate(v.date_submitted?.slice(0, 10) ?? "");
     setReviewedBy(v.reviewed_by ?? ""); setStatusConfirmed(v.compliance_status_confirmed ?? "pending");
     setFollowUp(!!v.follow_up_required); setCertification(v.certification ?? "");
+    setCertificationFile(null);
+    setExistingCertName(v.certification_original_name || (v.certification_file_path ? "Certification" : null));
+    setRemoveCertification(false);
     setStateRemarks(v.state_office_remarks ?? "");
     setFacilityName(v.facility_name ?? ""); setFacilityCode(v.facility_code ?? "");
     setFacilityProviderId("");
@@ -353,11 +359,12 @@ export default function ComplianceManagementPage({ onBack, defaultZoneId, defaul
     return {
       zone_id: Number(zoneId), state_id: Number(stateId),
       reporting_year: derivedYear, reporting_week: derivedWeek,
-      officer_name: authUser?.name ?? officerName,
-      officer_staff_id: authUser?.staff_id ?? officerStaffId,
+      officer_name: officerName || null,
+      officer_staff_id: officerStaffId || null,
       date_submitted: submitDate || null, reviewed_by: reviewedBy || null,
       compliance_status_confirmed: statusConfirmed,
       follow_up_required: followUp, certification: certification || null,
+      remove_certification: removeCertification ? "true" : undefined,
       facility_name: facilityName, facility_code: facilityCode,
       facility_type: facilityType, ownership, facility_address: facilityAddress,
       complaints_received: Number(complaintsReceived) || 0,
@@ -413,7 +420,12 @@ export default function ComplianceManagementPage({ onBack, defaultZoneId, defaul
       if (!zoneId) return "Select zone";
       if (!stateId) return "Select state";
       if (!submitDate) return "Date submitted is required";
-      if (!facilityProviderId && !facilityName.trim()) return "Select a facility";
+      if (!officerName.trim()) return "Compliance officer is required";
+      if (!officerStaffId.trim()) return "Staff ID is required";
+      if (!facilityProviderId && !facilityName.trim()) return "Select or enter a facility";
+      if (!facilityCode.trim()) return "Facility code is required";
+      if (!facilityType) return "Select facility type";
+      if (!facilityAddress.trim()) return "Facility address is required";
       if (!ownership) return "Select ownership";
     }
     if (step === "findings" && findings.length === 0) {
@@ -462,13 +474,16 @@ export default function ComplianceManagementPage({ onBack, defaultZoneId, defaul
     try {
       const payload = buildPayload("draft");
       const res = selectedId
-        ? await complianceApi.update(selectedId, payload)
-        : await complianceApi.create(payload);
+        ? await complianceApi.update(selectedId, payload, certificationFile)
+        : await complianceApi.create(payload, certificationFile);
       const report = res.data;
       if (!report?.id) throw new Error("Save failed — no report returned");
       setSelectedId(report.id);
       setRefId(report.reference_id ?? null);
       setReportStatus(report.status ?? "draft");
+      setCertificationFile(null);
+      setExistingCertName(report.certification_original_name || (report.certification_file_path ? "Certification" : null));
+      setRemoveCertification(false);
       setComplaintCategories(parseComplaintCategories(report.complaint_categories));
       toast.success(opts?.toastMsg ?? "Draft saved", {
         description: report.reference_id ?? undefined,
@@ -510,8 +525,8 @@ export default function ComplianceManagementPage({ onBack, defaultZoneId, defaul
     try {
       const payload = buildPayload("submitted");
       const res = selectedId
-        ? await complianceApi.update(selectedId, payload)
-        : await complianceApi.create(payload);
+        ? await complianceApi.update(selectedId, payload, certificationFile)
+        : await complianceApi.create(payload, certificationFile);
       toast.success("Report submitted", { description: res.data.reference_id });
       setMode("list");
       resetForm();
@@ -594,8 +609,11 @@ export default function ComplianceManagementPage({ onBack, defaultZoneId, defaul
               <CardDescription>Q{v.reporting_quarter ?? quarterFromWeek(Number(v.reporting_week))} · {v.reporting_year}</CardDescription>
             </CardHeader>
             <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-6">
+              <InfoField label="Report ID" value={v.reference_id ?? "—"} />
               <InfoField label="Zone" value={v.zone?.description ?? "—"} />
               <InfoField label="State" value={v.state?.description ?? "—"} />
+              <InfoField label="Reporting Week" value={v.reporting_week ? `W${String(v.reporting_week).padStart(2, "0")}` : "—"} />
+              <InfoField label="Reporting Quarter" value={`Q${v.reporting_quarter ?? quarterFromWeek(Number(v.reporting_week))}`} />
               <InfoField label="Reporting Year" value={String(v.reporting_year ?? "—")} />
               <InfoField label="Compliance Officer" value={v.officer_name ?? "—"} />
               <InfoField label="Staff ID" value={v.officer_staff_id ?? "—"} />
@@ -605,6 +623,14 @@ export default function ComplianceManagementPage({ onBack, defaultZoneId, defaul
               <div className="md:col-span-2">
                 <InfoField label="Certification" value={v.certification ?? "—"} />
               </div>
+              {v.certification_file_path && (
+                <div className="md:col-span-2">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Certification file</p>
+                  <a className="text-sm font-semibold text-primary hover:underline" href={apiFileUrl(v.certification_file_path)} target="_blank" rel="noreferrer">
+                    {v.certification_original_name || "Open certification"}
+                  </a>
+                </div>
+              )}
               {v.reviewed_by && <InfoField label="Reviewed By" value={v.reviewed_by} />}
             </CardContent>
           </Card>
@@ -736,7 +762,7 @@ export default function ComplianceManagementPage({ onBack, defaultZoneId, defaul
         refId={refId}
         reportRegistered={!!selectedId}
         reportStatus={reportStatus}
-        reportWeek={reportWeek}
+        reportWeek={String(submitDate ? currentISOWeek(new Date(submitDate)) : reportWeek)}
         formStep={formStep}
         setFormStep={setFormStep}
         saving={saving}
@@ -752,6 +778,7 @@ export default function ComplianceManagementPage({ onBack, defaultZoneId, defaul
         onStateChange={handleStateChange}
         reportYear={reportYear}
         setReportYear={setReportYear}
+        reportQuarter={String(quarterFromWeek(Number(submitDate ? currentISOWeek(new Date(submitDate)) : reportWeek)))}
         officerName={officerName}
         setOfficerName={setOfficerName}
         officerStaffId={officerStaffId}
@@ -764,10 +791,16 @@ export default function ComplianceManagementPage({ onBack, defaultZoneId, defaul
         setFollowUp={setFollowUp}
         certification={certification}
         setCertification={setCertification}
+        certificationFile={certificationFile}
+        setCertificationFile={(f) => { setCertificationFile(f); if (f) setRemoveCertification(false); }}
+        existingCertName={existingCertName}
+        onRemoveCert={() => { setCertificationFile(null); setExistingCertName(null); setRemoveCertification(true); }}
         facilityProviderId={facilityProviderId}
         onFacilitySelect={handleFacilitySelect}
         facilityName={facilityName}
+        setFacilityName={setFacilityName}
         facilityCode={facilityCode}
+        setFacilityCode={setFacilityCode}
         facilityType={facilityType}
         setFacilityType={setFacilityType}
         ownership={ownership}

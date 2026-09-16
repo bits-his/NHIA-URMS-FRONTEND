@@ -256,6 +256,8 @@ export const MODULE_CONFIG: ParentModule[] = [
       ]},
       { type: "group", label: "Complaint / Compliance", children: [
         { title: "Monitoring Visits", view: "servicom-visits", path: "/zonal/monitoring-visits" },
+        { title: "HMO Indebtedness Collation", view: "state-hmo-indebtedness", path: "/zonal/hmo-indebtedness" },
+        { title: "Mystery Shopping", view: "state-mystery-shopping", path: "/zonal/mystery-shopping" },
       ]},
       { type: "group", label: "Finance", children: [
         { title: "IGR", view: "state-igr", path: "/zonal/igr" },

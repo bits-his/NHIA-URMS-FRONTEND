@@ -3,11 +3,11 @@ import { Link, useLocation } from "react-router-dom";
 import {
   ChevronDown, ChevronRight, Settings, Home, BarChart3, FileText,
   CheckSquare, Banknote, ShieldCheck, Wifi, LayoutGrid, Briefcase,
-  Bell, Users, ClipboardList, PackageSearch,
+  Bell, Users, ClipboardList, PackageSearch, Search,
   FolderKanban, Radio, Wrench, MapPin, Scale, Megaphone, BookOpen,
   Activity, TrendingUp, Boxes, PlusCircle, ListFilter, ArrowRightLeft,
   Trash2, Receipt, Send, Warehouse, RotateCcw, PackageCheck, QrCode,
-  FileCheck, AlertTriangle, FileSpreadsheet, Building, ShieldAlert,
+  FileCheck, AlertTriangle, FileSpreadsheet, Building, ShieldAlert, Wallet,
 } from "lucide-react";
 import type { AccessEntry } from "@/src/access/types";
 import { MODULE_CONFIG, SOC_ZONES_MODULE, type ChildModule, type SubGroup, hasRoutableView, flatLeaves, moduleConfigForAccess, isSubGroup, modulesVisibleToAdmin, adminAllowedTitlesForModule } from "@/src/access/moduleConfig";
@@ -55,6 +55,8 @@ const ALL_ITEM_ICONS: Record<string, React.ReactNode> = {
   "Stock Assets":            <PackageSearch className="w-4 h-4" />,
   "SERVICOM Dashboard":      <Activity className="w-4 h-4" />,
   "Monitoring Visits":       <MapPin className="w-4 h-4" />,
+  "HMO Indebtedness Collation": <Wallet className="w-4 h-4" />,
+  "Mystery Shopping":        <Search className="w-4 h-4" />,
   "Complaints":              <Scale className="w-4 h-4" />,
   "Satisfaction Ratings":    <TrendingUp className="w-4 h-4" />,
   "Comment Cards":           <Megaphone className="w-4 h-4" />,
@@ -74,6 +76,8 @@ const PATH_TO_VIEW: Record<string, string> = {
   "/sdo/servicom":                "servicom-dashboard",
   "/sdo/servicom/visits":         "servicom-visits",
   "/zonal/monitoring-visits":    "servicom-visits",
+  "/zonal/hmo-indebtedness":     "state-hmo-indebtedness",
+  "/zonal/mystery-shopping":     "state-mystery-shopping",
   "/soc/operation-monitoring-visit": "soc-operation-monitoring-visit",
   "/soc/spot-check-visit":        "soc-spot-check-visit",
   "/sdo/servicom/complaints":     "servicom-complaints",

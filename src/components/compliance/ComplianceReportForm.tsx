@@ -13,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import AccreditedProviderSelect from "../stateOffice/AccreditedProviderSelect";
 import {
-  OWNERSHIP_OPTIONS, COMPLAINT_CATEGORIES,
+  OWNERSHIP_OPTIONS, FACILITY_TYPE_OPTIONS, COMPLAINT_CATEGORIES,
   ESCALATION_OPTIONS, ENFORCEMENT_ACTIONS, COMPLIANCE_SECTIONS,
   COMPLIANCE_RATINGS, CONFIRMATION_OPTIONS,
   quarterFromWeek, ratingLabel,
@@ -78,6 +78,11 @@ export interface ComplianceReportFormProps {
   setOfficerStaffId: (v: string) => void;
   submitDate: string;
   setSubmitDate: (v: string) => void;
+  reportQuarter: string;
+  certificationFile: File | null;
+  setCertificationFile: (f: File | null) => void;
+  existingCertName: string | null;
+  onRemoveCert: () => void;
   statusConfirmed: string;
   setStatusConfirmed: (v: string) => void;
   followUp: boolean;
@@ -87,7 +92,9 @@ export interface ComplianceReportFormProps {
   facilityProviderId: string;
   onFacilitySelect: (p: { id: string; name: string; code: string; address?: string | null; facility_type?: string | null } | null) => void;
   facilityName: string;
+  setFacilityName: (v: string) => void;
   facilityCode: string;
+  setFacilityCode: (v: string) => void;
   facilityType: string;
   setFacilityType: (v: string) => void;
   ownership: string;
@@ -96,8 +103,8 @@ export interface ComplianceReportFormProps {
   setFacilityAddress: (v: string) => void;
   findings: Finding[];
   setFindings: React.Dispatch<React.SetStateAction<Finding[]>>;
-  findingDraft: { section: string; indicator: string; status: string; remarks: string };
-  setFindingDraft: React.Dispatch<React.SetStateAction<{ section: string; indicator: string; status: string; remarks: string }>>;
+  findingDraft: { section: string; indicators: string[]; statuses: string[]; remarks: string };
+  setFindingDraft: React.Dispatch<React.SetStateAction<{ section: string; indicators: string[]; statuses: string[]; remarks: string }>>;
   sectionIndicators: string[];
   complaintsReceived: string;
   setComplaintsReceived: (v: string) => void;
@@ -136,10 +143,11 @@ export default function ComplianceReportForm(props: ComplianceReportFormProps) {
     zones, stateOpts, zoneId, stateId, zoneDisplay, stateDisplay,
     onZoneChange, onStateChange, reportYear, setReportYear,
     officerName, setOfficerName, officerStaffId, setOfficerStaffId,
-    submitDate, setSubmitDate, statusConfirmed, setStatusConfirmed,
+    submitDate, setSubmitDate, reportQuarter, statusConfirmed, setStatusConfirmed,
     followUp, setFollowUp, certification, setCertification,
-    facilityProviderId, onFacilitySelect, facilityName, facilityCode,
-    facilityType, setFacilityType, ownership, setOwnership,
+    certificationFile, setCertificationFile, existingCertName, onRemoveCert,
+    facilityProviderId, onFacilitySelect, facilityName, setFacilityName,
+    facilityCode, setFacilityCode, facilityType, setFacilityType, ownership, setOwnership,
     facilityAddress, setFacilityAddress,
     findings, setFindings, findingDraft, setFindingDraft, sectionIndicators,
     complaintsReceived, setComplaintsReceived, resolvedAtFacility, setResolvedAtFacility,
@@ -259,10 +267,36 @@ export default function ComplianceReportForm(props: ComplianceReportFormProps) {
                   onChange={e => setSubmitDate(e.target.value)} />
               )}
             </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Report ID</Label>
+              <Input className={readOnlyCls} value={refId || "Auto-generated on save"} readOnly />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Reporting Week</Label>
+              <Input className={readOnlyCls} value={reportWeek ? `W${String(reportWeek).padStart(2, "0")}` : "—"} readOnly />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Reporting Quarter</Label>
+              <Input className={readOnlyCls} value={reportQuarter ? `Q${reportQuarter}` : "—"} readOnly />
+            </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-slate-100">
-            <ReadOnlyText label="Compliance Officer" value={officerName} />
-            <ReadOnlyText label="Staff ID" value={officerStaffId} />
+            <div className="space-y-1.5">
+              {readOnly ? <Label className="text-xs">Compliance Officer</Label> : <ReqLabel>Compliance Officer</ReqLabel>}
+              {readOnly ? (
+                <Input className={readOnlyCls} value={officerName} readOnly />
+              ) : (
+                <Input className={inputCls} value={officerName} onChange={e => setOfficerName(e.target.value)} />
+              )}
+            </div>
+            <div className="space-y-1.5">
+              {readOnly ? <Label className="text-xs">Staff ID</Label> : <ReqLabel>Staff ID</ReqLabel>}
+              {readOnly ? (
+                <Input className={readOnlyCls} value={officerStaffId} readOnly />
+              ) : (
+                <Input className={inputCls} value={officerStaffId} onChange={e => setOfficerStaffId(e.target.value)} />
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -290,6 +324,12 @@ export default function ComplianceReportForm(props: ComplianceReportFormProps) {
                 onChange={onFacilitySelect}
                 disabled={!stateId}
               />
+              <Input
+                className={`${inputCls} mt-2`}
+                value={facilityName}
+                onChange={e => setFacilityName(e.target.value)}
+                placeholder="Or type facility name"
+              />
               {!facilityProviderId && facilityName && (
                 <p className="text-xs text-amber-700">Saved facility: {facilityName}. Select from the list to refresh details.</p>
               )}
@@ -297,10 +337,23 @@ export default function ComplianceReportForm(props: ComplianceReportFormProps) {
           )}
         </div>
         <div className="space-y-1.5">
-          <ReadOnlyText label="Facility Code" value={facilityCode || undefined} />
+          {readOnly ? <Label className="text-xs">Facility Code</Label> : <ReqLabel>Facility Code</ReqLabel>}
+          {readOnly ? (
+            <Input className={readOnlyCls} value={facilityCode} readOnly />
+          ) : (
+            <Input className={inputCls} value={facilityCode} onChange={e => setFacilityCode(e.target.value)} placeholder="e.g. ABCH" />
+          )}
         </div>
         <div className="space-y-1.5">
-          <ReadOnlyText label="Facility Type" value={facilityType || undefined} />
+          {readOnly ? <Label className="text-xs">Facility Type</Label> : <ReqLabel>Facility Type</ReqLabel>}
+          {readOnly ? (
+            <Input className={readOnlyCls} value={facilityType} readOnly />
+          ) : (
+            <Select value={facilityType} onValueChange={setFacilityType}>
+              <SelectTrigger className={inputCls}><SelectValue placeholder="Select type" /></SelectTrigger>
+              <SelectContent>{FACILITY_TYPE_OPTIONS.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
+            </Select>
+          )}
         </div>
         <div className="space-y-1.5">
           {readOnly ? <Label className="text-xs">Ownership</Label> : <ReqLabel>Ownership</ReqLabel>}
@@ -314,7 +367,17 @@ export default function ComplianceReportForm(props: ComplianceReportFormProps) {
           )}
         </div>
         <div className="space-y-1.5 md:col-span-2 lg:col-span-3">
-          <ReadOnlyText label="Facility Address" value={facilityAddress || undefined} />
+          {readOnly ? <Label className="text-xs">Facility Address</Label> : <ReqLabel>Facility Address</ReqLabel>}
+          {readOnly ? (
+            <Input className={readOnlyCls} value={facilityAddress} readOnly />
+          ) : (
+            <Input
+              className={`${inputCls} bg-amber-50 border-amber-200`}
+              value={facilityAddress}
+              onChange={e => setFacilityAddress(e.target.value)}
+              placeholder="Facility address"
+            />
+          )}
         </div>
       </CardContent>
     </Card>
@@ -327,24 +390,69 @@ export default function ComplianceReportForm(props: ComplianceReportFormProps) {
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-3 rounded-xl bg-[#f4f7f5] border border-[#d4e8dc]">
-          <Select value={findingDraft.section} onValueChange={v => setFindingDraft(d => ({ ...d, section: v, indicator: "" }))}>
+          <Select value={findingDraft.section} onValueChange={v => setFindingDraft(d => ({ ...d, section: v, indicators: [] }))}>
             <SelectTrigger className={inputCls}><SelectValue placeholder="Section" /></SelectTrigger>
             <SelectContent>{Object.keys(COMPLIANCE_SECTIONS).map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
           </Select>
-          <Select value={findingDraft.indicator} onValueChange={v => setFindingDraft(d => ({ ...d, indicator: v }))}>
-            <SelectTrigger className={inputCls}><SelectValue placeholder="Indicator" /></SelectTrigger>
-            <SelectContent>{sectionIndicators.map(i => <SelectItem key={i} value={i}>{i}</SelectItem>)}</SelectContent>
-          </Select>
-          <Select value={findingDraft.status} onValueChange={v => setFindingDraft(d => ({ ...d, status: v }))}>
-            <SelectTrigger className={inputCls}><SelectValue placeholder="Status" /></SelectTrigger>
-            <SelectContent>{COMPLIANCE_RATINGS.map(r => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}</SelectContent>
-          </Select>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Indicator <span className="italic font-normal text-muted-foreground">(multiple)</span></Label>
+            <div className="flex flex-wrap gap-2">
+              {sectionIndicators.length === 0 ? (
+                <p className="text-xs text-muted-foreground">Select a section first</p>
+              ) : sectionIndicators.map(i => (
+                <label key={i} className="flex items-start gap-1.5 text-xs border rounded-lg px-2 py-1 bg-white max-w-full">
+                  <input
+                    type="checkbox"
+                    className="w-3.5 h-3.5 mt-0.5 accent-[#145c3f]"
+                    checked={findingDraft.indicators.includes(i)}
+                    onChange={() => setFindingDraft(d => ({
+                      ...d,
+                      indicators: d.indicators.includes(i)
+                        ? d.indicators.filter(x => x !== i)
+                        : [...d.indicators, i],
+                    }))}
+                  />
+                  <span>{i}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Status <span className="italic font-normal text-muted-foreground">(multiple)</span></Label>
+            <div className="flex flex-wrap gap-2">
+              {COMPLIANCE_RATINGS.map(r => (
+                <label key={r.value} className="flex items-center gap-1.5 text-xs border rounded-lg px-2 py-1 bg-white">
+                  <input
+                    type="checkbox"
+                    className="w-3.5 h-3.5 accent-[#145c3f]"
+                    checked={findingDraft.statuses.includes(r.value)}
+                    onChange={() => setFindingDraft(d => ({
+                      ...d,
+                      statuses: d.statuses.includes(r.value)
+                        ? d.statuses.filter(x => x !== r.value)
+                        : [...d.statuses, r.value],
+                    }))}
+                  />
+                  {r.label}
+                </label>
+              ))}
+            </div>
+          </div>
           <Input className={inputCls} placeholder="Remarks" value={findingDraft.remarks}
             onChange={e => setFindingDraft(d => ({ ...d, remarks: e.target.value }))} />
           <Button type="button" variant="outline" className="md:col-span-2" onClick={() => {
-            if (!findingDraft.section || !findingDraft.indicator) return;
-            setFindings(p => [...p, { _key: uid(), ...findingDraft }]);
-            setFindingDraft({ section: "", indicator: "", status: "fully_compliant", remarks: "" });
+            if (!findingDraft.section || findingDraft.indicators.length === 0 || findingDraft.statuses.length === 0) return;
+            const rows = findingDraft.indicators.flatMap(indicator =>
+              findingDraft.statuses.map(status => ({
+                _key: uid(),
+                section: findingDraft.section,
+                indicator,
+                status,
+                remarks: findingDraft.remarks,
+              })),
+            );
+            setFindings(p => [...p, ...rows]);
+            setFindingDraft({ section: "", indicators: [], statuses: ["fully_compliant"], remarks: "" });
           }}><Plus className="w-4 h-4 mr-1" /> Add Finding</Button>
         </div>
         {findings.length === 0 ? (
@@ -502,7 +610,24 @@ export default function ComplianceReportForm(props: ComplianceReportFormProps) {
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs">Certification</Label>
-            <Input className={inputCls} value={certification} onChange={e => setCertification(e.target.value)} />
+            <Input className={inputCls} value={certification} onChange={e => setCertification(e.target.value)} placeholder="Optional note" />
+          </div>
+          <div className="space-y-1.5 md:col-span-2">
+            <Label className="text-xs">Attach certification page by state coordinators</Label>
+            <div className="flex flex-wrap items-center gap-2">
+              <Input
+                type="file"
+                accept=".pdf,.doc,.docx,image/*"
+                className={`${inputCls} h-auto py-2 file:mr-3 file:text-xs`}
+                onChange={e => setCertificationFile(e.target.files?.[0] ?? null)}
+              />
+              {certificationFile && <span className="text-xs text-slate-600 truncate max-w-[200px]">{certificationFile.name}</span>}
+              {!certificationFile && existingCertName ? (
+                <Button type="button" variant="ghost" size="sm" className="h-8 text-rose-600" onClick={onRemoveCert}>
+                  Remove {existingCertName}
+                </Button>
+              ) : null}
+            </div>
           </div>
           <div className="flex items-center gap-2 pt-2">
             <input type="checkbox" checked={followUp} onChange={e => setFollowUp(e.target.checked)}
