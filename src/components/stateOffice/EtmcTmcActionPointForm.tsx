@@ -33,6 +33,8 @@ interface Line {
 interface Props {
   reportId?: number | null;
   onBack: () => void;
+  onCancel?: () => void;
+  onSubmitted?: () => void;
   defaultZoneId?: string | null;
   defaultStateId?: string | null;
 }
@@ -56,7 +58,7 @@ function sessionFromMonth(month: number) {
   return `Q${Math.ceil((month || 1) / 3)}`;
 }
 
-export default function EtmcTmcActionPointForm({ reportId, onBack, defaultZoneId, defaultStateId }: Props) {
+export default function EtmcTmcActionPointForm({ reportId, onBack, onCancel, onSubmitted, defaultZoneId, defaultStateId }: Props) {
   const [meetingDate, setMeetingDate] = React.useState(new Date().toISOString().slice(0, 10));
   const [session, setSession] = React.useState(sessionFromMonth(new Date().getMonth() + 1));
   const [lines, setLines] = React.useState<Line[]>([firstRow()]);
@@ -130,6 +132,8 @@ export default function EtmcTmcActionPointForm({ reportId, onBack, defaultZoneId
       reportType="etmc-tmc-action-point"
       reportId={reportId}
       onBack={onBack}
+      onCancel={onCancel}
+      onSubmitted={onSubmitted}
       defaultZoneId={defaultZoneId}
       defaultStateId={defaultStateId}
       onLoaded={loadData}

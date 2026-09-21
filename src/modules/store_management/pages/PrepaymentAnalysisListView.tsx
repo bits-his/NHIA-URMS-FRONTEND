@@ -7,6 +7,7 @@ import { Plus, Paperclip, ExternalLink, FileSpreadsheet, Eye } from "lucide-reac
 import PageLayout from "../components/PageLayout";
 import ListSearchBar from "../components/ListSearchBar";
 import MetricCards from "../components/MetricCards";
+import { useCreateReviewAccess } from "@/src/access/createReviewAccess";
 
 const API_ORIGIN = ((import.meta.env?.VITE_API_URL as string) || "http://localhost:3001/api").replace(/\/api\/?$/, "");
 
@@ -21,13 +22,20 @@ const naira = new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN
 
 export default function PrepaymentAnalysisListView() {
   const navigate = useNavigate();
+  const { canCreate, createOnly } = useCreateReviewAccess();
   const [rows, setRows] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!createOnly);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [bucket, setBucket] = useState<"all" | "matched" | "variance" | "award">("all");
 
   useEffect(() => {
+    if (!createOnly) return;
+    navigate("/store-management/prepayment-analysis/new", { replace: true });
+  }, [createOnly, navigate]);
+
+  useEffect(() => {
+    if (createOnly) return;
     let cancelled = false;
     (async () => {
       try {
@@ -47,7 +55,7 @@ export default function PrepaymentAnalysisListView() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [createOnly]);
 
   const searched = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -268,6 +276,8 @@ export default function PrepaymentAnalysisListView() {
     },
   ];
 
+  if (createOnly) return null;
+
   return (
     <PageLayout
       title={
@@ -277,6 +287,7 @@ export default function PrepaymentAnalysisListView() {
       }
       description="Stock Verification Prepayment Analysis Register"
       actions={
+        canCreate ? (
         <Button
           size="sm"
           onClick={() => navigate("/store-management/prepayment-analysis/new")}
@@ -284,6 +295,7 @@ export default function PrepaymentAnalysisListView() {
         >
           <Plus className="w-4 h-4 mr-1.5" aria-hidden="true" /> New entry
         </Button>
+        ) : null
       }
       contentClassName="gap-3 min-w-0"
     >

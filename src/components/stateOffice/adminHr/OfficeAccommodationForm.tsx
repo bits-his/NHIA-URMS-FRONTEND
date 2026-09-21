@@ -10,6 +10,8 @@ const uid = () => Math.random().toString(36).slice(2);
 interface Props {
   reportId?: number | null;
   onBack: () => void;
+  onCancel?: () => void;
+  onSubmitted?: () => void;
   defaultZoneId?: string | null;
   defaultStateId?: string | null;
 }
@@ -27,7 +29,7 @@ const emptyRow = (): Row => ({
   _key: uid(), ownershipStatus: "", rentAmount: "", rentExpiryDate: "", currentCondition: "", remarks: "",
 });
 
-export default function OfficeAccommodationForm({ reportId, onBack, defaultZoneId, defaultStateId }: Props) {
+export default function OfficeAccommodationForm({ reportId, onBack, onCancel, onSubmitted, defaultZoneId, defaultStateId }: Props) {
   const [rows, setRows] = React.useState<Row[]>([emptyRow()]);
 
   const updateRow = (key: string, field: keyof Omit<Row, "_key">, value: string) => {
@@ -53,6 +55,8 @@ export default function OfficeAccommodationForm({ reportId, onBack, defaultZoneI
       reportType="office-accommodation"
       reportId={reportId}
       onBack={onBack}
+      onCancel={onCancel}
+      onSubmitted={onSubmitted}
       defaultZoneId={defaultZoneId}
       defaultStateId={defaultStateId}
       onLoaded={onLoaded}

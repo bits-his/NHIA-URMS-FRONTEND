@@ -8,6 +8,7 @@ import { Plus, Eye, ClipboardCheck, Trash2, X, Filter, Search } from "lucide-rea
 import PageLayout from "../../components/PageLayout";
 import MetricCards from "../../components/MetricCards";
 import { matchesStore } from "../../lib/storeOptions";
+import { useCreateReviewAccess } from "@/src/access/createReviewAccess";
 import {
   Select,
   SelectTrigger,
@@ -70,8 +71,9 @@ function formatDate(value: string | null | undefined) {
 
 export default function PhysicalAssetVerificationListView() {
   const navigate = useNavigate();
+  const { canCreate, createOnly } = useCreateReviewAccess();
   const [assets, setAssets] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!createOnly);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [bucket, setBucket] = useState<ConditionBucket | "all">("all");
@@ -100,18 +102,25 @@ export default function PhysicalAssetVerificationListView() {
   };
 
   useEffect(() => {
+    if (createOnly) return;
     fetchAssets();
-  }, []);
+  }, [createOnly]);
+
+  useEffect(() => {
+    if (!createOnly) return;
+    navigate("/store-management/assets/register", { replace: true });
+  }, [createOnly, navigate]);
 
   // Load Zones on Mount
   useEffect(() => {
+    if (createOnly) return;
     stockApi
       .getZones()
       .then((r: any) => {
         setZones((r.data || []).map((z: any) => ({ id: z.id, label: z.description })));
       })
       .catch(() => {});
-  }, []);
+  }, [createOnly]);
 
   // Load States on Zone change
   useEffect(() => {
@@ -381,11 +390,14 @@ export default function PhysicalAssetVerificationListView() {
     },
   ];
 
+  if (createOnly) return null;
+
   return (
     <PageLayout
       title="Physical Asset Verification"
       description="Condition of tagged assets — verify, mark obsolete, or dispose"
       actions={
+        canCreate ? (
         <Button
           size="sm"
           onClick={() => navigate("/store-management/assets/register")}
@@ -393,6 +405,7 @@ export default function PhysicalAssetVerificationListView() {
         >
           <Plus className="w-4 h-4 mr-1.5" aria-hidden="true" /> Register Asset
         </Button>
+        ) : null
       }
       contentClassName="gap-3 min-w-0"
     >

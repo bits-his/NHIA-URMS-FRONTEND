@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { stateZonalFocalPersonApi, stockApi } from "@/lib/api";
 import { buildReportingYearOptions } from "../monthly/reportingYears";
 import { ALL_STATES, useMonthlyStateFilter } from "../monthly/useMonthlyStateFilter";
+import { useCreateReviewAccess } from "@/src/access/createReviewAccess";
 
 interface Props {
   onBack: () => void;
@@ -100,12 +101,14 @@ function InfoField({ label, value }: { label: string; value?: React.ReactNode })
 }
 
 export default function StateZonalFocalPersonsPage({ onBack, defaultStateId, defaultZoneId }: Props) {
+  const { canCreate, createOnly } = useCreateReviewAccess();
   const yearOptions = React.useMemo(() => buildReportingYearOptions(), []);
   const currentYear = yearOptions[0] || String(new Date().getFullYear());
 
-  const [mode, setMode] = React.useState<Mode>("list");
+  const [mode, setMode] = React.useState<Mode>(createOnly ? "create" : "list");
+  const [formKey, setFormKey] = React.useState(0);
   const [rows, setRows] = React.useState<RecordRow[]>([]);
-  const [loading, setLoading] = React.useState(true);
+  const [loading, setLoading] = React.useState(!createOnly);
   const [saving, setSaving] = React.useState(false);
   const [editingId, setEditingId] = React.useState<number | null>(null);
   const [detail, setDetail] = React.useState<RecordRow | null>(null);
@@ -140,6 +143,7 @@ export default function StateZonalFocalPersonsPage({ onBack, defaultStateId, def
   }, [f.zone_id]);
 
   const load = React.useCallback(async () => {
+    if (createOnly) return;
     setLoading(true);
     try {
       const res = await stateZonalFocalPersonApi.list({
@@ -154,9 +158,9 @@ export default function StateZonalFocalPersonsPage({ onBack, defaultStateId, def
     } finally {
       setLoading(false);
     }
-  }, [filterYear, filterZone, apiStateId, defaultZoneId, defaultStateId, filterDomain]);
+  }, [filterYear, filterZone, apiStateId, defaultZoneId, defaultStateId, filterDomain, createOnly]);
 
-  React.useEffect(() => { load(); }, [load]);
+  React.useEffect(() => { if (!createOnly) load(); }, [load, createOnly]);
 
   const setField = (key: keyof FormState, value: string) => {
     setF((prev) => {
@@ -167,6 +171,7 @@ export default function StateZonalFocalPersonsPage({ onBack, defaultStateId, def
   };
 
   const openCreate = () => {
+    if (!canCreate) return;
     setEditingId(null);
     setF(emptyForm(
       filterYear !== "all" ? filterYear : currentYear,
@@ -174,6 +179,19 @@ export default function StateZonalFocalPersonsPage({ onBack, defaultStateId, def
       defaultStateId || (filterState !== ALL_STATES ? filterState : ""),
     ));
     setMode("create");
+  };
+
+  const leaveForm = () => {
+    if (createOnly) {
+      onBack();
+      return;
+    }
+    setMode("list");
+  };
+
+  const remountCreateForm = () => {
+    openCreate();
+    setFormKey((k) => k + 1);
   };
 
   const fillForm = (row: RecordRow) => {
@@ -220,8 +238,11 @@ export default function StateZonalFocalPersonsPage({ onBack, defaultStateId, def
         await stateZonalFocalPersonApi.create(payload);
         toast.success("Focal person saved");
       }
-      setMode("list");
-      load();
+      if (createOnly && mode === "create") remountCreateForm();
+      else {
+        setMode("list");
+        load();
+      }
     } catch (err: any) {
       toast.error("Could not save record", { description: err.message });
     } finally {
@@ -357,14 +378,16 @@ export default function StateZonalFocalPersonsPage({ onBack, defaultStateId, def
       <div className="flex flex-col h-full bg-slate-50/30">
         <div className="bg-white border-b border-border/50 px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30">
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={() => setMode("list")} className="rounded-full">
+            <Button variant="ghost" size="icon" onClick={() => setMode(createOnly ? "create" : "list")} className="rounded-full">
               <ArrowLeft className="w-5 h-5" />
             </Button>
             <h2 className="text-xl font-bold tracking-tight">Focal Person</h2>
           </div>
+          {canCreate && (
           <Button className="bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20" onClick={() => setMode("edit")}>
             <Pencil className="w-4 h-4" /> Edit
           </Button>
+          )}
         </div>
         <ScrollArea className="flex-1">
           <div className="w-full px-4 md:px-6 py-4 space-y-4 pb-8">
@@ -434,7 +457,7 @@ export default function StateZonalFocalPersonsPage({ onBack, defaultStateId, def
 
   if (mode !== "list") {
     return (
-      <div className="flex flex-col h-full bg-slate-50/30">
+      <div key={formKey} className="flex flex-col h-full bg-slate-50/30">
         <div className="bg-white border-b border-border/50 px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30">
           <h2 className="text-xl font-bold tracking-tight">
             {mode === "edit" ? "Edit Focal Person" : "New Focal Person"}
@@ -444,7 +467,7 @@ export default function StateZonalFocalPersonsPage({ onBack, defaultStateId, def
           <div className="w-full px-4 md:px-6 py-4 space-y-4 pb-28">{formBody}</div>
         </ScrollArea>
         <div className="sticky bottom-0 z-30 bg-white border-t border-border/50 px-4 md:px-6 py-3 flex flex-wrap items-center justify-end gap-3">
-          <Button variant="outline" onClick={() => setMode("list")}>Cancel</Button>
+          <Button variant="outline" onClick={mode === "edit" ? () => setMode("view") : leaveForm}>Cancel</Button>
           <Button className="bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20" onClick={handleSave} disabled={saving}>
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             {mode === "edit" ? "Update" : "Save"}
@@ -462,9 +485,11 @@ export default function StateZonalFocalPersonsPage({ onBack, defaultStateId, def
           <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
           </Button>
+          {canCreate && (
           <Button className="bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20" onClick={openCreate}>
             <Plus className="w-4 h-4" /> New Record
           </Button>
+          )}
         </div>
       </div>
 
@@ -553,7 +578,7 @@ export default function StateZonalFocalPersonsPage({ onBack, defaultStateId, def
                 <div className="flex flex-col items-center justify-center py-16 gap-2 text-slate-400">
                   <Users className="w-8 h-8 opacity-30" />
                   <p className="text-sm font-medium">{hasFilters ? "No records match your filters" : "No focal persons found"}</p>
-                  {!hasFilters && (
+                  {!hasFilters && canCreate && (
                     <Button variant="outline" size="sm" className="mt-2 gap-2" onClick={openCreate}>
                       <Plus className="w-4 h-4" /> New Record
                     </Button>

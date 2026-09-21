@@ -13,6 +13,8 @@ const uid = () => Math.random().toString(36).slice(2);
 interface Props {
   reportId?: number | null;
   onBack: () => void;
+  onCancel?: () => void;
+  onSubmitted?: () => void;
   defaultZoneId?: string | null;
   defaultStateId?: string | null;
 }
@@ -24,7 +26,7 @@ const emptyDecision = (): Row => ({ _key: uid(), decision: "", actionPoint: "", 
 const emptyFollowup = (): Row => ({ _key: uid(), actionPoint: "", progress: "", remarks: "", responsibleOfficer: "", dueDate: "", status: "" });
 const emptyMatter = (): Row => ({ _key: uid(), matter: "", reason: "", actionExpected: "", programArea: "", supportRequired: "", priority: "", status: "" });
 
-export default function OfficeMeetingForm({ reportId, onBack, defaultZoneId, defaultStateId }: Props) {
+export default function OfficeMeetingForm({ reportId, onBack, onCancel, onSubmitted, defaultZoneId, defaultStateId }: Props) {
   const [meetingDate, setMeetingDate] = React.useState("");
   const [meetingType, setMeetingType] = React.useState("");
   const [purpose, setPurpose] = React.useState("");
@@ -95,6 +97,8 @@ export default function OfficeMeetingForm({ reportId, onBack, defaultZoneId, def
       reportType="office-meeting"
       reportId={reportId}
       onBack={onBack}
+      onCancel={onCancel}
+      onSubmitted={onSubmitted}
       defaultZoneId={defaultZoneId}
       defaultStateId={defaultStateId}
       onLoaded={onLoaded}

@@ -15,6 +15,7 @@ import { ALL_STATES, useMonthlyStateFilter } from "../../monthly/useMonthlyState
 import { MONTHS, monthLabel } from "../constants";
 import { ADMIN_HR_CONFIG, type AdminHrReportType } from "./constants";
 import { AdminHrFormRouter, AdminHrDetailRouter } from "./registry";
+import { useCreateReviewAccess } from "@/src/access/createReviewAccess";
 
 interface Report {
   id: number;
@@ -48,11 +49,13 @@ export default function AdminHrReportsList({
 }: Props) {
   const cfg = ADMIN_HR_CONFIG[reportType];
   const api = stateOfficeApi[reportType];
+  const { canCreate, createOnly } = useCreateReviewAccess();
 
-  const [mode, setMode] = React.useState<"list" | "create" | "view" | "edit">("list");
+  const [mode, setMode] = React.useState<"list" | "create" | "view" | "edit">(createOnly ? "create" : "list");
+  const [formKey, setFormKey] = React.useState(0);
   const [selectedId, setSelectedId] = React.useState<number | null>(null);
   const [reports, setReports] = React.useState<Report[]>([]);
-  const [loading, setLoading] = React.useState(true);
+  const [loading, setLoading] = React.useState(!createOnly);
 
   const {
     showStateFilter, states, filterState, setFilterState, apiStateId, stateFilterActive,
@@ -63,11 +66,13 @@ export default function AdminHrReportsList({
   const [filterStatus, setFilterStatus] = React.useState("all");
 
   React.useEffect(() => {
-    setMode("list");
+    setMode(createOnly ? "create" : "list");
     setSelectedId(null);
-  }, [reportType]);
+    setFormKey((k) => k + 1);
+  }, [reportType, createOnly]);
 
   const load = React.useCallback(async () => {
+    if (createOnly) return;
     setLoading(true);
     try {
       const res = await api.list({
@@ -83,9 +88,21 @@ export default function AdminHrReportsList({
     } finally {
       setLoading(false);
     }
-  }, [api, filterStatus, defaultZoneId, apiStateId, filterYear, filterMonth]);
+  }, [api, filterStatus, defaultZoneId, apiStateId, filterYear, filterMonth, createOnly]);
 
-  React.useEffect(() => { load(); }, [load]);
+  React.useEffect(() => { if (!createOnly) load(); }, [load, createOnly]);
+
+  const leaveForm = React.useCallback(() => {
+    if (createOnly) {
+      setSelectedId(null);
+      setFormKey((k) => k + 1);
+      setMode("create");
+      return;
+    }
+    setSelectedId(null);
+    setMode("list");
+    load();
+  }, [createOnly, load]);
 
   const counts = React.useMemo(() => ({
     total: reports.length,
@@ -112,26 +129,22 @@ export default function AdminHrReportsList({
       <AdminHrDetailRouter
         reportType={reportType}
         reportId={selectedId}
-        onBack={() => { setSelectedId(null); setMode("list"); }}
-        onEdit={() => setMode("edit")}
+        onBack={() => { setSelectedId(null); setMode(createOnly ? "create" : "list"); }}
+        onEdit={canCreate ? () => setMode("edit") : undefined}
       />
     );
   }
 
   if (mode === "create" || mode === "edit") {
+    const cancelCreate = createOnly ? onBack : leaveForm;
     return (
       <AdminHrFormRouter
+        key={formKey}
         reportType={reportType}
         reportId={mode === "edit" ? selectedId : null}
-        onBack={() => {
-          if (mode === "edit" && selectedId) {
-            setMode("view");
-            return;
-          }
-          setSelectedId(null);
-          setMode("list");
-          load();
-        }}
+        onBack={mode === "edit" && selectedId ? () => setMode("view") : cancelCreate}
+        onCancel={mode === "edit" && selectedId ? () => setMode("view") : cancelCreate}
+        onSubmitted={leaveForm}
         defaultZoneId={defaultZoneId}
         defaultStateId={defaultStateId}
       />
@@ -149,12 +162,14 @@ export default function AdminHrReportsList({
           <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
           </Button>
+          {canCreate && (
           <Button
             className="bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20"
             onClick={() => { setSelectedId(null); setMode("create"); }}
           >
             <Plus className="w-4 h-4" /> {cfg.newLabel}
           </Button>
+          )}
         </div>
       </div>
 
@@ -249,7 +264,7 @@ export default function AdminHrReportsList({
                 <div className="flex flex-col items-center justify-center py-16 gap-2 text-slate-400">
                   <FileText className="w-8 h-8 opacity-30" />
                   <p className="text-sm font-medium">{hasFilters ? "No records match your filters" : "No records yet"}</p>
-                  {!hasFilters && (
+                  {!hasFilters && canCreate && (
                     <Button variant="outline" size="sm" className="mt-2 gap-2" onClick={() => { setSelectedId(null); setMode("create"); }}>
                       <Plus className="w-4 h-4" /> {cfg.newLabel}
                     </Button>

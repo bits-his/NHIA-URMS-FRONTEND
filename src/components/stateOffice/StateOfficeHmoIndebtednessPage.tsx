@@ -17,6 +17,7 @@ import { useMonthlyStateFilter } from "../monthly/useMonthlyStateFilter";
 import { MONTHS, monthLabel } from "./constants";
 import AccreditedProviderSelect from "./AccreditedProviderSelect";
 import HcfFacilitySelect from "../servicom/HcfFacilitySelect";
+import { useCreateReviewAccess } from "@/src/access/createReviewAccess";
 
 interface Props {
   onBack: () => void;
@@ -73,10 +74,12 @@ function InfoField({ label, value }: { label: string; value?: React.ReactNode })
   );
 }
 
-export default function StateOfficeHmoIndebtednessPage({ defaultStateId, defaultZoneId }: Props) {
-  const [mode, setMode] = React.useState<Mode>("list");
+export default function StateOfficeHmoIndebtednessPage({ onBack, defaultStateId, defaultZoneId }: Props) {
+  const { canCreate, createOnly } = useCreateReviewAccess();
+  const [mode, setMode] = React.useState<Mode>(createOnly ? "create" : "list");
+  const [formKey, setFormKey] = React.useState(0);
   const [rows, setRows] = React.useState<any[]>([]);
-  const [loading, setLoading] = React.useState(true);
+  const [loading, setLoading] = React.useState(!createOnly);
   const [saving, setSaving] = React.useState(false);
   const [editingId, setEditingId] = React.useState<number | null>(null);
   const [refId, setRefId] = React.useState<string | null>(null);
@@ -106,6 +109,7 @@ export default function StateOfficeHmoIndebtednessPage({ defaultStateId, default
   }), [filterZone, defaultZoneId, apiStateId, defaultStateId, filterYear, filterMonth]);
 
   const load = React.useCallback(async () => {
+    if (createOnly) return;
     setLoading(true);
     try {
       const res = await stateOfficeHmoIndebtednessApi.list(apiFilters);
@@ -113,9 +117,9 @@ export default function StateOfficeHmoIndebtednessPage({ defaultStateId, default
     } catch (err: any) {
       toast.error("Failed to load collation sheets", { description: err.message });
     } finally { setLoading(false); }
-  }, [apiFilters]);
+  }, [apiFilters, createOnly]);
 
-  React.useEffect(() => { if (mode === "list") load(); }, [load, mode]);
+  React.useEffect(() => { if (!createOnly && mode === "list") load(); }, [load, mode, createOnly]);
   React.useEffect(() => { stockApi.getZones().then((r) => setZones(r.data)).catch(() => {}); }, []);
   React.useEffect(() => { if (defaultZoneId) setFilterZone(defaultZoneId); }, [defaultZoneId]);
   React.useEffect(() => {
@@ -152,6 +156,7 @@ export default function StateOfficeHmoIndebtednessPage({ defaultStateId, default
   };
 
   const openCreate = () => {
+    if (!canCreate) return;
     setEditingId(null);
     setRefId(null);
     setZoneId(defaultZoneId ?? "");
@@ -161,6 +166,19 @@ export default function StateOfficeHmoIndebtednessPage({ defaultStateId, default
     setSubmittedBy("");
     setLines([emptyLine()]);
     setMode("create");
+  };
+
+  const leaveForm = () => {
+    if (createOnly) {
+      onBack();
+      return;
+    }
+    setMode("list");
+  };
+
+  const remountCreateForm = () => {
+    openCreate();
+    setFormKey((k) => k + 1);
   };
 
   const handleSave = async () => {
@@ -197,7 +215,8 @@ export default function StateOfficeHmoIndebtednessPage({ defaultStateId, default
         await stateOfficeHmoIndebtednessApi.create(payload);
         toast.success("Collation sheet saved");
       }
-      setMode("list");
+      if (createOnly && mode === "create") remountCreateForm();
+      else setMode("list");
     } catch (e: any) {
       toast.error("Failed to save sheet", { description: e.message });
     } finally { setSaving(false); }
@@ -341,12 +360,14 @@ export default function StateOfficeHmoIndebtednessPage({ defaultStateId, default
       <div className="flex flex-col h-full bg-slate-50/30">
         <div className="bg-white border-b border-border/50 px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30">
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => setMode("list")} className="rounded-full"><ArrowLeft className="w-5 h-5" /></Button>
+            <Button variant="ghost" size="icon" onClick={() => setMode(createOnly ? "create" : "list")} className="rounded-full"><ArrowLeft className="w-5 h-5" /></Button>
             <h2 className="text-xl font-bold tracking-tight">View Collation Sheet</h2>
           </div>
+          {canCreate && (
           <Button className="bg-orange-action hover:bg-orange-600 gap-2" onClick={() => setMode("edit")}>
             <Pencil className="w-4 h-4" /> Edit
           </Button>
+          )}
         </div>
         <ScrollArea className="flex-1">
           <div className="w-full px-4 md:px-6 py-4 space-y-4 pb-16">
@@ -440,10 +461,10 @@ export default function StateOfficeHmoIndebtednessPage({ defaultStateId, default
 
   if (mode === "create" || mode === "edit") {
     return (
-      <div className="flex flex-col h-full bg-slate-50/30">
+      <div key={formKey} className="flex flex-col h-full bg-slate-50/30">
         <div className="bg-white border-b border-border/50 px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30">
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => setMode("list")} className="rounded-full"><ArrowLeft className="w-5 h-5" /></Button>
+            <Button variant="ghost" size="icon" onClick={mode === "edit" ? () => setMode("view") : leaveForm} className="rounded-full"><ArrowLeft className="w-5 h-5" /></Button>
             <h2 className="text-xl font-bold tracking-tight">
               {mode === "edit" ? "Edit Collation Sheet" : "New HMO Indebtedness Sheet"}
             </h2>
@@ -456,7 +477,7 @@ export default function StateOfficeHmoIndebtednessPage({ defaultStateId, default
           </div>
         </ScrollArea>
         <div className="sticky bottom-0 z-30 bg-white border-t px-4 md:px-6 py-3 flex justify-end gap-3">
-          <Button variant="outline" onClick={() => setMode(mode === "edit" ? "view" : "list")}>Cancel</Button>
+          <Button variant="outline" onClick={mode === "edit" ? () => setMode("view") : leaveForm}>Cancel</Button>
           <Button className="bg-orange-action hover:bg-orange-600 gap-2" onClick={handleSave} disabled={saving}>
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             {mode === "edit" ? "Update" : "Save Sheet"}
@@ -474,9 +495,11 @@ export default function StateOfficeHmoIndebtednessPage({ defaultStateId, default
           <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
           </Button>
+          {canCreate && (
           <Button className="bg-orange-action hover:bg-orange-600 gap-2" onClick={openCreate}>
             <Plus className="w-4 h-4" /> New Sheet
           </Button>
+          )}
         </div>
       </div>
       <ScrollArea className="flex-1">

@@ -10,6 +10,8 @@ const uid = () => Math.random().toString(36).slice(2);
 interface Props {
   reportId?: number | null;
   onBack: () => void;
+  onCancel?: () => void;
+  onSubmitted?: () => void;
   defaultZoneId?: string | null;
   defaultStateId?: string | null;
 }
@@ -24,7 +26,7 @@ interface Row {
 
 const emptyRow = (): Row => ({ _key: uid(), utilityCategory: "", contractor: "", amountDue: "", remarks: "" });
 
-export default function UtilityServicesForm({ reportId, onBack, defaultZoneId, defaultStateId }: Props) {
+export default function UtilityServicesForm({ reportId, onBack, onCancel, onSubmitted, defaultZoneId, defaultStateId }: Props) {
   const [rows, setRows] = React.useState<Row[]>([emptyRow()]);
 
   const updateRow = (key: string, field: keyof Omit<Row, "_key">, value: string) => {
@@ -49,6 +51,8 @@ export default function UtilityServicesForm({ reportId, onBack, defaultZoneId, d
       reportType="utility-services"
       reportId={reportId}
       onBack={onBack}
+      onCancel={onCancel}
+      onSubmitted={onSubmitted}
       defaultZoneId={defaultZoneId}
       defaultStateId={defaultStateId}
       onLoaded={onLoaded}

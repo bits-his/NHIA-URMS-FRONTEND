@@ -30,6 +30,7 @@ interface ExpenditureLine {
 interface Props {
   reportId?: number | null;
   onBack: () => void;
+  onSubmitted?: () => void;
   defaultZoneId?: string | null;
   defaultStateId?: string | null;
 }
@@ -39,7 +40,7 @@ const cfg = REPORT_CONFIG["expenditure-profile"];
 const api = stateOfficeApi["expenditure-profile"];
 
 export default function ExpenditureProfileReportPage({
-  reportId, onBack, defaultZoneId, defaultStateId,
+  reportId, onBack, onSubmitted, defaultZoneId, defaultStateId,
 }: Props) {
   const hydratingRef = React.useRef(false);
   const lockZone  = !!defaultZoneId;
@@ -223,7 +224,7 @@ export default function ExpenditureProfileReportPage({
       }
       setRefId(res.data.reference_id);
       toast.success("Report submitted", { description: `Reference: ${res.data.reference_id}` });
-      onBack();
+      (onSubmitted ?? onBack)();
     } catch (err: unknown) {
       toast.error("Submission failed", { description: (err as Error).message });
     } finally { setSubmitting(false); }

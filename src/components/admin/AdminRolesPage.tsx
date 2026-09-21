@@ -200,12 +200,15 @@ export default function AdminRolesPage() {
           <div className="flex flex-col gap-2">
             <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer">
               <input type="checkbox" checked={form.can_create_monthly} onChange={e => setForm(f => ({ ...f, can_create_monthly: e.target.checked }))} className="accent-[#145c3f]" />
-              Can create monthly reports
+              Can create (forms only — no list)
             </label>
             <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer">
               <input type="checkbox" checked={form.can_review_monthly} onChange={e => setForm(f => ({ ...f, can_review_monthly: e.target.checked }))} className="accent-[#145c3f]" />
-              Can review monthly reports
+              Can review (list / view / forward — no create)
             </label>
+            <p className="text-[11px] text-slate-400 leading-snug">
+              Applies across monthly, SERVICOM, SOC/Zonal, Admin/HR, and other report pages the user can open.
+            </p>
             {modal === "edit" && (
               <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer">
                 <input type="checkbox" checked={form.is_active} onChange={e => setForm(f => ({ ...f, is_active: e.target.checked }))} className="accent-[#145c3f]" />

@@ -51,6 +51,8 @@ export function StateOfficeFormRouter(props: {
   reportType: StateOfficeReportType;
   reportId?: number | null;
   onBack: () => void;
+  onCancel?: () => void;
+  onSubmitted?: () => void;
   defaultZoneId?: string | null;
   defaultStateId?: string | null;
 }) {

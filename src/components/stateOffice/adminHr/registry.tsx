@@ -12,6 +12,8 @@ import EnrolleeFeedbackForm from "./EnrolleeFeedbackForm";
 const FORM_COMPONENTS: Record<AdminHrReportType, React.ComponentType<{
   reportId?: number | null;
   onBack: () => void;
+  onCancel?: () => void;
+  onSubmitted?: () => void;
   defaultZoneId?: string | null;
   defaultStateId?: string | null;
 }>> = {
@@ -28,6 +30,8 @@ export function AdminHrFormRouter(props: {
   reportType: AdminHrReportType;
   reportId?: number | null;
   onBack: () => void;
+  onCancel?: () => void;
+  onSubmitted?: () => void;
   defaultZoneId?: string | null;
   defaultStateId?: string | null;
 }) {

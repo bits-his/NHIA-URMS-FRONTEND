@@ -10,6 +10,10 @@ import ReportBasicInfo from "./shared/ReportBasicInfo";
 interface Props {
   reportId?: number | null;
   onBack: () => void;
+  /** Leave the form without saving (create-only → home). Defaults to onBack. */
+  onCancel?: () => void;
+  /** After successful submit. Defaults to onBack. */
+  onSubmitted?: () => void;
   defaultZoneId?: string | null;
   defaultStateId?: string | null;
   children: (ctx: {
@@ -33,13 +37,15 @@ interface Props {
 }
 
 export default function StateOfficeFormShell({
-  reportId, onBack, defaultZoneId, defaultStateId, children,
+  reportId, onBack, onCancel, onSubmitted, defaultZoneId, defaultStateId, children,
   buildPayload, validate, reportType, onLoaded,
   reportWeek, setReportWeek,
   showGeoIds,
   showQuarter,
   afterPersist,
 }: Props) {
+  const handleCancel = onCancel ?? onBack;
+  const handleSubmitted = onSubmitted ?? onBack;
   const api = stateOfficeApi[reportType];
   const header = useStateOfficeHeader(defaultZoneId, defaultStateId);
 
@@ -109,7 +115,7 @@ export default function StateOfficeFormShell({
       toast.success(status === "draft" ? "Draft saved" : "Report submitted", {
         description: `Ref: ${res.data.reference_id}`,
       });
-      if (status === "submitted") onBack();
+      if (status === "submitted") handleSubmitted();
     } catch (err: any) {
       toast.error(status === "draft" ? "Save failed" : "Submission failed", { description: err.message });
     } finally { setter(false); }
@@ -118,7 +124,7 @@ export default function StateOfficeFormShell({
   return (
     <div className="flex flex-col h-full bg-slate-50/30">
       <div className="bg-white border-b border-border/50 px-4 md:px-6 py-3 flex items-center gap-3 sticky top-0 z-30">
-        <Button variant="outline" size="sm" onClick={onBack} className="gap-1.5 shrink-0 font-semibold">
+        <Button variant="outline" size="sm" onClick={handleCancel} className="gap-1.5 shrink-0 font-semibold">
           <ArrowLeft className="w-4 h-4" /> Back
         </Button>
         {refId && (
@@ -152,7 +158,7 @@ export default function StateOfficeFormShell({
 
       {!loadingRecord && (
         <div className="sticky bottom-0 z-30 bg-white border-t border-border/50 px-4 md:px-6 py-3 flex flex-wrap items-center justify-end gap-3">
-          <Button variant="outline" onClick={onBack} className="gap-1.5">
+          <Button variant="outline" onClick={handleCancel} className="gap-1.5">
             <ArrowLeft className="w-4 h-4" /> Back
           </Button>
           <Button variant="ghost" size="sm" onClick={() => persist("draft")} disabled={saving} className="gap-2">

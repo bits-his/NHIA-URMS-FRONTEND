@@ -18,6 +18,8 @@ interface Props {
   onBack: () => void;
   defaultStateId?: string | null;
   defaultZoneId?: string | null;
+  canCreate?: boolean;
+  canReview?: boolean;
 }
 
 function safeDate(v: string | null | undefined) {
@@ -26,15 +28,18 @@ function safeDate(v: string | null | undefined) {
   return isNaN(d.getTime()) ? "—" : d.toLocaleDateString("en-NG", { day: "2-digit", month: "short", year: "numeric" });
 }
 
-export default function ServicomVisitsPage({ onBack, defaultStateId, defaultZoneId }: Props) {
-  const [mode, setMode] = React.useState<"list" | "form">("list");
+export default function ServicomVisitsPage({ onBack, defaultStateId, defaultZoneId, canCreate = true, canReview = true }: Props) {
+  const createOnly = canCreate && !canReview;
+  const [mode, setMode] = React.useState<"list" | "form">(createOnly ? "form" : "list");
   const [selectedId, setSelectedId] = React.useState<number | null>(null);
+  const [formKey, setFormKey] = React.useState(0);
   const [visits, setVisits] = React.useState<any[]>([]);
-  const [loading, setLoading] = React.useState(true);
+  const [loading, setLoading] = React.useState(!createOnly);
   const [filterStatus, setFilterStatus] = React.useState("all");
   const [filterType, setFilterType] = React.useState("all");
 
   const load = React.useCallback(async () => {
+    if (createOnly) return;
     setLoading(true);
     try {
       const res = await servicomApi.listVisits({
@@ -47,19 +52,35 @@ export default function ServicomVisitsPage({ onBack, defaultStateId, defaultZone
     } catch (err: any) {
       toast.error("Failed to load visits", { description: err.message });
     } finally { setLoading(false); }
-  }, [filterStatus, filterType, defaultStateId, defaultZoneId]);
+  }, [filterStatus, filterType, defaultStateId, defaultZoneId, createOnly]);
 
-  React.useEffect(() => { load(); }, [load]);
+  React.useEffect(() => { if (!createOnly) load(); }, [load, createOnly]);
 
-  const openNew = () => { setSelectedId(null); setMode("form"); };
+  const openNew = () => {
+    if (!canCreate) return;
+    setSelectedId(null);
+    setMode("form");
+  };
   const openView = (id: number) => { setSelectedId(id); setMode("form"); };
-  const closeForm = () => { setSelectedId(null); setMode("list"); load(); };
+  const closeForm = () => {
+    if (createOnly) {
+      setSelectedId(null);
+      setFormKey((k) => k + 1);
+      setMode("form");
+      return;
+    }
+    setSelectedId(null);
+    setMode("list");
+    load();
+  };
 
   if (mode === "form") {
     return (
       <ServicomVisitForm
+        key={formKey}
         visitId={selectedId}
-        onBack={closeForm}
+        onBack={createOnly ? onBack : closeForm}
+        onSubmitted={createOnly ? closeForm : closeForm}
         defaultStateId={defaultStateId}
         defaultZoneId={defaultZoneId}
       />
@@ -73,9 +94,11 @@ export default function ServicomVisitsPage({ onBack, defaultStateId, defaultZone
           <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
           </Button>
+          {canCreate && (
           <Button className="bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20" onClick={openNew}>
             <Plus className="w-4 h-4" /> New Visit
           </Button>
+          )}
         </div>
       </div>
 
@@ -140,9 +163,11 @@ export default function ServicomVisitsPage({ onBack, defaultStateId, defaultZone
                 <div className="flex flex-col items-center justify-center py-16 gap-2 text-slate-400">
                   <ClipboardList className="w-8 h-8 opacity-30" />
                   <p className="text-sm font-medium">No monitoring visits yet</p>
+                  {canCreate && (
                   <Button variant="outline" size="sm" onClick={openNew} className="mt-2 gap-2">
                     <Plus className="w-4 h-4" /> New Visit
                   </Button>
+                  )}
                 </div>
               ) : (
                 <div className="overflow-x-auto">

@@ -22,6 +22,8 @@ interface Props {
   defaultZoneId?: string | null;
   defaultStateName?: string;
   defaultZoneName?: string;
+  canCreate?: boolean;
+  canReview?: boolean;
 }
 
 const emptyForm = (defaultZoneId?: string | null, defaultStateId?: string | null) => ({
@@ -72,12 +74,16 @@ export default function ServicomCommentCardPage({
   onBack,
   defaultStateId,
   defaultZoneId,
+  canCreate = true,
+  canReview = true,
 }: Props) {
+  const createOnly = canCreate && !canReview;
   const geoLocked = !!(defaultZoneId && defaultStateId);
-  const [mode, setMode] = React.useState<"list" | "form" | "view">("list");
+  const [mode, setMode] = React.useState<"list" | "form" | "view">(createOnly ? "form" : "list");
+  const [formKey, setFormKey] = React.useState(0);
   const [cards, setCards] = React.useState<any[]>([]);
   const [selected, setSelected] = React.useState<any | null>(null);
-  const [loading, setLoading] = React.useState(true);
+  const [loading, setLoading] = React.useState(!createOnly);
   const [saving, setSaving] = React.useState(false);
   const [zones, setZones] = React.useState<any[]>([]);
   const [filterStates, setFilterStates] = React.useState<any[]>([]);
@@ -92,6 +98,7 @@ export default function ServicomCommentCardPage({
   const scoreSummary = React.useMemo(() => computeCommentCardScore(f.responses), [f.responses]);
 
   const load = React.useCallback(async () => {
+    if (createOnly) return;
     setLoading(true);
     try {
       const res = await servicomApi.listCommentCards({
@@ -102,9 +109,9 @@ export default function ServicomCommentCardPage({
     } catch (err: any) {
       toast.error("Failed to load records", { description: err.message });
     } finally { setLoading(false); }
-  }, [defaultStateId, defaultZoneId, filterState, filterZone, geoLocked]);
+  }, [defaultStateId, defaultZoneId, filterState, filterZone, geoLocked, createOnly]);
 
-  React.useEffect(() => { if (mode === "list") load(); }, [load, mode]);
+  React.useEffect(() => { if (mode === "list" && !createOnly) load(); }, [load, mode, createOnly]);
   React.useEffect(() => { stockApi.getZones().then((r) => setZones(r.data)).catch(() => {}); }, []);
   React.useEffect(() => {
     if (geoLocked || filterZone === "all") { setFilterStates([]); return; }
@@ -152,6 +159,7 @@ export default function ServicomCommentCardPage({
   }, [filteredCards]);
 
   const openForm = () => {
+    if (!canCreate) return;
     setF(emptyForm(defaultZoneId, defaultStateId));
     setSelected(null);
     setMode("form");
@@ -167,7 +175,18 @@ export default function ServicomCommentCardPage({
     }
   };
 
+  const resetCreateForm = () => {
+    setF(emptyForm(defaultZoneId, defaultStateId));
+    setSelected(null);
+    setFormKey((k) => k + 1);
+    setMode("form");
+  };
+
   const closeSub = () => {
+    if (createOnly) {
+      resetCreateForm();
+      return;
+    }
     setMode("list");
     setSelected(null);
     load();
@@ -209,7 +228,8 @@ export default function ServicomCommentCardPage({
       if (selected?.id) await servicomApi.updateCommentCard(selected.id, payload);
       else await servicomApi.createCommentCard(payload);
       toast.success("Record saved");
-      closeSub();
+      if (createOnly) resetCreateForm();
+      else closeSub();
     } catch (err: any) {
       toast.error("Failed to save record", { description: err.message });
     } finally { setSaving(false); }
@@ -497,7 +517,12 @@ export default function ServicomCommentCardPage({
           })}
 
           <div className="flex items-center justify-end gap-3 ml-auto">
-            <Button variant="outline" onClick={closeSub}>Cancel</Button>
+            <Button
+              variant="outline"
+              onClick={createOnly && mode === "form" ? onBack : closeSub}
+            >
+              Cancel
+            </Button>
             <Button onClick={handleSave} disabled={saving} className="bg-orange-action hover:bg-orange-600 gap-2">
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
               Save Record
@@ -513,12 +538,22 @@ export default function ServicomCommentCardPage({
     const responses = mode === "view" ? parseStoredResponses(row?.responses) : f.responses;
 
     return (
-      <div className="flex flex-col h-full bg-slate-50/30">
-        {/* <div className="bg-white border-b px-4 md:px-6 py-3 flex items-center sticky top-0 z-30">
-          <Button variant="ghost" size="icon" onClick={closeSub} className="rounded-full">
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-        </div> */}
+      <div key={formKey} className="flex flex-col h-full bg-slate-50/30">
+        <div className="bg-white border-b px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30">
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={createOnly && mode === "form" ? onBack : closeSub}
+              className="rounded-full"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+            <h2 className="text-xl font-bold tracking-tight">
+              {mode === "view" ? "View Comment Card" : "New Comment Card"}
+            </h2>
+          </div>
+        </div>
 
         <ScrollArea className="flex-1">
           <div className="w-full px-4 md:px-6 py-4 pb-24 space-y-4">
@@ -552,9 +587,11 @@ export default function ServicomCommentCardPage({
          <div className="flex items-center gap-3"> <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
           </Button>
+          {canCreate && (
           <Button className="bg-orange-action hover:bg-orange-600 gap-2" onClick={openForm}>
             <Plus className="w-4 h-4" /> New Comment Card
-          </Button></div>
+          </Button>
+          )}</div>
          
         
       </div>

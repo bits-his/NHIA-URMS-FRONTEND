@@ -21,6 +21,7 @@ import {
   ENROLLEE_ITEMS, ENROLLEE_MAX, ENROLLEE_SCALE, FACILITY_TYPES, OBSERVATION_ITEMS, OBS_MAX,
   STEPS, labelOf, mapHcfFacilityType, optionLabel, sumScoreMap, type ScoreMap,
 } from "./mysteryShoppingConfig";
+import { useCreateReviewAccess } from "@/src/access/createReviewAccess";
 
 interface Props {
   onBack: () => void;
@@ -173,10 +174,12 @@ function ScoreBadge({ score, max }: { score: number; max: number }) {
 }
 
 export default function StateOfficeMysteryShoppingPage({ onBack, defaultStateId, defaultZoneId }: Props) {
-  const [mode, setMode] = React.useState<Mode>("list");
+  const { canCreate, createOnly } = useCreateReviewAccess();
+  const [mode, setMode] = React.useState<Mode>(createOnly ? "create" : "list");
+  const [formKey, setFormKey] = React.useState(0);
   const [step, setStep] = React.useState(0);
   const [rows, setRows] = React.useState<any[]>([]);
-  const [loading, setLoading] = React.useState(true);
+  const [loading, setLoading] = React.useState(!createOnly);
   const [saving, setSaving] = React.useState(false);
   const [editingId, setEditingId] = React.useState<number | null>(null);
   const [detailMeta, setDetailMeta] = React.useState<{ zone?: string; state?: string; reference?: string }>({});
@@ -204,6 +207,7 @@ export default function StateOfficeMysteryShoppingPage({ onBack, defaultStateId,
   const cardScores = [sumScoreMap(f.enrollee_card_1), sumScoreMap(f.enrollee_card_2), sumScoreMap(f.enrollee_card_3)];
 
   const load = React.useCallback(async () => {
+    if (createOnly) return;
     setLoading(true);
     try {
       const res = await stateOfficeMysteryShoppingApi.list(apiFilters);
@@ -211,9 +215,9 @@ export default function StateOfficeMysteryShoppingPage({ onBack, defaultStateId,
     } catch (err: any) {
       toast.error("Failed to load mystery shopping visits", { description: err.message });
     } finally { setLoading(false); }
-  }, [apiFilters]);
+  }, [apiFilters, createOnly]);
 
-  React.useEffect(() => { if (mode === "list") load(); }, [load, mode]);
+  React.useEffect(() => { if (!createOnly && mode === "list") load(); }, [load, mode, createOnly]);
   React.useEffect(() => { stockApi.getZones().then((r) => setZones(r.data)).catch(() => {}); }, []);
   React.useEffect(() => { if (defaultZoneId) setFilterZone(defaultZoneId); }, [defaultZoneId]);
   React.useEffect(() => {
@@ -228,10 +232,24 @@ export default function StateOfficeMysteryShoppingPage({ onBack, defaultStateId,
   }, [f.zone_id]);
 
   const openCreate = () => {
+    if (!canCreate) return;
     setF(emptyForm(defaultZoneId, defaultStateId));
     setEditingId(null);
     setStep(0);
     setMode("create");
+  };
+
+  const leaveForm = () => {
+    if (createOnly) {
+      onBack();
+      return;
+    }
+    setMode("list");
+  };
+
+  const remountCreateForm = () => {
+    openCreate();
+    setFormKey((k) => k + 1);
   };
 
   const openView = (row: any) => {
@@ -281,7 +299,8 @@ export default function StateOfficeMysteryShoppingPage({ onBack, defaultStateId,
         await stateOfficeMysteryShoppingApi.create(payload);
         toast.success("Mystery shopping visit recorded");
       }
-      setMode("list");
+      if (createOnly && mode === "create") remountCreateForm();
+      else setMode("list");
     } catch (e: any) {
       toast.error("Failed to save visit", { description: e.message });
     } finally { setSaving(false); }
@@ -516,10 +535,12 @@ export default function StateOfficeMysteryShoppingPage({ onBack, defaultStateId,
       <div className="flex flex-col h-full bg-slate-50/30">
         <div className="bg-white border-b border-border/50 px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30">
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => setMode("list")} className="rounded-full"><ArrowLeft className="w-5 h-5" /></Button>
+            <Button variant="ghost" size="icon" onClick={() => setMode(createOnly ? "create" : "list")} className="rounded-full"><ArrowLeft className="w-5 h-5" /></Button>
             <h2 className="text-xl font-bold tracking-tight">View Mystery Shopping</h2>
           </div>
+          {canCreate && (
           <Button className="bg-orange-action hover:bg-orange-600 gap-2" onClick={openEdit}><Pencil className="w-4 h-4" /> Edit</Button>
+          )}
         </div>
         <ScrollArea className="flex-1">
           <div className="w-full px-4 md:px-6 py-4 space-y-4 pb-16">
@@ -592,10 +613,10 @@ export default function StateOfficeMysteryShoppingPage({ onBack, defaultStateId,
 
   if (mode !== "list") {
     return (
-      <div className="flex flex-col h-full bg-slate-50/30">
+      <div key={formKey} className="flex flex-col h-full bg-slate-50/30">
         <div className="bg-white border-b border-border/50 px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30">
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => setMode("list")} className="rounded-full"><ArrowLeft className="w-5 h-5" /></Button>
+            <Button variant="ghost" size="icon" onClick={mode === "edit" ? () => setMode("view") : leaveForm} className="rounded-full"><ArrowLeft className="w-5 h-5" /></Button>
             <h2 className="text-xl font-bold tracking-tight">{mode === "edit" ? "Edit Mystery Shopping" : "New Mystery Shopping"}</h2>
           </div>
         </div>
@@ -605,7 +626,7 @@ export default function StateOfficeMysteryShoppingPage({ onBack, defaultStateId,
         <div className="sticky bottom-0 z-30 bg-white border-t border-border/50 px-4 md:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
           <Button variant="outline" onClick={() => setStep((s) => Math.max(0, s - 1))} disabled={step === 0}>Back</Button>
           <div className="flex gap-3">
-            <Button variant="outline" onClick={() => setMode(mode === "edit" ? "view" : "list")}>Cancel</Button>
+            <Button variant="outline" onClick={mode === "edit" ? () => setMode("view") : leaveForm}>Cancel</Button>
             {step < STEPS.length - 1 ? (
               <Button className="bg-orange-action hover:bg-orange-600" onClick={goNext}>Next</Button>
             ) : (
@@ -628,9 +649,11 @@ export default function StateOfficeMysteryShoppingPage({ onBack, defaultStateId,
           <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
           </Button>
+          {canCreate && (
           <Button className="bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20" onClick={openCreate}>
             <Plus className="w-4 h-4" /> New Visit
           </Button>
+          )}
         </div>
       </div>
 

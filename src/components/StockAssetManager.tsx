@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import { stockApi } from "@/lib/api";
+import { useCreateReviewAccess } from "@/src/access/createReviewAccess";
 
 const ALL = "all";
 
@@ -62,16 +63,17 @@ const labelOf = (options: Option[], value: string, fallback: string) =>
 interface Props { onBack: () => void; }
 
 export default function StockAssetManager({ onBack }: Props) {
+  const { canCreate, createOnly } = useCreateReviewAccess();
   const [zones,       setZones]       = React.useState<Option[]>([]);
   const [states,      setStates]      = React.useState<Option[]>([]);
   const [assets,      setAssets]      = React.useState<Asset[]>([]);
-  const [loading,     setLoading]     = React.useState(true);
+  const [loading,     setLoading]     = React.useState(!createOnly);
 
   const [filterZone,    setFilterZone]    = React.useState(ALL);
   const [filterState,   setFilterState]   = React.useState(ALL);
   const [filterStatus,  setFilterStatus]  = React.useState(ALL);
 
-  const [showForm,    setShowForm]    = React.useState(false);
+  const [showForm,    setShowForm]    = React.useState(createOnly);
   const [editId,      setEditId]      = React.useState<number | null>(null);
   const [form,        setForm]        = React.useState<AssetForm>(emptyForm());
   const [formStates,  setFormStates]  = React.useState<Option[]>([]);
@@ -96,6 +98,7 @@ export default function StockAssetManager({ onBack }: Props) {
   }, [filterZone]);
 
   const loadFilteredAssets = React.useCallback(async () => {
+    if (createOnly) return;
     setLoading(true);
     try {
       const status = filterStatus === ALL ? "all" : filterStatus as "active" | "inactive";
@@ -118,9 +121,9 @@ export default function StockAssetManager({ onBack }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [filterZone, filterState, filterStatus, states]);
+  }, [filterZone, filterState, filterStatus, states, createOnly]);
 
-  React.useEffect(() => { loadFilteredAssets(); }, [loadFilteredAssets]);
+  React.useEffect(() => { if (!createOnly) loadFilteredAssets(); }, [loadFilteredAssets, createOnly]);
 
   const loadFormStates = async (zoneId: string) => {
     if (!zoneId) { setFormStates([]); return []; }
@@ -181,6 +184,15 @@ export default function StockAssetManager({ onBack }: Props) {
   };
 
   const closeForm = () => {
+    if (createOnly) {
+      setEditId(null);
+      setForm(emptyForm());
+      setFormStates([]);
+      setFormDepts([]);
+      setFormUnits([]);
+      setShowForm(true);
+      return;
+    }
     setShowForm(false);
     setEditId(null);
     setForm(emptyForm());
@@ -189,7 +201,16 @@ export default function StockAssetManager({ onBack }: Props) {
     setFormUnits([]);
   };
 
+  const cancelForm = () => {
+    if (createOnly) {
+      onBack();
+      return;
+    }
+    closeForm();
+  };
+
   const openCreate = () => {
+    if (!canCreate) return;
     setEditId(null);
     setForm(emptyForm());
     setFormStates([]);
@@ -283,7 +304,7 @@ export default function StockAssetManager({ onBack }: Props) {
             <CardTitle className="text-sm">{editId ? "Edit Asset" : "New Asset"}</CardTitle>
             <CardDescription className="text-xs">Register an asset under zone → state → department → unit</CardDescription>
           </div>
-          <Button variant="ghost" size="icon" onClick={closeForm} className="h-7 w-7">
+          <Button variant="ghost" size="icon" onClick={cancelForm} className="h-7 w-7">
             <X className="w-4 h-4" />
           </Button>
         </CardHeader>
@@ -350,7 +371,7 @@ export default function StockAssetManager({ onBack }: Props) {
               <Input type="number" min="0" value={form.book_balance} onChange={f("book_balance")} />
             </div>
             <div className="flex gap-2 md:col-span-3 justify-end">
-              <Button variant="outline" onClick={closeForm}>Cancel</Button>
+              <Button variant="outline" onClick={cancelForm}>Cancel</Button>
               <Button onClick={handleSave} disabled={saving} className="gap-2 bg-[#145c3f] hover:bg-[#0f3d2e] text-white">
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                 {saving ? "Saving..." : "Save Asset"}
@@ -365,7 +386,7 @@ export default function StockAssetManager({ onBack }: Props) {
   return (
     <div className="flex flex-col h-full bg-slate-50/30">
       <div className="bg-white border-b border-border/50 px-4 md:px-6 py-3 flex items-center justify-end sticky top-0 z-30">
-        {!showForm && (
+        {!showForm && canCreate && (
           <Button className="bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20" onClick={openCreate}>
             <Plus className="w-4 h-4" /> New Asset
           </Button>
@@ -375,7 +396,7 @@ export default function StockAssetManager({ onBack }: Props) {
       <ScrollArea className="flex-1">
         <div className="w-full px-4 md:px-6 py-4 space-y-4">
 
-          {showForm ? formCard : (
+          {showForm || createOnly ? formCard : (
             <>
               <Card className="rounded-2xl border-[#d4e8dc]">
                 <CardContent className="pt-5 pb-4">
@@ -440,9 +461,11 @@ export default function StockAssetManager({ onBack }: Props) {
                     <div className="flex flex-col items-center justify-center py-16 gap-2 text-slate-400">
                       <PackageSearch className="w-8 h-8 opacity-30" />
                       <p className="text-sm">No assets found</p>
+                      {canCreate && (
                       <Button variant="outline" size="sm" onClick={openCreate} className="mt-2 gap-2">
                         <Plus className="w-4 h-4" /> New Asset
                       </Button>
+                      )}
                     </div>
                   ) : (
                     <Table>

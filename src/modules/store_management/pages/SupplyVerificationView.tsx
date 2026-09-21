@@ -14,6 +14,7 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import { getPrimaryCategoryKeys, matchesStore } from "../lib/storeOptions";
+import { useCreateReviewAccess } from "@/src/access/createReviewAccess";
 
 interface Option {
   id: number | string;
@@ -23,10 +24,20 @@ interface Option {
 
 export default function SupplyVerificationView({ onNavigate }: { onNavigate?: (view: string) => void }) {
   const navigate = useNavigate();
+  const { canCreate, createOnly } = useCreateReviewAccess();
   const [searchParams, setSearchParams] = useSearchParams();
   const q = searchParams.get("q") || "";
   const [verifications, setVerifications] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!createOnly);
+
+  React.useEffect(() => {
+    if (!createOnly) return;
+    if (onNavigate) onNavigate("store-supply-verification-new");
+    else navigate("/store-management/verification/supply/new", {
+      state: { from: "/store-management/verification/supply" },
+      replace: true,
+    });
+  }, [createOnly, navigate, onNavigate]);
 
   // Filter states
   const [zones, setZones] = useState<Option[]>([]);
@@ -82,6 +93,7 @@ export default function SupplyVerificationView({ onNavigate }: { onNavigate?: (v
   }, [verifications]);
 
   useEffect(() => {
+    if (createOnly) return;
     let cancelled = false;
     (async () => {
       try {
@@ -100,7 +112,7 @@ export default function SupplyVerificationView({ onNavigate }: { onNavigate?: (v
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [createOnly]);
 
   const filtered = useMemo(() => {
     const query = q.trim().toLowerCase();
@@ -243,6 +255,8 @@ export default function SupplyVerificationView({ onNavigate }: { onNavigate?: (v
     },
   ];
 
+  if (createOnly) return null;
+
   return (
     <PageLayout
       title={
@@ -256,6 +270,7 @@ export default function SupplyVerificationView({ onNavigate }: { onNavigate?: (v
           <Button variant="outline" size="sm" className="text-xs h-9 border-slate-200">
             <Download className="w-4 h-4 mr-1.5" /> Export Log
           </Button>
+          {canCreate && (
           <Button
             size="sm"
             className="bg-[#145c3f] hover:bg-[#0f3d2e] text-white text-xs h-9 font-semibold"
@@ -268,6 +283,7 @@ export default function SupplyVerificationView({ onNavigate }: { onNavigate?: (v
           >
             <Plus className="w-4 h-4 mr-1.5" /> New Verification Certificate
           </Button>
+          )}
         </>
       }
     >

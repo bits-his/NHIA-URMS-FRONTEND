@@ -24,12 +24,14 @@ import {
   ShieldCheck,
   AlertCircle
 } from "lucide-react";
+import { useCreateReviewAccess } from "@/src/access/createReviewAccess";
 
 interface Option { id: number; label: string; }
 
 export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) => void }) {
   const navigate = useNavigate();
   const location = useLocation();
+  const { createOnly } = useCreateReviewAccess();
   const capitaliseState = (location.state as any)?.fromCapitalisation
     ? (location.state as any)
     : null;
@@ -46,7 +48,7 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
   const [units, setUnits] = useState<Option[]>([]);
 
   // Clean empty form state
-  const [formData, setFormData] = useState<any>({
+  const emptyForm = () => ({
     // Step 2 Location, Custody & Officers (Cascading Zone, State, Dept, Unit)
     zone_id: "",
     zone_name: "",
@@ -85,7 +87,7 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
     accumulatedDepreciation: 0,
     netBookValue: 0,
 
-    // Step 4: Lifecycle & Maintenance ‚Äî left empty until the officer fills them in
+    // Step 4: Lifecycle & Maintenance
     physicalCondition: "",
     lastVerificationDate: "",
     verificationStatus: "",
@@ -95,6 +97,8 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
     // Category Attributes
     categoryAttributes: {}
   });
+
+  const [formData, setFormData] = useState<any>(emptyForm());
 
   useEffect(() => {
     const prefill = (location.state as any)?.prefill;
@@ -263,7 +267,7 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
     });
   };
 
-  // Step Validations ‚Äî returns false and sets error + optional jump target
+  // Step Validations ù returns false and sets error + optional jump target
   const validateStep = (step: number, { silentJump = false }: { silentJump?: boolean } = {}): boolean => {
     const fail = (message: string) => {
       setValidationError(message);
@@ -327,7 +331,7 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
     e?.preventDefault();
     e?.stopPropagation?.();
     if (currentStep !== 4) {
-      // Never create from an earlier step (e.g. Enter key) ‚Äî only advance
+      // Never create from an earlier step (e.g. Enter key) ù only advance
       if (validateStep(currentStep)) setCurrentStep((s) => Math.min(4, s + 1));
       return;
     }
@@ -354,6 +358,13 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
         setSuccessMsg(false);
         if (capitaliseState) {
           navigate("/store-management/transfers/requests?tab=capitalise");
+        } else if (createOnly) {
+          setFormData(emptyForm());
+          setStates([]);
+          setDepartments([]);
+          setUnits([]);
+          setCurrentStep(1);
+          setValidationError(null);
         } else if (onNavigate) {
           onNavigate("store-assets-list");
         } else {
@@ -381,14 +392,16 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
       }
       description={
         capitaliseState
-          ? "Complete asset details ‚Äî stock will be deducted from the store on save"
+          ? "Complete asset details ù stock will be deducted from the store on save"
           : fromSupply
-            ? "Complete asset details for this verified supply ‚Äî it will be tagged on the register"
+            ? "Complete asset details for this verified supply ù it will be tagged on the register"
             : "Register new physical assets with dynamic Zone, State, Department, and Unit cascading selects"
       }
       back={true}
       backTo={
-        capitaliseState
+        createOnly
+          ? "/"
+          : capitaliseState
           ? "/store-management/transfers/requests?tab=capitalise"
           : fromSupply
             ? "/store-management/verification/supply"
@@ -422,7 +435,7 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
         )}
         {fromSupply && !capitaliseState && (
           <div className="m-4 mb-0 p-3 bg-[#e8f5ee] border border-[#25a872]/40 text-[#0f3d2e] rounded-md font-semibold text-xs">
-            Verified supply ‚Äî complete the register to capitalise this item as a tagged asset.
+            Verified supply ù complete the register to capitalise this item as a tagged asset.
           </div>
         )}
 
@@ -466,7 +479,7 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
           <div className="m-4 p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-md font-semibold text-xs flex items-center gap-2 shadow-sm">
             <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
             {capitaliseState
-              ? "Stock capitalised ‚Äî asset registered and inventory reduced."
+              ? "Stock capitalised ù asset registered and inventory reduced."
               : "Asset successfully registered and persisted in DB!"}
           </div>
         )}
@@ -475,7 +488,7 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            // Block Enter-to-submit on steps 1‚Äì3; only Save on step 4 creates the asset
+            // Block Enter-to-submit on steps 1ù3; only Save on step 4 creates the asset
             if (currentStep === 4) handleSave(e);
             else handleNextStep();
           }}
@@ -925,7 +938,7 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
 
                 <div>
                   <label className="block font-bold text-slate-700 mb-1">
-                    Acquisition Cost (NGN ‚Ç¶) <span className="text-rose-500">*</span>
+                    Acquisition Cost (NGN ?) <span className="text-rose-500">*</span>
                   </label>
                   <input
                     type="number"
@@ -955,7 +968,7 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Salvage Value (‚Ç¶)</label>
+                  <label className="block font-bold text-slate-700 mb-1">Salvage Value (?)</label>
                   <input
                     type="number"
                     value={formData.salvageValue}
@@ -983,7 +996,7 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
                   </Select>
                 </div>
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Accumulated Depreciation (‚Ç¶)</label>
+                  <label className="block font-bold text-slate-700 mb-1">Accumulated Depreciation (?)</label>
                   <input
                     type="number"
                     value={formData.accumulatedDepreciation}
@@ -995,8 +1008,8 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
               </div>
 
               <div className="p-3 bg-[#e8f5ee] border border-[#d4e8dc] rounded-md flex items-center justify-between font-mono">
-                <span className="font-bold text-[#145c3f] text-xs">Net Book Value (Acquisition ‚àí Accum. Dep.):</span>
-                <span className="font-bold text-[#145c3f] text-base">‚Ç¶{Number(formData.netBookValue || 0).toLocaleString()}</span>
+                <span className="font-bold text-[#145c3f] text-xs">Net Book Value (Acquisition ? Accum. Dep.):</span>
+                <span className="font-bold text-[#145c3f] text-base">?{Number(formData.netBookValue || 0).toLocaleString()}</span>
               </div>
             </div>
           )}
@@ -1086,7 +1099,7 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
                   value={formData.comments}
                   onChange={(e) => setFormData({ ...formData, comments: e.target.value })}
                   className="w-full min-h-[100px] px-3 py-2 rounded border border-slate-300 text-sm"
-                  placeholder="General notes or observations about this asset‚Ä¶"
+                  placeholder="General notes or observations about this assetù"
                 />
               </div>
             </div>

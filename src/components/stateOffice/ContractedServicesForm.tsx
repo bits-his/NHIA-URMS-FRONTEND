@@ -22,6 +22,8 @@ interface ContractedLine {
 interface Props {
   reportId?: number | null;
   onBack: () => void;
+  onCancel?: () => void;
+  onSubmitted?: () => void;
   defaultZoneId?: string | null;
   defaultStateId?: string | null;
 }
@@ -33,7 +35,7 @@ const blankEntry = () => ({
   amount: "",
 });
 
-export default function ContractedServicesForm({ reportId, onBack, defaultZoneId, defaultStateId }: Props) {
+export default function ContractedServicesForm({ reportId, onBack, onCancel, onSubmitted, defaultZoneId, defaultStateId }: Props) {
   const [lines, setLines] = React.useState<ContractedLine[]>([]);
   const [entry, setEntry] = React.useState(blankEntry());
 
@@ -80,6 +82,8 @@ export default function ContractedServicesForm({ reportId, onBack, defaultZoneId
       reportType="contracted-services"
       reportId={reportId}
       onBack={onBack}
+      onCancel={onCancel}
+      onSubmitted={onSubmitted}
       defaultZoneId={defaultZoneId}
       defaultStateId={defaultStateId}
       onLoaded={loadData}

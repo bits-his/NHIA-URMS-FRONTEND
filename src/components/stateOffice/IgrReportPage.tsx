@@ -35,6 +35,7 @@ interface IgrLine {
 interface Props {
   reportId?: number | null;
   onBack: () => void;
+  onSubmitted?: () => void;
   defaultZoneId?: string | null;
   defaultStateId?: string | null;
 }
@@ -44,7 +45,7 @@ const cfg = REPORT_CONFIG.igr;
 const api = stateOfficeApi.igr;
 
 export default function IgrReportPage({
-  reportId, onBack, defaultZoneId, defaultStateId,
+  reportId, onBack, onSubmitted, defaultZoneId, defaultStateId,
 }: Props) {
   const hydratingRef = React.useRef(false);
   const lockZone  = !!defaultZoneId;
@@ -276,7 +277,7 @@ export default function IgrReportPage({
       }
       setRefId(res.data.reference_id);
       toast.success("Report submitted", { description: `Reference: ${res.data.reference_id}` });
-      onBack();
+      (onSubmitted ?? onBack)();
     } catch (err: unknown) {
       toast.error("Submission failed", { description: (err as Error).message });
     } finally { setSubmitting(false); }

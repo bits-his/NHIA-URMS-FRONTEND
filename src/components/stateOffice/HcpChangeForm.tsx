@@ -36,6 +36,8 @@ const blank = () => ({
 interface Props {
   reportId?: number | null;
   onBack: () => void;
+  onCancel?: () => void;
+  onSubmitted?: () => void;
   defaultZoneId?: string | null;
   defaultStateId?: string | null;
 }
@@ -117,7 +119,7 @@ function HcpHmoSelect({
   );
 }
 
-export default function HcpChangeForm({ reportId, onBack, defaultZoneId, defaultStateId }: Props) {
+export default function HcpChangeForm({ reportId, onBack, onCancel, onSubmitted, defaultZoneId, defaultStateId }: Props) {
   const [lines, setLines] = React.useState<any[]>([]);
   const [entry, setEntry] = React.useState(blank());
 
@@ -149,6 +151,8 @@ export default function HcpChangeForm({ reportId, onBack, defaultZoneId, default
       reportType="hcf-change"
       reportId={reportId}
       onBack={onBack}
+      onCancel={onCancel}
+      onSubmitted={onSubmitted}
       defaultZoneId={defaultZoneId}
       defaultStateId={defaultStateId}
       onLoaded={loadData}

@@ -62,6 +62,7 @@ interface FormState {
 interface Props {
   reportId?: number | null;
   onBack: () => void;
+  onSubmitted?: () => void;
   defaultZoneId?: string | null;
   defaultStateId?: string | null;
 }
@@ -93,7 +94,7 @@ function resolveSelectValue(
   return { value: "other", other: stored };
 }
 
-export default function IctSupportRegisterForm({ reportId, onBack, defaultZoneId, defaultStateId }: Props) {
+export default function IctSupportRegisterForm({ reportId, onBack, onSubmitted, defaultZoneId, defaultStateId }: Props) {
   const header = useStateOfficeHeader(defaultZoneId, defaultStateId);
   const [form, setForm] = React.useState<FormState>(blank());
   const [step, setStep] = React.useState(0);
@@ -220,7 +221,7 @@ export default function IctSupportRegisterForm({ reportId, onBack, defaultZoneId
         await stateOfficeApi["ict-support-register"].create(payload);
       }
       toast.success("ICT support register submitted");
-      onBack();
+      (onSubmitted ?? onBack)();
     } catch (err: any) {
       toast.error("Submission failed", { description: err.message });
     } finally {

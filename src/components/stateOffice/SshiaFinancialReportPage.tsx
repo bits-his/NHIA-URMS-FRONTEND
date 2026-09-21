@@ -35,6 +35,7 @@ interface SshiaLine {
 interface Props {
   reportId?: number | null;
   onBack: () => void;
+  onSubmitted?: () => void;
   defaultZoneId?: string | null;
   defaultStateId?: string | null;
 }
@@ -44,7 +45,7 @@ const cfg = REPORT_CONFIG["sshia-financial"];
 const api = stateOfficeApi["sshia-financial"];
 
 export default function SshiaFinancialReportPage({
-  reportId, onBack, defaultZoneId, defaultStateId,
+  reportId, onBack, onSubmitted, defaultZoneId, defaultStateId,
 }: Props) {
   const hydratingRef = React.useRef(false);
   const lockZone  = !!defaultZoneId;
@@ -281,7 +282,7 @@ export default function SshiaFinancialReportPage({
       }
       setRefId(res.data.reference_id);
       toast.success("Report submitted", { description: `Reference: ${res.data.reference_id}` });
-      onBack();
+      (onSubmitted ?? onBack)();
     } catch (err: unknown) {
       toast.error("Submission failed", { description: (err as Error).message });
     } finally { setSubmitting(false); }

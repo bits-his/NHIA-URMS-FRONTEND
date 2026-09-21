@@ -13,6 +13,8 @@ const ETMC_SESSIONS = ["Q1", "Q2", "Q3", "Q4"] as const;
 interface Props {
   reportId?: number | null;
   onBack: () => void;
+  onCancel?: () => void;
+  onSubmitted?: () => void;
   defaultZoneId?: string | null;
   defaultStateId?: string | null;
 }
@@ -28,7 +30,7 @@ const emptyResolution = (): Row => ({
 const emptyComment = (): Row => ({ _key: uid(), question: "", relatedAgenda: "", response: "", furtherClarification: "", responsibleAuthority: "" });
 const emptyFeedback = (): Row => ({ _key: uid(), feedback: "", relatedAgenda: "", reason: "", impact: "", authority: "", actionTaken: "" });
 
-export default function EtmcCascadingForm({ reportId, onBack, defaultZoneId, defaultStateId }: Props) {
+export default function EtmcCascadingForm({ reportId, onBack, onCancel, onSubmitted, defaultZoneId, defaultStateId }: Props) {
   const [etmcMeetingDate, setEtmcMeetingDate] = React.useState("");
   const [cascadeSessionDate, setCascadeSessionDate] = React.useState("");
   const [etmcSession, setEtmcSession] = React.useState("");
@@ -88,6 +90,8 @@ export default function EtmcCascadingForm({ reportId, onBack, defaultZoneId, def
       reportType="etmc-cascading"
       reportId={reportId}
       onBack={onBack}
+      onCancel={onCancel}
+      onSubmitted={onSubmitted}
       defaultZoneId={defaultZoneId}
       defaultStateId={defaultStateId}
       onLoaded={onLoaded}

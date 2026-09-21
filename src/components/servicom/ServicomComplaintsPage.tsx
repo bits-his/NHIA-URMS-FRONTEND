@@ -40,6 +40,8 @@ interface Props {
   userName?: string | null;
   userStaffId?: string | null;
   userRole?: string | null;
+  canCreate?: boolean;
+  canReview?: boolean;
 }
 
 type Mode = "list" | "register" | "manage";
@@ -333,16 +335,19 @@ function officerMatchesUser(
 
 export default function ServicomComplaintsPage({
   onBack, defaultStateId, defaultZoneId, userName, userStaffId, userRole,
+  canCreate = true, canReview = true,
 }: Props) {
+  const createOnly = canCreate && !canReview;
   const showAssignedFilter = !!(userName || userStaffId);
   /** HQ / national viewers (no fixed state) should see all complaints by default, not only assigned. */
   const isNationalViewer = !defaultZoneId && !defaultStateId;
   const geoLocked = !!(defaultZoneId && defaultStateId);
   const today = new Date().toISOString().slice(0, 10);
-  const [mode, setMode] = React.useState<Mode>("list");
+  const [mode, setMode] = React.useState<Mode>(createOnly ? "register" : "list");
+  const [formKey, setFormKey] = React.useState(0);
   const [complaints, setComplaints] = React.useState<any[]>([]);
   const [selected, setSelected] = React.useState<any | null>(null);
-  const [loading, setLoading] = React.useState(true);
+  const [loading, setLoading] = React.useState(!createOnly);
   const [saving, setSaving] = React.useState(false);
   const [zones, setZones] = React.useState<any[]>([]);
   const [states, setStates] = React.useState<any[]>([]);
@@ -407,6 +412,7 @@ export default function ServicomComplaintsPage({
   }, [mode, f.escalation_level, f.state_id, f.zone_id, defaultStateId, defaultZoneId]);
 
   const load = React.useCallback(async () => {
+    if (createOnly) return;
     setLoading(true);
     try {
       const res = await servicomApi.listComplaints({
@@ -426,10 +432,10 @@ export default function ServicomComplaintsPage({
   }, [
     defaultStateId, defaultZoneId, filterState, filterZone, filterStatus, filterPriority,
     filterAssigned, showAssignedFilter, userName, geoLocked,
-    filterFacilityName, filterHmoId, filterTransmission,
+    filterFacilityName, filterHmoId, filterTransmission, createOnly,
   ]);
 
-  React.useEffect(() => { if (mode === "list") load(); }, [load, mode]);
+  React.useEffect(() => { if (mode === "list" && !createOnly) load(); }, [load, mode, createOnly]);
   React.useEffect(() => { stockApi.getZones().then((r) => setZones(r.data)).catch(() => {}); }, []);
   React.useEffect(() => {
     if (geoLocked || !f.zone_id) { if (!geoLocked) setStates([]); return; }
@@ -552,9 +558,18 @@ export default function ServicomComplaintsPage({
   };
 
   const openRegister = () => {
+    if (!canCreate) return;
     setF(emptyForm(defaultZoneId, defaultStateId));
     setSelected(null);
     setActiveStage("registration");
+    setMode("register");
+  };
+
+  const resetCreateForm = () => {
+    setF(emptyForm(defaultZoneId, defaultStateId));
+    setSelected(null);
+    setActiveStage("registration");
+    setFormKey((k) => k + 1);
     setMode("register");
   };
 
@@ -585,6 +600,10 @@ export default function ServicomComplaintsPage({
   };
 
   const closeSub = () => {
+    if (createOnly) {
+      resetCreateForm();
+      return;
+    }
     setMode("list");
     setSelected(null);
     setActiveStage("registration");
@@ -717,11 +736,15 @@ export default function ServicomComplaintsPage({
       };
       const res = await servicomApi.createComplaint(payload);
       toast.success("Complaint registered and officer notified");
-      setSelected(res.data);
-      setF(rowToForm(res.data));
-      setActiveStage("registration");
-      setMode("manage");
-      load();
+      if (createOnly) {
+        resetCreateForm();
+      } else {
+        setSelected(res.data);
+        setF(rowToForm(res.data));
+        setActiveStage("registration");
+        setMode("manage");
+        load();
+      }
     } catch (err: any) {
       toast.error("Failed to register complaint", { description: err.message });
     } finally { setSaving(false); }
@@ -1586,9 +1609,15 @@ export default function ServicomComplaintsPage({
 
   if (mode === "register") {
     return (
-      <div key="complaint-register" className="bg-[#f4f7f5]">
+      <div key={`complaint-register-${formKey}`} className="bg-[#f4f7f5]">
         <div className="bg-white border-b px-4 md:px-6 py-3 flex items-center gap-3 sticky top-0 z-30">
-          <Button variant="ghost" size="icon" onClick={closeSub} className="rounded-full hover:bg-[#e8f5ee] shrink-0" aria-label="Back">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={createOnly ? onBack : closeSub}
+            className="rounded-full hover:bg-[#e8f5ee] shrink-0"
+            aria-label="Back"
+          >
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <h1 className="text-lg font-bold text-slate-900">Register New Complaint</h1>
@@ -1656,9 +1685,11 @@ export default function ServicomComplaintsPage({
           <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
           </Button>
+          {canCreate && (
           <Button className="bg-orange-action hover:bg-orange-600 gap-2" onClick={openRegister}>
             <Plus className="w-4 h-4" /> Register New Complaint
           </Button>
+          )}
         </div>
       </div>
 
@@ -1865,9 +1896,11 @@ export default function ServicomComplaintsPage({
                     <p className="text-sm font-semibold text-slate-700">No complaints found</p>
                     <p className="text-xs text-slate-400 mt-1">Register a new complaint or adjust your filters</p>
                   </div>
+                  {canCreate && (
                   <Button className="bg-orange-action hover:bg-orange-600 gap-2" onClick={openRegister}>
                     <Plus className="w-4 h-4" /> Register  Complaint
                   </Button>
+                  )}
                 </div>
               ) : (
                 <div className="overflow-x-auto">

@@ -32,6 +32,7 @@ interface Props {
   reportType: StateOfficeReportType;
   reportId?: number | null;
   onBack: () => void;
+  onSubmitted?: () => void;
   defaultZoneId?: string | null;
   defaultStateId?: string | null;
 }
@@ -39,7 +40,7 @@ interface Props {
 const uid = () => Math.random().toString(36).slice(2);
 
 export default function StateOfficeReportPage({
-  reportType, reportId, onBack, defaultZoneId, defaultStateId,
+  reportType, reportId, onBack, onSubmitted, defaultZoneId, defaultStateId,
 }: Props) {
   const cfg = REPORT_CONFIG[reportType];
   const api = stateOfficeApi[reportType];
@@ -307,7 +308,7 @@ export default function StateOfficeReportPage({
       }
       setRefId(res.data.reference_id);
       toast.success("Report submitted", { description: `Reference: ${res.data.reference_id}` });
-      onBack();
+      (onSubmitted ?? onBack)();
     } catch (err: any) {
       toast.error("Submission failed", { description: err.message });
     } finally { setSubmitting(false); }

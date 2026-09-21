@@ -465,11 +465,6 @@ function getUserDepartmentLabel(
 
   if (role === "admin") return "NHIA Headquarters";
 
-  const state = user?.state?.description?.trim();
-  const zone = user?.zone?.description?.trim();
-  if (state) return `${state} State Office`;
-  if (zone) return `${zone} Zone`;
-
   return user?.role_label || role?.replace(/-/g, " ") || null;
 }
 
@@ -486,7 +481,7 @@ function UserSidebarDepartment({
   return (
     <div className="mx-1 mb-1 rounded-lg bg-white/8 px-3 py-2 group-data-[collapsible=icon]:hidden">
       <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-white/55">
-        Office
+        Department
       </p>
       <p className="mt-0.5 text-[13px] font-semibold leading-snug text-white/95">
         {department}
@@ -656,12 +651,6 @@ function NavMain({
   }, [modules, role]);
 
   const sections = React.useMemo(() => {
-    const sdoPortalCore = new Set([
-      "SERVICOM",
-      SDO_STOCK_NAV_GROUP,
-      "Special Project",
-    ]);
-    const hasSdoPortal = trees.some((node) => sdoPortalCore.has(node.title));
     const hqTitles = new Set([
       "Finance & Admin Dept",
       "Standards & Quality Assurance",
@@ -669,9 +658,6 @@ function NavMain({
       "Programmes",
     ]);
     const headingFor = (title: string) => {
-      if (sdoPortalCore.has(title) || (hasSdoPortal && title === SDO_SOC_NAV_GROUP)) {
-        return "SDO Portal";
-      }
       if (title === "State Offices") return "State Offices";
       if (hqTitles.has(title)) return "Headquarters";
       return "";
@@ -783,17 +769,13 @@ export function AppSidebar({
 
   return (
     <Sidebar collapsible="icon" {...props}>
-      <SidebarHeader className="border-b border-sidebar-border px-3 pt-3 pb-3">
-        <div className="flex h-12 items-center gap-2.5 group-data-[collapsible=icon]:justify-center">
+      <SidebarHeader className="border-b border-sidebar-border px-3 py-2.5 overflow-hidden">
+        <div className="flex h-11 w-full min-w-0 items-center justify-center group-data-[collapsible=icon]:h-9">
           <img
             src="/logo.png"
-            alt="NHIA"
-            className="h-9 w-auto object-contain"
+            alt="NHIA URMS"
+            className="h-9 w-full max-w-full object-contain object-center group-data-[collapsible=icon]:h-7 group-data-[collapsible=icon]:w-7"
           />
-          <div className="min-w-0 group-data-[collapsible=icon]:hidden">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-white/50">NHIA</p>
-            <p className="text-sm font-semibold leading-tight text-white">URMS</p>
-          </div>
         </div>
       </SidebarHeader>
 

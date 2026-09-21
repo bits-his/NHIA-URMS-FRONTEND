@@ -36,6 +36,8 @@ const blank = () => ({
 interface Props {
   reportId?: number | null;
   onBack: () => void;
+  onCancel?: () => void;
+  onSubmitted?: () => void;
   defaultZoneId?: string | null;
   defaultStateId?: string | null;
 }
@@ -48,7 +50,7 @@ function docLabel(docs: SavedDoc[], files: File[]) {
   return names.length ? names.join(", ") : "—";
 }
 
-export default function ExtraDependantForm({ reportId, onBack, defaultZoneId, defaultStateId }: Props) {
+export default function ExtraDependantForm({ reportId, onBack, onCancel, onSubmitted, defaultZoneId, defaultStateId }: Props) {
   const [lines, setLines] = React.useState<any[]>([]);
   const [entry, setEntry] = React.useState(blank());
   const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -97,6 +99,8 @@ export default function ExtraDependantForm({ reportId, onBack, defaultZoneId, de
       reportType="extra-dependant"
       reportId={reportId}
       onBack={onBack}
+      onCancel={onCancel}
+      onSubmitted={onSubmitted}
       defaultZoneId={defaultZoneId}
       defaultStateId={defaultStateId}
       onLoaded={loadData}

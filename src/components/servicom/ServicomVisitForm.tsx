@@ -19,6 +19,8 @@ import {
 interface Props {
   visitId?: number | null;
   onBack: () => void;
+  /** Called after successful submit; defaults to onBack */
+  onSubmitted?: () => void;
   defaultStateId?: string | null;
   defaultZoneId?: string | null;
 }
@@ -26,7 +28,7 @@ interface Props {
 type FindingRow = { finding_type: "strength" | "challenge"; description: string };
 type RecRow = { description: string; priority: string; responsible_officer: string; timeline: string; status: string };
 
-export default function ServicomVisitForm({ visitId, onBack, defaultStateId, defaultZoneId }: Props) {
+export default function ServicomVisitForm({ visitId, onBack, onSubmitted, defaultStateId, defaultZoneId }: Props) {
   const [loading, setLoading] = React.useState(!!visitId);
   const [saving, setSaving] = React.useState(false);
   const [submitting, setSubmitting] = React.useState(false);
@@ -181,7 +183,7 @@ export default function ServicomVisitForm({ visitId, onBack, defaultStateId, def
       }
       await servicomApi.submitVisit(id!);
       toast.success("Visit submitted for review");
-      onBack();
+      (onSubmitted ?? onBack)();
     } catch (err: any) {
       toast.error("Submit failed", { description: err.message });
     } finally { setSubmitting(false); }

@@ -29,6 +29,8 @@ interface Props {
   defaultStateName?: string;
   defaultZoneName?: string;
   userName?: string;
+  canCreate?: boolean;
+  canReview?: boolean;
 }
 
 const emptyForm = (
@@ -76,12 +78,16 @@ export default function ServicomSatisfactionSurveyPage({
   defaultStateName,
   defaultZoneName,
   userName,
+  canCreate = true,
+  canReview = true,
 }: Props) {
+  const createOnly = canCreate && !canReview;
   const geoLocked = !!(defaultZoneId && defaultStateId);
-  const [mode, setMode] = React.useState<"list" | "form" | "view">("list");
+  const [mode, setMode] = React.useState<"list" | "form" | "view">(createOnly ? "form" : "list");
+  const [formKey, setFormKey] = React.useState(0);
   const [surveys, setSurveys] = React.useState<any[]>([]);
   const [selected, setSelected] = React.useState<any | null>(null);
-  const [loading, setLoading] = React.useState(true);
+  const [loading, setLoading] = React.useState(!createOnly);
   const [saving, setSaving] = React.useState(false);
   const [zones, setZones] = React.useState<any[]>([]);
   const [states, setStates] = React.useState<any[]>([]);
@@ -104,6 +110,7 @@ export default function ServicomSatisfactionSurveyPage({
   const activeCategory = !isDetailsStep ? categorySteps[formStep - 1] : null;
 
   const load = React.useCallback(async () => {
+    if (createOnly) return;
     setLoading(true);
     try {
       const res = await servicomApi.listSatisfactionSurveys({
@@ -114,9 +121,9 @@ export default function ServicomSatisfactionSurveyPage({
     } catch (err: any) {
       toast.error("Failed to load surveys", { description: err.message });
     } finally { setLoading(false); }
-  }, [defaultStateId, defaultZoneId, filterState, filterZone, geoLocked]);
+  }, [defaultStateId, defaultZoneId, filterState, filterZone, geoLocked, createOnly]);
 
-  React.useEffect(() => { if (mode === "list") load(); }, [load, mode]);
+  React.useEffect(() => { if (mode === "list" && !createOnly) load(); }, [load, mode, createOnly]);
   React.useEffect(() => {
     stockApi.getZones().then((r) => setZones(r.data)).catch(() => {});
   }, []);
@@ -143,6 +150,7 @@ export default function ServicomSatisfactionSurveyPage({
   }, [surveys, filterSearch, filterDate]);
 
   const openForm = () => {
+    if (!canCreate) return;
     setF(emptyForm(defaultZoneId, defaultStateId, userName));
     setSelectedProviderId("");
     setSelected(null);
@@ -160,7 +168,20 @@ export default function ServicomSatisfactionSurveyPage({
     }
   };
 
+  const resetCreateForm = () => {
+    setF(emptyForm(defaultZoneId, defaultStateId, userName));
+    setSelectedProviderId("");
+    setSelected(null);
+    setFormStep(0);
+    setFormKey((k) => k + 1);
+    setMode("form");
+  };
+
   const closeSub = () => {
+    if (createOnly) {
+      resetCreateForm();
+      return;
+    }
     setMode("list");
     setSelected(null);
     setFormStep(0);
@@ -201,6 +222,7 @@ export default function ServicomSatisfactionSurveyPage({
 
   const goBackStep = () => {
     if (formStep > 0) setFormStep((s) => s - 1);
+    else if (createOnly) onBack();
     else closeSub();
   };
 
@@ -604,9 +626,11 @@ export default function ServicomSatisfactionSurveyPage({
           <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
           </Button>
+          {canCreate && (
           <Button className="bg-orange-action hover:bg-orange-600 gap-2" onClick={openForm}>
             <Plus className="w-4 h-4" /> New Survey
           </Button>
+          )}
         </div>
       </div>
 

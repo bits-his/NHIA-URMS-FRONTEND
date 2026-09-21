@@ -10,11 +10,13 @@ import {
 interface Props {
   reportId?: number | null;
   onBack: () => void;
+  onCancel?: () => void;
+  onSubmitted?: () => void;
   defaultZoneId?: string | null;
   defaultStateId?: string | null;
 }
 
-export default function EnrolleeFeedbackForm({ reportId, onBack, defaultZoneId, defaultStateId }: Props) {
+export default function EnrolleeFeedbackForm({ reportId, onBack, onCancel, onSubmitted, defaultZoneId, defaultStateId }: Props) {
   const [hearAbout, setHearAbout] = React.useState<string[]>([]);
   const [hearOther, setHearOther] = React.useState("");
   const [visitPurpose, setVisitPurpose] = React.useState<string[]>([]);
@@ -49,6 +51,8 @@ export default function EnrolleeFeedbackForm({ reportId, onBack, defaultZoneId, 
       reportType="enrollee-feedback"
       reportId={reportId}
       onBack={onBack}
+      onCancel={onCancel}
+      onSubmitted={onSubmitted}
       defaultZoneId={defaultZoneId}
       defaultStateId={defaultStateId}
       onLoaded={onLoaded}

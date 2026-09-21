@@ -10,6 +10,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import { stockApi } from "@/lib/api";
 import StockVerificationPage from "./StockVerificationPage";
+import { useCreateReviewAccess } from "@/src/access/createReviewAccess";
 
 interface Verification {
   id: number;
@@ -51,14 +52,17 @@ function safeDate(v: string | null | undefined) {
 }
 
 export default function StockVerificationsList({ onBack }: Props) {
-  const [mode, setMode] = React.useState<"list" | "form">("list");
+  const { canCreate, createOnly } = useCreateReviewAccess();
+  const [mode, setMode] = React.useState<"list" | "form">(createOnly ? "form" : "list");
   const [selectedId, setSelectedId] = React.useState<number | null>(null);
+  const [formKey, setFormKey] = React.useState(0);
   const [verifications, setVerifications] = React.useState<Verification[]>([]);
-  const [loading, setLoading] = React.useState(true);
+  const [loading, setLoading] = React.useState(!createOnly);
   const [filterStatus, setFilterStatus] = React.useState("all");
   const [filterType,   setFilterType]   = React.useState("all");
 
   const load = React.useCallback(async () => {
+    if (createOnly) return;
     setLoading(true);
     try {
       const res = await stockApi.listVerifications({
@@ -69,9 +73,9 @@ export default function StockVerificationsList({ onBack }: Props) {
     } catch (err: any) {
       toast.error("Failed to load", { description: err.message });
     } finally { setLoading(false); }
-  }, [filterStatus, filterType]);
+  }, [filterStatus, filterType, createOnly]);
 
-  React.useEffect(() => { load(); }, [load]);
+  React.useEffect(() => { if (!createOnly) load(); }, [load, createOnly]);
 
   const counts = React.useMemo(() => ({
     total:     verifications.length,
@@ -80,15 +84,31 @@ export default function StockVerificationsList({ onBack }: Props) {
     approved:  verifications.filter(v => v.status === "approved").length,
   }), [verifications]);
 
-  const openNew = () => { setSelectedId(null); setMode("form"); };
+  const openNew = () => {
+    if (!canCreate) return;
+    setSelectedId(null);
+    setMode("form");
+  };
   const openView = (id: number) => { setSelectedId(id); setMode("form"); };
-  const closeForm = () => { setSelectedId(null); setMode("list"); load(); };
+  const closeForm = () => {
+    if (createOnly) {
+      setSelectedId(null);
+      setFormKey((k) => k + 1);
+      setMode("form");
+      return;
+    }
+    setSelectedId(null);
+    setMode("list");
+    load();
+  };
 
   if (mode === "form") {
     return (
       <StockVerificationPage
+        key={formKey}
         verificationId={selectedId}
-        onBack={closeForm}
+        onBack={createOnly && !selectedId ? onBack : closeForm}
+        onSubmitted={closeForm}
       />
     );
   }
@@ -100,9 +120,11 @@ export default function StockVerificationsList({ onBack }: Props) {
           <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
           </Button>
+          {canCreate && (
           <Button className="bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20" onClick={openNew}>
             <Plus className="w-4 h-4" /> New Verification
           </Button>
+          )}
         </div>
       </div>
 
@@ -184,9 +206,11 @@ export default function StockVerificationsList({ onBack }: Props) {
                 <div className="flex flex-col items-center justify-center py-16 gap-2 text-slate-400">
                   <PackageSearch className="w-8 h-8 opacity-30" />
                   <p className="text-sm font-medium">No verifications found</p>
+                  {canCreate && (
                   <Button variant="outline" size="sm" onClick={openNew} className="mt-2 gap-2">
                     <Plus className="w-4 h-4" /> New Verification
                   </Button>
+                  )}
                 </div>
               ) : (
                 <Table>

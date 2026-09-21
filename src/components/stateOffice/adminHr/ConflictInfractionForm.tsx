@@ -7,11 +7,13 @@ import { CONFLICT_NATURES, ADMIN_HR_CONFIG } from "./constants";
 interface Props {
   reportId?: number | null;
   onBack: () => void;
+  onCancel?: () => void;
+  onSubmitted?: () => void;
   defaultZoneId?: string | null;
   defaultStateId?: string | null;
 }
 
-export default function ConflictInfractionForm({ reportId, onBack, defaultZoneId, defaultStateId }: Props) {
+export default function ConflictInfractionForm({ reportId, onBack, onCancel, onSubmitted, defaultZoneId, defaultStateId }: Props) {
   const [refNo, setRefNo] = React.useState("");
   const [dateOfReport, setDateOfReport] = React.useState(new Date().toISOString().slice(0, 10));
   const [reportingOfficer, setReportingOfficer] = React.useState("");
@@ -68,6 +70,8 @@ export default function ConflictInfractionForm({ reportId, onBack, defaultZoneId
       reportType="conflict-infraction"
       reportId={reportId}
       onBack={onBack}
+      onCancel={onCancel}
+      onSubmitted={onSubmitted}
       defaultZoneId={defaultZoneId}
       defaultStateId={defaultStateId}
       onLoaded={onLoaded}

@@ -61,6 +61,7 @@ interface FormState {
 interface Props {
   reportId?: number | null;
   onBack: () => void;
+  onSubmitted?: () => void;
   defaultZoneId?: string | null;
   defaultStateId?: string | null;
 }
@@ -95,7 +96,7 @@ function resolveSelectValue(
   return { value: "other", other: stored };
 }
 
-export default function AdhocSpecialAssignmentForm({ reportId, onBack, defaultZoneId, defaultStateId }: Props) {
+export default function AdhocSpecialAssignmentForm({ reportId, onBack, onSubmitted, defaultZoneId, defaultStateId }: Props) {
   const header = useStateOfficeHeader(defaultZoneId, defaultStateId);
   const [form, setForm] = React.useState<FormState>(blank());
   const [step, setStep] = React.useState(0);
@@ -224,7 +225,7 @@ export default function AdhocSpecialAssignmentForm({ reportId, onBack, defaultZo
         await stateOfficeApi["adhoc-special-assignment"].create(payload);
       }
       toast.success("Ad-hoc assignment submitted");
-      onBack();
+      (onSubmitted ?? onBack)();
     } catch (err: any) {
       toast.error("Submission failed", { description: err.message });
     } finally {

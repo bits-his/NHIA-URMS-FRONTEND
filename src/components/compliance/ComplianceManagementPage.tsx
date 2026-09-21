@@ -37,6 +37,7 @@ import {
   buildComplianceDrillRows, computeComplianceKpis, parseReportIdFromDrillRow,
   COMPLIANCE_DRILL_TITLES, type ComplianceDrillKind,
 } from "./complianceDrill";
+import { useCreateReviewAccess } from "@/src/access/createReviewAccess";
 
 const MODULE_NAME = "Facility Compliance Report";
 
@@ -88,9 +89,11 @@ function mapProviderFacilityType(raw?: string | null): string {
 
 export default function ComplianceManagementPage({ onBack, defaultZoneId, defaultStateId }: Props) {
   const authUser = useAppSelector(s => s.auth.user);
-  const [mode, setMode] = React.useState<"list" | "form" | "view">("list");
+  const { canCreate, createOnly } = useCreateReviewAccess();
+  const [mode, setMode] = React.useState<"list" | "form" | "view">(createOnly ? "form" : "list");
+  const [formKey, setFormKey] = React.useState(0);
   const [reports, setReports] = React.useState<any[]>([]);
-  const [loading, setLoading] = React.useState(true);
+  const [loading, setLoading] = React.useState(!createOnly);
   const [saving, setSaving] = React.useState(false);
   const [selectedId, setSelectedId] = React.useState<number | null>(null);
   const [refId, setRefId] = React.useState<string | null>(null);
@@ -176,6 +179,7 @@ export default function ComplianceManagementPage({ onBack, defaultZoneId, defaul
   }, [zoneId]);
 
   const load = React.useCallback(async () => {
+    if (createOnly) return;
     setLoading(true);
     try {
       const res = await complianceApi.list({
@@ -188,9 +192,9 @@ export default function ComplianceManagementPage({ onBack, defaultZoneId, defaul
     } catch (err: any) {
       toast.error("Failed to load reports", { description: err.message });
     } finally { setLoading(false); }
-  }, [defaultZoneId, defaultStateId, filterZone, apiStateId, filterYear, filterStatus]);
+  }, [defaultZoneId, defaultStateId, filterZone, apiStateId, filterYear, filterStatus, createOnly]);
 
-  React.useEffect(() => { if (mode === "list") load(); }, [mode, load]);
+  React.useEffect(() => { if (!createOnly && mode === "list") load(); }, [mode, load, createOnly]);
 
   const kpiStats = React.useMemo(() => computeComplianceKpis(reports), [reports]);
 
@@ -297,6 +301,21 @@ export default function ComplianceManagementPage({ onBack, defaultZoneId, defaul
     setComplaintsReceived(""); setComplaintCategories([]);
     setResolvedAtFacility(""); setEscalatedTo("none"); setComplaintSummary("");
     setFindings([]); setViolations([]); setEnforcements([]);
+  };
+
+  const leaveForm = () => {
+    if (createOnly) {
+      onBack();
+      return;
+    }
+    setMode("list");
+    resetForm();
+  };
+
+  const remountCreateForm = () => {
+    resetForm();
+    setFormKey((k) => k + 1);
+    setMode("form");
   };
 
   const applyReport = (v: any) => {
@@ -528,8 +547,11 @@ export default function ComplianceManagementPage({ onBack, defaultZoneId, defaul
         ? await complianceApi.update(selectedId, payload, certificationFile)
         : await complianceApi.create(payload, certificationFile);
       toast.success("Report submitted", { description: res.data.reference_id });
-      setMode("list");
-      resetForm();
+      if (createOnly && !selectedId) remountCreateForm();
+      else {
+        setMode("list");
+        resetForm();
+      }
     } catch (e: any) { toast.error(e.message); }
     finally { setSaving(false); }
   };
@@ -589,12 +611,12 @@ export default function ComplianceManagementPage({ onBack, defaultZoneId, defaul
     return (
       <div className="flex flex-col h-full bg-slate-50/30">
         <div className="bg-white border-b border-border/50 px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30">
-          <Button variant="ghost" size="icon" onClick={() => { setMode("list"); setViewReport(null); }} className="rounded-full">
+          <Button variant="ghost" size="icon" onClick={() => { setMode(createOnly ? "form" : "list"); setViewReport(null); }} className="rounded-full">
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <div className="flex items-center gap-2">
             <Badge className={`text-[10px] border gap-1 ${st.cls}`}>{st.icon}{st.label}</Badge>
-            {v.status !== "approved" && (
+            {canCreate && v.status !== "approved" && (
               <Button variant="outline" size="sm" onClick={() => { applyReport(v); setViewReport(null); setMode("form"); }} className="gap-2">
                 <Pencil className="w-4 h-4" /> {v.status === "draft" ? "Edit Draft" : "Edit"}
               </Button>
@@ -759,6 +781,7 @@ export default function ComplianceManagementPage({ onBack, defaultZoneId, defaul
     const st = STATUS_CFG[reportStatus as keyof typeof STATUS_CFG] ?? STATUS_CFG.draft;
     return (
       <ComplianceReportForm
+        key={formKey}
         refId={refId}
         reportRegistered={!!selectedId}
         reportStatus={reportStatus}
@@ -834,7 +857,7 @@ export default function ComplianceManagementPage({ onBack, defaultZoneId, defaul
         setStateRemarks={setStateRemarks}
         reviewedBy={reviewedBy}
         setReviewedBy={setReviewedBy}
-        onCancel={() => { setMode("list"); resetForm(); }}
+        onCancel={leaveForm}
         onSaveAndContinue={saveAndContinue}
         onSaveStage={saveStage}
         onSubmit={submitReport}
@@ -853,12 +876,14 @@ export default function ComplianceManagementPage({ onBack, defaultZoneId, defaul
           <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
           </Button>
+          {canCreate && (
           <Button
             className="bg-[#145c3f] hover:bg-[#0f3d2e] gap-2 shadow-lg shadow-emerald-500/20"
             onClick={() => { resetForm(); setMode("form"); }}
           >
             <Plus className="w-4 h-4" /> New Report
           </Button>
+          )}
         </div>
       </div>
 
@@ -986,7 +1011,7 @@ export default function ComplianceManagementPage({ onBack, defaultZoneId, defaul
                     <div className="flex flex-col items-center justify-center py-16 gap-2 text-slate-400">
                       <FileText className="w-8 h-8 opacity-30" />
                       <p className="text-sm font-medium">{hasFilters ? "No reports match your filters" : "No compliance reports yet"}</p>
-                      {!hasFilters && (
+                      {!hasFilters && canCreate && (
                         <Button variant="outline" size="sm" className="mt-2 gap-2" onClick={() => { resetForm(); setMode("form"); }}>
                           <Plus className="w-4 h-4" /> New Report
                         </Button>

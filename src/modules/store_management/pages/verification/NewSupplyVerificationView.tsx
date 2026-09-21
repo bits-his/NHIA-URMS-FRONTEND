@@ -42,6 +42,7 @@ import {
   APPROVAL_STATUSES,
   storeNameFromState,
 } from "../../lib/storeOptions";
+import { useCreateReviewAccess } from "@/src/access/createReviewAccess";
 
 type LineItem = {
   description: string;
@@ -73,6 +74,7 @@ function labelOf(options: Option[], id: string) {
 export function NewSupplyVerificationView() {
   const navigate = useNavigate();
   const user = useSelector((s: RootState) => s.auth.user);
+  const { createOnly } = useCreateReviewAccess();
 
   const [currentStep, setCurrentStep] = useState(1);
   const [zones, setZones] = useState<Option[]>([]);
@@ -337,6 +339,27 @@ export function NewSupplyVerificationView() {
           });
           return;
         }
+        if (createOnly) {
+          setFormData((prev) => ({
+            ...prev,
+            supplyRefNo: nextControlNumber(),
+            certificateDate: new Date().toISOString().slice(0, 10),
+            procurementDate: new Date().toISOString().slice(0, 10),
+            srvDate: new Date().toISOString().slice(0, 10),
+            signOffDate: new Date().toISOString().slice(0, 10),
+            supplierName: "",
+            contractorAddress: "",
+            purchaseOrderRef: "",
+            srvNo: "",
+            remarks: "",
+            approvalStatus: "PENDING",
+          }));
+          setLineItems([{ description: formData.specificType || "", quantityDelivered: 1, unitPrice: 0 }]);
+          setCurrentStep(1);
+          setSuccessMsg(false);
+          setValidationError(null);
+          return;
+        }
         if (savedId) {
           navigate(`/store-management/verification/supply/${savedId}`, {
             state: { justCreated: true, from: "/store-management/verification/supply" },
@@ -364,7 +387,7 @@ export function NewSupplyVerificationView() {
         <Button
           variant="outline"
           size="sm"
-          onClick={() => navigate(-1)}
+          onClick={() => (createOnly ? navigate("/") : navigate(-1))}
           className="text-xs"
         >
           <ArrowLeft className="h-3.5 w-3.5 mr-1" />
