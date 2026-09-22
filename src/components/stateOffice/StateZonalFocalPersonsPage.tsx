@@ -79,14 +79,6 @@ const emptyForm = (year: string, zoneId?: string | null, stateId?: string | null
 
 type FormState = ReturnType<typeof emptyForm>;
 
-function displayStateId(stateId: string | number | null | undefined) {
-  if (!stateId) return "—";
-  return `ST-${String(stateId).padStart(3, "0")}`;
-}
-function displayZoneId(zoneId: string | number | null | undefined) {
-  if (!zoneId) return "—";
-  return `ZN-${String(zoneId).padStart(2, "0")}`;
-}
 function labelOf(opts: { value: string; label: string }[], value: string) {
   return opts.find((o) => o.value === value)?.label ?? (value || "Select");
 }
@@ -274,7 +266,7 @@ export default function StateZonalFocalPersonsPage({ onBack, defaultStateId, def
     <div className="space-y-4">
       <Card className="rounded-2xl border-[#d4e8dc]">
         <CardContent className="pt-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label>Zone <span className="text-red-500">*</span></Label>
               <Select value={f.zone_id} onValueChange={(v) => setField("zone_id", v)} disabled={lockGeo}>
@@ -287,12 +279,6 @@ export default function StateZonalFocalPersonsPage({ onBack, defaultStateId, def
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Zone ID <span className="text-[10px] font-normal text-slate-400">(auto-generated)</span></Label>
-              <div className="h-10 flex items-center px-3 rounded-md border border-input bg-slate-50 text-sm font-mono font-bold text-primary">
-                {displayZoneId(f.zone_id)}
-              </div>
-            </div>
-            <div className="space-y-2">
               <Label>State <span className="text-red-500">*</span></Label>
               <Select value={f.state_id} onValueChange={(v) => setField("state_id", v)} disabled={lockStateField}>
                 <SelectTrigger className={`w-full ${lockStateField ? "opacity-70 bg-slate-50" : ""}`} displayValue={f.zone_id ? stateLabel : "Select Zone first"}>
@@ -302,12 +288,6 @@ export default function StateZonalFocalPersonsPage({ onBack, defaultStateId, def
                   {formStates.map((s) => <SelectItem key={s.id} value={String(s.id)}>{s.description}</SelectItem>)}
                 </SelectContent>
               </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>State ID <span className="text-[10px] font-normal text-slate-400">(auto-generated)</span></Label>
-              <div className="h-10 flex items-center px-3 rounded-md border border-input bg-slate-50 text-sm font-mono font-bold text-primary">
-                {displayStateId(f.state_id)}
-              </div>
             </div>
             <div className="space-y-2">
               <Label>Year <span className="text-red-500">*</span></Label>
@@ -399,8 +379,6 @@ export default function StateZonalFocalPersonsPage({ onBack, defaultStateId, def
                   <p className="mt-1 text-sm text-white/80">{labelOf(FOCAL_DESIGNATIONS, f.designation)}</p>
                   <div className="mt-4 flex flex-wrap gap-2">
                     <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-semibold">{labelOf(FOCAL_DOMAINS, f.domain)}</span>
-                    <span className="rounded-full bg-white/15 px-3 py-1 font-mono text-xs font-bold">{displayStateId(f.state_id)}</span>
-                    <span className="rounded-full bg-white/15 px-3 py-1 font-mono text-xs font-bold">{displayZoneId(f.zone_id)}</span>
                   </div>
                 </div>
               </Card>
@@ -413,11 +391,9 @@ export default function StateZonalFocalPersonsPage({ onBack, defaultStateId, def
                   <CardDescription>State and zonal office assignment</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <InfoField label="Zone" value={<span className="inline-flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5 text-primary" />{zoneName}</span>} />
-                    <InfoField label="Zone ID" value={<span className="font-mono text-primary">{displayZoneId(f.zone_id)}</span>} />
                     <InfoField label="State" value={stateName} />
-                    <InfoField label="State ID" value={<span className="font-mono text-primary">{displayStateId(f.state_id)}</span>} />
                   </div>
                 </CardContent>
               </Card>
@@ -591,9 +567,7 @@ export default function StateZonalFocalPersonsPage({ onBack, defaultStateId, def
                       <TableRow className="bg-[#f0fdf7] hover:bg-[#f0fdf7]">
                         <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Year</TableHead>
                         <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">State</TableHead>
-                        <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">State ID</TableHead>
                         <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Zone</TableHead>
-                        <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Zone ID</TableHead>
                         <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Domain</TableHead>
                         <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Name of Office</TableHead>
                         <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Designation</TableHead>
@@ -609,9 +583,7 @@ export default function StateZonalFocalPersonsPage({ onBack, defaultStateId, def
                           className="hover:bg-[#f8fdfb] transition-colors border-b border-slate-100 last:border-0">
                           <TableCell className="text-sm font-semibold text-slate-800 whitespace-nowrap">{row.reporting_year}</TableCell>
                           <TableCell className="text-sm font-semibold text-slate-800 whitespace-nowrap">{row.state?.description || "—"}</TableCell>
-                          <TableCell><span className="font-mono text-xs font-bold text-primary">{row.state_display_id || displayStateId(row.state_id)}</span></TableCell>
                           <TableCell className="text-sm text-slate-600 whitespace-nowrap">{row.zone?.description || "—"}</TableCell>
-                          <TableCell><span className="font-mono text-xs font-bold text-primary">{row.zone_display_id || displayZoneId(row.zone_id)}</span></TableCell>
                           <TableCell className="text-sm text-slate-600 whitespace-nowrap">{labelOf(FOCAL_DOMAINS, row.domain)}</TableCell>
                           <TableCell className="text-sm font-medium text-slate-800 whitespace-nowrap">{row.officer_name}</TableCell>
                           <TableCell className="text-sm text-slate-600 whitespace-nowrap">{labelOf(FOCAL_DESIGNATIONS, row.designation)}</TableCell>

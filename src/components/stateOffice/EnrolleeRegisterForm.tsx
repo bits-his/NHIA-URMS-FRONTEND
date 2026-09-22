@@ -69,14 +69,12 @@ export default function EnrolleeRegisterForm({ reportId, onBack, onCancel, onSub
                     {scheme.label}
                   </Label>
                   <Input
-                    inputMode="numeric"
+                    type="number"
+                    min={0}
                     className="h-11 text-lg font-semibold tabular-nums bg-white"
                     placeholder="0"
                     value={counts[scheme.key]}
-                    onChange={(e) => {
-                      const next = e.target.value.replace(/[^\d]/g, "");
-                      setCounts((prev) => ({ ...prev, [scheme.key]: next }));
-                    }}
+                    onChange={(e) => setCounts((prev) => ({ ...prev, [scheme.key]: e.target.value }))}
                   />
                 </div>
               ))}

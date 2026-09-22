@@ -15,6 +15,7 @@ import {
   Truck,
 } from "lucide-react";
 import { toast } from "sonner";
+import { Input } from "@/components/ui/input";
 import { useCreateReviewAccess } from "@/src/access/createReviewAccess";
 
 const PROCUREMENT_INSTRUMENTS = [
@@ -277,7 +278,7 @@ export default function NewPrepaymentAnalysisView() {
                 <label className="block font-bold text-slate-800 mb-1">
                   Quantity Ordered <span className="text-rose-500">*</span>
                 </label>
-                <input
+                <Input
                   type="number"
                   min={0}
                   value={form.quantityOrdered}
@@ -290,7 +291,7 @@ export default function NewPrepaymentAnalysisView() {
                 <label className="block font-bold text-slate-800 mb-1">
                   Quantity Supplied <span className="text-rose-500">*</span>
                 </label>
-                <input
+                <Input
                   type="number"
                   min={0}
                   value={form.quantitySupplied}
@@ -303,7 +304,7 @@ export default function NewPrepaymentAnalysisView() {
                 <label className="block font-bold text-slate-800 mb-1">
                   Rate (₦) <span className="text-rose-500">*</span>
                 </label>
-                <input
+                <Input
                   type="number"
                   min={0}
                   step="0.01"

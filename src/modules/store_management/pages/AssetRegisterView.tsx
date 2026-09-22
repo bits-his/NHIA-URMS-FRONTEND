@@ -10,6 +10,7 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import {
   CheckCircle2,
   ChevronRight,
@@ -267,7 +268,7 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
     });
   };
 
-  // Step Validations ù returns false and sets error + optional jump target
+  // Step Validations ¬ù returns false and sets error + optional jump target
   const validateStep = (step: number, { silentJump = false }: { silentJump?: boolean } = {}): boolean => {
     const fail = (message: string) => {
       setValidationError(message);
@@ -331,7 +332,7 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
     e?.preventDefault();
     e?.stopPropagation?.();
     if (currentStep !== 4) {
-      // Never create from an earlier step (e.g. Enter key) ù only advance
+      // Never create from an earlier step (e.g. Enter key) ¬ù only advance
       if (validateStep(currentStep)) setCurrentStep((s) => Math.min(4, s + 1));
       return;
     }
@@ -392,9 +393,9 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
       }
       description={
         capitaliseState
-          ? "Complete asset details ù stock will be deducted from the store on save"
+          ? "Complete asset details ¬ù stock will be deducted from the store on save"
           : fromSupply
-            ? "Complete asset details for this verified supply ù it will be tagged on the register"
+            ? "Complete asset details for this verified supply ¬ù it will be tagged on the register"
             : "Register new physical assets with dynamic Zone, State, Department, and Unit cascading selects"
       }
       back={true}
@@ -435,7 +436,7 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
         )}
         {fromSupply && !capitaliseState && (
           <div className="m-4 mb-0 p-3 bg-[#e8f5ee] border border-[#25a872]/40 text-[#0f3d2e] rounded-md font-semibold text-xs">
-            Verified supply ù complete the register to capitalise this item as a tagged asset.
+            Verified supply ¬ù complete the register to capitalise this item as a tagged asset.
           </div>
         )}
 
@@ -479,7 +480,7 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
           <div className="m-4 p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-md font-semibold text-xs flex items-center gap-2 shadow-sm">
             <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
             {capitaliseState
-              ? "Stock capitalised ù asset registered and inventory reduced."
+              ? "Stock capitalised ¬ù asset registered and inventory reduced."
               : "Asset successfully registered and persisted in DB!"}
           </div>
         )}
@@ -488,7 +489,7 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            // Block Enter-to-submit on steps 1ù3; only Save on step 4 creates the asset
+            // Block Enter-to-submit on steps 1¬ù3; only Save on step 4 creates the asset
             if (currentStep === 4) handleSave(e);
             else handleNextStep();
           }}
@@ -940,8 +941,10 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
                   <label className="block font-bold text-slate-700 mb-1">
                     Acquisition Cost (NGN ?) <span className="text-rose-500">*</span>
                   </label>
-                  <input
+                  <Input
                     type="number"
+                    step="0.01"
+                    min={0}
                     value={formData.acquisitionCost}
                     onChange={(e) => {
                       setFormData({ ...formData, acquisitionCost: e.target.value });
@@ -957,7 +960,7 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
                   <label className="block font-bold text-slate-700 mb-1">
                     Useful Life (Years) <span className="text-rose-500">*</span>
                   </label>
-                  <input
+                  <Input
                     type="number"
                     value={formData.usefulLifeYears}
                     onChange={(e) => setFormData({ ...formData, usefulLifeYears: e.target.value })}
@@ -969,8 +972,10 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="block font-bold text-slate-700 mb-1">Salvage Value (?)</label>
-                  <input
+                  <Input
                     type="number"
+                    step="0.01"
+                    min={0}
                     value={formData.salvageValue}
                     onChange={(e) => setFormData({ ...formData, salvageValue: e.target.value })}
                     className="w-full px-3 py-2 rounded border border-slate-300 font-mono"
@@ -997,8 +1002,10 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
                 </div>
                 <div>
                   <label className="block font-bold text-slate-700 mb-1">Accumulated Depreciation (?)</label>
-                  <input
+                  <Input
                     type="number"
+                    step="0.01"
+                    min={0}
                     value={formData.accumulatedDepreciation}
                     onChange={(e) => setFormData({ ...formData, accumulatedDepreciation: e.target.value })}
                     className="w-full px-3 py-2 rounded border border-slate-300 font-mono"
@@ -1099,7 +1106,7 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
                   value={formData.comments}
                   onChange={(e) => setFormData({ ...formData, comments: e.target.value })}
                   className="w-full min-h-[100px] px-3 py-2 rounded border border-slate-300 text-sm"
-                  placeholder="General notes or observations about this assetù"
+                  placeholder="General notes or observations about this asset¬ù"
                 />
               </div>
             </div>

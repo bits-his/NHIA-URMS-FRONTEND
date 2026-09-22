@@ -157,13 +157,11 @@ export default function ContractedServicesForm({ reportId, onBack, onCancel, onS
                 <Input
                   type="number"
                   min="0"
+                  step="0.01"
                   placeholder="0.00"
                   value={entry.amount}
                   onChange={e => setEntry(v => ({ ...v, amount: e.target.value }))}
                 />
-                {entry.amount && Number(entry.amount) > 0 && (
-                  <p className="text-xs font-semibold text-primary">₦ {Number(entry.amount).toLocaleString()}</p>
-                )}
               </div>
 
               {/* Add button */}
