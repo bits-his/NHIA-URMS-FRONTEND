@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import StateOfficeFormShell from "../StateOfficeFormShell";
-import { Section, Field, TextInput, TextArea, FormPageTitle, Notice } from "./ui";
+import { Section, Field, TextInput, TextArea, Notice } from "./ui";
 import { CONFLICT_NATURES, ADMIN_HR_CONFIG } from "./constants";
 
 interface Props {
@@ -74,6 +74,7 @@ export default function ConflictInfractionForm({ reportId, onBack, onCancel, onS
       onSubmitted={onSubmitted}
       defaultZoneId={defaultZoneId}
       defaultStateId={defaultStateId}
+      pageTitle={ADMIN_HR_CONFIG["conflict-infraction"].formTitle}
       onLoaded={onLoaded}
       validate={() => {
         if (!dateOfReport) return "Enter date of report";
@@ -98,7 +99,6 @@ export default function ConflictInfractionForm({ reportId, onBack, onCancel, onS
     >
       {() => (
         <div className="space-y-4">
-          <FormPageTitle title="CONFLICT / INFRACTION REPORT" />
           <Notice>
             Escalation Path: Forward to the Zonal Coordinator within 48 hours of filing.
             Where unresolved at Zonal level, escalate to the Director, Special Duties Office (SDO).

@@ -165,26 +165,30 @@ export default function AdminHrDetail({ reportType, reportId, onBack, onEdit }: 
   return (
     <div className="flex flex-col h-full bg-slate-50/30">
       <div className="bg-white border-b border-border/50 px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30 gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <Button variant="outline" size="sm" onClick={onBack} className="gap-1.5 shrink-0 font-semibold">
+        <div className="min-w-0">
+          <h2 className="text-xl font-bold tracking-tight truncate">{cfg.formTitle}</h2>
+          <p className="text-xs text-slate-500 truncate">
+            {report?.reference_id ? (
+              <span className="font-mono font-semibold text-[#145c3f]">{report.reference_id}</span>
+            ) : (
+              cfg.subtitle
+            )}
+          </p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          {onEdit && (
+            <Button
+              size="sm"
+              onClick={onEdit}
+              className="gap-2 shrink-0 bg-[#145c3f] hover:bg-[#0f3d2e] text-white"
+            >
+              <Pencil className="w-4 h-4" /> Edit
+            </Button>
+          )}
+          <Button variant="outline" size="sm" onClick={onBack} className="gap-1.5 font-semibold">
             <ArrowLeft className="w-4 h-4" /> Back
           </Button>
-          <div className="min-w-0">
-            <h2 className="text-lg font-bold truncate">{cfg.title}</h2>
-            <p className="text-xs text-slate-500 truncate">
-              {report?.reference_id || cfg.subtitle}
-            </p>
-          </div>
         </div>
-        {onEdit && (
-          <Button
-            size="sm"
-            onClick={onEdit}
-            className="gap-2 shrink-0 bg-[#145c3f] hover:bg-[#0f3d2e] text-white"
-          >
-            <Pencil className="w-4 h-4" /> Edit
-          </Button>
-        )}
       </div>
 
       <ScrollArea className="flex-1">

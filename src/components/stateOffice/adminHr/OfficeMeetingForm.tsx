@@ -1,7 +1,7 @@
 import * as React from "react";
 import StateOfficeFormShell from "../StateOfficeFormShell";
 import {
-  Section, Field, TextInput, TextArea, SelectField, AddRowButton, RemoveRowButton, FormPageTitle,
+  Section, Field, TextInput, TextArea, SelectField, AddRowButton, RemoveRowButton,
 } from "./ui";
 import {
   MEETING_TYPES, VENUE_MODES, YES_NO, YES_NO_PARTIAL, ACTION_STATUSES,
@@ -101,6 +101,7 @@ export default function OfficeMeetingForm({ reportId, onBack, onCancel, onSubmit
       onSubmitted={onSubmitted}
       defaultZoneId={defaultZoneId}
       defaultStateId={defaultStateId}
+      pageTitle={ADMIN_HR_CONFIG["office-meeting"].formTitle}
       onLoaded={onLoaded}
       validate={() => (!meetingDate ? "Enter the meeting date" : !meetingType ? "Select meeting type" : null)}
       buildPayload={(base) => ({
@@ -122,7 +123,6 @@ export default function OfficeMeetingForm({ reportId, onBack, onCancel, onSubmit
     >
       {() => (
         <div className="space-y-4">
-          <FormPageTitle title="State Office Meeting Reporting Template" />
           <Section title="1. MEETING INFORMATION">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               <Field label="Meeting Date" required>

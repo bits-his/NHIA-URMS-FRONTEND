@@ -1,7 +1,7 @@
 import * as React from "react";
 import StateOfficeFormShell from "../StateOfficeFormShell";
 import {
-  Section, SelectField, TextInput, TextArea, AddRowButton, EntryCard, FormPageTitle,
+  Section, SelectField, TextInput, TextArea, AddRowButton, EntryCard,
 } from "./ui";
 import { OWNERSHIP_STATUSES, OFFICE_CONDITIONS, ADMIN_HR_CONFIG } from "./constants";
 
@@ -59,6 +59,7 @@ export default function OfficeAccommodationForm({ reportId, onBack, onCancel, on
       onSubmitted={onSubmitted}
       defaultZoneId={defaultZoneId}
       defaultStateId={defaultStateId}
+      pageTitle={ADMIN_HR_CONFIG["office-accommodation"].formTitle}
       onLoaded={onLoaded}
       validate={() => (rows.every((r) => !r.ownershipStatus && !r.remarks) ? "Add at least one accommodation entry" : null)}
       buildPayload={(base) => ({
@@ -74,7 +75,6 @@ export default function OfficeAccommodationForm({ reportId, onBack, onCancel, on
     >
       {() => (
         <div className="w-full space-y-4">
-          <FormPageTitle title={ADMIN_HR_CONFIG["office-accommodation"].title} />
           <Section title="Accommodation Entries">
             <div className="w-full space-y-4">
               {rows.map((row, i) => (
