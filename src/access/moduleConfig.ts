@@ -237,8 +237,6 @@ export const MODULE_CONFIG: ParentModule[] = [
     children: [
       { type: "group", label: "Enrolment", children: [
         { title: "Enrolment", view: "state-enrolment", path: "/zonal/enrolment" },
-        { title: "Migration / Update Requests", view: "state-migration", path: "/zonal/migration", navLabel: "Migration" },
-        { title: "CEmONC & FFP Beneficiaries", view: "state-cemonc", path: "/zonal/cemonc", navLabel: "CEmONC & FFP" },
       ]},
       { type: "group", label: "Beneficiary Management", children: [
         { title: "Additional / Extra Dependant", view: "state-extra-dependant", path: "/zonal/beneficiary/extra-dependant", navLabel: "Extra Dependant" },

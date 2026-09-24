@@ -64,14 +64,6 @@ const emptyForm = (year: string, zoneId?: string | null, stateId?: string | null
 
 type FormState = ReturnType<typeof emptyForm>;
 
-function displayStateId(stateId: string | number | null | undefined) {
-  if (!stateId) return "—";
-  return `ST-${String(stateId).padStart(3, "0")}`;
-}
-function displayZoneId(zoneId: string | number | null | undefined) {
-  if (!zoneId) return "—";
-  return `ZN-${String(zoneId).padStart(2, "0")}`;
-}
 function money(v: number | string | null | undefined) {
   if (v === null || v === undefined || v === "") return "—";
   const n = Number(v);
@@ -265,7 +257,7 @@ export default function StateZonalOfficeProfilePage({ onBack, defaultStateId, de
     <div className="space-y-4">
       <Card className="rounded-2xl border-[#d4e8dc]">
         <CardContent className="pt-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label>Zone <span className="text-red-500">*</span></Label>
               <Select value={f.zone_id} onValueChange={(v) => setField("zone_id", v)} disabled={lockGeo}>
@@ -298,18 +290,6 @@ export default function StateZonalOfficeProfilePage({ onBack, defaultStateId, de
                   {yearOptions.map((y) => <SelectItem key={y} value={y}>{y}</SelectItem>)}
                 </SelectContent>
               </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>State ID <span className="text-[10px] font-normal text-slate-400">(auto-generated)</span></Label>
-              <div className="h-10 flex items-center px-3 rounded-md border border-input bg-slate-50 text-sm font-mono font-bold text-primary">
-                {displayStateId(f.state_id)}
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Zone ID <span className="text-[10px] font-normal text-slate-400">(auto-generated)</span></Label>
-              <div className="h-10 flex items-center px-3 rounded-md border border-input bg-slate-50 text-sm font-mono font-bold text-primary">
-                {displayZoneId(f.zone_id)}
-              </div>
             </div>
           </div>
         </CardContent>
@@ -434,10 +414,6 @@ export default function StateZonalOfficeProfilePage({ onBack, defaultStateId, de
                   <p className="text-xs font-semibold uppercase tracking-wider text-white/70">Reporting year {f.reporting_year}</p>
                   <h3 className="mt-1 text-2xl font-bold">{stateName}</h3>
                   <p className="mt-1 text-sm text-white/80">{zoneName}</p>
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    <span className="rounded-full bg-white/15 px-3 py-1 font-mono text-xs font-bold">{displayStateId(f.state_id)}</span>
-                    <span className="rounded-full bg-white/15 px-3 py-1 font-mono text-xs font-bold">{displayZoneId(f.zone_id)}</span>
-                  </div>
                 </div>
               </Card>
             </motion.div>
@@ -656,9 +632,7 @@ export default function StateZonalOfficeProfilePage({ onBack, defaultStateId, de
                       <TableRow className="bg-[#f0fdf7] hover:bg-[#f0fdf7]">
                         <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Year</TableHead>
                         <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Zone</TableHead>
-                        <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Zone ID</TableHead>
                         <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">State</TableHead>
-                        <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">State ID</TableHead>
                         <TableHead className="text-xs font-bold text-slate-600 text-right whitespace-nowrap">Staff</TableHead>
                         <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Coordinator</TableHead>
                         <TableHead className="text-xs font-bold text-slate-600 text-right whitespace-nowrap">Enrolment Target</TableHead>
@@ -678,13 +652,7 @@ export default function StateZonalOfficeProfilePage({ onBack, defaultStateId, de
                         >
                           <TableCell className="text-sm font-semibold text-slate-800 whitespace-nowrap">{row.reporting_year}</TableCell>
                           <TableCell className="text-sm text-slate-600 whitespace-nowrap">{row.zone?.description || "—"}</TableCell>
-                          <TableCell>
-                            <span className="font-mono text-xs font-bold text-primary">{row.zone_display_id || displayZoneId(row.zone_id)}</span>
-                          </TableCell>
                           <TableCell className="text-sm font-semibold text-slate-800 whitespace-nowrap">{row.state?.description || "—"}</TableCell>
-                          <TableCell>
-                            <span className="font-mono text-xs font-bold text-primary">{row.state_display_id || displayStateId(row.state_id)}</span>
-                          </TableCell>
                           <TableCell className="text-sm text-slate-600 text-right tabular-nums">{row.staff_strength ?? "—"}</TableCell>
                           <TableCell className="text-sm text-slate-600 whitespace-nowrap">
                             <div>{row.coordinator_name || "—"}</div>

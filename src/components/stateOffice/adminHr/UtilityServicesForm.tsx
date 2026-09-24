@@ -1,7 +1,7 @@
 import * as React from "react";
 import StateOfficeFormShell from "../StateOfficeFormShell";
 import {
-  Section, SelectField, TextInput, TextArea, AddRowButton, EntryCard, FormPageTitle,
+  Section, SelectField, TextInput, TextArea, AddRowButton, EntryCard,
 } from "./ui";
 import { UTILITY_CATEGORIES, ADMIN_HR_CONFIG } from "./constants";
 
@@ -55,6 +55,7 @@ export default function UtilityServicesForm({ reportId, onBack, onCancel, onSubm
       onSubmitted={onSubmitted}
       defaultZoneId={defaultZoneId}
       defaultStateId={defaultStateId}
+      pageTitle={ADMIN_HR_CONFIG["utility-services"].formTitle}
       onLoaded={onLoaded}
       validate={() => (rows.every((r) => !r.utilityCategory && !r.contractor) ? "Add at least one utility entry" : null)}
       buildPayload={(base) => ({
@@ -70,7 +71,6 @@ export default function UtilityServicesForm({ reportId, onBack, onCancel, onSubm
     >
       {() => (
         <div className="w-full space-y-4">
-          <FormPageTitle title={ADMIN_HR_CONFIG["utility-services"].title} />
           <Section title="Utility Entries">
             <div className="w-full space-y-4">
               {rows.map((row, i) => (

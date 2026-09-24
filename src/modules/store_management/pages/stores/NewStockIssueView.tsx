@@ -6,6 +6,7 @@ import type { RootState } from "@/src/store/store";
 import { stockApi } from "@/lib/api";
 import { Send, ArrowLeft, Loader2, Plus, Trash2, MapPin, ListOrdered, User, ChevronLeft, ChevronRight, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { matchesStore, storeNameFromState, SELECT_CLS, LABEL_CLS } from "../../lib/storeOptions";
 
@@ -330,7 +331,7 @@ export function NewStockIssueView() {
                   </div>
                   <div>
                     <label className={LABEL_CLS} htmlFor={`qty-${line.key}`}>Qty</label>
-                    <input id={`qty-${line.key}`} type="number" min={1} max={line.onHand || undefined} inputMode="numeric" className={`${inputCls} tabular-nums`} value={line.quantity} onChange={(e) => setLines((p) => p.map((r) => r.key === line.key ? { ...r, quantity: Number(e.target.value) || 0 } : r))} />
+                    <Input id={`qty-${line.key}`} type="number" min={1} max={line.onHand || undefined} inputMode="numeric" className={`${inputCls} tabular-nums`} value={line.quantity} onChange={(e) => setLines((p) => p.map((r) => r.key === line.key ? { ...r, quantity: Number(e.target.value) || 0 } : r))} />
                   </div>
                   {lines.length > 1 && (
                     <Button type="button" variant="ghost" size="sm" aria-label="Remove line" className="h-10 text-rose-600" onClick={() => setLines((p) => p.filter((r) => r.key !== line.key))}>

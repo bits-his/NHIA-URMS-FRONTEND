@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { stockApi } from "@/lib/api";
 import CustomTable, { CustomTableField } from "@/components/CustomTable";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Wrench, Plus, Download, Loader2, X } from "lucide-react";
 import PageLayout from "../components/PageLayout";
 import { toast } from "sonner";
@@ -176,7 +177,7 @@ export default function MaintenanceView() {
           </div>
           <div>
             <label className="font-bold text-slate-700 block mb-1">Cost (₦)</label>
-            <input type="number" className={inputCls} value={form.cost} onChange={(e) => setForm({ ...form, cost: Number(e.target.value) })} />
+            <Input type="number" min={0} step="0.01" className={inputCls} value={form.cost || ""} onChange={(e) => setForm({ ...form, cost: Number(e.target.value) || 0 })} />
           </div>
           <div className="md:col-span-2">
             <label className="font-bold text-slate-700 block mb-1">Description *</label>

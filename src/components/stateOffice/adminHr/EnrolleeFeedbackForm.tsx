@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import StateOfficeFormShell from "../StateOfficeFormShell";
-import { Section, Field, TextInput, TextArea, SelectField, FormPageTitle } from "./ui";
+import { Section, Field, TextInput, TextArea, SelectField } from "./ui";
 import {
   FEEDBACK_HEAR_ABOUT, FEEDBACK_VISIT_PURPOSE, RATING_AREAS, RATING_LEVELS,
   YES_NO_PARTIAL, ADMIN_HR_CONFIG,
@@ -55,6 +55,7 @@ export default function EnrolleeFeedbackForm({ reportId, onBack, onCancel, onSub
       onSubmitted={onSubmitted}
       defaultZoneId={defaultZoneId}
       defaultStateId={defaultStateId}
+      pageTitle={ADMIN_HR_CONFIG["enrollee-feedback"].formTitle}
       onLoaded={onLoaded}
       buildPayload={(base) => ({
         ...base,
@@ -67,7 +68,6 @@ export default function EnrolleeFeedbackForm({ reportId, onBack, onCancel, onSub
     >
       {() => (
         <div className="space-y-4">
-          <FormPageTitle title="Enrollee Feedback / Satisfaction Survey" />
           <Section title="1. How did you hear about health insurance or this office?">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {FEEDBACK_HEAR_ABOUT.map((item) => (

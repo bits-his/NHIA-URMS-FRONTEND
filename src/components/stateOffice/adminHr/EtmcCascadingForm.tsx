@@ -1,7 +1,7 @@
 import * as React from "react";
 import StateOfficeFormShell from "../StateOfficeFormShell";
 import {
-  Section, Field, TextInput, TextArea, SelectField, AddRowButton, RemoveRowButton, FormPageTitle,
+  Section, Field, TextInput, TextArea, SelectField, AddRowButton, RemoveRowButton,
 } from "./ui";
 import {
   VENUE_MODES, PRIORITIES, YES_NO, YES_NO_NA, ADMIN_HR_CONFIG,
@@ -94,6 +94,7 @@ export default function EtmcCascadingForm({ reportId, onBack, onCancel, onSubmit
       onSubmitted={onSubmitted}
       defaultZoneId={defaultZoneId}
       defaultStateId={defaultStateId}
+      pageTitle={ADMIN_HR_CONFIG["etmc-cascading"].formTitle}
       onLoaded={onLoaded}
       validate={() => (!etmcMeetingDate ? "Enter ETMC meeting date" : !cascadeSessionDate ? "Enter cascade session date" : null)}
       buildPayload={(base) => ({
@@ -115,7 +116,6 @@ export default function EtmcCascadingForm({ reportId, onBack, onCancel, onSubmit
     >
       {() => (
         <div className="space-y-4">
-          <FormPageTitle title="ETMC Cascading Reporting Template" />
           <Section title="1. CASCADE DETAILS">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               <Field label="ETMC Meeting Date" required><TextInput type="date" value={etmcMeetingDate} onChange={(e) => setEtmcMeetingDate(e.target.value)} /></Field>

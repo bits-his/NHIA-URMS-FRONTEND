@@ -20,8 +20,7 @@ const Field = ({ label, value, onChange, naira }: {
 }) => (
   <div className="space-y-2">
     <Label className="text-xs">{label}</Label>
-    <Input type="number" min="0" placeholder="0" value={value} onChange={onChange} />
-    {naira && value && <p className="text-xs font-semibold text-primary">₦ {Number(value).toLocaleString()}</p>}
+    <Input type="number" min="0" step={naira ? "0.01" : undefined} placeholder="0" value={value} onChange={onChange} />
   </div>
 );
 

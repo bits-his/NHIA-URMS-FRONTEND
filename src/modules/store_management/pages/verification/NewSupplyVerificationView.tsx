@@ -22,6 +22,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import {
   Select,
@@ -864,7 +865,7 @@ export function NewSupplyVerificationView() {
                           />
                         </td>
                         <td className="p-2">
-                          <input
+                          <Input
                             type="number"
                             min={0}
                             className={inputCls}
@@ -873,7 +874,7 @@ export function NewSupplyVerificationView() {
                           />
                         </td>
                         <td className="p-2">
-                          <input
+                          <Input
                             type="number"
                             min={0}
                             step="0.01"

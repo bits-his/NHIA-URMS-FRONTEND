@@ -25,41 +25,48 @@ export function isAdminHrType(t: string): t is AdminHrReportType {
 
 export const ADMIN_HR_CONFIG: Record<
   AdminHrReportType,
-  { title: string; subtitle: string; newLabel: string }
+  { title: string; subtitle: string; formTitle: string; newLabel: string }
 > = {
   "office-meeting": {
     title: "State Office Meeting Report",
     subtitle: "State Office Meeting Reporting Template",
+    formTitle: "State Office Meeting Reporting Template",
     newLabel: "New Meeting Report",
   },
   "etmc-cascading": {
     title: "ETMC Cascading Report",
     subtitle: "ETMC Cascading Reporting Template",
+    formTitle: "ETMC Cascading Reporting Template",
     newLabel: "New Cascade Report",
   },
   "office-accommodation": {
     title: "Office Accommodation",
     subtitle: "Office accommodation register by zone / state / year",
+    formTitle: "Office Accommodation",
     newLabel: "New Accommodation Entry",
   },
   "utility-services": {
     title: "Utility Services",
     subtitle: "Utility services register by zone / state / period",
+    formTitle: "Utility Services",
     newLabel: "New Utility Entry",
   },
   "vehicle-maintenance": {
     title: "Vehicle Maintenance",
     subtitle: "Vehicle maintenance register by zone / state / period",
+    formTitle: "Vehicle Maintenance",
     newLabel: "New Maintenance Entry",
   },
   "conflict-infraction": {
     title: "Conflict / Infraction Report",
     subtitle: "Escalate to Zonal Coordinator within 48 hours",
+    formTitle: "Conflict / Infraction Report",
     newLabel: "New Conflict Report",
   },
   "enrollee-feedback": {
     title: "Enrollee Feedback Survey",
     subtitle: "Enrollee Feedback / Satisfaction Survey",
+    formTitle: "Enrollee Feedback / Satisfaction Survey",
     newLabel: "New Survey Response",
   },
 };

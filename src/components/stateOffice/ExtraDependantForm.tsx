@@ -124,7 +124,7 @@ export default function ExtraDependantForm({ reportId, onBack, onCancel, onSubmi
           <CardContent className="space-y-4">
             <div className="grid md:grid-cols-3 gap-3">
               <div className="space-y-1"><Label>Enrollee Name</Label><Input value={entry.enrollee_name} onChange={(e) => setEntry((v) => ({ ...v, enrollee_name: e.target.value }))} /></div>
-              <div className="space-y-1"><Label>NHIA Number of Principle</Label><Input value={entry.principle_nhia_number} onChange={(e) => setEntry((v) => ({ ...v, principle_nhia_number: e.target.value }))} /></div>
+              <div className="space-y-1"><Label>NHIA Number of Principal</Label><Input value={entry.principle_nhia_number} onChange={(e) => setEntry((v) => ({ ...v, principle_nhia_number: e.target.value }))} /></div>
               <div className="space-y-1"><Label>Age</Label><Input type="number" min={0} value={entry.age} onChange={(e) => setEntry((v) => ({ ...v, age: e.target.value }))} /></div>
               <div className="space-y-1">
                 <Label>Relationship</Label>

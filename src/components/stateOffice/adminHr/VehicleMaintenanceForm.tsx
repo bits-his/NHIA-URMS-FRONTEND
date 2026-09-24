@@ -1,7 +1,7 @@
 import * as React from "react";
 import StateOfficeFormShell from "../StateOfficeFormShell";
 import {
-  Section, SelectField, TextInput, TextArea, AddRowButton, EntryCard, FormPageTitle,
+  Section, SelectField, TextInput, TextArea, AddRowButton, EntryCard,
 } from "./ui";
 import { MAINTENANCE_TYPES, VEHICLE_STATUSES, ADMIN_HR_CONFIG } from "./constants";
 
@@ -62,6 +62,7 @@ export default function VehicleMaintenanceForm({ reportId, onBack, onCancel, onS
       onSubmitted={onSubmitted}
       defaultZoneId={defaultZoneId}
       defaultStateId={defaultStateId}
+      pageTitle={ADMIN_HR_CONFIG["vehicle-maintenance"].formTitle}
       onLoaded={onLoaded}
       validate={() => (rows.every((r) => !r.maintenanceType && !r.problemReported) ? "Add at least one maintenance entry" : null)}
       buildPayload={(base) => ({
@@ -72,7 +73,6 @@ export default function VehicleMaintenanceForm({ reportId, onBack, onCancel, onS
     >
       {() => (
         <div className="w-full space-y-4">
-          <FormPageTitle title={ADMIN_HR_CONFIG["vehicle-maintenance"].title} />
           <Section title="Maintenance Entries">
             <div className="w-full space-y-4">
               {rows.map((row, i) => (
