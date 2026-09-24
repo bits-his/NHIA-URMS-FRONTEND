@@ -15,6 +15,7 @@ import { pickGeoLabel } from "./servicomConstants";
 import {
   COMMENT_CARD_QUESTIONS, computeCommentCardScore, commentCardScaleOptions, commentCardResponseLabel,
 } from "./servicomSurveyConstants";
+import { SubmitConfirmModal, useReportingOfficerSubmitConfirm } from "@/src/components/SubmitConfirmModal";
 
 interface Props {
   onBack: () => void;
@@ -79,6 +80,7 @@ export default function ServicomCommentCardPage({
 }: Props) {
   const createOnly = canCreate && !canReview;
   const geoLocked = !!(defaultZoneId && defaultStateId);
+  const submitConfirm = useReportingOfficerSubmitConfirm();
   const [mode, setMode] = React.useState<"list" | "form" | "view">(createOnly ? "form" : "list");
   const [formKey, setFormKey] = React.useState(0);
   const [cards, setCards] = React.useState<any[]>([]);
@@ -389,14 +391,6 @@ export default function ServicomCommentCardPage({
 
     return (
       <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden">
-        <CardHeader className="pb-3 border-b bg-[#f8fbf9]">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <CardTitle className="text-xl font-bold text-center text-[#145c3f]">Citizens&apos; Comment Card</CardTitle>
-            <Badge variant="outline" className="text-[10px] font-semibold bg-white">
-              {answered} / {COMMENT_CARD_QUESTIONS.length} answered
-            </Badge>
-          </div>
-        </CardHeader>
         <CardContent className="p-4 md:p-5 space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             <div className="space-y-1.5">
@@ -523,7 +517,11 @@ export default function ServicomCommentCardPage({
             >
               Cancel
             </Button>
-            <Button onClick={handleSave} disabled={saving} className="bg-orange-action hover:bg-orange-600 gap-2">
+            <Button
+              onClick={() => submitConfirm.requestSubmit(handleSave)}
+              disabled={saving}
+              className="bg-orange-action hover:bg-orange-600 gap-2"
+            >
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
               Save Record
             </Button>
@@ -570,7 +568,12 @@ export default function ServicomCommentCardPage({
           </div>
         </ScrollArea>
 
-        
+        <SubmitConfirmModal
+          open={submitConfirm.open}
+          busy={submitConfirm.busy || saving}
+          onConfirm={submitConfirm.confirm}
+          onCancel={submitConfirm.cancel}
+        />
       </div>
     );
   }

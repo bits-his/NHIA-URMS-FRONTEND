@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
+import { SubmitConfirmModal, useReportingOfficerSubmitConfirm } from "@/src/components/SubmitConfirmModal";
 import { stateOfficeApi } from "@/lib/api";
 import { useStateOfficeHeader } from "./shared/useStateOfficeHeader";
 import {
@@ -95,6 +96,7 @@ function resolveSelectValue(
 }
 
 export default function IctSupportRegisterForm({ reportId, onBack, onSubmitted, defaultZoneId, defaultStateId }: Props) {
+  const submitConfirm = useReportingOfficerSubmitConfirm();
   const header = useStateOfficeHeader(defaultZoneId, defaultStateId);
   const [form, setForm] = React.useState<FormState>(blank());
   const [step, setStep] = React.useState(0);
@@ -239,7 +241,7 @@ export default function IctSupportRegisterForm({ reportId, onBack, onSubmitted, 
       {isLast ? (
         <Button
           type="button"
-          onClick={handleSubmit}
+          onClick={() => submitConfirm.requestSubmit(handleSubmit)}
           disabled={submitting}
           className="gap-2 bg-orange-action hover:bg-orange-600"
         >
@@ -256,6 +258,7 @@ export default function IctSupportRegisterForm({ reportId, onBack, onSubmitted, 
   );
 
   return (
+    <>
     <div className="flex flex-col h-full bg-slate-50/30">
       <div className="bg-white border-b border-border/50 px-4 md:px-6 py-3 flex items-center gap-3 sticky top-0 z-30">
         <Button variant="ghost" size="icon" onClick={onBack} className="rounded-full hover:bg-[#e8f5ee]">
@@ -617,5 +620,12 @@ export default function IctSupportRegisterForm({ reportId, onBack, onSubmitted, 
         </div>
       </ScrollArea>
     </div>
+      <SubmitConfirmModal
+        open={submitConfirm.open}
+        busy={submitConfirm.busy}
+        onConfirm={submitConfirm.confirm}
+        onCancel={submitConfirm.cancel}
+      />
+    </>
   );
 }

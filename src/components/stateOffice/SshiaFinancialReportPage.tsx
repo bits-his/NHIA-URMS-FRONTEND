@@ -13,6 +13,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
+import { SubmitConfirmModal, useReportingOfficerSubmitConfirm } from "@/src/components/SubmitConfirmModal";
 import { stockApi, stateOfficeApi } from "@/lib/api";
 import {
   REPORT_CONFIG, MONTHS, SSHIA_SUB_HEADS, SSHIA_COLUMNS,
@@ -47,6 +48,7 @@ const api = stateOfficeApi["sshia-financial"];
 export default function SshiaFinancialReportPage({
   reportId, onBack, onSubmitted, defaultZoneId, defaultStateId,
 }: Props) {
+  const submitConfirm = useReportingOfficerSubmitConfirm();
   const hydratingRef = React.useRef(false);
   const lockZone  = !!defaultZoneId;
   const lockState = !!defaultStateId;
@@ -289,6 +291,7 @@ export default function SshiaFinancialReportPage({
   };
 
   return (
+    <>
     <div className="flex flex-col h-full bg-slate-50/30">
       <div className="bg-white border-b border-border/50 px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30">
         <Button variant="ghost" size="icon" onClick={onBack} className="rounded-full">
@@ -301,7 +304,7 @@ export default function SshiaFinancialReportPage({
           </Button>
           <Separator orientation="vertical" className="h-6" />
           <Button className="bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20"
-            onClick={handleSubmit} disabled={submitting}>
+            onClick={() => submitConfirm.requestSubmit(handleSubmit)} disabled={submitting}>
             {submitting
               ? <><Loader2 className="w-4 h-4 animate-spin" /> Submitting...</>
               : <><Send className="w-4 h-4" /> Submit</>
@@ -514,7 +517,7 @@ export default function SshiaFinancialReportPage({
                   {saving ? "Saving..." : "Save Draft"}
                 </Button>
                 <Button className="bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20"
-                  onClick={handleSubmit} disabled={submitting}>
+                  onClick={() => submitConfirm.requestSubmit(handleSubmit)} disabled={submitting}>
                   {submitting
                     ? <><Loader2 className="w-4 h-4 animate-spin" /> Submitting...</>
                     : <><Send className="w-4 h-4" /> Submit</>
@@ -527,5 +530,12 @@ export default function SshiaFinancialReportPage({
         </div>
       </ScrollArea>
     </div>
+      <SubmitConfirmModal
+        open={submitConfirm.open}
+        busy={submitConfirm.busy}
+        onConfirm={submitConfirm.confirm}
+        onCancel={submitConfirm.cancel}
+      />
+    </>
   );
 }

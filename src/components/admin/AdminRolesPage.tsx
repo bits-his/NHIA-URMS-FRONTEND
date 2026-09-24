@@ -207,7 +207,7 @@ export default function AdminRolesPage() {
               Can review (list / view / forward — no create)
             </label>
             <p className="text-[11px] text-slate-400 leading-snug">
-              Applies across monthly, SERVICOM, SOC/Zonal, Admin/HR, and other report pages the user can open.
+              Applies across pages the user can open via Privileges. Privileges control which pages appear; these flags control create-only vs review-only behaviour. Anyone with page access can fill forms unless they are review-only.
             </p>
             {modal === "edit" && (
               <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer">

@@ -1,4 +1,4 @@
-/** HCF Customer Satisfaction Survey — Yes=1, No=0 */
+/** HCF Customer Satisfaction Survey Survey — Yes=1, No=0 */
 export const SATISFACTION_QUESTIONS = [
   { id: "Q01", category: "SERVICE DELIVERY", question: "Are there physical or bureaucratic obstacles to access?" },
   { id: "Q02", category: "SERVICE DELIVERY", question: "Is the facility open for NHIS enrollees only during working hours?" },

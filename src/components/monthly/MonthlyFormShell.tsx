@@ -9,6 +9,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { stockApi } from "@/lib/api";
 
 import { buildReportingYearOptions } from "./reportingYears";
+import { SubmitConfirmModal, useReportingOfficerSubmitConfirm } from "@/src/components/SubmitConfirmModal";
 
 export const MONTHS = [
   { v: "1", l: "January" }, { v: "2", l: "February" }, { v: "3", l: "March" },
@@ -42,6 +43,7 @@ export default function MonthlyFormShell({
   const [zones,  setZones]  = React.useState<any[]>([]);
   const [states, setStates] = React.useState<any[]>([]);
   const [zoneId, setZoneId] = React.useState(defaultZoneId ?? "");
+  const submitConfirm = useReportingOfficerSubmitConfirm();
 
   // Auto-select current month
   React.useEffect(() => {
@@ -86,7 +88,7 @@ export default function MonthlyFormShell({
           </Button>
           <Separator orientation="vertical" className="h-6" />
           <Button className="bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20"
-            onClick={onSubmit} disabled={isSubmitting}>
+            onClick={() => submitConfirm.requestSubmit(onSubmit)} disabled={isSubmitting}>
             {isSubmitting
               ? <><Loader2 className="w-4 h-4 animate-spin" /> Submitting...</>
               : <><Send className="w-4 h-4" /> Submit</>}
@@ -151,7 +153,7 @@ export default function MonthlyFormShell({
                 Save Draft
               </Button>
               <Button className="bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20"
-                onClick={onSubmit} disabled={isSubmitting}>
+                onClick={() => submitConfirm.requestSubmit(onSubmit)} disabled={isSubmitting}>
                 {isSubmitting
                   ? <><Loader2 className="w-4 h-4 animate-spin" /> Submitting...</>
                   : <><Send className="w-4 h-4" /> Submit Report</>}
@@ -160,6 +162,12 @@ export default function MonthlyFormShell({
           </div>
         </div>
       </ScrollArea>
+      <SubmitConfirmModal
+        open={submitConfirm.open}
+        busy={submitConfirm.busy || isSubmitting}
+        onConfirm={submitConfirm.confirm}
+        onCancel={submitConfirm.cancel}
+      />
     </div>
   );
 }

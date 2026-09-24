@@ -10,24 +10,34 @@ export type CreateReviewAccess = {
   reviewOnly: boolean;
 };
 
-/** Role flags from Admin → Roles (can_create_monthly / can_review_monthly). */
+/**
+ * Privileges (Admin → Privileges) control which pages appear.
+ * Role flags (Admin → Roles: Can create / Can review) control UX:
+ *   - create-only → form first
+ *   - review-only → list only, no create
+ * Anyone with page access may submit forms unless they are review-only.
+ */
 export function getCreateReviewAccess(role: string, user?: {
   role_config?: {
     can_create_monthly?: boolean;
     can_review_monthly?: boolean;
   };
 } | null): CreateReviewAccess {
-  const canCreate = user?.role_config?.can_create_monthly
-    ?? ["state-officer", "state-coordinator", "department-officer", "zonal-officer", "admin"].includes(role);
+  const flaggedCreate = user?.role_config?.can_create_monthly
+    ?? ["state-officer", "state-coordinator", "department-officer", "zonal-officer", "reporting-officer", "admin"].includes(role);
 
-  const canReview = user?.role_config?.can_review_monthly
+  const flaggedReview = user?.role_config?.can_review_monthly
     ?? ["state-coordinator", "zonal-coordinator", "sdo", "admin"].includes(role);
 
+  const canReview = !!flaggedReview;
+  // Match backend canSubmitForms: allow create unless review-only
+  const canCreate = !!flaggedCreate || !canReview;
+
   return {
-    canCreate: !!canCreate,
-    canReview: !!canReview,
-    createOnly: !!canCreate && !canReview,
-    reviewOnly: !!canReview && !canCreate,
+    canCreate,
+    canReview,
+    createOnly: canCreate && !canReview,
+    reviewOnly: canReview && !flaggedCreate,
   };
 }
 

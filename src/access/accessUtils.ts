@@ -4,6 +4,8 @@ import type { ParentModule, ChildModule } from "./moduleConfig";
 
 import {
 
+  MODULE_CONFIG,
+
   flatLeaves,
 
   isSubGroup,
@@ -117,8 +119,8 @@ export function normalizeFunctionalityTitle(title: string, moduleTitle?: string)
 
   if (title === "Citizens' Comment Card") return "Charter Performance";
 
-  if (title === "Customer Satisfaction Survey" || title === "HCF Customer Satisfaction Survey") {
-    return "HCF Customer Satisfaction";
+  if (title === "Customer Satisfaction Survey" || title === "HCF Customer Satisfaction Survey Survey") {
+    return "HCF Customer Satisfaction Survey";
   }
 
   if (title === "Complaints") return "Complaints Management";
@@ -307,4 +309,61 @@ export function filterSidebar(
 
 }
 
+/**
+ * First navigable path the user may open (MODULE_CONFIG order).
+ * Used after login and when `/` is opened without Dashboard access.
+ */
+export function getFirstAccessiblePath(
+  access: AccessEntry[] | undefined,
+  role?: string,
+): string {
+  if (role === "admin") return "/";
+
+  const user: AccessUser = { role: role ?? "", access: access ?? [] };
+
+  const walk = (
+    modTitle: string,
+    nodes: ParentModule["children"],
+  ): string | null => {
+    for (const c of nodes) {
+      if (isSubGroup(c)) {
+        const found = walk(modTitle, c.children);
+        if (found) return found;
+      } else if (
+        c.path &&
+        canAccessFunctionality(modTitle, c.title, user)
+      ) {
+        return c.path;
+      }
+    }
+    return null;
+  };
+
+  for (const mod of MODULE_CONFIG) {
+    if (mod.title === "Notifications" || mod.title === "Settings") continue;
+    const path = walk(mod.title, mod.children);
+    if (path) return path;
+  }
+
+  for (const title of ["Settings", "Notifications"] as const) {
+    const mod = MODULE_CONFIG.find((m) => m.title === title);
+    if (!mod) continue;
+    const path = walk(mod.title, mod.children);
+    if (path) return path;
+  }
+
+  return "/";
+}
+
+/** True when the user may open the main `/` dashboard home. */
+export function canAccessHomeDashboard(
+  access: AccessEntry[] | undefined,
+  role?: string,
+): boolean {
+  if (role === "admin") return true;
+  return canAccessFunctionality("Dashboard", "Dashboard", {
+    role: role ?? "",
+    access: access ?? [],
+  });
+}
 

@@ -21,6 +21,7 @@ import {
   questionsForCategory,
   satisfactionCategoryLabel,
 } from "./servicomSurveyConstants";
+import { SubmitConfirmModal, useReportingOfficerSubmitConfirm } from "@/src/components/SubmitConfirmModal";
 
 interface Props {
   onBack: () => void;
@@ -83,6 +84,7 @@ export default function ServicomSatisfactionSurveyPage({
 }: Props) {
   const createOnly = canCreate && !canReview;
   const geoLocked = !!(defaultZoneId && defaultStateId);
+  const submitConfirm = useReportingOfficerSubmitConfirm();
   const [mode, setMode] = React.useState<"list" | "form" | "view">(createOnly ? "form" : "list");
   const [formKey, setFormKey] = React.useState(0);
   const [surveys, setSurveys] = React.useState<any[]>([]);
@@ -99,15 +101,9 @@ export default function ServicomSatisfactionSurveyPage({
   const [filterSearch, setFilterSearch] = React.useState("");
   const [filterDate, setFilterDate] = React.useState("");
   const [selectedProviderId, setSelectedProviderId] = React.useState("");
-  /** 0 = survey details; 1..N = category question steps */
-  const [formStep, setFormStep] = React.useState(0);
 
   const scoreSummary = React.useMemo(() => computeSatisfactionScore(f.responses), [f.responses]);
   const activeStateId = defaultStateId ?? f.state_id;
-  const categorySteps = SATISFACTION_CATEGORIES;
-  const totalFormSteps = 1 + categorySteps.length; // details + categories
-  const isDetailsStep = formStep === 0;
-  const activeCategory = !isDetailsStep ? categorySteps[formStep - 1] : null;
 
   const load = React.useCallback(async () => {
     if (createOnly) return;
@@ -154,7 +150,6 @@ export default function ServicomSatisfactionSurveyPage({
     setF(emptyForm(defaultZoneId, defaultStateId, userName));
     setSelectedProviderId("");
     setSelected(null);
-    setFormStep(0);
     setMode("form");
   };
 
@@ -172,7 +167,6 @@ export default function ServicomSatisfactionSurveyPage({
     setF(emptyForm(defaultZoneId, defaultStateId, userName));
     setSelectedProviderId("");
     setSelected(null);
-    setFormStep(0);
     setFormKey((k) => k + 1);
     setMode("form");
   };
@@ -184,7 +178,6 @@ export default function ServicomSatisfactionSurveyPage({
     }
     setMode("list");
     setSelected(null);
-    setFormStep(0);
     load();
   };
 
@@ -192,7 +185,7 @@ export default function ServicomSatisfactionSurveyPage({
     setF((p) => ({ ...p, responses: { ...p.responses, [questionId]: value } }));
   };
 
-  const validateDetailsStep = () => {
+  const validateDetails = () => {
     if (!f.state_id || !f.provider_name || !f.survey_date) {
       toast.error("State, provider name, and survey date are required.");
       return false;
@@ -200,7 +193,7 @@ export default function ServicomSatisfactionSurveyPage({
     return true;
   };
 
-  const validateCategoryStep = (category: string) => {
+  const validateCategory = (category: string) => {
     const qs = questionsForCategory(category);
     const missing = qs.some((q) => !f.responses[q.id]);
     if (missing) {
@@ -210,30 +203,15 @@ export default function ServicomSatisfactionSurveyPage({
     return true;
   };
 
-  const goNext = () => {
-    if (isDetailsStep) {
-      if (!validateDetailsStep()) return;
-      setFormStep(1);
-      return;
-    }
-    if (activeCategory && !validateCategoryStep(activeCategory)) return;
-    if (formStep < totalFormSteps - 1) setFormStep((s) => s + 1);
-  };
-
-  const goBackStep = () => {
-    if (formStep > 0) setFormStep((s) => s - 1);
-    else if (createOnly) onBack();
+  const leaveForm = () => {
+    if (createOnly) onBack();
     else closeSub();
   };
 
   const handleSave = async () => {
-    if (!validateDetailsStep()) return;
-    for (const category of categorySteps) {
-      if (!validateCategoryStep(category)) {
-        const idx = categorySteps.indexOf(category);
-        setFormStep(idx + 1);
-        return;
-      }
+    if (!validateDetails()) return;
+    for (const category of SATISFACTION_CATEGORIES) {
+      if (!validateCategory(category)) return;
     }
     if (scoreSummary.answered < SATISFACTION_QUESTIONS.length) {
       toast.error("Please answer all survey questions.");
@@ -286,11 +264,17 @@ export default function ServicomSatisfactionSurveyPage({
           <div className="space-y-1.5">
             <Label className="text-xs text-slate-500">State *</Label>
             {readOnly ? (
-              <p className="text-sm font-medium">{row?.state?.description || "—"}</p>
+              <Input
+                readOnly
+                value={row?.state?.description || "—"}
+                className="bg-slate-50 text-slate-800"
+              />
             ) : geoLocked ? (
-              <p className="text-sm font-semibold text-slate-800">
-                {defaultStateName ?? pickGeoLabel(states, f.state_id, "State")}
-              </p>
+              <Input
+                readOnly
+                value={defaultStateName ?? pickGeoLabel(states, f.state_id, "State")}
+                className="bg-slate-50 text-slate-800 font-medium"
+              />
             ) : (
               <Select value={f.state_id} onValueChange={(v) => {
                 const state = states.find((s) => String(s.id) === v);
@@ -467,9 +451,16 @@ export default function ServicomSatisfactionSurveyPage({
           return (
             <Card key={category} className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden">
               <CardHeader className="pb-3 border-b bg-[#f8fbf9]">
-                <CardTitle className="text-sm font-bold text-[#145c3f]">
-                  {satisfactionCategoryLabel(category)}
-                </CardTitle>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <CardTitle className="text-sm font-bold text-[#145c3f]">
+                    {satisfactionCategoryLabel(category)}
+                  </CardTitle>
+                  {!readOnly && (
+                    <Badge variant="outline" className="text-[10px] font-semibold bg-white">
+                      {questions.filter((q) => responses[q.id]).length} / {questions.length}
+                    </Badge>
+                  )}
+                </div>
               </CardHeader>
               <CardContent className="p-4 md:p-5">
                 {renderQuestionList(questions, responses, readOnly, start)}
@@ -481,102 +472,60 @@ export default function ServicomSatisfactionSurveyPage({
     );
   };
 
-  const renderFormStepper = () => {
-    const labels = ["Details", ...categorySteps.map((c) => satisfactionCategoryLabel(c))];
-    return (
-      <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden">
-        <CardContent className="p-0">
-          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 divide-y md:divide-y-0 md:divide-x divide-[#d4e8dc]">
-            {labels.map((label, idx) => {
-              const done = idx < formStep;
-              const active = idx === formStep;
-              return (
-                <button
-                  key={label}
-                  type="button"
-                  onClick={() => {
-                    if (idx <= formStep) setFormStep(idx);
-                  }}
-                  className={`flex items-center gap-2 p-3 text-left transition-colors ${
-                    active ? "bg-[#e8f5ee]" : done ? "bg-white hover:bg-[#f8fbf9]" : "bg-white/70"
-                  }`}
-                >
-                  <span
-                    className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
-                      done || active
-                        ? "bg-[#25a872] text-white"
-                        : "bg-slate-100 text-slate-400"
-                    }`}
-                  >
-                    {done ? <CheckCircle2 className="w-3.5 h-3.5" /> : idx + 1}
-                  </span>
-                  <span className={`text-[11px] font-bold leading-tight ${active ? "text-[#145c3f]" : "text-slate-600"}`}>
-                    {label}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </CardContent>
-      </Card>
-    );
-  };
-
   if (mode === "form") {
-    const stepQuestions = activeCategory ? questionsForCategory(activeCategory) : [];
-    const startNumber = activeCategory
-      ? SATISFACTION_QUESTIONS.findIndex((q) => q.category === activeCategory) + 1
-      : 1;
-    const isLastCategory = formStep === totalFormSteps - 1;
-
     const formActions = (
       <>
-        <Button variant="outline" onClick={goBackStep}>
-          {formStep === 0 ? "Cancel" : "Back"}
+        <Button variant="outline" onClick={leaveForm}>Cancel</Button>
+        <Button
+          onClick={() => submitConfirm.requestSubmit(handleSave)}
+          disabled={saving}
+          className="bg-orange-action hover:bg-orange-600 gap-2"
+        >
+          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+          Save Survey
         </Button>
-        {isLastCategory ? (
-          <Button onClick={handleSave} disabled={saving} className="bg-orange-action hover:bg-orange-600 gap-2">
-            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-            Save Survey
-          </Button>
-        ) : (
-          <Button onClick={goNext} className="bg-[#145c3f] hover:bg-[#0f3d2e]">
-            Next
-          </Button>
-        )}
       </>
     );
 
     return (
-      <div className="flex flex-col h-full bg-slate-50/30">
+      <div key={formKey} className="flex flex-col h-full bg-slate-50/30">
+        <div className="bg-white border-b px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30">
+          <div className="flex items-center gap-3 min-w-0">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={leaveForm}
+              className="rounded-full shrink-0"
+              aria-label="Back"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+            <div className="min-w-0">
+              <h2 className="text-xl font-bold tracking-tight truncate">
+                HCF Customer Satisfaction Survey
+              </h2>
+            </div>
+          </div>
+          <Badge variant="outline" className="text-[10px] font-semibold shrink-0">
+            {scoreSummary.answered} / {SATISFACTION_QUESTIONS.length} answered
+          </Badge>
+        </div>
+
         <ScrollArea className="flex-1">
           <div className="w-full px-4 md:px-6 py-4 pb-8 space-y-4">
-            {renderFormStepper()}
-
-            {isDetailsStep ? (
-              renderDetailsCard(false, undefined, formActions)
-            ) : (
-              <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden">
-                <CardHeader className="pb-3 border-b bg-[#f8fbf9]">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <CardTitle className="text-sm font-bold text-[#145c3f]">
-                      {satisfactionCategoryLabel(activeCategory!)}
-                    </CardTitle>
-                    <Badge variant="outline" className="text-[10px] font-semibold bg-white">
-                      {stepQuestions.filter((q) => f.responses[q.id]).length} / {stepQuestions.length}
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent className="p-4 md:p-5">
-                  {renderQuestionList(stepQuestions, f.responses, false, startNumber)}
-                  <div className="mt-6 pt-4 border-t border-[#d4e8dc] flex flex-wrap items-center justify-end gap-3">
-                    {formActions}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+            {renderDetailsCard(false)}
+            {renderAllQuestions(f.responses, false)}
+            <div className="flex flex-wrap items-center justify-end gap-3 pt-2">
+              {formActions}
+            </div>
           </div>
         </ScrollArea>
+        <SubmitConfirmModal
+          open={submitConfirm.open}
+          busy={submitConfirm.busy || saving}
+          onConfirm={submitConfirm.confirm}
+          onCancel={submitConfirm.cancel}
+        />
       </div>
     );
   }
@@ -598,7 +547,7 @@ export default function ServicomSatisfactionSurveyPage({
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <div className="min-w-0">
-            <h2 className="text-xl font-bold tracking-tight">HCF Customer Satisfaction</h2>
+            <h2 className="text-xl font-bold tracking-tight">HCF Customer Satisfaction Survey</h2>
             {row?.provider_name && (
               <p className="text-xs text-slate-500 truncate">{row.provider_name}</p>
             )}
@@ -620,7 +569,7 @@ export default function ServicomSatisfactionSurveyPage({
       <div className="bg-white border-b px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30">
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" onClick={onBack} className="rounded-full"><ArrowLeft className="w-5 h-5" /></Button>
-        <h2 className="text-xl font-bold tracking-tight">HCF Customer Satisfaction</h2>
+        <h2 className="text-xl font-bold tracking-tight">HCF Customer Satisfaction Survey</h2>
       </div>
         <div className="flex items-center gap-3">
           <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">

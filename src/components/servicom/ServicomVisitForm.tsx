@@ -15,6 +15,7 @@ import {
   MONITORING_TYPES, FACILITY_TYPES, SCORE_LABELS,
   computeLiveScore, pickGeoLabel, pickLabel, pickScoreLabel, PRIORITY_OPTIONS,
 } from "./servicomConstants";
+import { SubmitConfirmModal, useReportingOfficerSubmitConfirm } from "@/src/components/SubmitConfirmModal";
 
 interface Props {
   visitId?: number | null;
@@ -32,6 +33,7 @@ export default function ServicomVisitForm({ visitId, onBack, onSubmitted, defaul
   const [loading, setLoading] = React.useState(!!visitId);
   const [saving, setSaving] = React.useState(false);
   const [submitting, setSubmitting] = React.useState(false);
+  const submitConfirm = useReportingOfficerSubmitConfirm();
   const [savedId, setSavedId] = React.useState<number | null>(visitId ?? null);
   const [refId, setRefId] = React.useState<string | null>(null);
   const [indicators, setIndicators] = React.useState<any[]>([]);
@@ -464,12 +466,22 @@ export default function ServicomVisitForm({ visitId, onBack, onSubmitted, defaul
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             Save Draft
           </Button>
-          <Button className="bg-orange-action hover:bg-orange-600 gap-2 flex-1 sm:flex-none" onClick={handleSubmit} disabled={submitting}>
+          <Button
+            className="bg-orange-action hover:bg-orange-600 gap-2 flex-1 sm:flex-none"
+            onClick={() => submitConfirm.requestSubmit(handleSubmit)}
+            disabled={submitting}
+          >
             {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
             Submit
           </Button>
         </div>
       </div>
+      <SubmitConfirmModal
+        open={submitConfirm.open}
+        busy={submitConfirm.busy || submitting}
+        onConfirm={submitConfirm.confirm}
+        onCancel={submitConfirm.cancel}
+      />
     </div>
   );
 }

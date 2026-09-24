@@ -101,7 +101,7 @@ export function resolveModuleTitle(accessTo: string): string {
   if ((ZONAL_LEGACY_ALIASES as readonly string[]).includes(accessTo)) {
     return ZONAL_MODULE;
   }
-  if (accessTo === "Store Management") return "Asset Management (SVO)";
+  if (accessTo === "Store Management") return SDO_MODULE;
   return accessTo;
 }
 
@@ -194,7 +194,7 @@ export const MODULE_CONFIG: ParentModule[] = [
         { title: "SERVICOM Dashboard", view: "servicom-dashboard", path: "/sdo/servicom", navLabel: "Dashboard" },
         { title: "Charter Performance",          view: "servicom-comment-card", path: "/sdo/servicom/comment-card" },
         { title: "Complaints Management",        view: "servicom-complaints",   path: "/sdo/servicom/complaints", navLabel: "Complaints Register" },
-        { title: "HCF Customer Satisfaction", view: "servicom-satisfaction", path: "/sdo/servicom/satisfaction", navLabel: "Satisfaction Survey" },
+        { title: "HCF Customer Satisfaction Survey", view: "servicom-satisfaction", path: "/sdo/servicom/satisfaction", navLabel: "Satisfaction Survey" },
       ]},
       { type: "group", label: SDO_STOCK_NAV_GROUP, children: [
         { title: "Stock Verification Dashboard", view: "stock-verification-dashboard", path: "/sdo/stock-dashboard", navLabel: "Dashboard" },
@@ -213,10 +213,7 @@ export const MODULE_CONFIG: ParentModule[] = [
     ],
   },
 
-  // ── Stock Management — grant separately when assigning role access ────
-
-
-  // ── SOC/Zonal (core SOC unit pages) ─────────────────────────────────────────
+  // ── SOC/Zonal (nested under SDO → State Office Coordination in sidebar & privilege UI) ──
   {
     title: SOC_ZONES_MODULE,
     roles: "all",

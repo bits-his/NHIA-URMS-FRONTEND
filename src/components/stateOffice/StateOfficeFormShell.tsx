@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { stateOfficeApi } from "@/lib/api";
 import { useStateOfficeHeader } from "./shared/useStateOfficeHeader";
 import ReportBasicInfo from "./shared/ReportBasicInfo";
+import { SubmitConfirmModal, useReportingOfficerSubmitConfirm } from "@/src/components/SubmitConfirmModal";
 
 interface Props {
   reportId?: number | null;
@@ -48,6 +49,7 @@ export default function StateOfficeFormShell({
   const handleSubmitted = onSubmitted ?? onBack;
   const api = stateOfficeApi[reportType];
   const header = useStateOfficeHeader(defaultZoneId, defaultStateId);
+  const submitConfirm = useReportingOfficerSubmitConfirm();
 
   const [loadingRecord, setLoadingRecord] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
@@ -167,7 +169,7 @@ export default function StateOfficeFormShell({
           </Button>
           <Button
             className="bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20"
-            onClick={() => persist("submitted")}
+            onClick={() => submitConfirm.requestSubmit(() => persist("submitted"))}
             disabled={submitting}
           >
             {submitting
@@ -176,6 +178,12 @@ export default function StateOfficeFormShell({
           </Button>
         </div>
       )}
+      <SubmitConfirmModal
+        open={submitConfirm.open}
+        busy={submitConfirm.busy || submitting}
+        onConfirm={submitConfirm.confirm}
+        onCancel={submitConfirm.cancel}
+      />
     </div>
   );
 }

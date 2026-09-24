@@ -86,7 +86,6 @@ import {
   ZONAL_MODULE,
   SDO_MODULE,
   SDO_SOC_NAV_GROUP,
-  SDO_STOCK_NAV_GROUP,
 } from "@/src/access/moduleConfig";
 import { hasModuleAccess } from "@/src/access/roles";
 import { normalizeAllowedTitles, expandAccessEntries } from "@/src/access/accessUtils";
@@ -195,7 +194,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
   Complaints: Scale,
   "Complaints Management": Scale,
   "Customer Satisfaction Survey": TrendingUp,
-  "HCF Customer Satisfaction": TrendingUp,
+  "HCF Customer Satisfaction Survey": TrendingUp,
   "Charter Performance": Megaphone,
   "Satisfaction Ratings": TrendingUp,
   "Comment Cards": Megaphone,
@@ -262,26 +261,12 @@ type TreeNode =
   | { kind: "leaf"; title: string; navLabel?: string; view?: string; path?: string }
   | { kind: "folder"; title: string; children: TreeNode[] };
 
-/** Folders that must stay as dropdowns even with a single child. */
-const PRESERVE_FOLDER_TITLES = new Set([
-  "Zonal",
-  "State Offices",
-  SDO_SOC_NAV_GROUP,
-  SDO_STOCK_NAV_GROUP,
-  "SERVICOM",
-  "Special Project",
-  "Enrolment",
-  "Beneficiary Management",
-  "Stakeholder Management",
-  "Provider Management",
-  "Complaint / Compliance",
-  "Internal Management",
-  "Finance",
-  "ICT",
-  "Admin / HR",
-  "Admin / Human Resource",
-  "Store Management",
-]);
+/**
+ * Folders that must stay as dropdowns even with a single child.
+ * Keep empty so a lone granted page (e.g. only Complaints) shows standalone
+ * without its group label (SERVICOM, Stock Verification, etc.).
+ */
+const PRESERVE_FOLDER_TITLES = new Set<string>([]);
 
 /** If a folder has only one child, promote that child (no redundant dropdown). */
 function collapseSingleChildFolders(nodes: TreeNode[]): TreeNode[] {
@@ -300,7 +285,6 @@ function collapseSingleChildFolders(nodes: TreeNode[]): TreeNode[] {
 function filterModuleTree(
   children: (ChildModule | SubGroup)[],
   allowedTitles: Set<string>,
-  storeAllowed?: Set<string>,
   socAllowed?: Set<string>,
   zonalAllowed?: Set<string>,
 ): TreeNode[] {
@@ -321,7 +305,6 @@ function filterModuleTree(
             ...filterModuleTree(
               socMod?.children ?? [],
               socAllowed!,
-              storeAllowed,
               socAllowed,
               zonalAllowed,
             ),
@@ -334,7 +317,6 @@ function filterModuleTree(
             filterModuleTree(
               zonalMod?.children ?? [],
               zonalAllowed!,
-              storeAllowed,
               socAllowed,
               zonalAllowed,
             ),
@@ -350,24 +332,7 @@ function filterModuleTree(
 
         nested = collapseSingleChildFolders(nested);
       } else {
-        nested = filterModuleTree(child.children, allowedTitles, storeAllowed, socAllowed, zonalAllowed);
-
-        // Nest store privileges under STOCK VERIFICATION (SVD) when granted
-        if (
-          (child.label === "STOCK VERIFICATION" ||
-            child.label === "STOCK VERIFICATION (SVD)" ||
-            child.label === SDO_STOCK_NAV_GROUP) &&
-          storeAllowed &&
-          storeAllowed.size > 0
-        ) {
-          const assetMod = MODULE_CONFIG.find((m) => m.title === "Asset Management (SVO)");
-          const storeKids = collapseSingleChildFolders(
-            filterModuleTree(assetMod?.children ?? [], storeAllowed, storeAllowed, socAllowed, zonalAllowed),
-          );
-          if (storeKids.length > 0) {
-            nested.push(...storeKids);
-          }
-        }
+        nested = filterModuleTree(child.children, allowedTitles, socAllowed, zonalAllowed);
       }
 
       nested = collapseSingleChildFolders(nested);
@@ -404,7 +369,6 @@ function filterModuleTree(
 function buildVisibleTree(
   mod: (typeof MODULE_CONFIG)[0],
   allowedTitles: Set<string>,
-  storeAllowed?: Set<string>,
   socAllowed?: Set<string>,
   zonalAllowed?: Set<string>,
 ): TreeNode | null {
@@ -412,7 +376,6 @@ function buildVisibleTree(
     filterModuleTree(
       mod.children,
       allowedTitles,
-      mod.title === SDO_MODULE ? storeAllowed : undefined,
       mod.title === SDO_MODULE ? socAllowed : undefined,
       mod.title === SDO_MODULE ? zonalAllowed : undefined,
     )
@@ -476,16 +439,21 @@ function UserSidebarDepartment({
   role?: string;
 }) {
   const department = getUserDepartmentLabel(user, role);
-  if (!department) return null;
+  const unit = user?.unit?.name?.trim() || null;
+  if (!department && !unit) return null;
 
   return (
-    <div className="mx-1 mb-1 rounded-lg bg-white/8 px-3 py-2 group-data-[collapsible=icon]:hidden">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-white/55">
-        Department
-      </p>
-      <p className="mt-0.5 text-[13px] font-semibold leading-snug text-white/95">
-        {department}
-      </p>
+    <div className="mx-0 mt-2 rounded-lg bg-white/8 px-3 py-2 space-y-1 group-data-[collapsible=icon]:hidden">
+      {department ? (
+        <p className="text-[13px] font-semibold leading-snug text-white/95">
+          {department}
+        </p>
+      ) : null}
+      {unit ? (
+        <p className="text-[13px] font-semibold leading-snug text-white/95">
+          {unit}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -619,18 +587,14 @@ function NavMain({
 }) {
   const trees = React.useMemo(() => {
     const hasSdo = modules.some(({ mod }) => mod.title === SDO_MODULE);
-    const storeMod = modules.find(({ mod }) => mod.title === "Asset Management (SVO)");
     const socMod = modules.find(({ mod }) => mod.title === SOC_ZONES_MODULE);
     const zonalMod = modules.find(({ mod }) => mod.title === ZONAL_MODULE);
-    const storeAllowed = storeMod?.allowedTitles;
     const socAllowed = socMod?.allowedTitles;
     const zonalAllowed = zonalMod?.allowedTitles;
 
     const built = modules
       .filter(({ mod }) => {
         if (mod.title === "Notifications" || mod.title === "Settings") return false;
-        // When SDO is shown, Asset Management (SVO) is nested under STOCK VERIFICATION (SVD)
-        if (hasSdo && mod.title === "Asset Management (SVO)") return false;
         // When SDO is shown, SOC/Zones and Zonal nest under State Office Coordination
         if (hasSdo && mod.title === SOC_ZONES_MODULE) return false;
         if (hasSdo && mod.title === ZONAL_MODULE) return false;
@@ -640,7 +604,6 @@ function NavMain({
         buildVisibleTree(
           mod,
           allowedTitles,
-          mod.title === SDO_MODULE ? storeAllowed : undefined,
           mod.title === SDO_MODULE ? socAllowed : undefined,
           mod.title === SDO_MODULE ? zonalAllowed : undefined,
         )
@@ -651,15 +614,8 @@ function NavMain({
   }, [modules, role]);
 
   const sections = React.useMemo(() => {
-    const hqTitles = new Set([
-      "Finance & Admin Dept",
-      "Standards & Quality Assurance",
-      "Zonal ICT Support",
-      "Programmes",
-    ]);
     const headingFor = (title: string) => {
       if (title === "State Offices") return "State Offices";
-      if (hqTitles.has(title)) return "Headquarters";
       return "";
     };
     const out: { heading: string; nodes: TreeNode[] }[] = [];
@@ -777,6 +733,7 @@ export function AppSidebar({
             className="h-9 w-full max-w-full object-contain object-center group-data-[collapsible=icon]:h-7 group-data-[collapsible=icon]:w-7"
           />
         </div>
+        <UserSidebarDepartment user={user} role={role} />
       </SidebarHeader>
 
       <SidebarContent>
@@ -784,8 +741,6 @@ export function AppSidebar({
       </SidebarContent>
 
       <SidebarFooter className="border-t border-sidebar-border gap-1 pt-2">
-        <UserSidebarDepartment user={user} role={role} />
-
         <SidebarMenu>
           <SidebarMenuItem onClick={closeMobile}>
             <SidebarMenuButton

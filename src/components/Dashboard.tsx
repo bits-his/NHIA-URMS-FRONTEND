@@ -103,7 +103,7 @@ import AssetConversionView from "../modules/store_management/pages/AssetConversi
 import NewCapitalisationView from "../modules/store_management/pages/NewCapitalisationView";
 import MovementLedgerView from "../modules/store_management/pages/MovementLedgerView";
 import { getMonthlyReportContext } from "@/src/access/monthlyReportAccess";
-import { canAccessFunctionality, expandAccessEntries } from "@/src/access/accessUtils";
+import { canAccessFunctionality, expandAccessEntries, getFirstAccessiblePath, canAccessHomeDashboard } from "@/src/access/accessUtils";
 import { VIEW_MODULE_ACCESS } from "@/src/access/moduleConfig";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -444,8 +444,10 @@ export default function Dashboard({ role, user, access = [], functionalities = "
       viewAccess.functionality,
       { role, access: expanded },
     );
-    if (!allowed) setView("home");
-  }, [view, role, access]);
+    if (!allowed) {
+      navigate(getFirstAccessiblePath(expanded, role), { replace: true });
+    }
+  }, [view, role, access, navigate]);
 
   return (
     <SidebarProvider>
@@ -471,6 +473,7 @@ export default function Dashboard({ role, user, access = [], functionalities = "
           <Routes>
             {/* ── Home / Main Dashboard Overview ── */}
             <Route path="/" element={
+              canAccessHomeDashboard(access, role) ? (
               <div className="relative z-10 p-6 max-w-7xl mx-auto space-y-6">
                 {role !== "sdo" && role !== "zonal-coordinator" && role !== "state-officer" && role !== "state-coordinator" && role !== "department-officer" && role !== "admin" && (
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -528,6 +531,9 @@ export default function Dashboard({ role, user, access = [], functionalities = "
                   </div>
                 )}
               </div>
+              ) : (
+                <Navigate to={getFirstAccessiblePath(access, role)} replace />
+              )
             } />
 
             <Route path="/dashboard" element={<Navigate to="/" replace />} />
@@ -544,9 +550,9 @@ export default function Dashboard({ role, user, access = [], functionalities = "
             <Route path="/sdo/assets" element={<StockAssetManager onBack={() => setView("home")} />} />
             <Route path="/sdo/servicom" element={<ServicomDashboard onBack={() => setView("home")} defaultStateId={monthlyCtx.defaultStateId} defaultZoneId={monthlyCtx.defaultZoneId} />} />
             <Route path="/sdo/servicom/visits" element={<ServicomVisitsPage onBack={() => setView("home")} defaultStateId={monthlyCtx.defaultStateId} defaultZoneId={monthlyCtx.defaultZoneId} canCreate={monthlyCtx.canCreateMonthly} canReview={monthlyCtx.canReviewMonthly} />} />
-            <Route path="/sdo/servicom/complaints" element={<ServicomComplaintsPage onBack={() => setView("home")} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} userName={user?.name} userStaffId={user?.staff_id} userRole={user?.role} canCreate={monthlyCtx.canCreateMonthly} canReview={monthlyCtx.canReviewMonthly} />} />
-            <Route path="/sdo/servicom/satisfaction" element={<ServicomSatisfactionSurveyPage onBack={() => setView("home")} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateName={user?.state?.description} defaultZoneName={user?.zone?.description} userName={user?.name} canCreate={monthlyCtx.canCreateMonthly} canReview={monthlyCtx.canReviewMonthly} />} />
-            <Route path="/sdo/servicom/comment-card" element={<ServicomCommentCardPage onBack={() => setView("home")} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateName={user?.state?.description} defaultZoneName={user?.zone?.description} canCreate={monthlyCtx.canCreateMonthly} canReview={monthlyCtx.canReviewMonthly} />} />
+            <Route path="/sdo/servicom/complaints" element={<ServicomComplaintsPage onBack={() => setView("home")} defaultStateId={monthlyCtx.defaultStateId} defaultZoneId={monthlyCtx.defaultZoneId} userName={user?.name} userStaffId={user?.staff_id} userRole={user?.role} canCreate={monthlyCtx.canCreateMonthly} canReview={monthlyCtx.canReviewMonthly} />} />
+            <Route path="/sdo/servicom/satisfaction" element={<ServicomSatisfactionSurveyPage onBack={() => setView("home")} defaultStateId={monthlyCtx.defaultStateId} defaultZoneId={monthlyCtx.defaultZoneId} defaultStateName={user?.state?.description} defaultZoneName={user?.zone?.description} userName={user?.name} canCreate={monthlyCtx.canCreateMonthly} canReview={monthlyCtx.canReviewMonthly} />} />
+            <Route path="/sdo/servicom/comment-card" element={<ServicomCommentCardPage onBack={() => setView("home")} defaultStateId={monthlyCtx.defaultStateId} defaultZoneId={monthlyCtx.defaultZoneId} defaultStateName={user?.state?.description} defaultZoneName={user?.zone?.description} canCreate={monthlyCtx.canCreateMonthly} canReview={monthlyCtx.canReviewMonthly} />} />
             <Route path="/sdo/projects" element={<StateOfficeReportsList key="state-adhoc-special-assignment" reportType="adhoc-special-assignment" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
 
             {/* ── Monthly Reports ── */}

@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Provider, useDispatch, useSelector } from "react-redux";
-import { BrowserRouter } from "react-router-dom";
+import { BrowserRouter, useNavigate } from "react-router-dom";
 import { store } from "@/src/store/store";
 import type { RootState } from "@/src/store/store";
 import { setCredentials, logout } from "@/src/store/authSlice";
@@ -9,10 +9,12 @@ import Dashboard from "@/src/components/Dashboard";
 import { Toaster } from "@/components/ui/sonner";
 import { authApi, tokenStore } from "@/lib/adminApi";
 import type { AccessEntry } from "@/src/access/types";
+import { getFirstAccessiblePath } from "@/src/access/accessUtils";
 
 // ─── Inner app — has access to Redux store ────────────────────────────────────
 function AppInner() {
   const dispatch   = useDispatch();
+  const navigate   = useNavigate();
   const user       = useSelector((s: RootState) => s.auth.user);
   const token      = useSelector((s: RootState) => s.auth.token);
   const [checking, setChecking] = React.useState(true);
@@ -35,20 +37,24 @@ function AppInner() {
       .catch(() => {
         tokenStore.clear();
         dispatch(logout());
+        navigate("/", { replace: true });
       })
       .finally(() => setChecking(false));
-  }, [dispatch]);
+  }, [dispatch, navigate]);
 
   const handleLogin = (role: string, accessArr: AccessEntry[], userData: any) => {
     dispatch(setCredentials({
       token: tokenStore.get()!,
       user: { ...userData, functionalities: accessArr },
     }));
+    const landing = getFirstAccessiblePath(accessArr, role);
+    navigate(landing, { replace: true });
   };
 
   const handleLogout = () => {
     tokenStore.clear();
     dispatch(logout());
+    navigate("/", { replace: true });
   };
 
   if (checking) {

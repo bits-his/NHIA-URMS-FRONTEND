@@ -149,9 +149,12 @@ export default function StateOfficeComplianceVisitsPage({ onBack, defaultStateId
     return (
       <div key={formKey} className="flex flex-col h-full bg-slate-50/30">
         <div className="bg-white border-b px-4 md:px-6 py-3 flex items-center gap-4 sticky top-0 z-30">
-          <Button variant="ghost" size="icon" onClick={leaveForm} className="rounded-full">
+          <Button variant="ghost" size="icon" onClick={leaveForm} className="rounded-full shrink-0">
             <ArrowLeft className="w-5 h-5" />
           </Button>
+          <div className="min-w-0">
+            <h2 className="text-xl font-bold tracking-tight truncate">Monitoring Visit</h2>
+          </div>
         </div>
         <ScrollArea className="flex-1">
           <div className="w-full px-4 md:px-6 py-4 pb-24">
@@ -192,8 +195,9 @@ export default function StateOfficeComplianceVisitsPage({ onBack, defaultStateId
 
   return (
     <div className="flex flex-col h-full bg-slate-50/30">
-      <div className="bg-white border-b px-4 md:px-6 py-3 flex items-center justify-end sticky top-0 z-30">
-        <div className="flex items-center gap-3">
+      <div className="bg-white border-b px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30 gap-3">
+        <h2 className="text-xl font-bold tracking-tight truncate">Monitoring Visits</h2>
+        <div className="flex items-center gap-3 shrink-0">
           <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
           </Button>
