@@ -481,14 +481,21 @@ function treeContainsPath(node: TreeNode, pathname: string): boolean {
   return node.children.some((child) => treeContainsPath(child, pathname));
 }
 
+function formatNavTitle(title: string) {
+  const letters = title.replace(/[^A-Za-z]/g, "");
+  if (letters.length > 3 && title === title.toUpperCase() && /\s/.test(title)) {
+    return title.toLowerCase().replace(/\b([a-z])/g, (m) => m.toUpperCase());
+  }
+  return title;
+}
+
 function displayName(node: TreeNode, role: string) {
-  const raw = node.kind === "leaf" ? (node.navLabel || node.title) : node.title;
   if (role === "sdo" && node.title === "Dashboard") return "SDO Dashboard";
-  return raw;
+  return formatNavTitle(node.title);
 }
 
 const navItemClass =
-  "h-auto! min-h-8 items-center whitespace-normal overflow-visible py-1.5 font-medium [&>span:last-child]:whitespace-normal [&>span:last-child]:overflow-visible [&>span:last-child]:text-wrap [&>span:last-child]:leading-snug";
+  "h-auto! min-h-8 items-start gap-2.5 overflow-visible py-1.5 pr-1.5 font-medium leading-snug whitespace-normal [&>span:last-child]:min-w-0 [&>span:last-child]:flex-1 [&>span:last-child]:overflow-visible [&>span:last-child]:whitespace-normal [&>span:last-child]:text-pretty [&>span:last-child]:break-words [&>span:last-child]:leading-[1.35]";
 
 function NavTreeItem({
   node,
@@ -527,8 +534,7 @@ function NavTreeItem({
         <SidebarMenuButton
           isActive={isActive}
           tooltip={label}
-          size={depth > 0 ? "sm" : "default"}
-          className={`${navItemClass} ${depth > 0 ? "text-[12.5px] font-normal" : ""}`}
+          className={`${navItemClass} ${depth > 0 ? "text-[12.5px] font-normal" : "text-[13px]"}`}
           render={
             <NavLink
               to={path}
@@ -539,7 +545,7 @@ function NavTreeItem({
             />
           }
         >
-          <LeafIcon className="mt-0.5 size-4 shrink-0 opacity-80" />
+          <LeafIcon className="mt-[3px] size-4 shrink-0 opacity-80" />
           <span>{label}</span>
         </SidebarMenuButton>
       </Wrapper>
@@ -555,19 +561,19 @@ function NavTreeItem({
       <Collapsible open={open} onOpenChange={setOpen} className="group/collapsible w-full">
         <CollapsibleTrigger
           render={
-            <SidebarMenuButton tooltip={folderLabel} className={`${navItemClass} ${depth === 0 ? "font-semibold" : "text-[12.5px]"}`} />
+            <SidebarMenuButton tooltip={folderLabel} className={`${navItemClass} ${depth === 0 ? "text-[13px] font-semibold" : "text-[12.5px]"}`} />
           }
         >
-          <FolderIcon className="mt-0.5 size-4 shrink-0 opacity-80" />
-          <span className="flex-1 text-left">{folderLabel}</span>
+          <FolderIcon className="mt-[3px] size-4 shrink-0 opacity-80" />
+          <span className="min-w-0 flex-1 text-left text-pretty">{folderLabel}</span>
           <ChevronRight
-            className={`mt-0.5 ml-auto size-3.5 shrink-0 opacity-60 transition-transform duration-200 ${
+            className={`mt-[5px] ml-auto size-3.5 shrink-0 opacity-60 transition-transform duration-200 ${
               open ? "rotate-90" : "rotate-0"
             }`}
           />
         </CollapsibleTrigger>
         <CollapsibleContent>
-          <SidebarMenuSub className="mx-2.5 mr-0 gap-0.5 overflow-visible border-white/10 py-1 pr-0">
+          <SidebarMenuSub className="mx-2 mr-0 gap-0.5 overflow-visible border-white/10 py-1 pr-0.5">
             {node.children.map((child, index) => (
               <NavTreeItem
                 key={`${child.kind}-${child.title}-${index}`}
