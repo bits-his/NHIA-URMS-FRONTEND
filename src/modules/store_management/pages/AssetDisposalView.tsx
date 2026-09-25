@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { stockApi } from "@/lib/api";
 import CustomTable, { CustomTableField } from "@/components/CustomTable";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Trash2, Plus, Download, Loader2, X } from "lucide-react";
 import PageLayout from "../components/PageLayout";
 import { toast } from "sonner";
@@ -198,7 +199,7 @@ export default function AssetDisposalView() {
           </div>
           <div>
             <label className="font-bold text-slate-700 block mb-1">Disposal Value (₦)</label>
-            <input type="number" className={inputCls} value={form.disposalValue} onChange={(e) => setForm({ ...form, disposalValue: Number(e.target.value) })} />
+            <Input type="number" min={0} step="0.01" className={inputCls} value={form.disposalValue || ""} onChange={(e) => setForm({ ...form, disposalValue: Number(e.target.value) || 0 })} />
           </div>
           <div>
             <label className="font-bold text-slate-700 block mb-1">Disposal Date</label>

@@ -15,10 +15,13 @@ import {
   MONITORING_TYPES, FACILITY_TYPES, SCORE_LABELS,
   computeLiveScore, pickGeoLabel, pickLabel, pickScoreLabel, PRIORITY_OPTIONS,
 } from "./servicomConstants";
+import { SubmitConfirmModal, useReportingOfficerSubmitConfirm } from "@/src/components/SubmitConfirmModal";
 
 interface Props {
   visitId?: number | null;
   onBack: () => void;
+  /** Called after successful submit; defaults to onBack */
+  onSubmitted?: () => void;
   defaultStateId?: string | null;
   defaultZoneId?: string | null;
 }
@@ -26,10 +29,11 @@ interface Props {
 type FindingRow = { finding_type: "strength" | "challenge"; description: string };
 type RecRow = { description: string; priority: string; responsible_officer: string; timeline: string; status: string };
 
-export default function ServicomVisitForm({ visitId, onBack, defaultStateId, defaultZoneId }: Props) {
+export default function ServicomVisitForm({ visitId, onBack, onSubmitted, defaultStateId, defaultZoneId }: Props) {
   const [loading, setLoading] = React.useState(!!visitId);
   const [saving, setSaving] = React.useState(false);
   const [submitting, setSubmitting] = React.useState(false);
+  const submitConfirm = useReportingOfficerSubmitConfirm();
   const [savedId, setSavedId] = React.useState<number | null>(visitId ?? null);
   const [refId, setRefId] = React.useState<string | null>(null);
   const [indicators, setIndicators] = React.useState<any[]>([]);
@@ -181,7 +185,7 @@ export default function ServicomVisitForm({ visitId, onBack, defaultStateId, def
       }
       await servicomApi.submitVisit(id!);
       toast.success("Visit submitted for review");
-      onBack();
+      (onSubmitted ?? onBack)();
     } catch (err: any) {
       toast.error("Submit failed", { description: err.message });
     } finally { setSubmitting(false); }
@@ -462,12 +466,22 @@ export default function ServicomVisitForm({ visitId, onBack, defaultStateId, def
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             Save Draft
           </Button>
-          <Button className="bg-orange-action hover:bg-orange-600 gap-2 flex-1 sm:flex-none" onClick={handleSubmit} disabled={submitting}>
+          <Button
+            className="bg-orange-action hover:bg-orange-600 gap-2 flex-1 sm:flex-none"
+            onClick={() => submitConfirm.requestSubmit(handleSubmit)}
+            disabled={submitting}
+          >
             {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
             Submit
           </Button>
         </div>
       </div>
+      <SubmitConfirmModal
+        open={submitConfirm.open}
+        busy={submitConfirm.busy || submitting}
+        onConfirm={submitConfirm.confirm}
+        onCancel={submitConfirm.cancel}
+      />
     </div>
   );
 }

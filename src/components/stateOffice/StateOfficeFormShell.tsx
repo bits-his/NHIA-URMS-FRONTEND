@@ -1,17 +1,25 @@
 import * as React from "react";
-import { Save, Send, Loader2 } from "lucide-react";
+import { Save, Send, Loader2, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import { stateOfficeApi } from "@/lib/api";
 import { useStateOfficeHeader } from "./shared/useStateOfficeHeader";
 import ReportBasicInfo from "./shared/ReportBasicInfo";
+import { SubmitConfirmModal, useReportingOfficerSubmitConfirm } from "@/src/components/SubmitConfirmModal";
 
 interface Props {
   reportId?: number | null;
   onBack: () => void;
+  /** Leave the form without saving (create-only → home). Defaults to onBack. */
+  onCancel?: () => void;
+  /** After successful submit. Defaults to onBack. */
+  onSubmitted?: () => void;
   defaultZoneId?: string | null;
   defaultStateId?: string | null;
+  /** Sticky page header title (left); Back sits on the right */
+  pageTitle?: string;
+  pageSubtitle?: string;
   children: (ctx: {
     saving: boolean;
     submitting: boolean;
@@ -27,18 +35,26 @@ interface Props {
   setReportWeek?: (v: string) => void;
   /** Show Zone ID / State ID next to the geo dropdowns (enrollee register) */
   showGeoIds?: boolean;
+  /** Zone · State · Year · Month · Quarter header (ICT register) */
+  showQuarter?: boolean;
   afterPersist?: (saved: { id: number }) => Promise<void>;
 }
 
 export default function StateOfficeFormShell({
-  reportId, onBack, defaultZoneId, defaultStateId, children,
+  reportId, onBack, onCancel, onSubmitted, defaultZoneId, defaultStateId, children,
   buildPayload, validate, reportType, onLoaded,
   reportWeek, setReportWeek,
   showGeoIds,
+  showQuarter,
+  pageTitle,
+  pageSubtitle,
   afterPersist,
 }: Props) {
+  const handleCancel = onCancel ?? onBack;
+  const handleSubmitted = onSubmitted ?? onBack;
   const api = stateOfficeApi[reportType];
   const header = useStateOfficeHeader(defaultZoneId, defaultStateId);
+  const submitConfirm = useReportingOfficerSubmitConfirm();
 
   const [loadingRecord, setLoadingRecord] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
@@ -62,7 +78,15 @@ export default function StateOfficeFormShell({
         setSavedId(v.id);
         setRefId(v.reference_id);
         header.applyHeader(v);
-        onLoaded?.(v);
+        let loaded = v;
+        if (typeof v?.payload === "string") {
+          try {
+            loaded = { ...v, payload: JSON.parse(v.payload) };
+          } catch {
+            loaded = { ...v, payload: {} };
+          }
+        }
+        onLoaded?.(loaded);
       } catch (err: any) {
         if (!cancelled) toast.error("Failed to load report", { description: err.message });
       } finally {
@@ -98,7 +122,7 @@ export default function StateOfficeFormShell({
       toast.success(status === "draft" ? "Draft saved" : "Report submitted", {
         description: `Ref: ${res.data.reference_id}`,
       });
-      if (status === "submitted") onBack();
+      if (status === "submitted") handleSubmitted();
     } catch (err: any) {
       toast.error(status === "draft" ? "Save failed" : "Submission failed", { description: err.message });
     } finally { setter(false); }
@@ -106,6 +130,27 @@ export default function StateOfficeFormShell({
 
   return (
     <div className="flex flex-col h-full bg-slate-50/30">
+      <div className="bg-white border-b border-border/50 px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30 gap-3">
+        <div className="min-w-0">
+          {pageTitle ? (
+            <>
+              <h2 className="text-xl font-bold tracking-tight truncate">{pageTitle}</h2>
+              {(pageSubtitle || refId) && (
+                <p className="text-xs text-slate-500 truncate">
+                  {refId ? <span className="font-mono font-semibold text-[#145c3f]">{refId}</span> : null}
+                  {refId && pageSubtitle ? " · " : null}
+                  {pageSubtitle || null}
+                </p>
+              )}
+            </>
+          ) : refId ? (
+            <span className="text-xs font-mono font-semibold text-[#145c3f] truncate">{refId}</span>
+          ) : null}
+        </div>
+        <Button variant="outline" size="sm" onClick={handleCancel} className="gap-1.5 shrink-0 font-semibold">
+          <ArrowLeft className="w-4 h-4" /> Back
+        </Button>
+      </div>
       <ScrollArea className="flex-1">
         <div className="w-full px-4 md:px-6 py-4 space-y-4 pb-28">
           {loadingRecord ? (
@@ -121,6 +166,7 @@ export default function StateOfficeFormShell({
                 reportWeek={reportWeek}
                 setReportWeek={setReportWeek}
                 showGeoIds={showGeoIds}
+                showQuarter={showQuarter}
               />
               {children({ saving, submitting, savedId, stateId: header.stateId })}
             </>
@@ -130,16 +176,13 @@ export default function StateOfficeFormShell({
 
       {!loadingRecord && (
         <div className="sticky bottom-0 z-30 bg-white border-t border-border/50 px-4 md:px-6 py-3 flex flex-wrap items-center justify-end gap-3">
-          <Button variant="outline" onClick={onBack}>
-            Cancel
-          </Button>
           <Button variant="ghost" size="sm" onClick={() => persist("draft")} disabled={saving} className="gap-2">
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             Save Draft
           </Button>
           <Button
             className="bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20"
-            onClick={() => persist("submitted")}
+            onClick={() => submitConfirm.requestSubmit(() => persist("submitted"))}
             disabled={submitting}
           >
             {submitting
@@ -148,6 +191,12 @@ export default function StateOfficeFormShell({
           </Button>
         </div>
       )}
+      <SubmitConfirmModal
+        open={submitConfirm.open}
+        busy={submitConfirm.busy || submitting}
+        onConfirm={submitConfirm.confirm}
+        onCancel={submitConfirm.cancel}
+      />
     </div>
   );
 }

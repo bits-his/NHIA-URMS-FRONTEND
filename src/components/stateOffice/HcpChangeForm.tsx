@@ -36,6 +36,8 @@ const blank = () => ({
 interface Props {
   reportId?: number | null;
   onBack: () => void;
+  onCancel?: () => void;
+  onSubmitted?: () => void;
   defaultZoneId?: string | null;
   defaultStateId?: string | null;
 }
@@ -51,38 +53,45 @@ function HcpHmoSelect({
   const [options, setOptions] = React.useState<SearchSelectOption[]>([]);
   const [loading, setLoading] = React.useState(false);
   const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const prevStateId = React.useRef(stateId);
+  const onChangeRef = React.useRef(onChange);
+  onChangeRef.current = onChange;
 
   const load = React.useCallback(async (q?: string) => {
+    if (!stateId) {
+      setOptions([]);
+      return;
+    }
     setLoading(true);
     try {
-      const [hmos, hcps] = await Promise.all([
-        stateOfficeAccreditedProvidersApi.list({ type: "hmo", q: q?.trim() || undefined, limit: "100" }),
-        stateId
-          ? stateOfficeAccreditedProvidersApi.list({ type: "hcp", state_id: stateId, q: q?.trim() || undefined, limit: "200" })
-          : Promise.resolve({ data: [] as any[] }),
-      ]);
-      const mapped: SearchSelectOption[] = [
-        ...hmos.data.map((p: any) => ({
-          value: `hmo:${p.id}`,
-          label: p.name,
-          sub: "HMO",
-        })),
-        ...hcps.data.map((p: any) => ({
+      const res = await stateOfficeAccreditedProvidersApi.list({
+        type: "hcp",
+        state_id: stateId,
+        q: q?.trim() || undefined,
+        limit: "200",
+      });
+      setOptions(
+        res.data.map((p: any) => ({
           value: `hcp:${p.id}`,
           label: p.name,
-          sub: "HCP",
+          sub: p.provider_code || "HCP",
         })),
-      ];
-      setOptions(mapped);
+      );
     } catch (err: any) {
       setOptions([]);
-      toast.error("Failed to load HCP/HMO list", { description: err.message });
+      toast.error("Failed to load HCP list", { description: err.message });
     } finally {
       setLoading(false);
     }
   }, [stateId]);
 
-  React.useEffect(() => { load(); }, [load]);
+  React.useEffect(() => {
+    if (prevStateId.current !== stateId) {
+      if (prevStateId.current) onChangeRef.current("");
+      prevStateId.current = stateId;
+    }
+    load();
+  }, [load, stateId]);
 
   const displayOptions = React.useMemo(() => {
     if (value && !options.some((o) => o.label === value)) {
@@ -92,6 +101,7 @@ function HcpHmoSelect({
   }, [options, value]);
 
   const selectedValue = displayOptions.find((o) => o.label === value)?.value ?? "";
+  const blocked = !stateId;
 
   return (
     <div className="space-y-1">
@@ -104,10 +114,16 @@ function HcpHmoSelect({
           const opt = displayOptions.find((o) => o.value === id);
           onChange(opt?.label ?? "");
         }}
-        disabled={loading}
+        disabled={blocked || loading}
         clearable
-        placeholder={loading ? "Loading..." : "Select HCP or HMO"}
-        searchPlaceholder="Search accredited HMOs and HCPs..."
+        placeholder={
+          blocked
+            ? "Select state first"
+            : loading
+              ? "Loading..."
+              : "Select HCP in selected state"
+        }
+        searchPlaceholder="Search HCPs in selected state..."
         onSearchChange={(q) => {
           if (debounceRef.current) clearTimeout(debounceRef.current);
           debounceRef.current = setTimeout(() => load(q), 300);
@@ -117,7 +133,7 @@ function HcpHmoSelect({
   );
 }
 
-export default function HcpChangeForm({ reportId, onBack, defaultZoneId, defaultStateId }: Props) {
+export default function HcpChangeForm({ reportId, onBack, onCancel, onSubmitted, defaultZoneId, defaultStateId }: Props) {
   const [lines, setLines] = React.useState<any[]>([]);
   const [entry, setEntry] = React.useState(blank());
 
@@ -149,6 +165,8 @@ export default function HcpChangeForm({ reportId, onBack, defaultZoneId, default
       reportType="hcf-change"
       reportId={reportId}
       onBack={onBack}
+      onCancel={onCancel}
+      onSubmitted={onSubmitted}
       defaultZoneId={defaultZoneId}
       defaultStateId={defaultStateId}
       onLoaded={loadData}

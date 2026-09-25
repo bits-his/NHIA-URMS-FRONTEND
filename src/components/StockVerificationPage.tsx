@@ -34,6 +34,7 @@ interface ItemRow {
 
 interface StockVerificationPageProps {
   onBack: () => void;
+  onSubmitted?: () => void;
   verificationId?: number | null;
 }
 
@@ -66,7 +67,7 @@ const typeLabel = (value: string) =>
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function StockVerificationPage({ onBack, verificationId }: StockVerificationPageProps) {
+export default function StockVerificationPage({ onBack, onSubmitted, verificationId }: StockVerificationPageProps) {
   const hydratingRef = React.useRef(false);
   // ── Dropdown data ──────────────────────────────────────────────────────────
   const [zones,       setZones]       = React.useState<DropdownOption[]>([]);
@@ -324,6 +325,7 @@ export default function StockVerificationPage({ onBack, verificationId }: StockV
       toast.success("Stock verification submitted", {
         description: `Reference: ${res.data.reference_id}`,
       });
+      (onSubmitted ?? onBack)();
     } catch (err: any) {
       toast.error("Submission failed", { description: err.message });
     } finally { setSubmitting(false); }

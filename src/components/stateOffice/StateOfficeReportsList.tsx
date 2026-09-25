@@ -25,6 +25,7 @@ import {
   REPORT_CONFIG, MONTHS, monthLabel, quarterFromMonth, formatCount, formatDate,
   reportLineTotal, reportLineCount, ENROLLEE_REGISTER_SCHEMES, type StateOfficeReportType,
 } from "./constants";
+import { useCreateReviewAccess } from "@/src/access/createReviewAccess";
 
 interface Report {
   id: number;
@@ -67,11 +68,13 @@ export default function StateOfficeReportsList({
 }: Props) {
   const cfg = REPORT_CONFIG[reportType];
   const api = stateOfficeApi[reportType];
+  const { canCreate, createOnly } = useCreateReviewAccess();
 
-  const [mode, setMode] = React.useState<"list" | "create" | "view" | "edit">("list");
+  const [mode, setMode] = React.useState<"list" | "create" | "view" | "edit">(createOnly ? "create" : "list");
+  const [formKey, setFormKey] = React.useState(0);
   const [selectedId, setSelectedId] = React.useState<number | null>(null);
   const [reports, setReports] = React.useState<Report[]>([]);
-  const [loading, setLoading] = React.useState(true);
+  const [loading, setLoading] = React.useState(!createOnly);
 
   const {
     showStateFilter,
@@ -86,13 +89,15 @@ export default function StateOfficeReportsList({
   const [filterMonth,  setFilterMonth]  = React.useState("all");
   const [filterStatus, setFilterStatus] = React.useState("all");
 
-  // Reset nested view when switching Enrolment / Migration / CEmONC in the sidebar
+  // Reset nested view when switching report types in the sidebar
   React.useEffect(() => {
-    setMode("list");
+    setMode(createOnly ? "create" : "list");
     setSelectedId(null);
-  }, [reportType]);
+    setFormKey((k) => k + 1);
+  }, [reportType, createOnly]);
 
   const load = React.useCallback(async () => {
+    if (createOnly) return;
     setLoading(true);
     try {
       const res = await api.list({
@@ -106,9 +111,26 @@ export default function StateOfficeReportsList({
     } catch (err: any) {
       toast.error("Failed to load", { description: err.message });
     } finally { setLoading(false); }
-  }, [api, filterStatus, defaultZoneId, apiStateId, filterYear, filterMonth]);
+  }, [api, filterStatus, defaultZoneId, apiStateId, filterYear, filterMonth, createOnly]);
 
-  React.useEffect(() => { load(); }, [load]);
+  React.useEffect(() => { if (!createOnly) load(); }, [load, createOnly]);
+
+  const leaveForm = React.useCallback(() => {
+    if (createOnly) {
+      setSelectedId(null);
+      setFormKey((k) => k + 1);
+      setMode("create");
+      return;
+    }
+    setSelectedId(null);
+    setMode("list");
+    load();
+  }, [createOnly, load]);
+
+  const leaveDetail = React.useCallback(() => {
+    setSelectedId(null);
+    setMode(createOnly ? "create" : "list");
+  }, [createOnly]);
 
   const counts = React.useMemo(() => ({
     total:     reports.length,
@@ -138,8 +160,8 @@ export default function StateOfficeReportsList({
       return (
         <IgrReportDetail
           reportId={selectedId}
-          onBack={() => { setSelectedId(null); setMode("list"); }}
-          onEdit={() => setMode("edit")}
+          onBack={leaveDetail}
+          onEdit={canCreate ? () => setMode("edit") : undefined}
         />
       );
     }
@@ -147,8 +169,8 @@ export default function StateOfficeReportsList({
       return (
         <SshiaFinancialReportDetail
           reportId={selectedId}
-          onBack={() => { setSelectedId(null); setMode("list"); }}
-          onEdit={() => setMode("edit")}
+          onBack={leaveDetail}
+          onEdit={canCreate ? () => setMode("edit") : undefined}
         />
       );
     }
@@ -156,8 +178,8 @@ export default function StateOfficeReportsList({
       return (
         <ExpenditureProfileReportDetail
           reportId={selectedId}
-          onBack={() => { setSelectedId(null); setMode("list"); }}
-          onEdit={() => setMode("edit")}
+          onBack={leaveDetail}
+          onEdit={canCreate ? () => setMode("edit") : undefined}
         />
       );
     }
@@ -165,18 +187,23 @@ export default function StateOfficeReportsList({
       <StateOfficeDetailRouter
         reportType={reportType}
         reportId={selectedId}
-        onBack={() => { setSelectedId(null); setMode("list"); }}
-        onEdit={() => setMode("edit")}
+        onBack={leaveDetail}
+        onEdit={canCreate ? () => setMode("edit") : undefined}
       />
     );
   }
 
   if (mode === "create" || mode === "edit") {
+    const cancelCreate = createOnly ? onBack : leaveForm;
+    const formBack = mode === "edit" ? leaveDetail : cancelCreate;
+    const formDone = leaveForm;
     if (reportType === "igr") {
       return (
         <IgrReportPage
+          key={formKey}
           reportId={mode === "edit" ? selectedId : null}
-          onBack={() => { setSelectedId(null); setMode("list"); load(); }}
+          onBack={formBack}
+          onSubmitted={formDone}
           defaultZoneId={defaultZoneId}
           defaultStateId={defaultStateId}
         />
@@ -185,8 +212,10 @@ export default function StateOfficeReportsList({
     if (reportType === "sshia-financial") {
       return (
         <SshiaFinancialReportPage
+          key={formKey}
           reportId={mode === "edit" ? selectedId : null}
-          onBack={() => { setSelectedId(null); setMode("list"); load(); }}
+          onBack={formBack}
+          onSubmitted={formDone}
           defaultZoneId={defaultZoneId}
           defaultStateId={defaultStateId}
         />
@@ -195,8 +224,10 @@ export default function StateOfficeReportsList({
     if (reportType === "expenditure-profile") {
       return (
         <ExpenditureProfileReportPage
+          key={formKey}
           reportId={mode === "edit" ? selectedId : null}
-          onBack={() => { setSelectedId(null); setMode("list"); load(); }}
+          onBack={formBack}
+          onSubmitted={formDone}
           defaultZoneId={defaultZoneId}
           defaultStateId={defaultStateId}
         />
@@ -204,9 +235,12 @@ export default function StateOfficeReportsList({
     }
     return (
       <StateOfficeFormRouter
+        key={formKey}
         reportType={reportType}
         reportId={mode === "edit" ? selectedId : null}
-        onBack={() => { setSelectedId(null); setMode("list"); load(); }}
+        onBack={formBack}
+        onCancel={formBack}
+        onSubmitted={formDone}
         defaultZoneId={defaultZoneId}
         defaultStateId={defaultStateId}
       />
@@ -221,12 +255,14 @@ export default function StateOfficeReportsList({
           <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
           </Button>
+          {canCreate && (
           <Button
             className="bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20"
             onClick={() => { setSelectedId(null); setMode("create"); }}
           >
-            <Plus className="w-4 h-4" /> {reportType === "enrollee-register" || reportType === "etmc-tmc-action-point" ? "New Register" : "New Report"}
+            <Plus className="w-4 h-4" /> {reportType === "enrollee-register" || reportType === "etmc-tmc-action-point" || reportType === "ict-support-register" || reportType === "adhoc-special-assignment" ? "New Register" : "New Report"}
           </Button>
+          )}
         </div>
       </div>
 
@@ -322,7 +358,7 @@ export default function StateOfficeReportsList({
               <CardTitle className="text-sm font-bold">
                 {loading
                   ? "Loading..."
-                  : reportType === "enrollee-register" || reportType === "etmc-tmc-action-point"
+                  : reportType === "enrollee-register" || reportType === "etmc-tmc-action-point" || reportType === "ict-support-register" || reportType === "adhoc-special-assignment"
                     ? `${reports.length} register${reports.length !== 1 ? "s" : ""}`
                     : `${reports.length} report${reports.length !== 1 ? "s" : ""}`}
               </CardTitle>
@@ -336,10 +372,10 @@ export default function StateOfficeReportsList({
                 <div className="flex flex-col items-center justify-center py-16 gap-2 text-slate-400">
                   <FileText className="w-8 h-8 opacity-30" />
                   <p className="text-sm font-medium">{hasFilters ? "No reports match your filters" : "No reports found"}</p>
-                  {!hasFilters && (
+                  {!hasFilters && canCreate && (
                     <Button variant="outline" size="sm" className="mt-2 gap-2"
                       onClick={() => { setSelectedId(null); setMode("create"); }}>
-                      <Plus className="w-4 h-4" /> {reportType === "enrollee-register" || reportType === "etmc-tmc-action-point" ? "New Register" : "New Report"}
+                      <Plus className="w-4 h-4" /> {reportType === "enrollee-register" || reportType === "etmc-tmc-action-point" || reportType === "ict-support-register" || reportType === "adhoc-special-assignment" ? "New Register" : "New Report"}
                     </Button>
                   )}
                 </div>
@@ -360,6 +396,22 @@ export default function StateOfficeReportsList({
                               <TableHead key={s.key} className="text-xs font-bold text-slate-600 text-right whitespace-nowrap">{s.label}</TableHead>
                             ))}
                             <TableHead className="text-xs font-bold text-slate-600 text-right whitespace-nowrap">Total Lives</TableHead>
+                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Status</TableHead>
+                            <TableHead className="text-right text-xs font-bold text-slate-600 whitespace-nowrap">View</TableHead>
+                          </>
+                        ) : reportType === "ict-support-register" || reportType === "adhoc-special-assignment" ? (
+                          <>
+                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Date Submitted</TableHead>
+                            {showLocationCols && (
+                              <>
+                                <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Zone</TableHead>
+                                <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">State</TableHead>
+                              </>
+                            )}
+                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Year</TableHead>
+                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Month</TableHead>
+                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Quarter</TableHead>
+                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Submitted By</TableHead>
                             <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Status</TableHead>
                             <TableHead className="text-right text-xs font-bold text-slate-600 whitespace-nowrap">View</TableHead>
                           </>
@@ -417,6 +469,32 @@ export default function StateOfficeReportsList({
                                 <TableCell className="text-sm font-bold text-[#145c3f] text-right tabular-nums whitespace-nowrap">
                                   {formatCount(r.total_lives ?? 0)}
                                 </TableCell>
+                                <TableCell>
+                                  <Badge className={`text-[10px] px-2 py-0.5 flex items-center gap-1 w-fit border ${sc.cls}`}>
+                                    {sc.icon} {sc.label}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <Button variant="ghost" size="sm"
+                                    className="h-7 w-7 p-0 text-slate-400 hover:text-primary hover:bg-primary/10"
+                                    onClick={() => { setSelectedId(r.id); setMode("view"); }}>
+                                    <Eye className="w-3.5 h-3.5" />
+                                  </Button>
+                                </TableCell>
+                              </>
+                            ) : reportType === "ict-support-register" || reportType === "adhoc-special-assignment" ? (
+                              <>
+                                <TableCell className="text-xs text-slate-500 whitespace-nowrap">{formatDate(r.submission_date)}</TableCell>
+                                {showLocationCols && (
+                                  <>
+                                    <TableCell className="text-sm text-slate-600 whitespace-nowrap">{r.zone?.description || "—"}</TableCell>
+                                    <TableCell className="text-sm font-semibold text-slate-800 whitespace-nowrap">{r.state?.description || "—"}</TableCell>
+                                  </>
+                                )}
+                                <TableCell className="text-sm font-semibold text-slate-800 whitespace-nowrap">{r.reporting_year}</TableCell>
+                                <TableCell className="text-sm text-slate-600 whitespace-nowrap">{monthLabel(r.reporting_month)}</TableCell>
+                                <TableCell className="text-sm text-slate-500 whitespace-nowrap">Q{quarterFromMonth(r.reporting_month)}</TableCell>
+                                <TableCell className="text-sm text-slate-500 whitespace-nowrap">{r.submitted_by || "—"}</TableCell>
                                 <TableCell>
                                   <Badge className={`text-[10px] px-2 py-0.5 flex items-center gap-1 w-fit border ${sc.cls}`}>
                                     {sc.icon} {sc.label}

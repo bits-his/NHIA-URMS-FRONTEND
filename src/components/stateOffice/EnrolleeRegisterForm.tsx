@@ -8,6 +8,8 @@ import { ENROLLEE_REGISTER_SCHEMES, formatCount } from "./constants";
 interface Props {
   reportId?: number | null;
   onBack: () => void;
+  onCancel?: () => void;
+  onSubmitted?: () => void;
   defaultZoneId?: string | null;
   defaultStateId?: string | null;
 }
@@ -17,7 +19,7 @@ function n(v: string) {
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
 }
 
-export default function EnrolleeRegisterForm({ reportId, onBack, defaultZoneId, defaultStateId }: Props) {
+export default function EnrolleeRegisterForm({ reportId, onBack, onCancel, onSubmitted, defaultZoneId, defaultStateId }: Props) {
   const [counts, setCounts] = React.useState<Record<string, string>>(
     Object.fromEntries(ENROLLEE_REGISTER_SCHEMES.map((s) => [s.key, ""])),
   );
@@ -38,6 +40,8 @@ export default function EnrolleeRegisterForm({ reportId, onBack, defaultZoneId, 
       reportType="enrollee-register"
       reportId={reportId}
       onBack={onBack}
+      onCancel={onCancel}
+      onSubmitted={onSubmitted}
       defaultZoneId={defaultZoneId}
       defaultStateId={defaultStateId}
       showGeoIds
@@ -65,14 +69,12 @@ export default function EnrolleeRegisterForm({ reportId, onBack, defaultZoneId, 
                     {scheme.label}
                   </Label>
                   <Input
-                    inputMode="numeric"
+                    type="number"
+                    min={0}
                     className="h-11 text-lg font-semibold tabular-nums bg-white"
                     placeholder="0"
                     value={counts[scheme.key]}
-                    onChange={(e) => {
-                      const next = e.target.value.replace(/[^\d]/g, "");
-                      setCounts((prev) => ({ ...prev, [scheme.key]: next }));
-                    }}
+                    onChange={(e) => setCounts((prev) => ({ ...prev, [scheme.key]: e.target.value }))}
                   />
                 </div>
               ))}

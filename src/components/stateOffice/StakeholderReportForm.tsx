@@ -13,11 +13,13 @@ const uid = () => Math.random().toString(36).slice(2);
 interface Props {
   reportId?: number | null;
   onBack: () => void;
+  onCancel?: () => void;
+  onSubmitted?: () => void;
   defaultZoneId?: string | null;
   defaultStateId?: string | null;
 }
 
-export default function StakeholderReportForm({ reportId, onBack, defaultZoneId, defaultStateId }: Props) {
+export default function StakeholderReportForm({ reportId, onBack, onCancel, onSubmitted, defaultZoneId, defaultStateId }: Props) {
   const [lines, setLines] = React.useState<any[]>([]);
   const [entry, setEntry] = React.useState({
     activity: "", audience_size: "", organization: "", location: "", activity_date: "", key_outcomes: "",
@@ -41,6 +43,8 @@ export default function StakeholderReportForm({ reportId, onBack, defaultZoneId,
   return (
     <StateOfficeFormShell
       reportType="stakeholder" reportId={reportId} onBack={onBack}
+      onCancel={onCancel}
+      onSubmitted={onSubmitted}
       defaultZoneId={defaultZoneId} defaultStateId={defaultStateId}
       onLoaded={loadData}
       validate={() => (lines.length === 0 ? "Add at least one activity" : null)}

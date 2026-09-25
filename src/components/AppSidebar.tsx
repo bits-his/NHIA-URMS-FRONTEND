@@ -14,7 +14,7 @@ import {
   PackageSearch,
   Wrench,
   MapPin,
-  Scale,
+  Wallet,
   Megaphone,
   Activity,
   TrendingUp,
@@ -47,6 +47,8 @@ import {
   Car,
   Zap,
   MessageSquare,
+  Search,
+  Scale,
 } from "lucide-react";
 import {
   Collapsible,
@@ -84,7 +86,6 @@ import {
   ZONAL_MODULE,
   SDO_MODULE,
   SDO_SOC_NAV_GROUP,
-  SDO_STOCK_NAV_GROUP,
 } from "@/src/access/moduleConfig";
 import { hasModuleAccess } from "@/src/access/roles";
 import { normalizeAllowedTitles, expandAccessEntries } from "@/src/access/accessUtils";
@@ -145,7 +146,15 @@ const ICON_MAP: Record<string, React.ElementType> = {
   Finance: Landmark,
   ICT: Monitor,
   "ICT Support": Monitor,
+  "Admin / HR": UserCog,
   "Admin / Human Resource": UserCog,
+  "State Office Meeting Report": Users,
+  "ETMC Cascading Report": ClipboardCheck,
+  "Office Accommodation": Building,
+  "Utility Services": Zap,
+  "Vehicle Maintenance": Car,
+  "Conflict / Infraction Report": ShieldAlert,
+  "Enrollee Feedback Survey": MessageSquare,
   Meetings: Users,
   "ETMC Cascading": ClipboardCheck,
   Accommodation: Building,
@@ -177,12 +186,15 @@ const ICON_MAP: Record<string, React.ElementType> = {
   "Special Project": FolderKanban,
   "STATE OFFICE COORDINATION": Building,
   "Monitoring Visits": MapPin,
+  "HMO Indebtedness Collation": Wallet,
+  "Mystery Shopping": Search,
   "Operational Monitoring Visit": MapPin,
   "Operation Monitoring Visit": MapPin,
   "Spot Check Visit": MapPin,
   Complaints: Scale,
   "Complaints Management": Scale,
   "Customer Satisfaction Survey": TrendingUp,
+  "HCF Customer Satisfaction Survey": TrendingUp,
   "Charter Performance": Megaphone,
   "Satisfaction Ratings": TrendingUp,
   "Comment Cards": Megaphone,
@@ -190,6 +202,8 @@ const ICON_MAP: Record<string, React.ElementType> = {
   "Stock Verification Dashboard": Activity,
   Settings: Settings,
   "Monthly Report": FileText,
+  "ICT Support Register": ClipboardList,
+  "Ad-hoc / Special Assignment": FileSpreadsheet,
   "ICT Support Desk": ClipboardList,
   "Systems & Network": PackageSearch,
   "Compliance Management": ShieldAlert,
@@ -214,17 +228,27 @@ const VIEW_TO_PATH: Record<string, string> = {
   "state-weekly-actionable": "/soc/weekly-actionable",
   "state-contracted-services": "/soc/contracted-services",
   "state-etmc-tmc-action-point": "/soc/etmc-tmc-action-point",
+  "state-ict-support-register": "/zonal/ict/support",
+  "state-adhoc-special-assignment": "/sdo/projects",
   "state-extra-dependant": "/zonal/beneficiary/extra-dependant",
   "state-hcf-change": "/zonal/beneficiary/hcf-change",
   "state-ict-support": "/zonal/ict/support",
-  "state-admin-meetings": "/zonal/admin-hr/meetings",
+  "state-office-meeting": "/zonal/admin-hr/office-meeting",
   "state-etmc-cascading": "/zonal/admin-hr/etmc-cascading",
-  "state-accommodation": "/zonal/admin-hr/accommodation",
-  "state-utilities": "/zonal/admin-hr/utilities",
-  "state-vehicles": "/zonal/admin-hr/vehicles",
-  "state-staff-feedback": "/zonal/admin-hr/feedback",
-  "state-infractions": "/zonal/admin-hr/infractions",
+  "state-office-accommodation": "/zonal/admin-hr/office-accommodation",
+  "state-utility-services": "/zonal/admin-hr/utility-services",
+  "state-vehicle-maintenance": "/zonal/admin-hr/vehicle-maintenance",
+  "state-conflict-infraction": "/zonal/admin-hr/conflict-infraction",
+  "state-enrollee-feedback": "/zonal/admin-hr/enrollee-feedback",
+  "state-admin-meetings": "/zonal/admin-hr/office-meeting",
+  "state-accommodation": "/zonal/admin-hr/office-accommodation",
+  "state-utilities": "/zonal/admin-hr/utility-services",
+  "state-vehicles": "/zonal/admin-hr/vehicle-maintenance",
+  "state-staff-feedback": "/zonal/admin-hr/enrollee-feedback",
+  "state-infractions": "/zonal/admin-hr/conflict-infraction",
   "servicom-visits": "/zonal/monitoring-visits",
+  "state-hmo-indebtedness": "/zonal/hmo-indebtedness",
+  "state-mystery-shopping": "/zonal/mystery-shopping",
   "servicom-complaints": "/sdo/servicom/complaints",
   "servicom-satisfaction": "/sdo/servicom/satisfaction",
   "servicom-comment-card": "/sdo/servicom/comment-card",
@@ -237,25 +261,12 @@ type TreeNode =
   | { kind: "leaf"; title: string; navLabel?: string; view?: string; path?: string }
   | { kind: "folder"; title: string; children: TreeNode[] };
 
-/** Folders that must stay as dropdowns even with a single child. */
-const PRESERVE_FOLDER_TITLES = new Set([
-  "Zonal",
-  "State Offices",
-  SDO_SOC_NAV_GROUP,
-  SDO_STOCK_NAV_GROUP,
-  "SERVICOM",
-  "Special Project",
-  "Enrolment",
-  "Beneficiary Management",
-  "Stakeholder Management",
-  "Provider Management",
-  "Complaint / Compliance",
-  "Internal Management",
-  "Finance",
-  "ICT",
-  "Admin / Human Resource",
-  "Store Management",
-]);
+/**
+ * Folders that must stay as dropdowns even with a single child.
+ * Keep empty so a lone granted page (e.g. only Complaints) shows standalone
+ * without its group label (SERVICOM, Stock Verification, etc.).
+ */
+const PRESERVE_FOLDER_TITLES = new Set<string>([]);
 
 /** If a folder has only one child, promote that child (no redundant dropdown). */
 function collapseSingleChildFolders(nodes: TreeNode[]): TreeNode[] {
@@ -274,7 +285,6 @@ function collapseSingleChildFolders(nodes: TreeNode[]): TreeNode[] {
 function filterModuleTree(
   children: (ChildModule | SubGroup)[],
   allowedTitles: Set<string>,
-  storeAllowed?: Set<string>,
   socAllowed?: Set<string>,
   zonalAllowed?: Set<string>,
 ): TreeNode[] {
@@ -295,7 +305,6 @@ function filterModuleTree(
             ...filterModuleTree(
               socMod?.children ?? [],
               socAllowed!,
-              storeAllowed,
               socAllowed,
               zonalAllowed,
             ),
@@ -308,7 +317,6 @@ function filterModuleTree(
             filterModuleTree(
               zonalMod?.children ?? [],
               zonalAllowed!,
-              storeAllowed,
               socAllowed,
               zonalAllowed,
             ),
@@ -324,24 +332,7 @@ function filterModuleTree(
 
         nested = collapseSingleChildFolders(nested);
       } else {
-        nested = filterModuleTree(child.children, allowedTitles, storeAllowed, socAllowed, zonalAllowed);
-
-        // Nest store privileges under STOCK VERIFICATION (SVD) when granted
-        if (
-          (child.label === "STOCK VERIFICATION" ||
-            child.label === "STOCK VERIFICATION (SVD)" ||
-            child.label === SDO_STOCK_NAV_GROUP) &&
-          storeAllowed &&
-          storeAllowed.size > 0
-        ) {
-          const assetMod = MODULE_CONFIG.find((m) => m.title === "Asset Management (SVO)");
-          const storeKids = collapseSingleChildFolders(
-            filterModuleTree(assetMod?.children ?? [], storeAllowed, storeAllowed, socAllowed, zonalAllowed),
-          );
-          if (storeKids.length > 0) {
-            nested.push(...storeKids);
-          }
-        }
+        nested = filterModuleTree(child.children, allowedTitles, socAllowed, zonalAllowed);
       }
 
       nested = collapseSingleChildFolders(nested);
@@ -378,7 +369,6 @@ function filterModuleTree(
 function buildVisibleTree(
   mod: (typeof MODULE_CONFIG)[0],
   allowedTitles: Set<string>,
-  storeAllowed?: Set<string>,
   socAllowed?: Set<string>,
   zonalAllowed?: Set<string>,
 ): TreeNode | null {
@@ -386,7 +376,6 @@ function buildVisibleTree(
     filterModuleTree(
       mod.children,
       allowedTitles,
-      mod.title === SDO_MODULE ? storeAllowed : undefined,
       mod.title === SDO_MODULE ? socAllowed : undefined,
       mod.title === SDO_MODULE ? zonalAllowed : undefined,
     )
@@ -439,11 +428,6 @@ function getUserDepartmentLabel(
 
   if (role === "admin") return "NHIA Headquarters";
 
-  const state = user?.state?.description?.trim();
-  const zone = user?.zone?.description?.trim();
-  if (state) return `${state} State Office`;
-  if (zone) return `${zone} Zone`;
-
   return user?.role_label || role?.replace(/-/g, " ") || null;
 }
 
@@ -455,16 +439,21 @@ function UserSidebarDepartment({
   role?: string;
 }) {
   const department = getUserDepartmentLabel(user, role);
-  if (!department) return null;
+  const unit = user?.unit?.name?.trim() || null;
+  if (!department && !unit) return null;
 
   return (
-    <div className="mx-1 mb-1 rounded-lg bg-white/8 px-3 py-2 group-data-[collapsible=icon]:hidden">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-white/55">
-        Office
-      </p>
-      <p className="mt-0.5 text-[13px] font-semibold leading-snug text-white/95">
-        {department}
-      </p>
+    <div className="mx-0 mt-2 rounded-lg bg-white/8 px-3 py-2 space-y-1 group-data-[collapsible=icon]:hidden">
+      {department ? (
+        <p className="text-[13px] font-semibold leading-snug text-white/95">
+          {department}
+        </p>
+      ) : null}
+      {unit ? (
+        <p className="text-[13px] font-semibold leading-snug text-white/95">
+          {unit}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -604,18 +593,14 @@ function NavMain({
 }) {
   const trees = React.useMemo(() => {
     const hasSdo = modules.some(({ mod }) => mod.title === SDO_MODULE);
-    const storeMod = modules.find(({ mod }) => mod.title === "Asset Management (SVO)");
     const socMod = modules.find(({ mod }) => mod.title === SOC_ZONES_MODULE);
     const zonalMod = modules.find(({ mod }) => mod.title === ZONAL_MODULE);
-    const storeAllowed = storeMod?.allowedTitles;
     const socAllowed = socMod?.allowedTitles;
     const zonalAllowed = zonalMod?.allowedTitles;
 
     const built = modules
       .filter(({ mod }) => {
         if (mod.title === "Notifications" || mod.title === "Settings") return false;
-        // When SDO is shown, Asset Management (SVO) is nested under STOCK VERIFICATION (SVD)
-        if (hasSdo && mod.title === "Asset Management (SVO)") return false;
         // When SDO is shown, SOC/Zones and Zonal nest under State Office Coordination
         if (hasSdo && mod.title === SOC_ZONES_MODULE) return false;
         if (hasSdo && mod.title === ZONAL_MODULE) return false;
@@ -625,7 +610,6 @@ function NavMain({
         buildVisibleTree(
           mod,
           allowedTitles,
-          mod.title === SDO_MODULE ? storeAllowed : undefined,
           mod.title === SDO_MODULE ? socAllowed : undefined,
           mod.title === SDO_MODULE ? zonalAllowed : undefined,
         )
@@ -636,24 +620,8 @@ function NavMain({
   }, [modules, role]);
 
   const sections = React.useMemo(() => {
-    const sdoPortalCore = new Set([
-      "SERVICOM",
-      SDO_STOCK_NAV_GROUP,
-      "Special Project",
-    ]);
-    const hasSdoPortal = trees.some((node) => sdoPortalCore.has(node.title));
-    const hqTitles = new Set([
-      "Finance & Admin Dept",
-      "Standards & Quality Assurance",
-      "Zonal ICT Support",
-      "Programmes",
-    ]);
     const headingFor = (title: string) => {
-      if (sdoPortalCore.has(title) || (hasSdoPortal && title === SDO_SOC_NAV_GROUP)) {
-        return "SDO Portal";
-      }
       if (title === "State Offices") return "State Offices";
-      if (hqTitles.has(title)) return "Headquarters";
       return "";
     };
     const out: { heading: string; nodes: TreeNode[] }[] = [];
@@ -763,18 +731,15 @@ export function AppSidebar({
 
   return (
     <Sidebar collapsible="icon" {...props}>
-      <SidebarHeader className="border-b border-sidebar-border px-3 pt-3 pb-3">
-        <div className="flex h-12 items-center gap-2.5 group-data-[collapsible=icon]:justify-center">
+      <SidebarHeader className="border-b border-sidebar-border px-3 py-2.5 overflow-hidden">
+        <div className="flex h-11 w-full min-w-0 items-center justify-center group-data-[collapsible=icon]:h-9">
           <img
             src="/logo.png"
-            alt="NHIA"
-            className="h-9 w-auto object-contain"
+            alt="NHIA URMS"
+            className="h-9 w-full max-w-full object-contain object-center group-data-[collapsible=icon]:h-7 group-data-[collapsible=icon]:w-7"
           />
-          <div className="min-w-0 group-data-[collapsible=icon]:hidden">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-white/50">NHIA</p>
-            <p className="text-sm font-semibold leading-tight text-white">URMS</p>
-          </div>
         </div>
+        <UserSidebarDepartment user={user} role={role} />
       </SidebarHeader>
 
       <SidebarContent>
@@ -782,8 +747,6 @@ export function AppSidebar({
       </SidebarContent>
 
       <SidebarFooter className="border-t border-sidebar-border gap-1 pt-2">
-        <UserSidebarDepartment user={user} role={role} />
-
         <SidebarMenu>
           <SidebarMenuItem onClick={closeMobile}>
             <SidebarMenuButton

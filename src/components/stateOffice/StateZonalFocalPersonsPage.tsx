@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { stateZonalFocalPersonApi, stockApi } from "@/lib/api";
 import { buildReportingYearOptions } from "../monthly/reportingYears";
 import { ALL_STATES, useMonthlyStateFilter } from "../monthly/useMonthlyStateFilter";
+import { useCreateReviewAccess } from "@/src/access/createReviewAccess";
 
 interface Props {
   onBack: () => void;
@@ -78,14 +79,6 @@ const emptyForm = (year: string, zoneId?: string | null, stateId?: string | null
 
 type FormState = ReturnType<typeof emptyForm>;
 
-function displayStateId(stateId: string | number | null | undefined) {
-  if (!stateId) return "—";
-  return `ST-${String(stateId).padStart(3, "0")}`;
-}
-function displayZoneId(zoneId: string | number | null | undefined) {
-  if (!zoneId) return "—";
-  return `ZN-${String(zoneId).padStart(2, "0")}`;
-}
 function labelOf(opts: { value: string; label: string }[], value: string) {
   return opts.find((o) => o.value === value)?.label ?? (value || "Select");
 }
@@ -100,12 +93,14 @@ function InfoField({ label, value }: { label: string; value?: React.ReactNode })
 }
 
 export default function StateZonalFocalPersonsPage({ onBack, defaultStateId, defaultZoneId }: Props) {
+  const { canCreate, createOnly } = useCreateReviewAccess();
   const yearOptions = React.useMemo(() => buildReportingYearOptions(), []);
   const currentYear = yearOptions[0] || String(new Date().getFullYear());
 
-  const [mode, setMode] = React.useState<Mode>("list");
+  const [mode, setMode] = React.useState<Mode>(createOnly ? "create" : "list");
+  const [formKey, setFormKey] = React.useState(0);
   const [rows, setRows] = React.useState<RecordRow[]>([]);
-  const [loading, setLoading] = React.useState(true);
+  const [loading, setLoading] = React.useState(!createOnly);
   const [saving, setSaving] = React.useState(false);
   const [editingId, setEditingId] = React.useState<number | null>(null);
   const [detail, setDetail] = React.useState<RecordRow | null>(null);
@@ -140,6 +135,7 @@ export default function StateZonalFocalPersonsPage({ onBack, defaultStateId, def
   }, [f.zone_id]);
 
   const load = React.useCallback(async () => {
+    if (createOnly) return;
     setLoading(true);
     try {
       const res = await stateZonalFocalPersonApi.list({
@@ -154,9 +150,9 @@ export default function StateZonalFocalPersonsPage({ onBack, defaultStateId, def
     } finally {
       setLoading(false);
     }
-  }, [filterYear, filterZone, apiStateId, defaultZoneId, defaultStateId, filterDomain]);
+  }, [filterYear, filterZone, apiStateId, defaultZoneId, defaultStateId, filterDomain, createOnly]);
 
-  React.useEffect(() => { load(); }, [load]);
+  React.useEffect(() => { if (!createOnly) load(); }, [load, createOnly]);
 
   const setField = (key: keyof FormState, value: string) => {
     setF((prev) => {
@@ -167,6 +163,7 @@ export default function StateZonalFocalPersonsPage({ onBack, defaultStateId, def
   };
 
   const openCreate = () => {
+    if (!canCreate) return;
     setEditingId(null);
     setF(emptyForm(
       filterYear !== "all" ? filterYear : currentYear,
@@ -174,6 +171,19 @@ export default function StateZonalFocalPersonsPage({ onBack, defaultStateId, def
       defaultStateId || (filterState !== ALL_STATES ? filterState : ""),
     ));
     setMode("create");
+  };
+
+  const leaveForm = () => {
+    if (createOnly) {
+      onBack();
+      return;
+    }
+    setMode("list");
+  };
+
+  const remountCreateForm = () => {
+    openCreate();
+    setFormKey((k) => k + 1);
   };
 
   const fillForm = (row: RecordRow) => {
@@ -220,8 +230,11 @@ export default function StateZonalFocalPersonsPage({ onBack, defaultStateId, def
         await stateZonalFocalPersonApi.create(payload);
         toast.success("Focal person saved");
       }
-      setMode("list");
-      load();
+      if (createOnly && mode === "create") remountCreateForm();
+      else {
+        setMode("list");
+        load();
+      }
     } catch (err: any) {
       toast.error("Could not save record", { description: err.message });
     } finally {
@@ -253,7 +266,7 @@ export default function StateZonalFocalPersonsPage({ onBack, defaultStateId, def
     <div className="space-y-4">
       <Card className="rounded-2xl border-[#d4e8dc]">
         <CardContent className="pt-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label>Zone <span className="text-red-500">*</span></Label>
               <Select value={f.zone_id} onValueChange={(v) => setField("zone_id", v)} disabled={lockGeo}>
@@ -266,12 +279,6 @@ export default function StateZonalFocalPersonsPage({ onBack, defaultStateId, def
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Zone ID <span className="text-[10px] font-normal text-slate-400">(auto-generated)</span></Label>
-              <div className="h-10 flex items-center px-3 rounded-md border border-input bg-slate-50 text-sm font-mono font-bold text-primary">
-                {displayZoneId(f.zone_id)}
-              </div>
-            </div>
-            <div className="space-y-2">
               <Label>State <span className="text-red-500">*</span></Label>
               <Select value={f.state_id} onValueChange={(v) => setField("state_id", v)} disabled={lockStateField}>
                 <SelectTrigger className={`w-full ${lockStateField ? "opacity-70 bg-slate-50" : ""}`} displayValue={f.zone_id ? stateLabel : "Select Zone first"}>
@@ -281,12 +288,6 @@ export default function StateZonalFocalPersonsPage({ onBack, defaultStateId, def
                   {formStates.map((s) => <SelectItem key={s.id} value={String(s.id)}>{s.description}</SelectItem>)}
                 </SelectContent>
               </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>State ID <span className="text-[10px] font-normal text-slate-400">(auto-generated)</span></Label>
-              <div className="h-10 flex items-center px-3 rounded-md border border-input bg-slate-50 text-sm font-mono font-bold text-primary">
-                {displayStateId(f.state_id)}
-              </div>
             </div>
             <div className="space-y-2">
               <Label>Year <span className="text-red-500">*</span></Label>
@@ -357,14 +358,16 @@ export default function StateZonalFocalPersonsPage({ onBack, defaultStateId, def
       <div className="flex flex-col h-full bg-slate-50/30">
         <div className="bg-white border-b border-border/50 px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30">
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={() => setMode("list")} className="rounded-full">
+            <Button variant="ghost" size="icon" onClick={() => setMode(createOnly ? "create" : "list")} className="rounded-full">
               <ArrowLeft className="w-5 h-5" />
             </Button>
             <h2 className="text-xl font-bold tracking-tight">Focal Person</h2>
           </div>
+          {canCreate && (
           <Button className="bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20" onClick={() => setMode("edit")}>
             <Pencil className="w-4 h-4" /> Edit
           </Button>
+          )}
         </div>
         <ScrollArea className="flex-1">
           <div className="w-full px-4 md:px-6 py-4 space-y-4 pb-8">
@@ -376,8 +379,6 @@ export default function StateZonalFocalPersonsPage({ onBack, defaultStateId, def
                   <p className="mt-1 text-sm text-white/80">{labelOf(FOCAL_DESIGNATIONS, f.designation)}</p>
                   <div className="mt-4 flex flex-wrap gap-2">
                     <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-semibold">{labelOf(FOCAL_DOMAINS, f.domain)}</span>
-                    <span className="rounded-full bg-white/15 px-3 py-1 font-mono text-xs font-bold">{displayStateId(f.state_id)}</span>
-                    <span className="rounded-full bg-white/15 px-3 py-1 font-mono text-xs font-bold">{displayZoneId(f.zone_id)}</span>
                   </div>
                 </div>
               </Card>
@@ -390,11 +391,9 @@ export default function StateZonalFocalPersonsPage({ onBack, defaultStateId, def
                   <CardDescription>State and zonal office assignment</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <InfoField label="Zone" value={<span className="inline-flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5 text-primary" />{zoneName}</span>} />
-                    <InfoField label="Zone ID" value={<span className="font-mono text-primary">{displayZoneId(f.zone_id)}</span>} />
                     <InfoField label="State" value={stateName} />
-                    <InfoField label="State ID" value={<span className="font-mono text-primary">{displayStateId(f.state_id)}</span>} />
                   </div>
                 </CardContent>
               </Card>
@@ -434,7 +433,7 @@ export default function StateZonalFocalPersonsPage({ onBack, defaultStateId, def
 
   if (mode !== "list") {
     return (
-      <div className="flex flex-col h-full bg-slate-50/30">
+      <div key={formKey} className="flex flex-col h-full bg-slate-50/30">
         <div className="bg-white border-b border-border/50 px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30">
           <h2 className="text-xl font-bold tracking-tight">
             {mode === "edit" ? "Edit Focal Person" : "New Focal Person"}
@@ -444,7 +443,7 @@ export default function StateZonalFocalPersonsPage({ onBack, defaultStateId, def
           <div className="w-full px-4 md:px-6 py-4 space-y-4 pb-28">{formBody}</div>
         </ScrollArea>
         <div className="sticky bottom-0 z-30 bg-white border-t border-border/50 px-4 md:px-6 py-3 flex flex-wrap items-center justify-end gap-3">
-          <Button variant="outline" onClick={() => setMode("list")}>Cancel</Button>
+          <Button variant="outline" onClick={mode === "edit" ? () => setMode("view") : leaveForm}>Cancel</Button>
           <Button className="bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20" onClick={handleSave} disabled={saving}>
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             {mode === "edit" ? "Update" : "Save"}
@@ -462,9 +461,11 @@ export default function StateZonalFocalPersonsPage({ onBack, defaultStateId, def
           <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
           </Button>
+          {canCreate && (
           <Button className="bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20" onClick={openCreate}>
             <Plus className="w-4 h-4" /> New Record
           </Button>
+          )}
         </div>
       </div>
 
@@ -553,7 +554,7 @@ export default function StateZonalFocalPersonsPage({ onBack, defaultStateId, def
                 <div className="flex flex-col items-center justify-center py-16 gap-2 text-slate-400">
                   <Users className="w-8 h-8 opacity-30" />
                   <p className="text-sm font-medium">{hasFilters ? "No records match your filters" : "No focal persons found"}</p>
-                  {!hasFilters && (
+                  {!hasFilters && canCreate && (
                     <Button variant="outline" size="sm" className="mt-2 gap-2" onClick={openCreate}>
                       <Plus className="w-4 h-4" /> New Record
                     </Button>
@@ -566,9 +567,7 @@ export default function StateZonalFocalPersonsPage({ onBack, defaultStateId, def
                       <TableRow className="bg-[#f0fdf7] hover:bg-[#f0fdf7]">
                         <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Year</TableHead>
                         <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">State</TableHead>
-                        <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">State ID</TableHead>
                         <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Zone</TableHead>
-                        <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Zone ID</TableHead>
                         <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Domain</TableHead>
                         <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Name of Office</TableHead>
                         <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Designation</TableHead>
@@ -584,9 +583,7 @@ export default function StateZonalFocalPersonsPage({ onBack, defaultStateId, def
                           className="hover:bg-[#f8fdfb] transition-colors border-b border-slate-100 last:border-0">
                           <TableCell className="text-sm font-semibold text-slate-800 whitespace-nowrap">{row.reporting_year}</TableCell>
                           <TableCell className="text-sm font-semibold text-slate-800 whitespace-nowrap">{row.state?.description || "—"}</TableCell>
-                          <TableCell><span className="font-mono text-xs font-bold text-primary">{row.state_display_id || displayStateId(row.state_id)}</span></TableCell>
                           <TableCell className="text-sm text-slate-600 whitespace-nowrap">{row.zone?.description || "—"}</TableCell>
-                          <TableCell><span className="font-mono text-xs font-bold text-primary">{row.zone_display_id || displayZoneId(row.zone_id)}</span></TableCell>
                           <TableCell className="text-sm text-slate-600 whitespace-nowrap">{labelOf(FOCAL_DOMAINS, row.domain)}</TableCell>
                           <TableCell className="text-sm font-medium text-slate-800 whitespace-nowrap">{row.officer_name}</TableCell>
                           <TableCell className="text-sm text-slate-600 whitespace-nowrap">{labelOf(FOCAL_DESIGNATIONS, row.designation)}</TableCell>

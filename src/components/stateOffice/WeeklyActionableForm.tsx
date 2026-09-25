@@ -64,6 +64,8 @@ interface ActionableLine {
 interface Props {
   reportId?: number | null;
   onBack: () => void;
+  onCancel?: () => void;
+  onSubmitted?: () => void;
   defaultZoneId?: string | null;
   defaultStateId?: string | null;
 }
@@ -77,7 +79,7 @@ const blankEntry = (): Omit<ActionableLine, "_key" | "priority_level"> => ({
   status: "",
 });
 
-export default function WeeklyActionableForm({ reportId, onBack, defaultZoneId, defaultStateId }: Props) {
+export default function WeeklyActionableForm({ reportId, onBack, onCancel, onSubmitted, defaultZoneId, defaultStateId }: Props) {
   const [lines, setLines] = React.useState<ActionableLine[]>([]);
   const [entry, setEntry] = React.useState(blankEntry());
   const [reportingWeek, setReportingWeek] = React.useState("1");
@@ -118,6 +120,8 @@ export default function WeeklyActionableForm({ reportId, onBack, defaultZoneId, 
       reportType="weekly-actionable"
       reportId={reportId}
       onBack={onBack}
+      onCancel={onCancel}
+      onSubmitted={onSubmitted}
       defaultZoneId={defaultZoneId}
       defaultStateId={defaultStateId}
       onLoaded={loadData}

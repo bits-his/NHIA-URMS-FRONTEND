@@ -17,6 +17,8 @@ import {
 interface Props {
   reportId?: number | null;
   onBack: () => void;
+  onCancel?: () => void;
+  onSubmitted?: () => void;
   defaultZoneId?: string | null;
   defaultStateId?: string | null;
 }
@@ -31,7 +33,7 @@ interface TableRow {
 
 const uid = () => Math.random().toString(36).slice(2);
 
-export default function AccreditationReportForm({ reportId, onBack, defaultZoneId, defaultStateId }: Props) {
+export default function AccreditationReportForm({ reportId, onBack, onCancel, onSubmitted, defaultZoneId, defaultStateId }: Props) {
   const [lines, setLines] = React.useState<TableRow[]>([]);
   const [process, setProcess] = React.useState("");
   const [entry, setEntry] = React.useState("");
@@ -74,6 +76,8 @@ export default function AccreditationReportForm({ reportId, onBack, defaultZoneI
   return (
     <StateOfficeFormShell
       reportType="accreditation" reportId={reportId} onBack={onBack}
+      onCancel={onCancel}
+      onSubmitted={onSubmitted}
       defaultZoneId={defaultZoneId} defaultStateId={defaultStateId}
       onLoaded={loadData}
       validate={() => (lines.length === 0 ? "Add at least one accreditation entry to the table." : null)}

@@ -34,11 +34,13 @@ const blank = () => ({
 interface Props {
   reportId?: number | null;
   onBack: () => void;
+  onCancel?: () => void;
+  onSubmitted?: () => void;
   defaultZoneId?: string | null;
   defaultStateId?: string | null;
 }
 
-export default function HmoSelectionReportForm({ reportId, onBack, defaultZoneId, defaultStateId }: Props) {
+export default function HmoSelectionReportForm({ reportId, onBack, onCancel, onSubmitted, defaultZoneId, defaultStateId }: Props) {
   const [lines, setLines] = React.useState<any[]>([]);
   const [entry, setEntry] = React.useState(blank());
 
@@ -93,6 +95,8 @@ export default function HmoSelectionReportForm({ reportId, onBack, defaultZoneId
   return (
     <StateOfficeFormShell
       reportType="hmo-selection" reportId={reportId} onBack={onBack}
+      onCancel={onCancel}
+      onSubmitted={onSubmitted}
       defaultZoneId={defaultZoneId} defaultStateId={defaultStateId}
       onLoaded={loadData}
       afterPersist={afterPersist}

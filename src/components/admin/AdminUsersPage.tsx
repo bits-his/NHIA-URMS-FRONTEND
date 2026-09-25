@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Plus, Pencil, Search, ChevronLeft, ChevronRight, TrendingUp, ChevronDown, ShieldCheck, UserX, UserCheck } from "lucide-react";
+import { Plus, Pencil, Search, ChevronLeft, ChevronRight, TrendingUp, ShieldCheck, UserX, UserCheck } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,8 @@ import { SearchSelect } from "@/components/ui/search-select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { usersApi, rolesApi, zonesApi, statesApi, departmentsApi, unitsApi, type AdminUser, type AppRole, type ZonalOffice, type StateOffice, type Department, type Unit } from "@/lib/adminApi";
 import AdminModal from "./AdminModal";
-import { MODULE_CONFIG, flatLeaves, isSubGroup, type ChildModule } from "@/src/access/moduleConfig";
+import ModuleAccessPicker from "./ModuleAccessPicker";
+import { buildAccessPayload, countGrantedParents, selectAllPrivilegeKeys } from "@/src/access/privilegeTree";
 import { normalizeFunctionalityTitle, normalizeModuleTitle } from "@/src/access/accessUtils";
 
 const ROLE_COLORS: Record<string, string> = {
@@ -136,18 +137,7 @@ export default function AdminUsersPage({ showOverview = false }: { showOverview?
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault(); setSaving(true);
     try {
-      // Build structured access array from granted set
-      // granted contains: parent module titles + child titles
-      const access = MODULE_CONFIG
-        .filter(mod => granted.has(mod.title))
-        .map(mod => {
-          // Flatten all leaf titles from this module
-          const allLeaves = flatLeaves(mod);
-          return {
-            access_to: mod.title,
-            functionalities: allLeaves.filter(t => granted.has(t)),
-          };
-        });
+      const access = buildAccessPayload(granted);
 
       const payload: any = {
         name: form.name, email: form.email || undefined, role: form.role,
@@ -183,26 +173,6 @@ export default function AdminUsersPage({ showOverview = false }: { showOverview?
   const handleActivate = async (u: AdminUser) => {
     try { await usersApi.activate(u.id); toast.success("User activated"); load(); }
     catch (e: any) { toast.error(e.message); }
-  };
-
-  const toggleParent = (title: string, childTitles: string[]) => {
-    setGranted(prev => {
-      const next = new Set(prev);
-      if (next.has(title)) { next.delete(title); childTitles.forEach(t => next.delete(t)); }
-      else { next.add(title); childTitles.forEach(t => next.add(t)); }
-      return next;
-    });
-  };
-
-  const toggleChild = (parentTitle: string, childTitle: string, allChildTitles: string[]) => {
-    setGranted(prev => {
-      const next = new Set(prev);
-      if (next.has(childTitle)) {
-        next.delete(childTitle);
-        if (allChildTitles.filter(t => t !== childTitle && next.has(t)).length === 0) next.delete(parentTitle);
-      } else { next.add(childTitle); next.add(parentTitle); }
-      return next;
-    });
   };
 
   return (
@@ -404,34 +374,17 @@ export default function AdminUsersPage({ showOverview = false }: { showOverview?
               <p className="text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
                 <ShieldCheck className="w-3.5 h-3.5 text-[#145c3f]" /> Module Access
                 <span className="ml-1 text-[10px] font-normal text-slate-400 normal-case">
-                  ({MODULE_CONFIG.filter(m => granted.has(m.title)).length} of {MODULE_CONFIG.length} granted)
+                  ({countGrantedParents(granted)} modules)
                 </span>
               </p>
               <div className="flex gap-3">
-                <button type="button" onClick={() => {
-                  const all = new Set<string>();
-                  MODULE_CONFIG.forEach(m => {
-                    all.add(m.title);
-                    flatLeaves(m).forEach(t => all.add(t));
-                  });
-                  setGranted(all);
-                }} className="text-xs text-[#145c3f] hover:underline font-medium">Select all</button>
+                <button type="button" onClick={() => setGranted(selectAllPrivilegeKeys())} className="text-xs text-[#145c3f] hover:underline font-medium">Select all</button>
                 <span className="text-slate-300">|</span>
                 <button type="button" onClick={() => setGranted(new Set())} className="text-xs text-rose-500 hover:underline font-medium">Clear all</button>
               </div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {MODULE_CONFIG.map(mod => {
-                const allChildTitles = flatLeaves(mod);
-                const parentChecked = granted.has(mod.title);
-                const checkedCount = allChildTitles.filter(t => granted.has(t)).length;
-                const someChecked = parentChecked && checkedCount < allChildTitles.length;
-                return (
-                  <ModuleAccessRow key={mod.title} mod={mod}
-                    parentChecked={parentChecked} someChecked={someChecked}
-                    granted={granted} onToggleParent={toggleParent} onToggleChild={toggleChild} />
-                );
-              })}
+            <div className="max-h-[50vh] overflow-y-auto pr-1">
+              <ModuleAccessPicker granted={granted} onChange={setGranted} />
             </div>
           </div>
 
@@ -455,68 +408,6 @@ function Field({ label, required, children }: { label: string; required?: boolea
         {label}{required && <span className="text-rose-500 ml-0.5">*</span>}
       </label>
       {children}
-    </div>
-  );
-}
-
-function ModuleAccessRow({ mod, parentChecked, someChecked, granted, onToggleParent, onToggleChild }: {
-  mod: typeof MODULE_CONFIG[0];
-  parentChecked: boolean;
-  someChecked: boolean;
-  granted: Set<string>;
-  onToggleParent: (title: string, childTitles: string[]) => void;
-  onToggleChild: (parentTitle: string, childTitle: string, allChildTitles: string[]) => void;
-}) {
-  const [open, setOpen] = React.useState(false);
-  const allChildTitles = flatLeaves(mod);
-  const parentRef = React.useRef<HTMLInputElement>(null);
-  React.useEffect(() => { if (parentRef.current) parentRef.current.indeterminate = someChecked; }, [someChecked]);
-
-  // Flatten children for rendering (include nested group labels)
-  const renderChildren: { title: string; groupLabel?: string }[] = [];
-  const walk = (nodes: (typeof mod.children)[number][], groupPath?: string) => {
-    nodes.forEach((c) => {
-      if (isSubGroup(c)) {
-        const next = groupPath ? `${groupPath} › ${c.label}` : c.label;
-        walk(c.children, next);
-      } else {
-        renderChildren.push({ title: (c as ChildModule).title, groupLabel: groupPath });
-      }
-    });
-  };
-  walk(mod.children);
-
-  return (
-    <div className={`rounded-xl border transition-all ${parentChecked ? "border-[#25a872]" : "border-[#d4e8dc]"}`}>
-      <div className={`flex items-center gap-2.5 px-3 py-2 rounded-xl ${parentChecked ? "bg-[#e8f5ee]" : "bg-white"}`}>
-        <input ref={parentRef} type="checkbox" checked={parentChecked}
-          onChange={() => onToggleParent(mod.title, allChildTitles)}
-          className="w-3.5 h-3.5 accent-[#145c3f] shrink-0 cursor-pointer" />
-        <span className={`text-xs font-semibold flex-1 ${parentChecked ? "text-[#145c3f]" : "text-slate-700"}`}>{mod.title}</span>
-        {renderChildren.length > 0 && (
-          <button type="button" onClick={() => setOpen(o => !o)} className="p-0.5 text-slate-400 hover:text-slate-600">
-            {open ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-          </button>
-        )}
-      </div>
-      {open && renderChildren.length > 0 && (
-        <div className="border-t border-[#d4e8dc] px-3 py-1.5 space-y-1 bg-white rounded-b-xl">
-          {!parentChecked && <p className="text-[10px] text-amber-600 italic">Enable parent first</p>}
-          {renderChildren.map(child => (
-            <label key={child.title} className={`flex items-center gap-2 px-1.5 py-1 rounded-lg cursor-pointer ${
-              granted.has(child.title) ? "bg-[#e8f5ee]" : "hover:bg-slate-50"
-            } ${!parentChecked ? "opacity-40 pointer-events-none" : ""}`}>
-              <input type="checkbox" checked={granted.has(child.title)} disabled={!parentChecked}
-                onChange={() => onToggleChild(mod.title, child.title, allChildTitles)}
-                className="w-3 h-3 accent-[#145c3f] shrink-0" />
-              <span className={`text-xs ${granted.has(child.title) ? "text-[#145c3f] font-medium" : "text-slate-600"}`}>
-                {child.groupLabel ? <span className="text-slate-400 mr-1">{child.groupLabel} ›</span> : null}
-                {child.title}
-              </span>
-            </label>
-          ))}
-        </div>
-      )}
     </div>
   );
 }

@@ -510,6 +510,11 @@ export const servicomApi = {
   listComplaints: (filters?: Record<string, string | undefined>) =>
     request<{ success: boolean; data: any[] }>(`/servicom/complaints${servicomFilters(filters)}`),
 
+  previewComplaintNumber: (filters?: Record<string, string | undefined>) =>
+    request<{ success: boolean; data: { complaint_number: string } }>(
+      `/servicom/complaints/next-number${servicomFilters(filters)}`,
+    ),
+
   listComplaintSla: () =>
     request<{ success: boolean; data: any[] }>("/servicom/complaint-sla"),
 
@@ -566,7 +571,10 @@ export type StateOfficeReportType =
   | "complaints" | "accreditation" | "stakeholder" | "hmo-selection" | "challenges"
   | "igr" | "sshia-financial" | "expenditure-profile"
   | "weekly-actionable" | "contracted-services" | "enrollee-register" | "etmc-tmc-action-point"
-  | "extra-dependant" | "hcf-change";
+  | "ict-support-register" | "adhoc-special-assignment"
+  | "extra-dependant" | "hcf-change"
+  | "office-meeting" | "etmc-cascading" | "office-accommodation" | "utility-services"
+  | "vehicle-maintenance" | "conflict-infraction" | "enrollee-feedback";
 
 const makeStateOfficeApi = (type: StateOfficeReportType) => ({
   list: (filters?: { state_id?: string; zone_id?: string; year?: string; month?: string; status?: string }) => {
@@ -623,6 +631,8 @@ export const stateOfficeApi = {
   "weekly-actionable": makeStateOfficeApi("weekly-actionable"),
   "contracted-services": makeStateOfficeApi("contracted-services"),
   "enrollee-register": makeStateOfficeApi("enrollee-register"),
+  "ict-support-register": makeStateOfficeApi("ict-support-register"),
+  "adhoc-special-assignment": makeStateOfficeApi("adhoc-special-assignment"),
   "extra-dependant": {
     ...makeStateOfficeApi("extra-dependant"),
     uploadLineFiles: (reportId: number | string, lineId: number | string, files: File[]) => {
@@ -641,6 +651,13 @@ export const stateOfficeApi = {
     },
   },
   "hcf-change": makeStateOfficeApi("hcf-change"),
+  "office-meeting": makeStateOfficeApi("office-meeting"),
+  "etmc-cascading": makeStateOfficeApi("etmc-cascading"),
+  "office-accommodation": makeStateOfficeApi("office-accommodation"),
+  "utility-services": makeStateOfficeApi("utility-services"),
+  "vehicle-maintenance": makeStateOfficeApi("vehicle-maintenance"),
+  "conflict-infraction": makeStateOfficeApi("conflict-infraction"),
+  "enrollee-feedback": makeStateOfficeApi("enrollee-feedback"),
   "etmc-tmc-action-point": {
     ...makeStateOfficeApi("etmc-tmc-action-point"),
     uploadDocument: (id: number | string, file: File) => {
@@ -758,11 +775,11 @@ export const hcfFacilitiesApi = {
       Object.entries(filters || {}).filter(([, v]) => !!v) as [string, string][],
     ).toString();
     return request<{ success: boolean; data: any[] }>(
-      `/servicom/hcf-facilities${p ? `?${p}` : ""}`,
+      `/hcf-facilities${p ? `?${p}` : ""}`,
     );
   },
   listServices: () =>
-    request<{ success: boolean; data: string[] }>("/servicom/hcf-facilities/services"),
+    request<{ success: boolean; data: string[] }>("/hcf-facilities/services"),
   get: (id: number | string) =>
     request<{ success: boolean; data: any }>(`/hcf-facilities/${id}`),
 };
@@ -789,6 +806,40 @@ export const stateOfficeReconciliationApi = {
     }),
   update: (id: number | string, payload: any) =>
     request<{ success: boolean; data: any }>(`/state-office/reconciliation-meetings/${id}`, {
+      method: "PUT", body: JSON.stringify(payload),
+    }),
+};
+
+export const stateOfficeHmoIndebtednessApi = {
+  list: (filters?: { state_id?: string; zone_id?: string; year?: string; month?: string; status?: string }) =>
+    request<{ success: boolean; data: any[] }>(
+      `/state-office/hmo-indebtedness${stateOfficeFilters(filters)}`
+    ),
+  get: (id: number | string) =>
+    request<{ success: boolean; data: any }>(`/state-office/hmo-indebtedness/${id}`),
+  create: (payload: any) =>
+    request<{ success: boolean; data: any }>("/state-office/hmo-indebtedness", {
+      method: "POST", body: JSON.stringify(payload),
+    }),
+  update: (id: number | string, payload: any) =>
+    request<{ success: boolean; data: any }>(`/state-office/hmo-indebtedness/${id}`, {
+      method: "PUT", body: JSON.stringify(payload),
+    }),
+};
+
+export const stateOfficeMysteryShoppingApi = {
+  list: (filters?: { state_id?: string; zone_id?: string; year?: string; month?: string; status?: string }) =>
+    request<{ success: boolean; data: any[] }>(
+      `/state-office/mystery-shopping${stateOfficeFilters(filters)}`
+    ),
+  get: (id: number | string) =>
+    request<{ success: boolean; data: any }>(`/state-office/mystery-shopping/${id}`),
+  create: (payload: any) =>
+    request<{ success: boolean; data: any }>("/state-office/mystery-shopping", {
+      method: "POST", body: JSON.stringify(payload),
+    }),
+  update: (id: number | string, payload: any) =>
+    request<{ success: boolean; data: any }>(`/state-office/mystery-shopping/${id}`, {
       method: "PUT", body: JSON.stringify(payload),
     }),
 };
@@ -826,17 +877,43 @@ export const complianceApi = {
     ),
   get: (id: number | string) =>
     request<{ success: boolean; data: any }>(`/sqa/compliance-reports/${id}`),
-  create: (payload: any) =>
-    request<{ success: boolean; data: any }>("/sqa/compliance-reports", {
-      method: "POST", body: JSON.stringify(payload),
-    }),
-  update: (id: number | string, payload: any) =>
-    request<{ success: boolean; data: any }>(`/sqa/compliance-reports/${id}`, {
-      method: "PUT", body: JSON.stringify(payload),
-    }),
+  create: (payload: any, file?: File | null) =>
+    saveComplianceReport("/sqa/compliance-reports", "POST", payload, file),
+  update: (id: number | string, payload: any, file?: File | null) =>
+    saveComplianceReport(`/sqa/compliance-reports/${id}`, "PUT", payload, file),
   updateStatus: (id: number | string, status: string) =>
     request<{ success: boolean; data: any }>(`/sqa/compliance-reports/${id}/status`, {
       method: "PATCH", body: JSON.stringify({ status }),
     }),
+};
+
+function saveComplianceReport(
+  path: string,
+  method: "POST" | "PUT",
+  payload: any,
+  file?: File | null,
+) {
+  if (!file && !payload.remove_certification) {
+    return request<{ success: boolean; data: any }>(path, {
+      method, body: JSON.stringify(payload),
+    });
+  }
+  const form = new FormData();
+  Object.entries(payload).forEach(([k, v]) => {
+    if (v === undefined || v === null) return;
+    if (typeof v === "object") form.append(k, JSON.stringify(v));
+    else form.append(k, String(v));
+  });
+  if (file) form.append("certification_file", file);
+  return requestForm<{ success: boolean; data: any }>(path, method, form);
+}
+
+export const notificationsApi = {
+  list: () =>
+    request<{ success: boolean; data: any[] }>("/notifications"),
+  markRead: (id: number | string) =>
+    request<{ success: boolean; data: any }>(`/notifications/${id}/read`, { method: "PUT" }),
+  markAllRead: () =>
+    request<{ success: boolean }>("/notifications/read-all", { method: "PUT" }),
 };
 

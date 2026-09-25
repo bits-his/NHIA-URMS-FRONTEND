@@ -13,6 +13,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
+import { SubmitConfirmModal, useReportingOfficerSubmitConfirm } from "@/src/components/SubmitConfirmModal";
 import { stockApi, stateOfficeApi } from "@/lib/api";
 import {
   REPORT_CONFIG, MONTHS, ENROLMENT_CATEGORIES, MIGRATION_REQUEST_TYPES,
@@ -32,6 +33,7 @@ interface Props {
   reportType: StateOfficeReportType;
   reportId?: number | null;
   onBack: () => void;
+  onSubmitted?: () => void;
   defaultZoneId?: string | null;
   defaultStateId?: string | null;
 }
@@ -39,8 +41,9 @@ interface Props {
 const uid = () => Math.random().toString(36).slice(2);
 
 export default function StateOfficeReportPage({
-  reportType, reportId, onBack, defaultZoneId, defaultStateId,
+  reportType, reportId, onBack, onSubmitted, defaultZoneId, defaultStateId,
 }: Props) {
+  const submitConfirm = useReportingOfficerSubmitConfirm();
   const cfg = REPORT_CONFIG[reportType];
   const api = stateOfficeApi[reportType];
   const hydratingRef = React.useRef(false);
@@ -307,13 +310,14 @@ export default function StateOfficeReportPage({
       }
       setRefId(res.data.reference_id);
       toast.success("Report submitted", { description: `Reference: ${res.data.reference_id}` });
-      onBack();
+      (onSubmitted ?? onBack)();
     } catch (err: any) {
       toast.error("Submission failed", { description: err.message });
     } finally { setSubmitting(false); }
   };
 
   return (
+    <>
     <div className="flex flex-col h-full bg-slate-50/30">
       <div className="bg-white border-b border-border/50 px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30">
         <Button variant="ghost" size="icon" onClick={onBack} className="rounded-full">
@@ -327,7 +331,7 @@ export default function StateOfficeReportPage({
           <Separator orientation="vertical" className="h-6" />
           <Button
             className="bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20"
-            onClick={handleSubmit} disabled={submitting}
+            onClick={() => submitConfirm.requestSubmit(handleSubmit)} disabled={submitting}
           >
             {submitting
               ? <><Loader2 className="w-4 h-4 animate-spin" /> Submitting...</>
@@ -566,7 +570,7 @@ export default function StateOfficeReportPage({
                 </Button>
                 <Button
                   className="bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20"
-                  onClick={handleSubmit} disabled={submitting}
+                  onClick={() => submitConfirm.requestSubmit(handleSubmit)} disabled={submitting}
                 >
                   {submitting
                     ? <><Loader2 className="w-4 h-4 animate-spin" /> Submitting...</>
@@ -580,5 +584,12 @@ export default function StateOfficeReportPage({
         </div>
       </ScrollArea>
     </div>
+      <SubmitConfirmModal
+        open={submitConfirm.open}
+        busy={submitConfirm.busy}
+        onConfirm={submitConfirm.confirm}
+        onCancel={submitConfirm.cancel}
+      />
+    </>
   );
 }

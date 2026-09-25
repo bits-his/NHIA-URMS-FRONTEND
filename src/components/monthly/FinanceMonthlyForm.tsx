@@ -84,13 +84,11 @@ export default function FinanceMonthlyForm({ onBack, defaultZoneId, defaultState
         <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <div className="space-y-2">
             <Label>Approved Budget (₦)</Label>
-            <Input type="number" min="0" placeholder="0" value={f.approved_budget} onChange={set("approved_budget")} />
-            {f.approved_budget && <p className="text-xs font-semibold text-primary">₦ {Number(f.approved_budget).toLocaleString()}</p>}
+            <Input type="number" min="0" step="0.01" placeholder="0" value={f.approved_budget} onChange={set("approved_budget")} />
           </div>
           <div className="space-y-2">
             <Label>Total Amount Utilized (₦)</Label>
-            <Input type="number" min="0" placeholder="0" value={f.total_amount_utilized} onChange={set("total_amount_utilized")} />
-            {f.total_amount_utilized && <p className="text-xs font-semibold text-primary">₦ {Number(f.total_amount_utilized).toLocaleString()}</p>}
+            <Input type="number" min="0" step="0.01" placeholder="0" value={f.total_amount_utilized} onChange={set("total_amount_utilized")} />
           </div>
         </CardContent>
       </Card>
@@ -104,8 +102,7 @@ export default function FinanceMonthlyForm({ onBack, defaultZoneId, defaultState
         <CardContent className="max-w-xs">
           <div className="space-y-2">
             <Label>IGR Amount (₦)</Label>
-            <Input type="number" min="0" placeholder="0" value={f.igr_amount} onChange={set("igr_amount")} />
-            {f.igr_amount && <p className="text-xs font-semibold text-primary">₦ {Number(f.igr_amount).toLocaleString()}</p>}
+            <Input type="number" min="0" step="0.01" placeholder="0" value={f.igr_amount} onChange={set("igr_amount")} />
           </div>
         </CardContent>
       </Card>
@@ -116,13 +113,11 @@ export default function FinanceMonthlyForm({ onBack, defaultZoneId, defaultState
         <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-5">
           <div className="space-y-2">
             <Label>Total Indebtedness (₦)</Label>
-            <Input type="number" min="0" placeholder="0" value={f.total_indebtedness} onChange={set("total_indebtedness")} />
-            {f.total_indebtedness && <p className="text-xs font-semibold text-primary">₦ {Number(f.total_indebtedness).toLocaleString()}</p>}
+            <Input type="number" min="0" step="0.01" placeholder="0" value={f.total_indebtedness} onChange={set("total_indebtedness")} />
           </div>
           <div className="space-y-2">
             <Label>Amount Recovered to HCFs (₦)</Label>
-            <Input type="number" min="0" placeholder="0" value={f.amount_recovered} onChange={set("amount_recovered")} />
-            {f.amount_recovered && <p className="text-xs font-semibold text-primary">₦ {Number(f.amount_recovered).toLocaleString()}</p>}
+            <Input type="number" min="0" step="0.01" placeholder="0" value={f.amount_recovered} onChange={set("amount_recovered")} />
           </div>
           <div className="space-y-2">
             <Label>Reconciliation Meetings Held</Label>

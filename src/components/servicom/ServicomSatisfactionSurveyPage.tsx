@@ -14,8 +14,14 @@ import { servicomApi, stockApi } from "@/lib/api";
 import { pickGeoLabel } from "./servicomConstants";
 import AccreditedProviderSelect from "@/src/components/stateOffice/AccreditedProviderSelect";
 import {
-  SATISFACTION_QUESTIONS, YES_NO_OPTIONS, computeSatisfactionScore,
+  SATISFACTION_QUESTIONS,
+  SATISFACTION_CATEGORIES,
+  YES_NO_OPTIONS,
+  computeSatisfactionScore,
+  questionsForCategory,
+  satisfactionCategoryLabel,
 } from "./servicomSurveyConstants";
+import { SubmitConfirmModal, useReportingOfficerSubmitConfirm } from "@/src/components/SubmitConfirmModal";
 
 interface Props {
   onBack: () => void;
@@ -24,6 +30,8 @@ interface Props {
   defaultStateName?: string;
   defaultZoneName?: string;
   userName?: string;
+  canCreate?: boolean;
+  canReview?: boolean;
 }
 
 const emptyForm = (
@@ -71,12 +79,17 @@ export default function ServicomSatisfactionSurveyPage({
   defaultStateName,
   defaultZoneName,
   userName,
+  canCreate = true,
+  canReview = true,
 }: Props) {
+  const createOnly = canCreate && !canReview;
   const geoLocked = !!(defaultZoneId && defaultStateId);
-  const [mode, setMode] = React.useState<"list" | "form" | "view">("list");
+  const submitConfirm = useReportingOfficerSubmitConfirm();
+  const [mode, setMode] = React.useState<"list" | "form" | "view">(createOnly ? "form" : "list");
+  const [formKey, setFormKey] = React.useState(0);
   const [surveys, setSurveys] = React.useState<any[]>([]);
   const [selected, setSelected] = React.useState<any | null>(null);
-  const [loading, setLoading] = React.useState(true);
+  const [loading, setLoading] = React.useState(!createOnly);
   const [saving, setSaving] = React.useState(false);
   const [zones, setZones] = React.useState<any[]>([]);
   const [states, setStates] = React.useState<any[]>([]);
@@ -93,6 +106,7 @@ export default function ServicomSatisfactionSurveyPage({
   const activeStateId = defaultStateId ?? f.state_id;
 
   const load = React.useCallback(async () => {
+    if (createOnly) return;
     setLoading(true);
     try {
       const res = await servicomApi.listSatisfactionSurveys({
@@ -103,9 +117,9 @@ export default function ServicomSatisfactionSurveyPage({
     } catch (err: any) {
       toast.error("Failed to load surveys", { description: err.message });
     } finally { setLoading(false); }
-  }, [defaultStateId, defaultZoneId, filterState, filterZone, geoLocked]);
+  }, [defaultStateId, defaultZoneId, filterState, filterZone, geoLocked, createOnly]);
 
-  React.useEffect(() => { if (mode === "list") load(); }, [load, mode]);
+  React.useEffect(() => { if (mode === "list" && !createOnly) load(); }, [load, mode, createOnly]);
   React.useEffect(() => {
     stockApi.getZones().then((r) => setZones(r.data)).catch(() => {});
   }, []);
@@ -132,6 +146,7 @@ export default function ServicomSatisfactionSurveyPage({
   }, [surveys, filterSearch, filterDate]);
 
   const openForm = () => {
+    if (!canCreate) return;
     setF(emptyForm(defaultZoneId, defaultStateId, userName));
     setSelectedProviderId("");
     setSelected(null);
@@ -148,7 +163,19 @@ export default function ServicomSatisfactionSurveyPage({
     }
   };
 
+  const resetCreateForm = () => {
+    setF(emptyForm(defaultZoneId, defaultStateId, userName));
+    setSelectedProviderId("");
+    setSelected(null);
+    setFormKey((k) => k + 1);
+    setMode("form");
+  };
+
   const closeSub = () => {
+    if (createOnly) {
+      resetCreateForm();
+      return;
+    }
     setMode("list");
     setSelected(null);
     load();
@@ -158,10 +185,33 @@ export default function ServicomSatisfactionSurveyPage({
     setF((p) => ({ ...p, responses: { ...p.responses, [questionId]: value } }));
   };
 
-  const handleSave = async () => {
+  const validateDetails = () => {
     if (!f.state_id || !f.provider_name || !f.survey_date) {
       toast.error("State, provider name, and survey date are required.");
-      return;
+      return false;
+    }
+    return true;
+  };
+
+  const validateCategory = (category: string) => {
+    const qs = questionsForCategory(category);
+    const missing = qs.some((q) => !f.responses[q.id]);
+    if (missing) {
+      toast.error(`Please answer all ${satisfactionCategoryLabel(category)} questions.`);
+      return false;
+    }
+    return true;
+  };
+
+  const leaveForm = () => {
+    if (createOnly) onBack();
+    else closeSub();
+  };
+
+  const handleSave = async () => {
+    if (!validateDetails()) return;
+    for (const category of SATISFACTION_CATEGORIES) {
+      if (!validateCategory(category)) return;
     }
     if (scoreSummary.answered < SATISFACTION_QUESTIONS.length) {
       toast.error("Please answer all survey questions.");
@@ -185,7 +235,7 @@ export default function ServicomSatisfactionSurveyPage({
     } finally { setSaving(false); }
   };
 
-  const renderDetailsCard = (readOnly: boolean, row?: any) => (
+  const renderDetailsCard = (readOnly: boolean, row?: any, footer?: React.ReactNode) => (
     <Card className="rounded-2xl border-[#d4e8dc] shadow-sm">
       <CardHeader className="pb-3 border-b bg-[#f8fbf9]">
         <CardTitle className="text-sm font-bold text-[#145c3f]">Survey Details</CardTitle>
@@ -214,11 +264,17 @@ export default function ServicomSatisfactionSurveyPage({
           <div className="space-y-1.5">
             <Label className="text-xs text-slate-500">State *</Label>
             {readOnly ? (
-              <p className="text-sm font-medium">{row?.state?.description || "—"}</p>
+              <Input
+                readOnly
+                value={row?.state?.description || "—"}
+                className="bg-slate-50 text-slate-800"
+              />
             ) : geoLocked ? (
-              <p className="text-sm font-semibold text-slate-800">
-                {defaultStateName ?? pickGeoLabel(states, f.state_id, "State")}
-              </p>
+              <Input
+                readOnly
+                value={defaultStateName ?? pickGeoLabel(states, f.state_id, "State")}
+                className="bg-slate-50 text-slate-800 font-medium"
+              />
             ) : (
               <Select value={f.state_id} onValueChange={(v) => {
                 const state = states.find((s) => String(s.id) === v);
@@ -285,132 +341,129 @@ export default function ServicomSatisfactionSurveyPage({
             )}
           </div>
         </div>
+
+        {footer ? (
+          <div className="mt-6 pt-4 border-t border-[#d4e8dc] flex flex-wrap items-center justify-end gap-3">
+            {footer}
+          </div>
+        ) : null}
       </CardContent>
     </Card>
   );
 
-  const renderQuestions = (responses: Record<string, string>, readOnly = false) => {
-    const answered = SATISFACTION_QUESTIONS.filter((q) => responses[q.id]).length;
-    const groups = SATISFACTION_QUESTIONS.reduce<
-      { category: string; questions: typeof SATISFACTION_QUESTIONS[number][] }[]
-    >((acc, q) => {
-      const existing = acc.find((g) => g.category === q.category);
-      if (existing) existing.questions.push(q);
-      else acc.push({ category: q.category, questions: [q] });
-      return acc;
-    }, []);
+  const renderQuestionList = (
+    questions: typeof SATISFACTION_QUESTIONS[number][],
+    responses: Record<string, string>,
+    readOnly = false,
+    startNumber = 1,
+  ) => (
+    <div className="space-y-4">
+      {questions.map((q, i) => {
+        const n = startNumber + i;
+        const val = responses[q.id] ?? "";
+        const score = val === "yes" ? 1 : val === "no" ? 0 : null;
 
-    let questionNumber = 0;
+        return (
+          <div
+            key={q.id}
+            className={`rounded-xl border p-4 md:p-5 transition-colors ${
+              val ? "border-[#d4e8dc] bg-white" : "border-slate-200 bg-slate-50/50"
+            }`}
+          >
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between md:gap-6">
+              <div className="flex items-start gap-3 flex-1 min-w-0">
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#e8f5ee] text-xs font-bold text-[#145c3f]">
+                  {n}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-slate-800 leading-snug">{q.question}</p>
+                </div>
+                {val && !readOnly && (
+                  <CheckCircle2 className="w-5 h-5 text-[#25a872] shrink-0 md:hidden" />
+                )}
+              </div>
 
+              {readOnly ? (
+                <div className="flex items-center gap-3 shrink-0 md:pl-0 pl-10">
+                  {val ? (
+                    <Badge className={val === "yes" ? "bg-emerald-100 text-emerald-700 border-emerald-200" : "bg-rose-100 text-rose-700 border-rose-200"}>
+                      {val === "yes" ? "Yes" : "No"}
+                    </Badge>
+                  ) : (
+                    <span className="text-sm text-slate-400">—</span>
+                  )}
+                  {score !== null && (
+                    <span className="text-xs text-slate-500">Score: <strong>{score}</strong></span>
+                  )}
+                </div>
+              ) : (
+                <fieldset className="shrink-0 md:pl-0 pl-10">
+                  <legend className="sr-only">{q.question}</legend>
+                  <div className="flex flex-wrap gap-2 md:justify-end">
+                    {YES_NO_OPTIONS.map((o) => {
+                      const checked = val === o.value;
+                      return (
+                        <label
+                          key={o.value}
+                          className={`inline-flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-all ${
+                            checked
+                              ? "border-[#25a872] bg-[#e8f5ee] text-[#145c3f] shadow-sm"
+                              : "border-slate-200 bg-white text-slate-600 hover:border-[#d4e8dc] hover:bg-[#f8fbf9]"
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name={`sat-${q.id}`}
+                            value={o.value}
+                            checked={checked}
+                            onChange={() => setResponse(q.id, o.value)}
+                            className="sr-only"
+                          />
+                          <span
+                            className={`h-4 w-4 shrink-0 rounded-full border-2 flex items-center justify-center ${
+                              checked ? "border-[#25a872]" : "border-slate-300"
+                            }`}
+                          >
+                            {checked && <span className="h-2 w-2 rounded-full bg-[#25a872]" />}
+                          </span>
+                          {o.label}
+                        </label>
+                      );
+                    })}
+                  </div>
+                </fieldset>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+
+  const renderAllQuestions = (responses: Record<string, string>, readOnly = false) => {
+    let questionNumber = 1;
     return (
       <div className="space-y-4">
-        {!readOnly && (
-          <div className="flex items-center justify-end">
-            <Badge variant="outline" className="text-[10px] font-semibold bg-white">
-              {answered} / {SATISFACTION_QUESTIONS.length} answered
-            </Badge>
-          </div>
-        )}
-
-        {groups.map((group) => {
-          const groupAnswered = group.questions.filter((q) => responses[q.id]).length;
-          const title = group.category
-            .toLowerCase()
-            .replace(/\b\w/g, (c) => c.toUpperCase());
-
+        {SATISFACTION_CATEGORIES.map((category) => {
+          const questions = questionsForCategory(category);
+          const start = questionNumber;
+          questionNumber += questions.length;
           return (
-            <Card key={group.category} className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden">
+            <Card key={category} className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden">
               <CardHeader className="pb-3 border-b bg-[#f8fbf9]">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <CardTitle className="text-sm font-bold text-[#145c3f]">{title}</CardTitle>
+                  <CardTitle className="text-sm font-bold text-[#145c3f]">
+                    {satisfactionCategoryLabel(category)}
+                  </CardTitle>
                   {!readOnly && (
                     <Badge variant="outline" className="text-[10px] font-semibold bg-white">
-                      {groupAnswered} / {group.questions.length}
+                      {questions.filter((q) => responses[q.id]).length} / {questions.length}
                     </Badge>
                   )}
                 </div>
               </CardHeader>
-              <CardContent className="p-4 md:p-5 space-y-4">
-                {group.questions.map((q) => {
-                  questionNumber += 1;
-                  const n = questionNumber;
-                  const val = responses[q.id] ?? "";
-                  const score = val === "yes" ? 1 : val === "no" ? 0 : null;
-
-                  return (
-                    <div
-                      key={q.id}
-                      className={`rounded-xl border p-4 md:p-5 transition-colors ${
-                        val ? "border-[#d4e8dc] bg-white" : "border-slate-200 bg-slate-50/50"
-                      }`}
-                    >
-                      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between md:gap-6">
-                        <div className="flex items-start gap-3 flex-1 min-w-0">
-                          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#e8f5ee] text-xs font-bold text-[#145c3f]">
-                            {n}
-                          </span>
-                          <div className="min-w-0 flex-1">
-                            <p className="text-sm font-semibold text-slate-800 leading-snug">{q.question}</p>
-                          </div>
-                          {val && !readOnly && (
-                            <CheckCircle2 className="w-5 h-5 text-[#25a872] shrink-0 md:hidden" />
-                          )}
-                        </div>
-
-                        {readOnly ? (
-                          <div className="flex items-center gap-3 shrink-0 md:pl-0 pl-10">
-                            {val ? (
-                              <Badge className={val === "yes" ? "bg-emerald-100 text-emerald-700 border-emerald-200" : "bg-rose-100 text-rose-700 border-rose-200"}>
-                                {val === "yes" ? "Yes" : "No"}
-                              </Badge>
-                            ) : (
-                              <span className="text-sm text-slate-400">—</span>
-                            )}
-                            {score !== null && (
-                              <span className="text-xs text-slate-500">Score: <strong>{score}</strong></span>
-                            )}
-                          </div>
-                        ) : (
-                          <fieldset className="shrink-0 md:pl-0 pl-10">
-                            <legend className="sr-only">{q.question}</legend>
-                            <div className="flex flex-wrap gap-2 md:justify-end">
-                              {YES_NO_OPTIONS.map((o) => {
-                                const checked = val === o.value;
-                                return (
-                                  <label
-                                    key={o.value}
-                                    className={`inline-flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-all ${
-                                      checked
-                                        ? "border-[#25a872] bg-[#e8f5ee] text-[#145c3f] shadow-sm"
-                                        : "border-slate-200 bg-white text-slate-600 hover:border-[#d4e8dc] hover:bg-[#f8fbf9]"
-                                    }`}
-                                  >
-                                    <input
-                                      type="radio"
-                                      name={`sat-${q.id}`}
-                                      value={o.value}
-                                      checked={checked}
-                                      onChange={() => setResponse(q.id, o.value)}
-                                      className="sr-only"
-                                    />
-                                    <span
-                                      className={`h-4 w-4 shrink-0 rounded-full border-2 flex items-center justify-center ${
-                                        checked ? "border-[#25a872]" : "border-slate-300"
-                                      }`}
-                                    >
-                                      {checked && <span className="h-2 w-2 rounded-full bg-[#25a872]" />}
-                                    </span>
-                                    {o.label}
-                                  </label>
-                                );
-                              })}
-                            </div>
-                          </fieldset>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
+              <CardContent className="p-4 md:p-5">
+                {renderQuestionList(questions, responses, readOnly, start)}
               </CardContent>
             </Card>
           );
@@ -419,45 +472,94 @@ export default function ServicomSatisfactionSurveyPage({
     );
   };
 
-  if (mode === "form" || mode === "view") {
-    const row = mode === "view" ? selected : null;
-    const responses = mode === "view"
-      ? parseStoredResponses(row?.responses)
-      : f.responses;
-    const summary = mode === "view"
-      ? { total: row?.total_score ?? 0, max: row?.max_score ?? SATISFACTION_QUESTIONS.length, percentage: Number(row?.percentage_score ?? 0) }
-      : scoreSummary;
+  if (mode === "form") {
+    const formActions = (
+      <>
+        <Button variant="outline" onClick={leaveForm}>Cancel</Button>
+        <Button
+          onClick={() => submitConfirm.requestSubmit(handleSave)}
+          disabled={saving}
+          className="bg-orange-action hover:bg-orange-600 gap-2"
+        >
+          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+          Save Survey
+        </Button>
+      </>
+    );
+
+    return (
+      <div key={formKey} className="flex flex-col h-full bg-slate-50/30">
+        <div className="bg-white border-b px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30">
+          <div className="flex items-center gap-3 min-w-0">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={leaveForm}
+              className="rounded-full shrink-0"
+              aria-label="Back"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+            <div className="min-w-0">
+              <h2 className="text-xl font-bold tracking-tight truncate">
+                HCF Customer Satisfaction Survey
+              </h2>
+            </div>
+          </div>
+          <Badge variant="outline" className="text-[10px] font-semibold shrink-0">
+            {scoreSummary.answered} / {SATISFACTION_QUESTIONS.length} answered
+          </Badge>
+        </div>
+
+        <ScrollArea className="flex-1">
+          <div className="w-full px-4 md:px-6 py-4 pb-8 space-y-4">
+            {renderDetailsCard(false)}
+            {renderAllQuestions(f.responses, false)}
+            <div className="flex flex-wrap items-center justify-end gap-3 pt-2">
+              {formActions}
+            </div>
+          </div>
+        </ScrollArea>
+        <SubmitConfirmModal
+          open={submitConfirm.open}
+          busy={submitConfirm.busy || saving}
+          onConfirm={submitConfirm.confirm}
+          onCancel={submitConfirm.cancel}
+        />
+      </div>
+    );
+  }
+
+  if (mode === "view") {
+    const row = selected;
+    const responses = parseStoredResponses(row?.responses);
 
     return (
       <div className="flex flex-col h-full bg-slate-50/30">
-        <ScrollArea className="flex-1">
-          <div className="w-full px-4 md:px-6 py-4 pb-24 space-y-4">
-            {renderDetailsCard(mode === "view", row ?? undefined)}
-            {renderQuestions(responses, mode === "view")}
-            {mode === "form" && (
-            <Card className="rounded-xl border-[#d4e8dc] ">
-              <CardContent className="flex flex-wrap gap-6 text-sm">
-              <p className="text-xs text-slate-500 hidden sm:block">
-              Survey ID is assigned automatically when you save.
-            </p>
-            <div className="flex items-center gap-3 ml-auto">
-              <Button variant="outline" onClick={closeSub}>Cancel</Button>
-              <Button onClick={handleSave} disabled={saving} className="bg-orange-action hover:bg-orange-600 gap-2">
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                Save Survey
-              </Button>
-            </div>
-              </CardContent>
-            </Card>
+        <div className="bg-white border-b px-4 md:px-6 py-3 flex items-center gap-4 sticky top-0 z-30">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={closeSub}
+            className="rounded-full hover:bg-[#e8f5ee] shrink-0"
+            aria-label="Back to list"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </Button>
+          <div className="min-w-0">
+            <h2 className="text-xl font-bold tracking-tight">HCF Customer Satisfaction Survey</h2>
+            {row?.provider_name && (
+              <p className="text-xs text-slate-500 truncate">{row.provider_name}</p>
             )}
           </div>
-        </ScrollArea>
+        </div>
 
-        {mode === "view" && (
-          <div className="sticky bottom-0 z-30 bg-white border-t border-border/50 px-4 md:px-6 py-3 flex items-center justify-end gap-3">
-            <Button variant="outline" onClick={closeSub}>Back to List</Button>
+        <ScrollArea className="flex-1">
+          <div className="w-full px-4 md:px-6 py-4 pb-8 space-y-4">
+            {renderDetailsCard(true, row ?? undefined)}
+            {renderAllQuestions(responses, true)}
           </div>
-        )}
+        </ScrollArea>
       </div>
     );
   }
@@ -467,15 +569,17 @@ export default function ServicomSatisfactionSurveyPage({
       <div className="bg-white border-b px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30">
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" onClick={onBack} className="rounded-full"><ArrowLeft className="w-5 h-5" /></Button>
-        <h2 className="text-xl font-bold tracking-tight">Customer Satisfaction Survey</h2>
+        <h2 className="text-xl font-bold tracking-tight">HCF Customer Satisfaction Survey</h2>
       </div>
         <div className="flex items-center gap-3">
           <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
           </Button>
+          {canCreate && (
           <Button className="bg-orange-action hover:bg-orange-600 gap-2" onClick={openForm}>
             <Plus className="w-4 h-4" /> New Survey
           </Button>
+          )}
         </div>
       </div>
 

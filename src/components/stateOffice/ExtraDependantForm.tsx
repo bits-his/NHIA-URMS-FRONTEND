@@ -36,6 +36,8 @@ const blank = () => ({
 interface Props {
   reportId?: number | null;
   onBack: () => void;
+  onCancel?: () => void;
+  onSubmitted?: () => void;
   defaultZoneId?: string | null;
   defaultStateId?: string | null;
 }
@@ -48,7 +50,7 @@ function docLabel(docs: SavedDoc[], files: File[]) {
   return names.length ? names.join(", ") : "—";
 }
 
-export default function ExtraDependantForm({ reportId, onBack, defaultZoneId, defaultStateId }: Props) {
+export default function ExtraDependantForm({ reportId, onBack, onCancel, onSubmitted, defaultZoneId, defaultStateId }: Props) {
   const [lines, setLines] = React.useState<any[]>([]);
   const [entry, setEntry] = React.useState(blank());
   const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -97,6 +99,8 @@ export default function ExtraDependantForm({ reportId, onBack, defaultZoneId, de
       reportType="extra-dependant"
       reportId={reportId}
       onBack={onBack}
+      onCancel={onCancel}
+      onSubmitted={onSubmitted}
       defaultZoneId={defaultZoneId}
       defaultStateId={defaultStateId}
       onLoaded={loadData}
@@ -120,7 +124,7 @@ export default function ExtraDependantForm({ reportId, onBack, defaultZoneId, de
           <CardContent className="space-y-4">
             <div className="grid md:grid-cols-3 gap-3">
               <div className="space-y-1"><Label>Enrollee Name</Label><Input value={entry.enrollee_name} onChange={(e) => setEntry((v) => ({ ...v, enrollee_name: e.target.value }))} /></div>
-              <div className="space-y-1"><Label>NHIA Number of Principle</Label><Input value={entry.principle_nhia_number} onChange={(e) => setEntry((v) => ({ ...v, principle_nhia_number: e.target.value }))} /></div>
+              <div className="space-y-1"><Label>NHIA Number of Principal</Label><Input value={entry.principle_nhia_number} onChange={(e) => setEntry((v) => ({ ...v, principle_nhia_number: e.target.value }))} /></div>
               <div className="space-y-1"><Label>Age</Label><Input type="number" min={0} value={entry.age} onChange={(e) => setEntry((v) => ({ ...v, age: e.target.value }))} /></div>
               <div className="space-y-1">
                 <Label>Relationship</Label>

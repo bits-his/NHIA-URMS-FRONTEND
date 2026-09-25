@@ -1,4 +1,4 @@
-/** Healthcare Facility Customer Satisfaction Survey — Yes=1, No=0 */
+/** HCF Customer Satisfaction Survey Survey — Yes=1, No=0 */
 export const SATISFACTION_QUESTIONS = [
   { id: "Q01", category: "SERVICE DELIVERY", question: "Are there physical or bureaucratic obstacles to access?" },
   { id: "Q02", category: "SERVICE DELIVERY", question: "Is the facility open for NHIS enrollees only during working hours?" },
@@ -12,8 +12,30 @@ export const SATISFACTION_QUESTIONS = [
   { id: "Q10", category: "INFORMATION", question: "Does the healthcare facility publish the NHIS drug list?" },
   { id: "Q11", category: "INFORMATION", question: "Does the HCF give enrollees sufficient information with respect to referrals?" },
   { id: "Q12", category: "PROFESSIONALISM", question: "Are appointment procedures clearly detailed at all service points for enrollees to see?" },
-  { id: "Q13", category: "PROFESSIONALISM", question: "Are staff courteous and professional in their dealings with enrollees?" },
+  { id: "Q13", category: "PROFESSIONALISM", question: "Do hospital staff adhere to these procedures and give no unfair preference to certain customers?" },
+  { id: "Q14", category: "PROFESSIONALISM", question: "Do staff adhere to procedures and there are no hidden costs to enrolees?" },
+  { id: "Q15", category: "STAFF ATTITUDE", question: "How sympathetic are hospital staff to enrolee needs?" },
+  { id: "Q16", category: "STAFF ATTITUDE", question: "Are staff polite, friendly and attentive to enrolees?" },
+  { id: "Q17", category: "STAFF ATTITUDE", question: "Are suitable facilities for privacy available?" },
 ] as const;
+
+export const SATISFACTION_CATEGORIES = [
+  "SERVICE DELIVERY",
+  "TIMELINESS",
+  "INFORMATION",
+  "PROFESSIONALISM",
+  "STAFF ATTITUDE",
+] as const;
+
+export type SatisfactionCategory = (typeof SATISFACTION_CATEGORIES)[number];
+
+export function satisfactionCategoryLabel(category: string) {
+  return category.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+export function questionsForCategory(category: string) {
+  return SATISFACTION_QUESTIONS.filter((q) => q.category === category);
+}
 
 export const YES_NO_OPTIONS = [
   { value: "yes", label: "Yes", score: 1 },

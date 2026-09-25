@@ -15,6 +15,8 @@ import {
   Truck,
 } from "lucide-react";
 import { toast } from "sonner";
+import { Input } from "@/components/ui/input";
+import { useCreateReviewAccess } from "@/src/access/createReviewAccess";
 
 const PROCUREMENT_INSTRUMENTS = [
   "LPO",
@@ -25,24 +27,27 @@ const PROCUREMENT_INSTRUMENTS = [
   "Other",
 ];
 
+const EMPTY_FORM = {
+  entryDate: "",
+  procurementInstrument: "",
+  contractorName: "",
+  contractorAddress: "",
+  refInvoiceDeliveryNote: "",
+  itemDescription: "",
+  quantityOrdered: "",
+  quantitySupplied: "",
+  rate: "",
+  remarks: "",
+};
+
 export default function NewPrepaymentAnalysisView() {
   const navigate = useNavigate();
+  const { createOnly } = useCreateReviewAccess();
   const [saving, setSaving] = useState(false);
   const [successMsg, setSuccessMsg] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
-  const [form, setForm] = useState({
-    entryDate: "",
-    procurementInstrument: "",
-    contractorName: "",
-    contractorAddress: "",
-    refInvoiceDeliveryNote: "",
-    itemDescription: "",
-    quantityOrdered: "",
-    quantitySupplied: "",
-    rate: "",
-    remarks: "",
-  });
+  const [form, setForm] = useState({ ...EMPTY_FORM });
 
   const set = (key: string, value: string) => {
     setForm((p) => ({ ...p, [key]: value }));
@@ -112,7 +117,16 @@ export default function NewPrepaymentAnalysisView() {
       );
       setSuccessMsg(true);
       toast.success("Prepayment analysis entry saved");
-      setTimeout(() => navigate("/store-management/prepayment-analysis"), 900);
+      setTimeout(() => {
+        if (createOnly) {
+          setForm({ ...EMPTY_FORM });
+          setFile(null);
+          setSuccessMsg(false);
+          setValidationError(null);
+          return;
+        }
+        navigate("/store-management/prepayment-analysis");
+      }, 900);
     } catch (err: any) {
       setValidationError(err?.message || "Failed to save");
       toast.error(err?.message || "Failed to save");
@@ -130,7 +144,7 @@ export default function NewPrepaymentAnalysisView() {
       }
       description="Stock Verification Prepayment Analysis Register"
       back
-      backTo="/store-management/prepayment-analysis"
+      backTo={createOnly ? "/" : "/store-management/prepayment-analysis"}
     >
       <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden flex flex-col w-full">
         <div className="bg-[#145c3f] text-white p-4 border-b border-[#0f3d2e] flex items-center justify-between">
@@ -264,7 +278,7 @@ export default function NewPrepaymentAnalysisView() {
                 <label className="block font-bold text-slate-800 mb-1">
                   Quantity Ordered <span className="text-rose-500">*</span>
                 </label>
-                <input
+                <Input
                   type="number"
                   min={0}
                   value={form.quantityOrdered}
@@ -277,7 +291,7 @@ export default function NewPrepaymentAnalysisView() {
                 <label className="block font-bold text-slate-800 mb-1">
                   Quantity Supplied <span className="text-rose-500">*</span>
                 </label>
-                <input
+                <Input
                   type="number"
                   min={0}
                   value={form.quantitySupplied}
@@ -290,7 +304,7 @@ export default function NewPrepaymentAnalysisView() {
                 <label className="block font-bold text-slate-800 mb-1">
                   Rate (₦) <span className="text-rose-500">*</span>
                 </label>
-                <input
+                <Input
                   type="number"
                   min={0}
                   step="0.01"

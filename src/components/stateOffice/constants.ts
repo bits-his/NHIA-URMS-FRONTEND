@@ -3,6 +3,7 @@ export type StateOfficeReportType =
   | "complaints" | "accreditation" | "stakeholder" | "hmo-selection" | "challenges"
   | "igr" | "sshia-financial" | "expenditure-profile"
   | "weekly-actionable" | "contracted-services" | "enrollee-register" | "etmc-tmc-action-point"
+  | "ict-support-register" | "adhoc-special-assignment"
   | "extra-dependant" | "hcf-change";
 
 export const MONTHS = [
@@ -396,7 +397,112 @@ export const REPORT_CONFIG: Record<StateOfficeReportType, {
     countLabel: "Resolutions",
     totalLabel: "Action Points",
   },
+  "ict-support-register": {
+    title: "ICT Support Register",
+    subtitle: "State Office — Network, infrastructure and helpdesk support log",
+    refLabel: "Support ID",
+    countLabel: "Tickets",
+    totalLabel: "Total Tickets",
+  },
+  "adhoc-special-assignment": {
+    title: "Ad-hoc / Special Assignment",
+    subtitle: "State Office — Track special assignments and completion outcomes",
+    refLabel: "Assignment ID",
+    countLabel: "Assignments",
+    totalLabel: "Total Assignments",
+  },
 };
+
+export const ICT_SUPPORT_CATEGORIES = [
+  { value: "network_infrastructure", label: "Network & Infrastructure" },
+  { value: "helpdesk", label: "Helpdesk" },
+];
+
+export const ICT_NETWORK_ISSUES = [
+  { value: "internet_connectivity", label: "Internet connectivity" },
+  { value: "lan_wifi", label: "LAN/Wi-Fi" },
+  { value: "router_switch_ap", label: "Router/switch/access point" },
+  { value: "computer_peripheral", label: "Computer or peripheral hardware" },
+  { value: "printer_scanner", label: "Printer/scanner" },
+  { value: "power_ups", label: "Power supply/UPS" },
+  { value: "network_cabling", label: "Network cabling" },
+  { value: "ict_equipment_install", label: "ICT equipment installation" },
+  { value: "other", label: "Other" },
+];
+
+export const ICT_HELPDESK_ISSUES = [
+  { value: "login_password", label: "Login/password" },
+  { value: "email", label: "Email" },
+  { value: "software_application", label: "Software/application" },
+  { value: "computer_operation", label: "Computer operation" },
+  { value: "printer_scanner_use", label: "Printer/scanner use" },
+  { value: "user_account_access", label: "User account/access" },
+  { value: "data_entry_system", label: "Data entry/system use" },
+  { value: "other", label: "Other" },
+];
+
+export const ICT_PRIORITIES = [
+  { value: "critical", label: "Critical (major disruption)" },
+  { value: "high", label: "High (significant impact)" },
+  { value: "medium", label: "Medium (limited impact)" },
+  { value: "low", label: "Low (routine request)" },
+];
+
+export const ICT_RESOLUTION_STATUSES = [
+  { value: "open", label: "Open" },
+  { value: "in_progress", label: "In Progress" },
+  { value: "resolved", label: "Resolved" },
+  { value: "closed", label: "Closed" },
+  { value: "deferred", label: "Deferred" },
+];
+
+export const ICT_YES_NO = [
+  { value: "yes", label: "Yes" },
+  { value: "no", label: "No" },
+];
+
+export const ICT_REFERRED_TO = [
+  { value: "zone", label: "Zone" },
+  { value: "nhia_hq_ict", label: "NHIA HQ ICT" },
+  { value: "service_provider", label: "Service Provider" },
+  { value: "other", label: "Other (Specify)" },
+];
+
+export const ADHOC_ASSIGNMENT_STATUSES = [
+  { value: "not_started", label: "Not Started" },
+  { value: "in_progress", label: "In Progress" },
+  { value: "awaiting_support", label: "Awaiting Support" },
+  { value: "completed", label: "Completed" },
+  { value: "deferred", label: "Deferred" },
+  { value: "cancelled", label: "Cancelled" },
+];
+
+export const ADHOC_RESPONSIBLE_UNITS = [
+  { value: "state_office", label: "State Office" },
+  { value: "zonal_office", label: "Zonal Office" },
+  { value: "soc", label: "SOC" },
+  { value: "ict", label: "ICT" },
+  { value: "finance", label: "Finance" },
+  { value: "programmes", label: "Programmes" },
+  { value: "sqa", label: "SQA" },
+  { value: "legal", label: "Legal" },
+  { value: "hr", label: "HR" },
+  { value: "other", label: "Other" },
+];
+
+export const ADHOC_SUPPORT_REQUIRED = [
+  { value: "none", label: "None" },
+  { value: "state_office", label: "State Office" },
+  { value: "zonal_office", label: "Zonal Office" },
+  { value: "hq", label: "HQ" },
+  { value: "finance", label: "Finance" },
+  { value: "ict", label: "ICT" },
+  { value: "legal", label: "Legal" },
+  { value: "programmes", label: "Programmes" },
+  { value: "sqa", label: "SQA" },
+  { value: "hr", label: "HR" },
+  { value: "other", label: "Other" },
+];
 
 export function monthLabel(month: number | string) {
   const m = MONTHS.find(x => x.value === Number(month));
@@ -412,7 +518,8 @@ export function labelOf(
   value: string,
   fallback = "—"
 ) {
-  return value ? (options.find(o => o.value === value)?.label ?? fallback) : fallback;
+  if (!value) return fallback;
+  return options.find(o => o.value === value)?.label ?? value;
 }
 
 export function parseSupportingDocuments(raw: unknown): { name: string; path?: string; label?: string }[] {
@@ -485,6 +592,9 @@ export function reportLineCount(reportType: StateOfficeReportType, report: any) 
   if (reportType === "weekly-actionable" || reportType === "contracted-services") {
     return report.lines?.length ?? 0;
   }
+  if (reportType === "ict-support-register" || reportType === "adhoc-special-assignment") {
+    return report.lines?.length ?? 0;
+  }
   return report.lines?.length ?? 0;
 }
 
@@ -532,6 +642,9 @@ export function reportLineTotal(reportType: StateOfficeReportType, report: any) 
   }
   if (reportType === "contracted-services") {
     return (report.lines ?? []).reduce((s: number, l: any) => s + (Number(l.amount) || 0), 0);
+  }
+  if (reportType === "ict-support-register" || reportType === "adhoc-special-assignment") {
+    return report.lines?.length ?? 0;
   }
   return 0;
 }

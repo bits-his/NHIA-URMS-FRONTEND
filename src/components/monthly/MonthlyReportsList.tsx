@@ -18,6 +18,7 @@ import {
   type MonthlyListColumn,
 } from "./monthlyListColumns";
 import { ALL_STATES, useMonthlyStateFilter } from "./useMonthlyStateFilter";
+import { useCreateReviewAccess } from "@/src/access/createReviewAccess";
 
 const DEPT_OPTIONS: { value: MonthlyDept; label: string }[] = [
   { value: "finance",    label: "Finance" },
@@ -45,6 +46,7 @@ interface Props {
 }
 
 export default function MonthlyReportsList({ onBack, onNew, defaultStateId, defaultZoneId }: Props) {
+  const { canCreate } = useCreateReviewAccess();
   const [dept,         setDept]         = React.useState<MonthlyDept>("finance");
   const [filterYear,   setFilterYear]   = React.useState(String(new Date().getFullYear()));
   const [filterMonth,  setFilterMonth]  = React.useState("all");
@@ -103,10 +105,12 @@ export default function MonthlyReportsList({ onBack, onNew, defaultStateId, defa
           <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
           </Button>
+          {canCreate && (
           <Button className="bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20"
             onClick={() => onNew(dept)}>
             <Plus className="w-4 h-4" /> New Report
           </Button>
+          )}
         </div>
       </div>
 
@@ -230,9 +234,11 @@ export default function MonthlyReportsList({ onBack, onNew, defaultStateId, defa
                 <div className="flex flex-col items-center justify-center py-16 gap-2 text-slate-400">
                   <FileText className="w-8 h-8 opacity-30" />
                   <p className="text-sm font-medium">No reports found</p>
+                  {canCreate && (
                   <Button variant="outline" size="sm" onClick={() => onNew(dept)} className="mt-2 gap-2">
                     <Plus className="w-4 h-4" /> New Report
                   </Button>
+                  )}
                 </div>
               ) : (
                 <div className="overflow-x-auto">

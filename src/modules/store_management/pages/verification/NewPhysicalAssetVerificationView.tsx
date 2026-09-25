@@ -18,6 +18,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 
 type Option = { id: number; label: string };
@@ -497,7 +498,7 @@ export default function NewPhysicalAssetVerificationView() {
                           </td>
                           <td className="p-2 text-right font-mono">{r.bookBalance}</td>
                           <td className="p-2">
-                            <input
+                            <Input
                               type="number"
                               min={0}
                               className={`${inputCls} text-right`}

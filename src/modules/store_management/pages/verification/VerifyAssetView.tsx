@@ -6,6 +6,7 @@ import { storeManagementApi } from "@/src/services/storeManagementApi";
 import { stockApi } from "@/lib/api";
 import PageLayout from "../../components/PageLayout";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectTrigger,
@@ -309,7 +310,7 @@ export default function VerifyAssetView() {
                 <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1" htmlFor="book-balance">
                   Book Balance
                 </label>
-                <input
+                <Input
                   id="book-balance"
                   name="bookBalance"
                   type="number"
@@ -325,7 +326,7 @@ export default function VerifyAssetView() {
                 <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1" htmlFor="physical-count">
                   Physical Count <span className="text-rose-500">*</span>
                 </label>
-                <input
+                <Input
                   id="physical-count"
                   name="physicalCount"
                   type="number"

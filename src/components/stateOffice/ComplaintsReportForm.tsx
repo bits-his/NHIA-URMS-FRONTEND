@@ -16,11 +16,13 @@ const uid = () => Math.random().toString(36).slice(2);
 interface Props {
   reportId?: number | null;
   onBack: () => void;
+  onCancel?: () => void;
+  onSubmitted?: () => void;
   defaultZoneId?: string | null;
   defaultStateId?: string | null;
 }
 
-export default function ComplaintsReportForm({ reportId, onBack, defaultZoneId, defaultStateId }: Props) {
+export default function ComplaintsReportForm({ reportId, onBack, onCancel, onSubmitted, defaultZoneId, defaultStateId }: Props) {
   const [summaryLines, setSummaryLines] = React.useState<any[]>([]);
   const [statusLines, setStatusLines] = React.useState<any[]>([]);
   const [visitLines, setVisitLines] = React.useState<any[]>([]);
@@ -75,6 +77,8 @@ export default function ComplaintsReportForm({ reportId, onBack, defaultZoneId, 
   return (
     <StateOfficeFormShell
       reportType="complaints" reportId={reportId} onBack={onBack}
+      onCancel={onCancel}
+      onSubmitted={onSubmitted}
       defaultZoneId={defaultZoneId} defaultStateId={defaultStateId}
       onLoaded={loadData}
       validate={() => (summaryLines.length + statusLines.length + visitLines.length + reconLines.length === 0

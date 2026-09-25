@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { apiFileUrl, stateZonalOfficeProfileApi, stockApi } from "@/lib/api";
 import { buildReportingYearOptions } from "../monthly/reportingYears";
 import { ALL_STATES, useMonthlyStateFilter } from "../monthly/useMonthlyStateFilter";
+import { useCreateReviewAccess } from "@/src/access/createReviewAccess";
 
 interface Props {
   onBack: () => void;
@@ -63,14 +64,6 @@ const emptyForm = (year: string, zoneId?: string | null, stateId?: string | null
 
 type FormState = ReturnType<typeof emptyForm>;
 
-function displayStateId(stateId: string | number | null | undefined) {
-  if (!stateId) return "—";
-  return `ST-${String(stateId).padStart(3, "0")}`;
-}
-function displayZoneId(zoneId: string | number | null | undefined) {
-  if (!zoneId) return "—";
-  return `ZN-${String(zoneId).padStart(2, "0")}`;
-}
 function money(v: number | string | null | undefined) {
   if (v === null || v === undefined || v === "") return "—";
   const n = Number(v);
@@ -88,12 +81,14 @@ function InfoField({ label, value }: { label: string; value?: React.ReactNode })
 }
 
 export default function StateZonalOfficeProfilePage({ onBack, defaultStateId, defaultZoneId }: Props) {
+  const { canCreate, createOnly } = useCreateReviewAccess();
   const yearOptions = React.useMemo(() => buildReportingYearOptions(), []);
   const currentYear = yearOptions[0] || String(new Date().getFullYear());
 
-  const [mode, setMode] = React.useState<Mode>("list");
+  const [mode, setMode] = React.useState<Mode>(createOnly ? "create" : "list");
+  const [formKey, setFormKey] = React.useState(0);
   const [rows, setRows] = React.useState<Profile[]>([]);
-  const [loading, setLoading] = React.useState(true);
+  const [loading, setLoading] = React.useState(!createOnly);
   const [saving, setSaving] = React.useState(false);
   const [editingId, setEditingId] = React.useState<number | null>(null);
   const [detail, setDetail] = React.useState<Profile | null>(null);
@@ -130,6 +125,7 @@ export default function StateZonalOfficeProfilePage({ onBack, defaultStateId, de
   }, [f.zone_id]);
 
   const load = React.useCallback(async () => {
+    if (createOnly) return;
     setLoading(true);
     try {
       const res = await stateZonalOfficeProfileApi.list({
@@ -143,9 +139,9 @@ export default function StateZonalOfficeProfilePage({ onBack, defaultStateId, de
     } finally {
       setLoading(false);
     }
-  }, [filterYear, filterZone, apiStateId, defaultZoneId, defaultStateId]);
+  }, [filterYear, filterZone, apiStateId, defaultZoneId, defaultStateId, createOnly]);
 
-  React.useEffect(() => { load(); }, [load]);
+  React.useEffect(() => { if (!createOnly) load(); }, [load, createOnly]);
 
   const setField = (key: keyof FormState, value: string) => {
     setF((prev) => {
@@ -156,6 +152,7 @@ export default function StateZonalOfficeProfilePage({ onBack, defaultStateId, de
   };
 
   const openCreate = () => {
+    if (!canCreate) return;
     setEditingId(null);
     setExistingAop(null);
     setAopFile(null);
@@ -165,6 +162,19 @@ export default function StateZonalOfficeProfilePage({ onBack, defaultStateId, de
       defaultStateId || (filterState !== ALL_STATES ? filterState : ""),
     ));
     setMode("create");
+  };
+
+  const leaveForm = () => {
+    if (createOnly) {
+      onBack();
+      return;
+    }
+    setMode("list");
+  };
+
+  const remountCreateForm = () => {
+    openCreate();
+    setFormKey((k) => k + 1);
   };
 
   const fillForm = (row: Profile) => {
@@ -211,8 +221,11 @@ export default function StateZonalOfficeProfilePage({ onBack, defaultStateId, de
         remove_aop: f.remove_aop || undefined,
       }, aopFile, mode === "edit" ? editingId : null);
       toast.success(mode === "edit" ? "Profile updated" : "Profile saved");
-      setMode("list");
-      load();
+      if (createOnly && mode === "create") remountCreateForm();
+      else {
+        setMode("list");
+        load();
+      }
     } catch (err: any) {
       toast.error("Could not save profile", { description: err.message });
     } finally {
@@ -244,7 +257,7 @@ export default function StateZonalOfficeProfilePage({ onBack, defaultStateId, de
     <div className="space-y-4">
       <Card className="rounded-2xl border-[#d4e8dc]">
         <CardContent className="pt-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label>Zone <span className="text-red-500">*</span></Label>
               <Select value={f.zone_id} onValueChange={(v) => setField("zone_id", v)} disabled={lockGeo}>
@@ -277,18 +290,6 @@ export default function StateZonalOfficeProfilePage({ onBack, defaultStateId, de
                   {yearOptions.map((y) => <SelectItem key={y} value={y}>{y}</SelectItem>)}
                 </SelectContent>
               </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>State ID <span className="text-[10px] font-normal text-slate-400">(auto-generated)</span></Label>
-              <div className="h-10 flex items-center px-3 rounded-md border border-input bg-slate-50 text-sm font-mono font-bold text-primary">
-                {displayStateId(f.state_id)}
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Zone ID <span className="text-[10px] font-normal text-slate-400">(auto-generated)</span></Label>
-              <div className="h-10 flex items-center px-3 rounded-md border border-input bg-slate-50 text-sm font-mono font-bold text-primary">
-                {displayZoneId(f.zone_id)}
-              </div>
             </div>
           </div>
         </CardContent>
@@ -394,14 +395,16 @@ export default function StateZonalOfficeProfilePage({ onBack, defaultStateId, de
       <div className="flex flex-col h-full bg-slate-50/30">
         <div className="bg-white border-b border-border/50 px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30">
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={() => setMode("list")} className="rounded-full">
+            <Button variant="ghost" size="icon" onClick={() => setMode(createOnly ? "create" : "list")} className="rounded-full">
               <ArrowLeft className="w-5 h-5" />
             </Button>
             <h2 className="text-xl font-bold tracking-tight">Office Profile</h2>
           </div>
+          {canCreate && (
           <Button className="bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20" onClick={() => setMode("edit")}>
             <Pencil className="w-4 h-4" /> Edit
           </Button>
+          )}
         </div>
         <ScrollArea className="flex-1">
           <div className="w-full px-4 md:px-6 py-4 space-y-4 pb-8">
@@ -411,10 +414,6 @@ export default function StateZonalOfficeProfilePage({ onBack, defaultStateId, de
                   <p className="text-xs font-semibold uppercase tracking-wider text-white/70">Reporting year {f.reporting_year}</p>
                   <h3 className="mt-1 text-2xl font-bold">{stateName}</h3>
                   <p className="mt-1 text-sm text-white/80">{zoneName}</p>
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    <span className="rounded-full bg-white/15 px-3 py-1 font-mono text-xs font-bold">{displayStateId(f.state_id)}</span>
-                    <span className="rounded-full bg-white/15 px-3 py-1 font-mono text-xs font-bold">{displayZoneId(f.zone_id)}</span>
-                  </div>
                 </div>
               </Card>
             </motion.div>
@@ -485,7 +484,7 @@ export default function StateZonalOfficeProfilePage({ onBack, defaultStateId, de
 
   if (mode !== "list") {
     return (
-      <div className="flex flex-col h-full bg-slate-50/30">
+      <div key={formKey} className="flex flex-col h-full bg-slate-50/30">
         <div className="bg-white border-b border-border/50 px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30">
           <h2 className="text-xl font-bold tracking-tight">
             {mode === "edit" ? "Edit Office Profile" : "New Office Profile"}
@@ -497,7 +496,7 @@ export default function StateZonalOfficeProfilePage({ onBack, defaultStateId, de
           </div>
         </ScrollArea>
         <div className="sticky bottom-0 z-30 bg-white border-t border-border/50 px-4 md:px-6 py-3 flex flex-wrap items-center justify-end gap-3">
-          <Button variant="outline" onClick={() => setMode("list")}>Cancel</Button>
+          <Button variant="outline" onClick={mode === "edit" ? () => setMode("view") : leaveForm}>Cancel</Button>
           <Button
             className="bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20"
             onClick={handleSave}
@@ -519,12 +518,14 @@ export default function StateZonalOfficeProfilePage({ onBack, defaultStateId, de
           <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
           </Button>
+          {canCreate && (
           <Button
             className="bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20"
             onClick={openCreate}
           >
             <Plus className="w-4 h-4" /> New Profile
           </Button>
+          )}
         </div>
       </div>
 
@@ -618,7 +619,7 @@ export default function StateZonalOfficeProfilePage({ onBack, defaultStateId, de
                 <div className="flex flex-col items-center justify-center py-16 gap-2 text-slate-400">
                   <Building2 className="w-8 h-8 opacity-30" />
                   <p className="text-sm font-medium">{hasFilters ? "No profiles match your filters" : "No office profiles found"}</p>
-                  {!hasFilters && (
+                  {!hasFilters && canCreate && (
                     <Button variant="outline" size="sm" className="mt-2 gap-2" onClick={openCreate}>
                       <Plus className="w-4 h-4" /> New Profile
                     </Button>
@@ -631,9 +632,7 @@ export default function StateZonalOfficeProfilePage({ onBack, defaultStateId, de
                       <TableRow className="bg-[#f0fdf7] hover:bg-[#f0fdf7]">
                         <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Year</TableHead>
                         <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Zone</TableHead>
-                        <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Zone ID</TableHead>
                         <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">State</TableHead>
-                        <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">State ID</TableHead>
                         <TableHead className="text-xs font-bold text-slate-600 text-right whitespace-nowrap">Staff</TableHead>
                         <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Coordinator</TableHead>
                         <TableHead className="text-xs font-bold text-slate-600 text-right whitespace-nowrap">Enrolment Target</TableHead>
@@ -653,13 +652,7 @@ export default function StateZonalOfficeProfilePage({ onBack, defaultStateId, de
                         >
                           <TableCell className="text-sm font-semibold text-slate-800 whitespace-nowrap">{row.reporting_year}</TableCell>
                           <TableCell className="text-sm text-slate-600 whitespace-nowrap">{row.zone?.description || "—"}</TableCell>
-                          <TableCell>
-                            <span className="font-mono text-xs font-bold text-primary">{row.zone_display_id || displayZoneId(row.zone_id)}</span>
-                          </TableCell>
                           <TableCell className="text-sm font-semibold text-slate-800 whitespace-nowrap">{row.state?.description || "—"}</TableCell>
-                          <TableCell>
-                            <span className="font-mono text-xs font-bold text-primary">{row.state_display_id || displayStateId(row.state_id)}</span>
-                          </TableCell>
                           <TableCell className="text-sm text-slate-600 text-right tabular-nums">{row.staff_strength ?? "—"}</TableCell>
                           <TableCell className="text-sm text-slate-600 whitespace-nowrap">
                             <div>{row.coordinator_name || "—"}</div>

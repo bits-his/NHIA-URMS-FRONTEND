@@ -13,6 +13,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
+import { SubmitConfirmModal, useReportingOfficerSubmitConfirm } from "@/src/components/SubmitConfirmModal";
 import { stockApi, stateOfficeApi } from "@/lib/api";
 import {
   REPORT_CONFIG, MONTHS, EXPENDITURE_SUB_HEADS,
@@ -30,6 +31,7 @@ interface ExpenditureLine {
 interface Props {
   reportId?: number | null;
   onBack: () => void;
+  onSubmitted?: () => void;
   defaultZoneId?: string | null;
   defaultStateId?: string | null;
 }
@@ -39,8 +41,9 @@ const cfg = REPORT_CONFIG["expenditure-profile"];
 const api = stateOfficeApi["expenditure-profile"];
 
 export default function ExpenditureProfileReportPage({
-  reportId, onBack, defaultZoneId, defaultStateId,
+  reportId, onBack, onSubmitted, defaultZoneId, defaultStateId,
 }: Props) {
+  const submitConfirm = useReportingOfficerSubmitConfirm();
   const hydratingRef = React.useRef(false);
   const lockZone  = !!defaultZoneId;
   const lockState = !!defaultStateId;
@@ -223,13 +226,14 @@ export default function ExpenditureProfileReportPage({
       }
       setRefId(res.data.reference_id);
       toast.success("Report submitted", { description: `Reference: ${res.data.reference_id}` });
-      onBack();
+      (onSubmitted ?? onBack)();
     } catch (err: unknown) {
       toast.error("Submission failed", { description: (err as Error).message });
     } finally { setSubmitting(false); }
   };
 
   return (
+    <>
     <div className="flex flex-col h-full bg-slate-50/30">
       <div className="bg-white border-b border-border/50 px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30">
         <Button variant="ghost" size="icon" onClick={onBack} className="rounded-full">
@@ -243,7 +247,7 @@ export default function ExpenditureProfileReportPage({
           <Separator orientation="vertical" className="h-6" />
           <Button
             className="bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20"
-            onClick={handleSubmit} disabled={submitting}
+            onClick={() => submitConfirm.requestSubmit(handleSubmit)} disabled={submitting}
           >
             {submitting
               ? <><Loader2 className="w-4 h-4 animate-spin" /> Submitting...</>
@@ -424,7 +428,7 @@ export default function ExpenditureProfileReportPage({
               </Button>
               <Button
                 className="bg-orange-action hover:bg-orange-600 gap-2"
-                onClick={handleSubmit} disabled={submitting}
+                onClick={() => submitConfirm.requestSubmit(handleSubmit)} disabled={submitting}
               >
                 {submitting
                   ? <><Loader2 className="w-4 h-4 animate-spin" /> Submitting...</>
@@ -437,5 +441,12 @@ export default function ExpenditureProfileReportPage({
         </div>
       </ScrollArea>
     </div>
+      <SubmitConfirmModal
+        open={submitConfirm.open}
+        busy={submitConfirm.busy}
+        onConfirm={submitConfirm.confirm}
+        onCancel={submitConfirm.cancel}
+      />
+    </>
   );
 }

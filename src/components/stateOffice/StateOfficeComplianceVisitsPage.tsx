@@ -16,6 +16,7 @@ import { stateOfficeComplianceVisitsApi, stockApi } from "@/lib/api";
 import { buildReportingYearOptions } from "../monthly/reportingYears";
 import { useMonthlyStateFilter } from "../monthly/useMonthlyStateFilter";
 import { MONTHS, monthLabel } from "./constants";
+import { useCreateReviewAccess } from "@/src/access/createReviewAccess";
 
 interface Props {
   onBack: () => void;
@@ -48,9 +49,11 @@ function safeDate(v: string | null | undefined) {
 }
 
 export default function StateOfficeComplianceVisitsPage({ onBack, defaultStateId, defaultZoneId }: Props) {
-  const [mode, setMode] = React.useState<"list" | "form">("list");
+  const { canCreate, createOnly } = useCreateReviewAccess();
+  const [mode, setMode] = React.useState<"list" | "form">(createOnly ? "form" : "list");
+  const [formKey, setFormKey] = React.useState(0);
   const [visits, setVisits] = React.useState<any[]>([]);
-  const [loading, setLoading] = React.useState(true);
+  const [loading, setLoading] = React.useState(!createOnly);
   const [saving, setSaving] = React.useState(false);
   const [zones, setZones] = React.useState<any[]>([]);
   const [states, setStates] = React.useState<any[]>([]);
@@ -76,6 +79,7 @@ export default function StateOfficeComplianceVisitsPage({ onBack, defaultStateId
   }), [filterZone, defaultZoneId, apiStateId, defaultStateId, filterYear, filterMonth]);
 
   const load = React.useCallback(async () => {
+    if (createOnly) return;
     setLoading(true);
     try {
       const res = await stateOfficeComplianceVisitsApi.list(apiFilters);
@@ -83,9 +87,23 @@ export default function StateOfficeComplianceVisitsPage({ onBack, defaultStateId
     } catch (err: any) {
       toast.error("Failed to load visits", { description: err.message });
     } finally { setLoading(false); }
-  }, [apiFilters]);
+  }, [apiFilters, createOnly]);
 
-  React.useEffect(() => { if (mode === "list") load(); }, [load, mode]);
+  React.useEffect(() => { if (!createOnly && mode === "list") load(); }, [load, mode, createOnly]);
+
+  const leaveForm = () => {
+    if (createOnly) {
+      onBack();
+      return;
+    }
+    setMode("list");
+  };
+
+  const remountCreateForm = () => {
+    setF(emptyForm(defaultZoneId, defaultStateId));
+    setFormKey((k) => k + 1);
+    setMode("form");
+  };
   React.useEffect(() => { stockApi.getZones().then((r) => setZones(r.data)).catch(() => {}); }, []);
   React.useEffect(() => {
     if (defaultZoneId) setFilterZone(defaultZoneId);
@@ -117,8 +135,11 @@ export default function StateOfficeComplianceVisitsPage({ onBack, defaultStateId
         status: "submitted",
       });
       toast.success("Compliance visit recorded");
-      setMode("list");
-      setF(emptyForm(defaultZoneId, defaultStateId));
+      if (createOnly) remountCreateForm();
+      else {
+        setMode("list");
+        setF(emptyForm(defaultZoneId, defaultStateId));
+      }
     } catch (err: any) {
       toast.error("Failed to save visit", { description: err.message });
     } finally { setSaving(false); }
@@ -126,11 +147,14 @@ export default function StateOfficeComplianceVisitsPage({ onBack, defaultStateId
 
   if (mode === "form") {
     return (
-      <div className="flex flex-col h-full bg-slate-50/30">
+      <div key={formKey} className="flex flex-col h-full bg-slate-50/30">
         <div className="bg-white border-b px-4 md:px-6 py-3 flex items-center gap-4 sticky top-0 z-30">
-          <Button variant="ghost" size="icon" onClick={() => setMode("list")} className="rounded-full">
+          <Button variant="ghost" size="icon" onClick={leaveForm} className="rounded-full shrink-0">
             <ArrowLeft className="w-5 h-5" />
           </Button>
+          <div className="min-w-0">
+            <h2 className="text-xl font-bold tracking-tight truncate">Monitoring Visit</h2>
+          </div>
         </div>
         <ScrollArea className="flex-1">
           <div className="w-full px-4 md:px-6 py-4 pb-24">
@@ -159,7 +183,7 @@ export default function StateOfficeComplianceVisitsPage({ onBack, defaultStateId
           </div>
         </ScrollArea>
         <div className="sticky bottom-0 bg-white border-t px-4 md:px-6 py-3 flex justify-end gap-3">
-          <Button variant="outline" onClick={() => setMode("list")}>Cancel</Button>
+          <Button variant="outline" onClick={leaveForm}>Cancel</Button>
           <Button onClick={handleCreate} disabled={saving} className="bg-orange-action hover:bg-orange-600">
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
             Save Visit
@@ -171,14 +195,17 @@ export default function StateOfficeComplianceVisitsPage({ onBack, defaultStateId
 
   return (
     <div className="flex flex-col h-full bg-slate-50/30">
-      <div className="bg-white border-b px-4 md:px-6 py-3 flex items-center justify-end sticky top-0 z-30">
-        <div className="flex items-center gap-3">
+      <div className="bg-white border-b px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30 gap-3">
+        <h2 className="text-xl font-bold tracking-tight truncate">Monitoring Visits</h2>
+        <div className="flex items-center gap-3 shrink-0">
           <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
           </Button>
+          {canCreate && (
           <Button className="bg-orange-action hover:bg-orange-600 gap-2" onClick={() => { setF(emptyForm(defaultZoneId, defaultStateId)); setMode("form"); }}>
             <Plus className="w-4 h-4" /> New Visit
           </Button>
+          )}
         </div>
       </div>
 

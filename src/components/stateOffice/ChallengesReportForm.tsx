@@ -6,11 +6,13 @@ import StateOfficeFormShell from "./StateOfficeFormShell";
 interface Props {
   reportId?: number | null;
   onBack: () => void;
+  onCancel?: () => void;
+  onSubmitted?: () => void;
   defaultZoneId?: string | null;
   defaultStateId?: string | null;
 }
 
-export default function ChallengesReportForm({ reportId, onBack, defaultZoneId, defaultStateId }: Props) {
+export default function ChallengesReportForm({ reportId, onBack, onCancel, onSubmitted, defaultZoneId, defaultStateId }: Props) {
   const [challenges, setChallenges] = React.useState("");
   const [recommendations, setRecommendations] = React.useState("");
 
@@ -22,6 +24,8 @@ export default function ChallengesReportForm({ reportId, onBack, defaultZoneId, 
   return (
     <StateOfficeFormShell
       reportType="challenges" reportId={reportId} onBack={onBack}
+      onCancel={onCancel}
+      onSubmitted={onSubmitted}
       defaultZoneId={defaultZoneId} defaultStateId={defaultStateId}
       onLoaded={loadData}
       validate={() => (!challenges.trim() && !recommendations.trim()

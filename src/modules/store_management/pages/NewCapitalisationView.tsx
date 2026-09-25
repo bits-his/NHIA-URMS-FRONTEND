@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import PageLayout from "../components/PageLayout";
 import { stockApi } from "@/lib/api";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { ArrowLeft, Tag } from "lucide-react";
 import { toast } from "sonner";
 import { matchesStore, storeNameFromState, SELECT_CLS, LABEL_CLS } from "../lib/storeOptions";
@@ -151,7 +152,7 @@ export default function NewCapitalisationView() {
                 </div>
                 <div>
                   <label className={LABEL_CLS} htmlFor="cap-qty">Quantity to capitalise</label>
-                  <input
+                  <Input
                     id="cap-qty"
                     type="number"
                     min={1}

@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
-import { complianceApi, stockApi } from "@/lib/api";
+import { complianceApi, stockApi, apiFileUrl } from "@/lib/api";
 import { useAppSelector } from "@/src/store/hooks";
 import { buildReportingYearOptions } from "../monthly/reportingYears";
 import { ALL_STATES, useMonthlyStateFilter } from "../monthly/useMonthlyStateFilter";
@@ -37,6 +37,8 @@ import {
   buildComplianceDrillRows, computeComplianceKpis, parseReportIdFromDrillRow,
   COMPLIANCE_DRILL_TITLES, type ComplianceDrillKind,
 } from "./complianceDrill";
+import { useCreateReviewAccess } from "@/src/access/createReviewAccess";
+import { SubmitConfirmModal, useReportingOfficerSubmitConfirm } from "@/src/components/SubmitConfirmModal";
 
 const MODULE_NAME = "Facility Compliance Report";
 
@@ -88,9 +90,14 @@ function mapProviderFacilityType(raw?: string | null): string {
 
 export default function ComplianceManagementPage({ onBack, defaultZoneId, defaultStateId }: Props) {
   const authUser = useAppSelector(s => s.auth.user);
-  const [mode, setMode] = React.useState<"list" | "form" | "view">("list");
+  const { canCreate, createOnly } = useCreateReviewAccess();
+  const submitConfirm = useReportingOfficerSubmitConfirm();
+  const [mode, setMode] = React.useState<"list" | "form" | "view">(createOnly ? "form" : "list");
+  const [formKey, setFormKey] = React.useState(0);
   const [reports, setReports] = React.useState<any[]>([]);
-  const [loading, setLoading] = React.useState(true);
+  const [myDrafts, setMyDrafts] = React.useState<any[]>([]);
+  const [resumingDraft, setResumingDraft] = React.useState(false);
+  const [loading, setLoading] = React.useState(!createOnly);
   const [saving, setSaving] = React.useState(false);
   const [selectedId, setSelectedId] = React.useState<number | null>(null);
   const [refId, setRefId] = React.useState<string | null>(null);
@@ -124,6 +131,9 @@ export default function ComplianceManagementPage({ onBack, defaultZoneId, defaul
   const [statusConfirmed, setStatusConfirmed] = React.useState("pending");
   const [followUp, setFollowUp] = React.useState(false);
   const [certification, setCertification] = React.useState("");
+  const [certificationFile, setCertificationFile] = React.useState<File | null>(null);
+  const [existingCertName, setExistingCertName] = React.useState<string | null>(null);
+  const [removeCertification, setRemoveCertification] = React.useState(false);
   const [stateRemarks, setStateRemarks] = React.useState("");
 
   const [facilityName, setFacilityName] = React.useState("");
@@ -142,7 +152,7 @@ export default function ComplianceManagementPage({ onBack, defaultZoneId, defaul
   const [violations, setViolations] = React.useState<Violation[]>([]);
   const [enforcements, setEnforcements] = React.useState<Enforcement[]>([]);
 
-  const [findingDraft, setFindingDraft] = React.useState({ section: "", indicator: "", status: "fully_compliant", remarks: "" });
+  const [findingDraft, setFindingDraft] = React.useState({ section: "", indicators: [] as string[], status: "fully_compliant", remarks: "" });
   const [violationDraft, setViolationDraft] = React.useState({ nature_of_violation: "", nhia_act_section: "", occurrences: "", action_taken: "" });
   const [enforcementDraft, setEnforcementDraft] = React.useState({ enforcement_action: "", details: "" });
   const [formStep, setFormStep] = React.useState<FormStep>("header");
@@ -173,6 +183,7 @@ export default function ComplianceManagementPage({ onBack, defaultZoneId, defaul
   }, [zoneId]);
 
   const load = React.useCallback(async () => {
+    if (createOnly) return;
     setLoading(true);
     try {
       const res = await complianceApi.list({
@@ -185,9 +196,9 @@ export default function ComplianceManagementPage({ onBack, defaultZoneId, defaul
     } catch (err: any) {
       toast.error("Failed to load reports", { description: err.message });
     } finally { setLoading(false); }
-  }, [defaultZoneId, defaultStateId, filterZone, apiStateId, filterYear, filterStatus]);
+  }, [defaultZoneId, defaultStateId, filterZone, apiStateId, filterYear, filterStatus, createOnly]);
 
-  React.useEffect(() => { if (mode === "list") load(); }, [mode, load]);
+  React.useEffect(() => { if (!createOnly && mode === "list") load(); }, [mode, load, createOnly]);
 
   const kpiStats = React.useMemo(() => computeComplianceKpis(reports), [reports]);
 
@@ -288,12 +299,27 @@ export default function ComplianceManagementPage({ onBack, defaultZoneId, defaul
     setOfficerName(authUser?.name ?? ""); setOfficerStaffId(authUser?.staff_id ?? "");
     setSubmitDate(new Date().toISOString().slice(0, 10));
     setReviewedBy(""); setStatusConfirmed("pending"); setFollowUp(false);
-    setCertification(""); setStateRemarks("");
+    setCertification(""); setCertificationFile(null); setExistingCertName(null); setRemoveCertification(false); setStateRemarks("");
     setFacilityProviderId(""); setFacilityName(""); setFacilityCode(""); setFacilityType("");
     setOwnership(""); setFacilityAddress("");
     setComplaintsReceived(""); setComplaintCategories([]);
     setResolvedAtFacility(""); setEscalatedTo("none"); setComplaintSummary("");
     setFindings([]); setViolations([]); setEnforcements([]);
+  };
+
+  const leaveForm = () => {
+    if (createOnly) {
+      onBack();
+      return;
+    }
+    setMode("list");
+    resetForm();
+  };
+
+  const remountCreateForm = () => {
+    resetForm();
+    setFormKey((k) => k + 1);
+    setMode("form");
   };
 
   const applyReport = (v: any) => {
@@ -312,6 +338,9 @@ export default function ComplianceManagementPage({ onBack, defaultZoneId, defaul
     setSubmitDate(v.date_submitted?.slice(0, 10) ?? "");
     setReviewedBy(v.reviewed_by ?? ""); setStatusConfirmed(v.compliance_status_confirmed ?? "pending");
     setFollowUp(!!v.follow_up_required); setCertification(v.certification ?? "");
+    setCertificationFile(null);
+    setExistingCertName(v.certification_original_name || (v.certification_file_path ? "Certification" : null));
+    setRemoveCertification(false);
     setStateRemarks(v.state_office_remarks ?? "");
     setFacilityName(v.facility_name ?? ""); setFacilityCode(v.facility_code ?? "");
     setFacilityProviderId("");
@@ -341,6 +370,67 @@ export default function ComplianceManagementPage({ onBack, defaultZoneId, defaul
     setFormStep(firstOpenComplianceStep(completion));
   };
 
+  const isOwnDraft = React.useCallback((d: any) => {
+    if (!authUser) return true;
+    if (authUser.staff_id && d.officer_staff_id && String(d.officer_staff_id) === String(authUser.staff_id)) {
+      return true;
+    }
+    if (authUser.name && d.officer_name && String(d.officer_name) === String(authUser.name)) {
+      return true;
+    }
+    if (authUser.name && d.submitted_by && String(d.submitted_by) === String(authUser.name)) {
+      return true;
+    }
+    // If draft has no officer markers, still show it in the officer's scoped list
+    return !d.officer_staff_id && !d.officer_name;
+  }, [authUser]);
+
+  const resumeDraftById = async (id: number) => {
+    const res = await complianceApi.get(id);
+    applyReport(res.data);
+    setMode("form");
+    setFormKey((k) => k + 1);
+  };
+
+  const refreshMyDrafts = React.useCallback(async () => {
+    if (!createOnly) return [];
+    const res = await complianceApi.list({
+      zone_id: defaultZoneId ?? undefined,
+      state_id: defaultStateId ?? undefined,
+      status: "draft",
+    });
+    const drafts = (Array.isArray(res.data) ? res.data : []).filter(isOwnDraft);
+    setMyDrafts(drafts);
+    return drafts;
+  }, [createOnly, defaultZoneId, defaultStateId, isOwnDraft]);
+
+  React.useEffect(() => {
+    if (!createOnly || !authUser) {
+      setResumingDraft(false);
+      return;
+    }
+
+    let cancelled = false;
+    (async () => {
+      setResumingDraft(true);
+      try {
+        const drafts = await refreshMyDrafts();
+        if (cancelled) return;
+        if (drafts.length > 0) {
+          await resumeDraftById(drafts[0].id);
+        }
+      } catch {
+        /* start blank form if draft load fails */
+      } finally {
+        if (!cancelled) setResumingDraft(false);
+      }
+    })();
+
+    return () => { cancelled = true; };
+    // Intentionally omit refreshMyDrafts — resume once when create-only page mounts / auth is ready
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [createOnly, authUser?.staff_id, authUser?.name, defaultZoneId, defaultStateId]);
+
   React.useEffect(() => {
     if (authUser?.name) setOfficerName(authUser.name);
     if (authUser?.staff_id) setOfficerStaffId(authUser.staff_id);
@@ -353,11 +443,12 @@ export default function ComplianceManagementPage({ onBack, defaultZoneId, defaul
     return {
       zone_id: Number(zoneId), state_id: Number(stateId),
       reporting_year: derivedYear, reporting_week: derivedWeek,
-      officer_name: authUser?.name ?? officerName,
-      officer_staff_id: authUser?.staff_id ?? officerStaffId,
+      officer_name: officerName || null,
+      officer_staff_id: officerStaffId || null,
       date_submitted: submitDate || null, reviewed_by: reviewedBy || null,
       compliance_status_confirmed: statusConfirmed,
       follow_up_required: followUp, certification: certification || null,
+      remove_certification: removeCertification ? "true" : undefined,
       facility_name: facilityName, facility_code: facilityCode,
       facility_type: facilityType, ownership, facility_address: facilityAddress,
       complaints_received: Number(complaintsReceived) || 0,
@@ -379,6 +470,7 @@ export default function ComplianceManagementPage({ onBack, defaultZoneId, defaul
     setFacilityCode("");
     setFacilityType("");
     setFacilityAddress("");
+    setOwnership("");
   };
 
   const handleZoneChange = (v: string) => {
@@ -402,10 +494,14 @@ export default function ComplianceManagementPage({ onBack, defaultZoneId, defaul
     }
     setFacilityProviderId(p.id);
     setFacilityName(p.name);
-    setFacilityCode(p.code);
-    if (p.address) setFacilityAddress(p.address);
+    setFacilityCode(p.code || "");
+    setFacilityAddress(p.address?.trim() || "");
     const mappedType = mapProviderFacilityType(p.facility_type);
     if (mappedType) setFacilityType(mappedType);
+    const blob = `${p.name || ""} ${p.facility_type || ""}`.toLowerCase();
+    if (/\bfaith[- ]?based\b|\bmission\b|\bchurch\b/.test(blob)) setOwnership("Faith-Based");
+    else if (/\bprivate\b|\bltd\b|\blimited\b/.test(blob)) setOwnership("Private");
+    else if (/\bpublic\b|\bfmc\b|\bgovernment\b|\bfederal\b|\bstate\b|\bgh\b/.test(blob)) setOwnership("Public");
   };
 
   const validateStep = (step: FormStep): string | null => {
@@ -413,7 +509,12 @@ export default function ComplianceManagementPage({ onBack, defaultZoneId, defaul
       if (!zoneId) return "Select zone";
       if (!stateId) return "Select state";
       if (!submitDate) return "Date submitted is required";
-      if (!facilityProviderId && !facilityName.trim()) return "Select a facility";
+      if (!officerName.trim()) return "Compliance officer is required";
+      if (!officerStaffId.trim()) return "Staff ID is required";
+      if (!facilityName.trim()) return "Select a facility";
+      if (!facilityCode.trim()) return "Facility code is required";
+      if (!facilityType) return "Select facility type";
+      if (!facilityAddress.trim()) return "Facility address is required";
       if (!ownership) return "Select ownership";
     }
     if (step === "findings" && findings.length === 0) {
@@ -462,18 +563,22 @@ export default function ComplianceManagementPage({ onBack, defaultZoneId, defaul
     try {
       const payload = buildPayload("draft");
       const res = selectedId
-        ? await complianceApi.update(selectedId, payload)
-        : await complianceApi.create(payload);
+        ? await complianceApi.update(selectedId, payload, certificationFile)
+        : await complianceApi.create(payload, certificationFile);
       const report = res.data;
       if (!report?.id) throw new Error("Save failed — no report returned");
       setSelectedId(report.id);
       setRefId(report.reference_id ?? null);
       setReportStatus(report.status ?? "draft");
+      setCertificationFile(null);
+      setExistingCertName(report.certification_original_name || (report.certification_file_path ? "Certification" : null));
+      setRemoveCertification(false);
       setComplaintCategories(parseComplaintCategories(report.complaint_categories));
       toast.success(opts?.toastMsg ?? "Draft saved", {
         description: report.reference_id ?? undefined,
       });
       if (opts?.advanceTo) setFormStep(opts.advanceTo);
+      if (createOnly) void refreshMyDrafts().catch(() => {});
       return true;
     } catch (e: any) {
       toast.error(e.message);
@@ -510,11 +615,16 @@ export default function ComplianceManagementPage({ onBack, defaultZoneId, defaul
     try {
       const payload = buildPayload("submitted");
       const res = selectedId
-        ? await complianceApi.update(selectedId, payload)
-        : await complianceApi.create(payload);
+        ? await complianceApi.update(selectedId, payload, certificationFile)
+        : await complianceApi.create(payload, certificationFile);
       toast.success("Report submitted", { description: res.data.reference_id });
-      setMode("list");
-      resetForm();
+      if (createOnly) {
+        setMyDrafts((prev) => prev.filter((d) => d.id !== (selectedId ?? res.data?.id)));
+        remountCreateForm();
+      } else {
+        setMode("list");
+        resetForm();
+      }
     } catch (e: any) { toast.error(e.message); }
     finally { setSaving(false); }
   };
@@ -573,13 +683,18 @@ export default function ComplianceManagementPage({ onBack, defaultZoneId, defaul
 
     return (
       <div className="flex flex-col h-full bg-slate-50/30">
-        <div className="bg-white border-b border-border/50 px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30">
-          <Button variant="ghost" size="icon" onClick={() => { setMode("list"); setViewReport(null); }} className="rounded-full">
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-          <div className="flex items-center gap-2">
+        <div className="bg-white border-b border-border/50 px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30 gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <Button variant="ghost" size="icon" onClick={() => { setMode(createOnly ? "form" : "list"); setViewReport(null); }} className="rounded-full shrink-0">
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+            <div className="min-w-0">
+              <h2 className="text-xl font-bold tracking-tight truncate">Facility Compliance Report</h2>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
             <Badge className={`text-[10px] border gap-1 ${st.cls}`}>{st.icon}{st.label}</Badge>
-            {v.status !== "approved" && (
+            {canCreate && v.status !== "approved" && (
               <Button variant="outline" size="sm" onClick={() => { applyReport(v); setViewReport(null); setMode("form"); }} className="gap-2">
                 <Pencil className="w-4 h-4" /> {v.status === "draft" ? "Edit Draft" : "Edit"}
               </Button>
@@ -594,8 +709,11 @@ export default function ComplianceManagementPage({ onBack, defaultZoneId, defaul
               <CardDescription>Q{v.reporting_quarter ?? quarterFromWeek(Number(v.reporting_week))} · {v.reporting_year}</CardDescription>
             </CardHeader>
             <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-6">
+              <InfoField label="Report ID" value={v.reference_id ?? "—"} />
               <InfoField label="Zone" value={v.zone?.description ?? "—"} />
               <InfoField label="State" value={v.state?.description ?? "—"} />
+              <InfoField label="Reporting Week" value={v.reporting_week ? `W${String(v.reporting_week).padStart(2, "0")}` : "—"} />
+              <InfoField label="Reporting Quarter" value={`Q${v.reporting_quarter ?? quarterFromWeek(Number(v.reporting_week))}`} />
               <InfoField label="Reporting Year" value={String(v.reporting_year ?? "—")} />
               <InfoField label="Compliance Officer" value={v.officer_name ?? "—"} />
               <InfoField label="Staff ID" value={v.officer_staff_id ?? "—"} />
@@ -605,6 +723,14 @@ export default function ComplianceManagementPage({ onBack, defaultZoneId, defaul
               <div className="md:col-span-2">
                 <InfoField label="Certification" value={v.certification ?? "—"} />
               </div>
+              {v.certification_file_path && (
+                <div className="md:col-span-2">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Certification file</p>
+                  <a className="text-sm font-semibold text-primary hover:underline" href={apiFileUrl(v.certification_file_path)} target="_blank" rel="noreferrer">
+                    {v.certification_original_name || "Open certification"}
+                  </a>
+                </div>
+              )}
               {v.reviewed_by && <InfoField label="Reviewed By" value={v.reviewed_by} />}
             </CardContent>
           </Card>
@@ -730,102 +856,174 @@ export default function ComplianceManagementPage({ onBack, defaultZoneId, defaul
   }
 
   if (mode === "form") {
+    if (resumingDraft) {
+      return (
+        <div className="flex flex-col h-full items-center justify-center gap-3 bg-slate-50/30">
+          <Loader2 className="w-6 h-6 animate-spin text-[#145c3f]" />
+          <p className="text-sm text-slate-500">Loading your draft…</p>
+        </div>
+      );
+    }
+
     const st = STATUS_CFG[reportStatus as keyof typeof STATUS_CFG] ?? STATUS_CFG.draft;
+    const otherDrafts = myDrafts.filter((d) => d.id !== selectedId);
+
     return (
-      <ComplianceReportForm
-        refId={refId}
-        reportRegistered={!!selectedId}
-        reportStatus={reportStatus}
-        reportWeek={reportWeek}
-        formStep={formStep}
-        setFormStep={setFormStep}
-        saving={saving}
-        lockZone={lockZone}
-        lockState={lockState}
-        zones={zones}
-        stateOpts={stateOpts}
-        zoneId={zoneId}
-        stateId={stateId}
-        zoneDisplay={zoneDisplay}
-        stateDisplay={stateDisplay}
-        onZoneChange={handleZoneChange}
-        onStateChange={handleStateChange}
-        reportYear={reportYear}
-        setReportYear={setReportYear}
-        officerName={officerName}
-        setOfficerName={setOfficerName}
-        officerStaffId={officerStaffId}
-        setOfficerStaffId={setOfficerStaffId}
-        submitDate={submitDate}
-        setSubmitDate={setSubmitDate}
-        statusConfirmed={statusConfirmed}
-        setStatusConfirmed={setStatusConfirmed}
-        followUp={followUp}
-        setFollowUp={setFollowUp}
-        certification={certification}
-        setCertification={setCertification}
-        facilityProviderId={facilityProviderId}
-        onFacilitySelect={handleFacilitySelect}
-        facilityName={facilityName}
-        facilityCode={facilityCode}
-        facilityType={facilityType}
-        setFacilityType={setFacilityType}
-        ownership={ownership}
-        setOwnership={setOwnership}
-        facilityAddress={facilityAddress}
-        setFacilityAddress={setFacilityAddress}
-        findings={findings}
-        setFindings={setFindings}
-        findingDraft={findingDraft}
-        setFindingDraft={setFindingDraft}
-        sectionIndicators={sectionIndicators}
-        complaintsReceived={complaintsReceived}
-        setComplaintsReceived={setComplaintsReceived}
-        resolvedAtFacility={resolvedAtFacility}
-        setResolvedAtFacility={setResolvedAtFacility}
-        complaintCategories={complaintCategories}
-        toggleCategory={toggleCategory}
-        escalatedTo={escalatedTo}
-        setEscalatedTo={setEscalatedTo}
-        complaintSummary={complaintSummary}
-        setComplaintSummary={setComplaintSummary}
-        violations={violations}
-        setViolations={setViolations}
-        violationDraft={violationDraft}
-        setViolationDraft={setViolationDraft}
-        enforcements={enforcements}
-        setEnforcements={setEnforcements}
-        enforcementDraft={enforcementDraft}
-        setEnforcementDraft={setEnforcementDraft}
-        stateRemarks={stateRemarks}
-        setStateRemarks={setStateRemarks}
-        reviewedBy={reviewedBy}
-        setReviewedBy={setReviewedBy}
-        onCancel={() => { setMode("list"); resetForm(); }}
-        onSaveAndContinue={saveAndContinue}
-        onSaveStage={saveStage}
-        onSubmit={submitReport}
-        statusBadge={
-          <Badge className={`text-[10px] border gap-1 ${st.cls}`}>{st.icon}{st.label}</Badge>
-        }
-        uid={uid}
-      />
+      <div className="flex flex-col h-full min-h-0">
+        {createOnly && (myDrafts.length > 0 || selectedId) && (
+          <div className="bg-[#f4f7f5] border-b border-[#d4e8dc] px-4 md:px-6 py-2.5 flex flex-wrap items-center gap-2 shrink-0">
+            <span className="text-xs text-slate-600 shrink-0">
+              {selectedId
+                ? `Continuing draft${refId ? ` ${refId}` : ""}`
+                : `${myDrafts.length} unfinished draft${myDrafts.length === 1 ? "" : "s"}`}
+            </span>
+            {otherDrafts.slice(0, 3).map((d) => (
+              <Button
+                key={d.id}
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs"
+                disabled={saving}
+                onClick={() => {
+                  void resumeDraftById(d.id).catch((e: any) => toast.error(e.message));
+                }}
+              >
+                {d.facility_name || d.reference_id || `Draft #${d.id}`}
+              </Button>
+            ))}
+            {selectedId && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs ml-auto"
+                disabled={saving}
+                onClick={() => {
+                  remountCreateForm();
+                  void refreshMyDrafts().catch(() => {});
+                }}
+              >
+                Start new report
+              </Button>
+            )}
+          </div>
+        )}
+        <div className="flex-1 min-h-0">
+          <ComplianceReportForm
+            key={formKey}
+            createOnly={createOnly}
+            refId={refId}
+            reportRegistered={!!selectedId}
+            reportStatus={reportStatus}
+            reportWeek={String(submitDate ? currentISOWeek(new Date(submitDate)) : reportWeek)}
+            formStep={formStep}
+            setFormStep={setFormStep}
+            saving={saving}
+            lockZone={lockZone}
+            lockState={lockState}
+            zones={zones}
+            stateOpts={stateOpts}
+            zoneId={zoneId}
+            stateId={stateId}
+            zoneDisplay={zoneDisplay}
+            stateDisplay={stateDisplay}
+            onZoneChange={handleZoneChange}
+            onStateChange={handleStateChange}
+            reportYear={reportYear}
+            setReportYear={setReportYear}
+            reportQuarter={String(quarterFromWeek(Number(submitDate ? currentISOWeek(new Date(submitDate)) : reportWeek)))}
+            officerName={officerName}
+            setOfficerName={setOfficerName}
+            officerStaffId={officerStaffId}
+            setOfficerStaffId={setOfficerStaffId}
+            submitDate={submitDate}
+            setSubmitDate={setSubmitDate}
+            statusConfirmed={statusConfirmed}
+            setStatusConfirmed={setStatusConfirmed}
+            followUp={followUp}
+            setFollowUp={setFollowUp}
+            certification={certification}
+            setCertification={setCertification}
+            certificationFile={certificationFile}
+            setCertificationFile={(f) => { setCertificationFile(f); if (f) setRemoveCertification(false); }}
+            existingCertName={existingCertName}
+            onRemoveCert={() => { setCertificationFile(null); setExistingCertName(null); setRemoveCertification(true); }}
+            facilityProviderId={facilityProviderId}
+            onFacilitySelect={handleFacilitySelect}
+            facilityName={facilityName}
+            setFacilityName={setFacilityName}
+            facilityCode={facilityCode}
+            setFacilityCode={setFacilityCode}
+            facilityType={facilityType}
+            setFacilityType={setFacilityType}
+            ownership={ownership}
+            setOwnership={setOwnership}
+            facilityAddress={facilityAddress}
+            setFacilityAddress={setFacilityAddress}
+            findings={findings}
+            setFindings={setFindings}
+            findingDraft={findingDraft}
+            setFindingDraft={setFindingDraft}
+            sectionIndicators={sectionIndicators}
+            complaintsReceived={complaintsReceived}
+            setComplaintsReceived={setComplaintsReceived}
+            resolvedAtFacility={resolvedAtFacility}
+            setResolvedAtFacility={setResolvedAtFacility}
+            complaintCategories={complaintCategories}
+            toggleCategory={toggleCategory}
+            escalatedTo={escalatedTo}
+            setEscalatedTo={setEscalatedTo}
+            complaintSummary={complaintSummary}
+            setComplaintSummary={setComplaintSummary}
+            violations={violations}
+            setViolations={setViolations}
+            violationDraft={violationDraft}
+            setViolationDraft={setViolationDraft}
+            enforcements={enforcements}
+            setEnforcements={setEnforcements}
+            enforcementDraft={enforcementDraft}
+            setEnforcementDraft={setEnforcementDraft}
+            stateRemarks={stateRemarks}
+            setStateRemarks={setStateRemarks}
+            reviewedBy={reviewedBy}
+            setReviewedBy={setReviewedBy}
+            onCancel={leaveForm}
+            onSaveAndContinue={saveAndContinue}
+            onSaveStage={saveStage}
+            onSubmit={() => submitConfirm.requestSubmit(submitReport)}
+            statusBadge={
+              <Badge className={`text-[10px] border gap-1 ${st.cls}`}>{st.icon}{st.label}</Badge>
+            }
+            uid={uid}
+          />
+        </div>
+        <SubmitConfirmModal
+          open={submitConfirm.open}
+          busy={submitConfirm.busy || saving}
+          onConfirm={submitConfirm.confirm}
+          onCancel={submitConfirm.cancel}
+        />
+      </div>
     );
   }
 
   return (
     <div className="flex flex-col h-full bg-slate-50/30">
-      <div className="bg-white border-b border-border/50 px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30">
-        <div className="flex items-center gap-3">
+      <div className="bg-white border-b border-border/50 px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30 gap-3">
+        <h2 className="text-xl font-bold tracking-tight truncate">Facility Compliance Report</h2>
+        <div className="flex items-center gap-3 shrink-0">
           <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
           </Button>
+          {canCreate && (
           <Button
             className="bg-[#145c3f] hover:bg-[#0f3d2e] gap-2 shadow-lg shadow-emerald-500/20"
             onClick={() => { resetForm(); setMode("form"); }}
           >
             <Plus className="w-4 h-4" /> New Report
           </Button>
+          )}
         </div>
       </div>
 
@@ -953,7 +1151,7 @@ export default function ComplianceManagementPage({ onBack, defaultZoneId, defaul
                     <div className="flex flex-col items-center justify-center py-16 gap-2 text-slate-400">
                       <FileText className="w-8 h-8 opacity-30" />
                       <p className="text-sm font-medium">{hasFilters ? "No reports match your filters" : "No compliance reports yet"}</p>
-                      {!hasFilters && (
+                      {!hasFilters && canCreate && (
                         <Button variant="outline" size="sm" className="mt-2 gap-2" onClick={() => { resetForm(); setMode("form"); }}>
                           <Plus className="w-4 h-4" /> New Report
                         </Button>
