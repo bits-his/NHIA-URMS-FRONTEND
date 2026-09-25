@@ -40,6 +40,8 @@ export interface AppRole {
   description?: string | null;
   is_system: boolean;
   is_active: boolean;
+  department_code?: string | null;
+  default_access?: { access_to: string; functionalities: string[] }[] | null;
 }
 
 export interface AdminUser {
@@ -77,7 +79,7 @@ const qs = (p?: Record<string, any>) => {
 
 // Users
 export const usersApi = {
-  list: (params?: { role?: string; zone_id?: number; state_id?: number; search?: string; page?: number }) =>
+  list: (params?: { role?: string; zone_id?: number; state_id?: number; search?: string; page?: number; limit?: number }) =>
     request<{ success: boolean; data: AdminUser[]; total: number; pages: number }>(`/admin/users${qs(params)}`),
   get: (id: number) => request<{ success: boolean; data: AdminUser }>(`/admin/users/${id}`),
   create: (body: Partial<AdminUser> & { password: string }) =>
@@ -144,6 +146,10 @@ export const unitsApi = {
 export const rolesApi = {
   list: (activeOnly = false) =>
     request<{ success: boolean; data: AppRole[] }>(`/admin/roles${qs({ active: activeOnly ? "true" : undefined })}`),
+  accessTemplate: (role: string, unit_code?: string) =>
+    request<{ success: boolean; data: { access_to: string; functionalities: string[] }[]; department_code?: string | null }>(
+      `/admin/access-template${qs({ role, unit_code })}`,
+    ),
   create: (body: Omit<AppRole, "id" | "is_system">) =>
     request<{ success: boolean; data: AppRole }>("/admin/roles", { method: "POST", body: JSON.stringify(body) }),
   update: (id: number, body: Partial<AppRole>) =>

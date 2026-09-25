@@ -25,7 +25,27 @@ const ROLE_COLORS: Record<string, string> = {
   "state-officer":      "bg-slate-100 text-slate-700 border-slate-200",
 };
 
-const EMPTY = { name: "", email: "", password: "", role: "", zone_id: "", state_id: "", department_id: "", unit_id: "", is_active: true };
+const EMPTY = {
+  name: "",
+  email: "",
+  password: "",
+  role: "",
+  zone_id: "",
+  state_id: "",
+  department_id: "",
+  unit_id: "",
+  is_active: true,
+};
+
+function grantedFromAccess(access?: { access_to: string; functionalities?: string[] }[] | null) {
+  const keys = new Set<string>();
+  (access || []).forEach((entry) => {
+    if (!entry?.access_to) return;
+    keys.add(entry.access_to);
+    (entry.functionalities || []).forEach((t) => keys.add(t));
+  });
+  return keys;
+}
 
 export default function AdminUsersPage({ showOverview = false }: { showOverview?: boolean }) {
   const [roles, setRoles] = React.useState<AppRole[]>([]);
@@ -56,7 +76,7 @@ export default function AdminUsersPage({ showOverview = false }: { showOverview?
 
   const activeRoles = React.useMemo(() => roles.filter(r => r.is_active), [roles]);
 
-  const defaultRole = activeRoles.find(r => r.key === "state-officer")?.key || activeRoles[0]?.key || "";
+  const defaultRole = activeRoles.find(r => r.key === "admin")?.key || activeRoles[0]?.key || "";
 
   React.useEffect(() => {
     rolesApi.list(true).then(r => setRoles(r.data)).catch(() => {});
@@ -81,7 +101,7 @@ export default function AdminUsersPage({ showOverview = false }: { showOverview?
   const load = React.useCallback(async () => {
     setLoading(true);
     try {
-      const res = await usersApi.list({ page, search: search || undefined, role: filterRole || undefined, zone_id: filterZone ? Number(filterZone) : undefined });
+      const res = await usersApi.list({ page, limit: 100, search: search || undefined, role: filterRole || undefined, zone_id: filterZone ? Number(filterZone) : undefined });
       setUsers(res.data); setTotal(res.total); setPages(res.pages);
     } catch (e: any) { toast.error(e.message); }
     finally { setLoading(false); }
@@ -102,6 +122,18 @@ export default function AdminUsersPage({ showOverview = false }: { showOverview?
     setFormUnits([]);
     if (!deptId) return;
     try { const r = await unitsApi.list(Number(deptId)); setFormUnits(r.data); } catch { /* silent */ }
+  };
+
+  const applyAccessTemplate = async (roleKey: string, unitCode?: string, syncDept = true) => {
+    if (!roleKey) return;
+    try {
+      const res = await rolesApi.accessTemplate(roleKey, unitCode || undefined);
+      setGranted(grantedFromAccess(res.data));
+      if (syncDept && res.department_code) {
+        const d = depts.find(x => x.department_code === res.department_code);
+        if (d) await handleDeptChange(String(d.id));
+      }
+    } catch { /* keep current grants */ }
   };
 
   const openCreate = () => { setForm({ ...EMPTY, role: defaultRole }); setFormUnits([]); setGranted(new Set()); setActiveTab("info"); setEditing(null); setModal("create"); };
@@ -225,6 +257,7 @@ export default function AdminUsersPage({ showOverview = false }: { showOverview?
                 <TableHead className="text-xs font-bold text-slate-600">Name</TableHead>
                 <TableHead className="text-xs font-bold text-slate-600">Staff ID</TableHead>
                 <TableHead className="text-xs font-bold text-slate-600">Role</TableHead>
+                <TableHead className="text-xs font-bold text-slate-600 hidden lg:table-cell">Department</TableHead>
                 <TableHead className="text-xs font-bold text-slate-600 hidden md:table-cell">Zone</TableHead>
                 <TableHead className="text-xs font-bold text-slate-600 hidden lg:table-cell">State</TableHead>
                 <TableHead className="text-xs font-bold text-slate-600">Status</TableHead>
@@ -233,9 +266,9 @@ export default function AdminUsersPage({ showOverview = false }: { showOverview?
             </TableHeader>
             <TableBody>
               {loading ? (
-                <TableRow><TableCell colSpan={7} className="text-center py-10 text-slate-400">Loading...</TableCell></TableRow>
+                <TableRow><TableCell colSpan={8} className="text-center py-10 text-slate-400">Loading...</TableCell></TableRow>
               ) : users.length === 0 ? (
-                <TableRow><TableCell colSpan={7} className="text-center py-10 text-slate-400">No users found</TableCell></TableRow>
+                <TableRow><TableCell colSpan={8} className="text-center py-10 text-slate-400">No users found</TableCell></TableRow>
               ) : users.map(u => (
                 <TableRow key={u.id} className="hover:bg-[#f0fdf7] transition-colors">
                   <TableCell className="font-semibold text-slate-800">{u.name}</TableCell>
@@ -245,6 +278,7 @@ export default function AdminUsersPage({ showOverview = false }: { showOverview?
                       {roleLabels[u.role] ?? u.role}
                     </Badge>
                   </TableCell>
+                  <TableCell className="text-slate-500 hidden lg:table-cell">{u.department?.name ?? "—"}</TableCell>
                   <TableCell className="text-slate-500 hidden md:table-cell">{u.zone?.zonal_code ?? "—"}</TableCell>
                   <TableCell className="text-slate-500 hidden lg:table-cell">{u.state?.code ?? "—"}</TableCell>
                   <TableCell>
@@ -300,7 +334,10 @@ export default function AdminUsersPage({ showOverview = false }: { showOverview?
             </Field>
 
             <Field label="Role" required>
-              <Select value={form.role || defaultRole} onValueChange={v => setForm(f => ({ ...f, role: v }))}>
+              <Select value={form.role || defaultRole} onValueChange={v => {
+                setForm(f => ({ ...f, role: v }));
+                void applyAccessTemplate(v);
+              }}>
                 <SelectTrigger displayValue={roleLabels[form.role] ?? form.role}>
                   <SelectValue placeholder="Select role" />
                 </SelectTrigger>
@@ -361,7 +398,11 @@ export default function AdminUsersPage({ showOverview = false }: { showOverview?
                 clearable
                 disabled={!form.department_id}
                 value={form.unit_id}
-                onChange={v => setForm(f => ({ ...f, unit_id: v }))}
+                onChange={v => {
+                  setForm(f => ({ ...f, unit_id: v }));
+                  const unit = formUnits.find(u => String(u.id) === v);
+                  void applyAccessTemplate(form.role, unit?.unit_code, false);
+                }}
                 placeholder={form.department_id ? "— Select Unit —" : "Select a department first"}
                 options={formUnits.map(u => ({ value: String(u.id), label: u.name, sub: u.unit_code }))}
               />

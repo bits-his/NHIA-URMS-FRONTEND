@@ -22,6 +22,7 @@ import {
   getColumnsForSection,
   type MonthlyListColumn,
 } from "./monthlyListColumns";
+import { reviewChainFromConfig } from "@/src/access/departmentRoles";
 import { ALL_STATES, useMonthlyStateFilter } from "./useMonthlyStateFilter";
 
 type ReportStatus = "draft" | "submitted" | "under_review" | "zonal_review" | "approved" | "rejected";
@@ -156,7 +157,9 @@ function ReviewDetail({
   onChanged: () => void;
 }) {
   const role = useSelector((s: RootState) => s.auth.user?.role) ?? "";
-  const chain = REVIEW_CHAIN[role];
+  const roleConfig = useSelector((s: RootState) => s.auth.user?.role_config);
+  const chainKey = reviewChainFromConfig(role, roleConfig);
+  const chain = chainKey ? REVIEW_CHAIN[chainKey] : undefined;
   const [report, setReport] = React.useState<any | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [note, setNote] = React.useState("");

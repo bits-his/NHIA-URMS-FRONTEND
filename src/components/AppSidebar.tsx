@@ -89,6 +89,7 @@ import {
 } from "@/src/access/moduleConfig";
 import { hasModuleAccess } from "@/src/access/roles";
 import { normalizeAllowedTitles, expandAccessEntries } from "@/src/access/accessUtils";
+import { NhiaSidebarBrand } from "@/src/components/NhiaCrest";
 
 type View = string;
 
@@ -443,7 +444,7 @@ function UserSidebarDepartment({
   if (!department && !unit) return null;
 
   return (
-    <div className="mx-0 mt-2 rounded-lg bg-white/8 px-3 py-2 space-y-1 group-data-[collapsible=icon]:hidden">
+    <div className="mx-0 mt-2.5 rounded-xl bg-white/8 px-3 py-2 space-y-0.5 group-data-[collapsible=icon]:hidden">
       {department ? (
         <p className="text-[13px] font-semibold leading-snug text-white/95">
           {department}
@@ -731,15 +732,11 @@ export function AppSidebar({
 
   return (
     <Sidebar collapsible="icon" {...props}>
-      <SidebarHeader className="border-b border-sidebar-border px-3 py-2.5 overflow-hidden">
-        <div className="flex h-11 w-full min-w-0 items-center justify-center group-data-[collapsible=icon]:h-9">
-          <img
-            src="/logo.png"
-            alt="NHIA URMS"
-            className="h-9 w-full max-w-full object-contain object-center group-data-[collapsible=icon]:h-7 group-data-[collapsible=icon]:w-7"
-          />
+      <SidebarHeader className="gap-0 border-b border-white/10 p-0">
+        <div className="px-3 pt-3.5 pb-3 group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-2">
+          <NhiaSidebarBrand />
+          <UserSidebarDepartment user={user} role={role} />
         </div>
-        <UserSidebarDepartment user={user} role={role} />
       </SidebarHeader>
 
       <SidebarContent>
@@ -770,7 +767,7 @@ export function AppSidebar({
           {showSettings && (
             <SidebarMenuItem onClick={closeMobile}>
               <SidebarMenuButton
-                tooltip="Settings"
+                tooltip="Staff Management"
                 isActive={
                   location.pathname === "/settings" || view === "settings"
                 }
@@ -782,7 +779,7 @@ export function AppSidebar({
                 }
               >
                 <Settings />
-                <span>Settings</span>
+                <span>Staff Management</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
           )}

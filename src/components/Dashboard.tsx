@@ -54,6 +54,7 @@ import OutreachMonthlyForm from "./monthly/OutreachMonthlyForm";
 import SqaMonthlyForm from "./monthly/SqaMonthlyForm";
 import ComplaintsMonthlyForm from "./monthly/ComplaintsMonthlyForm";
 import ComplianceManagementPage from "./compliance/ComplianceManagementPage";
+import { isDeptReportingOfficer, isDeptStateCoordinator, isDeptZonalCoordinator } from "@/src/access/departmentRoles";
 import DirectorEnforcementDashboard, { isDirectorEnforcementUser } from "./enforcement/DirectorEnforcementDashboard";
 import MonthlyReportsList from "./monthly/MonthlyReportsList";
 import DeptMonthlyPage from "./monthly/DeptMonthlyPage";
@@ -110,7 +111,7 @@ import { VIEW_MODULE_ACCESS } from "@/src/access/moduleConfig";
 import AppSidebar from "./AppSidebar";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 
-type Role = "state-officer" | "zonal-coordinator" | "state-coordinator" | "department-officer" | "sdo" | "hq-department" | "audit" | "dg-ceo" | "admin";
+type Role = string;
 type View = "home" | "report-entry" | "report-preview" | "zonal-review" | "zonal-compose" | "annual-report" | "annual-reports-list" | "annual-report-detail" | "settings" | "stock-verifications-list" | "stock-assets" | "servicom-dashboard" | "servicom-visits" | "servicom-complaints" | "servicom-satisfaction" | "servicom-comment-card" | "finance-monthly" | "admin-monthly" | "programmes-monthly" | "outreach-monthly" | "sqa-monthly" | "sqa-compliance" | "complaints-monthly" | "monthly-reports-list" | "report-review" | "notifications" | "soc-zones-dashboard" | "soc-office-profile" | "soc-focal-persons" | "soc-operation-monitoring-visit" | "soc-spot-check-visit" | "state-enrolment" | "state-migration" | "state-cemonc" | "state-complaints" | "state-compliance-monitoring" | "state-hmo-indebtedness" | "state-mystery-shopping" | "state-reconciliation" | "state-accreditation" | "state-stakeholder" | "state-hmo-selection" | "state-extra-dependant" | "state-hcf-change" | "state-challenges" | "state-igr" | "state-sshia-financial" | "state-expenditure-profile" | "state-ict-support" | "state-admin-meetings" | "state-etmc-cascading" | "state-accommodation" | "state-utilities" | "state-vehicles" | "state-staff-feedback" | "state-infractions" | "state-weekly-actionable" | "state-contracted-services" | "state-enrollee-register" | "state-etmc-tmc-action-point" | "state-ict-support-register" | "state-adhoc-special-assignment" | "store-assets-list" | "store-assets-register" | "store-inventory-catalog" | "store-goods-receipt" | "store-stock-issues" | "store-directory" | "store-stock-returns" | "store-asset-transfers" | "store-supply-verification" | "store-asset-maintenance" | "store-asset-disposal" | "store-asset-reports";
 interface DashboardProps { role: Role; user?: import("@/src/store/authSlice").AuthUser; access?: import("@/src/access/types").AccessEntry[]; functionalities?: string; onLogout: () => void; }
 
@@ -161,8 +162,8 @@ function getMenuItems(role: Role, view: View, setView: (v: View) => void) {
     { icon: <Shield className="w-4 h-4" />,      label: "Audit & Compliance",active: false,                           onClick: undefined,                             roles: "dg-ceo,audit,admin" },
     { icon: <Archive className="w-4 h-4" />,     label: "Archive",           active: false,                           onClick: undefined,                             roles: "all"          },
     { icon: <Bell className="w-4 h-4" />,        label: "Notifications",     active: false,                           onClick: undefined,                             roles: "all"          },
-    { icon: <Settings className="w-4 h-4" />,    label: "Settings",          active: view === "settings",             onClick: () => setView("settings"),             roles: "admin"        },
-    { icon: <Settings className="w-4 h-4" />,    label: "Settings",          active: false,                           onClick: undefined,                             roles: "!admin"       },
+    { icon: <Settings className="w-4 h-4" />,    label: "Staff Management",  active: view === "settings",             onClick: () => setView("settings"),             roles: "admin"        },
+    { icon: <Settings className="w-4 h-4" />,    label: "Staff Management",  active: false,                           onClick: undefined,                             roles: "!admin"       },
   ];
   return all.filter(item => {
     if (item.roles === "all") return true;
@@ -475,7 +476,7 @@ export default function Dashboard({ role, user, access = [], functionalities = "
             <Route path="/" element={
               canAccessHomeDashboard(access, role) ? (
               <div className="relative z-10 p-6 max-w-7xl mx-auto space-y-6">
-                {role !== "sdo" && role !== "zonal-coordinator" && role !== "state-officer" && role !== "state-coordinator" && role !== "department-officer" && role !== "admin" && (
+                {role !== "sdo" && !isDeptZonalCoordinator(role) && role !== "state-officer" && !isDeptReportingOfficer(role) && !isDeptStateCoordinator(role) && role !== "department-officer" && role !== "admin" && (
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                     <KPICard title="Reports Submitted" value="124" trend="+12%" trendUp icon={<FileText className="w-5 h-5 text-blue-600" />} tint="kpi-blue" sub="This month" />
                     <KPICard title="Pending Review"    value="18"  trend="-5%"  icon={<Clock className="w-5 h-5 text-amber-600" />}  tint="kpi-amber" sub="Awaiting action" />
@@ -486,11 +487,11 @@ export default function Dashboard({ role, user, access = [], functionalities = "
 
                 {role === "sdo" ? (
                   <SDOPerformance />
-                ) : role === "zonal-coordinator" ? (
+                ) : isDeptZonalCoordinator(role) ? (
                   <ZonalDirectorDashboard user={user} zoneName={user?.zone?.description ?? "South West"} onReviewReports={() => setView("zonal-review")} />
-                ) : role === "state-officer" ? (
+                ) : role === "state-officer" || isDeptReportingOfficer(role) ? (
                   <StateOfficeDashboard user={user} role="state-officer" stateName={user?.state?.description ?? "Lagos"} zoneName={user?.zone?.description ?? "South West"} onNewReport={() => setView("report-entry")} onAnnualReport={() => setView("annual-report")} onViewSubmissions={() => setView("annual-reports-list")} onNewSubmission={(targetView) => setView(targetView as View)} />
-                ) : role === "state-coordinator" ? (
+                ) : isDeptStateCoordinator(role) ? (
                   <StateOfficeDashboard user={user} role="state-coordinator" stateName={user?.state?.description ?? "Lagos"} zoneName={user?.zone?.description ?? "South West"} onNewReport={() => setView("report-entry")} onAnnualReport={() => setView("annual-report")} onViewSubmissions={() => setView("annual-reports-list")} onNewSubmission={(targetView) => setView(targetView as View)} />
                 ) : isDirectorEnforcementUser(user) ? (
                   <DirectorEnforcementDashboard
@@ -503,7 +504,12 @@ export default function Dashboard({ role, user, access = [], functionalities = "
                 ) : role === "department-officer" ? (
                   <DepartmentalDashboard user={user} onNewSubmission={(targetView) => setView(targetView as View)} />
                 ) : role === "admin" ? (
-                  <AdminDashboard onNavigate={() => setView("settings")} />
+                  <AdminDashboard
+                    onNavigate={() => {
+                      setView("settings");
+                      navigate("/settings");
+                    }}
+                  />
                 ) : (
                   <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
                     <div className="xl:col-span-2 space-y-6">
