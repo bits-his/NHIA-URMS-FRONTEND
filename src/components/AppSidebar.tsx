@@ -405,6 +405,30 @@ function isSdoFolder(node: TreeNode): node is Extract<TreeNode, { kind: "folder"
   return node.kind === "folder" && node.title === SDO_MODULE;
 }
 
+/** Higher roles keep module/group dropdowns; officers & coordinators see only leaf items. */
+function keepsSidebarHierarchy(role: string) {
+  return (
+    role === "admin"
+    || role === "sdo"
+    || role === "hq-department"
+    || role === "dg-ceo"
+    || role === "head-of-unit"
+  );
+}
+
+/** Flatten folders to top-level leaf links (no parent dropdown titles). */
+function flattenNavToLeaves(nodes: TreeNode[]): TreeNode[] {
+  const out: TreeNode[] = [];
+  const walk = (list: TreeNode[]) => {
+    for (const node of list) {
+      if (node.kind === "leaf") out.push(node);
+      else walk(node.children);
+    }
+  };
+  walk(nodes);
+  return out;
+}
+
 /** Non-admin users see SDO sections at top level (no SDO parent folder). */
 function flattenSdoForNonAdmin(trees: TreeNode[], role: string): TreeNode[] {
   if (role === "admin") return trees;
@@ -432,6 +456,28 @@ function getUserDepartmentLabel(
   return user?.role_label || role?.replace(/-/g, " ") || null;
 }
 
+function getUserZoneLabel(user?: import("@/src/store/authSlice").AuthUser): string | null {
+  const desc = user?.zone?.description?.trim();
+  if (desc) return desc;
+  const code = user?.zone?.zonal_code?.trim();
+  return code || null;
+}
+
+function getUserStateLabel(user?: import("@/src/store/authSlice").AuthUser): string | null {
+  const desc = user?.state?.description?.trim();
+  if (desc) return desc;
+  const code = user?.state?.code?.trim();
+  return code || null;
+}
+
+/** Show zone/state only when the user is assigned to both. */
+function userHasZoneAndState(user?: import("@/src/store/authSlice").AuthUser): boolean {
+  if (!user) return false;
+  const hasZone = !!(user.zone_id || user.zone?.id || getUserZoneLabel(user));
+  const hasState = !!(user.state_id || user.state?.id || getUserStateLabel(user));
+  return hasZone && hasState;
+}
+
 function UserSidebarDepartment({
   user,
   role,
@@ -451,9 +497,41 @@ function UserSidebarDepartment({
         </p>
       ) : null}
       {unit ? (
-        <p className="text-[13px] font-semibold leading-snug text-white/95">
+        <p className="text-[12px] font-medium leading-snug text-white/80">
           {unit}
         </p>
+      ) : null}
+    </div>
+  );
+}
+
+function UserSidebarGeo({
+  user,
+}: {
+  user?: import("@/src/store/authSlice").AuthUser;
+}) {
+  if (!userHasZoneAndState(user)) return null;
+  const zoneLabel = getUserZoneLabel(user);
+  const stateLabel = getUserStateLabel(user);
+  if (!zoneLabel && !stateLabel) return null;
+
+  return (
+    <div className="mx-2 my-1 rounded-xl bg-white/8 px-3 py-2 space-y-1 group-data-[collapsible=icon]:hidden">
+      {zoneLabel ? (
+        <div className="min-w-0">
+          <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-white/40">Zone</p>
+          <p className="text-[12px] font-semibold leading-snug text-white/90 truncate" title={zoneLabel}>
+            {zoneLabel}
+          </p>
+        </div>
+      ) : null}
+      {stateLabel ? (
+        <div className="min-w-0">
+          <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-white/40">State</p>
+          <p className="text-[12px] font-semibold leading-snug text-white/90 truncate" title={stateLabel}>
+            {stateLabel}
+          </p>
+        </div>
       ) : null}
     </div>
   );
@@ -480,6 +558,7 @@ function formatNavTitle(title: string) {
 }
 
 function displayName(node: TreeNode, role: string) {
+  if (node.kind === "leaf" && node.navLabel) return formatNavTitle(node.navLabel);
   if (role === "sdo" && node.title === "Dashboard") return "SDO Dashboard";
   return formatNavTitle(node.title);
 }
@@ -620,9 +699,14 @@ function NavMain({
     return flattenSdoForNonAdmin(built, role);
   }, [modules, role]);
 
+  const navTrees = React.useMemo(() => {
+    if (keepsSidebarHierarchy(role)) return trees;
+    return flattenNavToLeaves(trees);
+  }, [trees, role]);
+
   const sections = React.useMemo(() => {
     const headingFor = (title: string) => {
-      if (title === "State Offices") return "State Offices";
+      if (keepsSidebarHierarchy(role) && title === "State Offices") return "State Offices";
       return "";
     };
     const out: { heading: string; nodes: TreeNode[] }[] = [];
@@ -631,7 +715,7 @@ function NavMain({
       if (last && last.heading === heading) last.nodes.push(...nodes);
       else out.push({ heading, nodes: [...nodes] });
     };
-    for (const node of trees) {
+    for (const node of navTrees) {
       const heading = headingFor(node.title);
       if (heading && node.kind === "folder" && node.title === heading) {
         push(heading, node.children);
@@ -640,7 +724,7 @@ function NavMain({
       push(heading, [node]);
     }
     return out;
-  }, [trees]);
+  }, [navTrees, role]);
 
   return (
     <>
@@ -744,6 +828,7 @@ export function AppSidebar({
       </SidebarContent>
 
       <SidebarFooter className="border-t border-sidebar-border gap-1 pt-2">
+        <UserSidebarGeo user={user} />
         <SidebarMenu>
           <SidebarMenuItem onClick={closeMobile}>
             <SidebarMenuButton
