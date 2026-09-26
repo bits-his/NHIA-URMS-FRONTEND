@@ -215,7 +215,7 @@ export function CustomTable({
         </div>
       )}
 
-      <div className="overflow-x-auto border border-gray-200 rounded-lg bg-white shadow-sm">
+      <div className="overflow-x-auto border border-gray-200 rounded bg-white shadow-sm">
         <Table className="w-full text-xs">
           <TableHeader className="bg-slate-100">
             {table.getHeaderGroups().map((headerGroup) => (
