@@ -22,7 +22,7 @@ import {
   TRANSMISSION_ROUTES,
   PRIORITY_RATINGS, COMPLAINT_STATUSES, ACTIONS_TAKEN, ESCALATION_LEVELS, ESCALATED_TO,
   COMPLAINT_OUTCOMES, SLA_SUMMARY, domainCodeFromDomain, computeResolutionPreview,
-  slaForPriority, STATUS_BADGE_CLASS, COMPLAINT_LIFECYCLE, INVESTIGATION_STATUSES,
+  slaForPriority, STATUS_BADGE_CLASS, COMPLAINT_LIFECYCLE, INVESTIGATION_STATUSES, INVESTIGATION_CLOSING_STATUSES,
   lifecycleStageFromStatus, getStageCompletion, lifecycleStageLabel,
   isComplaintClosed, nextLifecycleStage, isStageReachable,
   slaColorDotClass, computeSlaOverdueDays, slaRowClass,
@@ -97,6 +97,7 @@ const emptyForm = (defaultZoneId?: string | null, defaultStateId?: string | null
 });
 
 function rowToForm(row: any) {
+  if (!row) return emptyForm();
   const offence = row.offence_reference ? findOffenceById(row.offence_reference) : undefined;
   let fromParty = (row.complaint_type ?? offence?.complainant ?? "") as PartyType | "";
   let againstParty = (row.complaint_against ?? offence?.respondent ?? "") as PartyType | "";
@@ -143,7 +144,7 @@ function rowToForm(row: any) {
     escalation_level: row.escalation_level === "Not Escalated" ? "" : (row.escalation_level ?? ""),
     escalation_date: row.escalation_date ?? "",
     escalated_to: row.escalation_level === "Not Escalated" ? "" : (row.escalated_to ?? ""),
-    date_closed: row.date_closed ?? row.resolution_date ?? "",
+    date_closed: String(row.date_closed ?? row.resolution_date ?? "").slice(0, 10),
     outcome: row.outcome ?? "",
     remarks: row.remarks ?? row.resolution_notes ?? "",
     description: row.description ?? "",
@@ -297,6 +298,80 @@ function StageActionFooter({
           <ChevronRight className="w-3.5 h-3.5" />
         </Button>
       )}
+    </div>
+  );
+}
+
+function CloseComplaintModal({
+  open, busy, status, lockStatus, remarks, onStatusChange, onRemarksChange, onConfirm, onCancel,
+}: {
+  open: boolean;
+  busy?: boolean;
+  status: string;
+  lockStatus?: boolean;
+  remarks: string;
+  onStatusChange: (status: string) => void;
+  onRemarksChange: (remarks: string) => void;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={busy ? undefined : onCancel} />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="close-complaint-title"
+        className="relative z-10 w-full max-w-md rounded-2xl border border-[#d4e8dc] bg-white p-5 shadow-xl"
+      >
+        <h3 id="close-complaint-title" className="text-base font-bold text-slate-900">
+          {lockStatus ? `Mark complaint as ${status}?` : "Close complaint"}
+        </h3>
+        <p className="mt-2 text-sm text-slate-600 leading-relaxed">
+          This will end the investigation and skip the remaining steps. The complaint will be
+          marked <span className="font-semibold">{status}</span> with today as the date closed and can no longer be updated.
+        </p>
+        <div className="mt-4 space-y-3">
+          {!lockStatus && (
+            <div className="space-y-1.5">
+              <Label className="text-xs text-slate-500">Close as</Label>
+              <Select value={status} onValueChange={onStatusChange} disabled={busy}>
+                <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {INVESTIGATION_CLOSING_STATUSES.map((s) => (
+                    <SelectItem key={s} value={s}>{s}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          <div className="space-y-1.5">
+            <Label className="text-xs text-slate-500">Remarks</Label>
+            <Input
+              value={remarks}
+              onChange={(e) => onRemarksChange(e.target.value)}
+              placeholder="Optional"
+              disabled={busy}
+              className="h-9 text-sm"
+            />
+          </div>
+        </div>
+        <div className="mt-5 flex justify-end gap-2">
+          <Button type="button" variant="outline" onClick={onCancel} disabled={busy}>
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            className="bg-rose-600 hover:bg-rose-700 text-white gap-2"
+            onClick={onConfirm}
+            disabled={busy}
+          >
+            {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+            {busy ? "Closing…" : `Yes, mark ${status}`}
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -477,6 +552,12 @@ export default function ServicomComplaintsPage({
   const [selected, setSelected] = React.useState<any | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
+  const [closeModal, setCloseModal] = React.useState<{
+    open: boolean;
+    status: string;
+    fromInvestigation: boolean;
+    remarks: string;
+  }>({ open: false, status: "Resolved", fromInvestigation: false, remarks: "" });
   const [zones, setZones] = React.useState<any[]>([]);
   const [states, setStates] = React.useState<any[]>([]);
   const [filterStates, setFilterStates] = React.useState<any[]>([]);
@@ -959,14 +1040,10 @@ export default function ServicomComplaintsPage({
     if (partyType === "Enrollee") {
       const name = role === "from" ? f.from_name : f.against_name;
       const nhis = role === "from" ? f.from_nhis_id : f.against_nhis_id;
-      const org = role === "from" ? f.from_organization : f.against_organization;
       if (!name?.trim() || !nhis?.trim()) {
         return role === "from"
           ? "Enter enrollee name and NHIA number/code."
           : "Enter enrollee name and NHIS ID.";
-      }
-      if (!org?.trim()) {
-        return role === "from" ? "Enter enrollee organization." : "Enter enrollee organization.";
       }
     }
     return null;
@@ -1075,6 +1152,25 @@ export default function ServicomComplaintsPage({
           return;
         }
         startingInvestigation = !selected.investigation_start_date;
+        if (startingInvestigation) {
+          const startDate = f.investigation_start_date || today;
+          const received = String(selected.date_received ?? "").slice(0, 10);
+          if (startDate > today) {
+            toast.error("Investigation start date cannot be later than today.");
+            setSaving(false);
+            return;
+          }
+          if (received && startDate < received) {
+            toast.error("Investigation start date cannot be before the date received.");
+            setSaving(false);
+            return;
+          }
+        }
+        if (!startingInvestigation && INVESTIGATION_CLOSING_STATUSES.includes(f.status)) {
+          setSaving(false);
+          setCloseModal({ open: true, status: f.status, fromInvestigation: true, remarks: "" });
+          return;
+        }
         payload = {
           officer_assigned: f.officer_assigned,
           investigation_start_date: f.investigation_start_date || selected.investigation_start_date || today,
@@ -1132,6 +1228,36 @@ export default function ServicomComplaintsPage({
       load();
     } catch (err: any) {
       toast.error("Failed to save", { description: err.message });
+    } finally { setSaving(false); }
+  };
+
+  const handleCloseComplaint = async () => {
+    if (!selected?.id) return;
+    const { status, fromInvestigation, remarks } = closeModal;
+    setSaving(true);
+    try {
+      const payload: Record<string, unknown> = {
+        status,
+        date_closed: today,
+        remarks: remarks.trim() || f.remarks || null,
+      };
+      if (!selected.escalated && !selected.escalation_level) {
+        payload.escalated = false;
+        payload.escalation_level = "Not Escalated";
+      }
+      if (fromInvestigation) {
+        payload.officer_assigned = f.officer_assigned || selected.officer_assigned || null;
+        payload.investigation_start_date = f.investigation_start_date || selected.investigation_start_date || today;
+        payload.actions_taken = f.actions_taken || null;
+        payload.actions_details = f.actions_details || null;
+      }
+      await servicomApi.updateComplaint(selected.id, payload);
+      toast.success(`Complaint ${status.toLowerCase()}`);
+      setCloseModal((p) => ({ ...p, open: false, remarks: "" }));
+      load();
+      await openView(selected);
+    } catch (err: any) {
+      toast.error("Failed to close complaint", { description: err.message });
     } finally { setSaving(false); }
   };
 
@@ -1240,11 +1366,12 @@ export default function ServicomComplaintsPage({
         ? (isFrom ? row?.complainant_nhis_id ?? row?.complainant_id : row?.respondent_nhis_id ?? row?.respondent_id)
         : (isFrom ? f.from_nhis_id : f.against_nhis_id);
 
+      const nameLabel = isFrom ? "Complainant Name *" : "Respondent Name *";
       const selectField = readOnly ? (
-        <AutoField label="HMO *" value={hmoName} />
+        <AutoField label={nameLabel} value={hmoName} />
       ) : (
         <div className="space-y-1.5 min-w-0">
-          <Label className="text-xs text-slate-500">HMO *</Label>
+          <Label className="text-xs text-slate-500">{nameLabel}</Label>
           <HmoProviderSelect
             value={hmoId}
             onChange={(p) => setF((prev) => isFrom
@@ -1285,11 +1412,12 @@ export default function ServicomComplaintsPage({
         ? (isFrom ? row?.complainant_nhis_id ?? row?.complainant_id : row?.respondent_nhis_id ?? row?.respondent_id)
         : (isFrom ? f.from_nhis_id : f.against_nhis_id);
 
+      const nameLabel = isFrom ? "Complainant Name *" : "Respondent Name *";
       const selectField = readOnly ? (
-        <AutoField label="HCF *" value={hcfName} />
+        <AutoField label={nameLabel} value={hcfName} />
       ) : (
         <div className="space-y-1.5 min-w-0">
-          <Label className="text-xs text-slate-500">HCF *</Label>
+          <Label className="text-xs text-slate-500">{nameLabel}</Label>
           <HcfFacilitySelect
             stateId={activeStateId || undefined}
             value={hcfId}
@@ -1343,7 +1471,7 @@ export default function ServicomComplaintsPage({
             readOnly={readOnly}
           />
           <FieldText
-            label="Organization *"
+            label="Organization"
             value={organization ?? ""}
             onChange={(v) => set("from_organization", v)}
             readOnly={readOnly}
@@ -1374,7 +1502,7 @@ export default function ServicomComplaintsPage({
           readOnly={readOnly}
         />
         <FieldText
-          label="Organization *"
+          label="Organization"
           value={organization ?? ""}
           onChange={(v) => set("against_organization", v)}
           readOnly={readOnly}
@@ -1771,7 +1899,6 @@ export default function ServicomComplaintsPage({
   const renderEscalationFields = (readOnly: boolean, row?: any) => {
     const deptOptions = departmentOptions.length ? departmentOptions : ESCALATED_TO;
     const isEscalated = readOnly ? !!row?.escalated : !!f.escalated;
-    const lockExtra = !readOnly && !isEscalated;
     return (
     <>
       {readOnly ? (
@@ -1793,34 +1920,35 @@ export default function ServicomComplaintsPage({
             }));
           }} />
       )}
-      <FieldSelect
-        label="Escalation Level"
-        value={readOnly ? (row?.escalation_level ?? "") : f.escalation_level}
-        options={ESCALATION_LEVELS}
-        readOnly={readOnly}
-        disabled={lockExtra}
-        placeholder={lockExtra ? "Select Yes to escalate first" : undefined}
-        onChange={(v) => set("escalation_level", v)}
-      />
-      <FieldText
-        label="Escalation Date"
-        type="date"
-        value={readOnly ? (row?.escalation_date ?? "") : f.escalation_date}
-        onChange={(v) => set("escalation_date", v)}
-        readOnly={readOnly}
-        disabled={lockExtra}
-      />
-      {readOnly ? (
-        <AutoField label="Escalation Department" value={row?.escalated_to} />
-      ) : (
-        <FieldSelect
-          label="Escalation Department *"
-          value={f.escalated_to}
-          options={deptOptions}
-          disabled={lockExtra}
-          onChange={(v) => set("escalated_to", v)}
-          placeholder={lockExtra ? "Select Yes to escalate first" : "Select department"}
-        />
+      {isEscalated && (
+        <>
+          <FieldSelect
+            label="Escalation Level"
+            value={readOnly ? (row?.escalation_level ?? "") : f.escalation_level}
+            options={ESCALATION_LEVELS}
+            readOnly={readOnly}
+            onChange={(v) => set("escalation_level", v)}
+          />
+          <FieldText
+            label="Escalation Date"
+            type="date"
+            value={readOnly ? (row?.escalation_date ?? "") : f.escalation_date}
+            onChange={(v) => set("escalation_date", v)}
+            readOnly={readOnly}
+            max={readOnly ? undefined : today}
+          />
+          {readOnly ? (
+            <AutoField label="Escalation Department" value={row?.escalated_to} />
+          ) : (
+            <FieldSelect
+              label="Escalation Department *"
+              value={f.escalated_to}
+              options={deptOptions}
+              onChange={(v) => set("escalated_to", v)}
+              placeholder="Select department"
+            />
+          )}
+        </>
       )}
     </>
     );
@@ -1836,8 +1964,15 @@ export default function ServicomComplaintsPage({
 
     return (
       <>
-        <FieldText label="Date Closed" type="date" value={readOnly ? (row?.date_closed ?? row?.resolution_date) : f.date_closed}
-          onChange={(v) => set("date_closed", v)} readOnly={readOnly} max={readOnly ? undefined : today} />
+        <FieldText
+          label="Date Closed *"
+          type="date"
+          value={readOnly ? String(row?.date_closed ?? row?.resolution_date ?? "").slice(0, 10) : f.date_closed}
+          onChange={(v) => set("date_closed", v)}
+          readOnly={readOnly}
+          min={readOnly ? undefined : (String(f.date_received ?? "").slice(0, 10) || undefined)}
+          max={readOnly ? undefined : today}
+        />
         <FieldSelect label="Outcome" value={readOnly ? row?.outcome : f.outcome}
           options={COMPLAINT_OUTCOMES} readOnly={readOnly} onChange={(v) => set("outcome", v)} />
         {readOnly ? (
@@ -1868,10 +2003,9 @@ export default function ServicomComplaintsPage({
   };
 
   const renderInvestigationSection = (readOnly: boolean, row?: any, actionLabel?: string | null, showNext = false, onNext?: () => void) => {
-    const started = !!(readOnly ? row?.investigation_start_date : f.investigation_start_date)
-      || ["Under Investigation", "Awaiting Information", "Awaiting Respondent Action"].includes(
-        readOnly ? row?.status : f.status,
-      );
+    const started = !!row?.investigation_start_date
+      || ["Under Investigation", "Awaiting Information", "Awaiting Respondent Action"].includes(row?.status);
+    const minStartDate = String(row?.date_received ?? "").slice(0, 10) || undefined;
 
     return (
       <Card className="rounded-xl border-[#d4e8dc] bg-white shadow-sm w-full py-0 gap-0">
@@ -1879,7 +2013,7 @@ export default function ServicomComplaintsPage({
           {!readOnly && !started && (
             <div className="col-span-full rounded-lg border border-amber-200/80 bg-amber-50/80 px-3 py-2.5">
               <p className="text-xs text-amber-950 leading-relaxed">
-                Investigation has not started. Click <span className="font-semibold">Start</span> below when you are ready to begin.
+                Investigation has not started. Choose the date it started (you can backdate), then click <span className="font-semibold">Start</span>.
               </p>
             </div>
           )}
@@ -1887,12 +2021,23 @@ export default function ServicomComplaintsPage({
             label="Assigned Officer"
             value={readOnly ? (row?.officer_assigned ?? row?.assigned_officer) : f.officer_assigned}
           />
-          <AutoField
-            label="Investigation Start Date"
-            value={started
-              ? (readOnly ? row?.investigation_start_date : f.investigation_start_date) || today
-              : "Not started"}
-          />
+          {!readOnly && !started ? (
+            <FieldText
+              label="Investigation Start Date *"
+              type="date"
+              value={f.investigation_start_date || today}
+              onChange={(v) => set("investigation_start_date", v)}
+              min={minStartDate}
+              max={today}
+            />
+          ) : (
+            <AutoField
+              label="Investigation Start Date"
+              value={started
+                ? (readOnly ? row?.investigation_start_date : f.investigation_start_date) || today
+                : "Not started"}
+            />
+          )}
           {started && (
             <>
               <FieldSelect label="Actions Taken" value={readOnly ? row?.actions_taken : f.actions_taken}
@@ -1908,7 +2053,7 @@ export default function ServicomComplaintsPage({
           )}
         </CardContent>
         <StageActionFooter
-          label={actionLabel}
+          label={actionLabel && started && INVESTIGATION_CLOSING_STATUSES.includes(f.status) ? "Submit & Close" : actionLabel}
           onClick={actionLabel ? () => handleSaveStage("investigation") : undefined}
           saving={saving}
           showNext={showNext}
@@ -2051,6 +2196,14 @@ export default function ServicomComplaintsPage({
           onConfirm={submitConfirm.confirm}
           onCancel={submitConfirm.cancel}
         />
+      </div>
+    );
+  }
+
+  if ((mode === "view" || mode === "manage") && !selected) {
+    return (
+      <div className="bg-[#f4f7f5] min-h-[50vh] flex items-center justify-center">
+        <Loader2 className="w-5 h-5 animate-spin text-[#145c3f]" />
       </div>
     );
   }
@@ -2313,6 +2466,9 @@ export default function ServicomComplaintsPage({
     const row = selected;
     const assignedToMe = isCurrentAssignee(row);
     const escalatedOpen = !!row?.escalated && !isComplaintClosed(row?.status);
+    const canCloseComplaint = !!row && !isComplaintClosed(row.status) && !isStateCoordinator
+      && !(escalatedOpen && !assignedToMe && !isNationalViewer
+        && userRole !== "admin" && userRole !== "hq-department" && userRole !== "sdo");
 
     return (
       <div className="bg-[#f4f7f5]">
@@ -2332,6 +2488,19 @@ export default function ServicomComplaintsPage({
                 ].filter(Boolean).join(" · ")}
               </p>
             </div>
+            {canCloseComplaint && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={saving}
+                onClick={() => setCloseModal({ open: true, status: "Resolved", fromInvestigation: false, remarks: "" })}
+                className="h-8 gap-1.5 rounded-lg border-rose-200 text-rose-700 hover:bg-rose-50 hover:text-rose-800 font-semibold shrink-0"
+              >
+                <XCircle className="w-3.5 h-3.5" />
+                Close Complaint
+              </Button>
+            )}
           </div>
           {renderComplaintSlaBar(row)}
         </div>
@@ -2348,6 +2517,17 @@ export default function ServicomComplaintsPage({
           {row && renderStageTabs(row)}
           {renderStageContent(row)}
         </div>
+        <CloseComplaintModal
+          open={closeModal.open}
+          busy={saving}
+          status={closeModal.status}
+          lockStatus={closeModal.fromInvestigation}
+          remarks={closeModal.remarks}
+          onStatusChange={(status) => setCloseModal((p) => ({ ...p, status }))}
+          onRemarksChange={(remarks) => setCloseModal((p) => ({ ...p, remarks }))}
+          onConfirm={handleCloseComplaint}
+          onCancel={() => !saving && setCloseModal((p) => ({ ...p, open: false }))}
+        />
       </div>
     );
   }
@@ -2463,7 +2643,7 @@ export default function ServicomComplaintsPage({
       component: (c) => {
         const closed = isComplaintClosed(c.status);
         const useView = isStateCoordinator || closed;
-        const label = useView ? "View" : "Open";
+        const label = useView ? "View" : "Manage";
         return (
           <div className="flex justify-end">
             <Button

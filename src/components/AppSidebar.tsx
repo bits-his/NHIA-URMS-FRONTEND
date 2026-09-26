@@ -251,6 +251,7 @@ const VIEW_TO_PATH: Record<string, string> = {
   "state-hmo-indebtedness": "/zonal/hmo-indebtedness",
   "state-mystery-shopping": "/zonal/mystery-shopping",
   "servicom-complaints": "/sdo/servicom/complaints",
+  "zonal-complaints-register": "/zonal/complaints-register",
   "servicom-satisfaction": "/sdo/servicom/satisfaction",
   "servicom-comment-card": "/sdo/servicom/comment-card",
   "special-projects": "/sdo/projects",

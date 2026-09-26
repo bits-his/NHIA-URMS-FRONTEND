@@ -28,7 +28,7 @@ export const PRIORITY_RATINGS = [
 ];
 
 export const TRANSMISSION_ROUTES = [
-  "Walk-in", "Phone", "Hotline", "Email", "Letter", "Portal",
+  "Walk-in", "Phone", "Hotline", "Email", "Letter", "Portal", "SERVICOM", "Call Center",
   "Meetings, Conferences or Workshops", "Other",
 ].map(v => ({ value: v, label: v }));
 
@@ -246,8 +246,11 @@ export const COMPLAINT_LIFECYCLE: {
 ];
 
 export const INVESTIGATION_STATUSES = COMPLAINT_STATUSES.filter((s) =>
-  ["New/Acknowledged", "Under Investigation", "Awaiting Information", "Awaiting Respondent Action"].includes(s.value),
+  ["Awaiting Information", "Awaiting Respondent Action", "Resolved", "Closed"].includes(s.value),
 );
+
+/** Investigation statuses that close the complaint immediately (skip escalation & resolution). */
+export const INVESTIGATION_CLOSING_STATUSES = ["Resolved", "Closed"];
 
 export const RESOLUTION_STATUSES = COMPLAINT_STATUSES.filter((s) =>
   ["Resolved", "Closed", "Referred to Appropriate Authority", "Complaint Withdrawn"].includes(s.value),
@@ -267,6 +270,9 @@ export function lifecycleStageFromStatus(status: string, row?: { escalated?: boo
 export function getStageCompletion(row: any): Record<LifecycleStage, boolean> {
   if (!row) {
     return { registration: false, investigation: false, escalation: false, resolution: false };
+  }
+  if ((CLOSED_COMPLAINT_STATUSES as readonly string[]).includes(row.status)) {
+    return { registration: true, investigation: true, escalation: true, resolution: true };
   }
   const escalated = !!row.escalated || row.status === "Escalated";
   const escalationDecided = escalated || row.escalation_level === "Not Escalated";
