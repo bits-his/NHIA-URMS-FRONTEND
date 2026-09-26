@@ -87,21 +87,27 @@ export default function HcfFacilitySelect({
           state_name: null,
         }));
       }
-      const opts = rows.map((f: any) => {
+      const seenHospital = new Set<string>();
+      const opts: CachedOption[] = [];
+      for (const f of rows as any[]) {
+        const nameKey = `${String(f.name || "").replace(/\s+/g, " ").trim().toLowerCase()}|${String(f.state_name ?? f.state?.description ?? "").toLowerCase()}`;
+        if (nameKey !== "|" && seenHospital.has(nameKey)) continue;
+        if (nameKey !== "|") seenHospital.add(nameKey);
+        const hospitalCode = f.hospital_code || f.facility_code || f.accreditation_code || undefined;
         const o: CachedOption = {
           value: String(f.id),
           label: f.name,
-          sub: f.accreditation_code || f.facility_code || f.state_name || f.lga || undefined,
-          code: f.accreditation_code || f.facility_code || undefined,
+          sub: [hospitalCode, f.lga, f.state_name ?? f.state?.description].filter(Boolean).join(" · ") || undefined,
+          code: hospitalCode,
           state_name: f.state_name ?? f.state?.description ?? undefined,
           email: f.email ?? null,
           facility_type: f.facility_type ?? null,
-          service_applied_for: f.service_applied_for ?? null,
-          facility_code: f.facility_code ?? null,
+          service_applied_for: null,
+          facility_code: f.facility_code ?? hospitalCode ?? null,
         };
         cacheRef.current.set(o.value, o);
-        return o;
-      });
+        opts.push(o);
+      }
       setOptions(opts);
       if (!opts.length && !q?.trim()) {
         setLoadError(requireState
@@ -150,13 +156,13 @@ export default function HcfFacilitySelect({
   };
 
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-1.5 min-w-0 w-full">
       <SearchSelect
         options={options}
         value={value}
         onChange={handleChange}
         disabled={blocked || loading}
-        className={className}
+        className={className ?? "w-full"}
         placeholder={
           requireState && !stateId
             ? "Select state first"

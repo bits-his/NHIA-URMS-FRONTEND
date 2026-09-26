@@ -43,6 +43,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { cn } from "@/lib/utils";
 
 export interface CustomTableField {
   title: string;
@@ -65,6 +66,10 @@ export interface CustomTableProps {
   message?: string;
   footerData?: any;
   onSelectionChange?: (selectedRows: any) => void;
+  /** Optional per-row className (e.g. SLA status colours). */
+  getRowClassName?: (row: any) => string | undefined;
+  /** Fit columns in the viewport without horizontal scrolling. */
+  fitViewport?: boolean;
 }
 
 export function CustomTable({
@@ -78,6 +83,8 @@ export function CustomTable({
   message = "No Data Available",
   footerData = null,
   onSelectionChange = null,
+  getRowClassName,
+  fitViewport = false,
 }: CustomTableProps) {
   const [rowSelection, setRowSelection] = React.useState({});
   const [columnVisibility, setColumnVisibility] = React.useState({});
@@ -215,8 +222,11 @@ export function CustomTable({
         </div>
       )}
 
-      <div className="overflow-x-auto border border-gray-200 rounded bg-white shadow-sm">
-        <Table className="w-full text-xs">
+      <div className={cn(
+        "border border-gray-200 rounded bg-white shadow-sm",
+        fitViewport ? "overflow-x-hidden" : "overflow-x-auto",
+      )}>
+        <Table className={cn("w-full text-xs", fitViewport && "table-fixed")}>
           <TableHeader className="bg-slate-100">
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
@@ -224,8 +234,11 @@ export function CustomTable({
                   <TableHead
                     key={header.id}
                     colSpan={header.colSpan}
-                    className={`font-bold text-slate-800 uppercase tracking-wider py-3 ${(header.column.columnDef as any).className || "text-left"
-                      }`}
+                    className={cn(
+                      "font-bold text-slate-800 uppercase tracking-wider",
+                      fitViewport ? "py-2 px-2 text-[10px]" : "py-3",
+                      (header.column.columnDef as any).className || "text-left",
+                    )}
                   >
                     {header.isPlaceholder
                       ? null
@@ -253,10 +266,20 @@ export function CustomTable({
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
-                  className="hover:bg-slate-50/80 transition-colors"
+                  className={cn(
+                    "hover:bg-slate-50/80 transition-colors",
+                    getRowClassName?.(row.original),
+                  )}
                 >
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id} className="py-2.5 px-4 text-slate-700 font-medium">
+                    <TableCell
+                      key={cell.id}
+                      className={cn(
+                        "text-slate-700 font-medium align-middle",
+                        fitViewport ? "py-2 px-2" : "py-2.5 px-4",
+                        (cell.column.columnDef as any).className || "",
+                      )}
+                    >
                       {flexRender(
                         cell.column.columnDef.cell,
                         cell.getContext()

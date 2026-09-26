@@ -1,26 +1,30 @@
 import * as React from "react";
 import {
-  ArrowLeft, Plus, RefreshCw, Loader2, MessageSquare, Search,
-  CheckCircle2, Circle, AlertTriangle, Clock, ArrowRight, XCircle,
+  ArrowLeft, Plus, RefreshCw, Loader2, Search,
+  CheckCircle2, Circle, XCircle,
+  MessageSquare, Clock, AlertTriangle,
+  FileText, ChevronRight,
 } from "lucide-react";
-import { motion } from "motion/react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
+import { useSearchParams } from "react-router-dom";
 import { servicomApi, stockApi } from "@/lib/api";
+import CustomTable, { type CustomTableField } from "@/components/CustomTable";
+import { isDeptReportingOfficer, isDeptStateCoordinator } from "@/src/access/departmentRoles";
 import { pickGeoLabel, pickLabel } from "./servicomConstants";
 import {
-  COMPLAINT_TYPES, TRANSMISSION_ROUTES, COMPLAINANT_CATEGORIES, RESPONDENT_CATEGORIES,
+  COMPLAINANT_CATEGORIES,
+  TRANSMISSION_ROUTES,
   PRIORITY_RATINGS, COMPLAINT_STATUSES, ACTIONS_TAKEN, ESCALATION_LEVELS, ESCALATED_TO,
   COMPLAINT_OUTCOMES, SLA_SUMMARY, domainCodeFromDomain, computeResolutionPreview,
   slaForPriority, STATUS_BADGE_CLASS, COMPLAINT_LIFECYCLE, INVESTIGATION_STATUSES,
   lifecycleStageFromStatus, getStageCompletion, lifecycleStageLabel,
-  isComplaintClosed,
+  isComplaintClosed, nextLifecycleStage, isStageReachable,
   slaColorDotClass, computeSlaOverdueDays, slaRowClass,
   previewComplaintNumber,
   type LifecycleStage, type ComplaintSlaRuleRow,
@@ -28,6 +32,7 @@ import {
 import {
   COMPLAINT_PARTY_TYPES, respondentsForComplainant, offencesForParties,
   findOffenceById, offenceSelectOptions, partyTypeFromComplainantCategory,
+  OTHER_ISSUE_VALUE,
   type PartyType,
 } from "./complaintOffenceGuide";
 import HmoProviderSelect from "./HmoProviderSelect";
@@ -35,7 +40,7 @@ import HcfFacilitySelect from "./HcfFacilitySelect";
 import { SubmitConfirmModal, useReportingOfficerSubmitConfirm } from "@/src/components/SubmitConfirmModal";
 
 interface Props {
-  onBack: () => void;
+  onBack?: () => void;
   defaultStateId?: string | null;
   defaultZoneId?: string | null;
   userName?: string | null;
@@ -45,7 +50,7 @@ interface Props {
   canReview?: boolean;
 }
 
-type Mode = "list" | "register" | "manage";
+type Mode = "list" | "register" | "manage" | "view";
 
 const emptyForm = (defaultZoneId?: string | null, defaultStateId?: string | null) => ({
   zone_id: defaultZoneId ?? "",
@@ -135,9 +140,9 @@ function rowToForm(row: any) {
     actions_taken: row.actions_taken ?? "",
     actions_details: row.actions_details ?? "",
     escalated: !!row.escalated,
-    escalation_level: row.escalation_level ?? "",
+    escalation_level: row.escalation_level === "Not Escalated" ? "" : (row.escalation_level ?? ""),
     escalation_date: row.escalation_date ?? "",
-    escalated_to: row.escalated_to ?? "",
+    escalated_to: row.escalation_level === "Not Escalated" ? "" : (row.escalated_to ?? ""),
     date_closed: row.date_closed ?? row.resolution_date ?? "",
     outcome: row.outcome ?? "",
     remarks: row.remarks ?? row.resolution_notes ?? "",
@@ -166,13 +171,57 @@ function SummaryField({ label, value, fullWidth }: { label: string; value?: stri
   );
 }
 
+/** Asset-detail style label/value row for complaint View */
+function ViewInfoRow({
+  label,
+  value,
+  icon: Icon,
+  mono = false,
+  highlight = false,
+  hideEmpty = true,
+}: {
+  label: string;
+  value?: React.ReactNode;
+  icon?: React.ComponentType<{ className?: string }>;
+  mono?: boolean;
+  highlight?: boolean;
+  hideEmpty?: boolean;
+}) {
+  const empty =
+    value == null
+    || value === ""
+    || value === false
+    || (typeof value === "string" && !value.trim());
+  if (hideEmpty && empty) return null;
+  return (
+    <div className="flex items-center justify-between py-1.5 border-b border-slate-100 last:border-0 gap-2">
+      <div className="flex items-center gap-1.5 text-slate-500 shrink-0">
+        {Icon ? <Icon className="w-3.5 h-3.5 text-slate-400" /> : null}
+        <span className="text-[11px] font-semibold uppercase tracking-wider">{label}</span>
+      </div>
+      <div
+        className={`text-xs font-semibold break-words text-right truncate max-w-[58%] ${
+          highlight
+            ? "text-[#145c3f] font-bold"
+            : mono
+            ? "font-mono text-slate-800"
+            : "text-slate-800"
+        }`}
+        title={typeof value === "string" ? value : undefined}
+      >
+        {empty ? "—" : value}
+      </div>
+    </div>
+  );
+}
+
 function StageSummaryCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <Card className="rounded-2xl border-slate-200 bg-white shadow-sm">
-      <CardHeader className="pb-2 pt-4 px-5 border-b border-slate-100">
-        <CardTitle className="text-xs font-black uppercase tracking-wide text-slate-600">{title}</CardTitle>
+    <Card className="rounded-xl border-slate-200 bg-white shadow-sm py-0 gap-0">
+      <CardHeader className="pb-1.5 pt-3 px-4 border-b border-slate-100">
+        <CardTitle className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{title}</CardTitle>
       </CardHeader>
-      <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3 px-5 py-4">
+      <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-2.5 px-4 py-3">
         {children}
       </CardContent>
     </Card>
@@ -213,34 +262,54 @@ function SlaHint({ priority, slaRow }: { priority?: string; slaRow: ReturnType<t
 }
 
 function StageActionFooter({
-  label, onClick, saving,
+  label, onClick, saving, showNext, onNext,
 }: {
-  label: string;
-  onClick: () => void;
-  saving: boolean;
+  label?: string | null;
+  onClick?: () => void;
+  saving?: boolean;
+  showNext?: boolean;
+  onNext?: () => void;
 }) {
+  if (!label && !showNext) return null;
   return (
-    <div className="flex justify-end px-6 md:px-8 py-4 border-t border-[#e6f2eb]">
-      <Button
-        onClick={onClick}
-        disabled={saving}
-        className="bg-orange-action hover:bg-orange-600 gap-2 rounded-xl shadow-none px-6"
-      >
-        {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-        {label}
-      </Button>
+    <div className="flex justify-end gap-2 px-4 py-3 border-t border-[#e6f2eb]">
+      {label && onClick && (
+        <Button
+          onClick={onClick}
+          disabled={!!saving}
+          size="sm"
+          className="bg-orange-action hover:bg-orange-600 gap-2 rounded-lg shadow-none px-4"
+        >
+          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+          {label}
+        </Button>
+      )}
+      {showNext && onNext && (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={onNext}
+          disabled={!!saving}
+          className="h-8 gap-1.5 rounded-lg border-[#d4e8dc] text-[#145c3f] hover:bg-[#e8f5ee] font-semibold px-4"
+        >
+          Next
+          <ChevronRight className="w-3.5 h-3.5" />
+        </Button>
+      )}
     </div>
   );
 }
 
 function FieldSelect({
-  label, value, options, onChange, readOnly, placeholder, className,
+  label, value, options, onChange, readOnly, disabled, placeholder, className,
 }: {
   label: string;
   value: string;
   options: { value: string; label: string }[];
   onChange?: (v: string) => void;
   readOnly?: boolean;
+  disabled?: boolean;
   placeholder?: string;
   className?: string;
 }) {
@@ -254,10 +323,13 @@ function FieldSelect({
     );
   }
   return (
-    <div className={`space-y-1.5 ${className ?? ""}`}>
+    <div className={`space-y-1.5 ${className ?? ""} ${disabled ? "opacity-60" : ""}`}>
       <Label className="text-xs text-slate-500">{label}</Label>
-      <Select value={value} onValueChange={onChange}>
-        <SelectTrigger className="w-full" displayValue={pickLabel(options, value, placeholder ?? label)}>
+      <Select value={value} onValueChange={onChange} disabled={disabled}>
+        <SelectTrigger
+          className={`w-full ${disabled ? "cursor-not-allowed bg-slate-50" : ""}`}
+          displayValue={pickLabel(options, value, placeholder ?? label)}
+        >
           <SelectValue placeholder={placeholder ?? label} />
         </SelectTrigger>
         <SelectContent>
@@ -284,12 +356,13 @@ function DisabledInput({ label, value, placeholder }: { label: string; value?: s
 }
 
 function FieldText({
-  label, value, onChange, readOnly, type = "text", placeholder, mono, max, min,
+  label, value, onChange, readOnly, disabled, type = "text", placeholder, mono, max, min,
 }: {
   label: string;
   value: string;
   onChange?: (v: string) => void;
   readOnly?: boolean;
+  disabled?: boolean;
   type?: string;
   placeholder?: string;
   mono?: boolean;
@@ -305,15 +378,47 @@ function FieldText({
     );
   }
   return (
-    <div className="space-y-1.5">
+    <div className={`space-y-1.5 ${disabled ? "opacity-60" : ""}`}>
       <Label className="text-xs text-slate-500">{label}</Label>
       <Input
-        className={`w-full ${mono ? "font-mono" : ""}`}
+        className={`w-full ${mono ? "font-mono" : ""} ${disabled ? "cursor-not-allowed bg-slate-50" : ""}`}
         type={type}
         placeholder={placeholder}
         value={value}
         max={max}
         min={min}
+        disabled={disabled}
+        onChange={(e) => onChange?.(e.target.value)}
+      />
+    </div>
+  );
+}
+
+function FieldTextarea({
+  label, value, onChange, readOnly, placeholder,
+}: {
+  label: string;
+  value: string;
+  onChange?: (v: string) => void;
+  readOnly?: boolean;
+  placeholder?: string;
+}) {
+  if (readOnly) {
+    return (
+      <div className="space-y-1.5">
+        <Label className="text-xs text-slate-500">{label}</Label>
+        <p className="text-sm font-medium text-slate-900 whitespace-pre-wrap">{value || "—"}</p>
+      </div>
+    );
+  }
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs text-slate-500">{label}</Label>
+      <textarea
+        className="w-full min-h-[110px] rounded-xl px-3.5 py-2.5 text-sm bg-[#f4f7f5] border-2 border-[#1a7a52] text-slate-800 placeholder:text-slate-400 outline-none transition-all duration-200 hover:border-[#0f3d2e] hover:bg-white focus-visible:border-[#0f3d2e] focus-visible:bg-white focus-visible:ring-3 focus-visible:ring-[#1a7a52]/25 resize-y"
+        placeholder={placeholder}
+        value={value}
+        rows={4}
         onChange={(e) => onChange?.(e.target.value)}
       />
     </div>
@@ -335,14 +440,22 @@ function officerMatchesUser(
 }
 
 export default function ServicomComplaintsPage({
-  onBack, defaultStateId, defaultZoneId, userName, userStaffId, userRole,
+  defaultStateId, defaultZoneId, userName, userStaffId, userRole,
   canCreate = true, canReview = true,
 }: Props) {
-  const createOnly = canCreate && !canReview;
-  /** State officers/coordinators only see complaints assigned or forwarded to them. */
-  const isStateScopedViewer = ["state-officer", "state-coordinator"].includes(String(userRole ?? ""));
-  const formFirst = createOnly && !isStateScopedViewer;
-  const showAssignedFilter = !isStateScopedViewer && !!(userName || userStaffId);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const roleKey = String(userRole ?? "");
+  const isStateCoordinator =
+    roleKey === "state-coordinator" || isDeptStateCoordinator(roleKey);
+  const isStateOfficer = roleKey === "state-officer";
+  /** Hide zone/state pickers for state-level roles (geo comes from profile). */
+  const isStateScopedViewer = isStateCoordinator || isStateOfficer;
+  const isReportingOfficer =
+    roleKey === "reporting-officer"
+    || isDeptReportingOfficer(roleKey)
+    || (canCreate && !canReview && !isStateScopedViewer);
+  const showAssignedFilter =
+    !isStateScopedViewer && !isReportingOfficer && !!(userName || userStaffId);
   /** HQ / national viewers (no fixed state) should see all complaints by default, not only assigned. */
   const isNationalViewer = !defaultZoneId && !defaultStateId;
   const geoLocked = !!(defaultZoneId && defaultStateId);
@@ -350,11 +463,19 @@ export default function ServicomComplaintsPage({
   const hideGeoFields = isStateScopedViewer || geoLocked;
   const submitConfirm = useReportingOfficerSubmitConfirm();
   const today = new Date().toISOString().slice(0, 10);
-  const [mode, setMode] = React.useState<Mode>(formFirst ? "register" : "list");
+
+  const modeParam = searchParams.get("mode");
+  const mode: Mode =
+    modeParam === "register" || modeParam === "manage" || modeParam === "view"
+      ? modeParam
+      : "list";
+  const queryId = searchParams.get("id");
+  const queryStage = searchParams.get("stage") as LifecycleStage | null;
+
   const [formKey, setFormKey] = React.useState(0);
   const [complaints, setComplaints] = React.useState<any[]>([]);
   const [selected, setSelected] = React.useState<any | null>(null);
-  const [loading, setLoading] = React.useState(!formFirst);
+  const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
   const [zones, setZones] = React.useState<any[]>([]);
   const [states, setStates] = React.useState<any[]>([]);
@@ -371,14 +492,33 @@ export default function ServicomComplaintsPage({
   const [filterFacilityName, setFilterFacilityName] = React.useState("");
   const [filterHmoId, setFilterHmoId] = React.useState("");
   const [filterTransmission, setFilterTransmission] = React.useState("all");
-  const [filterAssigned, setFilterAssigned] = React.useState<"all" | "mine">(
-    isStateScopedViewer ? "mine" : "all",
-  );
+  const [filterAssigned, setFilterAssigned] = React.useState<"all" | "mine">("all");
   const [activeStage, setActiveStage] = React.useState<LifecycleStage>("registration");
   const [slaRules, setSlaRules] = React.useState<ComplaintSlaRuleRow[]>(SLA_SUMMARY as ComplaintSlaRuleRow[]);
   const [officerOptions, setOfficerOptions] = React.useState<{ value: string; label: string }[]>([]);
-  const [escalationOfficerOptions, setEscalationOfficerOptions] = React.useState<{ value: string; label: string }[]>([]);
-  const [idPreview, setIdPreview] = React.useState("ENF/HCF/TR/…/…");
+  const [departmentOptions, setDepartmentOptions] = React.useState<{ value: string; label: string }[]>(ESCALATED_TO);
+  const [idPreview, setIdPreview] = React.useState("ENF/HCF/…/…/…");
+  const [comments, setComments] = React.useState<{
+    id: number; body: string; created_by?: string | null;
+    created_by_staff_id?: string | null; createdAt?: string; created_at?: string;
+  }[]>([]);
+  const [commentDraft, setCommentDraft] = React.useState("");
+  const [commentsLoading, setCommentsLoading] = React.useState(false);
+  const [commentSaving, setCommentSaving] = React.useState(false);
+
+  const setComplaintsQuery = React.useCallback((
+    next: { mode?: Mode; id?: string | number | null; stage?: LifecycleStage | null },
+    opts?: { replace?: boolean },
+  ) => {
+    const params = new URLSearchParams();
+    const m = next.mode ?? "list";
+    if (m !== "list") {
+      params.set("mode", m);
+      if (next.id != null && next.id !== "") params.set("id", String(next.id));
+      if (m === "manage" && next.stage) params.set("stage", next.stage);
+    }
+    setSearchParams(params, { replace: !!opts?.replace });
+  }, [setSearchParams]);
 
   const set = (key: string, value: string | boolean) => setF((p) => ({ ...p, [key]: value }));
 
@@ -407,70 +547,91 @@ export default function ServicomComplaintsPage({
 
   React.useEffect(() => {
     if (mode !== "register") return;
-    const against = f.complaint_against || f.complaint_type || "HCF";
+    const against = f.complaint_against || "HCF";
     const date = f.date_received || today;
+    const stateId = defaultStateId || f.state_id || undefined;
+    const stateCode = (states.find((s) => String(s.id) === String(stateId)) as { code?: string } | undefined)?.code;
     let cancelled = false;
     const t = window.setTimeout(() => {
       servicomApi.previewComplaintNumber({
         against,
         date_received: date,
+        state_id: stateId,
       })
         .then((r) => {
           if (!cancelled && r.data?.complaint_number) setIdPreview(r.data.complaint_number);
         })
         .catch(() => {
-          if (!cancelled) setIdPreview(previewComplaintNumber(against, date).replace(/\/…$/, "/…"));
+          if (!cancelled) setIdPreview(previewComplaintNumber(against, date, stateCode));
         });
     }, 200);
     return () => { cancelled = true; window.clearTimeout(t); };
-  }, [mode, f.complaint_against, f.complaint_type, f.date_received, today]);
+  }, [mode, f.complaint_against, f.date_received, f.state_id, defaultStateId, today, states]);
 
   React.useEffect(() => {
-    if (mode !== "manage" || !f.escalation_level) {
-      setEscalationOfficerOptions([]);
-      return;
-    }
-    servicomApi.listInvestigatingOfficers({
-      escalation_level: f.escalation_level,
-      state_id: defaultStateId || f.state_id || undefined,
-      zone_id: defaultZoneId || f.zone_id || undefined,
-    })
-      .then((r) => setEscalationOfficerOptions(mapOfficerOptions(r.data)))
-      .catch(() => setEscalationOfficerOptions([]));
-  }, [mode, f.escalation_level, f.state_id, f.zone_id, defaultStateId, defaultZoneId]);
+    if (mode !== "manage" && mode !== "register") return;
+    stockApi.getDepartments()
+      .then((r) => {
+        const rows = Array.isArray(r.data) ? r.data : [];
+        if (!rows.length) {
+          setDepartmentOptions(ESCALATED_TO);
+          return;
+        }
+        setDepartmentOptions(
+          rows.map((d: any) => {
+            const code = d.department_code || d.code || "";
+            const name = d.name || d.description || "Department";
+            const label = code ? `${name} (${code})` : name;
+            const value = code || name;
+            return { value: String(value), label };
+          }),
+        );
+      })
+      .catch(() => setDepartmentOptions(ESCALATED_TO));
+  }, [mode]);
 
   const load = React.useCallback(async () => {
-    if (formFirst) return;
     setLoading(true);
     try {
-      const res = await servicomApi.listComplaints({
-        // State officers/coordinators: backend returns only assigned/forwarded inbox
-        state_id: isStateScopedViewer
-          ? undefined
-          : (geoLocked ? (defaultStateId ?? undefined) : (filterState !== "all" ? filterState : undefined)),
-        zone_id: isStateScopedViewer
-          ? undefined
-          : (geoLocked ? (defaultZoneId ?? undefined) : (filterZone !== "all" ? filterZone : undefined)),
+      const filters: Record<string, string | undefined> = {
         status: filterStatus !== "all" ? filterStatus : undefined,
         priority: filterPriority !== "all" ? filterPriority : undefined,
-        assigned_to_me: isStateScopedViewer || (showAssignedFilter && filterAssigned === "mine" && userName)
-          ? "1"
-          : undefined,
         facility_name: filterFacilityName || undefined,
         hmo_id: filterHmoId || undefined,
         transmission_route: filterTransmission !== "all" ? filterTransmission : undefined,
-      });
+      };
+
+      if (isStateCoordinator) {
+        filters.state_id = defaultStateId ?? undefined;
+        filters.zone_id = defaultZoneId ?? undefined;
+      } else if (isReportingOfficer) {
+        filters.mine = "1";
+      } else if (isStateOfficer) {
+        filters.assigned_to_me = "1";
+      } else {
+        filters.state_id = geoLocked
+          ? (defaultStateId ?? undefined)
+          : (filterState !== "all" ? filterState : undefined);
+        filters.zone_id = geoLocked
+          ? (defaultZoneId ?? undefined)
+          : (filterZone !== "all" ? filterZone : undefined);
+        filters.assigned_to_me =
+          showAssignedFilter && filterAssigned === "mine" && userName ? "1" : undefined;
+      }
+
+      const res = await servicomApi.listComplaints(filters);
       setComplaints(res.data);
     } catch (err: any) {
       toast.error("Failed to load complaints", { description: err.message });
     } finally { setLoading(false); }
   }, [
     defaultStateId, defaultZoneId, filterState, filterZone, filterStatus, filterPriority,
-    filterAssigned, showAssignedFilter, userName, geoLocked, isStateScopedViewer,
-    filterFacilityName, filterHmoId, filterTransmission, formFirst,
+    filterAssigned, showAssignedFilter, userName, geoLocked,
+    isStateCoordinator, isReportingOfficer, isStateOfficer,
+    filterFacilityName, filterHmoId, filterTransmission,
   ]);
 
-  React.useEffect(() => { if (mode === "list" && !formFirst) load(); }, [load, mode, formFirst]);
+  React.useEffect(() => { if (mode === "list") load(); }, [load, mode]);
   React.useEffect(() => { stockApi.getZones().then((r) => setZones(r.data)).catch(() => {}); }, []);
   React.useEffect(() => {
     const zoneId = geoLocked ? (defaultZoneId || f.zone_id) : f.zone_id;
@@ -572,7 +733,7 @@ export default function ServicomComplaintsPage({
     );
   };
 
-  const stageBadge = (c: any, emphasis = false) => {
+  const stageBadge = (c: any) => {
     const stage = lifecycleStageFromStatus(c.status, c);
     const cls = stage === "registration"
       ? "bg-blue-50 text-blue-700 border-blue-200"
@@ -582,7 +743,7 @@ export default function ServicomComplaintsPage({
           ? "bg-purple-50 text-purple-800 border-purple-200"
           : "bg-emerald-50 text-emerald-800 border-emerald-200";
     return (
-      <Badge variant="outline" className={`${emphasis ? "text-xs font-black px-2.5 py-1" : "text-[10px] font-semibold"} ${cls}`}>
+      <Badge variant="outline" className={`text-[10px] font-semibold px-1.5 py-0 ${cls}`}>
         {lifecycleStageLabel(stage)}
       </Badge>
     );
@@ -593,15 +754,8 @@ export default function ServicomComplaintsPage({
     setF(emptyForm(defaultZoneId, defaultStateId));
     setSelected(null);
     setActiveStage("registration");
-    setMode("register");
-  };
-
-  const resetCreateForm = () => {
-    setF(emptyForm(defaultZoneId, defaultStateId));
-    setSelected(null);
-    setActiveStage("registration");
     setFormKey((k) => k + 1);
-    setMode("register");
+    setComplaintsQuery({ mode: "register" });
   };
 
   const defaultStageForComplaint = (row: any): LifecycleStage => {
@@ -618,28 +772,141 @@ export default function ServicomComplaintsPage({
     return lifecycleStageFromStatus(status, row);
   };
 
+  const goToStage = (stage: LifecycleStage, opts?: { replace?: boolean }) => {
+    setActiveStage(stage);
+    if (mode === "manage" && (selected?.id || queryId)) {
+      setComplaintsQuery(
+        { mode: "manage", id: selected?.id ?? queryId, stage },
+        { replace: opts?.replace },
+      );
+    }
+  };
+
+  const loadComments = async (complaintId: number | string) => {
+    setCommentsLoading(true);
+    try {
+      const res = await servicomApi.listComplaintComments(complaintId);
+      setComments(res.data ?? []);
+    } catch {
+      setComments([]);
+    } finally {
+      setCommentsLoading(false);
+    }
+  };
+
   const openManage = async (row: any, stage?: LifecycleStage) => {
     try {
       const res = await servicomApi.getComplaint(row.id);
+      const nextStage = stage ?? defaultStageForComplaint(res.data);
       setSelected(res.data);
       setF(rowToForm(res.data));
-      setActiveStage(stage ?? defaultStageForComplaint(res.data));
-      setMode("manage");
+      setActiveStage(nextStage);
+      setComplaintsQuery({ mode: "manage", id: res.data.id, stage: nextStage });
     } catch (err: any) {
       toast.error("Failed to load complaint", { description: err.message });
     }
   };
 
-  const closeSub = () => {
-    if (formFirst) {
-      resetCreateForm();
-      return;
+  const openView = async (row: any) => {
+    try {
+      const res = await servicomApi.getComplaint(row.id);
+      setSelected(res.data);
+      setF(rowToForm(res.data));
+      setCommentDraft("");
+      setComplaintsQuery({ mode: "view", id: res.data.id });
+      await loadComments(res.data.id);
+    } catch (err: any) {
+      toast.error("Failed to load complaint", { description: err.message });
     }
-    setMode("list");
+  };
+
+  const submitComment = async () => {
+    if (!selected?.id || !commentDraft.trim()) return;
+    setCommentSaving(true);
+    try {
+      await servicomApi.addComplaintComment(selected.id, commentDraft.trim());
+      setCommentDraft("");
+      await loadComments(selected.id);
+      toast.success("Comment added");
+    } catch (err: any) {
+      toast.error("Failed to add comment", { description: err.message });
+    } finally {
+      setCommentSaving(false);
+    }
+  };
+
+  const closeSub = () => {
     setSelected(null);
     setActiveStage("registration");
-    load();
+    setComments([]);
+    setCommentDraft("");
+    setComplaintsQuery({ mode: "list" });
   };
+
+  const selectedIdRef = React.useRef<string | null>(null);
+  selectedIdRef.current = selected?.id != null ? String(selected.id) : null;
+
+  // Sync page state from URL (browser back/forward + deep links)
+  React.useEffect(() => {
+    let cancelled = false;
+
+    if (mode === "list") {
+      setSelected(null);
+      setComments([]);
+      setCommentDraft("");
+      return () => { cancelled = true; };
+    }
+
+    if (mode === "register") {
+      if (!canCreate) {
+        setComplaintsQuery({ mode: "list" }, { replace: true });
+        return () => { cancelled = true; };
+      }
+      setSelected(null);
+      setActiveStage("registration");
+      return () => { cancelled = true; };
+    }
+
+    if ((mode === "manage" || mode === "view") && queryId) {
+      const validStages: LifecycleStage[] = ["registration", "investigation", "escalation", "resolution"];
+      const stageFromQuery = queryStage && validStages.includes(queryStage) ? queryStage : null;
+
+      // Same complaint already loaded — only sync stage from the URL (back/forward)
+      if (mode === "manage" && selectedIdRef.current === String(queryId) && stageFromQuery) {
+        setActiveStage(stageFromQuery);
+        return () => { cancelled = true; };
+      }
+
+      (async () => {
+        try {
+          const res = await servicomApi.getComplaint(queryId);
+          if (cancelled) return;
+          setSelected(res.data);
+          setF(rowToForm(res.data));
+          if (mode === "manage") {
+            const stage = stageFromQuery ?? defaultStageForComplaint(res.data);
+            setActiveStage(stage);
+            if (!stageFromQuery) {
+              setComplaintsQuery({ mode: "manage", id: res.data.id, stage }, { replace: true });
+            }
+          } else {
+            setCommentDraft("");
+            await loadComments(res.data.id);
+          }
+        } catch (err: any) {
+          if (cancelled) return;
+          toast.error("Failed to load complaint", { description: err.message });
+          setComplaintsQuery({ mode: "list" }, { replace: true });
+        }
+      })();
+    } else if (mode === "manage" || mode === "view") {
+      setComplaintsQuery({ mode: "list" }, { replace: true });
+    }
+
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, queryId, queryStage]);
+
 
   const refreshSelected = async () => {
     if (!selected?.id) return;
@@ -720,12 +987,16 @@ export default function ServicomComplaintsPage({
       toast.error("Your account is not assigned to a state office.");
       return;
     }
-    if (!f.complaint_type || !f.complaint_against) {
-      toast.error("Complaint type and complaint against are required.");
+    if (!f.complainant_category || !f.complaint_against) {
+      toast.error("Complainant category and respondent are required.");
+      return;
+    }
+    if (!f.complaint_type) {
+      toast.error("Select a complainant category.");
       return;
     }
     if (f.complaint_type === f.complaint_against) {
-      toast.error("Complaint type and complaint against must be different.");
+      toast.error("Complainant category and respondent must be different.");
       return;
     }
     const fromErr = validatePartyDetails("from", f.complaint_type);
@@ -734,6 +1005,10 @@ export default function ServicomComplaintsPage({
     if (againstErr) { toast.error(againstErr); return; }
     if (!f.offence_reference) {
       toast.error("Select an issue from the complaint register.");
+      return;
+    }
+    if (f.offence_reference === OTHER_ISSUE_VALUE && !f.description?.trim()) {
+      toast.error("Describe the issue in the text area.");
       return;
     }
     if (!f.officer_assigned) {
@@ -777,15 +1052,11 @@ export default function ServicomComplaintsPage({
       };
       const res = await servicomApi.createComplaint(payload);
       toast.success("Complaint registered and officer notified");
-      if (formFirst) {
-        resetCreateForm();
-      } else {
-        setSelected(res.data);
-        setF(rowToForm(res.data));
-        setActiveStage("registration");
-        setMode("manage");
-        load();
-      }
+      setSelected(res.data);
+      setF(rowToForm(res.data));
+      setActiveStage("registration");
+      setComplaintsQuery({ mode: "manage", id: res.data.id, stage: "registration" });
+      load();
     } catch (err: any) {
       toast.error("Failed to register complaint", { description: err.message });
     } finally { setSaving(false); }
@@ -813,7 +1084,7 @@ export default function ServicomComplaintsPage({
         };
       } else if (stage === "escalation") {
         if (f.escalated && !f.escalated_to) {
-          toast.error("Select who the complaint is escalated to.");
+          toast.error("Select the escalation department.");
           setSaving(false);
           return;
         }
@@ -824,11 +1095,9 @@ export default function ServicomComplaintsPage({
         }
         payload = {
           escalated: !!f.escalated,
-          escalation_level: f.escalation_level || null,
-          escalation_date: f.escalation_date || (f.escalated ? today : null),
-          escalated_to: f.escalated_to || null,
-          // Hand off ownership to the escalation officer
-          officer_assigned: f.escalated ? (f.escalated_to || f.officer_assigned) : f.officer_assigned,
+          escalation_level: f.escalated ? (f.escalation_level || null) : "Not Escalated",
+          escalation_date: f.escalated ? (f.escalation_date || today) : null,
+          escalated_to: f.escalated ? (f.escalated_to || null) : null,
           status: f.escalated ? "Escalated" : selected.status,
         };
       } else if (stage === "resolution") {
@@ -856,7 +1125,7 @@ export default function ServicomComplaintsPage({
         stage === "investigation"
           ? (startingInvestigation ? "Investigation started" : "Investigation updated")
           : stage === "escalation" && f.escalated
-            ? "Complaint escalated — assigned officer notified"
+            ? "Complaint escalated to department"
             : `${lifecycleStageLabel(stage)} submitted`;
       toast.success(stageToast);
       await refreshSelected();
@@ -876,31 +1145,42 @@ export default function ServicomComplaintsPage({
     description: "",
   });
 
-  const onComplaintTypeChange = (v: PartyType) => {
-    setF((p) => ({
-      ...p,
-      complaint_type: v,
-      from_hmo_id: "",
-      from_hcf_id: "",
-      from_name: "",
-      from_organization: "",
-      from_phone: "",
-      from_nhis_id: "",
-      complaint_against: "",
-      against_hmo_id: "",
-      against_hcf_id: "",
-      against_name: "",
-      against_organization: "",
-      against_phone: "",
-      against_nhis_id: "",
-      ...clearOffence(),
-    }));
+  const onComplainantCategoryChange = (category: string) => {
+    const party = partyTypeFromComplainantCategory(category) as PartyType | "";
+    setF((p) => {
+      const partyChanged = party !== p.complaint_type;
+      return {
+        ...p,
+        complainant_category: category,
+        complaint_type: party,
+        ...(partyChanged ? {
+          from_hmo_id: "",
+          from_hcf_id: "",
+          from_name: "",
+          from_organization: "",
+          from_phone: "",
+          from_nhis_id: "",
+          complaint_against: "",
+          against_hmo_id: "",
+          against_hcf_id: "",
+          against_name: "",
+          against_organization: "",
+          against_phone: "",
+          against_nhis_id: "",
+          respondent_category: "",
+          ...clearOffence(),
+        } : {}),
+      };
+    });
   };
 
   const onComplaintAgainstChange = (v: PartyType) => {
+    const respondentCategory =
+      v === "HCF" ? "Healthcare Facility" : v === "HMO" ? "HMO" : v === "Enrollee" ? "Other" : "";
     setF((p) => ({
       ...p,
       complaint_against: v,
+      respondent_category: respondentCategory,
       against_hmo_id: "",
       against_hcf_id: "",
       against_name: "",
@@ -912,6 +1192,19 @@ export default function ServicomComplaintsPage({
   };
 
   const onOffenceChange = (reference: string) => {
+    if (reference === OTHER_ISSUE_VALUE) {
+      setF((p) => ({
+        ...p,
+        offence_reference: OTHER_ISSUE_VALUE,
+        complaint_domain: "",
+        domain_code: "",
+        complaint_category: "",
+        category_code: "",
+        priority_rating: "",
+        description: "",
+      }));
+      return;
+    }
     const entry = findOffenceById(reference);
     if (!entry) return;
     setF((p) => ({
@@ -1156,6 +1449,7 @@ export default function ServicomComplaintsPage({
     const againstParty = (readOnly ? rowToForm(row).complaint_against : f.complaint_against) as PartyType | "";
     const offenceOptions = offencesForParties(fromParty, againstParty);
     const offenceSelected = !!(readOnly ? row?.offence_reference : f.offence_reference);
+    const isOtherIssue = (readOnly ? row?.offence_reference : f.offence_reference) === OTHER_ISSUE_VALUE;
 
     const priority = readOnly ? row?.priority_rating : f.priority_rating;
     const domain = readOnly ? row?.complaint_domain : f.complaint_domain;
@@ -1196,38 +1490,24 @@ export default function ServicomComplaintsPage({
             {fromParty === "HCF" || fromParty === "HMO" ? (
               <div className="col-span-full grid grid-cols-1 md:grid-cols-3 gap-4">
                 <FieldSelect
-                  label="Complainant Category"
-                  value={readOnly ? row?.complainant_category : f.complainant_category}
+                  label="Complainant Category *"
+                  value={readOnly ? (row?.complainant_category ?? "") : f.complainant_category}
                   options={COMPLAINANT_CATEGORIES}
                   readOnly={readOnly}
-                  onChange={(v) => set("complainant_category", v)}
-                />
-                <FieldSelect
-                  label="Complaint Type *"
-                  value={fromParty}
-                  options={COMPLAINT_TYPES}
-                  readOnly={readOnly}
-                  onChange={(v) => onComplaintTypeChange(v as PartyType)}
-                  placeholder="HCF, HMO, or Enrollee"
+                  onChange={(v) => onComplainantCategoryChange(v)}
+                  placeholder="Select complainant category"
                 />
                 {renderInlinePartyPicker("from", fromParty, readOnly, row)}
               </div>
             ) : (
               <>
                 <FieldSelect
-                  label="Complainant Category"
-                  value={readOnly ? row?.complainant_category : f.complainant_category}
+                  label="Complainant Category *"
+                  value={readOnly ? (row?.complainant_category ?? "") : f.complainant_category}
                   options={COMPLAINANT_CATEGORIES}
                   readOnly={readOnly}
-                  onChange={(v) => set("complainant_category", v)}
-                />
-                <FieldSelect
-                  label="Complaint Type *"
-                  value={fromParty}
-                  options={COMPLAINT_TYPES}
-                  readOnly={readOnly}
-                  onChange={(v) => onComplaintTypeChange(v as PartyType)}
-                  placeholder="HCF, HMO, or Enrollee"
+                  onChange={(v) => onComplainantCategoryChange(v)}
+                  placeholder="Select complainant category"
                 />
                 {fromParty === "Enrollee" ? renderInlinePartyPicker("from", fromParty, readOnly, row) : null}
               </>
@@ -1237,24 +1517,24 @@ export default function ServicomComplaintsPage({
               againstParty === "HCF" || againstParty === "HMO" ? (
                 <div className="col-span-full grid grid-cols-1 md:grid-cols-3 gap-4">
                   <FieldSelect
-                    label="Complaint Against *"
+                    label="Respondent *"
                     value={againstParty}
                     options={againstOptions}
                     readOnly={readOnly}
                     onChange={(v) => onComplaintAgainstChange(v as PartyType)}
-                    placeholder="Select who the complaint is against"
+                    placeholder="Select respondent"
                   />
                   {renderInlinePartyPicker("against", againstParty, readOnly, row)}
                 </div>
               ) : (
                 <>
                   <FieldSelect
-                    label="Complaint Against *"
+                    label="Respondent *"
                     value={againstParty}
                     options={againstOptions}
                     readOnly={readOnly}
                     onChange={(v) => onComplaintAgainstChange(v as PartyType)}
-                    placeholder="Select who the complaint is against"
+                    placeholder="Select respondent"
                     className={!againstParty || againstParty === "Enrollee" ? "md:col-span-2" : undefined}
                   />
                   {againstParty === "Enrollee" ? renderInlinePartyPicker("against", againstParty, readOnly, row) : null}
@@ -1269,13 +1549,14 @@ export default function ServicomComplaintsPage({
               readOnly={readOnly}
               onChange={(v) => set("transmission_route", v)}
             />
-            <FieldSelect
+            {/* Respondent Category — hidden; set from Respondent (HCF / HMO / Enrollee) */}
+            {/* <FieldSelect
               label="Respondent Category"
               value={readOnly ? row?.respondent_category : f.respondent_category}
               options={RESPONDENT_CATEGORIES}
               readOnly={readOnly}
               onChange={(v) => set("respondent_category", v)}
-            />
+            /> */}
             {!readOnly ? (
               <FieldSelect
                 label="Assign To *"
@@ -1301,7 +1582,19 @@ export default function ServicomComplaintsPage({
               </div>
             )}
 
-            {offenceSelected && (
+            {isOtherIssue && (
+              <div className="col-span-full">
+                <FieldTextarea
+                  label="Describe the issue *"
+                  value={offenceText ?? ""}
+                  onChange={(v) => set("description", v)}
+                  readOnly={readOnly}
+                  placeholder="Write the issue or complaint"
+                />
+              </div>
+            )}
+
+            {offenceSelected && !isOtherIssue && (
               <div className="col-span-full grid grid-cols-1 sm:grid-cols-3 gap-3 rounded-xl bg-[#f8fbf9] border border-[#d4e8dc] px-3 py-2.5">
                 <DerivedField label="Domain" value={domain} />
                 <DerivedField label="Category" value={category} />
@@ -1309,13 +1602,13 @@ export default function ServicomComplaintsPage({
               </div>
             )}
 
-            {offenceSelected && offenceText && (
+            {offenceSelected && !isOtherIssue && offenceText && (
               <div className="col-span-full">
                 <DerivedTextBlock label="Issue" value={offenceText} />
               </div>
             )}
 
-            {offenceSelected && (priority || readOnly) && (
+            {offenceSelected && !isOtherIssue && (priority || readOnly) && (
               <div className="col-span-full">
                 <SlaHint priority={priority} slaRow={slaRow} />
               </div>
@@ -1355,47 +1648,77 @@ export default function ServicomComplaintsPage({
   const renderRegistrationSummary = (row?: any) => {
     if (!row) return null;
     const mapped = rowToForm(row);
-    const fromLabel = COMPLAINT_PARTY_TYPES.find((p) => p.value === mapped.complaint_type)?.label ?? mapped.complaint_type;
     const againstLabel = COMPLAINT_PARTY_TYPES.find((p) => p.value === mapped.complaint_against)?.label ?? mapped.complaint_against;
+    const filingParty = row.complainant_name ?? row.complainant_hmo?.name ?? row.complainant_hcf?.name;
+    const respondentParty = row.respondent_name ?? row.facility_name ?? row.respondent_hmo?.name;
     return (
-      <StageSummaryCard title="Complaint">
-        {!isStateScopedViewer && (
-          <>
-            <SummaryField label="Zone" value={zoneLabel(row)} />
-            <SummaryField label="State" value={stateLabel(row)} />
-          </>
-        )}
-        <SummaryField label="Complaint ID" value={row.complaint_number} />
-        <SummaryField label="Date Received" value={row.date_received ?? row.complaint_date} />
-        <SummaryField label="Transmission Route" value={row.transmission_route} />
-        <SummaryField label="Complaint Type" value={fromLabel} />
-        <SummaryField label="Complainant Category" value={row.complainant_category} />
-        <SummaryField label="Respondent Category" value={row.respondent_category} />
-        <SummaryField label="Complaint Against" value={againstLabel} />
-        <SummaryField label="Filing Party" value={row.complainant_name ?? row.complainant_hmo?.name ?? row.complainant_hcf?.name} />
-        {row.complainant_organization && (
-          <SummaryField label="Organization" value={row.complainant_organization} />
-        )}
-        <SummaryField label="Complainant NHIA No." value={row.complainant_nhis_id ?? row.complainant_id} />
-        <SummaryField label="Against Party" value={row.respondent_name ?? row.facility_name ?? row.respondent_hmo?.name} />
-        {row.respondent_organization && (
-          <SummaryField label="Respondent Organization" value={row.respondent_organization} />
-        )}
-        <SummaryField label="Respondent Code / NHIA No." value={row.respondent_nhis_id ?? row.respondent_id} />
-        <SummaryField label="Domain" value={row.complaint_domain} />
-        <SummaryField label="Category" value={row.complaint_category ?? row.category} />
-        <SummaryField label="Priority" value={row.priority_rating} />
-        <SummaryField label="Assigned To" value={row.officer_assigned ?? row.assigned_officer} />
-        <SummaryField label="Issue" value={row.description} fullWidth />
-      </StageSummaryCard>
+      <div className="overflow-hidden">
+        <div className="flex items-center gap-2 px-3.5 py-2 border-b border-slate-100">
+          <h2 className="text-[11px] font-bold uppercase tracking-wider text-slate-800">Complaint</h2>
+        </div>
+        <div className="px-3.5 py-2.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-5">
+            <ViewInfoRow label="Complaint ID" value={row.complaint_number} mono highlight />
+            <ViewInfoRow label="Date received" value={row.date_received ?? row.complaint_date} />
+            <ViewInfoRow label="Transmission" value={row.transmission_route} />
+            <ViewInfoRow label="Priority" value={row.priority_rating} highlight />
+            <ViewInfoRow label="Domain" value={row.complaint_domain} />
+            <ViewInfoRow label="Category" value={row.complaint_category ?? row.category} />
+            <ViewInfoRow label="Complainant" value={row.complainant_category} />
+            <ViewInfoRow label="Against" value={againstLabel} />
+            <ViewInfoRow label="Filing party" value={filingParty} highlight />
+            <ViewInfoRow label="Respondent" value={respondentParty} highlight />
+            <ViewInfoRow label="Complainant NHIA" value={row.complainant_nhis_id ?? row.complainant_id} mono />
+            <ViewInfoRow label="Respondent code" value={row.respondent_nhis_id ?? row.respondent_id} mono />
+            {row.complainant_organization && (
+              <ViewInfoRow label="Organization" value={row.complainant_organization} />
+            )}
+            {row.respondent_organization && (
+              <ViewInfoRow label="Respondent org" value={row.respondent_organization} />
+            )}
+            <ViewInfoRow label="Assigned to" value={row.officer_assigned ?? row.assigned_officer} highlight />
+            {!isStateScopedViewer && (
+              <>
+                <ViewInfoRow label="Zone" value={zoneLabel(row)} />
+                <ViewInfoRow label="State" value={stateLabel(row)} />
+              </>
+            )}
+            {row.description && (
+              <div className="sm:col-span-2 pt-1.5 mt-0.5 border-t border-slate-50">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-0.5">Issue</p>
+                <p className="text-[13px] text-slate-800 whitespace-pre-wrap leading-snug">{row.description}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
     );
   };
 
-  const renderActiveStageForm = (row?: any, readOnly = false, actionLabel?: string | null) => {
-    if (activeStage === "registration") return renderRegistrationSummary(row) ?? renderComplaintSection(true, row, true);
-    if (activeStage === "investigation") return renderInvestigationSection(readOnly, row, actionLabel);
-    if (activeStage === "escalation") return renderEscalationSection(readOnly, row, actionLabel);
-    return renderResolutionSection(readOnly, row, actionLabel);
+  const renderActiveStageForm = (
+    row?: any,
+    readOnly = false,
+    actionLabel?: string | null,
+    showNext = false,
+    onNext?: () => void,
+  ) => {
+    if (activeStage === "registration") {
+      return (
+        <Card className="rounded-xl border-slate-200/90 bg-white shadow-sm w-full py-0 gap-0 overflow-hidden">
+          <CardContent className="p-0">
+            {renderRegistrationSummary(row) ?? renderComplaintSection(true, row, true)}
+          </CardContent>
+          <StageActionFooter showNext={showNext} onNext={onNext} />
+        </Card>
+      );
+    }
+    if (activeStage === "investigation") {
+      return renderInvestigationSection(readOnly, row, actionLabel, showNext, onNext);
+    }
+    if (activeStage === "escalation") {
+      return renderEscalationSection(readOnly, row, actionLabel, showNext, onNext);
+    }
+    return renderResolutionSection(readOnly, row, actionLabel, showNext, onNext);
   };
 
   const renderComplaintSlaBar = (row?: any) => {
@@ -1403,8 +1726,8 @@ export default function ServicomComplaintsPage({
     const slaRow = slaForPriority(row.priority_rating ?? "", slaRules);
 
     return (
-      <div className="px-4 md:px-6 py-2.5 border-t border-[#d4e8dc] bg-[#f8fbf9] flex flex-wrap items-center gap-x-3 gap-y-2">
-        {statusBadge(row.status ?? "New/Acknowledged", true, {
+      <div className="px-4 md:px-5 py-1.5 border-t border-[#d4e8dc] bg-[#f8fbf9] flex flex-wrap items-center gap-x-2.5 gap-y-1">
+        {statusBadge(row.status ?? "New/Acknowledged", false, {
           escalatedToMe: !!row.escalated && isCurrentAssignee(row) && !isComplaintClosed(row.status),
         })}
         {row.priority_rating && (
@@ -1417,14 +1740,14 @@ export default function ServicomComplaintsPage({
           <>
             <span className="text-xs text-slate-300">|</span>
             <span className="inline-flex items-center gap-1.5">
-              <span className={`h-3 w-3 shrink-0 rounded-full ${slaColorDotClass(row.sla.color)}`} />
+              <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${slaColorDotClass(row.sla.color)}`} />
               {computeSlaOverdueDays(row.sla) > 0 && (
-                <span className="text-[11px] font-bold text-slate-700 tabular-nums">
+                <span className="text-[10px] font-bold text-slate-700 tabular-nums">
                   {computeSlaOverdueDays(row.sla)} overdue
                 </span>
               )}
             </span>
-            <span className="text-[11px] text-slate-600">
+            <span className="text-[10px] text-slate-600">
               {row.sla.working_days_elapsed} working day(s) since received
             </span>
             {(row.sla.flags ?? []).map((flag: { code: string; label: string }) => (
@@ -1436,7 +1759,7 @@ export default function ServicomComplaintsPage({
         ) : slaRow ? (
           <>
             <span className="text-xs text-slate-300">|</span>
-            <span className="text-[11px] text-slate-600">
+            <span className="text-[10px] text-slate-600">
               Ack {slaRow.acknowledge} · Investigate {slaRow.investigate} · Escalate {slaRow.escalate} · Resolve {slaRow.resolve}
             </span>
           </>
@@ -1446,9 +1769,9 @@ export default function ServicomComplaintsPage({
   };
 
   const renderEscalationFields = (readOnly: boolean, row?: any) => {
-    const levelOptions = escalationOfficerOptions.length
-      ? escalationOfficerOptions
-      : officerOptions;
+    const deptOptions = departmentOptions.length ? departmentOptions : ESCALATED_TO;
+    const isEscalated = readOnly ? !!row?.escalated : !!f.escalated;
+    const lockExtra = !readOnly && !isEscalated;
     return (
     <>
       {readOnly ? (
@@ -1464,32 +1787,39 @@ export default function ServicomComplaintsPage({
             setF((p) => ({
               ...p,
               escalated: yes,
-              escalation_date: yes ? (p.escalation_date || today) : p.escalation_date,
+              escalation_level: yes ? p.escalation_level : "",
+              escalation_date: yes ? (p.escalation_date || today) : "",
+              escalated_to: yes ? p.escalated_to : "",
             }));
           }} />
       )}
       <FieldSelect
         label="Escalation Level"
-        value={readOnly ? row?.escalation_level : f.escalation_level}
+        value={readOnly ? (row?.escalation_level ?? "") : f.escalation_level}
         options={ESCALATION_LEVELS}
         readOnly={readOnly}
-        onChange={(v) => setF((p) => ({ ...p, escalation_level: v, escalated_to: "" }))}
+        disabled={lockExtra}
+        placeholder={lockExtra ? "Select Yes to escalate first" : undefined}
+        onChange={(v) => set("escalation_level", v)}
       />
-      <FieldText label="Escalation Date" type="date" value={readOnly ? row?.escalation_date : f.escalation_date}
-        onChange={(v) => set("escalation_date", v)} readOnly={readOnly} />
+      <FieldText
+        label="Escalation Date"
+        type="date"
+        value={readOnly ? (row?.escalation_date ?? "") : f.escalation_date}
+        onChange={(v) => set("escalation_date", v)}
+        readOnly={readOnly}
+        disabled={lockExtra}
+      />
       {readOnly ? (
-        <AutoField label="Escalated To" value={row?.escalated_to} />
+        <AutoField label="Escalation Department" value={row?.escalated_to} />
       ) : (
         <FieldSelect
-          label="Escalation Officer *"
+          label="Escalation Department *"
           value={f.escalated_to}
-          options={levelOptions.length ? levelOptions : ESCALATED_TO}
+          options={deptOptions}
+          disabled={lockExtra}
           onChange={(v) => set("escalated_to", v)}
-          placeholder={
-            f.escalation_level
-              ? (levelOptions.length ? "Select officer for this escalation level" : "No officers for this level")
-              : "Select escalation level first"
-          }
+          placeholder={lockExtra ? "Select Yes to escalate first" : "Select department"}
         />
       )}
     </>
@@ -1537,18 +1867,18 @@ export default function ServicomComplaintsPage({
     );
   };
 
-  const renderInvestigationSection = (readOnly: boolean, row?: any, actionLabel?: string | null) => {
+  const renderInvestigationSection = (readOnly: boolean, row?: any, actionLabel?: string | null, showNext = false, onNext?: () => void) => {
     const started = !!(readOnly ? row?.investigation_start_date : f.investigation_start_date)
       || ["Under Investigation", "Awaiting Information", "Awaiting Respondent Action"].includes(
         readOnly ? row?.status : f.status,
       );
 
     return (
-      <Card className="rounded-2xl border-[#d4e8dc] bg-white shadow-sm w-full py-0 gap-0">
-        <CardContent className="p-6 md:p-8 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
+      <Card className="rounded-xl border-[#d4e8dc] bg-white shadow-sm w-full py-0 gap-0">
+        <CardContent className="p-4 md:p-5 grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-3">
           {!readOnly && !started && (
-            <div className="col-span-full rounded-xl border border-amber-200/80 bg-amber-50/80 px-4 py-3.5">
-              <p className="text-sm text-amber-950 leading-relaxed">
+            <div className="col-span-full rounded-lg border border-amber-200/80 bg-amber-50/80 px-3 py-2.5">
+              <p className="text-xs text-amber-950 leading-relaxed">
                 Investigation has not started. Click <span className="font-semibold">Start</span> below when you are ready to begin.
               </p>
             </div>
@@ -1565,56 +1895,56 @@ export default function ServicomComplaintsPage({
           />
           {started && (
             <>
-              <FieldSelect label="Status" value={readOnly ? row?.status : f.status}
-                options={readOnly ? COMPLAINT_STATUSES : INVESTIGATION_STATUSES}
-                readOnly={readOnly} onChange={(v) => set("status", v)} />
               <FieldSelect label="Actions Taken" value={readOnly ? row?.actions_taken : f.actions_taken}
                 options={ACTIONS_TAKEN} readOnly={readOnly} onChange={(v) => set("actions_taken", v)} />
               <div className="col-span-full">
                 <FieldText label="Actions Details" value={readOnly ? row?.actions_details : f.actions_details}
                   onChange={(v) => set("actions_details", v)} readOnly={readOnly} />
               </div>
+              <FieldSelect label="Status" value={readOnly ? row?.status : f.status}
+                options={readOnly ? COMPLAINT_STATUSES : INVESTIGATION_STATUSES}
+                readOnly={readOnly} onChange={(v) => set("status", v)} />
             </>
           )}
         </CardContent>
-        {actionLabel && (
-          <StageActionFooter
-            label={actionLabel}
-            onClick={() => handleSaveStage("investigation")}
-            saving={saving}
-          />
-        )}
+        <StageActionFooter
+          label={actionLabel}
+          onClick={actionLabel ? () => handleSaveStage("investigation") : undefined}
+          saving={saving}
+          showNext={showNext}
+          onNext={onNext}
+        />
       </Card>
     );
   };
 
-  const renderEscalationSection = (readOnly: boolean, row?: any, actionLabel?: string | null) => (
-    <Card className="rounded-2xl border-[#d4e8dc] bg-white shadow-sm w-full py-0 gap-0">
-      <CardContent className="p-6 md:p-8 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
+  const renderEscalationSection = (readOnly: boolean, row?: any, actionLabel?: string | null, showNext = false, onNext?: () => void) => (
+    <Card className="rounded-xl border-[#d4e8dc] bg-white shadow-sm w-full py-0 gap-0">
+      <CardContent className="p-4 md:p-5 grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-3">
         {renderEscalationFields(readOnly, row)}
       </CardContent>
-      {actionLabel && (
-        <StageActionFooter
-          label={actionLabel}
-          onClick={() => handleSaveStage("escalation")}
-          saving={saving}
-        />
-      )}
+      <StageActionFooter
+        label={actionLabel}
+        onClick={actionLabel ? () => handleSaveStage("escalation") : undefined}
+        saving={saving}
+        showNext={showNext}
+        onNext={onNext}
+      />
     </Card>
   );
 
-  const renderResolutionSection = (readOnly: boolean, row?: any, actionLabel?: string | null) => (
-    <Card className="rounded-2xl border-[#d4e8dc] bg-white shadow-sm w-full py-0 gap-0">
-      <CardContent className="p-6 md:p-8 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
+  const renderResolutionSection = (readOnly: boolean, row?: any, actionLabel?: string | null, showNext = false, onNext?: () => void) => (
+    <Card className="rounded-xl border-[#d4e8dc] bg-white shadow-sm w-full py-0 gap-0">
+      <CardContent className="p-4 md:p-5 grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-3">
         {renderResolutionFields(readOnly, row)}
       </CardContent>
-      {actionLabel && (
-        <StageActionFooter
-          label={actionLabel}
-          onClick={() => handleSaveStage("resolution")}
-          saving={saving}
-        />
-      )}
+      <StageActionFooter
+        label={actionLabel}
+        onClick={actionLabel ? () => handleSaveStage("resolution") : undefined}
+        saving={saving}
+        showNext={showNext}
+        onNext={onNext}
+      />
     </Card>
   );
 
@@ -1650,31 +1980,41 @@ export default function ServicomComplaintsPage({
       else if (activeStage === "resolution") actionLabel = row.date_closed || row.outcome ? "Update" : "Submit";
       else actionLabel = "Submit";
     }
-    return renderActiveStageForm(row, readOnly, actionLabel);
+
+    const completion = getStageCompletion(row);
+    const nextStage = nextLifecycleStage(activeStage);
+    const showNext = nextStage !== activeStage && !!completion[activeStage];
+    const onNext = () => goToStage(nextStage);
+
+    return renderActiveStageForm(row, readOnly, actionLabel, showNext, onNext);
   };
 
   const renderStageTabs = (row: any) => {
     const completion = getStageCompletion(row);
     return (
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-1.5">
         {COMPLAINT_LIFECYCLE.map((stage) => {
           const isActive = activeStage === stage.id;
           const done = completion[stage.id];
+          const reachable = isStageReachable(stage.id, completion);
           return (
             <button
               key={stage.id}
               type="button"
-              onClick={() => setActiveStage(stage.id)}
-              className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+              disabled={!reachable}
+              onClick={() => reachable && goToStage(stage.id)}
+              className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-semibold transition-colors ${
                 isActive
                   ? "bg-[#145c3f] text-white"
-                  : "bg-white text-slate-700 border border-[#d4e8dc] hover:bg-[#f6fbf8]"
+                  : reachable
+                    ? "bg-white text-slate-600 border border-[#d4e8dc] hover:bg-[#f6fbf8]"
+                    : "bg-slate-50 text-slate-300 border border-slate-100 cursor-not-allowed"
               }`}
             >
               {done ? (
-                <CheckCircle2 className={`w-4 h-4 ${isActive ? "text-white" : "text-[#25a872]"}`} />
+                <CheckCircle2 className={`w-3.5 h-3.5 ${isActive ? "text-white" : "text-[#25a872]"}`} />
               ) : (
-                <Circle className={`w-4 h-4 ${isActive ? "text-white/80" : "text-slate-300"}`} />
+                <Circle className={`w-3.5 h-3.5 ${isActive ? "text-white/80" : "text-slate-300"}`} />
               )}
               {stage.label}
             </button>
@@ -1687,19 +2027,19 @@ export default function ServicomComplaintsPage({
   if (mode === "register") {
     return (
       <div key={`complaint-register-${formKey}`} className="bg-[#f4f7f5]">
-        <div className="bg-white border-b px-4 md:px-6 py-3 flex items-center gap-3 sticky top-0 z-30">
+        <div className="bg-white border-b px-4 md:px-5 py-2.5 flex items-center gap-3 sticky top-0 z-30">
           <Button
             variant="ghost"
             size="icon"
-            onClick={formFirst ? onBack : closeSub}
-            className="rounded-full hover:bg-[#e8f5ee] shrink-0"
-            aria-label="Back"
+            onClick={closeSub}
+            className="rounded-full hover:bg-[#e8f5ee] shrink-0 h-8 w-8"
+            aria-label="Back to list"
           >
-            <ArrowLeft className="w-5 h-5" />
+            <ArrowLeft className="w-4 h-4" />
           </Button>
-          <h1 className="text-lg font-bold text-slate-900">Register New Complaint</h1>
+          <h1 className="text-base font-bold text-slate-900">Register New Complaint</h1>
         </div>
-        <div className="w-full px-4 md:px-6 py-4 md:py-6">
+        <div className="w-full px-4 md:px-5 py-3 md:py-4">
           {renderComplaintSection(false)}
         </div>
         <SubmitConfirmModal
@@ -1715,6 +2055,260 @@ export default function ServicomComplaintsPage({
     );
   }
 
+  if (mode === "view") {
+    const row = selected;
+    const againstLabel = COMPLAINT_PARTY_TYPES.find((p) => p.value === (row?.complaint_against ?? f.complaint_against))?.label
+      ?? row?.complaint_against
+      ?? "—";
+    const closed = isComplaintClosed(row?.status);
+    const stage = lifecycleStageFromStatus(row?.status ?? "", row);
+    const stageLabel = lifecycleStageLabel(stage);
+    const filingParty = row?.complainant_name ?? row?.complainant_hmo?.name ?? row?.complainant_hcf?.name;
+    const respondentParty = row?.respondent_name ?? row?.facility_name ?? row?.respondent_hmo?.name;
+
+    const hasInvestigation = !!(
+      row?.investigation_start_date
+      || (row?.actions_taken && row.actions_taken !== "Investigation commenced")
+      || row?.actions_details
+      || ["Under Investigation", "Awaiting Information", "Awaiting Respondent Action"].includes(row?.status)
+    );
+    const hasEscalation = !!(
+      row?.escalated
+      || row?.status === "Escalated"
+      || (row?.escalation_level && row.escalation_level !== "Not Escalated")
+      || row?.escalated_to
+    );
+    const hasResolution = !!(
+      closed
+      || row?.date_closed
+      || row?.outcome
+      || row?.resolution_notes
+      || ["Resolved", "Closed", "Complaint Withdrawn", "Referred to Appropriate Authority"].includes(row?.status)
+    );
+
+    const formatCommentTime = (c: { createdAt?: string; created_at?: string }) => {
+      const raw = c.createdAt || c.created_at;
+      if (!raw) return "";
+      try {
+        return new Date(raw).toLocaleString(undefined, {
+          day: "2-digit", month: "short", year: "numeric",
+          hour: "2-digit", minute: "2-digit",
+        });
+      } catch {
+        return String(raw);
+      }
+    };
+
+    const ViewSection = ({
+      title,
+      icon: Icon,
+      children,
+      accent,
+    }: {
+      title: string;
+      icon: React.ComponentType<{ className?: string }>;
+      children: React.ReactNode;
+      accent?: string;
+    }) => (
+      <div className="bg-white border border-slate-200/90 rounded-xl shadow-sm overflow-hidden">
+        <div className={`flex items-center gap-2 px-3.5 py-2 border-b border-slate-100 ${accent ?? "bg-white"}`}>
+          <div className="p-1 bg-[#e8f5ee] rounded-md text-[#145c3f]">
+            <Icon className="w-3.5 h-3.5" />
+          </div>
+          <h2 className="text-[11px] font-bold uppercase tracking-wider text-slate-800">{title}</h2>
+        </div>
+        <div className="px-3.5 py-2.5">{children}</div>
+      </div>
+    );
+
+    const NoteBlock = ({ label, text }: { label: string; text?: string | null }) => {
+      if (!text) return null;
+      return (
+        <div className="sm:col-span-2 pt-1.5 mt-0.5 border-t border-slate-50">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-0.5">{label}</p>
+          <p className="text-[13px] text-slate-800 whitespace-pre-wrap leading-snug">{text}</p>
+        </div>
+      );
+    };
+
+    return (
+      <div className="bg-[#f4f7f5] min-h-full">
+        <div className="bg-white border-b sticky top-0 z-30">
+          <div className="px-4 md:px-5 py-2.5 flex items-center gap-2.5">
+            <Button variant="ghost" size="icon" onClick={closeSub} className="rounded-full shrink-0 hover:bg-[#e8f5ee] h-8 w-8" aria-label="Back to list">
+              <ArrowLeft className="w-4 h-4" />
+            </Button>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-sm font-bold tracking-tight font-mono truncate">{row?.complaint_number ?? "Complaint"}</h2>
+                {statusBadge(row?.status ?? "—", false)}
+                {row?.priority_rating && (
+                  <span className="rounded-md bg-slate-100 border border-slate-200 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600">
+                    {row.priority_rating}
+                  </span>
+                )}
+                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">{stageLabel}</span>
+              </div>
+              <p className="text-[11px] text-slate-500 truncate mt-0.5">
+                {[
+                  closed ? "Closed — view only" : "View only",
+                  row?.officer_assigned ?? row?.assigned_officer,
+                  row?.date_received ?? row?.complaint_date,
+                ].filter(Boolean).join(" · ")}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="w-full px-4 md:px-5 py-3.5">
+          <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_320px] gap-3.5 items-start">
+            <div className="space-y-2.5 min-w-0">
+              <ViewSection title="Overview" icon={FileText}>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-5">
+                  <ViewInfoRow label="Complaint ID" value={row?.complaint_number} mono highlight />
+                  <ViewInfoRow label="Date received" value={row?.date_received ?? row?.complaint_date} />
+                  <ViewInfoRow label="Transmission" value={row?.transmission_route} />
+                  <ViewInfoRow label="Priority" value={row?.priority_rating} highlight />
+                  <ViewInfoRow label="Domain" value={row?.complaint_domain} />
+                  <ViewInfoRow label="Category" value={row?.complaint_category ?? row?.category} />
+                  <ViewInfoRow label="Complainant" value={row?.complainant_category} />
+                  <ViewInfoRow label="Against" value={againstLabel} />
+                  <ViewInfoRow label="Filing party" value={filingParty} highlight />
+                  <ViewInfoRow label="Respondent" value={respondentParty} highlight />
+                  <ViewInfoRow label="Complainant NHIA" value={row?.complainant_nhis_id ?? row?.complainant_id} mono />
+                  <ViewInfoRow label="Respondent code" value={row?.respondent_nhis_id ?? row?.respondent_id} mono />
+                  <ViewInfoRow label="Assigned to" value={row?.officer_assigned ?? row?.assigned_officer} highlight />
+                  <ViewInfoRow label="Created by" value={row?.created_by} />
+                  {!isStateScopedViewer && (
+                    <>
+                      <ViewInfoRow label="Zone" value={zoneLabel(row)} />
+                      <ViewInfoRow label="State" value={stateLabel(row)} />
+                    </>
+                  )}
+                  <ViewInfoRow
+                    label="SLA"
+                    value={
+                      row?.sla ? (
+                        <span className="inline-flex items-center gap-1.5">
+                          <span className={`h-2 w-2 shrink-0 rounded-full ${slaColorDotClass(row.sla.color)}`} />
+                          {computeSlaOverdueDays(row.sla) > 0
+                            ? `${computeSlaOverdueDays(row.sla)}d overdue`
+                            : "On track"}
+                        </span>
+                      ) : undefined
+                    }
+                  />
+                  <NoteBlock label="Issue" text={row?.description} />
+                </div>
+              </ViewSection>
+
+              {hasInvestigation && (
+                <ViewSection title="Investigation" icon={Search} accent="bg-blue-50/40">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-5">
+                    <ViewInfoRow label="Started" value={row?.investigation_start_date} />
+                    <ViewInfoRow label="Status" value={row?.status} />
+                    <ViewInfoRow label="Actions taken" value={row?.actions_taken} highlight />
+                    <ViewInfoRow label="Assigned officer" value={row?.officer_assigned ?? row?.assigned_officer} />
+                    <NoteBlock label="Investigation notes" text={row?.actions_details} />
+                  </div>
+                </ViewSection>
+              )}
+
+              {hasEscalation && (
+                <ViewSection title="Escalation" icon={AlertTriangle} accent="bg-amber-50/50">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-5">
+                    <ViewInfoRow label="Level" value={row?.escalation_level || "Escalated"} highlight />
+                    <ViewInfoRow label="Date" value={row?.escalation_date} />
+                    <ViewInfoRow label="Escalation department" value={row?.escalated_to} highlight />
+                    <ViewInfoRow label="Current assignee" value={row?.officer_assigned ?? row?.assigned_officer} />
+                  </div>
+                </ViewSection>
+              )}
+
+              {hasResolution && (
+                <ViewSection title="Resolution" icon={CheckCircle2} accent="bg-emerald-50/50">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-5">
+                    <ViewInfoRow label="Outcome" value={row?.outcome} highlight />
+                    <ViewInfoRow label="Date closed" value={row?.date_closed} />
+                    <ViewInfoRow label="Final status" value={row?.status} />
+                    <ViewInfoRow
+                      label="SLA met"
+                      value={
+                        row?.resolution_within_sla == null
+                          ? undefined
+                          : row.resolution_within_sla
+                            ? "Yes"
+                            : "No"
+                      }
+                    />
+                    <NoteBlock label="Resolution notes" text={row?.resolution_notes || row?.remarks} />
+                  </div>
+                </ViewSection>
+              )}
+            </div>
+
+            {/* Right: comments sticky */}
+            <div className="xl:sticky xl:top-[3.25rem] bg-white border border-slate-200/90 rounded-xl shadow-sm flex flex-col min-h-[380px] max-h-[calc(100vh-5.5rem)]">
+              <div className="flex items-center justify-between gap-2 px-3.5 py-2.5 border-b border-slate-100 shrink-0">
+                <div className="flex items-center gap-2">
+                  <div className="p-1 bg-[#e8f5ee] rounded-md text-[#145c3f]">
+                    <MessageSquare className="w-3.5 h-3.5" />
+                  </div>
+                  <h2 className="text-[11px] font-bold uppercase tracking-wider text-slate-800">Comments</h2>
+                </div>
+                <span className="text-[10px] font-semibold text-slate-400 tabular-nums">{comments.length}</span>
+              </div>
+
+              <div className="flex-1 overflow-y-auto px-3.5 py-2.5 space-y-2 min-h-0">
+                {commentsLoading ? (
+                  <div className="flex items-center justify-center py-10 text-slate-400">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  </div>
+                ) : comments.length === 0 ? (
+                  <p className="text-xs text-slate-400 text-center py-10">No comments yet</p>
+                ) : (
+                  comments.map((c) => (
+                    <div key={c.id} className="rounded-lg border border-slate-100 bg-[#f8fbf9] px-2.5 py-2">
+                      <div className="flex items-baseline justify-between gap-2 mb-0.5">
+                        <p className="text-[11px] font-semibold text-slate-800 truncate">
+                          {c.created_by || "Officer"}
+                          {c.created_by_staff_id ? (
+                            <span className="font-normal text-slate-400"> · {c.created_by_staff_id}</span>
+                          ) : null}
+                        </p>
+                        <span className="text-[10px] text-slate-400 shrink-0">{formatCommentTime(c)}</span>
+                      </div>
+                      <p className="text-[13px] text-slate-700 whitespace-pre-wrap leading-snug">{c.body}</p>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <div className="border-t border-slate-100 px-3.5 py-2.5 space-y-2 shrink-0 bg-white rounded-b-xl">
+                <textarea
+                  value={commentDraft}
+                  onChange={(e) => setCommentDraft(e.target.value)}
+                  rows={3}
+                  placeholder="Add a comment…"
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#25a872]/30 focus:border-[#25a872] resize-none"
+                />
+                <Button
+                  size="sm"
+                  className="w-full h-8 bg-[#145c3f] hover:bg-[#0f3d2e] gap-1.5 text-xs font-semibold"
+                  disabled={!commentDraft.trim() || commentSaving}
+                  onClick={submitComment}
+                >
+                  {commentSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <MessageSquare className="w-3.5 h-3.5" />}
+                  Post comment
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (mode === "manage") {
     const row = selected;
     const assignedToMe = isCurrentAssignee(row);
@@ -1723,13 +2317,13 @@ export default function ServicomComplaintsPage({
     return (
       <div className="bg-[#f4f7f5]">
         <div className="bg-white border-b sticky top-0 z-30">
-          <div className="px-4 md:px-6 py-3 flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={closeSub} className="rounded-full shrink-0 hover:bg-[#e8f5ee]" aria-label="Back to list">
-              <ArrowLeft className="w-5 h-5" />
+          <div className="px-4 md:px-5 py-2.5 flex items-center gap-2.5">
+            <Button variant="ghost" size="icon" onClick={closeSub} className="rounded-full shrink-0 hover:bg-[#e8f5ee] h-8 w-8" aria-label="Back to list">
+              <ArrowLeft className="w-4 h-4" />
             </Button>
             <div className="min-w-0 flex-1">
-              <h2 className="text-lg font-bold tracking-tight truncate">{row?.complaint_number ?? "Complaint"}</h2>
-              <p className="text-xs text-slate-500 truncate">
+              <h2 className="text-sm font-bold tracking-tight truncate font-mono">{row?.complaint_number ?? "Complaint"}</h2>
+              <p className="text-[11px] text-slate-500 truncate">
                 {[
                   escalatedOpen && assignedToMe ? "Escalated to you" : escalatedOpen ? "Escalated" : null,
                   row?.escalation_level && escalatedOpen ? row.escalation_level : null,
@@ -1742,10 +2336,10 @@ export default function ServicomComplaintsPage({
           {renderComplaintSlaBar(row)}
         </div>
 
-        <div className="w-full px-4 md:px-6 py-4 md:py-6 space-y-4">
+        <div className="w-full px-4 md:px-5 py-3 space-y-3">
           {escalatedOpen && !assignedToMe && (
-            <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
-              <p className="text-sm text-slate-600">
+            <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
+              <p className="text-xs text-slate-600">
                 Escalated to <span className="font-semibold text-slate-800">{row.escalated_to || row.officer_assigned}</span>
                 {row.escalation_level ? ` · ${row.escalation_level}` : ""}. You can view this complaint but can no longer update it.
               </p>
@@ -1758,320 +2352,346 @@ export default function ServicomComplaintsPage({
     );
   }
 
+  const listFields: CustomTableField[] = [
+    {
+      title: "ID",
+      value: "complaint_number",
+      className: "w-[12%]",
+      custom: true,
+      component: (c) => {
+        const id = String(c.complaint_number || "—");
+        const parts = id.split("/");
+        const tail = parts.length > 2 ? parts.slice(-2).join("/") : id;
+        const head = parts.length > 2 ? parts.slice(0, -2).join("/") : "";
+        return (
+          <span className="font-mono text-[10px] font-semibold text-slate-800 leading-tight block" title={id}>
+            {head ? <span className="block text-slate-500 truncate">{head}</span> : null}
+            <span className="block truncate">{tail}</span>
+          </span>
+        );
+      },
+    },
+    {
+      title: "Date",
+      value: "date_received",
+      className: "w-[8%]",
+      custom: true,
+      component: (c) => {
+        const raw = c.date_received || c.complaint_date || "";
+        const short = raw ? String(raw).slice(0, 10) : "—";
+        return <span className="text-[11px] tabular-nums whitespace-nowrap">{short}</span>;
+      },
+    },
+    ...(!isStateScopedViewer
+      ? [{
+          title: "State",
+          value: "state_label",
+          className: "w-[8%]",
+          custom: true,
+          component: (c: any) => (
+            <span className="text-[11px] truncate block" title={stateLabel(c)}>
+              {stateLabel(c)}
+            </span>
+          ),
+        } as CustomTableField]
+      : []),
+    {
+      title: "Issue",
+      value: "description",
+      className: isStateScopedViewer ? "w-[24%]" : "w-[16%]",
+      custom: true,
+      component: (c) => (
+        <p className="text-[11px] font-medium text-slate-800 line-clamp-2 leading-snug" title={c.description || c.complaint_category || c.category || undefined}>
+          {c.description || c.complaint_category || c.category || "—"}
+        </p>
+      ),
+    },
+    {
+      title: "Pri.",
+      value: "priority_rating",
+      className: "w-[6%]",
+      custom: true,
+      component: (c) => priorityBadge(c.priority_rating),
+    },
+    {
+      title: "Officer",
+      value: "officer_assigned",
+      className: "w-[10%]",
+      custom: true,
+      component: (c) => (
+        <span className="text-[11px] truncate block" title={c.officer_assigned ?? c.assigned_officer}>
+          {c.officer_assigned ?? c.assigned_officer ?? "—"}
+        </span>
+      ),
+    },
+    {
+      title: "SLA",
+      value: "sla",
+      className: "w-[5%] text-center",
+      custom: true,
+      component: (c) => (
+        <div className="flex justify-center">{renderOverdueCell(c)}</div>
+      ),
+    },
+    {
+      title: "Stage",
+      value: "stage",
+      className: "w-[11%]",
+      custom: true,
+      component: (c) => stageBadge(c),
+    },
+    {
+      title: "Status",
+      value: "status",
+      className: "w-[12%]",
+      custom: true,
+      component: (c) => statusBadge(
+        c.status,
+        false,
+        {
+          escalatedToMe: !!c.escalated
+            && officerMatchesUser(c.officer_assigned ?? c.assigned_officer ?? c.escalated_to, userName, userStaffId)
+            && !isComplaintClosed(c.status),
+        },
+      ),
+    },
+    {
+      title: "",
+      value: "action",
+      className: "w-[7%] text-right",
+      custom: true,
+      component: (c) => {
+        const closed = isComplaintClosed(c.status);
+        const useView = isStateCoordinator || closed;
+        const label = useView ? "View" : "Open";
+        return (
+          <div className="flex justify-end">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 px-2 text-[11px] font-semibold border-[#d4e8dc] hover:bg-[#e8f5ee] hover:text-[#145c3f]"
+              onClick={() => (useView ? openView(c) : openManage(c))}
+            >
+              {label}
+            </Button>
+          </div>
+        );
+      },
+    },
+  ];
+
   return (
-    <div className="bg-[#f4f7f5]">
-      <div className="bg-white border-b px-4 md:px-6 py-3 flex items-center justify-between gap-3 sticky top-0 z-30">
-        <div className="flex items-center gap-3 min-w-0">
-          <Button variant="ghost" size="icon" onClick={onBack} className="rounded-full shrink-0 hover:bg-[#e8f5ee]">
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-          <h2 className="text-lg font-bold tracking-tight truncate">Complaints Management</h2>
+    <div className="bg-[#f4f7f5] min-h-full">
+      <div className="bg-white border-b px-4 md:px-5 py-2.5 flex items-center justify-between gap-3 sticky top-0 z-30">
+        <div className="min-w-0">
+          <h2 className="text-base font-bold tracking-tight truncate">Complaints Management</h2>
+          <p className="text-[11px] text-slate-500">{listStats.total} complaint{listStats.total === 1 ? "" : "s"}</p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
+          <Button variant="outline" size="sm" onClick={load} disabled={loading} className="h-8 gap-1.5 text-xs">
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh
           </Button>
           {canCreate && (
-          <Button className="bg-orange-action hover:bg-orange-600 gap-2" onClick={openRegister}>
-            <Plus className="w-4 h-4" /> Register New Complaint
-          </Button>
+            <Button size="sm" className="h-8 bg-orange-action hover:bg-orange-600 gap-1.5 text-xs" onClick={openRegister}>
+              <Plus className="w-3.5 h-3.5" /> Register
+            </Button>
           )}
         </div>
       </div>
 
-      <div className="w-full px-4 md:px-6 py-4 md:py-6 space-y-4">
-          {/* Summary KPIs */}
-          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
+      <div className="w-full px-4 md:px-5 py-3 space-y-3">
+        {!isReportingOfficer && (
+          <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-2">
             {[
-              { label: "Total", value: listStats.total, icon: <MessageSquare className="w-4 h-4 text-[#25a872]" />, accent: "border-[#d4e8dc]" },
-              { label: "Open", value: listStats.open, icon: <Clock className="w-4 h-4 text-amber-600" />, accent: "border-amber-200" },
-              { label: "Investigation", value: listStats.investigation, icon: <Search className="w-4 h-4 text-blue-600" />, accent: "border-blue-200" },
-              { label: "Escalated", value: listStats.escalated, icon: <AlertTriangle className="w-4 h-4 text-purple-600" />, accent: "border-purple-200" },
-              { label: "Resolved", value: listStats.resolved, icon: <CheckCircle2 className="w-4 h-4 text-emerald-600" />, accent: "border-emerald-200" },
+              { label: "Total", value: listStats.total, icon: <MessageSquare className="w-3.5 h-3.5 text-[#25a872]" />, accent: "border-[#d4e8dc] bg-white" },
+              { label: "Open", value: listStats.open, icon: <Clock className="w-3.5 h-3.5 text-amber-600" />, accent: "border-amber-200 bg-amber-50/50" },
+              { label: "Investigation", value: listStats.investigation, icon: <Search className="w-3.5 h-3.5 text-blue-600" />, accent: "border-blue-200 bg-blue-50/50" },
+              { label: "Escalated", value: listStats.escalated, icon: <AlertTriangle className="w-3.5 h-3.5 text-purple-600" />, accent: "border-purple-200 bg-purple-50/50" },
+              { label: "Resolved", value: listStats.resolved, icon: <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />, accent: "border-emerald-200 bg-emerald-50/50" },
               {
                 label: "SLA Met",
                 value: listStats.slaTracked ? `${listStats.slaMet}/${listStats.slaTracked}` : "—",
-                icon: <CheckCircle2 className="w-4 h-4 text-slate-600" />,
-                accent: "border-slate-200",
+                icon: <CheckCircle2 className="w-3.5 h-3.5 text-slate-500" />,
+                accent: "border-slate-200 bg-white",
               },
             ].map((k) => (
-              <motion.div
+              <div
                 key={k.label}
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                className={`rounded-2xl p-4 bg-white border ${k.accent}`}
+                className={`rounded-lg border px-3 py-2 flex items-center gap-2.5 ${k.accent}`}
               >
-                <div className="mb-2">{k.icon}</div>
-                <p className="text-2xl font-black text-slate-800">{k.value}</p>
-                <p className="text-[10px] font-semibold text-slate-500 mt-1 uppercase tracking-wide">{k.label}</p>
-              </motion.div>
+                {k.icon}
+                <div className="min-w-0">
+                  <p className="text-lg font-bold text-slate-800 tabular-nums leading-none">{k.value}</p>
+                  <p className="text-[10px] font-medium text-slate-500 mt-0.5 truncate">{k.label}</p>
+                </div>
+              </div>
             ))}
           </div>
+        )}
 
-          {showAssignedFilter && (
-            <div className="flex items-center gap-2">
-              <Button
-                variant={filterAssigned === "all" ? "default" : "outline"}
-                size="sm"
-                className={filterAssigned === "all" ? "bg-[#145c3f] hover:bg-[#0f4a31]" : ""}
-                onClick={() => setFilterAssigned("all")}
-              >
-                All Complaints
-              </Button>
-              <Button
-                variant={filterAssigned === "mine" ? "default" : "outline"}
-                size="sm"
-                className={filterAssigned === "mine" ? "bg-[#145c3f] hover:bg-[#0f4a31]" : ""}
-                onClick={() => setFilterAssigned("mine")}
-              >
-                Assigned to Me{assignedToMeCount > 0 ? ` (${assignedToMeCount})` : ""}
-              </Button>
+        {showAssignedFilter && (
+          <div className="flex items-center gap-1.5">
+            <Button
+              variant={filterAssigned === "all" ? "default" : "outline"}
+              size="sm"
+              className={`h-7 text-[11px] px-2.5 ${filterAssigned === "all" ? "bg-[#145c3f] hover:bg-[#0f4a31]" : ""}`}
+              onClick={() => setFilterAssigned("all")}
+            >
+              All Complaints
+            </Button>
+            <Button
+              variant={filterAssigned === "mine" ? "default" : "outline"}
+              size="sm"
+              className={`h-7 text-[11px] px-2.5 ${filterAssigned === "mine" ? "bg-[#145c3f] hover:bg-[#0f4a31]" : ""}`}
+              onClick={() => setFilterAssigned("mine")}
+            >
+              Assigned to Me{assignedToMeCount > 0 ? ` (${assignedToMeCount})` : ""}
+            </Button>
+          </div>
+        )}
+
+        <div className="rounded-lg border border-[#d4e8dc] bg-white p-2">
+          <div className={`grid gap-1.5 items-center ${geoLocked
+            ? "grid-cols-2 sm:grid-cols-3 lg:grid-cols-6"
+            : "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8"
+          }`}>
+            <div className={`relative min-w-0 ${geoLocked ? "col-span-2 sm:col-span-2 lg:col-span-2" : "col-span-2"}`}>
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none z-10" />
+              <Input
+                className="pl-7 h-8 w-full text-xs"
+                placeholder="Search…"
+                value={filterSearch}
+                onChange={(e) => setFilterSearch(e.target.value)}
+              />
             </div>
-          )}
+            <div className="min-w-0">
+              <Input
+                type="date"
+                value={filterDate}
+                onChange={(e) => setFilterDate(e.target.value)}
+                className="h-8 w-full text-xs"
+              />
+            </div>
+            {!geoLocked && (
+              <>
+                <div className="min-w-0">
+                  <Select value={filterZone} onValueChange={(v) => { setFilterZone(v); setFilterState("all"); setFilterFacilityId(""); setFilterFacilityName(""); }}>
+                    <SelectTrigger className="h-8 w-full text-xs" displayValue={filterZone === "all" ? "Zone" : pickGeoLabel(zones, filterZone, "Zone")}>
+                      <SelectValue placeholder="Zone" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Zones</SelectItem>
+                      {zones.map((z) => <SelectItem key={z.id} value={String(z.id)}>{z.description}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="min-w-0">
+                  <Select value={filterState} onValueChange={(v) => { setFilterState(v); setFilterFacilityId(""); setFilterFacilityName(""); }}>
+                    <SelectTrigger className="h-8 w-full text-xs" displayValue={filterState === "all" ? "State" : pickGeoLabel(filterStates, filterState, "State")}>
+                      <SelectValue placeholder="State" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All States</SelectItem>
+                      {filterStates.map((s) => <SelectItem key={s.id} value={String(s.id)}>{s.description}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
+            )}
+            <div className="min-w-0">
+              <Select value={filterStatus} onValueChange={setFilterStatus}>
+                <SelectTrigger className="h-8 w-full text-xs" displayValue={filterStatus === "all" ? "Status" : filterStatus}>
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  {COMPLAINT_STATUSES.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="min-w-0">
+              <Select value={filterPriority} onValueChange={setFilterPriority}>
+                <SelectTrigger className="h-8 w-full text-xs" displayValue={filterPriority === "all" ? "Priority" : filterPriority}>
+                  <SelectValue placeholder="Priority" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Priorities</SelectItem>
+                  {PRIORITY_RATINGS.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="min-w-0">
+              <Select value={filterTransmission} onValueChange={setFilterTransmission}>
+                <SelectTrigger className="h-8 w-full text-xs" displayValue={filterTransmission === "all" ? "Channel" : filterTransmission}>
+                  <SelectValue placeholder="Channel" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All channels</SelectItem>
+                  {TRANSMISSION_ROUTES.map((r) => (
+                    <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="min-w-0">
+              <HcfFacilitySelect
+                requireState={false}
+                stateId={filterState !== "all" ? filterState : (defaultStateId ?? undefined)}
+                value={filterFacilityId}
+                onChange={(fac) => {
+                  setFilterFacilityId(fac?.id ?? "");
+                  setFilterFacilityName(fac?.name ?? "");
+                }}
+                placeholder="HCF"
+                className="h-8 w-full"
+              />
+            </div>
+            <div className="min-w-0">
+              <HmoProviderSelect
+                value={filterHmoId}
+                onChange={(hmo) => setFilterHmoId(hmo?.id ?? "")}
+                placeholder="HMO"
+                className="h-8 w-full"
+              />
+            </div>
+            {hasFilters && (
+              <div className="min-w-0">
+                <Button variant="ghost" size="sm" className="h-8 px-2 text-slate-500 gap-1 text-[11px] w-full" onClick={clearFilters}>
+                  <XCircle className="w-3.5 h-3.5" /> Clear
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
 
-          {/* Filters */}
-          <Card className="rounded-2xl border-[#d4e8dc]">
-            <CardContent className="py-3 px-4 space-y-2">
-              <div className="flex flex-wrap items-center gap-2 w-full">
-                <div className="relative flex-[2] min-w-0">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-                  <Input
-                    className="pl-9 h-9 w-full"
-                    placeholder="Search ID, category, type..."
-                    value={filterSearch}
-                    onChange={(e) => setFilterSearch(e.target.value)}
-                  />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <Input
-                    type="date"
-                    value={filterDate}
-                    onChange={(e) => setFilterDate(e.target.value)}
-                    className="h-9 w-full"
-                  />
-                </div>
-                {!geoLocked && (
-                  <>
-                    <div className="flex-1 min-w-0">
-                      <Select value={filterZone} onValueChange={(v) => { setFilterZone(v); setFilterState("all"); setFilterFacilityId(""); setFilterFacilityName(""); }}>
-                        <SelectTrigger className="h-9 w-full" displayValue={filterZone === "all" ? "All Zones" : pickGeoLabel(zones, filterZone, "Zone")}>
-                          <SelectValue placeholder="Zone" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All Zones</SelectItem>
-                          {zones.map((z) => <SelectItem key={z.id} value={String(z.id)}>{z.description}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <Select value={filterState} onValueChange={(v) => { setFilterState(v); setFilterFacilityId(""); setFilterFacilityName(""); }}>
-                        <SelectTrigger className="h-9 w-full" displayValue={filterState === "all" ? "All States" : pickGeoLabel(filterStates, filterState, "State")}>
-                          <SelectValue placeholder="State" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All States</SelectItem>
-                          {filterStates.map((s) => <SelectItem key={s.id} value={String(s.id)}>{s.description}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </>
-                )}
-                <div className="flex-1 min-w-0">
-                  <Select value={filterStatus} onValueChange={setFilterStatus}>
-                    <SelectTrigger className="h-9 w-full" displayValue={filterStatus === "all" ? "All Statuses" : filterStatus}>
-                      <SelectValue placeholder="Status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Statuses</SelectItem>
-                      {COMPLAINT_STATUSES.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <Select value={filterPriority} onValueChange={setFilterPriority}>
-                    <SelectTrigger className="h-9 w-full" displayValue={filterPriority === "all" ? "All Priorities" : filterPriority}>
-                      <SelectValue placeholder="Priority" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Priorities</SelectItem>
-                      {PRIORITY_RATINGS.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="flex flex-wrap items-center gap-2 w-full">
-                <div className="flex-[1.4] min-w-[180px]">
-                  <HcfFacilitySelect
-                    requireState={false}
-                    stateId={filterState !== "all" ? filterState : (defaultStateId ?? undefined)}
-                    value={filterFacilityId}
-                    onChange={(fac) => {
-                      setFilterFacilityId(fac?.id ?? "");
-                      setFilterFacilityName(fac?.name ?? "");
-                    }}
-                    placeholder="Facility (HCF)"
-                    className="h-9"
-                  />
-                </div>
-                <div className="flex-[1.4] min-w-[180px]">
-                  <HmoProviderSelect
-                    value={filterHmoId}
-                    onChange={(hmo) => setFilterHmoId(hmo?.id ?? "")}
-                    placeholder="HMO"
-                    className="h-9"
-                  />
-                </div>
-                <div className="flex-1 min-w-[160px]">
-                  <Select value={filterTransmission} onValueChange={setFilterTransmission}>
-                    <SelectTrigger className="h-9 w-full" displayValue={filterTransmission === "all" ? "All channels" : filterTransmission}>
-                      <SelectValue placeholder="Transmission" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All channels</SelectItem>
-                      {TRANSMISSION_ROUTES.map((r) => (
-                        <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                {hasFilters && (
-                  <Button variant="ghost" size="sm" className="h-9 text-slate-500 gap-1 shrink-0" onClick={clearFilters}>
-                    <XCircle className="w-3.5 h-3.5" /> Clear filters
-                  </Button>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs text-slate-500">
+            {loading ? "Loading…" : `${filtered.length} complaint${filtered.length === 1 ? "" : "s"}`}
+          </p>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-600">
+            {[
+              { color: "white", label: "On track" },
+              { color: "yellow", label: "Watch" },
+              { color: "amber", label: "At risk" },
+              { color: "red", label: "Breach" },
+            ].map((item) => (
+              <span key={item.color} className="inline-flex items-center gap-1.5">
+                <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${slaColorDotClass(item.color)}`} />
+                {item.label}
+              </span>
+            ))}
+          </div>
+        </div>
 
-          {/* Table */}
-          <Card className="rounded-2xl border-[#d4e8dc] overflow-hidden shadow-sm">
-            <CardHeader className="pb-3 border-b bg-[#f8fbf9]">
-              <div className="flex items-center justify-between gap-3">
-                <CardTitle className="text-sm font-bold flex items-center gap-2 text-[#145c3f]">
-                  <MessageSquare className="w-4 h-4" />
-                  {loading ? (
-                    "Loading..."
-                  ) : (
-                    <>
-                      <span className="font-bold text-base">
-                        Complaint{filtered.length === 1 ? "" : "s"} Register
-                      </span>
-                      <span className="text-slate-500 text-sm ml-2">
-                        {filtered.length} Complaint{filtered.length === 1 ? "" : "s"}
-                      </span>
-                    </>
-                  )}
-                </CardTitle>
-                {!loading && filtered.length > 0 && (
-                  <span className="text-[10px] text-slate-500">Click Manage to continue the lifecycle</span>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent className="p-0">
-              {loading ? (
-                <div className="flex flex-col items-center justify-center py-20 gap-3 text-slate-400">
-                  <Loader2 className="w-6 h-6 animate-spin" />
-                  <span className="text-sm">Loading complaints...</span>
-                </div>
-              ) : filtered.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-20 gap-4">
-                  <div className="w-14 h-14 rounded-2xl bg-[#e8f5ee] flex items-center justify-center">
-                    <MessageSquare className="w-7 h-7 text-[#25a872]" />
-                  </div>
-                  <div className="text-center">
-                    <p className="text-sm font-semibold text-slate-700">No complaints found</p>
-                    <p className="text-xs text-slate-400 mt-1">Register a new complaint or adjust your filters</p>
-                  </div>
-                  {canCreate && (
-                  <Button className="bg-orange-action hover:bg-orange-600 gap-2" onClick={openRegister}>
-                    <Plus className="w-4 h-4" /> Register  Complaint
-                  </Button>
-                  )}
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-[#f0fdf7] hover:bg-[#f0fdf7]">
-                        <TableHead className="text-xs font-black text-slate-800">Complaint ID</TableHead>
-                        <TableHead className="text-xs font-black text-slate-800">Date</TableHead>
-                        {!isStateScopedViewer && (
-                          <TableHead className="text-xs font-black text-slate-800">State</TableHead>
-                        )}
-                        <TableHead className="text-xs font-black text-slate-800">Offence</TableHead>
-                        <TableHead className="text-xs font-black text-slate-800">Priority</TableHead>
-                        <TableHead className="text-xs font-black text-slate-800">Assigned To</TableHead>
-                        <TableHead className="text-xs font-black text-slate-800">Overdue</TableHead>
-                        <TableHead className="text-xs font-black text-slate-800">Stage</TableHead>
-                        <TableHead className="text-xs font-black text-slate-800">Status</TableHead>
-                        <TableHead className="text-xs font-black text-slate-800 text-right w-28">Action</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filtered.map((c, i) => (
-                        <motion.tr
-                          key={c.id}
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          transition={{ delay: Math.min(i * 0.02, 0.3) }}
-                          className={`border-b border-slate-100 transition-colors ${slaRowClass(c.sla?.color)}`}
-                        >
-                          <TableCell className="text-xs font-mono font-semibold text-slate-800 whitespace-nowrap">
-                            {c.complaint_number || "—"}
-                          </TableCell>
-                          <TableCell className="text-xs font-semibold text-slate-700 whitespace-nowrap">
-                            {c.date_received || c.complaint_date || "—"}
-                          </TableCell>
-                          {!isStateScopedViewer && (
-                            <TableCell className="text-xs text-slate-700 whitespace-nowrap max-w-[120px] truncate" title={stateLabel(c)}>
-                              {stateLabel(c)}
-                            </TableCell>
-                          )}
-                          <TableCell className="max-w-[260px]">
-                            <p className="text-xs font-medium text-slate-800 line-clamp-2">
-                              {c.description || c.complaint_category || c.category || "—"}
-                            </p>
-                          </TableCell>
-                          <TableCell>{priorityBadge(c.priority_rating)}</TableCell>
-                          <TableCell className="text-xs text-slate-700 max-w-[140px] truncate" title={c.officer_assigned ?? c.assigned_officer}>
-                            {c.officer_assigned ?? c.assigned_officer ?? "—"}
-                          </TableCell>
-                          <TableCell>{renderOverdueCell(c)}</TableCell>
-                          <TableCell className="font-bold">{stageBadge(c, true)}</TableCell>
-                          <TableCell className="font-bold">
-                            {statusBadge(
-                              c.status,
-                              true,
-                              {
-                                escalatedToMe: !!c.escalated
-                                  && officerMatchesUser(c.officer_assigned ?? c.assigned_officer ?? c.escalated_to, userName, userStaffId)
-                                  && !isComplaintClosed(c.status),
-                              },
-                            )}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className={`h-8 text-xs font-semibold gap-1.5 border-[#d4e8dc] hover:bg-[#e8f5ee] hover:text-[#145c3f] ${
-                                officerMatchesUser(c.officer_assigned ?? c.assigned_officer ?? c.escalated_to, userName, userStaffId)
-                                  ? "border-[#145c3f] bg-[#f0fdf7]"
-                                  : ""
-                              }`}
-                              onClick={() => openManage(c)}
-                            >
-                              {officerMatchesUser(c.officer_assigned ?? c.assigned_officer ?? c.escalated_to, userName, userStaffId) ? "Open" : "Manage"}
-                              <ArrowRight className="w-3 h-3" />
-                            </Button>
-                          </TableCell>
-                        </motion.tr>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+        <CustomTable
+          data={filtered}
+          fields={listFields}
+          loading={loading}
+          pageSize={15}
+          message="No complaints found — register a new complaint or adjust filters"
+          fitViewport
+          getRowClassName={(c) => slaRowClass(c.sla?.color)}
+        />
       </div>
     </div>
   );

@@ -531,6 +531,18 @@ export const servicomApi = {
       method: "PUT", body: JSON.stringify(payload),
     }),
 
+  listComplaintComments: (id: number | string) =>
+    request<{ success: boolean; data: {
+      id: number; complaint_id: number; body: string;
+      created_by?: string | null; created_by_staff_id?: string | null;
+      createdAt?: string; created_at?: string;
+    }[] }>(`/servicom/complaints/${id}/comments`),
+
+  addComplaintComment: (id: number | string, body: string) =>
+    request<{ success: boolean; data: any }>(`/servicom/complaints/${id}/comments`, {
+      method: "POST", body: JSON.stringify({ body }),
+    }),
+
   listSatisfactionSurveys: (filters?: Record<string, string | undefined>) =>
     request<{ success: boolean; data: any[] }>(`/servicom/satisfaction-surveys${servicomFilters(filters)}`),
 

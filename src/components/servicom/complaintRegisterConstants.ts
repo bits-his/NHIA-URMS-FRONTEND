@@ -32,12 +32,15 @@ export const TRANSMISSION_ROUTES = [
   "Meetings, Conferences or Workshops", "Other",
 ].map(v => ({ value: v, label: v }));
 
-/** Lookup Lists — Complainant Type (column D) */
+/** Lookup Lists — Complainant Type (column D). HCF / HMO / Enrollee stay first. */
 export const COMPLAINANT_CATEGORIES = [
-  "Enrollee", "Beneficiary Representative", "Healthcare Facility", "HMO",
+  { value: "HCF", label: "HCF" },
+  { value: "HMO", label: "HMO" },
+  { value: "Enrollee", label: "Enrollee" },
+  "Beneficiary Representative",
   "Employer/MDA", "SSHIA", "Healthcare Worker", "NHIA Staff",
   "Vendor", "Partner Organisation", "General Public", "Anonymous", "Other",
-].map(v => ({ value: v, label: v }));
+].map((v) => (typeof v === "string" ? { value: v, label: v } : v));
 
 /** Lookup Lists — Respondent Type (column G) */
 export const RESPONDENT_CATEGORIES = [
@@ -266,12 +269,17 @@ export function getStageCompletion(row: any): Record<LifecycleStage, boolean> {
     return { registration: false, investigation: false, escalation: false, resolution: false };
   }
   const escalated = !!row.escalated || row.status === "Escalated";
+  const escalationDecided = escalated || row.escalation_level === "Not Escalated";
+  const investigationDone = !!(
+    row.actions_details
+    || (row.actions_taken && row.actions_taken !== "Investigation commenced")
+    || ["Awaiting Information", "Awaiting Respondent Action"].includes(row.status)
+  );
   return {
     registration: !!(row.complaint_number && (row.complainant_category || row.complaint_type)),
-    // Once escalated, investigation is treated as complete
-    investigation: escalated || !!(row.investigation_start_date || row.actions_taken
-      || ["Under Investigation", "Awaiting Information", "Awaiting Respondent Action"].includes(row.status)),
-    escalation: escalated,
+    // Escalation implies investigation is done; otherwise require investigation submission (not just Start)
+    investigation: escalated || escalationDecided || investigationDone,
+    escalation: escalationDecided,
     resolution: !!(row.date_closed || row.outcome),
   };
 }
@@ -281,6 +289,14 @@ export function lifecycleStageLabel(stage: LifecycleStage) {
 }
 
 const STAGE_ORDER: LifecycleStage[] = ["registration", "investigation", "escalation", "resolution"];
+
+/** Stage is reachable only if every prior stage is complete (or the stage itself is already done). */
+export function isStageReachable(stage: LifecycleStage, completion: Record<LifecycleStage, boolean>) {
+  const idx = STAGE_ORDER.indexOf(stage);
+  if (idx <= 0) return true;
+  if (completion[stage]) return true;
+  return STAGE_ORDER.slice(0, idx).every((s) => completion[s]);
+}
 
 export function nextLifecycleStage(current: LifecycleStage): LifecycleStage {
   const idx = STAGE_ORDER.indexOf(current);
@@ -308,15 +324,20 @@ export function complaintPartyCode(party?: string | null) {
 
 const MONTH_ABBR = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
 
-/** Preview of monthly complaint ID format: ENF/HCF/TR/JAN 26/… */
-export function previewComplaintNumber(against?: string | null, dateReceived?: string | null) {
+/** Preview of monthly complaint ID format: ENF/HCF/TAR/JAN 26/… */
+export function previewComplaintNumber(
+  against?: string | null,
+  dateReceived?: string | null,
+  stateCode?: string | null,
+) {
   const againstCode = complaintPartyCode(against || "HCF");
   const d = dateReceived ? new Date(dateReceived) : new Date();
   const month = Number.isNaN(d.getTime()) ? new Date().getMonth() : d.getMonth();
   const year = Number.isNaN(d.getTime()) ? new Date().getFullYear() : d.getFullYear();
   const mon = MONTH_ABBR[month];
   const yy = String(year).slice(-2);
-  return `ENF/${againstCode}/TR/${mon} ${yy}/…`;
+  const st = String(stateCode || "").trim().toUpperCase() || "…";
+  return `ENF/${againstCode}/${st}/${mon} ${yy}/…`;
 }
 
 export function isComplaintClosed(status?: string) {
