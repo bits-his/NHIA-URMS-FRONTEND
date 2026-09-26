@@ -405,30 +405,6 @@ function isSdoFolder(node: TreeNode): node is Extract<TreeNode, { kind: "folder"
   return node.kind === "folder" && node.title === SDO_MODULE;
 }
 
-/** Higher roles keep module/group dropdowns; officers & coordinators see only leaf items. */
-function keepsSidebarHierarchy(role: string) {
-  return (
-    role === "admin"
-    || role === "sdo"
-    || role === "hq-department"
-    || role === "dg-ceo"
-    || role === "head-of-unit"
-  );
-}
-
-/** Flatten folders to top-level leaf links (no parent dropdown titles). */
-function flattenNavToLeaves(nodes: TreeNode[]): TreeNode[] {
-  const out: TreeNode[] = [];
-  const walk = (list: TreeNode[]) => {
-    for (const node of list) {
-      if (node.kind === "leaf") out.push(node);
-      else walk(node.children);
-    }
-  };
-  walk(nodes);
-  return out;
-}
-
 /** Non-admin users see SDO sections at top level (no SDO parent folder). */
 function flattenSdoForNonAdmin(trees: TreeNode[], role: string): TreeNode[] {
   if (role === "admin") return trees;
@@ -699,14 +675,9 @@ function NavMain({
     return flattenSdoForNonAdmin(built, role);
   }, [modules, role]);
 
-  const navTrees = React.useMemo(() => {
-    if (keepsSidebarHierarchy(role)) return trees;
-    return flattenNavToLeaves(trees);
-  }, [trees, role]);
-
   const sections = React.useMemo(() => {
     const headingFor = (title: string) => {
-      if (keepsSidebarHierarchy(role) && title === "State Offices") return "State Offices";
+      if (title === "State Offices") return "State Offices";
       return "";
     };
     const out: { heading: string; nodes: TreeNode[] }[] = [];
@@ -715,7 +686,7 @@ function NavMain({
       if (last && last.heading === heading) last.nodes.push(...nodes);
       else out.push({ heading, nodes: [...nodes] });
     };
-    for (const node of navTrees) {
+    for (const node of trees) {
       const heading = headingFor(node.title);
       if (heading && node.kind === "folder" && node.title === heading) {
         push(heading, node.children);
@@ -724,7 +695,7 @@ function NavMain({
       push(heading, [node]);
     }
     return out;
-  }, [navTrees, role]);
+  }, [trees]);
 
   return (
     <>
