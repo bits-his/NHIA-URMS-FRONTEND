@@ -2199,7 +2199,7 @@ export default function ServicomComplaintsPage({
           >
             <ArrowLeft className="w-4 h-4" />
           </Button>
-          <h1 className="text-base font-bold text-slate-900">Register New Complaint</h1>
+          <h1 className="text-base font-bold text-slate-900">New Complaint</h1>
         </div>
         <div className="w-full px-4 md:px-5 py-3 md:py-4">
           {renderComplaintSection(false)}
@@ -2691,7 +2691,7 @@ export default function ServicomComplaintsPage({
           </Button>
           {canRegister && (
             <Button size="sm" className="h-8 bg-orange-action hover:bg-orange-600 gap-1.5 text-xs" onClick={openRegister}>
-              <Plus className="w-3.5 h-3.5" /> Register
+              <Plus className="w-3.5 h-3.5" /> New Complaint
             </Button>
           )}
         </div>
