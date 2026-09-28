@@ -25,7 +25,7 @@ import {
   REPORT_CONFIG, MONTHS, monthLabel, quarterFromMonth, formatCount, formatDate,
   reportLineTotal, reportLineCount, ENROLLEE_REGISTER_SCHEMES, type StateOfficeReportType,
 } from "./constants";
-import { useCreateReviewAccess } from "@/src/access/createReviewAccess";
+import { useStateOfficeAccess } from "@/src/access/createReviewAccess";
 
 interface Report {
   id: number;
@@ -68,7 +68,7 @@ export default function StateOfficeReportsList({
 }: Props) {
   const cfg = REPORT_CONFIG[reportType];
   const api = stateOfficeApi[reportType];
-  const { canCreate, createOnly } = useCreateReviewAccess();
+  const { canCreate, createOnly } = useStateOfficeAccess();
 
   const [mode, setMode] = React.useState<"list" | "create" | "view" | "edit">(createOnly ? "create" : "list");
   const [formKey, setFormKey] = React.useState(0);

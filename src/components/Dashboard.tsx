@@ -56,6 +56,7 @@ import ComplaintsMonthlyForm from "./monthly/ComplaintsMonthlyForm";
 import ComplianceManagementPage from "./compliance/ComplianceManagementPage";
 import { isDeptReportingOfficer, isDeptStateCoordinator, isDeptZonalCoordinator } from "@/src/access/departmentRoles";
 import DirectorEnforcementDashboard, { isDirectorEnforcementUser } from "./enforcement/DirectorEnforcementDashboard";
+import { isCoordinatorRole } from "@/src/access/createReviewAccess";
 import MonthlyReportsList from "./monthly/MonthlyReportsList";
 import DeptMonthlyPage from "./monthly/DeptMonthlyPage";
 // SidebarNav logic is now inside AppSidebar.tsx
@@ -432,6 +433,7 @@ export default function Dashboard({ role, user, access = [], functionalities = "
   // Sidebar state is now managed by shadcn SidebarProvider
   const [selectedReportRef, setSelectedReportRef] = React.useState<string | null>(null);
   const monthlyCtx = getMonthlyReportContext(role, user);
+  const isCoordinator = isCoordinatorRole(role);
 
   React.useEffect(() => {
     if (role === "admin") return;
@@ -555,11 +557,11 @@ export default function Dashboard({ role, user, access = [], functionalities = "
             <Route path="/sdo/stock-dashboard" element={<StockVerificationDashboard onBack={() => setView("home")} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} />} />
             <Route path="/sdo/assets" element={<StockAssetManager onBack={() => setView("home")} />} />
             <Route path="/sdo/servicom" element={<ServicomDashboard onBack={() => setView("home")} defaultStateId={monthlyCtx.defaultStateId} defaultZoneId={monthlyCtx.defaultZoneId} />} />
-            <Route path="/sdo/servicom/visits" element={<ServicomVisitsPage onBack={() => setView("home")} defaultStateId={monthlyCtx.defaultStateId} defaultZoneId={monthlyCtx.defaultZoneId} canCreate={monthlyCtx.canCreateMonthly} canReview={monthlyCtx.canReviewMonthly} />} />
+            <Route path="/sdo/servicom/visits" element={<ServicomVisitsPage onBack={() => setView("home")} defaultStateId={monthlyCtx.defaultStateId} defaultZoneId={monthlyCtx.defaultZoneId} canCreate={monthlyCtx.canCreateMonthly && !isCoordinator} canReview={monthlyCtx.canReviewMonthly} />} />
             <Route path="/sdo/servicom/complaints" element={<ServicomComplaintsPage onBack={() => setView("home")} defaultStateId={monthlyCtx.defaultStateId} defaultZoneId={monthlyCtx.defaultZoneId} userName={user?.name} userStaffId={user?.staff_id} userRole={user?.role} canCreate={monthlyCtx.canCreateMonthly} canReview={monthlyCtx.canReviewMonthly} />} />
-            <Route path="/zonal/complaints-register" element={<ServicomComplaintsPage key="zonal-complaints-register" onBack={() => setView("home")} defaultStateId={monthlyCtx.defaultStateId} defaultZoneId={monthlyCtx.defaultZoneId} userName={user?.name} userStaffId={user?.staff_id} userRole={user?.role} canCreate={monthlyCtx.canCreateMonthly} canReview={monthlyCtx.canReviewMonthly} />} />
-            <Route path="/sdo/servicom/satisfaction" element={<ServicomSatisfactionSurveyPage onBack={() => setView("home")} defaultStateId={monthlyCtx.defaultStateId} defaultZoneId={monthlyCtx.defaultZoneId} defaultStateName={user?.state?.description} defaultZoneName={user?.zone?.description} userName={user?.name} canCreate={monthlyCtx.canCreateMonthly} canReview={monthlyCtx.canReviewMonthly} />} />
-            <Route path="/sdo/servicom/comment-card" element={<ServicomCommentCardPage onBack={() => setView("home")} defaultStateId={monthlyCtx.defaultStateId} defaultZoneId={monthlyCtx.defaultZoneId} defaultStateName={user?.state?.description} defaultZoneName={user?.zone?.description} canCreate={monthlyCtx.canCreateMonthly} canReview={monthlyCtx.canReviewMonthly} />} />
+            <Route path="/zonal/complaints-register" element={<ServicomComplaintsPage key="zonal-complaints-register" stateScope onBack={() => setView("home")} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} userName={user?.name} userStaffId={user?.staff_id} userRole={user?.role} canCreate={monthlyCtx.canCreateMonthly} canReview={monthlyCtx.canReviewMonthly} />} />
+            <Route path="/sdo/servicom/satisfaction" element={<ServicomSatisfactionSurveyPage onBack={() => setView("home")} defaultStateId={monthlyCtx.defaultStateId} defaultZoneId={monthlyCtx.defaultZoneId} defaultStateName={user?.state?.description} defaultZoneName={user?.zone?.description} userName={user?.name} canCreate={monthlyCtx.canCreateMonthly && !isCoordinator} canReview={monthlyCtx.canReviewMonthly} />} />
+            <Route path="/sdo/servicom/comment-card" element={<ServicomCommentCardPage onBack={() => setView("home")} defaultStateId={monthlyCtx.defaultStateId} defaultZoneId={monthlyCtx.defaultZoneId} defaultStateName={user?.state?.description} defaultZoneName={user?.zone?.description} canCreate={monthlyCtx.canCreateMonthly && !isCoordinator} canReview={monthlyCtx.canReviewMonthly} />} />
             <Route path="/sdo/projects" element={<StateOfficeReportsList key="state-adhoc-special-assignment" reportType="adhoc-special-assignment" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
 
             {/* ── Monthly Reports ── */}

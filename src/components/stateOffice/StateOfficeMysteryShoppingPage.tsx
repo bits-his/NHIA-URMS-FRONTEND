@@ -21,7 +21,7 @@ import {
   ENROLLEE_ITEMS, ENROLLEE_MAX, ENROLLEE_SCALE, FACILITY_TYPES, OBSERVATION_ITEMS, OBS_MAX,
   STEPS, labelOf, mapHcfFacilityType, optionLabel, sumScoreMap, type ScoreMap,
 } from "./mysteryShoppingConfig";
-import { useCreateReviewAccess } from "@/src/access/createReviewAccess";
+import { useStateOfficeAccess } from "@/src/access/createReviewAccess";
 
 interface Props {
   onBack: () => void;
@@ -174,7 +174,7 @@ function ScoreBadge({ score, max }: { score: number; max: number }) {
 }
 
 export default function StateOfficeMysteryShoppingPage({ onBack, defaultStateId, defaultZoneId }: Props) {
-  const { canCreate, createOnly } = useCreateReviewAccess();
+  const { canCreate, createOnly } = useStateOfficeAccess();
   const [mode, setMode] = React.useState<Mode>(createOnly ? "create" : "list");
   const [formKey, setFormKey] = React.useState(0);
   const [step, setStep] = React.useState(0);

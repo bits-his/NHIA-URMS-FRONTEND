@@ -1,5 +1,6 @@
 import { useSelector } from "react-redux";
 import type { RootState } from "@/src/store/store";
+import { isDeptStateCoordinator, isDeptZonalCoordinator } from "./departmentRoles";
 
 export type CreateReviewAccess = {
   canCreate: boolean;
@@ -45,4 +46,17 @@ export function useCreateReviewAccess(): CreateReviewAccess {
   const user = useSelector((s: RootState) => s.auth.user);
   const role = user?.role ?? "";
   return getCreateReviewAccess(role, user);
+}
+
+export function isCoordinatorRole(role: string) {
+  return isDeptStateCoordinator(role) || isDeptZonalCoordinator(role);
+}
+
+/** State-office pages: state & zonal coordinators are view-only. */
+export function useStateOfficeAccess(): CreateReviewAccess {
+  const user = useSelector((s: RootState) => s.auth.user);
+  const role = user?.role ?? "";
+  const base = getCreateReviewAccess(role, user);
+  if (!isCoordinatorRole(role)) return base;
+  return { canCreate: false, canReview: true, createOnly: false, reviewOnly: true };
 }

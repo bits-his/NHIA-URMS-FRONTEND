@@ -194,6 +194,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
   "Spot Check Visit": MapPin,
   Complaints: Scale,
   "Complaints Management": Scale,
+  "State Complaints Register": Scale,
   "Customer Satisfaction Survey": TrendingUp,
   "HCF Customer Satisfaction Survey": TrendingUp,
   "Charter Performance": Megaphone,
@@ -756,6 +757,10 @@ export function AppSidebar({
     }
 
     const effectiveAccess = expandAccessEntries(access);
+    const hasStateOfficeAccess = effectiveAccess.some((e) => {
+      const t = moduleConfigForAccess(e.access_to)?.title;
+      return t === SOC_ZONES_MODULE || t === ZONAL_MODULE;
+    });
     const result = effectiveAccess
       .map((entry) => {
         const mod = moduleConfigForAccess(entry.access_to);
@@ -763,10 +768,14 @@ export function AppSidebar({
         const funcs = Array.isArray(entry.functionalities)
           ? entry.functionalities
           : [];
+        // SDO is auto-granted (with no pages) when only SOC/Zonal pages are ticked.
+        const sdoParentOnly = mod.title === SDO_MODULE && funcs.length === 0 && hasStateOfficeAccess;
         const allowedTitles =
           funcs.length > 0
             ? normalizeAllowedTitles(funcs, mod.title)
-            : new Set(flatLeaves(mod));
+            : sdoParentOnly
+              ? new Set<string>()
+              : new Set(flatLeaves(mod));
         return { mod, allowedTitles };
       })
       .filter(Boolean) as {

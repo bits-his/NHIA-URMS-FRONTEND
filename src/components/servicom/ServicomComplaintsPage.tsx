@@ -15,7 +15,7 @@ import { toast } from "sonner";
 import { useSearchParams } from "react-router-dom";
 import { servicomApi, stockApi } from "@/lib/api";
 import CustomTable, { type CustomTableField } from "@/components/CustomTable";
-import { isDeptReportingOfficer, isDeptStateCoordinator } from "@/src/access/departmentRoles";
+import { isDeptReportingOfficer, isDeptStateCoordinator, isDeptZonalCoordinator } from "@/src/access/departmentRoles";
 import { pickGeoLabel, pickLabel } from "./servicomConstants";
 import {
   COMPLAINANT_CATEGORIES,
@@ -48,6 +48,8 @@ interface Props {
   userRole?: string | null;
   canCreate?: boolean;
   canReview?: boolean;
+  /** State-level register: list only the signed-in user's state. */
+  stateScope?: boolean;
 }
 
 type Mode = "list" | "register" | "manage" | "view";
@@ -516,19 +518,29 @@ function officerMatchesUser(
 
 export default function ServicomComplaintsPage({
   defaultStateId, defaultZoneId, userName, userStaffId, userRole,
-  canCreate = true, canReview = true,
+  canCreate = true, canReview = true, stateScope: stateScopeProp = false,
 }: Props) {
   const [searchParams, setSearchParams] = useSearchParams();
   const roleKey = String(userRole ?? "");
+  /** Zonal coordinators see every complaint in their zone (zone comes from profile). */
+  const isZonalCoordinator = isDeptZonalCoordinator(roleKey) && !!defaultZoneId;
+  const isNationalRole = ["admin", "sdo", "hq-department"].includes(roleKey)
+    || /director/i.test(roleKey)
+    || /director/i.test(String(userName ?? ""))
+    || (!defaultStateId && !isZonalCoordinator);
+  /** SDO, directors and HQ see every state even on the state-level register. */
+  const stateScope = stateScopeProp && !isNationalRole && !isZonalCoordinator;
   const isStateCoordinator =
     roleKey === "state-coordinator" || isDeptStateCoordinator(roleKey);
   const isStateOfficer = roleKey === "state-officer";
   /** Hide zone/state pickers for state-level roles (geo comes from profile). */
-  const isStateScopedViewer = isStateCoordinator || isStateOfficer;
+  const isStateScopedViewer = stateScope || isStateCoordinator || isStateOfficer;
   const isReportingOfficer =
     roleKey === "reporting-officer"
     || isDeptReportingOfficer(roleKey)
     || (canCreate && !canReview && !isStateScopedViewer);
+  /** Coordinators are view-only: they can't register complaints (they may still manage ones assigned to them). */
+  const canRegister = canCreate && !isStateCoordinator && !isZonalCoordinator;
   const showAssignedFilter =
     !isStateScopedViewer && !isReportingOfficer && !!(userName || userStaffId);
   /** HQ / national viewers (no fixed state) should see all complaints by default, not only assigned. */
@@ -682,7 +694,12 @@ export default function ServicomComplaintsPage({
         transmission_route: filterTransmission !== "all" ? filterTransmission : undefined,
       };
 
-      if (isStateCoordinator) {
+      if (isZonalCoordinator) {
+        filters.zone_id = defaultZoneId ?? undefined;
+        filters.state_id = filterState !== "all" ? filterState : undefined;
+      } else if (stateScope) {
+        filters.scope = "state";
+      } else if (isStateCoordinator) {
         filters.state_id = defaultStateId ?? undefined;
         filters.zone_id = defaultZoneId ?? undefined;
       } else if (isReportingOfficer) {
@@ -708,7 +725,7 @@ export default function ServicomComplaintsPage({
   }, [
     defaultStateId, defaultZoneId, filterState, filterZone, filterStatus, filterPriority,
     filterAssigned, showAssignedFilter, userName, geoLocked,
-    isStateCoordinator, isReportingOfficer, isStateOfficer,
+    isStateCoordinator, isReportingOfficer, isStateOfficer, stateScope, isZonalCoordinator,
     filterFacilityName, filterHmoId, filterTransmission,
   ]);
 
@@ -831,7 +848,7 @@ export default function ServicomComplaintsPage({
   };
 
   const openRegister = () => {
-    if (!canCreate) return;
+    if (!canRegister) return;
     setF(emptyForm(defaultZoneId, defaultStateId));
     setSelected(null);
     setActiveStage("registration");
@@ -939,7 +956,7 @@ export default function ServicomComplaintsPage({
     }
 
     if (mode === "register") {
-      if (!canCreate) {
+      if (!canRegister) {
         setComplaintsQuery({ mode: "list" }, { replace: true });
         return () => { cancelled = true; };
       }
@@ -2466,7 +2483,8 @@ export default function ServicomComplaintsPage({
     const row = selected;
     const assignedToMe = isCurrentAssignee(row);
     const escalatedOpen = !!row?.escalated && !isComplaintClosed(row?.status);
-    const canCloseComplaint = !!row && !isComplaintClosed(row.status) && !isStateCoordinator
+    const canCloseComplaint = !!row && !isComplaintClosed(row.status)
+      && (!(isStateCoordinator || isZonalCoordinator) || assignedToMe)
       && !(escalatedOpen && !assignedToMe && !isNationalViewer
         && userRole !== "admin" && userRole !== "hq-department" && userRole !== "sdo");
 
@@ -2642,7 +2660,7 @@ export default function ServicomComplaintsPage({
       custom: true,
       component: (c) => {
         const closed = isComplaintClosed(c.status);
-        const useView = isStateCoordinator || closed;
+        const useView = closed || ((isStateCoordinator || isZonalCoordinator) && !isCurrentAssignee(c));
         const label = useView ? "View" : "Manage";
         return (
           <div className="flex justify-end">
@@ -2671,7 +2689,7 @@ export default function ServicomComplaintsPage({
           <Button variant="outline" size="sm" onClick={load} disabled={loading} className="h-8 gap-1.5 text-xs">
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh
           </Button>
-          {canCreate && (
+          {canRegister && (
             <Button size="sm" className="h-8 bg-orange-action hover:bg-orange-600 gap-1.5 text-xs" onClick={openRegister}>
               <Plus className="w-3.5 h-3.5" /> Register
             </Button>
@@ -2754,6 +2772,7 @@ export default function ServicomComplaintsPage({
             </div>
             {!geoLocked && (
               <>
+                {!isZonalCoordinator && (
                 <div className="min-w-0">
                   <Select value={filterZone} onValueChange={(v) => { setFilterZone(v); setFilterState("all"); setFilterFacilityId(""); setFilterFacilityName(""); }}>
                     <SelectTrigger className="h-8 w-full text-xs" displayValue={filterZone === "all" ? "Zone" : pickGeoLabel(zones, filterZone, "Zone")}>
@@ -2765,6 +2784,7 @@ export default function ServicomComplaintsPage({
                     </SelectContent>
                   </Select>
                 </div>
+                )}
                 <div className="min-w-0">
                   <Select value={filterState} onValueChange={(v) => { setFilterState(v); setFilterFacilityId(""); setFilterFacilityName(""); }}>
                     <SelectTrigger className="h-8 w-full text-xs" displayValue={filterState === "all" ? "State" : pickGeoLabel(filterStates, filterState, "State")}>
