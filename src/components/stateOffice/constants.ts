@@ -1,10 +1,18 @@
+import {
+  ENROLMENT_DRIVE_TYPES, enrolmentDriveReportType, isEnrolmentDriveType,
+  type EnrolmentDriveReportType,
+} from "./enrolmentDriveTypes";
+
+export { ENROLMENT_DRIVE_ACTIVITIES } from "./enrolmentDriveTypes";
+
 export type StateOfficeReportType =
   | "enrolment" | "migration" | "cemonc"
   | "complaints" | "accreditation" | "stakeholder" | "hmo-selection" | "challenges"
   | "igr" | "sshia-financial" | "expenditure-profile"
   | "weekly-actionable" | "contracted-services" | "enrollee-register" | "etmc-tmc-action-point"
   | "ict-support-register" | "adhoc-special-assignment"
-  | "extra-dependant" | "hcf-change";
+  | "extra-dependant" | "hcf-change"
+  | EnrolmentDriveReportType;
 
 export const MONTHS = [
   { value: 1, label: "January" },   { value: 2, label: "February" },
@@ -51,6 +59,66 @@ export const HCP_CHANGE_STATUSES = [
   { value: "denied", label: "Denied" },
   { value: "incomplete_documentation", label: "Incomplete documentation" },
   { value: "not_qualified", label: "Not qualified for change" },
+];
+
+export const ENROLMENT_DRIVE_FUNDING_OPTIONS = [
+  "Zero-Cost (Statutory Mandate)",
+  "Budgeted (Approved Release)",
+];
+export const ENROLMENT_DRIVE_BUDGETED = "Budgeted (Approved Release)";
+
+export const ENROLMENT_DRIVE_TARGET_AUDIENCES = [
+  "State Executives", "Organized Labour", "Traditional Rulers", "Employers", "Desk Officers",
+  "Students", "Private Company", "Market Association", "Artisan Group", "Religious Organisation",
+  "Community Leaders", "Traditional Institution", "HCPs", "HMOs", "Healthcare Provider Association",
+  "Civil Society", "NGOs", "General Public", "Corp Members", "Women", "Children", "Youth",
+  "Existing Beneficiaries", "Informal Sector", "Others (specify)",
+];
+
+export const ENROLMENT_DRIVE_PROGRAMS = [
+  { code: "PR-01", label: "FSSHIP" },
+  { code: "PR-02", label: "OPS" },
+  { code: "PR-03", label: "BHCPF" },
+  { code: "PR-04", label: "TISHIP" },
+  { code: "PR-05", label: "GIFSHIP-G" },
+  { code: "PR-06", label: "GIFSHIP-C" },
+  { code: "PR-07", label: "GIFSHIP-R" },
+  { code: "PR-08", label: "GIFSHIP-N" },
+  { code: "PR-09", label: "CEmONC" },
+  { code: "PR-10", label: "FFP" },
+  { code: "PR-11", label: "CBSHIP" },
+  { code: "PR-12", label: "NHIA-Roche Cancer Program" },
+];
+
+export const ENROLMENT_DRIVE_LOCATIONS: Record<string, string[]> = {
+  "Government": [
+    "NHIA Office", "State Government Secretariat", "Ministry/Department/Agency Office",
+    "Local Government Secretariat", "Government Institution", "Government Meeting Venue",
+  ],
+  "Health Sector": [
+    "Health Facility", "PHC", "Primary Healthcare Centre", "NHIA Programme Office",
+    "Health Management Organisation Office", "Provider Organisation Office",
+    "Healthcare Provider Association Office",
+  ],
+  "Stakeholder Organisation": [
+    "Stakeholder's Office", "Corporate Office", "NGO/CSO Office", "Development Partner Office",
+    "Professional Association Office", "Trade/Business Association Office", "Union Office",
+    "Cooperative Society Office",
+  ],
+  "Community and Traditional": [
+    "Traditional Ruler's Palace", "Community Centre", "Community Hall", "Community Meeting Venue",
+    "Ward Meeting Centre", "Religious Centre", "Market",
+  ],
+  "Institutional": [
+    "School", "Tertiary Institution", "Research Institution", "Training Institution",
+    "Conference Centre", "Hotel/Meeting Venue", "Workplace",
+  ],
+  "Media": ["Radio Station", "Television Station", "Media House", "Press Centre"],
+  "Virtual": ["Online", "Telephone/Teleconference"],
+};
+
+export const ENROLMENT_DRIVE_STATUSES = [
+  "Completed", "In Progress", "Not Conducted", "Not Applicable", "Deferred", "Cancelled",
 ];
 
 export const ETMC_SESSIONS = [
@@ -338,6 +406,11 @@ export const REPORT_CONFIG: Record<StateOfficeReportType, {
     subtitle: "Extra-dependant requests for the reporting month",
     refLabel: "Enrollee", countLabel: "Records", totalLabel: "Total Records",
   },
+  ...(Object.fromEntries(ENROLMENT_DRIVE_TYPES.map((t) => [enrolmentDriveReportType(t.key), {
+    title: t.title,
+    subtitle: "Enrolment Drives — activity reporting for the reporting month",
+    refLabel: "Activity", countLabel: "New Enrolments", totalLabel: "Total New Enrolments",
+  }])) as Record<EnrolmentDriveReportType, { title: string; subtitle: string; refLabel: string; countLabel: string; totalLabel: string }>),
   "hcf-change": {
     title: "Change of HCP",
     subtitle: "Enrollee HCP/HMO transfer requests for the reporting month",
@@ -618,6 +691,9 @@ export function reportLineTotal(reportType: StateOfficeReportType, report: any) 
   }
   if (reportType === "stakeholder") {
     return (report.lines ?? []).reduce((s: number, l: any) => s + (Number(l.audience_size) || 0), 0);
+  }
+  if (isEnrolmentDriveType(reportType)) {
+    return (report.lines ?? []).reduce((s: number, l: any) => s + (Number(l.new_enrolments) || 0), 0);
   }
   if (reportType === "hmo-selection" || reportType === "extra-dependant" || reportType === "hcf-change") {
     return report.lines?.length ?? 0;

@@ -1,3 +1,5 @@
+import { ENROLMENT_DRIVE_TYPES, enrolmentDriveView, enrolmentDrivePath } from "@/src/components/stateOffice/enrolmentDriveTypes";
+
 export type UserRole =
   | "admin" | "state-officer" | "zonal-coordinator"
   | "state-coordinator" | "department-officer" | "sdo" | "hq-department" | "dg-ceo";
@@ -238,6 +240,9 @@ export const MODULE_CONFIG: ParentModule[] = [
       { type: "group", label: "Enrolment", children: [
         { title: "Enrolment", view: "state-enrolment", path: "/zonal/enrolment" },
       ]},
+      { type: "group", label: "Enrolment Drives", children: ENROLMENT_DRIVE_TYPES.map((t) => ({
+        title: t.title, navLabel: t.navLabel, view: enrolmentDriveView(t.key), path: enrolmentDrivePath(t.key),
+      })) },
       { type: "group", label: "Beneficiary Management", children: [
         { title: "Additional / Extra Dependant", view: "state-extra-dependant", path: "/zonal/beneficiary/extra-dependant", navLabel: "Extra Dependant" },
         { title: "HMO Selection Process", view: "state-hmo-selection", path: "/zonal/hmo-selection", navLabel: "MDA HMO Selection" },

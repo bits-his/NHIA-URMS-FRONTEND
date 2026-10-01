@@ -49,6 +49,11 @@ import {
   MessageSquare,
   Search,
   Scale,
+  Store,
+  Church,
+  Building2,
+  GraduationCap,
+  Radio,
 } from "lucide-react";
 import {
   Collapsible,
@@ -72,6 +77,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { ENROLMENT_DRIVE_TYPES, enrolmentDriveView, enrolmentDrivePath } from "@/src/components/stateOffice/enrolmentDriveTypes";
 import type { AccessEntry } from "@/src/access/types";
 import {
   MODULE_CONFIG,
@@ -140,6 +146,15 @@ const ICON_MAP: Record<string, React.ElementType> = {
   "Beneficiary Management": Users,
   "Stakeholder Management": Handshake,
   "Stakeholder Engagement": Handshake,
+  "Enrolment Drives": Megaphone,
+  "Advocacy / Courtesy Visits": Landmark,
+  "Community Sensitization": Users,
+  "Informal Sector Mobilization": Store,
+  "Enrolment Campaigns": UserPlus,
+  "Market / Religious Organisation Outreach": Church,
+  "MDAs / OPS / SPAs Engagement": Building2,
+  "Capacity Building": GraduationCap,
+  "Media Parley / Campaigns": Radio,
   "Provider Management": Stethoscope,
   "Accreditation / Reaccreditation": Stethoscope,
   "Complaint / Compliance": Scale,
@@ -233,6 +248,7 @@ const VIEW_TO_PATH: Record<string, string> = {
   "state-ict-support-register": "/zonal/ict/support",
   "state-adhoc-special-assignment": "/sdo/projects",
   "state-extra-dependant": "/zonal/beneficiary/extra-dependant",
+  ...Object.fromEntries(ENROLMENT_DRIVE_TYPES.map((t) => [enrolmentDriveView(t.key), enrolmentDrivePath(t.key)])),
   "state-hcf-change": "/zonal/beneficiary/hcf-change",
   "state-ict-support": "/zonal/ict/support",
   "state-office-meeting": "/zonal/admin-hr/office-meeting",

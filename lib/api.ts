@@ -1,4 +1,7 @@
 import { tokenStore } from "./adminApi";
+import {
+  ENROLMENT_DRIVE_REPORT_TYPES, type EnrolmentDriveReportType,
+} from "@/src/components/stateOffice/enrolmentDriveTypes";
 
 const BASE_URL = (import.meta.env?.VITE_API_URL as string) || "http://localhost:3001/api";
 
@@ -584,7 +587,7 @@ export type StateOfficeReportType =
   | "igr" | "sshia-financial" | "expenditure-profile"
   | "weekly-actionable" | "contracted-services" | "enrollee-register" | "etmc-tmc-action-point"
   | "ict-support-register" | "adhoc-special-assignment"
-  | "extra-dependant" | "hcf-change"
+  | "extra-dependant" | "hcf-change" | EnrolmentDriveReportType
   | "office-meeting" | "etmc-cascading" | "office-accommodation" | "utility-services"
   | "vehicle-maintenance" | "conflict-infraction" | "enrollee-feedback";
 
@@ -610,6 +613,28 @@ const makeStateOfficeApi = (type: StateOfficeReportType) => ({
       method: "PATCH", body: JSON.stringify({ status }),
     }),
 });
+
+const makeEnrolmentDriveApi = (type: EnrolmentDriveReportType) => ({
+  ...makeStateOfficeApi(type),
+  uploadLineFiles: (reportId: number | string, lineId: number | string, files: File[]) => {
+    const token = tokenStore.get();
+    const form = new FormData();
+    files.forEach((file) => form.append("files", file));
+    return fetch(`${BASE_URL}/state-office/${type}/reports/${reportId}/lines/${lineId}/files`, {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: form,
+    }).then(async (res) => {
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.message || "Upload failed");
+      return json as { success: boolean; data: any };
+    });
+  },
+});
+
+const enrolmentDriveApis = Object.fromEntries(
+  ENROLMENT_DRIVE_REPORT_TYPES.map((t) => [t, makeEnrolmentDriveApi(t)]),
+) as Record<EnrolmentDriveReportType, ReturnType<typeof makeEnrolmentDriveApi>>;
 
 export const stateOfficeApi = {
   enrolment: makeStateOfficeApi("enrolment"),
@@ -663,6 +688,7 @@ export const stateOfficeApi = {
     },
   },
   "hcf-change": makeStateOfficeApi("hcf-change"),
+  ...enrolmentDriveApis,
   "office-meeting": makeStateOfficeApi("office-meeting"),
   "etmc-cascading": makeStateOfficeApi("etmc-cascading"),
   "office-accommodation": makeStateOfficeApi("office-accommodation"),
