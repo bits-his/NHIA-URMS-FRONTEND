@@ -408,7 +408,7 @@ export const REPORT_CONFIG: Record<StateOfficeReportType, {
   },
   ...(Object.fromEntries(ENROLMENT_DRIVE_TYPES.map((t) => [enrolmentDriveReportType(t.key), {
     title: t.title,
-    subtitle: "Enrolment Drives — activity reporting for the reporting month",
+    subtitle: "",
     refLabel: "Activity", countLabel: "New Enrolments", totalLabel: "Total New Enrolments",
   }])) as Record<EnrolmentDriveReportType, { title: string; subtitle: string; refLabel: string; countLabel: string; totalLabel: string }>),
   "hcf-change": {

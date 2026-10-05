@@ -1633,7 +1633,7 @@ export default function ServicomComplaintsPage({
             {renderGeoFields(readOnly, row)}
 
             {fromParty === "HCF" || fromParty === "HMO" ? (
-              <div className="col-span-full grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="col-span-full grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FieldSelect
                   label="Complainant Category *"
                   value={readOnly ? (row?.complainant_category ?? "") : f.complainant_category}
@@ -1660,7 +1660,7 @@ export default function ServicomComplaintsPage({
 
             {showAgainstStep && (
               againstParty === "HCF" || againstParty === "HMO" ? (
-                <div className="col-span-full grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="col-span-full grid grid-cols-1 md:grid-cols-2 gap-4">
                   <FieldSelect
                     label="Respondent *"
                     value={againstParty}
@@ -2748,12 +2748,14 @@ export default function ServicomComplaintsPage({
           </div>
         )}
 
-        <div className="rounded-lg border border-[#d4e8dc] bg-white p-2">
-          <div className={`grid gap-1.5 items-center ${geoLocked
-            ? "grid-cols-2 sm:grid-cols-3 lg:grid-cols-6"
-            : "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8"
+        <div className="rounded-lg border border-[#d4e8dc] bg-white p-2 space-y-1.5">
+          {/* Row 1 — search + location */}
+          <div className={`grid gap-1.5 items-center ${
+            geoLocked
+              ? "grid-cols-2 sm:grid-cols-3"
+              : "grid-cols-2 sm:grid-cols-3 lg:grid-cols-5"
           }`}>
-            <div className={`relative min-w-0 ${geoLocked ? "col-span-2 sm:col-span-2 lg:col-span-2" : "col-span-2"}`}>
+            <div className="relative min-w-0 col-span-2">
               <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none z-10" />
               <Input
                 className="pl-7 h-8 w-full text-xs"
@@ -2773,17 +2775,17 @@ export default function ServicomComplaintsPage({
             {!geoLocked && (
               <>
                 {!isZonalCoordinator && (
-                <div className="min-w-0">
-                  <Select value={filterZone} onValueChange={(v) => { setFilterZone(v); setFilterState("all"); setFilterFacilityId(""); setFilterFacilityName(""); }}>
-                    <SelectTrigger className="h-8 w-full text-xs" displayValue={filterZone === "all" ? "Zone" : pickGeoLabel(zones, filterZone, "Zone")}>
-                      <SelectValue placeholder="Zone" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Zones</SelectItem>
-                      {zones.map((z) => <SelectItem key={z.id} value={String(z.id)}>{z.description}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
+                  <div className="min-w-0">
+                    <Select value={filterZone} onValueChange={(v) => { setFilterZone(v); setFilterState("all"); setFilterFacilityId(""); setFilterFacilityName(""); }}>
+                      <SelectTrigger className="h-8 w-full text-xs" displayValue={filterZone === "all" ? "Zone" : pickGeoLabel(zones, filterZone, "Zone")}>
+                        <SelectValue placeholder="Zone" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Zones</SelectItem>
+                        {zones.map((z) => <SelectItem key={z.id} value={String(z.id)}>{z.description}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 )}
                 <div className="min-w-0">
                   <Select value={filterState} onValueChange={(v) => { setFilterState(v); setFilterFacilityId(""); setFilterFacilityName(""); }}>
@@ -2798,6 +2800,10 @@ export default function ServicomComplaintsPage({
                 </div>
               </>
             )}
+          </div>
+
+          {/* Row 2 — status / channel / facility filters */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-1.5 items-center">
             <div className="min-w-0">
               <Select value={filterStatus} onValueChange={setFilterStatus}>
                 <SelectTrigger className="h-8 w-full text-xs" displayValue={filterStatus === "all" ? "Status" : filterStatus}>
@@ -2843,7 +2849,7 @@ export default function ServicomComplaintsPage({
                   setFilterFacilityName(fac?.name ?? "");
                 }}
                 placeholder="HCF"
-                className="h-8 w-full"
+                className="h-8 w-full text-xs px-3 rounded-xl"
               />
             </div>
             <div className="min-w-0">
@@ -2851,12 +2857,12 @@ export default function ServicomComplaintsPage({
                 value={filterHmoId}
                 onChange={(hmo) => setFilterHmoId(hmo?.id ?? "")}
                 placeholder="HMO"
-                className="h-8 w-full"
+                className="h-8 w-full text-xs px-3 rounded-xl"
               />
             </div>
             {hasFilters && (
-              <div className="min-w-0">
-                <Button variant="ghost" size="sm" className="h-8 px-2 text-slate-500 gap-1 text-[11px] w-full" onClick={clearFilters}>
+              <div className="col-span-full flex justify-end">
+                <Button variant="ghost" size="sm" className="h-8 px-2 text-slate-500 gap-1 text-[11px]" onClick={clearFilters}>
                   <XCircle className="w-3.5 h-3.5" /> Clear
                 </Button>
               </div>
