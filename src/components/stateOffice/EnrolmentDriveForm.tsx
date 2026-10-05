@@ -333,7 +333,7 @@ export default function EnrolmentDriveForm({ reportType, reportId, onBack, onCan
                       {categories.map((a) => <SelectItem key={a.label} value={a.label}>{a.code} — {a.label}</SelectItem>)}
                     </SelectContent>
                   </Select>
-                </div>
+                </div>~
                 <div className="space-y-1">
                   <Label>Enrolment Drive ID</Label>
                   <Input value={activityCode(entry.activity_category)} readOnly placeholder="Auto" className="bg-slate-50" />

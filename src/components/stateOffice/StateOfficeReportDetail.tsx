@@ -130,15 +130,29 @@ export default function StateOfficeReportDetail({ reportType, reportId, onBack, 
                           <TableHeader>
                             <TableRow className="bg-[#f0fdf7] hover:bg-[#f0fdf7]">
                               <TableHead className="text-xs font-bold text-slate-600 w-12">#</TableHead>
-                              {reportType === "cemonc" ? (
+                              {reportType === "enrolment" ? (
+                                <>
+                                  <TableHead className="text-xs font-bold text-slate-600">ID</TableHead>
+                                  <TableHead className="text-xs font-bold text-slate-600">Date</TableHead>
+                                  <TableHead className="text-xs font-bold text-slate-600">{cfg.refLabel}</TableHead>
+                                  <TableHead className="text-xs font-bold text-slate-600">Channel</TableHead>
+                                  <TableHead className="text-xs font-bold text-slate-600">Program</TableHead>
+                                  <TableHead className="text-xs font-bold text-slate-600">Status</TableHead>
+                                  <TableHead className="text-xs font-bold text-slate-600 text-right">{cfg.countLabel}</TableHead>
+                                  <TableHead className="text-xs font-bold text-slate-600 text-right">Validated</TableHead>
+                                </>
+                              ) : reportType === "cemonc" ? (
                                 <>
                                   <TableHead className="text-xs font-bold text-slate-600">Intervention</TableHead>
                                   <TableHead className="text-xs font-bold text-slate-600">Facility Name</TableHead>
+                                  <TableHead className="text-xs font-bold text-slate-600 text-right">{cfg.countLabel}</TableHead>
                                 </>
                               ) : (
-                                <TableHead className="text-xs font-bold text-slate-600">{cfg.refLabel}</TableHead>
+                                <>
+                                  <TableHead className="text-xs font-bold text-slate-600">{cfg.refLabel}</TableHead>
+                                  <TableHead className="text-xs font-bold text-slate-600 text-right">{cfg.countLabel}</TableHead>
+                                </>
                               )}
-                              <TableHead className="text-xs font-bold text-slate-600 text-right">{cfg.countLabel}</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -147,11 +161,19 @@ export default function StateOfficeReportDetail({ reportType, reportId, onBack, 
                                 <TableCell className="text-xs text-slate-400">{i + 1}</TableCell>
                                 {reportType === "enrolment" && (
                                   <>
+                                    <TableCell className="text-xs font-mono">{line.activity_code ?? "—"}</TableCell>
+                                    <TableCell className="text-sm whitespace-nowrap">{line.activity_date ?? "—"}</TableCell>
                                     <TableCell className="text-sm font-medium">
                                       {labelOf(ENROLMENT_CATEGORIES, line.category)}
                                     </TableCell>
+                                    <TableCell className="text-xs">{line.enrolment_channel ?? "—"}</TableCell>
+                                    <TableCell className="text-xs">{line.program_name ?? "—"}</TableCell>
+                                    <TableCell className="text-xs">{line.activity_status ?? "—"}</TableCell>
                                     <TableCell className="text-sm text-right font-semibold tabular-nums">
                                       {formatCount(line.enrolment_count)}
+                                    </TableCell>
+                                    <TableCell className="text-sm text-right tabular-nums">
+                                      {line.enrollees_validated != null ? formatCount(line.enrollees_validated) : "—"}
                                     </TableCell>
                                   </>
                                 )}
@@ -179,12 +201,16 @@ export default function StateOfficeReportDetail({ reportType, reportId, onBack, 
                               </TableRow>
                             ))}
                             <TableRow className="bg-slate-50 font-bold border-t-2 border-[#d4e8dc]">
-                              <TableCell colSpan={reportType === "cemonc" ? 3 : 2} className="text-sm text-right text-slate-600">
+                              <TableCell
+                                colSpan={reportType === "enrolment" ? 7 : reportType === "cemonc" ? 3 : 2}
+                                className="text-sm text-right text-slate-600"
+                              >
                                 {cfg.totalLabel}
                               </TableCell>
                               <TableCell className="text-sm text-right text-primary tabular-nums">
                                 {formatCount(total)}
                               </TableCell>
+                              {reportType === "enrolment" && <TableCell />}
                             </TableRow>
                           </TableBody>
                         </Table>

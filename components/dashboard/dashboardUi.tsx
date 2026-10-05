@@ -62,7 +62,7 @@ export function ClickableKpi({
         )}
         {drillable && onClick && (
           <p className="text-[9px] text-[#25a872] font-semibold mt-auto pt-1.5 flex items-center gap-0.5 shrink-0">
-            {hint || "Click to show drilldown"} <ChevronRight className="w-3 h-3" />
+            {hint || "Open"} <ChevronRight className="w-3 h-3" />
           </p>
         )}
       </Tag>

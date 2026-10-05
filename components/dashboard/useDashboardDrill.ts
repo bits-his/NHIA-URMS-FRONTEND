@@ -25,7 +25,8 @@ const resolveRecordSegment = (params: DrillParams) => {
 
 export function useDashboardDrill(
   fetchDrill: (params: DrillParams) => Promise<{ success: boolean; data: DrillRow[] }>,
-  scope: { state_id?: string; zone_id?: string },
+  scope: { state_id?: string; zone_id?: string; year?: string; month?: string },
+  options?: { onReportRecord?: (row: DrillRow) => void },
 ) {
   const [open, setOpen] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
@@ -122,20 +123,34 @@ export function useDashboardDrill(
   const openLocalDrill = React.useCallback((
     localRows: DrillRow[],
     ctx: DrillContext,
-    options?: { push?: boolean },
+    localOptions?: { push?: boolean; resetStack?: boolean; params?: DrillParams },
   ) => {
-    if (options?.push && context) {
+    if (localOptions?.resetStack) {
+      stackRef.current = [];
+      setStackDepth(0);
+    } else if (localOptions?.push && context) {
       stackRef.current = [...stackRef.current, { context, params: paramsRef.current }];
       setStackDepth(stackRef.current.length);
     }
+    paramsRef.current = Object.fromEntries(
+      Object.entries({
+        ...pickDrillFilters(scope),
+        record_segment: "all_reports",
+        ...localOptions?.params,
+      }).filter(([, v]) => v != null && v !== ""),
+    ) as DrillParams;
     setOpen(true);
     setLoading(false);
     setContext(ctx);
     setRows(localRows);
-  }, [context]);
+  }, [context, scope]);
 
   const handleNestedRow = React.useCallback((row: DrillRow) => {
     const meta = row.meta || "";
+    if (meta.startsWith("record:")) {
+      options?.onReportRecord?.(row);
+      return;
+    }
     const breadcrumbs = [...(context?.breadcrumbs || []), context?.title || ""].filter(Boolean);
     const filters = pickDrillFilters(paramsRef.current);
     const recordSegment = resolveRecordSegment(paramsRef.current);
@@ -182,12 +197,12 @@ export function useDashboardDrill(
     if (meta.startsWith("report_type:")) {
       const report_type = meta.replace("report_type:", "");
       openDrill(
-        { segment: "reports", report_type, ...filters, ...(stateId ? { state_id: stateId } : {}) },
+        { ...filters, segment: "reports", report_type, ...(stateId ? { state_id: stateId } : {}) },
         { title: row.title, subtitle: "Monthly report records", breadcrumbs: [...breadcrumbs, row.title] },
         { push: true },
       );
     }
-  }, [context, openDrill]);
+  }, [context, openDrill, options]);
 
   const handleStatClick = React.useCallback((stat: DrillStatChip) => {
     if (stat.row) {

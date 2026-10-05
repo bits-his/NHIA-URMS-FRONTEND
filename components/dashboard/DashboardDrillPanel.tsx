@@ -55,6 +55,8 @@ const displayMeta = (meta?: string | null) => {
 const isNestedDrillRow = (meta?: string | null) =>
   !!meta && (meta.startsWith("zone:") || meta.startsWith("state:") || meta.startsWith("segment:") || meta.startsWith("report_type:"));
 
+const isReportRecordRow = (meta?: string | null) => !!meta && meta.startsWith("record:");
+
 /** Centered drill-down dialog — same pattern as SDO Performance modals */
 export default function DashboardDrillPanel({
   open, context, rows, loading, onClose, onBack, onRowClick, onStatClick,
@@ -115,7 +117,13 @@ export default function DashboardDrillPanel({
             <p className="text-[10px] text-[#25a872] font-semibold px-6 py-2 border-b border-[#e8f5ee] bg-white shrink-0">
               {loading ? "Loading records…" : `${rows.length} record(s)`}
               {!loading && rows.length > 0 && onRowClick && (
-                <span className="text-[#5a7a6a] font-normal"> · click a row to drill further</span>
+                <span className="text-[#5a7a6a] font-normal">
+                  {rows.some((r) => isReportRecordRow(r.meta))
+                    ? " · select a report to open"
+                    : rows.some((r) => isNestedDrillRow(r.meta))
+                      ? " · select a row to continue"
+                      : ""}
+                </span>
               )}
             </p>
 
@@ -191,7 +199,7 @@ export default function DashboardDrillPanel({
                                 </TableCell>
                                 <TableCell className="text-xs text-right text-muted-foreground whitespace-nowrap">
                                   {row.date ? String(row.date).slice(0, 10) : "—"}
-                                  {onRowClick && isNestedDrillRow(row.meta) && (
+                                  {onRowClick && (isNestedDrillRow(row.meta) || isReportRecordRow(row.meta)) && (
                                     <ChevronRight className="w-3 h-3 inline ml-1 text-[#25a872] opacity-60" />
                                   )}
                                 </TableCell>

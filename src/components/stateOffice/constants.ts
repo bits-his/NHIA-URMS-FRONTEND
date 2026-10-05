@@ -130,7 +130,7 @@ export const ETMC_SESSIONS = [
 
 export const ETMC_AGENDA_ITEMS = [
   { value: "enrolment_ict", label: "Enrolment & ICT" },
-  { value: "accreditation", label: "Accreditation / Reaccreditation" },
+  { value: "accreditation", label: "Accreditation" },
   { value: "finance_igr", label: "Finance & IGR" },
   { value: "complaints_servicom", label: "Complaints & SERVICOM" },
   { value: "operations_monitoring", label: "Operations & Monitoring" },
@@ -166,6 +166,12 @@ export const ETMC_ACTION_STATUSES = [
 ];
 
 export const ENROLMENT_CATEGORIES = [
+  { value: "enrolment", label: "Enrolment" },
+  { value: "nin_validation", label: "NIN Validation" },
+  { value: "id_card_issuance", label: "ID Card Issuance" },
+  { value: "enrolee_record_update", label: "Enrolee Record Update (Beneficiary Management)" },
+  { value: "validation_of_enrolees", label: "Validation of Enrolees" },
+  // legacy values (older reports)
   { value: "mop_up", label: "Mop-up Registration" },
   { value: "gifship", label: "GIFSHIP" },
   { value: "tiship", label: "TISHIP" },
@@ -367,9 +373,9 @@ export const REPORT_CONFIG: Record<StateOfficeReportType, {
   totalLabel: string;
 }> = {
   enrolment: {
-    title: "Enrolment",
+    title: "Enrolment Activity Reporting",
     subtitle: "",
-    refLabel: "Category", countLabel: "No. of Enrolment", totalLabel: "Total Enrollment",
+    refLabel: "Enrolment Activity", countLabel: "Number Enrolled / Beneficiaries", totalLabel: "Total Enrolled",
   },
   migration: {
     title: "Migration / Update Requests",
@@ -387,14 +393,14 @@ export const REPORT_CONFIG: Record<StateOfficeReportType, {
     refLabel: "Category / Status", countLabel: "Number", totalLabel: "Total Complaints",
   },
   accreditation: {
-    title: "Accreditation / Reaccreditation",
+    title: "Accreditation",
     subtitle: "",
     refLabel: "Indicator", countLabel: "Count", totalLabel: "Grand Total",
   },
   stakeholder: {
     title: "Stakeholder Engagement",
     subtitle: "",
-    refLabel: "Activity", countLabel: "Audience Size", totalLabel: "Total Audience",
+    refLabel: "Engagement Activity", countLabel: "Stakeholders Engaged", totalLabel: "Total Engaged",
   },
   "hmo-selection": {
     title: "MDA Change of HMO Selection Process",
@@ -417,9 +423,9 @@ export const REPORT_CONFIG: Record<StateOfficeReportType, {
     refLabel: "Enrollee", countLabel: "Records", totalLabel: "Total Records",
   },
   challenges: {
-    title: "Challenges & Recommendations",
+    title: "Challenges",
     subtitle: "",
-    refLabel: "Section", countLabel: "Content", totalLabel: "Sections",
+    refLabel: "Challenge", countLabel: "Records", totalLabel: "Total Challenges",
   },
   igr: {
     title: "IGR",
@@ -654,7 +660,8 @@ export function reportLineCount(reportType: StateOfficeReportType, report: any) 
       + (report.reconciliation_lines?.length ?? 0);
   }
   if (reportType === "challenges") {
-    return (report.challenges ? 1 : 0) + (report.recommendations ? 1 : 0);
+    return report.lines?.length
+      ?? ((report.challenges ? 1 : 0) + (report.recommendations ? 1 : 0));
   }
   if (reportType === "enrollee-register") {
     return 6;
@@ -690,7 +697,8 @@ export function reportLineTotal(reportType: StateOfficeReportType, report: any) 
       s + (Number(l.primary_count) || 0) + (Number(l.secondary_count) || 0), 0);
   }
   if (reportType === "stakeholder") {
-    return (report.lines ?? []).reduce((s: number, l: any) => s + (Number(l.audience_size) || 0), 0);
+    return (report.lines ?? []).reduce((s: number, l: any) =>
+      s + (Number(l.stakeholders_engaged ?? l.audience_size) || 0), 0);
   }
   if (isEnrolmentDriveType(reportType)) {
     return (report.lines ?? []).reduce((s: number, l: any) => s + (Number(l.new_enrolments) || 0), 0);
