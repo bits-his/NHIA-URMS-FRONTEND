@@ -78,6 +78,7 @@ const PATH_TO_VIEW: Record<string, string> = {
   "/zonal/monitoring-visits":    "servicom-visits",
   "/zonal/hmo-indebtedness":     "state-hmo-indebtedness",
   "/zonal/mystery-shopping":     "state-mystery-shopping",
+  "/zonal/complaints-register":  "zonal-complaints-register",
   "/soc/operation-monitoring-visit": "soc-operation-monitoring-visit",
   "/soc/spot-check-visit":        "soc-spot-check-visit",
   "/sdo/servicom/complaints":     "servicom-complaints",

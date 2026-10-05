@@ -98,7 +98,7 @@ export default function AdminDashboard({ onNavigate }: { onNavigate?: (tab: stri
   ];
 
   const navCards = [
-    { label: "Users",         desc: "Manage user accounts & roles",    tab: "users",       icon: <Users className="w-5 h-5" />,       color: "#145c3f" },
+    { label: "Users",         desc: "Manage user accounts & roles",     tab: "users",       icon: <Users className="w-5 h-5" />,       color: "#145c3f" },
     { label: "Privileges",    desc: "Assign module access permissions", tab: "privileges",  icon: <ShieldCheck className="w-5 h-5" />, color: "#7c3aed" },
     { label: "Zonal Offices", desc: "Configure geopolitical zones",     tab: "zones",       icon: <MapPin className="w-5 h-5" />,      color: "#3b82f6" },
     { label: "State Offices", desc: "Manage state-level offices",       tab: "states",      icon: <Building2 className="w-5 h-5" />,   color: "#f59e0b" },

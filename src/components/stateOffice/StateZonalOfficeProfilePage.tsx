@@ -15,7 +15,7 @@ import { toast } from "sonner";
 import { apiFileUrl, stateZonalOfficeProfileApi, stockApi } from "@/lib/api";
 import { buildReportingYearOptions } from "../monthly/reportingYears";
 import { ALL_STATES, useMonthlyStateFilter } from "../monthly/useMonthlyStateFilter";
-import { useCreateReviewAccess } from "@/src/access/createReviewAccess";
+import { useStateOfficeAccess } from "@/src/access/createReviewAccess";
 
 interface Props {
   onBack: () => void;
@@ -81,7 +81,7 @@ function InfoField({ label, value }: { label: string; value?: React.ReactNode })
 }
 
 export default function StateZonalOfficeProfilePage({ onBack, defaultStateId, defaultZoneId }: Props) {
-  const { canCreate, createOnly } = useCreateReviewAccess();
+  const { canCreate, createOnly } = useStateOfficeAccess();
   const yearOptions = React.useMemo(() => buildReportingYearOptions(), []);
   const currentYear = yearOptions[0] || String(new Date().getFullYear());
 

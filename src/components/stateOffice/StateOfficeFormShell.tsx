@@ -17,14 +17,18 @@ interface Props {
   onSubmitted?: () => void;
   defaultZoneId?: string | null;
   defaultStateId?: string | null;
-  /** Sticky page header title (left); Back sits on the right */
+  /** Sticky page header title (left); Back sits on the left like SERVICOM pages */
   pageTitle?: string;
   pageSubtitle?: string;
+  /** Hide sticky Save Draft / Submit bar (forms that provide their own actions) */
+  hideFooterActions?: boolean;
   children: (ctx: {
     saving: boolean;
     submitting: boolean;
     savedId: number | null;
     stateId: string;
+    persist: (status: "draft" | "submitted") => Promise<void>;
+    requestSubmit: (action: () => void | Promise<void>) => void;
   }) => React.ReactNode;
   buildPayload: (base: Record<string, unknown>) => Record<string, unknown>;
   validate?: () => string | null;
@@ -48,6 +52,7 @@ export default function StateOfficeFormShell({
   showQuarter,
   pageTitle,
   pageSubtitle,
+  hideFooterActions = false,
   afterPersist,
 }: Props) {
   const handleCancel = onCancel ?? onBack;
@@ -131,28 +136,36 @@ export default function StateOfficeFormShell({
   return (
     <div className="flex flex-col h-full bg-slate-50/30">
       <div className="bg-white border-b border-border/50 px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30 gap-3">
-        <div className="min-w-0">
-          {pageTitle ? (
-            <>
-              <h2 className="text-xl font-bold tracking-tight truncate">{pageTitle}</h2>
-              {(pageSubtitle || refId) && (
-                <p className="text-xs text-slate-500 truncate">
-                  {refId ? <span className="font-mono font-semibold text-[#145c3f]">{refId}</span> : null}
-                  {refId && pageSubtitle ? " · " : null}
-                  {pageSubtitle || null}
-                </p>
-              )}
-            </>
-          ) : refId ? (
-            <span className="text-xs font-mono font-semibold text-[#145c3f] truncate">{refId}</span>
-          ) : null}
+        <div className="flex items-center gap-3 min-w-0">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleCancel}
+            className="rounded-full shrink-0"
+            aria-label="Back"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </Button>
+          <div className="min-w-0">
+            {pageTitle ? (
+              <>
+                <h2 className="text-xl font-bold tracking-tight truncate">{pageTitle}</h2>
+                {(pageSubtitle || refId) && (
+                  <p className="text-xs text-slate-500 truncate">
+                    {refId ? <span className="font-mono font-semibold text-[#145c3f]">{refId}</span> : null}
+                    {refId && pageSubtitle ? " · " : null}
+                    {pageSubtitle || null}
+                  </p>
+                )}
+              </>
+            ) : refId ? (
+              <span className="text-xs font-mono font-semibold text-[#145c3f] truncate">{refId}</span>
+            ) : null}
+          </div>
         </div>
-        <Button variant="outline" size="sm" onClick={handleCancel} className="gap-1.5 shrink-0 font-semibold">
-          <ArrowLeft className="w-4 h-4" /> Back
-        </Button>
       </div>
       <ScrollArea className="flex-1">
-        <div className="w-full px-4 md:px-6 py-4 space-y-4 pb-28">
+        <div className={`w-full px-4 md:px-6 py-4 space-y-4 ${hideFooterActions ? "pb-8" : "pb-28"}`}>
           {loadingRecord ? (
             <div className="flex items-center justify-center py-24 gap-3 text-slate-400">
               <Loader2 className="w-6 h-6 animate-spin" /><span className="text-sm">Loading report...</span>
@@ -168,13 +181,20 @@ export default function StateOfficeFormShell({
                 showGeoIds={showGeoIds}
                 showQuarter={showQuarter}
               />
-              {children({ saving, submitting, savedId, stateId: header.stateId })}
+              {children({
+                saving,
+                submitting,
+                savedId,
+                stateId: header.stateId,
+                persist,
+                requestSubmit: submitConfirm.requestSubmit,
+              })}
             </>
           )}
         </div>
       </ScrollArea>
 
-      {!loadingRecord && (
+      {!loadingRecord && !hideFooterActions && (
         <div className="sticky bottom-0 z-30 bg-white border-t border-border/50 px-4 md:px-6 py-3 flex flex-wrap items-center justify-end gap-3">
           <Button variant="ghost" size="sm" onClick={() => persist("draft")} disabled={saving} className="gap-2">
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}

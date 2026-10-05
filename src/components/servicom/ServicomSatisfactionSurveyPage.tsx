@@ -264,17 +264,11 @@ export default function ServicomSatisfactionSurveyPage({
           <div className="space-y-1.5">
             <Label className="text-xs text-slate-500">State *</Label>
             {readOnly ? (
-              <Input
-                readOnly
-                value={row?.state?.description || "—"}
-                className="bg-slate-50 text-slate-800"
-              />
+              <p className="text-sm">{row?.state?.description || "—"}</p>
             ) : geoLocked ? (
-              <Input
-                readOnly
-                value={defaultStateName ?? pickGeoLabel(states, f.state_id, "State")}
-                className="bg-slate-50 text-slate-800 font-medium"
-              />
+              <p className="text-sm font-medium">
+                {defaultStateName ?? pickGeoLabel(states, f.state_id, "State")}
+              </p>
             ) : (
               <Select value={f.state_id} onValueChange={(v) => {
                 const state = states.find((s) => String(s.id) === v);

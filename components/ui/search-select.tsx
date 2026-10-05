@@ -56,7 +56,7 @@ export function SearchSelect({
   const updateMenuPosition = React.useCallback(() => {
     if (!containerRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
-    const maxWidth = Math.min(Math.max(rect.width, 320), window.innerWidth - 16);
+    const maxWidth = Math.min(Math.max(rect.width, 360), window.innerWidth - 16);
     setMenuStyle({
       position: "fixed",
       top: rect.bottom + 6,
@@ -150,26 +150,28 @@ export function SearchSelect({
                 type="button"
                 onClick={() => handleSelect(opt.value)}
                 className={cn(
-                  "w-full flex items-start gap-3 px-3 py-2.5 rounded-xl text-left",
+                  "w-full flex items-start gap-2 px-3 py-2.5 rounded-xl text-left",
                   "transition-all duration-150 group",
                   isSelected
                     ? "bg-[#e8f5ee] text-[#145c3f]"
                     : "text-slate-700 hover:bg-[#f0fdf7] hover:text-[#145c3f]",
                 )}
               >
-                {opt.sub && (
-                  <span className={cn(
-                    "text-[10px] font-bold px-1.5 py-0.5 rounded-md shrink-0 mt-0.5",
-                    isSelected
-                      ? "bg-[#145c3f] text-white"
-                      : "bg-[#e8f5ee] text-[#145c3f] group-hover:bg-[#d1f5e4]",
-                  )}>
-                    {opt.sub}
+                <div className="flex-1 min-w-0 flex flex-col gap-1">
+                  {opt.sub && (
+                    <span className={cn(
+                      "self-start text-[10px] font-bold px-1.5 py-0.5 rounded-md max-w-full truncate",
+                      isSelected
+                        ? "bg-[#145c3f] text-white"
+                        : "bg-[#e8f5ee] text-[#145c3f] group-hover:bg-[#d1f5e4]",
+                    )}>
+                      {opt.sub}
+                    </span>
+                  )}
+                  <span className="text-sm font-medium leading-snug whitespace-normal break-words">
+                    {opt.label}
                   </span>
-                )}
-                <span className="flex-1 text-sm font-medium leading-snug whitespace-normal break-words">
-                  {opt.label}
-                </span>
+                </div>
                 {isSelected && <Check className="w-4 h-4 text-[#145c3f] shrink-0 mt-0.5" />}
               </button>
             );
@@ -186,7 +188,7 @@ export function SearchSelect({
   ) : null;
 
   return (
-    <div ref={containerRef} className={cn("relative w-full", className)}>
+    <div ref={containerRef} className="relative w-full min-w-0">
       <button
         id={id}
         type="button"
@@ -201,21 +203,11 @@ export function SearchSelect({
           "focus-visible:border-[#0f3d2e] focus-visible:ring-3 focus-visible:ring-[#1a7a52]/25",
           open && "border-[#0f3d2e] bg-white ring-3 ring-[#1a7a52]/20",
           disabled && "opacity-50 cursor-not-allowed bg-slate-100",
+          className,
         )}
       >
-        <span className={cn("flex-1 min-w-0", !selected && "text-slate-400")}>
-          {selected ? (
-            <span className="flex items-center gap-2 min-w-0">
-              {selected.sub && (
-                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-[#e8f5ee] text-[#145c3f] shrink-0">
-                  {selected.sub}
-                </span>
-              )}
-              <span className="text-slate-800 font-medium truncate">{selected.label}</span>
-            </span>
-          ) : (
-            placeholder
-          )}
+        <span className={cn("flex-1 min-w-0 truncate", !selected && "text-slate-400")}>
+          {selected ? selected.label : placeholder}
         </span>
 
         <span className="flex items-center gap-1 shrink-0">

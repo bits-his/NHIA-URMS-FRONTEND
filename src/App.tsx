@@ -80,9 +80,9 @@ function AppInner() {
   // Render spinner while checking existing session token on application load
   if (checking) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#f4f7f5]">
+      <div className="flex min-h-dvh items-center justify-center bg-[#f4f7f5]">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-2 border-[#25a872] border-t-transparent rounded-full animate-spin" />
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#25a872] border-t-transparent" />
           <p className="text-xs text-slate-400">Verifying session...</p>
         </div>
       </div>

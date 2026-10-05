@@ -49,6 +49,11 @@ import {
   MessageSquare,
   Search,
   Scale,
+  Store,
+  Church,
+  Building2,
+  GraduationCap,
+  Radio,
 } from "lucide-react";
 import {
   Collapsible,
@@ -72,6 +77,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { ENROLMENT_DRIVE_TYPES, enrolmentDriveView, enrolmentDrivePath } from "@/src/components/stateOffice/enrolmentDriveTypes";
 import type { AccessEntry } from "@/src/access/types";
 import {
   MODULE_CONFIG,
@@ -89,6 +95,7 @@ import {
 } from "@/src/access/moduleConfig";
 import { hasModuleAccess } from "@/src/access/roles";
 import { normalizeAllowedTitles, expandAccessEntries } from "@/src/access/accessUtils";
+import { NhiaSidebarBrand } from "@/src/components/NhiaCrest";
 
 type View = string;
 
@@ -139,6 +146,15 @@ const ICON_MAP: Record<string, React.ElementType> = {
   "Beneficiary Management": Users,
   "Stakeholder Management": Handshake,
   "Stakeholder Engagement": Handshake,
+  "Enrolment Drives": Megaphone,
+  "Advocacy / Courtesy Visits": Landmark,
+  "Community Sensitization": Users,
+  "Informal Sector Mobilization": Store,
+  "Enrolment Campaigns": UserPlus,
+  "Market / Religious Organisation Outreach": Church,
+  "MDAs / OPS / SPAs Engagement": Building2,
+  "Capacity Building": GraduationCap,
+  "Media Parley / Campaigns": Radio,
   "Provider Management": Stethoscope,
   "Accreditation / Reaccreditation": Stethoscope,
   "Complaint / Compliance": Scale,
@@ -193,6 +209,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
   "Spot Check Visit": MapPin,
   Complaints: Scale,
   "Complaints Management": Scale,
+  "State Complaints Register": Scale,
   "Customer Satisfaction Survey": TrendingUp,
   "HCF Customer Satisfaction Survey": TrendingUp,
   "Charter Performance": Megaphone,
@@ -231,6 +248,7 @@ const VIEW_TO_PATH: Record<string, string> = {
   "state-ict-support-register": "/zonal/ict/support",
   "state-adhoc-special-assignment": "/sdo/projects",
   "state-extra-dependant": "/zonal/beneficiary/extra-dependant",
+  ...Object.fromEntries(ENROLMENT_DRIVE_TYPES.map((t) => [enrolmentDriveView(t.key), enrolmentDrivePath(t.key)])),
   "state-hcf-change": "/zonal/beneficiary/hcf-change",
   "state-ict-support": "/zonal/ict/support",
   "state-office-meeting": "/zonal/admin-hr/office-meeting",
@@ -250,6 +268,7 @@ const VIEW_TO_PATH: Record<string, string> = {
   "state-hmo-indebtedness": "/zonal/hmo-indebtedness",
   "state-mystery-shopping": "/zonal/mystery-shopping",
   "servicom-complaints": "/sdo/servicom/complaints",
+  "zonal-complaints-register": "/zonal/complaints-register",
   "servicom-satisfaction": "/sdo/servicom/satisfaction",
   "servicom-comment-card": "/sdo/servicom/comment-card",
   "special-projects": "/sdo/projects",
@@ -431,6 +450,28 @@ function getUserDepartmentLabel(
   return user?.role_label || role?.replace(/-/g, " ") || null;
 }
 
+function getUserZoneLabel(user?: import("@/src/store/authSlice").AuthUser): string | null {
+  const desc = user?.zone?.description?.trim();
+  if (desc) return desc;
+  const code = user?.zone?.zonal_code?.trim();
+  return code || null;
+}
+
+function getUserStateLabel(user?: import("@/src/store/authSlice").AuthUser): string | null {
+  const desc = user?.state?.description?.trim();
+  if (desc) return desc;
+  const code = user?.state?.code?.trim();
+  return code || null;
+}
+
+/** Show zone/state only when the user is assigned to both. */
+function userHasZoneAndState(user?: import("@/src/store/authSlice").AuthUser): boolean {
+  if (!user) return false;
+  const hasZone = !!(user.zone_id || user.zone?.id || getUserZoneLabel(user));
+  const hasState = !!(user.state_id || user.state?.id || getUserStateLabel(user));
+  return hasZone && hasState;
+}
+
 function UserSidebarDepartment({
   user,
   role,
@@ -443,16 +484,48 @@ function UserSidebarDepartment({
   if (!department && !unit) return null;
 
   return (
-    <div className="mx-0 mt-2 rounded-lg bg-white/8 px-3 py-2 space-y-1 group-data-[collapsible=icon]:hidden">
+    <div className="mx-0 mt-2.5 rounded-xl bg-white/8 px-3 py-2 space-y-0.5 group-data-[collapsible=icon]:hidden">
       {department ? (
         <p className="text-[13px] font-semibold leading-snug text-white/95">
           {department}
         </p>
       ) : null}
       {unit ? (
-        <p className="text-[13px] font-semibold leading-snug text-white/95">
+        <p className="text-[12px] font-medium leading-snug text-white/80">
           {unit}
         </p>
+      ) : null}
+    </div>
+  );
+}
+
+function UserSidebarGeo({
+  user,
+}: {
+  user?: import("@/src/store/authSlice").AuthUser;
+}) {
+  if (!userHasZoneAndState(user)) return null;
+  const zoneLabel = getUserZoneLabel(user);
+  const stateLabel = getUserStateLabel(user);
+  if (!zoneLabel && !stateLabel) return null;
+
+  return (
+    <div className="mx-2 my-1 rounded-xl bg-white/8 px-3 py-2 space-y-1 group-data-[collapsible=icon]:hidden">
+      {zoneLabel ? (
+        <div className="min-w-0">
+          <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-white/40">Zone</p>
+          <p className="text-[12px] font-semibold leading-snug text-white/90 truncate" title={zoneLabel}>
+            {zoneLabel}
+          </p>
+        </div>
+      ) : null}
+      {stateLabel ? (
+        <div className="min-w-0">
+          <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-white/40">State</p>
+          <p className="text-[12px] font-semibold leading-snug text-white/90 truncate" title={stateLabel}>
+            {stateLabel}
+          </p>
+        </div>
       ) : null}
     </div>
   );
@@ -470,14 +543,22 @@ function treeContainsPath(node: TreeNode, pathname: string): boolean {
   return node.children.some((child) => treeContainsPath(child, pathname));
 }
 
+function formatNavTitle(title: string) {
+  const letters = title.replace(/[^A-Za-z]/g, "");
+  if (letters.length > 3 && title === title.toUpperCase() && /\s/.test(title)) {
+    return title.toLowerCase().replace(/\b([a-z])/g, (m) => m.toUpperCase());
+  }
+  return title;
+}
+
 function displayName(node: TreeNode, role: string) {
-  const raw = node.kind === "leaf" ? (node.navLabel || node.title) : node.title;
+  if (node.kind === "leaf" && node.navLabel) return formatNavTitle(node.navLabel);
   if (role === "sdo" && node.title === "Dashboard") return "SDO Dashboard";
-  return raw;
+  return formatNavTitle(node.title);
 }
 
 const navItemClass =
-  "h-auto! min-h-8 items-center whitespace-normal overflow-visible py-1.5 font-medium [&>span:last-child]:whitespace-normal [&>span:last-child]:overflow-visible [&>span:last-child]:text-wrap [&>span:last-child]:leading-snug";
+  "h-auto! min-h-8 items-start gap-2.5 overflow-visible py-1.5 pr-1.5 font-medium leading-snug whitespace-normal [&>span:last-child]:min-w-0 [&>span:last-child]:flex-1 [&>span:last-child]:overflow-visible [&>span:last-child]:whitespace-normal [&>span:last-child]:text-pretty [&>span:last-child]:break-words [&>span:last-child]:leading-[1.35]";
 
 function NavTreeItem({
   node,
@@ -516,8 +597,7 @@ function NavTreeItem({
         <SidebarMenuButton
           isActive={isActive}
           tooltip={label}
-          size={depth > 0 ? "sm" : "default"}
-          className={`${navItemClass} ${depth > 0 ? "text-[12.5px] font-normal" : ""}`}
+          className={`${navItemClass} ${depth > 0 ? "text-[12.5px] font-normal" : "text-[13px]"}`}
           render={
             <NavLink
               to={path}
@@ -528,7 +608,7 @@ function NavTreeItem({
             />
           }
         >
-          <LeafIcon className="mt-0.5 size-4 shrink-0 opacity-80" />
+          <LeafIcon className="mt-[3px] size-4 shrink-0 opacity-80" />
           <span>{label}</span>
         </SidebarMenuButton>
       </Wrapper>
@@ -544,19 +624,19 @@ function NavTreeItem({
       <Collapsible open={open} onOpenChange={setOpen} className="group/collapsible w-full">
         <CollapsibleTrigger
           render={
-            <SidebarMenuButton tooltip={folderLabel} className={`${navItemClass} ${depth === 0 ? "font-semibold" : "text-[12.5px]"}`} />
+            <SidebarMenuButton tooltip={folderLabel} className={`${navItemClass} ${depth === 0 ? "text-[13px] font-semibold" : "text-[12.5px]"}`} />
           }
         >
-          <FolderIcon className="mt-0.5 size-4 shrink-0 opacity-80" />
-          <span className="flex-1 text-left">{folderLabel}</span>
+          <FolderIcon className="mt-[3px] size-4 shrink-0 opacity-80" />
+          <span className="min-w-0 flex-1 text-left text-pretty">{folderLabel}</span>
           <ChevronRight
-            className={`mt-0.5 ml-auto size-3.5 shrink-0 opacity-60 transition-transform duration-200 ${
+            className={`mt-[5px] ml-auto size-3.5 shrink-0 opacity-60 transition-transform duration-200 ${
               open ? "rotate-90" : "rotate-0"
             }`}
           />
         </CollapsibleTrigger>
         <CollapsibleContent>
-          <SidebarMenuSub className="mx-2.5 mr-0 gap-0.5 overflow-visible border-white/10 py-1 pr-0">
+          <SidebarMenuSub className="mx-2 mr-0 gap-0.5 overflow-visible border-white/10 py-1 pr-0.5">
             {node.children.map((child, index) => (
               <NavTreeItem
                 key={`${child.kind}-${child.title}-${index}`}
@@ -693,6 +773,10 @@ export function AppSidebar({
     }
 
     const effectiveAccess = expandAccessEntries(access);
+    const hasStateOfficeAccess = effectiveAccess.some((e) => {
+      const t = moduleConfigForAccess(e.access_to)?.title;
+      return t === SOC_ZONES_MODULE || t === ZONAL_MODULE;
+    });
     const result = effectiveAccess
       .map((entry) => {
         const mod = moduleConfigForAccess(entry.access_to);
@@ -700,10 +784,14 @@ export function AppSidebar({
         const funcs = Array.isArray(entry.functionalities)
           ? entry.functionalities
           : [];
+        // SDO is auto-granted (with no pages) when only SOC/Zonal pages are ticked.
+        const sdoParentOnly = mod.title === SDO_MODULE && funcs.length === 0 && hasStateOfficeAccess;
         const allowedTitles =
           funcs.length > 0
             ? normalizeAllowedTitles(funcs, mod.title)
-            : new Set(flatLeaves(mod));
+            : sdoParentOnly
+              ? new Set<string>()
+              : new Set(flatLeaves(mod));
         return { mod, allowedTitles };
       })
       .filter(Boolean) as {
@@ -725,15 +813,11 @@ export function AppSidebar({
 
   return (
     <Sidebar collapsible="icon" {...props}>
-      <SidebarHeader className="border-b border-sidebar-border px-3 py-2.5 overflow-hidden">
-        <div className="flex h-11 w-full min-w-0 items-center justify-center group-data-[collapsible=icon]:h-9">
-          <img
-            src="/logo.png"
-            alt="NHIA URMS"
-            className="h-9 w-full max-w-full object-contain object-center group-data-[collapsible=icon]:h-7 group-data-[collapsible=icon]:w-7"
-          />
+      <SidebarHeader className="gap-0 border-b border-white/10 p-0">
+        <div className="px-3 pt-3.5 pb-3 group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-2">
+          <NhiaSidebarBrand />
+          <UserSidebarDepartment user={user} role={role} />
         </div>
-        <UserSidebarDepartment user={user} role={role} />
       </SidebarHeader>
 
       <SidebarContent>
@@ -741,6 +825,7 @@ export function AppSidebar({
       </SidebarContent>
 
       <SidebarFooter className="border-t border-sidebar-border gap-1 pt-2">
+        <UserSidebarGeo user={user} />
         <SidebarMenu>
           <SidebarMenuItem onClick={closeMobile}>
             <SidebarMenuButton
@@ -764,7 +849,7 @@ export function AppSidebar({
           {showSettings && (
             <SidebarMenuItem onClick={closeMobile}>
               <SidebarMenuButton
-                tooltip="Settings"
+                tooltip="Staff Management"
                 isActive={
                   location.pathname === "/settings" || view === "settings"
                 }
@@ -776,7 +861,7 @@ export function AppSidebar({
                 }
               >
                 <Settings />
-                <span>Settings</span>
+                <span>Staff Management</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
           )}

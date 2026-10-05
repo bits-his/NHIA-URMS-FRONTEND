@@ -17,7 +17,7 @@ import { useMonthlyStateFilter } from "../monthly/useMonthlyStateFilter";
 import { MONTHS, monthLabel } from "./constants";
 import AccreditedProviderSelect from "./AccreditedProviderSelect";
 import HcfFacilitySelect from "../servicom/HcfFacilitySelect";
-import { useCreateReviewAccess } from "@/src/access/createReviewAccess";
+import { useStateOfficeAccess } from "@/src/access/createReviewAccess";
 
 interface Props {
   onBack: () => void;
@@ -75,7 +75,7 @@ function InfoField({ label, value }: { label: string; value?: React.ReactNode })
 }
 
 export default function StateOfficeHmoIndebtednessPage({ onBack, defaultStateId, defaultZoneId }: Props) {
-  const { canCreate, createOnly } = useCreateReviewAccess();
+  const { canCreate, createOnly } = useStateOfficeAccess();
   const [mode, setMode] = React.useState<Mode>(createOnly ? "create" : "list");
   const [formKey, setFormKey] = React.useState(0);
   const [rows, setRows] = React.useState<any[]>([]);

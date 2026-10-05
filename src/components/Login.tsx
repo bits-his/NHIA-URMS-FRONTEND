@@ -1,45 +1,47 @@
 import * as React from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Eye, EyeOff, User, Lock, ChevronRight, AlertCircle, Shield } from "lucide-react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Eye, EyeOff, User, Lock, AlertCircle, Shield } from "lucide-react";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { authApi, tokenStore } from "@/lib/adminApi";
-
-const ROLES = [
-  { value: "state-officer",      label: "State Officer"      },
-  { value: "zonal-coordinator",  label: "Zonal Coordinator"  },
-  { value: "state-coordinator",  label: "State Coordinator"  },
-  { value: "department-officer", label: "Department Officer" },
-  { value: "sdo",                label: "SDO"                },
-  { value: "hq-department",      label: "HQ Department"      },
-  { value: "dg-ceo",             label: "DG-CEO"             },
-];
-
 import type { AccessEntry } from "@/src/access/types";
+import { NhiaCrest } from "@/src/components/NhiaCrest";
 
-interface LoginProps { onLogin: (role: string, access: AccessEntry[], userData: any) => void; }
+const ROLE_LABELS: Record<string, string> = {
+  admin: "System Administrator",
+  sdo: "State Development Office",
+  "hq-department": "Headquarters Department",
+  "zonal-coordinator": "Zonal Coordinator",
+  "state-coordinator": "State Coordinator",
+  "department-officer": "Department Officer",
+  "state-officer": "State Officer",
+  "dg-ceo": "Director-General / CEO",
+};
+
+interface LoginProps {
+  onLogin: (role: string, access: AccessEntry[], userData: any) => void;
+}
 
 export default function Login({ onLogin }: LoginProps) {
-  const [staffId,      setStaffId]      = React.useState("");
-  const [password,     setPassword]     = React.useState("");
+  const [staffId, setStaffId] = React.useState("");
+  const [password, setPassword] = React.useState("");
   const [showPassword, setShowPassword] = React.useState(false);
-  const [role,         setRole]         = React.useState("");
-  const [isLoading,    setIsLoading]    = React.useState(false);
-  const [error,        setError]        = React.useState<string | null>(null);
-
-  const isAdmin = staffId.toUpperCase().startsWith("ADMIN");
+  const [role, setRole] = React.useState("");
+  const [isLoading, setIsLoading] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     const id = staffId.toUpperCase();
-    if      (id.startsWith("ADMIN")) setRole("admin");
-    else if (id.startsWith("HQ"))    setRole("hq-department");
-    else if (id.startsWith("SDO"))   setRole("sdo");
-    else if (id.startsWith("ZC"))    setRole("zonal-coordinator");
-    else if (id.startsWith("SC"))    setRole("state-coordinator");
-    else if (id.startsWith("DO"))    setRole("department-officer");
-    else if (id.startsWith("SO"))    setRole("state-officer");
-    else if (id.startsWith("DG"))    setRole("dg-ceo");
-    else                             setRole("");
+    if (id.startsWith("ADMIN")) setRole("admin");
+    else if (id.startsWith("HQ")) setRole("hq-department");
+    else if (id.startsWith("SDO")) setRole("sdo");
+    else if (id.startsWith("ZC")) setRole("zonal-coordinator");
+    else if (id.startsWith("SC")) setRole("state-coordinator");
+    else if (id.startsWith("DO")) setRole("department-officer");
+    else if (id.startsWith("SO")) setRole("state-officer");
+    else if (id.startsWith("DG")) setRole("dg-ceo");
+    else setRole("");
   }, [staffId]);
 
   const handleSignIn = async (e: React.FormEvent) => {
@@ -48,7 +50,6 @@ export default function Login({ onLogin }: LoginProps) {
     setError(null);
 
     try {
-      // All users authenticate via real JWT — functionalities come from DB
       const res = await authApi.login(staffId, password);
       tokenStore.set(res.token);
       toast.success("Authentication successful", { description: `Welcome, ${res.user.name}.` });
@@ -62,138 +63,147 @@ export default function Login({ onLogin }: LoginProps) {
     }
   };
 
+  const recognisedOffice = ROLE_LABELS[role];
+
   return (
-    <div className="min-h-screen w-full flex bg-[#f4f7f5] overflow-hidden">
+    <div className="flex min-h-dvh w-full overflow-x-hidden bg-[#f4f7f5]">
+      <div className="relative hidden overflow-hidden sidebar-gradient lg:flex lg:w-[46%] lg:flex-col lg:items-center lg:justify-center lg:px-14 lg:py-12">
+        <div className="absolute top-[-18%] left-[-18%] h-[52%] w-[52%] rounded-full bg-[#25a872]/12 blur-3xl" />
+        <div className="absolute right-[-12%] bottom-[-12%] h-[42%] w-[42%] rounded-full bg-[#25a872]/15 blur-3xl" />
 
-      {/* ── Left panel ── */}
-      <div className="hidden lg:flex lg:w-[45%] sidebar-gradient flex-col items-center justify-center p-12 relative overflow-hidden">
-        {/* decorative circles */}
-        <div className="absolute top-[-15%] left-[-15%] w-[50%] h-[50%] bg-[#25a872]/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-[#25a872]/15 rounded-full blur-3xl" />
-        <div className="absolute top-[40%] right-[-5%] w-[25%] h-[25%] bg-white/5 rounded-full blur-2xl" />
-
-        <div className="relative z-10 text-center max-w-sm">
-          <img src="/logo.png" alt="NHIA" className="h-28 w-auto object-contain mx-auto mb-8" />
-          <h1 className="text-2xl font-black text-white leading-tight mb-3">
-            Reporting Management<br />Dashboard
-          </h1>
-          <p className="text-sm text-white/50 leading-relaxed">
-            Secure, centralised reporting and coordination platform for the National Health Insurance Authority.
+        <div className="relative z-10 flex max-w-[22rem] flex-col items-center text-center">
+          <NhiaCrest size="lg" />
+          <p className="mt-7 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6ddba8]">
+            National Health Insurance Authority
           </p>
-
-          <div className="mt-10 grid grid-cols-2 gap-3 text-left">
-            {[
-              { label: "State Offices",  value: "36" },
-              { label: "Zonal Offices",  value: "6"  },
-              { label: "HQ Departments", value: "5"  },
-              { label: "Active Reports", value: "142"},
-            ].map(s => (
-              <div key={s.label} className="p-3 rounded-xl bg-white/8 border border-white/10">
-                <p className="text-xl font-black text-[#6ddba8]">{s.value}</p>
-                <p className="text-[11px] text-white/50 mt-0.5">{s.label}</p>
-              </div>
-            ))}
-          </div>
+          <h1 className="mt-2 text-[1.7rem] font-black leading-[1.15] text-white">
+            Unit Reporting
+            <br />
+            Management System
+          </h1>
+          <div className="mt-5 h-px w-16 rounded-full bg-[#25a872]/50" />
+          <p className="mt-5 text-sm leading-relaxed text-white/55">
+            Secure staff access for state, zonal and headquarters reporting.
+          </p>
         </div>
 
-        <p className="absolute bottom-6 text-[10px] text-white/25 tracking-widest uppercase">
-          National Health Insurance Authority · Nigeria
+        <p className="absolute bottom-7 text-[10px] font-medium uppercase tracking-[0.18em] text-white/30">
+          Federal Republic of Nigeria
         </p>
       </div>
 
-      {/* ── Right panel ── */}
-      <div className="flex-1 flex items-center justify-center p-6 relative">
-        {/* subtle dot pattern */}
-        <div className="absolute inset-0 bg-dot-pattern opacity-40 pointer-events-none" />
+      <div className="relative flex min-w-0 flex-1 items-center justify-center p-4 sm:p-8">
+        <div className="pointer-events-none absolute inset-0 bg-dot-pattern opacity-40" />
 
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.45 }}
-          className="w-full max-w-md relative z-10"
+          transition={{ duration: 0.4 }}
+          className="relative z-10 w-full min-w-0 max-w-[420px]"
         >
-          {/* Mobile logo */}
-          <div className="lg:hidden flex justify-center mb-8">
-            <img src="/logo.png" alt="NHIA" className="h-20 w-auto object-contain" />
+          <div className="mb-6 flex flex-col items-center lg:hidden">
+            <NhiaCrest size="sm" />
+            <p className="mt-3 text-center text-sm font-semibold text-[#145c3f]">NHIA URMS</p>
           </div>
 
-          <div className="bg-white rounded-3xl shadow-xl shadow-[#145c3f]/8 border border-[#d4e8dc] p-8">
-            <div className="mb-7">
-              <h2 className="text-xl font-black text-slate-900">Sign in to portal</h2>
-              <p className="text-sm text-slate-500 mt-1">Enter your credentials to access your dashboard</p>
-            </div>
-
-            <form onSubmit={handleSignIn} className="space-y-4">
-              {/* Staff ID */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">Staff ID</label>
-                <div className="relative">
-                  <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                  <input
-                    value={staffId}
-                    onChange={e => setStaffId(e.target.value)}
-                    placeholder="e.g. HQ-123, SDO-456"
-                    required
-                    className="w-full pl-10 pr-4 h-11 rounded-xl border border-[#d4e8dc] bg-[#f4f7f5] text-sm text-slate-800 placeholder:text-slate-400 focus:ring-2 focus:ring-[#25a872] focus:border-[#25a872] outline-none transition-all"
-                  />
-                </div>
+          <div className="overflow-hidden rounded-3xl border border-[#d4e8dc] bg-white shadow-xl shadow-[#145c3f]/8">
+            <div className="h-1.5 bg-gradient-to-r from-[#145c3f] via-[#1a7a52] to-[#25a872]" />
+            <div className="p-6 sm:p-8">
+              <div className="mb-6">
+                <h2 className="text-xl font-black tracking-tight text-slate-900">Sign in</h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  Enter your NHIA staff ID and password to continue.
+                </p>
               </div>
 
-              {/* Password */}
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">Password</label>
-                  <a href="#" className="text-[11px] font-semibold text-[#145c3f] hover:underline">Forgot password?</a>
+              <form onSubmit={handleSignIn} className="space-y-4">
+                <div className="space-y-1.5">
+                  <label htmlFor="staff-id" className="text-xs font-bold uppercase tracking-wider text-slate-600">
+                    Staff ID
+                  </label>
+                  <div className="relative">
+                    <User className="pointer-events-none absolute top-1/2 left-3.5 z-10 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    <Input
+                      id="staff-id"
+                      name="staff_id"
+                      value={staffId}
+                      onChange={(e) => setStaffId(e.target.value)}
+                      placeholder="e.g. HQ-123, SDO-456"
+                      autoComplete="username"
+                      required
+                      aria-invalid={Boolean(error)}
+                      className="pl-10"
+                    />
+                  </div>
+                  {recognisedOffice && (
+                    <p className="rounded-lg bg-[#e8f5ee] px-2.5 py-1 text-xs font-medium text-[#145c3f]">
+                      {recognisedOffice}
+                    </p>
+                  )}
                 </div>
-                <div className="relative">
-                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    value={password}
-                    onChange={e => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    required
-                    className="w-full pl-10 pr-11 h-11 rounded-xl border border-[#d4e8dc] bg-[#f4f7f5] text-sm text-slate-800 placeholder:text-slate-400 focus:ring-2 focus:ring-[#25a872] focus:border-[#25a872] outline-none transition-all"
-                  />
-                  <button type="button" onClick={() => setShowPassword(s => !s)}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-[#145c3f] transition-colors"
-                  >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
+
+                <div className="space-y-1.5">
+                  <label htmlFor="password" className="text-xs font-bold uppercase tracking-wider text-slate-600">
+                    Password
+                  </label>
+                  <div className="relative">
+                    <Lock className="pointer-events-none absolute top-1/2 left-3.5 z-10 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    <Input
+                      id="password"
+                      name="password"
+                      type={showPassword ? "text" : "password"}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="••••••••"
+                      autoComplete="current-password"
+                      required
+                      aria-invalid={Boolean(error)}
+                      className="pr-11 pl-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((s) => !s)}
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                      className="absolute top-1/2 right-3 z-10 -translate-y-1/2 text-slate-400 transition-colors hover:text-[#145c3f]"
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
                 </div>
+
+                <AnimatePresence>
+                  {error && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3"
+                      role="alert"
+                    >
+                      <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-rose-500" />
+                      <p className="text-xs font-medium text-rose-600">{error}</p>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                <Button type="submit" disabled={isLoading} className="mt-1 h-11 w-full rounded-xl">
+                  {isLoading ? (
+                    <>
+                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                      Authenticating...
+                    </>
+                  ) : (
+                    "Sign in"
+                  )}
+                </Button>
+              </form>
+
+              <div className="mt-6 flex items-start gap-2 border-t border-[#d4e8dc] pt-5">
+                <Shield className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-400" />
+                <p className="min-w-0 text-[10px] leading-relaxed text-slate-400">
+                  Secure government system. Unauthorised access is strictly prohibited.
+                </p>
               </div>
-
-
-              {/* Error */}
-              <AnimatePresence>
-                {error && (
-                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}
-                    className="flex items-start gap-2 p-3 rounded-xl bg-rose-50 border border-rose-200"
-                  >
-                    <AlertCircle className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
-                    <p className="text-xs text-rose-600 font-medium">{error}</p>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              {/* Submit */}
-              <button type="submit" disabled={isLoading}
-                className="w-full h-11 rounded-xl bg-[#145c3f] hover:bg-[#0f3d2e] text-white text-sm font-bold transition-all shadow-md shadow-[#145c3f]/25 active:scale-[0.98] disabled:opacity-60 flex items-center justify-center gap-2 mt-2"
-              >
-                {isLoading ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Authenticating...
-                  </>
-                ) : "Sign In to Portal"}
-              </button>
-            </form>
-
-            <div className="mt-6 pt-5 border-t border-[#d4e8dc] flex items-center gap-2">
-              <Shield className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-              <p className="text-[10px] text-slate-400 leading-relaxed">
-                Secure government system. Unauthorised access is strictly prohibited.
-              </p>
             </div>
           </div>
         </motion.div>

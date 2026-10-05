@@ -15,6 +15,8 @@ import ContractedServicesDetail from "./ContractedServicesDetail";
 import EnrolleeRegisterForm from "./EnrolleeRegisterForm";
 import EnrolleeRegisterDetail from "./EnrolleeRegisterDetail";
 import ExtraDependantForm from "./ExtraDependantForm";
+import EnrolmentDriveForm from "./EnrolmentDriveForm";
+import { ENROLMENT_DRIVE_REPORT_TYPES } from "./enrolmentDriveTypes";
 import HcpChangeForm from "./HcpChangeForm";
 import EtmcTmcActionPointForm from "./EtmcTmcActionPointForm";
 import EtmcTmcActionPointDetail from "./EtmcTmcActionPointDetail";
@@ -25,7 +27,7 @@ import AdhocSpecialAssignmentDetail from "./AdhocSpecialAssignmentDetail";
 
 const EXTENDED_DETAIL = new Set<StateOfficeReportType>([
   "complaints", "accreditation", "stakeholder", "hmo-selection", "challenges",
-  "extra-dependant", "hcf-change",
+  "extra-dependant", "hcf-change", ...ENROLMENT_DRIVE_REPORT_TYPES,
 ]);
 
 const FORM_COMPONENTS: Partial<Record<StateOfficeReportType, React.ComponentType<any>>> = {
@@ -37,6 +39,7 @@ const FORM_COMPONENTS: Partial<Record<StateOfficeReportType, React.ComponentType
   stakeholder: StakeholderReportForm,
   "hmo-selection": HmoSelectionReportForm,
   "extra-dependant": ExtraDependantForm,
+  ...Object.fromEntries(ENROLMENT_DRIVE_REPORT_TYPES.map((t) => [t, EnrolmentDriveForm])),
   "hcf-change": HcpChangeForm,
   challenges: ChallengesReportForm,
   "weekly-actionable": WeeklyActionableForm,

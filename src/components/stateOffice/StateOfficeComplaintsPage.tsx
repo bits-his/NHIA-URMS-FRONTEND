@@ -19,6 +19,7 @@ import {
   MONTHS, COMPLAINT_SUMMARY_CATEGORIES, COMPLAINT_STATUS_TYPES, labelOf, formatCount, monthLabel,
 } from "./constants";
 import AccreditedProviderSelect from "./AccreditedProviderSelect";
+import { useStateOfficeAccess } from "@/src/access/createReviewAccess";
 
 interface Props {
   onBack: () => void;
@@ -51,6 +52,7 @@ function pickGeoLabel(
 }
 
 export default function StateOfficeComplaintsPage({ onBack, defaultStateId, defaultZoneId }: Props) {
+  const { canCreate } = useStateOfficeAccess();
   const [mode, setMode] = React.useState<Mode>("dashboard");
   const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
@@ -345,9 +347,11 @@ export default function StateOfficeComplaintsPage({ onBack, defaultStateId, defa
           <Button variant="outline" size="sm" onClick={loadSummary} disabled={loading} className="gap-2">
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
           </Button>
-          <Button className="bg-orange-action hover:bg-orange-600 gap-2" onClick={() => { setF(emptyForm(defaultZoneId, defaultStateId)); setMode("register"); }}>
-            <Plus className="w-4 h-4" /> Register Complaint
-          </Button>
+          {canCreate && (
+            <Button className="bg-orange-action hover:bg-orange-600 gap-2" onClick={() => { setF(emptyForm(defaultZoneId, defaultStateId)); setMode("register"); }}>
+              <Plus className="w-4 h-4" /> Register Complaint
+            </Button>
+          )}
         </div>
       </div>
 

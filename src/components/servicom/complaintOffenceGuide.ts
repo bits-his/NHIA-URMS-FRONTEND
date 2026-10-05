@@ -21,10 +21,10 @@ export const COMPLAINT_PARTY_TYPES: { value: PartyType; label: string }[] = [
 
 /** Map full complainant category labels to offence-guide party types. */
 export function partyTypeFromComplainantCategory(category: string): PartyType | "" {
-  if (category === "Healthcare Facility") return "HCF";
+  if (!category) return "";
+  if (category === "Healthcare Facility" || category === "HCF") return "HCF";
   if (category === "HMO") return "HMO";
-  if (category === "Enrollee" || category === "Beneficiary Representative") return "Enrollee";
-  return "";
+  return "Enrollee";
 }
 
 const offences: ComplaintOffenceEntry[] = (rawOffences as ComplaintOffenceEntry[]).map((o) => ({
@@ -56,9 +56,14 @@ export function findOffenceById(id: string): ComplaintOffenceEntry | undefined {
   return offences.find((o) => o.id === id);
 }
 
+export const OTHER_ISSUE_VALUE = "OTHER";
+
 export function offenceSelectOptions(entries: ComplaintOffenceEntry[]) {
-  return entries.map((o) => ({
-    value: o.id,
-    label: `${o.sn}. ${o.issue.length > 100 ? `${o.issue.slice(0, 100)}…` : o.issue}`,
-  }));
+  return [
+    ...entries.map((o) => ({
+      value: o.id,
+      label: `${o.sn}. ${o.issue.length > 100 ? `${o.issue.slice(0, 100)}…` : o.issue}`,
+    })),
+    { value: OTHER_ISSUE_VALUE, label: "Other" },
+  ];
 }

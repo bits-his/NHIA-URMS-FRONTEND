@@ -15,7 +15,7 @@ import { ALL_STATES, useMonthlyStateFilter } from "../../monthly/useMonthlyState
 import { MONTHS, monthLabel } from "../constants";
 import { ADMIN_HR_CONFIG, type AdminHrReportType } from "./constants";
 import { AdminHrFormRouter, AdminHrDetailRouter } from "./registry";
-import { useCreateReviewAccess } from "@/src/access/createReviewAccess";
+import { useStateOfficeAccess } from "@/src/access/createReviewAccess";
 
 interface Report {
   id: number;
@@ -49,7 +49,7 @@ export default function AdminHrReportsList({
 }: Props) {
   const cfg = ADMIN_HR_CONFIG[reportType];
   const api = stateOfficeApi[reportType];
-  const { canCreate, createOnly } = useCreateReviewAccess();
+  const { canCreate, createOnly } = useStateOfficeAccess();
 
   const [mode, setMode] = React.useState<"list" | "create" | "view" | "edit">(createOnly ? "create" : "list");
   const [formKey, setFormKey] = React.useState(0);

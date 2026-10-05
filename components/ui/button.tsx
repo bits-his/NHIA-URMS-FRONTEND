@@ -97,17 +97,17 @@ const buttonVariants = cva(
       },
 
       size: {
-        default: "h-9 px-4 py-2 text-sm rounded-xl",
-        xs:      "h-6 px-2.5 py-1 text-xs rounded-lg gap-1 [&_svg:not([class*='size-'])]:size-3",
-        sm:      "h-8 px-3 py-1.5 text-xs rounded-xl gap-1.5 [&_svg:not([class*='size-'])]:size-3.5",
-        lg:      "h-11 px-6 py-2.5 text-sm rounded-xl",
-        xl:      "h-12 px-8 py-3 text-base rounded-2xl",
+        default: "h-9 px-4 py-2 text-sm rounded-md",
+        xs:      "h-6 px-2.5 py-1 text-xs rounded-md gap-1 [&_svg:not([class*='size-'])]:size-3",
+        sm:      "h-8 px-3 py-1.5 text-xs rounded-md gap-1.5 [&_svg:not([class*='size-'])]:size-3.5",
+        lg:      "h-11 px-6 py-2.5 text-sm rounded-md",
+        xl:      "h-12 px-8 py-3 text-base rounded-md",
 
         // icon variants — circular feel
-        icon:      "size-9 rounded-xl p-0",
-        "icon-xs": "size-6 rounded-lg p-0 [&_svg:not([class*='size-'])]:size-3",
-        "icon-sm": "size-8 rounded-xl p-0 [&_svg:not([class*='size-'])]:size-3.5",
-        "icon-lg": "size-10 rounded-xl p-0",
+        icon:      "size-9 rounded-md p-0",
+        "icon-xs": "size-6 rounded-md p-0 [&_svg:not([class*='size-'])]:size-3",
+        "icon-sm": "size-8 rounded-md p-0 [&_svg:not([class*='size-'])]:size-3.5",
+        "icon-lg": "size-10 rounded-md p-0",
       },
     },
     defaultVariants: {

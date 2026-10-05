@@ -13,8 +13,10 @@ import {
   COMPLAINT_SUMMARY_CATEGORIES, COMPLAINT_STATUS_TYPES,
   EXTRA_DEPENDANT_RELATIONSHIPS, EXTRA_DEPENDANT_STATUSES, parseSupportingDocuments,
   YES_NO_OPTIONS, HCP_CHANGE_CHANNELS, HCP_CHANGE_STATUSES,
+  ENROLMENT_DRIVE_PROGRAMS, formatAmount,
   monthLabel, quarterFromMonth, labelOf, formatCount, formatDate, type StateOfficeReportType,
 } from "./constants";
+import { isEnrolmentDriveType } from "./enrolmentDriveTypes";
 
 interface Props {
   reportType: StateOfficeReportType;
@@ -133,6 +135,51 @@ export default function ExtendedReportDetail({ reportType, reportId, onBack, onE
                     l.activity, formatCount(l.audience_size), l.organization || "—", l.location || "—",
                     l.activity_date || "—", l.key_outcomes || "—",
                   ])} />
+              )}
+
+              {isEnrolmentDriveType(reportType) && (
+                <>
+                  <DataCard title="Activity Summary" headers={["Planned Activities", "Activities Conducted", "Activities Recorded", "New Enrolments"]}
+                    rows={[[
+                      report.planned_activities ?? "—",
+                      formatCount((report.lines ?? []).filter((l: any) => l.activity_status === "Completed").length),
+                      formatCount(report.lines?.length ?? 0),
+                      formatCount((report.lines ?? []).reduce((s: number, l: any) => s + (Number(l.new_enrolments) || 0), 0)),
+                    ]]} />
+                  <DataCard title="Enrolment Drive Activities"
+                    headers={["ID", "Date", "Activity", "Specific Activity", "Funding", "Budget (₦)", "Approved (₦)", "Target Audience", "Location", "Program ID", "Programs", "Details", "Planned Audience", "Reached", "Leads", "New Enrolments", "Status", "Evidence", "Remarks"]}
+                    rows={(report.lines ?? []).map((l: any) => [
+                      l.drive_code || "—",
+                      l.activity_date || "—",
+                      l.activity_category,
+                      l.specific_activity || "—",
+                      l.funding_option || "—",
+                      l.activity_budget != null ? formatAmount(l.activity_budget) : "—",
+                      l.approved_amount != null ? formatAmount(l.approved_amount) : "—",
+                      (l.target_audience ?? []).join(", ") || "—",
+                      [l.location_category, l.location_name].filter(Boolean).join(" — ") || "—",
+                      (l.programs_supported ?? []).map((p: string) => ENROLMENT_DRIVE_PROGRAMS.find((x) => x.label === p)?.code).filter(Boolean).join(", ") || "—",
+                      (l.programs_supported ?? []).join(", ") || "—",
+                      l.activity_details || "—",
+                      l.planned_target_audience ?? "—",
+                      l.target_audience_reached ?? "—",
+                      l.leads_generated ?? "—",
+                      l.new_enrolments ?? "—",
+                      l.activity_status || "—",
+                      (() => {
+                        const docs = parseSupportingDocuments(l.supporting_documents).filter((d) => d.path);
+                        if (!docs.length) return "—";
+                        return (
+                          <div className="flex flex-col gap-1 min-w-[140px]">
+                            {docs.map((d) => (
+                              <a key={d.path} className="text-[#1a7a52] underline" href={apiFileUrl(d.path)} target="_blank" rel="noreferrer">{d.name || "Document"}</a>
+                            ))}
+                          </div>
+                        );
+                      })(),
+                      l.remarks || "—",
+                    ])} />
+                </>
               )}
 
               {reportType === "hmo-selection" && (
