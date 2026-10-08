@@ -117,17 +117,57 @@ export default function ExtendedReportDetail({ reportType, reportId, onBack, onE
                 </>
               )}
 
-              {reportType === "accreditation" && (
-                <DataCard title="Accreditation"
-                  headers={["Accreditation", "Category", "Primary", "Secondary", "Total"]}
-                  rows={expandAccreditationLines(report.lines ?? []).map((r) => [
-                    labelOf(ACCREDITATION_PROCESS_TYPES, r.process, r.process),
-                    labelOf(ACCREDITATION_ENTRY_TYPES, r.entry, r.entry),
-                    formatCount(r.primary_count),
-                    formatCount(r.secondary_count),
-                    formatCount(r.primary_count + r.secondary_count),
-                  ])} />
-              )}
+              {reportType === "accreditation" && (() => {
+                const rawLines = report.lines ?? [];
+                const templateLines = rawLines
+                  .map((l: any) => {
+                    const t = l.activity_template;
+                    if (!t) return null;
+                    const tpl = typeof t === "string" ? (() => { try { return JSON.parse(t); } catch { return null; } })() : t;
+                    if (!tpl || typeof tpl !== "object") return null;
+                    return { ...l, ...tpl };
+                  })
+                  .filter(Boolean);
+                if (templateLines.length > 0) {
+                  return (
+                    <>
+                      <DataCard title="Activity Summary" headers={["Planned Activities", "Activities Conducted", "Activities Recorded", "Facilities Engaged"]}
+                        rows={[[
+                          report.planned_activities ?? "—",
+                          formatCount(templateLines.filter((l: any) => l.activity_status === "Completed").length),
+                          formatCount(templateLines.length),
+                          formatCount(templateLines.reduce((s: number, l: any) => s + (Number(l.stakeholders_engaged) || 0), 0)),
+                        ]]} />
+                      <DataCard title="Provider Management Activities"
+                        headers={["ID", "Date", "Activity", "Specific Activity", "Funding", "Location", "Programs", "Facilities", "Follow-up", "Status", "Remarks"]}
+                        rows={templateLines.map((l: any) => [
+                          l.engagement_code || "—",
+                          l.activity_date || "—",
+                          l.engagement_category || "—",
+                          l.specific_activity || "—",
+                          l.funding_option || "—",
+                          [l.location_category, l.location_name].filter(Boolean).join(" — ") || "—",
+                          (Array.isArray(l.programs_supported) ? l.programs_supported.join(", ") : null) || "—",
+                          formatCount(l.stakeholders_engaged),
+                          l.follow_up_required || "—",
+                          l.activity_status || "—",
+                          l.remarks || "—",
+                        ])} />
+                    </>
+                  );
+                }
+                return (
+                  <DataCard title="Accreditation"
+                    headers={["Accreditation", "Category", "Primary", "Secondary", "Total"]}
+                    rows={expandAccreditationLines(rawLines).map((r) => [
+                      labelOf(ACCREDITATION_PROCESS_TYPES, r.process, r.process),
+                      labelOf(ACCREDITATION_ENTRY_TYPES, r.entry, r.entry),
+                      formatCount(r.primary_count),
+                      formatCount(r.secondary_count),
+                      formatCount(r.primary_count + r.secondary_count),
+                    ])} />
+                );
+              })()}
 
               {reportType === "stakeholder" && (
                 <>

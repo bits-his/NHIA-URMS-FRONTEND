@@ -168,7 +168,13 @@ export default function ActivityReportingTemplateForm({
   const loadData = (v: any) => {
     setPlannedActivities(numStr(v.planned_activities));
     const next = (v.lines ?? []).map((l: any) => {
-      const row = l.activity_template && typeof l.activity_template === "object" ? { ...l.activity_template, ...l } : l;
+      const row = l.activity_template && typeof l.activity_template === "object"
+        ? { ...l, ...l.activity_template }
+        : (typeof l.activity_template === "string"
+          ? (() => {
+              try { return { ...l, ...JSON.parse(l.activity_template) }; } catch { return l; }
+            })()
+          : l);
       return {
       _key: uid(),
       activity_date: row.activity_date?.slice?.(0, 10) ?? "",

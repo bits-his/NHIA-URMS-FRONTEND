@@ -486,8 +486,19 @@ export default function Dashboard({ role, user, access = [], functionalities = "
             {/* ── Home / Main Dashboard Overview ── */}
             <Route path="/" element={
               canAccessHomeDashboard(access, role) ? (
+              isDirectorEnforcementUser(user) ? (
+                <div className="relative z-10 h-full">
+                  <DirectorEnforcementDashboard
+                    onNavigate={(path) => {
+                      navigate(path);
+                      if (path.includes("compliance")) setView("sqa-compliance");
+                      else if (path.includes("complaints")) setView("servicom-complaints");
+                    }}
+                  />
+                </div>
+              ) : (
               <div className="relative z-10 p-6 max-w-7xl mx-auto space-y-6">
-                {role !== "sdo" && role !== "dg-ceo" && !isDeptZonalCoordinator(role) && role !== "state-officer" && !isDeptReportingOfficer(role) && !isDeptStateCoordinator(role) && role !== "department-officer" && role !== "admin" && (
+                {role !== "sdo" && role !== "dg-ceo" && !isDeptZonalCoordinator(role) && role !== "state-officer" && !isDeptReportingOfficer(role) && !isDeptStateCoordinator(role) && role !== "department-officer" && role !== "admin" && role !== "hq-department" && (
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                     <KPICard title="Reports Submitted" value="124" trend="+12%" trendUp icon={<FileText className="w-5 h-5 text-blue-600" />} tint="kpi-blue" sub="This month" />
                     <KPICard title="Pending Review"    value="18"  trend="-5%"  icon={<Clock className="w-5 h-5 text-amber-600" />}  tint="kpi-amber" sub="Awaiting action" />
@@ -534,14 +545,6 @@ export default function Dashboard({ role, user, access = [], functionalities = "
                       else setView("home");
                     }}
                   />
-                ) : isDirectorEnforcementUser(user) ? (
-                  <DirectorEnforcementDashboard
-                    onNavigate={(path) => {
-                      navigate(path);
-                      if (path.includes("compliance")) setView("sqa-compliance");
-                      else if (path.includes("complaints")) setView("servicom-complaints");
-                    }}
-                  />
                 ) : role === "department-officer" ? (
                   <DepartmentalDashboard user={user} onNewSubmission={(targetView) => setView(targetView as View)} />
                 ) : role === "admin" ? (
@@ -578,6 +581,7 @@ export default function Dashboard({ role, user, access = [], functionalities = "
                   </div>
                 )}
               </div>
+              )
               ) : (
                 <Navigate to={getFirstAccessiblePath(access, role)} replace />
               )
