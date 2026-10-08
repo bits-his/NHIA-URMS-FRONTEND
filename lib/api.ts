@@ -592,7 +592,7 @@ export type StateOfficeReportType =
   | "vehicle-maintenance" | "conflict-infraction" | "enrollee-feedback";
 
 const makeStateOfficeApi = (type: StateOfficeReportType) => ({
-  list: (filters?: { state_id?: string; zone_id?: string; year?: string; month?: string; status?: string }) => {
+  list: (filters?: { state_id?: string; zone_id?: string; year?: string; month?: string; status?: string; activity_module?: string }) => {
     const p = new URLSearchParams(Object.entries(filters || {}).filter(([, v]) => !!v) as [string, string][]).toString();
     return request<{ success: boolean; data: any[] }>(
       `/state-office/${type}/reports${p ? `?${p}` : ""}`
@@ -608,9 +608,13 @@ const makeStateOfficeApi = (type: StateOfficeReportType) => ({
     request<{ success: boolean; data: any }>(`/state-office/${type}/reports/${id}`, {
       method: "PUT", body: JSON.stringify(payload),
     }),
-  updateStatus: (id: number | string, status: string) =>
+  updateStatus: (id: number | string, status: string, review_note?: string) =>
     request<{ success: boolean; data: any }>(`/state-office/${type}/reports/${id}/status`, {
-      method: "PATCH", body: JSON.stringify({ status }),
+      method: "PATCH",
+      body: JSON.stringify({
+        status,
+        ...(review_note?.trim() ? { review_note: review_note.trim() } : {}),
+      }),
     }),
 });
 
@@ -642,7 +646,23 @@ export const stateOfficeApi = {
   cemonc:    makeStateOfficeApi("cemonc"),
   complaints: makeStateOfficeApi("complaints"),
   accreditation: makeStateOfficeApi("accreditation"),
-  stakeholder: makeStateOfficeApi("stakeholder"),
+  stakeholder: {
+    ...makeStateOfficeApi("stakeholder"),
+    uploadLineFiles: (reportId: number | string, lineId: number | string, files: File[]) => {
+      const token = tokenStore.get();
+      const form = new FormData();
+      files.forEach((file) => form.append("files", file));
+      return fetch(`${BASE_URL}/state-office/stakeholder/reports/${reportId}/lines/${lineId}/files`, {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: form,
+      }).then(async (res) => {
+        const json = await res.json();
+        if (!res.ok) throw new Error(json?.message || "Upload failed");
+        return json as { success: boolean; data: any };
+      });
+    },
+  },
   "hmo-selection": {
     ...makeStateOfficeApi("hmo-selection"),
     uploadLineFile: (reportId: number | string, lineId: number | string, file: File, kind: "evidence" | "report") => {

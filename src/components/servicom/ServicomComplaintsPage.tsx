@@ -640,7 +640,12 @@ export default function ServicomComplaintsPage({
 
   React.useEffect(() => {
     if (mode !== "register") return;
-    const against = f.complaint_against || "HCF";
+    // ID segment follows complainant category (HCF / HMO / ENR), not respondent
+    const complainantParty =
+      f.complaint_type
+      || partyTypeFromComplainantCategory(f.complainant_category)
+      || "";
+    const against = complainantParty || "HCF";
     const date = f.date_received || today;
     const stateId = defaultStateId || f.state_id || undefined;
     const stateCode = (states.find((s) => String(s.id) === String(stateId)) as { code?: string } | undefined)?.code;
@@ -659,7 +664,7 @@ export default function ServicomComplaintsPage({
         });
     }, 200);
     return () => { cancelled = true; window.clearTimeout(t); };
-  }, [mode, f.complaint_against, f.date_received, f.state_id, defaultStateId, today, states]);
+  }, [mode, f.complaint_type, f.complainant_category, f.date_received, f.state_id, defaultStateId, today, states]);
 
   React.useEffect(() => {
     if (mode !== "manage" && mode !== "register") return;

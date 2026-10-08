@@ -94,7 +94,7 @@ export default function AccreditationReportForm({ reportId, onBack, onCancel, on
       {() => (
         <Card className="rounded-2xl border-[#d4e8dc]">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Accreditation / Reaccreditation</CardTitle>
+            <CardTitle className="text-base">Accreditation</CardTitle>
             <CardDescription>
               Select type and category, enter Primary and Secondary counts, then add to the table.
             </CardDescription>
@@ -102,7 +102,7 @@ export default function AccreditationReportForm({ reportId, onBack, onCancel, on
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3 items-end">
               <div className="space-y-1">
-                <Label className="text-xs">Accreditation / Reaccreditation</Label>
+                <Label className="text-xs">Accreditation</Label>
                 <Select value={process} onValueChange={setProcess}>
                   <SelectTrigger displayValue={labelOf(ACCREDITATION_PROCESS_TYPES, process, "Select")}>
                     <SelectValue placeholder="Select" />
@@ -144,7 +144,7 @@ export default function AccreditationReportForm({ reportId, onBack, onCancel, on
               <Table>
                 <TableHeader>
                   <TableRow className="bg-[#f0fdf7]">
-                    <TableHead className="text-xs font-bold">Accreditation / Reaccreditation</TableHead>
+                    <TableHead className="text-xs font-bold">Accreditation</TableHead>
                     <TableHead className="text-xs font-bold">Category</TableHead>
                     <TableHead className="text-xs font-bold text-center">Primary</TableHead>
                     <TableHead className="text-xs font-bold text-center">Secondary</TableHead>

@@ -16,6 +16,7 @@ import EnrolleeRegisterForm from "./EnrolleeRegisterForm";
 import EnrolleeRegisterDetail from "./EnrolleeRegisterDetail";
 import ExtraDependantForm from "./ExtraDependantForm";
 import EnrolmentDriveForm from "./EnrolmentDriveForm";
+import EnrolmentActivityForm from "./EnrolmentActivityForm";
 import { ENROLMENT_DRIVE_REPORT_TYPES } from "./enrolmentDriveTypes";
 import HcpChangeForm from "./HcpChangeForm";
 import EtmcTmcActionPointForm from "./EtmcTmcActionPointForm";
@@ -31,7 +32,7 @@ const EXTENDED_DETAIL = new Set<StateOfficeReportType>([
 ]);
 
 const FORM_COMPONENTS: Partial<Record<StateOfficeReportType, React.ComponentType<any>>> = {
-  enrolment: StateOfficeReportPage,
+  enrolment: EnrolmentActivityForm,
   migration: StateOfficeReportPage,
   cemonc: StateOfficeReportPage,
   complaints: ComplaintsReportForm,

@@ -1,4 +1,9 @@
 import { ENROLMENT_DRIVE_TYPES, enrolmentDriveView, enrolmentDrivePath } from "@/src/components/stateOffice/enrolmentDriveTypes";
+import {
+  ENROLMENT_PILLAR_CHILDREN,
+  STAKEHOLDER_PILLAR_CHILDREN,
+  PROVIDER_PILLAR_CHILDREN,
+} from "@/src/components/stateOffice/enrolmentPillarTypes";
 
 export type UserRole =
   | "admin" | "state-officer" | "zonal-coordinator"
@@ -237,9 +242,9 @@ export const MODULE_CONFIG: ParentModule[] = [
     title: ZONAL_MODULE,
     roles: "all",
     children: [
-      { type: "group", label: "Enrolment", children: [
-        { title: "Enrolment", view: "state-enrolment", path: "/zonal/enrolment" },
-      ]},
+      { type: "group", label: "Enrolment", children: ENROLMENT_PILLAR_CHILDREN.map((c) => ({
+        title: c.title, navLabel: c.navLabel, view: c.view, path: c.path,
+      })) },
       { type: "group", label: "Enrolment Drives", children: ENROLMENT_DRIVE_TYPES.map((t) => ({
         title: t.title, navLabel: t.navLabel, view: enrolmentDriveView(t.key), path: enrolmentDrivePath(t.key),
       })) },
@@ -248,36 +253,42 @@ export const MODULE_CONFIG: ParentModule[] = [
         { title: "HMO Selection Process", view: "state-hmo-selection", path: "/zonal/hmo-selection", navLabel: "MDA HMO Selection" },
         { title: "Change of HCF", view: "state-hcf-change", path: "/zonal/beneficiary/hcf-change", navLabel: "Change of HCP" },
       ]},
-      { type: "group", label: "Stakeholder Management", children: [
-        { title: "Stakeholder Engagement", view: "state-stakeholder", path: "/zonal/stakeholder", navLabel: "Engagements" },
-      ]},
-      { type: "group", label: "Provider Management", children: [
-        { title: "Accreditation / Reaccreditation", view: "state-accreditation", path: "/zonal/accreditation", navLabel: "Accreditation" },
-      ]},
+      { type: "group", label: "Stakeholder Management", children: STAKEHOLDER_PILLAR_CHILDREN.map((c) => ({
+        title: c.title, navLabel: c.navLabel, view: c.view, path: c.path,
+      })) },
+      { type: "group", label: "Provider Management", children: PROVIDER_PILLAR_CHILDREN.map((c) => ({
+        title: c.title, navLabel: c.navLabel, view: c.view, path: c.path,
+      })) },
       { type: "group", label: "Complaint / Compliance", children: [
         { title: "State Complaints Register", view: "zonal-complaints-register", path: "/zonal/complaints-register", navLabel: "Complaints Register" },
         { title: "Monitoring Visits", view: "servicom-visits", path: "/zonal/monitoring-visits" },
         { title: "HMO Indebtedness Collation", view: "state-hmo-indebtedness", path: "/zonal/hmo-indebtedness" },
         { title: "Mystery Shopping", view: "state-mystery-shopping", path: "/zonal/mystery-shopping" },
       ]},
-      { type: "group", label: "Finance", children: [
-        { title: "IGR", view: "state-igr", path: "/zonal/igr" },
-        { title: "SSHIA Financial Report", view: "state-sshia-financial", path: "/zonal/sshia-financial", navLabel: "SSHIA Report" },
-        { title: "Expenditure Profile", view: "state-expenditure-profile", path: "/zonal/expenditure-profile", navLabel: "Expenditure" },
-        { title: "Challenges & Recommendations", view: "state-challenges", path: "/zonal/challenges", navLabel: "Challenges" },
+      { type: "group", label: "Internal Management", children: [
+        { type: "group", label: "Finance", children: [
+          { title: "IGR", view: "state-igr", path: "/zonal/igr" },
+          { title: "SSHIA Financial Report", view: "state-sshia-financial", path: "/zonal/sshia-financial", navLabel: "SSHIA Report" },
+          { title: "Expenditure Profile", view: "state-expenditure-profile", path: "/zonal/expenditure-profile", navLabel: "Expenditure" },
+        ]},
+        { type: "group", label: "Admin / Human Resource", children: [
+          { title: "State Office Meeting Report", view: "state-office-meeting", path: "/zonal/admin-hr/office-meeting" },
+          { title: "ETMC Cascading Report", view: "state-etmc-cascading", path: "/zonal/admin-hr/etmc-cascading" },
+          { title: "Office Accommodation", view: "state-office-accommodation", path: "/zonal/admin-hr/office-accommodation" },
+          { title: "Utility Services", view: "state-utility-services", path: "/zonal/admin-hr/utility-services" },
+          { title: "Vehicle Maintenance", view: "state-vehicle-maintenance", path: "/zonal/admin-hr/vehicle-maintenance" },
+          { title: "Conflict / Infraction Report", view: "state-conflict-infraction", path: "/zonal/admin-hr/conflict-infraction" },
+          { title: "Enrollee Feedback Survey", view: "state-enrollee-feedback", path: "/zonal/admin-hr/enrollee-feedback" },
+        ]},
+        { type: "group", label: "ICT", children: [
+          { title: "ICT Support Register", view: "state-ict-support", path: "/zonal/ict/support", navLabel: "Support" },
+        ]},
+        { type: "group", label: "SERVICOM", children: [
+          { title: "Charter Performance", view: "servicom-comment-card", path: "/zonal/servicom/comment-card" },
+          { title: "HCF Customer Satisfaction Survey", view: "servicom-satisfaction", path: "/zonal/servicom/satisfaction", navLabel: "Satisfaction Survey" },
+        ]},
       ]},
-      { type: "group", label: "ICT", children: [
-        { title: "ICT Support Register", view: "state-ict-support", path: "/zonal/ict/support", navLabel: "Support" },
-      ]},
-      { type: "group", label: "Admin / HR", children: [
-        { title: "State Office Meeting Report", view: "state-office-meeting", path: "/zonal/admin-hr/office-meeting" },
-        { title: "ETMC Cascading Report", view: "state-etmc-cascading", path: "/zonal/admin-hr/etmc-cascading" },
-        { title: "Office Accommodation", view: "state-office-accommodation", path: "/zonal/admin-hr/office-accommodation" },
-        { title: "Utility Services", view: "state-utility-services", path: "/zonal/admin-hr/utility-services" },
-        { title: "Vehicle Maintenance", view: "state-vehicle-maintenance", path: "/zonal/admin-hr/vehicle-maintenance" },
-        { title: "Conflict / Infraction Report", view: "state-conflict-infraction", path: "/zonal/admin-hr/conflict-infraction" },
-        { title: "Enrollee Feedback Survey", view: "state-enrollee-feedback", path: "/zonal/admin-hr/enrollee-feedback" },
-      ]},
+      { title: "Challenges & Recommendations", view: "state-challenges", path: "/zonal/challenges", navLabel: "Challenges" },
     ],
   },
 

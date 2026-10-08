@@ -95,7 +95,7 @@ export default function StateOfficeHmoIndebtednessPage({ onBack, defaultStateId,
   const { filterState, setFilterState, apiStateId } = useMonthlyStateFilter(defaultStateId, defaultZoneId);
   const now = new Date();
   const [filterYear, setFilterYear] = React.useState(String(now.getFullYear()));
-  const [filterMonth, setFilterMonth] = React.useState(String(now.getMonth() + 1));
+  const [filterMonth, setFilterMonth] = React.useState("all");
   const [filterZone, setFilterZone] = React.useState(defaultZoneId ?? "all");
   const [dashboardStates, setDashboardStates] = React.useState<Geo[]>([]);
   const zoneLocked = !!defaultZoneId;
@@ -104,8 +104,8 @@ export default function StateOfficeHmoIndebtednessPage({ onBack, defaultStateId,
   const apiFilters = React.useMemo(() => ({
     zone_id: (filterZone && filterZone !== "all") ? filterZone : (defaultZoneId || undefined),
     state_id: apiStateId || defaultStateId || undefined,
-    year: filterYear,
-    month: filterMonth,
+    year: filterYear !== "all" ? filterYear : undefined,
+    month: filterMonth !== "all" ? filterMonth : undefined,
   }), [filterZone, defaultZoneId, apiStateId, defaultStateId, filterYear, filterMonth]);
 
   const load = React.useCallback(async () => {
@@ -161,8 +161,8 @@ export default function StateOfficeHmoIndebtednessPage({ onBack, defaultStateId,
     setRefId(null);
     setZoneId(defaultZoneId ?? "");
     setStateId(defaultStateId ?? "");
-    setPeriodYear(filterYear);
-    setPeriodMonth(filterMonth);
+    setPeriodYear(filterYear !== "all" ? filterYear : String(new Date().getFullYear()));
+    setPeriodMonth(filterMonth !== "all" ? filterMonth : String(new Date().getMonth() + 1));
     setSubmittedBy("");
     setLines([emptyLine()]);
     setMode("create");
@@ -529,15 +529,21 @@ export default function StateOfficeHmoIndebtednessPage({ onBack, defaultStateId,
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">Year</Label>
                 <Select value={filterYear} onValueChange={setFilterYear}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{buildReportingYearOptions().map((y) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}</SelectContent>
+                  <SelectTrigger displayValue={filterYear === "all" ? "All Years" : filterYear}><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Years</SelectItem>
+                    {buildReportingYearOptions().map((y) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
+                  </SelectContent>
                 </Select>
               </div>
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">Month</Label>
                 <Select value={filterMonth} onValueChange={setFilterMonth}>
-                  <SelectTrigger displayValue={monthLabel(filterMonth)}><SelectValue /></SelectTrigger>
-                  <SelectContent>{MONTHS.map((m) => <SelectItem key={m.value} value={String(m.value)}>{m.label}</SelectItem>)}</SelectContent>
+                  <SelectTrigger displayValue={filterMonth === "all" ? "All Months" : monthLabel(filterMonth)}><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Months</SelectItem>
+                    {MONTHS.map((m) => <SelectItem key={m.value} value={String(m.value)}>{m.label}</SelectItem>)}
+                  </SelectContent>
                 </Select>
               </div>
             </CardContent>

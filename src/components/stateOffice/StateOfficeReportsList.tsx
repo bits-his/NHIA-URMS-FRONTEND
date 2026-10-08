@@ -50,11 +50,23 @@ interface Report {
   lines?: any[];
 }
 
+interface FormRenderProps {
+  reportId: number | null;
+  onBack: () => void;
+  onSubmitted: () => void;
+  defaultZoneId?: string | null;
+  defaultStateId?: string | null;
+}
+
 interface Props {
   reportType: StateOfficeReportType;
   onBack: () => void;
   defaultZoneId?: string | null;
   defaultStateId?: string | null;
+  /** When set, only reports for this pillar menu are listed */
+  activityModule?: string;
+  listTitle?: string;
+  renderForm?: (props: FormRenderProps) => React.ReactNode;
 }
 
 const STATUS_CONFIG = {
@@ -64,7 +76,7 @@ const STATUS_CONFIG = {
 };
 
 export default function StateOfficeReportsList({
-  reportType, onBack, defaultZoneId, defaultStateId,
+  reportType, onBack, defaultZoneId, defaultStateId, activityModule, listTitle, renderForm,
 }: Props) {
   const cfg = REPORT_CONFIG[reportType];
   const api = stateOfficeApi[reportType];
@@ -106,12 +118,13 @@ export default function StateOfficeReportsList({
         state_id: apiStateId,
         year: filterYear !== "all" ? filterYear : undefined,
         month: filterMonth !== "all" ? filterMonth : undefined,
+        activity_module: activityModule,
       });
       setReports(res.data as Report[]);
     } catch (err: any) {
       toast.error("Failed to load", { description: err.message });
     } finally { setLoading(false); }
-  }, [api, filterStatus, defaultZoneId, apiStateId, filterYear, filterMonth, createOnly]);
+  }, [api, filterStatus, defaultZoneId, apiStateId, filterYear, filterMonth, createOnly, activityModule]);
 
   React.useEffect(() => { if (!createOnly) load(); }, [load, createOnly]);
 
@@ -233,6 +246,19 @@ export default function StateOfficeReportsList({
         />
       );
     }
+    if (renderForm) {
+      return (
+        <React.Fragment key={formKey}>
+          {renderForm({
+            reportId: mode === "edit" ? selectedId : null,
+            onBack: formBack,
+            onSubmitted: formDone,
+            defaultZoneId,
+            defaultStateId,
+          })}
+        </React.Fragment>
+      );
+    }
     return (
       <StateOfficeFormRouter
         key={formKey}
@@ -254,7 +280,7 @@ export default function StateOfficeReportsList({
           <Button variant="ghost" size="icon" onClick={onBack} className="rounded-full shrink-0" aria-label="Back">
             <ArrowLeft className="w-5 h-5" />
           </Button>
-          <h2 className="text-xl font-bold tracking-tight truncate">{cfg.title}</h2>
+          <h2 className="text-xl font-bold tracking-tight truncate">{listTitle ?? cfg.title}</h2>
         </div>
         <div className="flex items-center gap-3">
           <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">

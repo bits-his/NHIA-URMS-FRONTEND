@@ -117,24 +117,83 @@ export default function ExtendedReportDetail({ reportType, reportId, onBack, onE
                 </>
               )}
 
-              {reportType === "accreditation" && (
-                <DataCard title="Accreditation / Reaccreditation"
-                  headers={["Accreditation / Reaccreditation", "Category", "Primary", "Secondary", "Total"]}
-                  rows={expandAccreditationLines(report.lines ?? []).map((r) => [
-                    labelOf(ACCREDITATION_PROCESS_TYPES, r.process, r.process),
-                    labelOf(ACCREDITATION_ENTRY_TYPES, r.entry, r.entry),
-                    formatCount(r.primary_count),
-                    formatCount(r.secondary_count),
-                    formatCount(r.primary_count + r.secondary_count),
-                  ])} />
-              )}
+              {reportType === "accreditation" && (() => {
+                const rawLines = report.lines ?? [];
+                const templateLines = rawLines
+                  .map((l: any) => {
+                    const t = l.activity_template;
+                    if (!t) return null;
+                    const tpl = typeof t === "string" ? (() => { try { return JSON.parse(t); } catch { return null; } })() : t;
+                    if (!tpl || typeof tpl !== "object") return null;
+                    return { ...l, ...tpl };
+                  })
+                  .filter(Boolean);
+                if (templateLines.length > 0) {
+                  return (
+                    <>
+                      <DataCard title="Activity Summary" headers={["Planned Activities", "Activities Conducted", "Activities Recorded", "Facilities Engaged"]}
+                        rows={[[
+                          report.planned_activities ?? "—",
+                          formatCount(templateLines.filter((l: any) => l.activity_status === "Completed").length),
+                          formatCount(templateLines.length),
+                          formatCount(templateLines.reduce((s: number, l: any) => s + (Number(l.stakeholders_engaged) || 0), 0)),
+                        ]]} />
+                      <DataCard title="Provider Management Activities"
+                        headers={["ID", "Date", "Activity", "Specific Activity", "Funding", "Location", "Programs", "Facilities", "Follow-up", "Status", "Remarks"]}
+                        rows={templateLines.map((l: any) => [
+                          l.engagement_code || "—",
+                          l.activity_date || "—",
+                          l.engagement_category || "—",
+                          l.specific_activity || "—",
+                          l.funding_option || "—",
+                          [l.location_category, l.location_name].filter(Boolean).join(" — ") || "—",
+                          (Array.isArray(l.programs_supported) ? l.programs_supported.join(", ") : null) || "—",
+                          formatCount(l.stakeholders_engaged),
+                          l.follow_up_required || "—",
+                          l.activity_status || "—",
+                          l.remarks || "—",
+                        ])} />
+                    </>
+                  );
+                }
+                return (
+                  <DataCard title="Accreditation"
+                    headers={["Accreditation", "Category", "Primary", "Secondary", "Total"]}
+                    rows={expandAccreditationLines(rawLines).map((r) => [
+                      labelOf(ACCREDITATION_PROCESS_TYPES, r.process, r.process),
+                      labelOf(ACCREDITATION_ENTRY_TYPES, r.entry, r.entry),
+                      formatCount(r.primary_count),
+                      formatCount(r.secondary_count),
+                      formatCount(r.primary_count + r.secondary_count),
+                    ])} />
+                );
+              })()}
 
               {reportType === "stakeholder" && (
-                <DataCard title="Stakeholder Engagement" headers={["Activity", "Audience", "Organization", "Location", "Date", "Outcomes"]}
-                  rows={(report.lines ?? []).map((l: any) => [
-                    l.activity, formatCount(l.audience_size), l.organization || "—", l.location || "—",
-                    l.activity_date || "—", l.key_outcomes || "—",
-                  ])} />
+                <>
+                  <DataCard title="Activity Summary" headers={["Planned Activities", "Activities Conducted", "Activities Recorded", "Stakeholders Engaged"]}
+                    rows={[[
+                      report.planned_activities ?? "—",
+                      formatCount((report.lines ?? []).filter((l: any) => l.activity_status === "Completed").length),
+                      formatCount(report.lines?.length ?? 0),
+                      formatCount((report.lines ?? []).reduce((s: number, l: any) => s + (Number(l.stakeholders_engaged ?? l.audience_size) || 0), 0)),
+                    ]]} />
+                  <DataCard title="Stakeholder Engagement"
+                    headers={["ID", "Date", "Category", "Stakeholders", "Location", "Programs", "Engaged", "Follow-up", "Outcome", "Status", "Remarks"]}
+                    rows={(report.lines ?? []).map((l: any) => [
+                      l.engagement_code || "—",
+                      l.activity_date || "—",
+                      l.engagement_category || l.activity || "—",
+                      l.stakeholder_names || (Array.isArray(l.stakeholder_categories) ? l.stakeholder_categories.join(", ") : null) || l.organization || "—",
+                      [l.location_category, l.location_name || l.location].filter(Boolean).join(" — ") || "—",
+                      (Array.isArray(l.programs_supported) ? l.programs_supported.join(", ") : null) || "—",
+                      formatCount(l.stakeholders_engaged ?? l.audience_size),
+                      l.follow_up_required || "—",
+                      l.specific_outcome || l.key_outcomes || "—",
+                      l.activity_status || "—",
+                      l.remarks || "—",
+                    ])} />
+                </>
               )}
 
               {isEnrolmentDriveType(reportType) && (
@@ -245,16 +304,32 @@ export default function ExtendedReportDetail({ reportType, reportId, onBack, onE
               )}
 
               {reportType === "challenges" && (
-                <>
-                  <Card className="rounded-2xl border-[#d4e8dc]">
-                    <CardHeader><CardTitle className="text-base">Challenges</CardTitle></CardHeader>
-                    <CardContent><p className="text-sm whitespace-pre-wrap text-slate-700">{report.challenges || "—"}</p></CardContent>
-                  </Card>
-                  <Card className="rounded-2xl border-[#d4e8dc]">
-                    <CardHeader><CardTitle className="text-base">Recommendations</CardTitle></CardHeader>
-                    <CardContent><p className="text-sm whitespace-pre-wrap text-slate-700">{report.recommendations || "—"}</p></CardContent>
-                  </Card>
-                </>
+                (report.lines ?? []).length > 0 ? (
+                  <DataCard title="Challenges"
+                    headers={["ID", "Category", "Specific", "Severity", "Impact", "Support", "Department", "Status", "Recommendation"]}
+                    rows={(report.lines ?? []).map((l: any) => [
+                      l.challenge_code || "—",
+                      l.challenge_category || "—",
+                      l.specific_challenge || "—",
+                      l.severity || "—",
+                      l.impact || "—",
+                      l.support_required || "—",
+                      l.responsible_department || "—",
+                      l.status || "—",
+                      l.key_recommendation || "—",
+                    ])} />
+                ) : (
+                  <>
+                    <Card className="rounded-2xl border-[#d4e8dc]">
+                      <CardHeader><CardTitle className="text-base">Challenges</CardTitle></CardHeader>
+                      <CardContent><p className="text-sm whitespace-pre-wrap text-slate-700">{report.challenges || "—"}</p></CardContent>
+                    </Card>
+                    <Card className="rounded-2xl border-[#d4e8dc]">
+                      <CardHeader><CardTitle className="text-base">Recommendations</CardTitle></CardHeader>
+                      <CardContent><p className="text-sm whitespace-pre-wrap text-slate-700">{report.recommendations || "—"}</p></CardContent>
+                    </Card>
+                  </>
+                )
               )}
             </>
           )}
