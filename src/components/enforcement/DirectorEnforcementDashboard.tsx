@@ -365,15 +365,33 @@ export default function DirectorEnforcementDashboard({ onNavigate }: Props) {
   }, [filteredReports, filteredComplaints]);
 
   const byFacility = React.useMemo(() => {
-    const map = new Map<string, { facility: string; state: string; compliance: number; complaints: number }>();
-    const bump = (facility: string, state: string, field: "compliance" | "complaints") => {
-      const name = (facility || "Unspecified facility").trim();
-      if (!map.has(name)) map.set(name, { facility: name, state: state || "—", compliance: 0, complaints: 0 });
-      map.get(name)![field] += 1;
+    type FacRow = {
+      facility: string;
+      state: string;
+      compliance: number;
+      complaints: number;
+      stateVotes: Record<string, number>;
+    };
+    const map = new Map<string, FacRow>();
+    const bump = (facility: string | null | undefined, state: string | undefined, field: "compliance" | "complaints") => {
+      const name = (facility || "").trim();
+      if (!name) return;
+      if (!map.has(name)) {
+        map.set(name, { facility: name, state: state || "—", compliance: 0, complaints: 0, stateVotes: {} });
+      }
+      const row = map.get(name)!;
+      row[field] += 1;
+      if (state) {
+        row.stateVotes[state] = (row.stateVotes[state] || 0) + 1;
+        // Prefer the state that appears most often for this facility (fixes mismatched seed IDs)
+        row.state = Object.entries(row.stateVotes).sort((a, b) => b[1] - a[1])[0][0];
+      }
     };
     for (const r of filteredReports) bump(r.facility_name, r.state?.description, "compliance");
-    for (const c of filteredComplaints) bump(c.facility_name || c.respondent_name, c.state?.description, "complaints");
+    // Use facility_name only — respondent_name is often an HMO, not a facility
+    for (const c of filteredComplaints) bump(c.facility_name, c.state?.description, "complaints");
     return [...map.values()]
+      .map(({ stateVotes: _votes, ...rest }) => rest)
       .sort((a, b) => (b.compliance + b.complaints) - (a.compliance + a.complaints))
       .slice(0, 25);
   }, [filteredReports, filteredComplaints]);
