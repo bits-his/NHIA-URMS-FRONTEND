@@ -542,6 +542,7 @@ export default function Dashboard({ role, user, access = [], functionalities = "
                       else if (path.includes("challenges")) setView("state-challenges");
                       else if (path.includes("weekly-actionable")) setView("state-weekly-actionable");
                       else if (path.includes("enrolment")) setView("state-enrolment");
+                      else if (path.includes("complaints-register") || path.includes("servicom/complaints")) setView("zonal-complaints-register");
                       else setView("home");
                     }}
                   />

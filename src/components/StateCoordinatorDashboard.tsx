@@ -1,7 +1,7 @@
 import * as React from "react";
 import {
   Activity, AlertTriangle, CheckCircle2, ClipboardList, Clock,
-  FileText, Loader2, RefreshCw, Target,
+  FileText, Loader2, MessageSquare, RefreshCw, Target,
 } from "lucide-react";
 import {
   Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Legend,
@@ -213,11 +213,23 @@ export default function StateCoordinatorDashboard({
                   { label: "Draft reports", value: needs.draft_reports, icon: FileText, path: "/zonal/enrolment", color: "#f59e0b", drill: () => drillReports("Draft reports", { status: "draft" }) },
                   { label: "Open actionables", value: needs.open_actionables, icon: ClipboardList, path: "/soc/weekly-actionable", color: "#ef4444", drill: () => drillReportType("weekly_actionable", "Weekly Actionable") },
                   { label: "Open challenges", value: needs.open_challenges, icon: AlertTriangle, path: "/zonal/challenges", color: "#8b5cf6", drill: () => drillReportType("challenges", "Challenges") },
+                  {
+                    label: "Complaints register",
+                    value: null as number | null,
+                    icon: MessageSquare,
+                    path: "/zonal/complaints-register",
+                    color: "#0f766e",
+                    drill: null as (() => void) | null,
+                    hint: "View submitted complaints & assign officers",
+                  },
                 ].map((item) => (
                   <button
                     key={item.label}
                     type="button"
-                    onClick={() => (item.value > 0 ? item.drill() : item.path && onNavigate?.(item.path))}
+                    onClick={() => {
+                      if (item.drill && typeof item.value === "number" && item.value > 0) item.drill();
+                      else if (item.path) onNavigate?.(item.path);
+                    }}
                     className="w-full flex items-center gap-3 rounded-xl border border-[#e8f5ee] bg-[#f8fdfb] px-3 py-2.5 text-left hover:border-[#1a7a52]/40 transition-colors"
                   >
                     <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: `${item.color}18` }}>
@@ -225,8 +237,15 @@ export default function StateCoordinatorDashboard({
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-slate-800">{item.label}</p>
+                      {"hint" in item && item.hint ? (
+                        <p className="text-[11px] text-slate-500 truncate">{item.hint}</p>
+                      ) : null}
                     </div>
-                    <span className="text-lg font-bold tabular-nums text-slate-900">{item.value}</span>
+                    {typeof item.value === "number" ? (
+                      <span className="text-lg font-bold tabular-nums text-slate-900">{item.value}</span>
+                    ) : (
+                      <span className="text-xs font-semibold text-[#145c3f]">Open →</span>
+                    )}
                   </button>
                 ))}
               </CardContent>

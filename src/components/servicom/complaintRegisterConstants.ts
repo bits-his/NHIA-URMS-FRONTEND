@@ -28,7 +28,7 @@ export const PRIORITY_RATINGS = [
 ];
 
 export const TRANSMISSION_ROUTES = [
-  "Walk-in", "Phone", "Hotline", "Email", "Letter", "Portal", "SERVICOM", "Call Center",
+  "Walk-in", "Phone", "Email", "Letter", "SERVICOM",
   "Meetings, Conferences or Workshops", "Other",
 ].map(v => ({ value: v, label: v }));
 
@@ -36,10 +36,9 @@ export const TRANSMISSION_ROUTES = [
 export const COMPLAINANT_CATEGORIES = [
   { value: "HCF", label: "HCF" },
   { value: "HMO", label: "HMO" },
-  { value: "Enrollee", label: "Enrollee" },
-  "Beneficiary Representative",
-  "Employer/MDA", "SSHIA", "Healthcare Worker", "NHIA Staff",
-  "Vendor", "Partner Organisation", "General Public", "Anonymous", "Other",
+  { value: "Enrollee", label: "Enrollee" },  
+  "Employer/MDA", "SSHIA",  
+    "Anonymous/Whistleblower", "Other",
 ].map((v) => (typeof v === "string" ? { value: v, label: v } : v));
 
 /** Lookup Lists — Respondent Type (column G) */
@@ -48,21 +47,90 @@ export const RESPONDENT_CATEGORIES = [
 ].map(v => ({ value: v, label: v }));
 
 export const COMPLAINT_STATUSES = [
-  "New/Acknowledged", "Under Investigation", "Awaiting Information",
-  "Awaiting Respondent Action", "Escalated", "Resolved", "Closed",
-  "Referred to Appropriate Authority", "Complaint Withdrawn",
+  "New/Acknowledged",
+  "Under Investigation",
+  "Awaiting Information from the complainant",
+  "Awaiting information from the respondent",
+  "Escalated",
+  "Resolved",
+  "Closed",
+  "Referred to Appropriate Authority",
+  "Complaint Withdrawn",
 ].map(v => ({ value: v, label: v }));
 
+/** Statuses that mean investigation is still open / awaiting parties. */
+export const AWAITING_INVESTIGATION_STATUSES = [
+  "Awaiting Information from the complainant",
+  "Awaiting information from the respondent",
+  "Awaiting Information",
+  "Awaiting Respondent Action",
+] as const;
+
+/** Investigation actions — options up to Corrective action issued, plus Other. */
 export const ACTIONS_TAKEN = [
-  "Complaint acknowledged", "Investigation commenced", "Respondent contacted",
-  "Site visit conducted", "Records reviewed", "Meeting held", "Mediation conducted",
-  "Corrective action issued", "Sanction recommended", "Complaint resolved",
-  "Complaint closed", "Referred to another authority", "Advice provided",
-  "Follow-up conducted", "Other",
+  "Complaint acknowledged",
+  "Investigation commenced",
+  "Respondent contacted",
+  "Site visit conducted",
+  "Records reviewed",
+  "Meeting held",
+  "Mediation conducted",
+  "Corrective action issued",
+  "Other",
 ].map(v => ({ value: v, label: v }));
+
+export type InvestigationActionEntry = { action: string; other?: string };
+
+export function parseInvestigationActions(raw: string | null | undefined): InvestigationActionEntry[] {
+  if (!raw?.trim()) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed) && parsed.length) {
+      return parsed.map((item) => {
+        if (typeof item === "string") return { action: item, other: "" };
+        return {
+          action: String(item?.action ?? "").trim(),
+          other: String(item?.other ?? "").trim(),
+        };
+      });
+    }
+  } catch {
+    /* legacy single free-text value */
+  }
+  return [{ action: raw.trim(), other: "" }];
+}
+
+export function serializeInvestigationActions(actions: InvestigationActionEntry[]): string {
+  return JSON.stringify(
+    actions
+      .filter((a) => a.action?.trim())
+      .map((a) => ({
+        action: a.action.trim(),
+        ...(a.action === "Other" && a.other?.trim() ? { other: a.other.trim() } : {}),
+      })),
+  );
+}
+
+export function formatInvestigationActionsLabel(raw: string | null | undefined): string {
+  return parseInvestigationActions(raw)
+    .filter((a) => a.action)
+    .map((a) => (a.action === "Other" && a.other ? `Other: ${a.other}` : a.action))
+    .join("; ") || "—";
+}
+
+/** True when investigation has more than the auto "Investigation commenced" starter. */
+export function hasSubstantiveInvestigationActions(raw: string | null | undefined): boolean {
+  const actions = parseInvestigationActions(raw).filter((a) => a.action);
+  if (!actions.length) return false;
+  if (actions.length === 1 && actions[0].action === "Investigation commenced") return false;
+  return true;
+}
 
 export const ESCALATION_LEVELS = [
-  "State Internal", "Zonal Office", "NHIA Headquarters", "Other Regulatory Authority",
+  "Zonal Coordinator",
+  "State Coordinator",
+  "Enforcement Director",
+  "Others",
 ].map(v => ({ value: v, label: v }));
 
 export const ESCALATED_TO = [
@@ -70,9 +138,12 @@ export const ESCALATED_TO = [
 ].map(v => ({ value: v, label: v }));
 
 export const COMPLAINT_OUTCOMES = [
-  "Complaint Upheld", "Complaint Partially Upheld", "Complaint Not Upheld",
-  "Resolved Through Mediation", "Referred to Appropriate Authority",
-  "Information/Advice Provided", "Duplicate Complaint", "Complaint Withdrawn",
+  "Complaint Upheld",
+  "Complaint Partially Upheld",
+  "Complaint Not Upheld",
+  "Information/Advice Provided",
+  "Complaint Withdrawn",
+  "Referred to Appropriate Authority",
 ].map(v => ({ value: v, label: v }));
 
 export type ComplaintSlaColor = "white" | "yellow" | "amber" | "red";
@@ -223,6 +294,8 @@ export function slaForPriority(priority: string, rules?: ComplaintSlaRuleRow[]) 
 export const STATUS_BADGE_CLASS: Record<string, string> = {
   "New/Acknowledged": "bg-blue-50 text-blue-700 border-blue-200",
   "Under Investigation": "bg-amber-50 text-amber-800 border-amber-200",
+  "Awaiting Information from the complainant": "bg-orange-50 text-orange-800 border-orange-200",
+  "Awaiting information from the respondent": "bg-orange-50 text-orange-800 border-orange-200",
   "Awaiting Information": "bg-orange-50 text-orange-800 border-orange-200",
   "Awaiting Respondent Action": "bg-orange-50 text-orange-800 border-orange-200",
   Escalated: "bg-purple-50 text-purple-800 border-purple-200",
@@ -245,9 +318,13 @@ export const COMPLAINT_LIFECYCLE: {
   { id: "resolution", label: "Resolution", shortLabel: "Resolution" },
 ];
 
-export const INVESTIGATION_STATUSES = COMPLAINT_STATUSES.filter((s) =>
-  ["Awaiting Information", "Awaiting Respondent Action", "Resolved", "Closed"].includes(s.value),
-);
+export const INVESTIGATION_STATUSES = [
+  "Awaiting Information from the complainant",
+  "Awaiting information from the respondent",
+  "Escalated",
+  "Resolved",
+  "Closed",
+].map((v) => ({ value: v, label: v }));
 
 /** Investigation statuses that close the complaint immediately (skip escalation & resolution). */
 export const INVESTIGATION_CLOSING_STATUSES = ["Resolved", "Closed"];
@@ -261,7 +338,10 @@ export function lifecycleStageFromStatus(status: string, row?: { escalated?: boo
     return "resolution";
   }
   if (row?.escalated || status === "Escalated") return "escalation";
-  if (["Under Investigation", "Awaiting Information", "Awaiting Respondent Action"].includes(status)) {
+  if (
+    status === "Under Investigation"
+    || (AWAITING_INVESTIGATION_STATUSES as readonly string[]).includes(status)
+  ) {
     return "investigation";
   }
   return "registration";
@@ -275,16 +355,22 @@ export function getStageCompletion(row: any): Record<LifecycleStage, boolean> {
     return { registration: true, investigation: true, escalation: true, resolution: true };
   }
   const escalated = !!row.escalated || row.status === "Escalated";
-  const escalationDecided = escalated || row.escalation_level === "Not Escalated";
+  const escalationLevelSet = !!(
+    row.escalation_level
+    && row.escalation_level !== "Not Escalated"
+  );
+  const escalationDecided = escalationLevelSet || row.escalation_level === "Not Escalated";
   const investigationDone = !!(
     row.actions_details
-    || (row.actions_taken && row.actions_taken !== "Investigation commenced")
-    || ["Awaiting Information", "Awaiting Respondent Action"].includes(row.status)
+    || hasSubstantiveInvestigationActions(row.actions_taken)
+    || (AWAITING_INVESTIGATION_STATUSES as readonly string[]).includes(row.status)
+    || row.status === "Escalated"
   );
   return {
     registration: !!(row.complaint_number && (row.complainant_category || row.complaint_type)),
     // Escalation implies investigation is done; otherwise require investigation submission (not just Start)
     investigation: escalated || escalationDecided || investigationDone,
+    // Level must be set on the Escalation tab (officer alone from investigation is not enough)
     escalation: escalationDecided,
     resolution: !!(row.date_closed || row.outcome),
   };
