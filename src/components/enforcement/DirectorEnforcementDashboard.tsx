@@ -986,8 +986,23 @@ export default function DirectorEnforcementDashboard({ onNavigate }: Props) {
   );
 }
 
-export function isDirectorEnforcementUser(user: { staff_id?: string | null; name?: string | null } | null | undefined) {
+/** HQ Department directors under Enforcement Department (any staff id, e.g. HQ-0001). */
+export function isDirectorEnforcementUser(
+  user: {
+    staff_id?: string | null;
+    name?: string | null;
+    role?: string | null;
+    department?: { name?: string | null; department_code?: string | null } | null;
+  } | null | undefined,
+) {
   if (!user) return false;
+  const role = String(user.role || "").toLowerCase();
+  if (role !== "hq-department") return false;
+  const code = String(user.department?.department_code || "").toUpperCase();
+  const deptName = String(user.department?.name || "").toLowerCase();
+  if (code === "ENF") return true;
+  if (deptName.includes("enforcement")) return true;
+  // Local demo seed fallback
   if (String(user.staff_id || "").toUpperCase() === "HOD-0003") return true;
   return String(user.name || "").toLowerCase().includes("director enforcement");
 }
