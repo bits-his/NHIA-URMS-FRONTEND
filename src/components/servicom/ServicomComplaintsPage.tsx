@@ -32,6 +32,7 @@ import {
   slaColorDotClass, computeSlaOverdueDays, slaRowClass,
   previewComplaintNumber,
   parseInvestigationActions, serializeInvestigationActions, formatInvestigationActionsLabel,
+  SANCTION_CATEGORIES, isSanctionOutcomeAction, extractSanctionCategories,
   hasSubstantiveInvestigationActions,
   outcomesForScope, actionsForOutcome, normalizeOutcome,
   type LifecycleStage, type ComplaintSlaRuleRow, type InvestigationActionEntry,
@@ -98,6 +99,7 @@ const emptyForm = (defaultZoneId?: string | null, defaultStateId?: string | null
   actions_taken: "",
   investigation_actions: [] as InvestigationActionEntry[],
   outcome_actions: [] as string[],
+  sanction_categories: [] as string[],
   actions_details: "",
   escalated: false,
   escalation_level: "",
@@ -111,6 +113,17 @@ const emptyForm = (defaultZoneId?: string | null, defaultStateId?: string | null
   remarks: "",
   description: "",
 });
+
+function buildOutcomeActionEntries(
+  outcomeActions: string[],
+  sanctionCategories: string[],
+): InvestigationActionEntry[] {
+  return (outcomeActions ?? []).map((action) => (
+    isSanctionOutcomeAction(action)
+      ? { action, other: "", categories: sanctionCategories ?? [] }
+      : { action, other: "" }
+  ));
+}
 
 function rowToForm(row: any) {
   if (!row) return emptyForm();
@@ -164,6 +177,7 @@ function rowToForm(row: any) {
         .map((a) => a.action)
         .filter((a) => allowed.has(a));
     })(),
+    sanction_categories: extractSanctionCategories(row.actions_taken),
     actions_details: row.actions_details ?? "",
     escalated: !!row.escalated || row.status === "Escalated",
     escalation_level: (() => {
@@ -659,6 +673,8 @@ export default function ServicomComplaintsPage({
   const [editingActionIdx, setEditingActionIdx] = React.useState<number | null>(null);
   const [outcomeActionDraft, setOutcomeActionDraft] = React.useState("");
   const [editingOutcomeActionIdx, setEditingOutcomeActionIdx] = React.useState<number | null>(null);
+  const [sanctionCategoryDraft, setSanctionCategoryDraft] = React.useState("");
+  const [editingSanctionCategoryIdx, setEditingSanctionCategoryIdx] = React.useState<number | null>(null);
   /** After investigation is submitted, form is locked until user clicks Update. */
   const [investigationEditing, setInvestigationEditing] = React.useState(false);
   const [commentSaving, setCommentSaving] = React.useState(false);
@@ -999,6 +1015,8 @@ export default function ServicomComplaintsPage({
       setEditingActionIdx(null);
       setOutcomeActionDraft("");
       setEditingOutcomeActionIdx(null);
+      setSanctionCategoryDraft("");
+      setEditingSanctionCategoryIdx(null);
       setInvestigationEditing(false);
       setActiveStage(nextStage);
       setComplaintsQuery({ mode: "manage", id: res.data.id, stage: nextStage });
@@ -1335,8 +1353,14 @@ export default function ServicomComplaintsPage({
                 setSaving(false);
                 return;
               }
+              if ((f.outcome_actions ?? []).some(isSanctionOutcomeAction)
+                && !(f.sanction_categories ?? []).length) {
+                toast.error("Select at least one sanction category.");
+                setSaving(false);
+                return;
+              }
               if (!f.remarks?.trim()) {
-                toast.error("Description is required.");
+                toast.error("Reason for the action is required.");
                 setSaving(false);
                 return;
               }
@@ -1356,7 +1380,7 @@ export default function ServicomComplaintsPage({
           const closingActions = closingFromInvestigation
             ? [
                 ...(f.investigation_actions ?? []),
-                ...(f.outcome_actions ?? []).map((action) => ({ action, other: "" })),
+                ...buildOutcomeActionEntries(f.outcome_actions ?? [], f.sanction_categories ?? []),
               ]
             : (f.investigation_actions ?? []);
           payload = {
@@ -1506,6 +1530,12 @@ export default function ServicomComplaintsPage({
           setSaving(false);
           return;
         }
+        if ((f.outcome_actions ?? []).some(isSanctionOutcomeAction)
+          && !(f.sanction_categories ?? []).length) {
+          toast.error("Select at least one sanction category.");
+          setSaving(false);
+          return;
+        }
         if (!f.date_closed) {
           toast.error("Date closed is required.");
           setSaving(false);
@@ -1521,7 +1551,7 @@ export default function ServicomComplaintsPage({
           : f.outcome;
         const resolutionActions = [
           ...(f.investigation_actions ?? []),
-          ...(f.outcome_actions ?? []).map((action) => ({ action, other: "" })),
+          ...buildOutcomeActionEntries(f.outcome_actions ?? [], f.sanction_categories ?? []),
         ];
         payload = {
           date_closed: f.date_closed,
@@ -1569,6 +1599,8 @@ export default function ServicomComplaintsPage({
         setEditingActionIdx(null);
         setOutcomeActionDraft("");
         setEditingOutcomeActionIdx(null);
+        setSanctionCategoryDraft("");
+        setEditingSanctionCategoryIdx(null);
       }
       await refreshSelected();
       if (
@@ -2381,6 +2413,13 @@ export default function ServicomComplaintsPage({
     const availableOptions = options.filter(
       (o) => editingOutcomeActionIdx != null || !selected.includes(o.value),
     );
+    const selectedSanctionCategories = readOnly
+      ? extractSanctionCategories(row?.actions_taken)
+      : (f.sanction_categories ?? []);
+    const showSanctionCategories = selected.some(isSanctionOutcomeAction);
+    const availableSanctionOptions = SANCTION_CATEGORIES.filter(
+      (o) => editingSanctionCategoryIdx != null || !selectedSanctionCategories.includes(o.value),
+    );
 
     if (outcome === "Other (Specify)") {
       return (
@@ -2415,122 +2454,264 @@ export default function ServicomComplaintsPage({
     }
 
     return (
-      <div className="col-span-full space-y-2">
-        <p className="text-xs font-medium text-slate-600">Outcomes/Action(s) Taken *</p>
-        {!readOnly && (
-          <div className="flex flex-wrap items-end gap-2">
-            <FieldSelect
-              label={editingOutcomeActionIdx != null ? "Edit action *" : "Action *"}
-              value={outcomeActionDraft}
-              options={availableOptions.length ? availableOptions : options}
-              onChange={setOutcomeActionDraft}
-              placeholder="Select action"
-              className="flex-1 min-w-[200px]"
-            />
-            {editingOutcomeActionIdx != null && (
+      <div className="col-span-full space-y-3">
+        <div className="space-y-2">
+          <p className="text-xs font-medium text-slate-600">Outcomes/Action(s) Taken *</p>
+          {!readOnly && (
+            <div className="flex flex-wrap items-end gap-2">
+              <FieldSelect
+                label={editingOutcomeActionIdx != null ? "Edit action *" : "Action *"}
+                value={outcomeActionDraft}
+                options={availableOptions.length ? availableOptions : options}
+                onChange={setOutcomeActionDraft}
+                placeholder="Select action"
+                className="flex-1 min-w-[200px]"
+              />
+              {editingOutcomeActionIdx != null && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-9 text-xs"
+                  onClick={() => {
+                    if (outcomeActionDraft.trim()) {
+                      setF((p) => ({
+                        ...p,
+                        outcome_actions: [...(p.outcome_actions ?? []), outcomeActionDraft.trim()],
+                      }));
+                    }
+                    setOutcomeActionDraft("");
+                    setEditingOutcomeActionIdx(null);
+                  }}
+                >
+                  Cancel
+                </Button>
+              )}
               <Button
                 type="button"
-                variant="outline"
                 size="sm"
-                className="h-9 text-xs"
+                className="h-9 gap-1 text-xs bg-[#145c3f] hover:bg-[#0f3d2e]"
                 onClick={() => {
-                  if (outcomeActionDraft.trim()) {
-                    setF((p) => ({
-                      ...p,
-                      outcome_actions: [...(p.outcome_actions ?? []), outcomeActionDraft.trim()],
-                    }));
+                  if (!outcomeActionDraft.trim()) {
+                    toast.error("Select an action.");
+                    return;
                   }
+                  if ((f.outcome_actions ?? []).includes(outcomeActionDraft.trim())
+                    && editingOutcomeActionIdx == null) {
+                    toast.error("That action is already added.");
+                    return;
+                  }
+                  setF((p) => ({
+                    ...p,
+                    outcome_actions: [...(p.outcome_actions ?? []), outcomeActionDraft.trim()],
+                  }));
                   setOutcomeActionDraft("");
                   setEditingOutcomeActionIdx(null);
                 }}
               >
-                Cancel
+                <Plus className="w-3.5 h-3.5" />
+                {editingOutcomeActionIdx != null ? "Update" : "Add"}
               </Button>
-            )}
-            <Button
-              type="button"
-              size="sm"
-              className="h-9 gap-1 text-xs bg-[#145c3f] hover:bg-[#0f3d2e]"
-              onClick={() => {
-                if (!outcomeActionDraft.trim()) {
-                  toast.error("Select an action.");
-                  return;
-                }
-                if ((f.outcome_actions ?? []).includes(outcomeActionDraft.trim())
-                  && editingOutcomeActionIdx == null) {
-                  toast.error("That action is already added.");
-                  return;
-                }
-                setF((p) => ({
-                  ...p,
-                  outcome_actions: [...(p.outcome_actions ?? []), outcomeActionDraft.trim()],
-                }));
-                setOutcomeActionDraft("");
-                setEditingOutcomeActionIdx(null);
-              }}
-            >
-              <Plus className="w-3.5 h-3.5" />
-              {editingOutcomeActionIdx != null ? "Update" : "Add"}
-            </Button>
-          </div>
-        )}
-        {selected.length === 0 && readOnly ? (
-          <p className="text-sm text-slate-400">No actions recorded</p>
-        ) : null}
-        {selected.length > 0 && (
-          <div className="space-y-1">
-            {selected.map((action, idx) => (
-              <div
-                key={`outcome-action-${idx}`}
-                className="flex items-center gap-2 rounded-md border border-[#e6f2eb] bg-[#f8fbf9] px-2.5 py-1.5"
-              >
-                <span className="text-[11px] font-semibold text-slate-400 tabular-nums w-4 shrink-0">
-                  {idx + 1}.
-                </span>
-                <p className="flex-1 min-w-0 text-sm text-slate-800 truncate" title={action}>
-                  {action || "—"}
-                </p>
-                {!readOnly && (
-                  <div className="flex items-center gap-0.5 shrink-0">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 text-slate-500 hover:text-[#145c3f] hover:bg-[#e8f5ee]"
-                      aria-label="Edit action"
-                      onClick={() => {
-                        setOutcomeActionDraft(action);
-                        setEditingOutcomeActionIdx(idx);
+            </div>
+          )}
+          {selected.length === 0 && readOnly ? (
+            <p className="text-sm text-slate-400">No actions recorded</p>
+          ) : null}
+          {selected.length > 0 && (
+            <div className="space-y-1">
+              {selected.map((action, idx) => (
+                <div
+                  key={`outcome-action-${idx}`}
+                  className="flex items-center gap-2 rounded-md border border-[#e6f2eb] bg-[#f8fbf9] px-2.5 py-1.5"
+                >
+                  <span className="text-[11px] font-semibold text-slate-400 tabular-nums w-4 shrink-0">
+                    {idx + 1}.
+                  </span>
+                  <p className="flex-1 min-w-0 text-sm text-slate-800 truncate" title={action}>
+                    {action || "—"}
+                  </p>
+                  {!readOnly && (
+                    <div className="flex items-center gap-0.5 shrink-0">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-slate-500 hover:text-[#145c3f] hover:bg-[#e8f5ee]"
+                        aria-label="Edit action"
+                        onClick={() => {
+                          setOutcomeActionDraft(action);
+                          setEditingOutcomeActionIdx(idx);
+                          setF((p) => {
+                            const nextActions = (p.outcome_actions ?? []).filter((_, i) => i !== idx);
+                            const stillHasSanction = nextActions.some(isSanctionOutcomeAction);
+                            if (!stillHasSanction) {
+                              setSanctionCategoryDraft("");
+                              setEditingSanctionCategoryIdx(null);
+                            }
+                            return {
+                              ...p,
+                              outcome_actions: nextActions,
+                              sanction_categories: stillHasSanction ? p.sanction_categories : [],
+                            };
+                          });
+                        }}
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-slate-400 hover:text-rose-600 hover:bg-rose-50"
+                        aria-label="Delete action"
+                        onClick={() => {
+                          if (editingOutcomeActionIdx != null && editingOutcomeActionIdx > idx) {
+                            setEditingOutcomeActionIdx(editingOutcomeActionIdx - 1);
+                          }
+                          setF((p) => {
+                            const nextActions = (p.outcome_actions ?? []).filter((_, i) => i !== idx);
+                            const stillHasSanction = nextActions.some(isSanctionOutcomeAction);
+                            if (!stillHasSanction) {
+                              setSanctionCategoryDraft("");
+                              setEditingSanctionCategoryIdx(null);
+                            }
+                            return {
+                              ...p,
+                              outcome_actions: nextActions,
+                              sanction_categories: stillHasSanction ? p.sanction_categories : [],
+                            };
+                          });
+                        }}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {showSanctionCategories && (
+          <div className="space-y-2 rounded-lg border border-[#d4e8dc] bg-[#f8fbf9]/70 px-3 py-2.5">
+            <p className="text-xs font-medium text-slate-600">Sanction categories *</p>
+            {!readOnly && (
+              <div className="flex flex-wrap items-end gap-2">
+                <FieldSelect
+                  label={editingSanctionCategoryIdx != null ? "Edit category *" : "Category *"}
+                  value={sanctionCategoryDraft}
+                  options={availableSanctionOptions.length ? availableSanctionOptions : SANCTION_CATEGORIES}
+                  onChange={setSanctionCategoryDraft}
+                  placeholder="Select sanction category"
+                  className="flex-1 min-w-[200px]"
+                />
+                {editingSanctionCategoryIdx != null && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-9 text-xs"
+                    onClick={() => {
+                      if (sanctionCategoryDraft.trim()) {
                         setF((p) => ({
                           ...p,
-                          outcome_actions: (p.outcome_actions ?? []).filter((_, i) => i !== idx),
+                          sanction_categories: [...(p.sanction_categories ?? []), sanctionCategoryDraft.trim()],
                         }));
-                      }}
-                    >
-                      <Pencil className="w-3.5 h-3.5" />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 text-slate-400 hover:text-rose-600 hover:bg-rose-50"
-                      aria-label="Delete action"
-                      onClick={() => {
-                        if (editingOutcomeActionIdx != null && editingOutcomeActionIdx > idx) {
-                          setEditingOutcomeActionIdx(editingOutcomeActionIdx - 1);
-                        }
-                        setF((p) => ({
-                          ...p,
-                          outcome_actions: (p.outcome_actions ?? []).filter((_, i) => i !== idx),
-                        }));
-                      }}
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </Button>
-                  </div>
+                      }
+                      setSanctionCategoryDraft("");
+                      setEditingSanctionCategoryIdx(null);
+                    }}
+                  >
+                    Cancel
+                  </Button>
                 )}
+                <Button
+                  type="button"
+                  size="sm"
+                  className="h-9 gap-1 text-xs bg-[#145c3f] hover:bg-[#0f3d2e]"
+                  onClick={() => {
+                    if (!sanctionCategoryDraft.trim()) {
+                      toast.error("Select a sanction category.");
+                      return;
+                    }
+                    if ((f.sanction_categories ?? []).includes(sanctionCategoryDraft.trim())
+                      && editingSanctionCategoryIdx == null) {
+                      toast.error("That category is already added.");
+                      return;
+                    }
+                    setF((p) => ({
+                      ...p,
+                      sanction_categories: [...(p.sanction_categories ?? []), sanctionCategoryDraft.trim()],
+                    }));
+                    setSanctionCategoryDraft("");
+                    setEditingSanctionCategoryIdx(null);
+                  }}
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  {editingSanctionCategoryIdx != null ? "Update" : "Add"}
+                </Button>
               </div>
-            ))}
+            )}
+            {selectedSanctionCategories.length === 0 && readOnly ? (
+              <p className="text-sm text-slate-400">No sanction categories recorded</p>
+            ) : null}
+            {selectedSanctionCategories.length > 0 && (
+              <div className="space-y-1">
+                {selectedSanctionCategories.map((category, idx) => (
+                  <div
+                    key={`sanction-category-${idx}`}
+                    className="flex items-center gap-2 rounded-md border border-[#e6f2eb] bg-white px-2.5 py-1.5"
+                  >
+                    <span className="text-[11px] font-semibold text-slate-400 tabular-nums w-4 shrink-0">
+                      {idx + 1}.
+                    </span>
+                    <p className="flex-1 min-w-0 text-sm text-slate-800 truncate" title={category}>
+                      {category || "—"}
+                    </p>
+                    {!readOnly && (
+                      <div className="flex items-center gap-0.5 shrink-0">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-slate-500 hover:text-[#145c3f] hover:bg-[#e8f5ee]"
+                          aria-label="Edit category"
+                          onClick={() => {
+                            setSanctionCategoryDraft(category);
+                            setEditingSanctionCategoryIdx(idx);
+                            setF((p) => ({
+                              ...p,
+                              sanction_categories: (p.sanction_categories ?? []).filter((_, i) => i !== idx),
+                            }));
+                          }}
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-slate-400 hover:text-rose-600 hover:bg-rose-50"
+                          aria-label="Delete category"
+                          onClick={() => {
+                            if (editingSanctionCategoryIdx != null && editingSanctionCategoryIdx > idx) {
+                              setEditingSanctionCategoryIdx(editingSanctionCategoryIdx - 1);
+                            }
+                            setF((p) => ({
+                              ...p,
+                              sanction_categories: (p.sanction_categories ?? []).filter((_, i) => i !== idx),
+                            }));
+                          }}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -2698,9 +2879,12 @@ export default function ServicomComplaintsPage({
       outcome: v,
       outcome_other: v === "Other (Specify)" ? p.outcome_other : "",
       outcome_actions: [],
+      sanction_categories: [],
     }));
     setOutcomeActionDraft("");
     setEditingOutcomeActionIdx(null);
+    setSanctionCategoryDraft("");
+    setEditingSanctionCategoryIdx(null);
   };
 
   const renderResolutionFields = (readOnly: boolean, row?: any) => {
@@ -2746,11 +2930,11 @@ export default function ServicomComplaintsPage({
         )}
         <div className="col-span-full">
           <FieldTextarea
-            label="Description"
+            label="Reason for the action"
             value={readOnly ? (row?.remarks ?? row?.resolution_notes ?? "") : f.remarks}
             onChange={(v) => set("remarks", v)}
             readOnly={readOnly}
-            placeholder="Describe the resolution"
+            placeholder="Reason for the action"
           />
         </div>
         <div className="col-span-full md:col-span-2">
@@ -2846,7 +3030,7 @@ export default function ServicomComplaintsPage({
                 />
               </div>
               <FieldSelect
-                label="Status *"
+                label="Outcome of Investigation *"
                 value={readOnly ? row?.status : f.status}
                 options={readOnly ? COMPLAINT_STATUSES : INVESTIGATION_STATUSES}
                 readOnly={readOnly}
@@ -2878,11 +3062,11 @@ export default function ServicomComplaintsPage({
                   {(readOnly ? !!row?.outcome : !!f.outcome) && renderOutcomeActionsMultiSelect(readOnly, row)}
                   <div className="col-span-full">
                     <FieldTextarea
-                      label="Description *"
+                      label="Reason for the action *"
                       value={readOnly ? (row?.remarks ?? row?.resolution_notes ?? "") : f.remarks}
                       onChange={(v) => set("remarks", v)}
                       readOnly={readOnly}
-                      placeholder="Describe the resolution / outcome"
+                      placeholder="Reason for the action"
                     />
                   </div>
                 </>

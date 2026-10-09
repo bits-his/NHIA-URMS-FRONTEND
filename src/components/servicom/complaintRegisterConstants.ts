@@ -81,7 +81,30 @@ export const ACTIONS_TAKEN = [
   "Other",
 ].map(v => ({ value: v, label: v }));
 
-export type InvestigationActionEntry = { action: string; other?: string };
+export type InvestigationActionEntry = {
+  action: string;
+  other?: string;
+  categories?: string[];
+};
+
+/** Outcome action that requires one or more sanction categories. */
+export const SANCTION_OUTCOME_ACTION = "Sanction Recommended/Imposed";
+
+export const SANCTION_CATEGORIES = [
+  "Warning",
+  "Monetary penalties",
+  "Suspension",
+  "Withholding release of funds",
+  "Withdrawal of license / accreditation",
+  "Delisting",
+  "Prosecution",
+  "Refund",
+  "Deductions",
+].map((v) => ({ value: v, label: v }));
+
+export function isSanctionOutcomeAction(action: string | null | undefined): boolean {
+  return String(action ?? "").trim() === SANCTION_OUTCOME_ACTION;
+}
 
 export function parseInvestigationActions(raw: string | null | undefined): InvestigationActionEntry[] {
   if (!raw?.trim()) return [];
@@ -90,9 +113,13 @@ export function parseInvestigationActions(raw: string | null | undefined): Inves
     if (Array.isArray(parsed) && parsed.length) {
       return parsed.map((item) => {
         if (typeof item === "string") return { action: item, other: "" };
+        const categories = Array.isArray(item?.categories)
+          ? item.categories.map((c: unknown) => String(c ?? "").trim()).filter(Boolean)
+          : undefined;
         return {
           action: String(item?.action ?? "").trim(),
           other: String(item?.other ?? "").trim(),
+          ...(categories?.length ? { categories } : {}),
         };
       });
     }
@@ -109,6 +136,9 @@ export function serializeInvestigationActions(actions: InvestigationActionEntry[
       .map((a) => ({
         action: a.action.trim(),
         ...(a.action === "Other" && a.other?.trim() ? { other: a.other.trim() } : {}),
+        ...(isSanctionOutcomeAction(a.action) && a.categories?.length
+          ? { categories: a.categories.map((c) => c.trim()).filter(Boolean) }
+          : {}),
       })),
   );
 }
@@ -116,8 +146,19 @@ export function serializeInvestigationActions(actions: InvestigationActionEntry[
 export function formatInvestigationActionsLabel(raw: string | null | undefined): string {
   return parseInvestigationActions(raw)
     .filter((a) => a.action)
-    .map((a) => (a.action === "Other" && a.other ? `Other: ${a.other}` : a.action))
+    .map((a) => {
+      if (a.action === "Other" && a.other) return `Other: ${a.other}`;
+      if (isSanctionOutcomeAction(a.action) && a.categories?.length) {
+        return `${a.action} (${a.categories.join(", ")})`;
+      }
+      return a.action;
+    })
     .join("; ") || "—";
+}
+
+export function extractSanctionCategories(raw: string | null | undefined): string[] {
+  const entry = parseInvestigationActions(raw).find((a) => isSanctionOutcomeAction(a.action));
+  return entry?.categories ?? [];
 }
 
 /** True when investigation has more than the auto "Investigation commenced" starter. */
@@ -175,8 +216,7 @@ export const ESCALATED_TO = [
 
 /** Outcomes available at State level (investigation / resolution). */
 export const STATE_COMPLAINT_OUTCOMES = [
-  "Complaint Upheld",
-  "Partially Upheld",
+  "Complaint Upheld / Resolved",
   "Not Upheld",
   "Withdrawn",
   "Other (Specify)",
@@ -184,8 +224,7 @@ export const STATE_COMPLAINT_OUTCOMES = [
 
 /** Outcomes available at Head Office / Enforcement Department. */
 export const HQ_COMPLAINT_OUTCOMES = [
-  "Complaint Upheld",
-  "Partially Upheld",
+  "Complaint Upheld / Resolved",
   "Not Upheld",
   "Withdrawn",
 ].map((v) => ({ value: v, label: v }));
@@ -199,9 +238,21 @@ export function outcomesForScope(scope: "state" | "hq") {
 
 /**
  * Outcomes/Action(s) Taken per outcome — multi-select.
- * Columns from the register matrix: Upheld | Partially Upheld | Not Upheld | Withdrawn.
+ * Columns from the register matrix: Upheld / Resolved | Not Upheld | Withdrawn.
+ * Legacy "Partially Upheld" / "Complaint Upheld" keys kept for existing records.
  */
 export const OUTCOME_ACTIONS: Record<string, string[]> = {
+  "Complaint Upheld / Resolved": [
+    "Sanction Recommended/Imposed",
+    "Refund Processed",
+    "Corrective Action Plan",
+    "Service Restoration",
+    "Written Warning",
+    "Regulatory/Disciplinary Referral",
+    "Follow-up Monitoring",
+    "Approval/Authorization Granted",
+    "Compliance Notice Issued",
+  ],
   "Complaint Upheld": [
     "Sanction Recommended/Imposed",
     "Refund Processed",
@@ -243,6 +294,7 @@ export function normalizeOutcome(outcome: string | null | undefined): string {
   const raw = String(outcome ?? "").trim();
   if (!raw) return "";
   const aliases: Record<string, string> = {
+    "Complaint Upheld": "Complaint Upheld / Resolved",
     "Complaint Partially Upheld": "Partially Upheld",
     "Complaint Not Upheld": "Not Upheld",
     "Complaint Withdrawn": "Withdrawn",
