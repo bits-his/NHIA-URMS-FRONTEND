@@ -310,6 +310,19 @@ export function filterSidebar(
 }
 
 /**
+ * Temporary kill-switch: hide every dashboard (home + module dashboards)
+ * from all roles until product is ready to re-enable them.
+ */
+export const DASHBOARDS_ENABLED = false;
+
+export function isDashboardNavTitle(title: string | null | undefined): boolean {
+  const t = String(title || "").trim().toLowerCase();
+  if (!t) return false;
+  if (t === "dashboard" || t === "sdo dashboard") return true;
+  return t.includes("dashboard");
+}
+
+/**
  * First navigable path the user may open (MODULE_CONFIG order).
  * Used after login and when `/` is opened without Dashboard access.
  */
@@ -317,7 +330,7 @@ export function getFirstAccessiblePath(
   access: AccessEntry[] | undefined,
   role?: string,
 ): string {
-  if (role === "admin") return "/";
+  if (role === "admin" && DASHBOARDS_ENABLED) return "/";
 
   const user: AccessUser = { role: role ?? "", access: access ?? [] };
 
@@ -330,8 +343,9 @@ export function getFirstAccessiblePath(
         const found = walk(modTitle, c.children);
         if (found) return found;
       } else if (
-        c.path &&
-        canAccessFunctionality(modTitle, c.title, user)
+        c.path
+        && (!DASHBOARDS_ENABLED ? !isDashboardNavTitle(c.title) : true)
+        && canAccessFunctionality(modTitle, c.title, user)
       ) {
         return c.path;
       }
@@ -341,6 +355,7 @@ export function getFirstAccessiblePath(
 
   for (const mod of MODULE_CONFIG) {
     if (mod.title === "Notifications" || mod.title === "Settings") continue;
+    if (!DASHBOARDS_ENABLED && isDashboardNavTitle(mod.title)) continue;
     const path = walk(mod.title, mod.children);
     if (path) return path;
   }
@@ -352,7 +367,7 @@ export function getFirstAccessiblePath(
     if (path) return path;
   }
 
-  return "/";
+  return "/notifications";
 }
 
 /** True when the user may open the main `/` dashboard home. */
@@ -360,6 +375,7 @@ export function canAccessHomeDashboard(
   access: AccessEntry[] | undefined,
   role?: string,
 ): boolean {
+  if (!DASHBOARDS_ENABLED) return false;
   if (role === "admin") return true;
   return canAccessFunctionality("Dashboard", "Dashboard", {
     role: role ?? "",

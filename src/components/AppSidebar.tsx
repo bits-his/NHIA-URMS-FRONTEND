@@ -95,7 +95,7 @@ import {
   SDO_SOC_NAV_GROUP,
 } from "@/src/access/moduleConfig";
 import { hasModuleAccess } from "@/src/access/roles";
-import { normalizeAllowedTitles, expandAccessEntries } from "@/src/access/accessUtils";
+import { normalizeAllowedTitles, expandAccessEntries, DASHBOARDS_ENABLED, isDashboardNavTitle } from "@/src/access/accessUtils";
 import { NhiaSidebarBrand } from "@/src/components/NhiaCrest";
 
 type View = string;
@@ -383,6 +383,7 @@ function filterModuleTree(
     }
 
     if (!child.view || !allowedTitles.has(child.title)) continue;
+    if (!DASHBOARDS_ENABLED && isDashboardNavTitle(child.title)) continue;
 
     nodes.push({
       kind: "leaf",
@@ -774,11 +775,17 @@ export function AppSidebar({
   ...props
 }: AppSidebarProps & React.ComponentProps<typeof Sidebar>) {
   const visibleModules = React.useMemo(() => {
+    const stripDashboardTitles = (titles: Set<string>) => {
+      if (DASHBOARDS_ENABLED) return titles;
+      return new Set([...titles].filter((t) => !isDashboardNavTitle(t)));
+    };
+
     if (role === "admin") {
       return modulesVisibleToAdmin()
+        .filter((mod) => DASHBOARDS_ENABLED || !isDashboardNavTitle(mod.title))
         .map((mod) => ({
           mod,
-          allowedTitles: adminAllowedTitlesForModule(mod),
+          allowedTitles: stripDashboardTitles(adminAllowedTitlesForModule(mod)),
         }))
         .filter(({ allowedTitles }) => allowedTitles.size > 0);
     }
@@ -792,17 +799,19 @@ export function AppSidebar({
       .map((entry) => {
         const mod = moduleConfigForAccess(entry.access_to);
         if (!mod) return null;
+        if (!DASHBOARDS_ENABLED && isDashboardNavTitle(mod.title)) return null;
         const funcs = Array.isArray(entry.functionalities)
           ? entry.functionalities
           : [];
         // SDO is auto-granted (with no pages) when only SOC/Zonal pages are ticked.
         const sdoParentOnly = mod.title === SDO_MODULE && funcs.length === 0 && hasStateOfficeAccess;
-        const allowedTitles =
+        const allowedTitles = stripDashboardTitles(
           funcs.length > 0
             ? normalizeAllowedTitles(funcs, mod.title)
             : sdoParentOnly
               ? new Set<string>()
-              : new Set(flatLeaves(mod));
+              : new Set(flatLeaves(mod)),
+        );
         return { mod, allowedTitles };
       })
       .filter(Boolean) as {

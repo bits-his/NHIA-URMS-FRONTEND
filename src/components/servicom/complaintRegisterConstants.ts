@@ -50,7 +50,9 @@ export const COMPLAINT_STATUSES = [
   "New/Acknowledged",
   "Under Investigation",
   "Awaiting Information from the complainant",
-  "Awaiting information from the respondent",
+  "Awaiting Information from the Respondent",
+  "Awaiting Action From Respondent",
+  "Awaiting Action From Complainant",
   "Escalated",
   "Resolved",
   "Closed",
@@ -127,24 +129,132 @@ export function hasSubstantiveInvestigationActions(raw: string | null | undefine
 }
 
 export const ESCALATION_LEVELS = [
-  "Zonal Coordinator",
+  "Zonal Office",
   "State Coordinator",
-  "Enforcement Director",
+  "Enforcement Department",
   "Others",
 ].map(v => ({ value: v, label: v }));
+
+/** Stored in escalated_to when level is Enforcement Department — whole dept is notified. */
+export const ENFORCEMENT_ESCALATION_TARGET = "Enforcement Department";
+/** Stored in escalated_to when level is State Coordinator — state coordinators for that state are notified. */
+export const STATE_COORDINATOR_ESCALATION_TARGET = "State Coordinator";
+/** Stored in escalated_to when level is Zonal Office — zonal coordinators for that zone are notified. */
+export const ZONAL_COORDINATOR_ESCALATION_TARGET = "Zonal Office";
+
+export function isEnforcementEscalationTarget(value: string | null | undefined) {
+  const raw = String(value || "").trim().toLowerCase();
+  if (!raw) return false;
+  return raw === "enf"
+    || raw === "enforcement department"
+    || raw.includes("enforcement");
+}
+
+export function isStateCoordinatorEscalationTarget(value: string | null | undefined) {
+  const raw = String(value || "").trim().toLowerCase();
+  return raw === "state coordinator" || raw === "state-coordinator";
+}
+
+export function isZonalCoordinatorEscalationTarget(value: string | null | undefined) {
+  const raw = String(value || "").trim().toLowerCase();
+  return raw === "zonal office"
+    || raw === "zonal coordinator"
+    || raw === "zonal-coordinator";
+}
+
+/** Inbox targets that are role/department queues (not a specific person yet). */
+export function isRoleEscalationInbox(value: string | null | undefined) {
+  return isEnforcementEscalationTarget(value)
+    || isStateCoordinatorEscalationTarget(value)
+    || isZonalCoordinatorEscalationTarget(value);
+}
 
 export const ESCALATED_TO = [
   "ENF", "SQA", "FSD", "ISD", "LEGAL", "NHIA Headquarters", "Other Regulatory Authority",
 ].map(v => ({ value: v, label: v }));
 
-export const COMPLAINT_OUTCOMES = [
+/** Outcomes available at State level (investigation / resolution). */
+export const STATE_COMPLAINT_OUTCOMES = [
   "Complaint Upheld",
-  "Complaint Partially Upheld",
-  "Complaint Not Upheld",
-  "Information/Advice Provided",
-  "Complaint Withdrawn",
-  "Referred to Appropriate Authority",
-].map(v => ({ value: v, label: v }));
+  "Partially Upheld",
+  "Not Upheld",
+  "Withdrawn",
+  "Other (Specify)",
+].map((v) => ({ value: v, label: v }));
+
+/** Outcomes available at Head Office / Enforcement Department. */
+export const HQ_COMPLAINT_OUTCOMES = [
+  "Complaint Upheld",
+  "Partially Upheld",
+  "Not Upheld",
+  "Withdrawn",
+].map((v) => ({ value: v, label: v }));
+
+/** @deprecated Prefer STATE_COMPLAINT_OUTCOMES / HQ_COMPLAINT_OUTCOMES via outcomesForScope(). */
+export const COMPLAINT_OUTCOMES = STATE_COMPLAINT_OUTCOMES;
+
+export function outcomesForScope(scope: "state" | "hq") {
+  return scope === "hq" ? HQ_COMPLAINT_OUTCOMES : STATE_COMPLAINT_OUTCOMES;
+}
+
+/**
+ * Outcomes/Action(s) Taken per outcome — multi-select.
+ * Columns from the register matrix: Upheld | Partially Upheld | Not Upheld | Withdrawn.
+ */
+export const OUTCOME_ACTIONS: Record<string, string[]> = {
+  "Complaint Upheld": [
+    "Sanction Recommended/Imposed",
+    "Refund Processed",
+    "Corrective Action Plan",
+    "Service Restoration",
+    "Written Warning",
+    "Regulatory/Disciplinary Referral",
+    "Follow-up Monitoring",
+    "Approval/Authorization Granted",
+    "Compliance Notice Issued",
+  ],
+  "Partially Upheld": [
+    "Partial Refund",
+    "Corrective Action Plan",
+    "Service Restoration",
+    "Warning",
+    "Follow-up Monitoring",
+    "Compliance Notice Issued",
+  ],
+  "Not Upheld": [
+    "Notify Complainant",
+    "Provide Clarification",
+    "Close Case",
+    "No further Action Required",
+    "Unable to Substantiate",
+    "Respondent not Liable",
+    "Complainant Unreachable",
+  ],
+  Withdrawn: [
+    "Withdrawal Recorded",
+    "Case-Closed",
+    "No further Action Required",
+  ],
+  "Other (Specify)": [],
+};
+
+/** Normalize legacy outcome labels to the current lookup values. */
+export function normalizeOutcome(outcome: string | null | undefined): string {
+  const raw = String(outcome ?? "").trim();
+  if (!raw) return "";
+  const aliases: Record<string, string> = {
+    "Complaint Partially Upheld": "Partially Upheld",
+    "Complaint Not Upheld": "Not Upheld",
+    "Complaint Withdrawn": "Withdrawn",
+    "Other": "Other (Specify)",
+  };
+  return aliases[raw] ?? raw;
+}
+
+export function actionsForOutcome(outcome: string | null | undefined): string[] {
+  const key = normalizeOutcome(outcome);
+  return OUTCOME_ACTIONS[key] ?? [];
+}
 
 export type ComplaintSlaColor = "white" | "yellow" | "amber" | "red";
 
@@ -321,6 +431,7 @@ export const COMPLAINT_LIFECYCLE: {
 export const INVESTIGATION_STATUSES = [
   "Awaiting Information from the complainant",
   "Awaiting information from the respondent",
+  "Awaiting Action from the Respondent",
   "Escalated",
   "Resolved",
   "Closed",
@@ -383,10 +494,35 @@ export function lifecycleStageLabel(stage: LifecycleStage) {
 const STAGE_ORDER: LifecycleStage[] = ["registration", "investigation", "escalation", "resolution"];
 
 /** Stage is reachable only if every prior stage is complete (or the stage itself is already done). */
-export function isStageReachable(stage: LifecycleStage, completion: Record<LifecycleStage, boolean>) {
+export function isStageReachable(
+  stage: LifecycleStage,
+  completion: Record<LifecycleStage, boolean>,
+  row?: { escalated?: boolean; status?: string; officer_assigned?: string | null; assigned_officer?: string | null },
+) {
   const idx = STAGE_ORDER.indexOf(stage);
   if (idx <= 0) return true;
   if (completion[stage]) return true;
+
+  const escalated = !!row?.escalated || row?.status === "Escalated";
+  const officerAssigned = !!(row?.officer_assigned || row?.assigned_officer);
+
+  if (stage === "investigation") {
+    // Investigation stays inactive until an officer is assigned
+    return !!completion.registration && officerAssigned;
+  }
+
+  if (stage === "escalation") {
+    // Escalation only when investigation status is Escalated
+    return !!completion.registration && !!completion.investigation && escalated;
+  }
+
+  if (stage === "resolution") {
+    if (!completion.registration || !completion.investigation) return false;
+    // Not escalated → resolve without requiring the Escalation tab
+    if (!escalated) return true;
+    return !!completion.escalation;
+  }
+
   return STAGE_ORDER.slice(0, idx).every((s) => completion[s]);
 }
 

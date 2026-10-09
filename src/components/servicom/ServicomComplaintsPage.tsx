@@ -21,7 +21,10 @@ import {
   COMPLAINANT_CATEGORIES,
   TRANSMISSION_ROUTES,
   PRIORITY_RATINGS, COMPLAINT_STATUSES, ACTIONS_TAKEN, ESCALATION_LEVELS, ESCALATED_TO,
-  COMPLAINT_OUTCOMES, SLA_SUMMARY, domainCodeFromDomain, computeResolutionPreview,
+  ENFORCEMENT_ESCALATION_TARGET, STATE_COORDINATOR_ESCALATION_TARGET, ZONAL_COORDINATOR_ESCALATION_TARGET,
+  isEnforcementEscalationTarget, isStateCoordinatorEscalationTarget, isZonalCoordinatorEscalationTarget,
+  isRoleEscalationInbox,
+  SLA_SUMMARY, domainCodeFromDomain, computeResolutionPreview,
   slaForPriority, STATUS_BADGE_CLASS, COMPLAINT_LIFECYCLE, INVESTIGATION_STATUSES, INVESTIGATION_CLOSING_STATUSES,
   AWAITING_INVESTIGATION_STATUSES,
   lifecycleStageFromStatus, getStageCompletion, lifecycleStageLabel,
@@ -30,8 +33,10 @@ import {
   previewComplaintNumber,
   parseInvestigationActions, serializeInvestigationActions, formatInvestigationActionsLabel,
   hasSubstantiveInvestigationActions,
+  outcomesForScope, actionsForOutcome, normalizeOutcome,
   type LifecycleStage, type ComplaintSlaRuleRow, type InvestigationActionEntry,
 } from "./complaintRegisterConstants";
+import { isDirectorEnforcementUser } from "../enforcement/DirectorEnforcementDashboard";
 import {
   COMPLAINT_PARTY_TYPES, respondentsForComplainant, offencesForParties,
   findOffenceById, offenceSelectOptions, partyTypeFromComplainantCategory,
@@ -49,6 +54,7 @@ interface Props {
   userName?: string | null;
   userStaffId?: string | null;
   userRole?: string | null;
+  userDepartment?: { name?: string | null; department_code?: string | null } | null;
   canCreate?: boolean;
   canReview?: boolean;
   /** State-level register: list only the signed-in user's state. */
@@ -91,14 +97,17 @@ const emptyForm = (defaultZoneId?: string | null, defaultStateId?: string | null
   status: "New/Acknowledged",
   actions_taken: "",
   investigation_actions: [] as InvestigationActionEntry[],
+  outcome_actions: [] as string[],
   actions_details: "",
   escalated: false,
   escalation_level: "",
   escalation_level_other: "",
   escalation_date: "",
   escalated_to: "",
+  forward_department: "",
   date_closed: "",
   outcome: "",
+  outcome_other: "",
   remarks: "",
   description: "",
 });
@@ -147,6 +156,14 @@ function rowToForm(row: any) {
     status: row.status ?? "New/Acknowledged",
     actions_taken: row.actions_taken ?? "",
     investigation_actions: parseInvestigationActions(row.actions_taken),
+    outcome_actions: (() => {
+      const outcome = normalizeOutcome(row.outcome);
+      const allowed = new Set(actionsForOutcome(outcome));
+      if (!allowed.size) return [] as string[];
+      return parseInvestigationActions(row.actions_taken)
+        .map((a) => a.action)
+        .filter((a) => allowed.has(a));
+    })(),
     actions_details: row.actions_details ?? "",
     escalated: !!row.escalated || row.status === "Escalated",
     escalation_level: (() => {
@@ -162,8 +179,22 @@ function rowToForm(row: any) {
     })(),
     escalation_date: row.escalation_date ?? "",
     escalated_to: row.escalation_level === "Not Escalated" ? "" : (row.escalated_to ?? ""),
+    forward_department: "",
     date_closed: String(row.date_closed ?? row.resolution_date ?? "").slice(0, 10),
-    outcome: row.outcome ?? "",
+    outcome: (() => {
+      const raw = normalizeOutcome(row.outcome);
+      if (raw.startsWith("Other (Specify)") || raw.startsWith("Other —") || raw.startsWith("Other:")) {
+        return "Other (Specify)";
+      }
+      return raw;
+    })(),
+    outcome_other: (() => {
+      const raw = String(row.outcome ?? "");
+      if (raw.startsWith("Other (Specify) — ")) return raw.slice("Other (Specify) — ".length);
+      if (raw.startsWith("Other — ")) return raw.slice("Other — ".length);
+      if (raw.startsWith("Other: ")) return raw.slice("Other: ".length);
+      return "";
+    })(),
     remarks: row.remarks ?? row.resolution_notes ?? "",
     description: row.description ?? "",
   };
@@ -535,7 +566,7 @@ function officerMatchesUser(
 }
 
 export default function ServicomComplaintsPage({
-  defaultStateId, defaultZoneId, userName, userStaffId, userRole,
+  defaultStateId, defaultZoneId, userName, userStaffId, userRole, userDepartment,
   canCreate = true, canReview = true, stateScope: stateScopeProp = false,
 }: Props) {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -546,6 +577,20 @@ export default function ServicomComplaintsPage({
     || /director/i.test(roleKey)
     || /director/i.test(String(userName ?? ""))
     || (!defaultStateId && !isZonalCoordinator);
+  const isEnforcementUser = isDirectorEnforcementUser({
+    role: userRole,
+    name: userName,
+    staff_id: userStaffId,
+    department: userDepartment,
+  }) || (() => {
+    const code = String(userDepartment?.department_code || "").toUpperCase();
+    const name = String(userDepartment?.name || "").toLowerCase();
+    return code === "ENF" || code === "AUD" || name.includes("enforcement");
+  })();
+  /** HQ / national roles that can forward Enforcement Department escalations onward. */
+  const isHqUser = ["hq-department", "admin", "sdo"].includes(roleKey) || isEnforcementUser;
+  const canForwardEnforcementEscalation = (escalatedTo?: string | null) =>
+    isHqUser && isEnforcementEscalationTarget(escalatedTo);
   /** SDO, directors and HQ see every state even on the state-level register. */
   const stateScope = stateScopeProp && !isNationalRole && !isZonalCoordinator;
   const isStateCoordinator =
@@ -606,7 +651,12 @@ export default function ServicomComplaintsPage({
   const [filterAssigned, setFilterAssigned] = React.useState<"all" | "mine">("all");
   const [activeStage, setActiveStage] = React.useState<LifecycleStage>("registration");
   const [slaRules, setSlaRules] = React.useState<ComplaintSlaRuleRow[]>(SLA_SUMMARY as ComplaintSlaRuleRow[]);
-  const [officerOptions, setOfficerOptions] = React.useState<{ value: string; label: string }[]>([]);
+  const [officerOptions, setOfficerOptions] = React.useState<{
+    value: string;
+    label: string;
+    department?: string | null;
+    department_code?: string | null;
+  }[]>([]);
   const [departmentOptions, setDepartmentOptions] = React.useState<{ value: string; label: string }[]>(ESCALATED_TO);
   const [idPreview, setIdPreview] = React.useState("ENF/HCF/…/…/…");
   const [comments, setComments] = React.useState<{
@@ -617,6 +667,8 @@ export default function ServicomComplaintsPage({
   const [commentsLoading, setCommentsLoading] = React.useState(false);
   const [actionDraft, setActionDraft] = React.useState<InvestigationActionEntry>({ action: "", other: "" });
   const [editingActionIdx, setEditingActionIdx] = React.useState<number | null>(null);
+  const [outcomeActionDraft, setOutcomeActionDraft] = React.useState("");
+  const [editingOutcomeActionIdx, setEditingOutcomeActionIdx] = React.useState<number | null>(null);
   /** After investigation is submitted, form is locked until user clicks Update. */
   const [investigationEditing, setInvestigationEditing] = React.useState(false);
   const [commentSaving, setCommentSaving] = React.useState(false);
@@ -637,13 +689,24 @@ export default function ServicomComplaintsPage({
 
   const set = (key: string, value: string | boolean) => setF((p) => ({ ...p, [key]: value }));
 
-  const mapOfficerOptions = (rows: { name: string; staff_id?: string; unit?: string | null; department?: string | null }[]) =>
+  const mapOfficerOptions = (rows: {
+    name: string;
+    staff_id?: string;
+    unit?: string | null;
+    department?: string | null;
+    department_code?: string | null;
+  }[]) =>
     rows.map((u) => {
       const dept = u.unit || u.department;
       const parts = [u.name];
       if (u.staff_id) parts.push(`(${u.staff_id})`);
       if (dept) parts.push(`— ${dept}`);
-      return { value: u.name, label: parts.join(" ") };
+      return {
+        value: u.staff_id ? `${u.name} (${u.staff_id})` : u.name,
+        label: parts.join(" "),
+        department: u.department ?? null,
+        department_code: u.department_code ?? null,
+      };
     });
 
   React.useEffect(() => {
@@ -885,19 +948,23 @@ export default function ServicomComplaintsPage({
 
   const defaultStageForComplaint = (row: any): LifecycleStage => {
     const status = row?.status ?? "";
+    const officerAssigned = !!(row?.officer_assigned || row?.assigned_officer);
     const escalationComplete = !!(row?.escalation_level && row.escalation_level !== "Not Escalated" && row?.escalated_to);
     // Escalated but escalation details incomplete → escalation tab
     if ((row?.escalated || status === "Escalated") && !escalationComplete) return "escalation";
     // Escalated and handed off → resolution for the assignee
     if (row?.escalated || status === "Escalated") return "resolution";
-    // State coordinator assigns officers on the investigation stage
+    // State coordinator assigns officers on the investigation stage (only way in before assignment)
     if (
       isStateCoordinator
+      && !officerAssigned
       && !row?.investigation_start_date
       && !isComplaintClosed(status)
     ) {
       return "investigation";
     }
+    // Investigation is inactive until an officer is assigned
+    if (!officerAssigned) return "registration";
     if (officerMatchesUser(row?.officer_assigned ?? row?.assigned_officer, userName, userStaffId)) {
       if (!row?.investigation_start_date && status === "New/Acknowledged") return "investigation";
       if (
@@ -906,7 +973,6 @@ export default function ServicomComplaintsPage({
       ) {
         return "investigation";
       }
-      if (row?.escalated || status === "Escalated") return "resolution";
     }
     return lifecycleStageFromStatus(status, row);
   };
@@ -941,6 +1007,8 @@ export default function ServicomComplaintsPage({
       setF(rowToForm(res.data));
       setActionDraft({ action: "", other: "" });
       setEditingActionIdx(null);
+      setOutcomeActionDraft("");
+      setEditingOutcomeActionIdx(null);
       setInvestigationEditing(false);
       setActiveStage(nextStage);
       setComplaintsQuery({ mode: "manage", id: res.data.id, stage: nextStage });
@@ -1266,48 +1334,60 @@ export default function ServicomComplaintsPage({
                 setSaving(false);
                 return;
               }
+              if (f.outcome === "Other (Specify)" && !f.outcome_other?.trim()) {
+                toast.error("Specify the outcome.");
+                setSaving(false);
+                return;
+              }
+              const outcomeActionOpts = actionsForOutcome(f.outcome);
+              if (outcomeActionOpts.length && !(f.outcome_actions ?? []).length) {
+                toast.error("Select at least one Outcomes/Action(s) Taken.");
+                setSaving(false);
+                return;
+              }
               if (!f.remarks?.trim()) {
                 toast.error("Description is required.");
                 setSaving(false);
                 return;
               }
             }
-            if (f.status === "Escalated" && !f.escalated_to?.trim()) {
-              toast.error("Select the officer to escalate to.");
-              setSaving(false);
-              return;
-            }
           }
           const nextStatus = startingInvestigation ? "Under Investigation" : f.status;
           const closingFromInvestigation =
             !startingInvestigation && INVESTIGATION_CLOSING_STATUSES.includes(nextStatus);
           const escalatingFromInvestigation = !startingInvestigation && nextStatus === "Escalated";
+          const resolvedOutcomeValue = f.outcome === "Other (Specify)"
+            ? `Other (Specify) — ${f.outcome_other.trim()}`
+            : f.outcome;
+          const resolvedStatus =
+            f.outcome === "Withdrawn" || f.outcome === "Complaint Withdrawn"
+              ? "Complaint Withdrawn"
+              : nextStatus === "Resolved" ? "Resolved" : "Closed";
+          const closingActions = closingFromInvestigation
+            ? [
+                ...(f.investigation_actions ?? []),
+                ...(f.outcome_actions ?? []).map((action) => ({ action, other: "" })),
+              ]
+            : (f.investigation_actions ?? []);
           payload = {
             officer_assigned: f.officer_assigned,
             investigation_start_date: f.investigation_start_date || selected.investigation_start_date || today,
-            status: closingFromInvestigation
-              ? (f.outcome === "Complaint Withdrawn"
-                ? "Complaint Withdrawn"
-                : f.outcome === "Referred to Appropriate Authority"
-                  ? "Referred to Appropriate Authority"
-                  : nextStatus === "Resolved" ? "Resolved" : "Closed")
-              : nextStatus,
+            status: closingFromInvestigation ? resolvedStatus : nextStatus,
             actions_taken: startingInvestigation
               ? serializeInvestigationActions([{ action: "Investigation commenced" }])
-              : serializeInvestigationActions(f.investigation_actions ?? []),
+              : serializeInvestigationActions(closingActions),
             actions_details: startingInvestigation
               ? (f.actions_details || null)
               : f.actions_details.trim(),
             ...(escalatingFromInvestigation
               ? {
                   escalated: true,
-                  escalated_to: f.escalated_to,
                   escalation_date: f.escalation_date || today,
                 }
               : {}),
             ...(closingFromInvestigation
               ? {
-                  outcome: f.outcome,
+                  outcome: resolvedOutcomeValue,
                   remarks: f.remarks.trim(),
                   date_closed: today,
                 }
@@ -1324,11 +1404,6 @@ export default function ServicomComplaintsPage({
           setSaving(false);
           return;
         }
-        if (!f.escalated_to?.trim() && !selected.escalated_to) {
-          toast.error("Select an officer to escalate to on the Investigation tab first.");
-          setSaving(false);
-          return;
-        }
         if (!f.escalation_level?.trim()) {
           toast.error("Select an escalation level.");
           setSaving(false);
@@ -1339,34 +1414,107 @@ export default function ServicomComplaintsPage({
           setSaving(false);
           return;
         }
-        const levelValue = f.escalation_level === "Others"
-          ? `Others — ${f.escalation_level_other.trim()}`
-          : f.escalation_level;
-        payload = {
-          escalated: true,
-          escalation_level: levelValue,
-          escalation_date: f.escalation_date || today,
-          escalated_to: f.escalated_to || selected.escalated_to,
-          status: "Escalated",
-        };
+
+        const alreadyAtEnforcement = isEnforcementEscalationTarget(selected.escalated_to);
+        const alreadyAtStateCoordinator = isStateCoordinatorEscalationTarget(selected.escalated_to);
+        const alreadyAtZonalCoordinator = isZonalCoordinatorEscalationTarget(selected.escalated_to);
+        const coordinatorForwarding =
+          (isStateCoordinator && alreadyAtStateCoordinator)
+          || (isZonalCoordinator && alreadyAtZonalCoordinator);
+
+        // HQ / Enforcement forward an Enforcement escalation onward to another department
+        if (canForwardEnforcementEscalation(selected.escalated_to) && alreadyAtEnforcement) {
+          if (!f.escalated_to?.trim() || isRoleEscalationInbox(f.escalated_to)) {
+            toast.error("Select the department to escalate to.");
+            setSaving(false);
+            return;
+          }
+          payload = {
+            escalated: true,
+            escalation_level: selected.escalation_level || "Enforcement Department",
+            escalation_date: f.escalation_date || today,
+            escalated_to: f.escalated_to,
+            escalate_to_department: true,
+            status: "Escalated",
+          };
+        } else if (coordinatorForwarding) {
+          if (!f.forward_department?.trim()) {
+            toast.error("Select the department to escalate to.");
+            setSaving(false);
+            return;
+          }
+          if (!f.escalated_to?.trim() || isRoleEscalationInbox(f.escalated_to)) {
+            toast.error("Select the user to escalate to.");
+            setSaving(false);
+            return;
+          }
+          payload = {
+            escalated: true,
+            escalation_level: selected.escalation_level
+              || (alreadyAtZonalCoordinator ? "Zonal Office" : "State Coordinator"),
+            escalation_date: f.escalation_date || today,
+            escalated_to: f.escalated_to,
+            status: "Escalated",
+          };
+        } else if (f.escalation_level === "Enforcement Department") {
+          payload = {
+            escalated: true,
+            escalation_level: "Enforcement Department",
+            escalation_date: f.escalation_date || today,
+            escalated_to: ENFORCEMENT_ESCALATION_TARGET,
+            escalate_to_department: true,
+            status: "Escalated",
+          };
+        } else if (f.escalation_level === "State Coordinator") {
+          payload = {
+            escalated: true,
+            escalation_level: "State Coordinator",
+            escalation_date: f.escalation_date || today,
+            escalated_to: STATE_COORDINATOR_ESCALATION_TARGET,
+            status: "Escalated",
+          };
+        } else if (f.escalation_level === "Zonal Office") {
+          payload = {
+            escalated: true,
+            escalation_level: "Zonal Office",
+            escalation_date: f.escalation_date || today,
+            escalated_to: ZONAL_COORDINATOR_ESCALATION_TARGET,
+            status: "Escalated",
+          };
+        } else {
+          // Others — escalate to a selected officer
+          if (!f.escalated_to?.trim()) {
+            toast.error("Select the officer to escalate to.");
+            setSaving(false);
+            return;
+          }
+          const levelValue = f.escalation_level === "Others"
+            ? `Others — ${f.escalation_level_other.trim()}`
+            : f.escalation_level;
+          payload = {
+            escalated: true,
+            escalation_level: levelValue,
+            escalation_date: f.escalation_date || today,
+            escalated_to: f.escalated_to,
+            status: "Escalated",
+          };
+        }
       } else if (stage === "resolution") {
         if (!f.outcome) {
           toast.error("Select an outcome.");
           setSaving(false);
           return;
         }
-        const resolutionActions = (f.investigation_actions ?? []).filter((a) => a.action?.trim());
-        if (!resolutionActions.length) {
-          toast.error("Add at least one action taken.");
+        if (f.outcome === "Other (Specify)" && !f.outcome_other?.trim()) {
+          toast.error("Specify the outcome.");
           setSaving(false);
           return;
         }
-        for (const a of resolutionActions) {
-          if (a.action === "Other" && !a.other?.trim()) {
-            toast.error("Specify the action when Other is selected.");
-            setSaving(false);
-            return;
-          }
+        const outcomeActionOpts = actionsForOutcome(f.outcome);
+        if (outcomeActionOpts.length && !(f.outcome_actions ?? []).length) {
+          toast.error("Select at least one Outcomes/Action(s) Taken.");
+          setSaving(false);
+          return;
         }
         if (!f.date_closed) {
           toast.error("Date closed is required.");
@@ -1378,15 +1526,29 @@ export default function ServicomComplaintsPage({
           setSaving(false);
           return;
         }
+        const resolvedOutcomeValue = f.outcome === "Other (Specify)"
+          ? `Other (Specify) — ${f.outcome_other.trim()}`
+          : f.outcome;
+        const resolutionActions = [
+          ...(f.investigation_actions ?? []),
+          ...(f.outcome_actions ?? []).map((action) => ({ action, other: "" })),
+        ];
         payload = {
           date_closed: f.date_closed,
-          outcome: f.outcome,
+          outcome: resolvedOutcomeValue,
           remarks: f.remarks || null,
           actions_taken: serializeInvestigationActions(resolutionActions),
-          status: f.outcome === "Complaint Withdrawn" ? "Complaint Withdrawn"
-            : f.outcome === "Referred to Appropriate Authority" ? "Referred to Appropriate Authority"
+          status: f.outcome === "Withdrawn" || f.outcome === "Complaint Withdrawn"
+            ? "Complaint Withdrawn"
             : "Closed",
         };
+        // Resolving without escalation — mark escalation as skipped
+        if (!selected.escalated && selected.status !== "Escalated") {
+          payload.escalated = false;
+          if (!selected.escalation_level || selected.escalation_level === "Not Escalated") {
+            payload.escalation_level = "Not Escalated";
+          }
+        }
       }
       await servicomApi.updateComplaint(selected.id, payload);
       const assignOnlySaved =
@@ -1415,6 +1577,8 @@ export default function ServicomComplaintsPage({
         setInvestigationEditing(false);
         setActionDraft({ action: "", other: "" });
         setEditingActionIdx(null);
+        setOutcomeActionDraft("");
+        setEditingOutcomeActionIdx(null);
       }
       await refreshSelected();
       if (
@@ -1422,7 +1586,6 @@ export default function ServicomComplaintsPage({
         && !startingInvestigation
         && !assignOnlySaved
         && f.status === "Escalated"
-        && (f.escalated_to || selected.escalated_to)
       ) {
         goToStage("escalation");
       }
@@ -2045,35 +2208,45 @@ export default function ServicomComplaintsPage({
     const isEscalated = readOnly
       ? (!!row?.escalated || row?.status === "Escalated")
       : (f.status === "Escalated" || !!f.escalated || selected?.status === "Escalated");
-    const officerSelected = !!(
-      readOnly
-        ? row?.escalated_to
-        : (f.escalated_to || selected?.escalated_to)
-    );
-    const officerValue = readOnly
-      ? (row?.escalated_to ?? "")
-      : (f.escalated_to || selected?.escalated_to || "");
     const levelValue = readOnly
       ? (String(row?.escalation_level ?? "").startsWith("Others") ? "Others" : (row?.escalation_level ?? ""))
       : f.escalation_level;
+    const inboxTarget = readOnly ? (row?.escalated_to ?? "") : (selected?.escalated_to || f.escalated_to || "");
+    const atEnforcement = isEnforcementEscalationTarget(inboxTarget);
+    const atStateCoordinator = isStateCoordinatorEscalationTarget(inboxTarget);
+    const atZonalCoordinator = isZonalCoordinatorEscalationTarget(inboxTarget);
+    const canForwardEnforcement = canForwardEnforcementEscalation(inboxTarget) && atEnforcement && !readOnly;
+    const canForwardAsCoordinator =
+      ((isStateCoordinator && atStateCoordinator) || (isZonalCoordinator && atZonalCoordinator))
+      && !readOnly;
+    const canForward = canForwardEnforcement || canForwardAsCoordinator;
+    const deptOptions = departmentOptions.length ? departmentOptions : ESCALATED_TO;
+    const forwardDeptOptions = canForwardEnforcement
+      ? deptOptions.filter(
+        (d) => !isEnforcementEscalationTarget(d.value) && !isEnforcementEscalationTarget(d.label),
+      )
+      : deptOptions;
+    const roleInboxLevels = new Set(["Enforcement Department", "State Coordinator", "Zonal Office"]);
+    const officersForForward = f.forward_department
+      ? officerOptions.filter((o) => {
+          const code = String(o.department_code || "").toUpperCase();
+          const name = String(o.department || "").toLowerCase();
+          const selectedDept = String(f.forward_department);
+          const selectedUpper = selectedDept.toUpperCase();
+          const selectedLower = selectedDept.toLowerCase();
+          return code === selectedUpper
+            || name.includes(selectedLower)
+            || selectedLower.includes(name)
+            || String(o.label || "").toLowerCase().includes(selectedLower);
+        })
+      : officerOptions;
 
     if (!isEscalated) {
       return (
         <div className="col-span-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-3">
           <p className="text-xs text-slate-600 leading-relaxed">
             Escalation details appear when investigation status is set to{" "}
-            <span className="font-semibold">Escalated</span> and an officer is selected.
-          </p>
-        </div>
-      );
-    }
-
-    if (!officerSelected) {
-      return (
-        <div className="col-span-full rounded-lg border border-amber-200 bg-amber-50/80 px-3 py-3">
-          <p className="text-xs text-amber-950 leading-relaxed">
-            Investigation is Escalated. Select an officer under{" "}
-            <span className="font-semibold">Escalate To (Officer)</span> on the Investigation tab, then return here.
+            <span className="font-semibold">Escalated</span>.
           </p>
         </div>
       );
@@ -2081,16 +2254,23 @@ export default function ServicomComplaintsPage({
 
     return (
       <>
-        <AutoField label="Escalate To (Officer)" value={officerValue} />
         <FieldSelect
           label="Escalation Level *"
           value={levelValue}
           options={ESCALATION_LEVELS}
-          readOnly={readOnly}
+          readOnly={readOnly || canForward}
           onChange={(v) => setF((p) => ({
             ...p,
             escalation_level: v,
             escalation_level_other: v === "Others" ? p.escalation_level_other : "",
+            forward_department: "",
+            escalated_to: v === "Enforcement Department"
+              ? ENFORCEMENT_ESCALATION_TARGET
+              : v === "State Coordinator"
+                ? STATE_COORDINATOR_ESCALATION_TARGET
+                : v === "Zonal Office"
+                  ? ZONAL_COORDINATOR_ESCALATION_TARGET
+                  : (isRoleEscalationInbox(p.escalated_to) ? "" : p.escalated_to),
           }))}
           placeholder="Select escalation level"
         />
@@ -2117,6 +2297,82 @@ export default function ServicomComplaintsPage({
             </div>
           )
         )}
+
+        {canForwardEnforcement && (
+          <>
+            <AutoField label="Currently escalated to" value={inboxTarget || ENFORCEMENT_ESCALATION_TARGET} />
+            <FieldSelect
+              label="Escalate to Department *"
+              value={isRoleEscalationInbox(f.escalated_to) ? "" : f.escalated_to}
+              options={forwardDeptOptions}
+              onChange={(v) => set("escalated_to", v)}
+              placeholder="Select department"
+            />
+          </>
+        )}
+
+        {canForwardAsCoordinator && (
+          <>
+            <AutoField
+              label="Currently escalated to"
+              value={
+                inboxTarget
+                || (atZonalCoordinator
+                  ? ZONAL_COORDINATOR_ESCALATION_TARGET
+                  : STATE_COORDINATOR_ESCALATION_TARGET)
+              }
+            />
+            <FieldSelect
+              label="Escalate to Department *"
+              value={f.forward_department}
+              options={forwardDeptOptions}
+              onChange={(v) => setF((p) => ({
+                ...p,
+                forward_department: v,
+                escalated_to: "",
+              }))}
+              placeholder="Select department"
+            />
+            <FieldSelect
+              label="Escalate to User *"
+              value={isRoleEscalationInbox(f.escalated_to) ? "" : f.escalated_to}
+              options={officersForForward}
+              onChange={(v) => set("escalated_to", v)}
+              placeholder={
+                !f.forward_department
+                  ? "Select department first"
+                  : officersForForward.length
+                    ? "Select user"
+                    : "No users in this department"
+              }
+              disabled={!f.forward_department}
+            />
+          </>
+        )}
+
+        {!canForward && levelValue === "Others" && (
+          readOnly ? (
+            <AutoField label="Escalate To (Officer)" value={row?.escalated_to} />
+          ) : (
+            <FieldSelect
+              label="Escalate To (Officer) *"
+              value={f.escalated_to}
+              options={officerOptions}
+              onChange={(v) => set("escalated_to", v)}
+              placeholder={officerOptions.length ? "Select officer" : "No users available"}
+            />
+          )
+        )}
+
+        {readOnly && inboxTarget && !roleInboxLevels.has(String(row?.escalation_level || "")) && (
+          <AutoField
+            label={isRoleEscalationInbox(inboxTarget) || deptOptions.some((d) => d.value === inboxTarget)
+              ? "Escalated To"
+              : "Escalate To (Officer)"}
+            value={inboxTarget}
+          />
+        )}
+
         <FieldText
           label="Escalation Date *"
           type="date"
@@ -2129,31 +2385,130 @@ export default function ServicomComplaintsPage({
     );
   };
 
-  const renderActionsTakenBlock = (readOnly: boolean, row?: any) => {
-    const actions = readOnly
-      ? parseInvestigationActions(row?.actions_taken)
-      : (f.investigation_actions ?? []);
+  const outcomeOptions = outcomesForScope(isNationalRole ? "hq" : "state");
+
+  const renderOutcomeActionsMultiSelect = (readOnly: boolean, row?: any) => {
+    const outcome = normalizeOutcome(readOnly ? row?.outcome : f.outcome);
+    const options = actionsForOutcome(outcome).map((v) => ({ value: v, label: v }));
+    const selected = readOnly
+      ? (() => {
+          const allowed = new Set(actionsForOutcome(outcome));
+          return parseInvestigationActions(row?.actions_taken)
+            .map((a) => a.action)
+            .filter((a) => allowed.has(a));
+        })()
+      : (f.outcome_actions ?? []);
+    const availableOptions = options.filter(
+      (o) => editingOutcomeActionIdx != null || !selected.includes(o.value),
+    );
+
+    if (outcome === "Other (Specify)") {
+      return (
+        <div className="col-span-full">
+          {readOnly ? (
+            <AutoField
+              label="Specify outcome"
+              value={
+                String(row?.outcome ?? "").startsWith("Other (Specify) — ")
+                  ? String(row.outcome).slice("Other (Specify) — ".length)
+                  : (f.outcome_other || row?.outcome)
+              }
+            />
+          ) : (
+            <FieldText
+              label="Specify outcome *"
+              value={f.outcome_other}
+              onChange={(v) => set("outcome_other", v)}
+              placeholder="Specify other outcome"
+            />
+          )}
+        </div>
+      );
+    }
+
+    if (!options.length) {
+      return (
+        <div className="col-span-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5">
+          <p className="text-xs text-slate-500">No Outcomes/Action(s) Taken for this outcome.</p>
+        </div>
+      );
+    }
+
     return (
-      <div className="col-span-full space-y-2.5">
-        <p className="text-xs font-medium text-slate-600">Actions Taken *</p>
-        {actions.length === 0 && readOnly ? (
+      <div className="col-span-full space-y-2">
+        <p className="text-xs font-medium text-slate-600">Outcomes/Action(s) Taken *</p>
+        {!readOnly && (
+          <div className="flex flex-wrap items-end gap-2">
+            <FieldSelect
+              label={editingOutcomeActionIdx != null ? "Edit action *" : "Action *"}
+              value={outcomeActionDraft}
+              options={availableOptions.length ? availableOptions : options}
+              onChange={setOutcomeActionDraft}
+              placeholder="Select action"
+              className="flex-1 min-w-[200px]"
+            />
+            {editingOutcomeActionIdx != null && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-9 text-xs"
+                onClick={() => {
+                  if (outcomeActionDraft.trim()) {
+                    setF((p) => ({
+                      ...p,
+                      outcome_actions: [...(p.outcome_actions ?? []), outcomeActionDraft.trim()],
+                    }));
+                  }
+                  setOutcomeActionDraft("");
+                  setEditingOutcomeActionIdx(null);
+                }}
+              >
+                Cancel
+              </Button>
+            )}
+            <Button
+              type="button"
+              size="sm"
+              className="h-9 gap-1 text-xs bg-[#145c3f] hover:bg-[#0f3d2e]"
+              onClick={() => {
+                if (!outcomeActionDraft.trim()) {
+                  toast.error("Select an action.");
+                  return;
+                }
+                if ((f.outcome_actions ?? []).includes(outcomeActionDraft.trim())
+                  && editingOutcomeActionIdx == null) {
+                  toast.error("That action is already added.");
+                  return;
+                }
+                setF((p) => ({
+                  ...p,
+                  outcome_actions: [...(p.outcome_actions ?? []), outcomeActionDraft.trim()],
+                }));
+                setOutcomeActionDraft("");
+                setEditingOutcomeActionIdx(null);
+              }}
+            >
+              <Plus className="w-3.5 h-3.5" />
+              {editingOutcomeActionIdx != null ? "Update" : "Add"}
+            </Button>
+          </div>
+        )}
+        {selected.length === 0 && readOnly ? (
           <p className="text-sm text-slate-400">No actions recorded</p>
         ) : null}
-        <div className="space-y-1.5">
-          {actions.map((entry, idx) => {
-            const label = entry.action === "Other" && entry.other
-              ? `Other — ${entry.other}`
-              : entry.action;
-            return (
+        {selected.length > 0 && (
+          <div className="space-y-1">
+            {selected.map((action, idx) => (
               <div
-                key={`action-${idx}`}
-                className="flex items-center gap-2 rounded-lg border border-[#e6f2eb] bg-[#f8fbf9] px-3 py-2"
+                key={`outcome-action-${idx}`}
+                className="flex items-center gap-2 rounded-md border border-[#e6f2eb] bg-[#f8fbf9] px-2.5 py-1.5"
               >
-                <span className="text-[11px] font-semibold text-slate-400 tabular-nums w-5 shrink-0">
+                <span className="text-[11px] font-semibold text-slate-400 tabular-nums w-4 shrink-0">
                   {idx + 1}.
                 </span>
-                <p className="flex-1 min-w-0 text-sm font-medium text-slate-800 truncate" title={label}>
-                  {label || "—"}
+                <p className="flex-1 min-w-0 text-sm text-slate-800 truncate" title={action}>
+                  {action || "—"}
                 </p>
                 {!readOnly && (
                   <div className="flex items-center gap-0.5 shrink-0">
@@ -2164,11 +2519,11 @@ export default function ServicomComplaintsPage({
                       className="h-7 w-7 text-slate-500 hover:text-[#145c3f] hover:bg-[#e8f5ee]"
                       aria-label="Edit action"
                       onClick={() => {
-                        setActionDraft({ action: entry.action, other: entry.other ?? "" });
-                        setEditingActionIdx(idx);
+                        setOutcomeActionDraft(action);
+                        setEditingOutcomeActionIdx(idx);
                         setF((p) => ({
                           ...p,
-                          investigation_actions: (p.investigation_actions ?? []).filter((_, i) => i !== idx),
+                          outcome_actions: (p.outcome_actions ?? []).filter((_, i) => i !== idx),
                         }));
                       }}
                     >
@@ -2181,12 +2536,12 @@ export default function ServicomComplaintsPage({
                       className="h-7 w-7 text-slate-400 hover:text-rose-600 hover:bg-rose-50"
                       aria-label="Delete action"
                       onClick={() => {
-                        if (editingActionIdx != null && editingActionIdx > idx) {
-                          setEditingActionIdx(editingActionIdx - 1);
+                        if (editingOutcomeActionIdx != null && editingOutcomeActionIdx > idx) {
+                          setEditingOutcomeActionIdx(editingOutcomeActionIdx - 1);
                         }
                         setF((p) => ({
                           ...p,
-                          investigation_actions: (p.investigation_actions ?? []).filter((_, i) => i !== idx),
+                          outcome_actions: (p.outcome_actions ?? []).filter((_, i) => i !== idx),
                         }));
                       }}
                     >
@@ -2195,17 +2550,25 @@ export default function ServicomComplaintsPage({
                   </div>
                 )}
               </div>
-            );
-          })}
-        </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderActionsTakenBlock = (readOnly: boolean, row?: any) => {
+    const actions = readOnly
+      ? parseInvestigationActions(row?.actions_taken)
+      : (f.investigation_actions ?? []);
+    return (
+      <div className="col-span-full space-y-2">
+        <p className="text-xs font-medium text-slate-600">Actions Taken *</p>
         {!readOnly && (
-          <div className="rounded-lg border border-[#d4e8dc] bg-white p-3 space-y-2.5">
-            <p className="text-[11px] font-medium text-slate-500">
-              {editingActionIdx != null ? "Edit action" : "Add action"}
-            </p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-end gap-2">
               <FieldSelect
-                label="Action *"
+                label={editingActionIdx != null ? "Edit action *" : "Action *"}
                 value={actionDraft.action}
                 options={ACTIONS_TAKEN}
                 onChange={(v) => setActionDraft((d) => ({
@@ -2213,23 +2576,24 @@ export default function ServicomComplaintsPage({
                   other: v === "Other" ? d.other : "",
                 }))}
                 placeholder="Select action"
+                className="flex-1 min-w-[200px]"
               />
               {actionDraft.action === "Other" && (
-                <FieldText
-                  label="Specify *"
-                  value={actionDraft.other ?? ""}
-                  onChange={(v) => setActionDraft((d) => ({ ...d, other: v }))}
-                  placeholder="Specify other action"
-                />
+                <div className="flex-1 min-w-[160px]">
+                  <FieldText
+                    label="Specify *"
+                    value={actionDraft.other ?? ""}
+                    onChange={(v) => setActionDraft((d) => ({ ...d, other: v }))}
+                    placeholder="Specify other action"
+                  />
+                </div>
               )}
-            </div>
-            <div className="flex justify-end gap-2">
               {editingActionIdx != null && (
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
-                  className="h-8 text-xs"
+                  className="h-9 text-xs"
                   onClick={() => {
                     if (actionDraft.action?.trim()) {
                       setF((p) => ({
@@ -2250,7 +2614,7 @@ export default function ServicomComplaintsPage({
               <Button
                 type="button"
                 size="sm"
-                className="h-8 gap-1 text-xs bg-[#145c3f] hover:bg-[#0f3d2e]"
+                className="h-9 gap-1 text-xs bg-[#145c3f] hover:bg-[#0f3d2e]"
                 onClick={() => {
                   if (!actionDraft.action?.trim()) {
                     toast.error("Select an action.");
@@ -2275,13 +2639,88 @@ export default function ServicomComplaintsPage({
                 }}
               >
                 <Plus className="w-3.5 h-3.5" />
-                {editingActionIdx != null ? "Update action" : "Add action"}
+                {editingActionIdx != null ? "Update" : "Add"}
               </Button>
             </div>
           </div>
         )}
+        {actions.length === 0 && readOnly ? (
+          <p className="text-sm text-slate-400">No actions recorded</p>
+        ) : null}
+        {actions.length > 0 && (
+          <div className="space-y-1">
+            {actions.map((entry, idx) => {
+              const label = entry.action === "Other" && entry.other
+                ? `Other — ${entry.other}`
+                : entry.action;
+              return (
+                <div
+                  key={`action-${idx}`}
+                  className="flex items-center gap-2 rounded-md border border-[#e6f2eb] bg-[#f8fbf9] px-2.5 py-1.5"
+                >
+                  <span className="text-[11px] font-semibold text-slate-400 tabular-nums w-4 shrink-0">
+                    {idx + 1}.
+                  </span>
+                  <p className="flex-1 min-w-0 text-sm text-slate-800 truncate" title={label}>
+                    {label || "—"}
+                  </p>
+                  {!readOnly && (
+                    <div className="flex items-center gap-0.5 shrink-0">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-slate-500 hover:text-[#145c3f] hover:bg-[#e8f5ee]"
+                        aria-label="Edit action"
+                        onClick={() => {
+                          setActionDraft({ action: entry.action, other: entry.other ?? "" });
+                          setEditingActionIdx(idx);
+                          setF((p) => ({
+                            ...p,
+                            investigation_actions: (p.investigation_actions ?? []).filter((_, i) => i !== idx),
+                          }));
+                        }}
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-slate-400 hover:text-rose-600 hover:bg-rose-50"
+                        aria-label="Delete action"
+                        onClick={() => {
+                          if (editingActionIdx != null && editingActionIdx > idx) {
+                            setEditingActionIdx(editingActionIdx - 1);
+                          }
+                          setF((p) => ({
+                            ...p,
+                            investigation_actions: (p.investigation_actions ?? []).filter((_, i) => i !== idx),
+                          }));
+                        }}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     );
+  };
+
+  const onOutcomeChange = (v: string) => {
+    setF((p) => ({
+      ...p,
+      outcome: v,
+      outcome_other: v === "Other (Specify)" ? p.outcome_other : "",
+      outcome_actions: [],
+    }));
+    setOutcomeActionDraft("");
+    setEditingOutcomeActionIdx(null);
   };
 
   const renderResolutionFields = (readOnly: boolean, row?: any) => {
@@ -2298,14 +2737,14 @@ export default function ServicomComplaintsPage({
         <div className="col-span-full md:col-span-2">
           <FieldSelect
             label="Outcome *"
-            value={readOnly ? (row?.outcome ?? "") : f.outcome}
-            options={COMPLAINT_OUTCOMES}
+            value={readOnly ? normalizeOutcome(row?.outcome) : f.outcome}
+            options={outcomeOptions}
             readOnly={readOnly}
-            onChange={(v) => set("outcome", v)}
+            onChange={onOutcomeChange}
             placeholder="Select outcome"
           />
         </div>
-        {outcomeSelected && renderActionsTakenBlock(readOnly, row)}
+        {outcomeSelected && renderOutcomeActionsMultiSelect(readOnly, row)}
         {readOnly ? (
           <>
             <AutoField label="Resolution Days" value={preview.resolution_days} />
@@ -2438,29 +2877,25 @@ export default function ServicomComplaintsPage({
                 }))}
               />
               {(readOnly ? row?.status === "Escalated" : f.status === "Escalated") && (
-                readOnly ? (
-                  <AutoField label="Escalate To (Officer)" value={row?.escalated_to} />
-                ) : (
-                  <FieldSelect
-                    label="Escalate To (Officer) *"
-                    value={f.escalated_to}
-                    options={officerOptions}
-                    onChange={(v) => set("escalated_to", v)}
-                    placeholder={officerOptions.length ? "Select officer" : "No users available"}
-                  />
-                )
+                <div className="col-span-full rounded-lg border border-purple-200 bg-purple-50/70 px-3 py-2.5">
+                  <p className="text-xs text-purple-950 leading-relaxed">
+                    Complete escalation level on the <span className="font-semibold">Escalation</span> tab.
+                    Choosing <span className="font-semibold">Enforcement Department</span> notifies all Enforcement staff.
+                  </p>
+                </div>
               )}
               {(INVESTIGATION_CLOSING_STATUSES.includes(readOnly ? (row?.status ?? "") : f.status)
                 || (readOnly && (row?.outcome || row?.remarks))) && (
                 <>
                   <FieldSelect
                     label="Outcome *"
-                    value={readOnly ? (row?.outcome ?? "") : f.outcome}
-                    options={COMPLAINT_OUTCOMES}
+                    value={readOnly ? normalizeOutcome(row?.outcome) : f.outcome}
+                    options={outcomeOptions}
                     readOnly={readOnly}
-                    onChange={(v) => set("outcome", v)}
+                    onChange={onOutcomeChange}
                     placeholder="Select outcome"
                   />
+                  {(readOnly ? !!row?.outcome : !!f.outcome) && renderOutcomeActionsMultiSelect(readOnly, row)}
                   <div className="col-span-full">
                     <FieldTextarea
                       label="Description *"
@@ -2520,6 +2955,21 @@ export default function ServicomComplaintsPage({
     officerMatchesUser(row?.officer_assigned ?? row?.assigned_officer, userName, userStaffId)
     || officerMatchesUser(row?.escalated_to, userName, userStaffId);
 
+  /** True when escalated_to is a role/department inbox this user belongs to. */
+  const isEscalatedToMyInbox = (row?: any) => {
+    const target = String(row?.escalated_to || "");
+    if (!target) return false;
+    // HQ and Enforcement can act on Enforcement Department escalations
+    if (canForwardEnforcementEscalation(target)) return true;
+    if (isStateCoordinator && isStateCoordinatorEscalationTarget(target)) return true;
+    if (isZonalCoordinator && isZonalCoordinatorEscalationTarget(target)) return true;
+    const code = String(userDepartment?.department_code || "");
+    const name = String(userDepartment?.name || "");
+    if (code && (target === code || target.includes(`(${code})`) || target.startsWith(`${code} `))) return true;
+    if (name && target.toLowerCase().includes(name.toLowerCase())) return true;
+    return false;
+  };
+
   const investigationHasBeenSubmitted = (row?: any) => {
     if (!row?.investigation_start_date) return false;
     return !!(
@@ -2550,11 +3000,23 @@ export default function ServicomComplaintsPage({
     const closed = isComplaintClosed(row?.status);
     const escalated = !!row?.escalated || row?.status === "Escalated";
     const escalationComplete = !!(row?.escalation_level && row.escalation_level !== "Not Escalated" && row?.escalated_to);
-    const escalatedAway = escalated && escalationComplete && !isCurrentAssignee(row) && !isNationalViewer
+    const inboxMine = isEscalatedToMyInbox(row);
+    const escalatedAway = escalated && escalationComplete && !isCurrentAssignee(row) && !inboxMine
+      && !isNationalViewer
       && userRole !== "admin" && userRole !== "hq-department" && userRole !== "sdo";
+    // Inbox holders can still forward onward after receiving a role-level escalation
+    const needsInboxForward =
+      (
+        canForwardEnforcementEscalation(row?.escalated_to)
+        || (isStateCoordinator && isStateCoordinatorEscalationTarget(row?.escalated_to))
+        || (isZonalCoordinator && isZonalCoordinatorEscalationTarget(row?.escalated_to))
+      )
+      && activeStage === "escalation"
+      && !closed;
     // After escalation details are submitted, investigation + escalation lock; resolution stays open for assignee
     const stageClosedAfterEscalation = escalated && escalationComplete
-      && (activeStage === "investigation" || activeStage === "escalation");
+      && (activeStage === "investigation" || activeStage === "escalation")
+      && !needsInboxForward;
     const coordinatorAssigning =
       isStateCoordinator
       && !closed
@@ -2562,7 +3024,9 @@ export default function ServicomComplaintsPage({
       && activeStage === "investigation"
       && !escalatedAway;
     const completingEscalation =
-      escalated && !escalationComplete && activeStage === "escalation" && !closed;
+      ((escalated && !escalationComplete) || needsInboxForward)
+      && activeStage === "escalation"
+      && !closed;
     const investigationSubmitted = activeStage === "investigation" && investigationHasBeenSubmitted(row);
     const investigationViewLocked =
       investigationSubmitted
@@ -2587,7 +3051,11 @@ export default function ServicomComplaintsPage({
           onAction = () => handleSaveStage("investigation");
         }
       } else if (activeStage === "escalation") {
-        actionLabel = "Submit";
+        actionLabel = needsInboxForward
+          ? (canForwardEnforcementEscalation(row?.escalated_to)
+            ? "Escalate to Department"
+            : "Escalate to Department & User")
+          : "Submit";
         onAction = () => handleSaveStage("escalation");
       } else if (activeStage === "resolution") {
         actionLabel = row.date_closed || row.outcome ? "Update" : "Submit";
@@ -2598,8 +3066,20 @@ export default function ServicomComplaintsPage({
     }
 
     const completion = getStageCompletion(row);
-    const nextStage = nextLifecycleStage(activeStage);
-    const showNext = nextStage !== activeStage && !!completion[activeStage] && !investigationEditing;
+    const isEscalatedNow =
+      !!row?.escalated
+      || row?.status === "Escalated"
+      || f.status === "Escalated";
+    // Skip Escalation when not escalated — go straight to Resolution
+    const nextStage =
+      activeStage === "investigation" && completion.investigation && !isEscalatedNow
+        ? "resolution"
+        : nextLifecycleStage(activeStage);
+    const showNext =
+      nextStage !== activeStage
+      && !!completion[activeStage]
+      && !investigationEditing
+      && isStageReachable(nextStage, completion, row);
     const onNext = () => goToStage(nextStage);
 
     return renderActiveStageForm(row, readOnly, actionLabel, showNext, onNext, onAction);
@@ -2607,12 +3087,17 @@ export default function ServicomComplaintsPage({
 
   const renderStageTabs = (row: any) => {
     const completion = getStageCompletion(row);
+    const officerAssigned = !!(row?.officer_assigned || row?.assigned_officer);
     return (
       <div className="flex flex-wrap gap-1.5">
         {COMPLAINT_LIFECYCLE.map((stage) => {
           const isActive = activeStage === stage.id;
           const done = completion[stage.id];
-          const reachable = isStageReachable(stage.id, completion);
+          let reachable = isStageReachable(stage.id, completion, row);
+          // Coordinator may open Investigation before assignment to assign an officer
+          if (stage.id === "investigation" && !officerAssigned && isStateCoordinator && completion.registration) {
+            reachable = true;
+          }
           return (
             <button
               key={stage.id}
@@ -2939,11 +3424,18 @@ export default function ServicomComplaintsPage({
   if (mode === "manage") {
     const row = selected;
     const assignedToMe = isCurrentAssignee(row);
+    const inboxMine = isEscalatedToMyInbox(row);
     const escalatedOpen = !!row?.escalated && !isComplaintClosed(row?.status);
+    const escalatedAwayFromMe = escalatedOpen
+      && !assignedToMe
+      && !inboxMine
+      && !isNationalViewer
+      && userRole !== "admin"
+      && userRole !== "hq-department"
+      && userRole !== "sdo";
     const canCloseComplaint = !!row && !isComplaintClosed(row.status)
-      && (!(isStateCoordinator || isZonalCoordinator) || assignedToMe)
-      && !(escalatedOpen && !assignedToMe && !isNationalViewer
-        && userRole !== "admin" && userRole !== "hq-department" && userRole !== "sdo");
+      && (!(isStateCoordinator || isZonalCoordinator) || assignedToMe || inboxMine)
+      && !escalatedAwayFromMe;
 
     return (
       <div className="bg-[#f4f7f5]">
@@ -2956,7 +3448,9 @@ export default function ServicomComplaintsPage({
               <h2 className="text-sm font-bold tracking-tight truncate font-mono">{row?.complaint_number ?? "Complaint"}</h2>
               <p className="text-[11px] text-slate-500 truncate">
                 {[
-                  escalatedOpen && assignedToMe ? "Escalated to you" : escalatedOpen ? "Escalated" : null,
+                  escalatedOpen && (assignedToMe || inboxMine)
+                    ? "Escalated to you"
+                    : escalatedOpen ? "Escalated" : null,
                   row?.escalation_level && escalatedOpen ? row.escalation_level : null,
                   row?.officer_assigned ?? row?.assigned_officer,
                   row?.date_received,
@@ -2981,7 +3475,7 @@ export default function ServicomComplaintsPage({
         </div>
 
         <div className="w-full px-4 md:px-5 py-3 space-y-3">
-          {escalatedOpen && !assignedToMe && (
+          {escalatedAwayFromMe && (
             <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
               <p className="text-xs text-slate-600">
                 Escalated to <span className="font-semibold text-slate-800">{row.escalated_to || row.officer_assigned}</span>

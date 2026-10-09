@@ -114,7 +114,7 @@ import AssetConversionView from "../modules/store_management/pages/AssetConversi
 import NewCapitalisationView from "../modules/store_management/pages/NewCapitalisationView";
 import MovementLedgerView from "../modules/store_management/pages/MovementLedgerView";
 import { getMonthlyReportContext } from "@/src/access/monthlyReportAccess";
-import { canAccessFunctionality, expandAccessEntries, getFirstAccessiblePath, canAccessHomeDashboard } from "@/src/access/accessUtils";
+import { canAccessFunctionality, expandAccessEntries, getFirstAccessiblePath, canAccessHomeDashboard, DASHBOARDS_ENABLED } from "@/src/access/accessUtils";
 import { VIEW_MODULE_ACCESS } from "@/src/access/moduleConfig";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -588,7 +588,7 @@ export default function Dashboard({ role, user, access = [], functionalities = "
               )
             } />
 
-            <Route path="/dashboard" element={<Navigate to="/" replace />} />
+            <Route path="/dashboard" element={<Navigate to={getFirstAccessiblePath(access, role)} replace />} />
 
             {/* ── Annual Reports ── */}
             <Route path="/annual-reports/mine" element={<AnnualReportsList onBack={() => setView("home")} defaultZoneId={monthlyCtx.defaultZoneId ?? (user?.zone_id ? String(user.zone_id) : null)} defaultStateId={monthlyCtx.defaultStateId} reportScope={(user?.role_config?.report_scope as "national" | "zonal" | "state" | "none") ?? "national"} />} />
@@ -598,12 +598,26 @@ export default function Dashboard({ role, user, access = [], functionalities = "
 
             {/* ── SDO Module ── */}
             <Route path="/sdo/stock-verification" element={<StockVerificationsList onBack={() => setView("home")} />} />
-            <Route path="/sdo/stock-dashboard" element={<StockVerificationDashboard onBack={() => setView("home")} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} />} />
+            <Route
+              path="/sdo/stock-dashboard"
+              element={
+                DASHBOARDS_ENABLED
+                  ? <StockVerificationDashboard onBack={() => setView("home")} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} />
+                  : <Navigate to={getFirstAccessiblePath(access, role)} replace />
+              }
+            />
             <Route path="/sdo/assets" element={<StockAssetManager onBack={() => setView("home")} />} />
-            <Route path="/sdo/servicom" element={<ServicomDashboard onBack={() => setView("home")} defaultStateId={monthlyCtx.defaultStateId} defaultZoneId={monthlyCtx.defaultZoneId} />} />
+            <Route
+              path="/sdo/servicom"
+              element={
+                DASHBOARDS_ENABLED
+                  ? <ServicomDashboard onBack={() => setView("home")} defaultStateId={monthlyCtx.defaultStateId} defaultZoneId={monthlyCtx.defaultZoneId} />
+                  : <Navigate to="/sdo/servicom/complaints" replace />
+              }
+            />
             <Route path="/sdo/servicom/visits" element={<ServicomVisitsPage onBack={() => setView("home")} defaultStateId={monthlyCtx.defaultStateId} defaultZoneId={monthlyCtx.defaultZoneId} canCreate={monthlyCtx.canCreateMonthly && !isCoordinator} canReview={monthlyCtx.canReviewMonthly} />} />
-            <Route path="/sdo/servicom/complaints" element={<ServicomComplaintsPage onBack={() => setView("home")} defaultStateId={monthlyCtx.defaultStateId} defaultZoneId={monthlyCtx.defaultZoneId} userName={user?.name} userStaffId={user?.staff_id} userRole={user?.role} canCreate={monthlyCtx.canCreateMonthly} canReview={monthlyCtx.canReviewMonthly} />} />
-            <Route path="/zonal/complaints-register" element={<ServicomComplaintsPage key="zonal-complaints-register" stateScope onBack={() => setView("home")} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} userName={user?.name} userStaffId={user?.staff_id} userRole={user?.role} canCreate={monthlyCtx.canCreateMonthly} canReview={monthlyCtx.canReviewMonthly} />} />
+            <Route path="/sdo/servicom/complaints" element={<ServicomComplaintsPage onBack={() => setView("home")} defaultStateId={monthlyCtx.defaultStateId} defaultZoneId={monthlyCtx.defaultZoneId} userName={user?.name} userStaffId={user?.staff_id} userRole={user?.role} userDepartment={user?.department ?? null} canCreate={monthlyCtx.canCreateMonthly} canReview={monthlyCtx.canReviewMonthly} />} />
+            <Route path="/zonal/complaints-register" element={<ServicomComplaintsPage key="zonal-complaints-register" stateScope onBack={() => setView("home")} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} userName={user?.name} userStaffId={user?.staff_id} userRole={user?.role} userDepartment={user?.department ?? null} canCreate={monthlyCtx.canCreateMonthly} canReview={monthlyCtx.canReviewMonthly} />} />
             <Route path="/sdo/servicom/satisfaction" element={<ServicomSatisfactionSurveyPage onBack={() => setView("home")} defaultStateId={monthlyCtx.defaultStateId} defaultZoneId={monthlyCtx.defaultZoneId} defaultStateName={user?.state?.description} defaultZoneName={user?.zone?.description} userName={user?.name} canCreate={monthlyCtx.canCreateMonthly && !isCoordinator} canReview={monthlyCtx.canReviewMonthly} />} />
             <Route path="/sdo/servicom/comment-card" element={<ServicomCommentCardPage onBack={() => setView("home")} defaultStateId={monthlyCtx.defaultStateId} defaultZoneId={monthlyCtx.defaultZoneId} defaultStateName={user?.state?.description} defaultZoneName={user?.zone?.description} canCreate={monthlyCtx.canCreateMonthly && !isCoordinator} canReview={monthlyCtx.canReviewMonthly} />} />
             <Route path="/sdo/projects" element={<StateOfficeReportsList key="state-adhoc-special-assignment" reportType="adhoc-special-assignment" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
@@ -615,11 +629,18 @@ export default function Dashboard({ role, user, access = [], functionalities = "
             <Route path="/monthly/outreach" element={<DeptMonthlyPage dept="programmes" title="Outreach Monthly Reports" section="outreach" onBack={() => setView("home")} defaultZoneId={monthlyCtx.defaultZoneId} defaultStateId={monthlyCtx.defaultStateId} canCreate={monthlyCtx.canCreateMonthly} canReview={monthlyCtx.canReviewMonthly} FormComponent={OutreachMonthlyForm} />} />
             <Route path="/monthly/sqa" element={<DeptMonthlyPage dept="sqa" title="HMO/HCP Quality Assurance Monthly Reports" section="sqa" onBack={() => setView("home")} defaultZoneId={monthlyCtx.defaultZoneId} defaultStateId={monthlyCtx.defaultStateId} canCreate={monthlyCtx.canCreateMonthly} canReview={monthlyCtx.canReviewMonthly} FormComponent={SqaMonthlyForm} />} />
             <Route path="/compliance" element={<ComplianceManagementPage onBack={() => setView("home")} defaultZoneId={monthlyCtx.defaultZoneId} defaultStateId={monthlyCtx.defaultStateId} />} />
-            <Route path="/enforcement/dashboard" element={<Navigate to="/" replace />} />
+            <Route path="/enforcement/dashboard" element={<Navigate to={getFirstAccessiblePath(access, role)} replace />} />
             <Route path="/monthly/complaints" element={<DeptMonthlyPage dept="sqa" title="Enrollee Complaints Monthly Reports" section="complaints" onBack={() => setView("home")} defaultZoneId={monthlyCtx.defaultZoneId} defaultStateId={monthlyCtx.defaultStateId} canCreate={monthlyCtx.canCreateMonthly} canReview={monthlyCtx.canReviewMonthly} FormComponent={ComplaintsMonthlyForm} />} />
 
             {/* ── SOC / Zones ── */}
-            <Route path="/soc/dashboard" element={<SocZonesDashboard onBack={() => setView("home")} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} />} />
+            <Route
+              path="/soc/dashboard"
+              element={
+                DASHBOARDS_ENABLED
+                  ? <SocZonesDashboard onBack={() => setView("home")} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} />
+                  : <Navigate to={getFirstAccessiblePath(access, role)} replace />
+              }
+            />
             <Route path="/soc/office-profile" element={<StateZonalOfficeProfilePage onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
             <Route path="/soc/focal-persons" element={<StateZonalFocalPersonsPage onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
             <Route path="/soc/weekly-actionable" element={<StateOfficeReportsList key="state-weekly-actionable" reportType="weekly-actionable" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
@@ -721,7 +742,14 @@ export default function Dashboard({ role, user, access = [], functionalities = "
             <Route path="/zonal/admin-hr/infractions" element={<Navigate to="/zonal/admin-hr/conflict-infraction" replace />} />
 
             {/* ── Store & Asset Management Module ── */}
-            <Route path="/store-management" element={<DashboardView />} />
+            <Route
+              path="/store-management"
+              element={
+                DASHBOARDS_ENABLED
+                  ? <DashboardView />
+                  : <Navigate to={getFirstAccessiblePath(access, role)} replace />
+              }
+            />
             <Route path="/store-management/assets/register" element={<AssetRegisterView />} />
             <Route path="/store-management/assets/list" element={<AssetListView />} />
             <Route path="/store-management/assets/detail/:id" element={<AssetDetailView />} />
