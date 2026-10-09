@@ -291,16 +291,6 @@ function DerivedField({ label, value }: { label: string; value?: string | null }
   );
 }
 
-function DerivedTextBlock({ label, value }: { label: string; value?: string | null }) {
-  if (!value) return null;
-  return (
-    <div className="rounded-lg bg-[#f8fbf9] border border-[#d4e8dc]/80 px-3 py-2">
-      <p className="text-[10px] uppercase tracking-wide text-slate-400 font-medium mb-0.5">{label}</p>
-      <p className="text-xs text-slate-700 leading-relaxed">{value}</p>
-    </div>
-  );
-}
-
 function SlaHint({ priority, slaRow }: { priority?: string; slaRow: ReturnType<typeof slaForPriority> }) {
   if (!priority || !slaRow) return null;
   return (
@@ -1895,10 +1885,6 @@ export default function ServicomComplaintsPage({
     const category = readOnly ? (row?.complaint_category ?? row?.category) : f.complaint_category;
     const dateReceived = readOnly ? (row?.date_received ?? row?.complaint_date) : f.date_received;
     const transmissionRoute = readOnly ? row?.transmission_route : f.transmission_route;
-    const offenceRef = readOnly ? row?.offence_reference : f.offence_reference;
-    const catalogueIssue = !isOtherIssue && offenceRef
-      ? (findOffenceById(String(offenceRef))?.issue ?? "")
-      : "";
     const descriptionText = readOnly ? row?.description : f.description;
     const slaRow = slaForPriority(priority ?? "", slaRules);
     const againstOptions = fromParty
@@ -2008,26 +1994,6 @@ export default function ServicomComplaintsPage({
               </div>
             )}
 
-            {offenceSelected && !isOtherIssue && (
-              <div className="col-span-full grid grid-cols-1 sm:grid-cols-3 gap-3 rounded-xl bg-[#f8fbf9] border border-[#d4e8dc] px-3 py-2.5">
-                <DerivedField label="Domain" value={domain} />
-                <DerivedField label="Category" value={category} />
-                <DerivedField label="Priority" value={priority} />
-              </div>
-            )}
-
-            {offenceSelected && !isOtherIssue && catalogueIssue && (
-              <div className="col-span-full">
-                <DerivedTextBlock label="Register issue" value={catalogueIssue} />
-              </div>
-            )}
-
-            {offenceSelected && !isOtherIssue && (priority || readOnly) && (
-              <div className="col-span-full">
-                <SlaHint priority={priority} slaRow={slaRow} />
-              </div>
-            )}
-
             {(offenceSelected || isOtherIssue || readOnly) && (
               <div className="col-span-full">
                 <FieldTextarea
@@ -2037,6 +2003,20 @@ export default function ServicomComplaintsPage({
                   readOnly={readOnly}
                   placeholder="Describe the issue or complaint in detail"
                 />
+              </div>
+            )}
+
+            {offenceSelected && !isOtherIssue && (
+              <div className="col-span-full grid grid-cols-1 sm:grid-cols-3 gap-3 rounded-xl bg-[#f8fbf9] border border-[#d4e8dc] px-3 py-2.5">
+                <DerivedField label="Domain" value={domain} />
+                <DerivedField label="Category" value={category} />
+                <DerivedField label="Priority" value={priority} />
+              </div>
+            )}
+
+            {offenceSelected && !isOtherIssue && (priority || readOnly) && (
+              <div className="col-span-full">
+                <SlaHint priority={priority} slaRow={slaRow} />
               </div>
             )}
 
