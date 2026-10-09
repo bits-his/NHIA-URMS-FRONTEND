@@ -62,7 +62,7 @@ export function offenceSelectOptions(entries: ComplaintOffenceEntry[]) {
   return [
     ...entries.map((o) => ({
       value: o.id,
-      label: `${o.sn}. ${o.issue.length > 100 ? `${o.issue.slice(0, 100)}…` : o.issue}`,
+      label: o.issue.length > 100 ? `${o.issue.slice(0, 100)}…` : o.issue,
     })),
     { value: OTHER_ISSUE_VALUE, label: "Other" },
   ];

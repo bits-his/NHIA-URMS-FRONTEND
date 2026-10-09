@@ -25,6 +25,7 @@ interface Props {
 }
 
 type CachedOption = SearchSelectOption & {
+  name?: string;
   code?: string;
   state_name?: string;
   email?: string | null;
@@ -32,6 +33,13 @@ type CachedOption = SearchSelectOption & {
   service_applied_for?: string | null;
   facility_code?: string | null;
 };
+
+function formatPartyLabel(name: string, code?: string | null) {
+  const n = String(name || "").trim();
+  const c = String(code || "").trim();
+  if (n && c) return `${n} - ${c}`;
+  return n || c;
+}
 
 export default function HcfFacilitySelect({
   stateId,
@@ -96,8 +104,9 @@ export default function HcfFacilitySelect({
         const hospitalCode = f.hospital_code || f.facility_code || f.accreditation_code || undefined;
         const o: CachedOption = {
           value: String(f.id),
-          label: f.name,
-          sub: [hospitalCode, f.lga, f.state_name ?? f.state?.description].filter(Boolean).join(" · ") || undefined,
+          name: f.name,
+          label: formatPartyLabel(f.name, hospitalCode),
+          sub: [f.lga, f.state_name ?? f.state?.description].filter(Boolean).join(" · ") || undefined,
           code: hospitalCode,
           state_name: f.state_name ?? f.state?.description ?? undefined,
           email: f.email ?? null,
@@ -145,7 +154,7 @@ export default function HcfFacilitySelect({
     const opt = cacheRef.current.get(id) ?? (options.find((o) => o.value === id) as CachedOption | undefined);
     onChange({
       id,
-      name: opt?.label ?? "",
+      name: opt?.name ?? opt?.label ?? "",
       code: opt?.code,
       state_name: opt?.state_name,
       email: opt?.email ?? null,

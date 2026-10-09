@@ -919,6 +919,23 @@ export const stateOfficeComplianceVisitsApi = {
     }),
 };
 
+export const stateOfficeWeeklyComplianceApi = {
+  list: (filters?: { state_id?: string; zone_id?: string; year?: string; month?: string; status?: string }) =>
+    request<{ success: boolean; data: any[] }>(
+      `/state-office/weekly-compliance${stateOfficeFilters(filters)}`
+    ),
+  get: (id: number | string) =>
+    request<{ success: boolean; data: any }>(`/state-office/weekly-compliance/${id}`),
+  create: (payload: any) =>
+    request<{ success: boolean; data: any }>("/state-office/weekly-compliance", {
+      method: "POST", body: JSON.stringify(payload),
+    }),
+  update: (id: number | string, payload: any) =>
+    request<{ success: boolean; data: any }>(`/state-office/weekly-compliance/${id}`, {
+      method: "PUT", body: JSON.stringify(payload),
+    }),
+};
+
 // ─── SQA Compliance Management (Facility Compliance Reporting) ────────────────
 
 const complianceFilters = (filters?: Record<string, string | undefined>) => {

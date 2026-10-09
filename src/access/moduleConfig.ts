@@ -262,6 +262,7 @@ export const MODULE_CONFIG: ParentModule[] = [
       { type: "group", label: "Complaint / Compliance", children: [
         { title: "State Complaints Register", view: "zonal-complaints-register", path: "/zonal/complaints-register", navLabel: "Complaints Register" },
         { title: "Monitoring Visits", view: "servicom-visits", path: "/zonal/monitoring-visits" },
+        { title: "Weekly Compliance Report", view: "state-weekly-compliance", path: "/zonal/weekly-compliance", navLabel: "Weekly Compliance" },
         { title: "HMO Indebtedness Collation", view: "state-hmo-indebtedness", path: "/zonal/hmo-indebtedness" },
         { title: "Mystery Shopping", view: "state-mystery-shopping", path: "/zonal/mystery-shopping" },
       ]},
