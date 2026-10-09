@@ -114,7 +114,7 @@ import AssetConversionView from "../modules/store_management/pages/AssetConversi
 import NewCapitalisationView from "../modules/store_management/pages/NewCapitalisationView";
 import MovementLedgerView from "../modules/store_management/pages/MovementLedgerView";
 import { getMonthlyReportContext } from "@/src/access/monthlyReportAccess";
-import { canAccessFunctionality, expandAccessEntries, getFirstAccessiblePath, canAccessHomeDashboard, DASHBOARDS_ENABLED } from "@/src/access/accessUtils";
+import { canAccessFunctionality, expandAccessEntries, getFirstAccessiblePath, canAccessHomeDashboard, DASHBOARDS_ENABLED, ANNUAL_REPORTS_ENABLED } from "@/src/access/accessUtils";
 import { VIEW_MODULE_ACCESS } from "@/src/access/moduleConfig";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -591,10 +591,38 @@ export default function Dashboard({ role, user, access = [], functionalities = "
             <Route path="/dashboard" element={<Navigate to={getFirstAccessiblePath(access, role)} replace />} />
 
             {/* ── Annual Reports ── */}
-            <Route path="/annual-reports/mine" element={<AnnualReportsList onBack={() => setView("home")} defaultZoneId={monthlyCtx.defaultZoneId ?? (user?.zone_id ? String(user.zone_id) : null)} defaultStateId={monthlyCtx.defaultStateId} reportScope={(user?.role_config?.report_scope as "national" | "zonal" | "state" | "none") ?? "national"} />} />
-            <Route path="/annual-reports/submit" element={<ReportEntry onBack={() => setView("home")} onPreview={() => setView("report-preview")} />} />
-            <Route path="/annual-reports/review" element={<ZonalReview onCompose={() => setView("zonal-compose")} />} />
-            <Route path="/annual-reports/detail/:id" element={<AnnualReportDetail referenceId={selectedReportRef || "1"} onBack={() => setView("annual-reports-list")} />} />
+            <Route
+              path="/annual-reports/mine"
+              element={
+                ANNUAL_REPORTS_ENABLED
+                  ? <AnnualReportsList onBack={() => setView("home")} defaultZoneId={monthlyCtx.defaultZoneId ?? (user?.zone_id ? String(user.zone_id) : null)} defaultStateId={monthlyCtx.defaultStateId} reportScope={(user?.role_config?.report_scope as "national" | "zonal" | "state" | "none") ?? "national"} />
+                  : <Navigate to={getFirstAccessiblePath(access, role)} replace />
+              }
+            />
+            <Route
+              path="/annual-reports/submit"
+              element={
+                ANNUAL_REPORTS_ENABLED
+                  ? <ReportEntry onBack={() => setView("home")} onPreview={() => setView("report-preview")} />
+                  : <Navigate to={getFirstAccessiblePath(access, role)} replace />
+              }
+            />
+            <Route
+              path="/annual-reports/review"
+              element={
+                ANNUAL_REPORTS_ENABLED
+                  ? <ZonalReview onCompose={() => setView("zonal-compose")} />
+                  : <Navigate to={getFirstAccessiblePath(access, role)} replace />
+              }
+            />
+            <Route
+              path="/annual-reports/detail/:id"
+              element={
+                ANNUAL_REPORTS_ENABLED
+                  ? <AnnualReportDetail referenceId={selectedReportRef || "1"} onBack={() => setView("annual-reports-list")} />
+                  : <Navigate to={getFirstAccessiblePath(access, role)} replace />
+              }
+            />
 
             {/* ── SDO Module ── */}
             <Route path="/sdo/stock-verification" element={<StockVerificationsList onBack={() => setView("home")} />} />

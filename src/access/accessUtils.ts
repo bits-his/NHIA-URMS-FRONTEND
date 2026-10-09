@@ -315,11 +315,28 @@ export function filterSidebar(
  */
 export const DASHBOARDS_ENABLED = false;
 
+/** Temporary kill-switch: hide Annual Reports module for all roles. */
+export const ANNUAL_REPORTS_ENABLED = false;
+
 export function isDashboardNavTitle(title: string | null | undefined): boolean {
   const t = String(title || "").trim().toLowerCase();
   if (!t) return false;
   if (t === "dashboard" || t === "sdo dashboard") return true;
   return t.includes("dashboard");
+}
+
+export function isAnnualReportNavTitle(title: string | null | undefined): boolean {
+  const t = String(title || "").trim().toLowerCase();
+  if (!t) return false;
+  if (t === "annual reports" || t === "annual report") return true;
+  if (t === "my annual reports" || t === "my submissions" || t === "new annual report") return true;
+  return t.includes("annual report");
+}
+
+function isTemporarilyHiddenNavTitle(title: string | null | undefined): boolean {
+  if (!DASHBOARDS_ENABLED && isDashboardNavTitle(title)) return true;
+  if (!ANNUAL_REPORTS_ENABLED && isAnnualReportNavTitle(title)) return true;
+  return false;
 }
 
 /**
@@ -344,7 +361,7 @@ export function getFirstAccessiblePath(
         if (found) return found;
       } else if (
         c.path
-        && (!DASHBOARDS_ENABLED ? !isDashboardNavTitle(c.title) : true)
+        && !isTemporarilyHiddenNavTitle(c.title)
         && canAccessFunctionality(modTitle, c.title, user)
       ) {
         return c.path;
@@ -355,7 +372,7 @@ export function getFirstAccessiblePath(
 
   for (const mod of MODULE_CONFIG) {
     if (mod.title === "Notifications" || mod.title === "Settings") continue;
-    if (!DASHBOARDS_ENABLED && isDashboardNavTitle(mod.title)) continue;
+    if (isTemporarilyHiddenNavTitle(mod.title)) continue;
     const path = walk(mod.title, mod.children);
     if (path) return path;
   }
