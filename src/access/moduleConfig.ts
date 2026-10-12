@@ -1,8 +1,16 @@
-import { ENROLMENT_DRIVE_TYPES, enrolmentDriveView, enrolmentDrivePath } from "@/src/components/stateOffice/enrolmentDriveTypes";
+import {
+  ENROLMENT_DRIVES_NAV_TITLE,
+  ENROLMENT_DRIVES_VIEW,
+  ENROLMENT_DRIVES_PATH,
+} from "@/src/components/stateOffice/enrolmentDriveTypes";
 import {
   ENROLMENT_PILLAR_CHILDREN,
-  STAKEHOLDER_PILLAR_CHILDREN,
-  PROVIDER_PILLAR_CHILDREN,
+  PROVIDER_MANAGEMENT_NAV_TITLE,
+  PROVIDER_MANAGEMENT_VIEW,
+  PROVIDER_MANAGEMENT_PATH,
+  STAKEHOLDER_MANAGEMENT_NAV_TITLE,
+  STAKEHOLDER_MANAGEMENT_VIEW,
+  STAKEHOLDER_MANAGEMENT_PATH,
 } from "@/src/components/stateOffice/enrolmentPillarTypes";
 
 export type UserRole =
@@ -245,23 +253,31 @@ export const MODULE_CONFIG: ParentModule[] = [
       { type: "group", label: "Enrolment", children: ENROLMENT_PILLAR_CHILDREN.map((c) => ({
         title: c.title, navLabel: c.navLabel, view: c.view, path: c.path,
       })) },
-      { type: "group", label: "Enrolment Drives", children: ENROLMENT_DRIVE_TYPES.map((t) => ({
-        title: t.title, navLabel: t.navLabel, view: enrolmentDriveView(t.key), path: enrolmentDrivePath(t.key),
-      })) },
+      {
+        title: ENROLMENT_DRIVES_NAV_TITLE,
+        navLabel: ENROLMENT_DRIVES_NAV_TITLE,
+        view: ENROLMENT_DRIVES_VIEW,
+        path: ENROLMENT_DRIVES_PATH,
+      },
       { type: "group", label: "Beneficiary Management", children: [
         { title: "Additional / Extra Dependant", view: "state-extra-dependant", path: "/zonal/beneficiary/extra-dependant", navLabel: "Extra Dependant" },
         { title: "HMO Selection Process", view: "state-hmo-selection", path: "/zonal/hmo-selection", navLabel: "MDA HMO Selection" },
         { title: "Change of HCF", view: "state-hcf-change", path: "/zonal/beneficiary/hcf-change", navLabel: "Change of HCP" },
       ]},
-      { type: "group", label: "Stakeholder Management", children: STAKEHOLDER_PILLAR_CHILDREN.map((c) => ({
-        title: c.title, navLabel: c.navLabel, view: c.view, path: c.path,
-      })) },
-      { type: "group", label: "Provider Management", children: PROVIDER_PILLAR_CHILDREN.map((c) => ({
-        title: c.title, navLabel: c.navLabel, view: c.view, path: c.path,
-      })) },
+      {
+        title: STAKEHOLDER_MANAGEMENT_NAV_TITLE,
+        navLabel: STAKEHOLDER_MANAGEMENT_NAV_TITLE,
+        view: STAKEHOLDER_MANAGEMENT_VIEW,
+        path: STAKEHOLDER_MANAGEMENT_PATH,
+      },
+      {
+        title: PROVIDER_MANAGEMENT_NAV_TITLE,
+        navLabel: PROVIDER_MANAGEMENT_NAV_TITLE,
+        view: PROVIDER_MANAGEMENT_VIEW,
+        path: PROVIDER_MANAGEMENT_PATH,
+      },
       { type: "group", label: "Complaint / Compliance", children: [
         { title: "State Complaints Register", view: "zonal-complaints-register", path: "/zonal/complaints-register", navLabel: "Complaints Register" },
-        { title: "Monitoring Visits", view: "servicom-visits", path: "/zonal/monitoring-visits" },
         { title: "Weekly Compliance Report", view: "state-weekly-compliance", path: "/zonal/weekly-compliance", navLabel: "Weekly Compliance" },
         { title: "HMO Indebtedness Collation", view: "state-hmo-indebtedness", path: "/zonal/hmo-indebtedness" },
         { title: "Mystery Shopping", view: "state-mystery-shopping", path: "/zonal/mystery-shopping" },

@@ -48,10 +48,14 @@ interface Report {
   zone?: { id?: number; description: string };
   state?: { id?: number; description: string };
   lines?: any[];
+  activity_module?: string | null;
+  /** Present when list merges multiple report types (e.g. Enrolment Drives). */
+  __reportType?: StateOfficeReportType;
 }
 
 interface FormRenderProps {
   reportId: number | null;
+  reportType: StateOfficeReportType;
   onBack: () => void;
   onSubmitted: () => void;
   defaultZoneId?: string | null;
@@ -60,11 +64,16 @@ interface FormRenderProps {
 
 interface Props {
   reportType: StateOfficeReportType;
+  /** When set, load and merge these report types into one list (ids tagged with __reportType). */
+  reportTypes?: StateOfficeReportType[];
   onBack: () => void;
   defaultZoneId?: string | null;
   defaultStateId?: string | null;
   /** When set, only reports for this pillar menu are listed */
   activityModule?: string;
+  /** Show activity_module column (merged hubs e.g. Stakeholder Management). */
+  activityModuleColumn?: boolean;
+  activityModuleLabels?: Record<string, string>;
   listTitle?: string;
   renderForm?: (props: FormRenderProps) => React.ReactNode;
 }
@@ -76,15 +85,20 @@ const STATUS_CONFIG = {
 };
 
 export default function StateOfficeReportsList({
-  reportType, onBack, defaultZoneId, defaultStateId, activityModule, listTitle, renderForm,
+  reportType, reportTypes, onBack, defaultZoneId, defaultStateId, activityModule, activityModuleColumn, activityModuleLabels, listTitle, renderForm,
 }: Props) {
   const cfg = REPORT_CONFIG[reportType];
-  const api = stateOfficeApi[reportType];
+  const typesToLoad = React.useMemo(
+    () => (reportTypes?.length ? reportTypes : [reportType]),
+    [reportTypes, reportType],
+  );
+  const multiType = typesToLoad.length > 1;
   const { canCreate, createOnly } = useStateOfficeAccess();
 
   const [mode, setMode] = React.useState<"list" | "create" | "view" | "edit">(createOnly ? "create" : "list");
   const [formKey, setFormKey] = React.useState(0);
   const [selectedId, setSelectedId] = React.useState<number | null>(null);
+  const [selectedReportType, setSelectedReportType] = React.useState<StateOfficeReportType>(reportType);
   const [reports, setReports] = React.useState<Report[]>([]);
   const [loading, setLoading] = React.useState(!createOnly);
 
@@ -105,26 +119,44 @@ export default function StateOfficeReportsList({
   React.useEffect(() => {
     setMode(createOnly ? "create" : "list");
     setSelectedId(null);
+    setSelectedReportType(reportType);
     setFormKey((k) => k + 1);
   }, [reportType, createOnly]);
+
+  const openReport = (r: Report, nextMode: "view" | "edit") => {
+    setSelectedReportType(r.__reportType ?? reportType);
+    setSelectedId(r.id);
+    setMode(nextMode);
+  };
 
   const load = React.useCallback(async () => {
     if (createOnly) return;
     setLoading(true);
     try {
-      const res = await api.list({
+      const listParams = {
         status: filterStatus !== "all" ? filterStatus : undefined,
         zone_id: defaultZoneId ?? undefined,
         state_id: apiStateId,
         year: filterYear !== "all" ? filterYear : undefined,
         month: filterMonth !== "all" ? filterMonth : undefined,
         activity_module: activityModule,
+      };
+      const batches = await Promise.all(
+        typesToLoad.map(async (t) => {
+          const res = await stateOfficeApi[t].list(listParams);
+          return (res.data as Report[]).map((r) => ({ ...r, __reportType: t }));
+        }),
+      );
+      const merged = batches.flat().sort((a, b) => {
+        const da = a.submission_date || a.createdAt || "";
+        const db = b.submission_date || b.createdAt || "";
+        return db.localeCompare(da);
       });
-      setReports(res.data as Report[]);
+      setReports(merged);
     } catch (err: any) {
       toast.error("Failed to load", { description: err.message });
     } finally { setLoading(false); }
-  }, [api, filterStatus, defaultZoneId, apiStateId, filterYear, filterMonth, createOnly, activityModule]);
+  }, [typesToLoad, filterStatus, defaultZoneId, apiStateId, filterYear, filterMonth, createOnly, activityModule]);
 
   React.useEffect(() => { if (!createOnly) load(); }, [load, createOnly]);
 
@@ -169,7 +201,7 @@ export default function StateOfficeReportsList({
   const showLocationCols = !defaultStateId || !defaultZoneId;
 
   if (mode === "view" && selectedId) {
-    if (reportType === "igr") {
+    if (selectedReportType === "igr") {
       return (
         <IgrReportDetail
           reportId={selectedId}
@@ -178,7 +210,7 @@ export default function StateOfficeReportsList({
         />
       );
     }
-    if (reportType === "sshia-financial") {
+    if (selectedReportType === "sshia-financial") {
       return (
         <SshiaFinancialReportDetail
           reportId={selectedId}
@@ -187,7 +219,7 @@ export default function StateOfficeReportsList({
         />
       );
     }
-    if (reportType === "expenditure-profile") {
+    if (selectedReportType === "expenditure-profile") {
       return (
         <ExpenditureProfileReportDetail
           reportId={selectedId}
@@ -198,7 +230,7 @@ export default function StateOfficeReportsList({
     }
     return (
       <StateOfficeDetailRouter
-        reportType={reportType}
+        reportType={selectedReportType}
         reportId={selectedId}
         onBack={leaveDetail}
         onEdit={canCreate ? () => setMode("edit") : undefined}
@@ -210,7 +242,8 @@ export default function StateOfficeReportsList({
     const cancelCreate = createOnly ? onBack : leaveForm;
     const formBack = mode === "edit" ? leaveDetail : cancelCreate;
     const formDone = leaveForm;
-    if (reportType === "igr") {
+    const formReportType = mode === "edit" ? selectedReportType : reportType;
+    if (formReportType === "igr") {
       return (
         <IgrReportPage
           key={formKey}
@@ -222,7 +255,7 @@ export default function StateOfficeReportsList({
         />
       );
     }
-    if (reportType === "sshia-financial") {
+    if (formReportType === "sshia-financial") {
       return (
         <SshiaFinancialReportPage
           key={formKey}
@@ -234,7 +267,7 @@ export default function StateOfficeReportsList({
         />
       );
     }
-    if (reportType === "expenditure-profile") {
+    if (formReportType === "expenditure-profile") {
       return (
         <ExpenditureProfileReportPage
           key={formKey}
@@ -251,6 +284,7 @@ export default function StateOfficeReportsList({
         <React.Fragment key={formKey}>
           {renderForm({
             reportId: mode === "edit" ? selectedId : null,
+            reportType: formReportType,
             onBack: formBack,
             onSubmitted: formDone,
             defaultZoneId,
@@ -262,7 +296,7 @@ export default function StateOfficeReportsList({
     return (
       <StateOfficeFormRouter
         key={formKey}
-        reportType={reportType}
+        reportType={formReportType}
         reportId={mode === "edit" ? selectedId : null}
         onBack={formBack}
         onCancel={formBack}
@@ -289,7 +323,7 @@ export default function StateOfficeReportsList({
           {canCreate && (
           <Button
             className="bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20"
-            onClick={() => { setSelectedId(null); setMode("create"); }}
+            onClick={() => { setSelectedId(null); setSelectedReportType(reportType); setMode("create"); }}
           >
             <Plus className="w-4 h-4" /> {reportType === "enrollee-register" || reportType === "etmc-tmc-action-point" || reportType === "ict-support-register" || reportType === "adhoc-special-assignment" ? "New Register" : "New Report"}
           </Button>
@@ -405,7 +439,7 @@ export default function StateOfficeReportsList({
                   <p className="text-sm font-medium">{hasFilters ? "No reports match your filters" : "No reports found"}</p>
                   {!hasFilters && canCreate && (
                     <Button variant="outline" size="sm" className="mt-2 gap-2"
-                      onClick={() => { setSelectedId(null); setMode("create"); }}>
+                      onClick={() => { setSelectedId(null); setSelectedReportType(reportType); setMode("create"); }}>
                       <Plus className="w-4 h-4" /> {reportType === "enrollee-register" || reportType === "etmc-tmc-action-point" || reportType === "ict-support-register" || reportType === "adhoc-special-assignment" ? "New Register" : "New Report"}
                     </Button>
                   )}
@@ -449,6 +483,12 @@ export default function StateOfficeReportsList({
                         ) : (
                           <>
                             <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Reference</TableHead>
+                            {multiType && (
+                              <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Drive Type</TableHead>
+                            )}
+                            {activityModuleColumn && (
+                              <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Type</TableHead>
+                            )}
                             {showLocationCols && (
                               <>
                                 <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Zone</TableHead>
@@ -480,8 +520,10 @@ export default function StateOfficeReportsList({
                     <TableBody>
                     {reports.map((r, i) => {
                       const sc = STATUS_CONFIG[r.status];
+                      const rowType = r.__reportType ?? reportType;
+                      const typeLabel = REPORT_CONFIG[rowType]?.title ?? rowType;
                       return (
-                          <motion.tr key={r.id} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
+                          <motion.tr key={`${rowType}-${r.id}`} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: i * 0.02 }}
                             className="hover:bg-[#f8fdfb] transition-colors border-b border-slate-100 last:border-0">
                             {reportType === "enrollee-register" ? (
@@ -508,7 +550,7 @@ export default function StateOfficeReportsList({
                                 <TableCell className="text-right">
                                   <Button variant="ghost" size="sm"
                                     className="h-7 w-7 p-0 text-slate-400 hover:text-primary hover:bg-primary/10"
-                                    onClick={() => { setSelectedId(r.id); setMode("view"); }}>
+                                    onClick={() => openReport(r, "view")}>
                                     <Eye className="w-3.5 h-3.5" />
                                   </Button>
                                 </TableCell>
@@ -534,7 +576,7 @@ export default function StateOfficeReportsList({
                                 <TableCell className="text-right">
                                   <Button variant="ghost" size="sm"
                                     className="h-7 w-7 p-0 text-slate-400 hover:text-primary hover:bg-primary/10"
-                                    onClick={() => { setSelectedId(r.id); setMode("view"); }}>
+                                    onClick={() => openReport(r, "view")}>
                                     <Eye className="w-3.5 h-3.5" />
                                   </Button>
                                 </TableCell>
@@ -544,6 +586,19 @@ export default function StateOfficeReportsList({
                             <TableCell>
                               <span className="font-mono text-xs font-bold text-primary">{r.reference_id}</span>
                             </TableCell>
+                            {multiType && (
+                              <TableCell className="text-sm text-slate-700 whitespace-nowrap max-w-[180px] truncate" title={typeLabel}>
+                                {typeLabel}
+                              </TableCell>
+                            )}
+                            {activityModuleColumn && (
+                              <TableCell className="text-sm text-slate-700 whitespace-nowrap max-w-[180px] truncate"
+                                title={activityModuleLabels?.[r.activity_module ?? ""] ?? r.activity_module ?? ""}>
+                                {activityModuleLabels?.[r.activity_module ?? ""]
+                                  ?? r.activity_module
+                                  ?? "—"}
+                              </TableCell>
+                            )}
                             {showLocationCols && (
                               <>
                                 <TableCell className="text-sm text-slate-600 whitespace-nowrap">{r.zone?.description || "—"}</TableCell>
@@ -564,8 +619,8 @@ export default function StateOfficeReportsList({
                               </>
                             )}
                             <TableCell className="text-sm text-slate-500 whitespace-nowrap">Q{quarterFromMonth(r.reporting_month)}</TableCell>
-                            <TableCell className="text-sm text-slate-500 text-right tabular-nums">{reportLineCount(reportType, r)}</TableCell>
-                            <TableCell className="text-sm font-semibold text-slate-800 text-right tabular-nums">{formatCount(reportLineTotal(reportType, r))}</TableCell>
+                            <TableCell className="text-sm text-slate-500 text-right tabular-nums">{reportLineCount(rowType, r)}</TableCell>
+                            <TableCell className="text-sm font-semibold text-slate-800 text-right tabular-nums">{formatCount(reportLineTotal(rowType, r))}</TableCell>
                             <TableCell className="text-sm text-slate-500 whitespace-nowrap">{r.submitted_by || "—"}</TableCell>
                             <TableCell className="text-xs text-slate-500 whitespace-nowrap">{formatDate(r.submission_date)}</TableCell>
                             <TableCell>
@@ -576,7 +631,7 @@ export default function StateOfficeReportsList({
                             <TableCell className="text-right">
                               <Button variant="ghost" size="sm"
                                 className="h-7 w-7 p-0 text-slate-400 hover:text-primary hover:bg-primary/10"
-                                onClick={() => { setSelectedId(r.id); setMode("view"); }}>
+                                onClick={() => openReport(r, "view")}>
                                 <Eye className="w-3.5 h-3.5" />
                               </Button>
                             </TableCell>

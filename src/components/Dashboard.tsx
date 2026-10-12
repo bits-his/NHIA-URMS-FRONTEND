@@ -31,15 +31,18 @@ import AnnualReportDetail from "./AnnualReportDetail";
 import StockVerificationsList from "./StockVerificationsList";
 import StockAssetManager from "./StockAssetManager";
 import StateOfficeReportsList from "./stateOffice/StateOfficeReportsList";
-import { ENROLMENT_DRIVE_TYPES, enrolmentDrivePath, enrolmentDriveReportType, enrolmentDriveView } from "./stateOffice/enrolmentDriveTypes";
+import { ENROLMENT_DRIVE_TYPES, enrolmentDrivePath } from "./stateOffice/enrolmentDriveTypes";
+import EnrolmentDrivesPage, { EnrolmentDriveLegacyRedirect } from "./stateOffice/EnrolmentDrivesPage";
 import {
   ENROLMENT_PILLAR_CHILDREN,
   STAKEHOLDER_PILLAR_CHILDREN,
   PROVIDER_PILLAR_CHILDREN,
+  STAKEHOLDER_MANAGEMENT_PATH,
+  PROVIDER_MANAGEMENT_PATH,
 } from "./stateOffice/enrolmentPillarTypes";
+import StakeholderManagementPage, { StakeholderManagementLegacyRedirect } from "./stateOffice/StakeholderManagementPage";
+import ProviderManagementPage, { ProviderManagementLegacyRedirect } from "./stateOffice/ProviderManagementPage";
 import TemplateComingSoonPage from "./stateOffice/TemplateComingSoonPage";
-import PillarActivityReportsList from "./stateOffice/PillarActivityReportsList";
-import { ACTIVITY_TEMPLATE_BY_MODULE } from "./stateOffice/activityReportTemplateConfig";
 import AdminHrReportsList from "./stateOffice/adminHr/AdminHrReportsList";
 import StateOfficeComplaintsPage from "./stateOffice/StateOfficeComplaintsPage";
 import StateOfficeComplianceVisitsPage from "./stateOffice/StateOfficeComplianceVisitsPage";
@@ -710,25 +713,42 @@ export default function Dashboard({ role, user, access = [], functionalities = "
 
             {/* ── Zonal (state office reports under SOC) ── */}
             <Route path="/zonal/enrolment" element={<StateOfficeReportsList key="state-enrolment" reportType="enrolment" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
-            {[...STAKEHOLDER_PILLAR_CHILDREN, ...PROVIDER_PILLAR_CHILDREN]
-              .filter((c) => c.status === "ready" && ACTIVITY_TEMPLATE_BY_MODULE[c.key])
-              .map((c) => {
-                const templateConfig = ACTIVITY_TEMPLATE_BY_MODULE[c.key]!;
-                return (
-                  <Route
-                    key={c.view}
-                    path={c.path}
-                    element={
-                      <PillarActivityReportsList
-                        templateConfig={templateConfig}
-                        onBack={() => setView("home")}
-                        defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId}
-                        defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId}
-                      />
-                    }
-                  />
-                );
-              })}
+            <Route
+              path={STAKEHOLDER_MANAGEMENT_PATH}
+              element={
+                <StakeholderManagementPage
+                  key="state-stakeholder-management"
+                  onBack={() => setView("home")}
+                  defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId}
+                  defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId}
+                />
+              }
+            />
+            {STAKEHOLDER_PILLAR_CHILDREN.map((c) => (
+              <Route
+                key={c.view}
+                path={c.path}
+                element={<StakeholderManagementLegacyRedirect />}
+              />
+            ))}
+            <Route
+              path={PROVIDER_MANAGEMENT_PATH}
+              element={
+                <ProviderManagementPage
+                  key="state-provider-management"
+                  onBack={() => setView("home")}
+                  defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId}
+                  defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId}
+                />
+              }
+            />
+            {PROVIDER_PILLAR_CHILDREN.map((c) => (
+              <Route
+                key={c.view}
+                path={c.path}
+                element={<ProviderManagementLegacyRedirect />}
+              />
+            ))}
             {ENROLMENT_PILLAR_CHILDREN.filter((c) => c.status === "coming_soon").map((c) => (
               <Route
                 key={c.view}
@@ -744,8 +764,23 @@ export default function Dashboard({ role, user, access = [], functionalities = "
             <Route path="/zonal/monitoring-visits" element={<StateOfficeComplianceVisitsPage key="state-compliance-monitoring" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
             <Route path="/zonal/hmo-indebtedness" element={<StateOfficeHmoIndebtednessPage key="state-hmo-indebtedness" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
             <Route path="/zonal/mystery-shopping" element={<StateOfficeMysteryShoppingPage key="state-mystery-shopping" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
+            <Route
+              path="/zonal/enrolment-drives"
+              element={
+                <EnrolmentDrivesPage
+                  key="state-enrolment-drives"
+                  onBack={() => setView("home")}
+                  defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId}
+                  defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId}
+                />
+              }
+            />
             {ENROLMENT_DRIVE_TYPES.map((t) => (
-              <Route key={t.key} path={enrolmentDrivePath(t.key)} element={<StateOfficeReportsList key={enrolmentDriveView(t.key)} reportType={enrolmentDriveReportType(t.key)} onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
+              <Route
+                key={t.key}
+                path={enrolmentDrivePath(t.key)}
+                element={<EnrolmentDriveLegacyRedirect driveKey={t.key} />}
+              />
             ))}
             <Route path="/zonal/hmo-selection" element={<StateOfficeReportsList key="state-hmo-selection" reportType="hmo-selection" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
             <Route path="/zonal/beneficiary/extra-dependant" element={<StateOfficeReportsList key="state-extra-dependant" reportType="extra-dependant" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />

@@ -67,3 +67,19 @@ export function offenceSelectOptions(entries: ComplaintOffenceEntry[]) {
     { value: OTHER_ISSUE_VALUE, label: "Other" },
   ];
 }
+
+/** Display label for the selected Issue / Complaint (not the free-text description). */
+export function complaintIssueLabel(row?: {
+  offence_reference?: string | null;
+  complaint_category?: string | null;
+  category?: string | null;
+} | null): string {
+  if (!row) return "—";
+  const ref = String(row.offence_reference || "").trim();
+  if (ref === OTHER_ISSUE_VALUE) return "Other";
+  if (ref) {
+    const offence = findOffenceById(ref);
+    if (offence?.issue) return offence.issue;
+  }
+  return row.complaint_category || row.category || "—";
+}

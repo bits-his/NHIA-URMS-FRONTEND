@@ -1,7 +1,12 @@
 /**
- * Enrolment Drives (Monitoring Pillar 3): one sidebar item, privilege, list and form per activity.
+ * Enrolment Drives (Monitoring Pillar 3): one sidebar item + hub page; activity types as tabs.
  * Keep keys/titles in sync with NHIA-URMS-BACKEND/src/utils/enrolmentDriveTypes.js
  */
+
+/** Single sidebar / privilege title for all enrolment drive activities. */
+export const ENROLMENT_DRIVES_NAV_TITLE = "Enrolment Drives";
+export const ENROLMENT_DRIVES_VIEW = "state-enrolment-drives";
+export const ENROLMENT_DRIVES_PATH = "/zonal/enrolment-drives";
 
 export type EnrolmentDriveCategory = { code: string; label: string };
 

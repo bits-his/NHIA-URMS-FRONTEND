@@ -11,7 +11,13 @@ import StateOfficeFormShell from "./StateOfficeFormShell";
 import { stateOfficeApi } from "@/lib/api";
 import { ENROLMENT_DRIVE_LOCATIONS, parseSupportingDocuments } from "./constants";
 import type { ActivityReportTemplateConfig } from "./activityReportTemplateConfig";
-import { resolvedActivities } from "./activityReportTemplateConfig";
+import { ACTIVITY_TEMPLATE_BY_MODULE, resolvedActivities } from "./activityReportTemplateConfig";
+import {
+  PROVIDER_MANAGEMENT_NAV_TITLE,
+  PROVIDER_PILLAR_CHILDREN,
+  STAKEHOLDER_MANAGEMENT_NAV_TITLE,
+  STAKEHOLDER_PILLAR_CHILDREN,
+} from "./enrolmentPillarTypes";
 
 function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return (
@@ -115,6 +121,8 @@ function MultiSelectField({
 
 interface Props {
   config: ActivityReportTemplateConfig;
+  /** When true (hub form), pick pillar module before activity category. */
+  allowModuleSelect?: boolean;
   reportId?: number | null;
   onBack: () => void;
   onCancel?: () => void;
@@ -123,13 +131,29 @@ interface Props {
   defaultStateId?: string | null;
 }
 
+const readyModules = (children: typeof STAKEHOLDER_PILLAR_CHILDREN) =>
+  children.filter((c) => c.status === "ready" && ACTIVITY_TEMPLATE_BY_MODULE[c.key]);
+
+const STAKEHOLDER_MODULE_OPTIONS = readyModules(STAKEHOLDER_PILLAR_CHILDREN);
+const PROVIDER_MODULE_OPTIONS = readyModules(PROVIDER_PILLAR_CHILDREN);
+
 /** Shared Activity Reporting Template (Stakeholder §4 + Provider §2). */
 export default function ActivityReportingTemplateForm({
-  config, reportId, onBack, onCancel, onSubmitted, defaultZoneId, defaultStateId,
+  config: initialConfig, allowModuleSelect = false, reportId, onBack, onCancel, onSubmitted, defaultZoneId, defaultStateId,
 }: Props) {
+  const [moduleKey, setModuleKey] = React.useState(initialConfig.activityModule);
+  React.useEffect(() => {
+    setModuleKey(initialConfig.activityModule);
+  }, [initialConfig.activityModule]);
+
+  const config = React.useMemo(() => {
+    if (!allowModuleSelect) return initialConfig;
+    return ACTIVITY_TEMPLATE_BY_MODULE[moduleKey] ?? initialConfig;
+  }, [allowModuleSelect, moduleKey, initialConfig]);
+
   const activities = React.useMemo(() => resolvedActivities(config), [config]);
   const defaultActivity = activities[0]?.label ?? "";
-  const fresh = (): Entry => ({ ...blank(defaultActivity) });
+  const fresh = React.useCallback((): Entry => ({ ...blank(defaultActivity) }), [defaultActivity]);
   const api = stateOfficeApi[config.reportType];
   const [plannedActivities, setPlannedActivities] = React.useState("");
   const [lines, setLines] = React.useState<(Entry & { _key: string })[]>([]);
@@ -138,6 +162,25 @@ export default function ActivityReportingTemplateForm({
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const linesRef = React.useRef(lines);
   linesRef.current = lines;
+
+  const changeModule = (key: string) => {
+    if (key === moduleKey) return;
+    const nextCfg = ACTIVITY_TEMPLATE_BY_MODULE[key];
+    const nextDefault = resolvedActivities(nextCfg ?? config)[0]?.label ?? "";
+    setModuleKey(key);
+    setEditingKey(null);
+    setEntry({ ...blank(nextDefault) });
+    if (linesRef.current.length > 0) {
+      linesRef.current = [];
+      setLines([]);
+      toast.message("Activities cleared", { description: "Activity list reset for the new type." });
+    }
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const moduleOptions = config.variant === "provider" ? PROVIDER_MODULE_OPTIONS : STAKEHOLDER_MODULE_OPTIONS;
+  const hubTitle = config.variant === "provider" ? PROVIDER_MANAGEMENT_NAV_TITLE : STAKEHOLDER_MANAGEMENT_NAV_TITLE;
+  const moduleFieldLabel = config.variant === "provider" ? "Provider Type" : "Stakeholder Type";
 
   const set = <K extends keyof Entry>(k: K, v: Entry[K]) => setEntry((p) => ({ ...p, [k]: v }));
   const isBudgeted = entry.funding_option === config.budgetedLabel;
@@ -166,6 +209,9 @@ export default function ActivityReportingTemplateForm({
     .join(", ");
 
   const loadData = (v: any) => {
+    if (allowModuleSelect && v.activity_module && ACTIVITY_TEMPLATE_BY_MODULE[v.activity_module]) {
+      setModuleKey(String(v.activity_module));
+    }
     setPlannedActivities(numStr(v.planned_activities));
     const next = (v.lines ?? []).map((l: any) => {
       const row = l.activity_template && typeof l.activity_template === "object"
@@ -269,7 +315,8 @@ export default function ActivityReportingTemplateForm({
       onSubmitted={onSubmitted}
       defaultZoneId={defaultZoneId}
       defaultStateId={defaultStateId}
-      pageTitle={config.pageTitle}
+      pageTitle={allowModuleSelect ? hubTitle : config.pageTitle}
+      pageSubtitle={allowModuleSelect ? config.pageTitle : undefined}
       hideFooterActions
       onLoaded={loadData}
       afterPersist={afterPersist}
@@ -310,7 +357,9 @@ export default function ActivityReportingTemplateForm({
         })),
       })}
     >
-      {({ submitting, persist, requestSubmit }) => (
+      {({ submitting, persist, requestSubmit, savedId }) => {
+        const typeLocked = !!reportId || !!savedId;
+        return (
         <div className="space-y-4">
           <Card className="rounded-2xl border-[#d4e8dc]">
             <CardHeader className="pb-2">
@@ -330,21 +379,44 @@ export default function ActivityReportingTemplateForm({
               <CardTitle className="text-base">{config.activitiesTitle}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid md:grid-cols-3 gap-3">
+              <div className="grid md:grid-cols-2 gap-3">
+                {allowModuleSelect && (
+                  <div className="space-y-1 md:col-span-2">
+                    <Label>{moduleFieldLabel} *</Label>
+                    <Select
+                      value={moduleKey}
+                      onValueChange={changeModule}
+                      disabled={typeLocked}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {moduleOptions.map((c) => (
+                          <SelectItem key={c.key} value={c.key}>{c.navLabel}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
                 <div className="space-y-1">
                   <Label>{config.activityFieldLabel} *</Label>
                   <Select value={entry.engagement_category} onValueChange={(v) => set("engagement_category", v)}>
-                    <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                    <SelectTrigger
+                      displayValue={
+                        entry.engagement_category
+                          ? `${entry.engagement_category}${engagementMeta?.code ? ` - ${engagementMeta.code}` : ""}`
+                          : "Select"
+                      }
+                    >
+                      <SelectValue placeholder="Select" />
+                    </SelectTrigger>
                     <SelectContent>
                       {activities.map((c) => (
-                        <SelectItem key={c.code} value={c.label}>{c.code} — {c.label}</SelectItem>
+                        <SelectItem key={c.code} value={c.label}>{c.label} - {c.code}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                </div>
-                <div className="space-y-1">
-                  <Label>{config.activityIdLabel}</Label>
-                  <Input value={engagementMeta?.code ?? ""} readOnly className="bg-slate-50" placeholder="Auto" />
                 </div>
                 <div className="space-y-1">
                   <Label>Activity Date *</Label>
@@ -352,26 +424,26 @@ export default function ActivityReportingTemplateForm({
                 </div>
                 {config.variant === "stakeholder" && config.stakeholderCategories && (
                   <>
-                    <div className="md:col-span-3">
+                    <div className="md:col-span-2">
                       <MultiSelectField label="Stakeholder Category" options={[...config.stakeholderCategories]} value={entry.stakeholder_categories}
                         onChange={(v) => set("stakeholder_categories", v)} />
                     </div>
-                    <div className="space-y-1 md:col-span-3">
+                    <div className="space-y-1 md:col-span-2">
                       <Label>Stakeholder Name</Label>
                       <Input value={entry.stakeholder_names} onChange={(e) => set("stakeholder_names", e.target.value)} placeholder="Comma separated for multiple" />
                     </div>
-                    <div className="space-y-1 md:col-span-3">
+                    <div className="space-y-1 md:col-span-2">
                       <Label>Specific Engagement Activity Carried Out</Label>
                       <Textarea rows={2} value={entry.specific_activity} onChange={(e) => set("specific_activity", e.target.value)} />
                     </div>
-                    <div className="space-y-1 md:col-span-3">
+                    <div className="space-y-1 md:col-span-2">
                       <Label>Engagement Purpose</Label>
                       <Textarea rows={2} value={entry.engagement_purpose} onChange={(e) => set("engagement_purpose", e.target.value)} />
                     </div>
                   </>
                 )}
                 {config.variant === "provider" && (
-                  <div className="space-y-1 md:col-span-3">
+                  <div className="space-y-1 md:col-span-2">
                     <Label>Specific Activity (depends on activity selected)</Label>
                     <Textarea rows={2} value={entry.specific_activity} onChange={(e) => set("specific_activity", e.target.value)} />
                   </div>
@@ -403,7 +475,7 @@ export default function ActivityReportingTemplateForm({
                       <Label>Planned Target Audience</Label>
                       <Input type="number" min={0} value={entry.planned_target_audience} onChange={(e) => set("planned_target_audience", e.target.value)} />
                     </div>
-                    <div className="md:col-span-3">
+                    <div className="md:col-span-2">
                       <MultiSelectField label="Target Audience Reached" options={[...config.targetAudiences]}
                         value={entry.target_audience_reached} onChange={(v) => set("target_audience_reached", v)} />
                     </div>
@@ -431,12 +503,12 @@ export default function ActivityReportingTemplateForm({
                   <Label>Program ID</Label>
                   <Input value={programCodes} readOnly className="bg-slate-50" placeholder="Auto" />
                 </div>
-                <div className="md:col-span-3">
+                <div className="md:col-span-2">
                   <MultiSelectField label="Program" options={config.programs.map((p) => p.label)}
                     value={entry.programs_supported} onChange={(v) => set("programs_supported", v)} />
                 </div>
                 {metricLabels.length > 0 && (
-                  <div className="md:col-span-3 grid md:grid-cols-2 gap-3 rounded-xl border border-[#d4e8dc] bg-[#f8fdfb] p-3">
+                  <div className="md:col-span-2 grid md:grid-cols-2 gap-3 rounded-xl border border-[#d4e8dc] bg-[#f8fdfb] p-3">
                     <p className="md:col-span-2 text-xs font-semibold text-[#145c3f]">Activity-specific metrics (program: {primaryProgram || "—"})</p>
                     {metricLabels.map((label) => (
                       <div key={label} className="space-y-1">
@@ -452,7 +524,7 @@ export default function ActivityReportingTemplateForm({
                   </div>
                 )}
                 {config.variant === "stakeholder" && (
-                  <div className="space-y-1 md:col-span-3">
+                  <div className="space-y-1 md:col-span-2">
                     <Label>Activity Details</Label>
                     <Textarea rows={2} value={entry.activity_details} onChange={(e) => set("activity_details", e.target.value)} />
                   </div>
@@ -490,11 +562,11 @@ export default function ActivityReportingTemplateForm({
                     )}
                   </>
                 )}
-                <div className="md:col-span-3">
+                <div className="md:col-span-2">
                   <MultiSelectField label="Supporting Evidence (type)" options={[...config.evidenceTypes]}
                     value={entry.supporting_evidence_types} onChange={(v) => set("supporting_evidence_types", v)} />
                 </div>
-                <div className="space-y-1 md:col-span-3">
+                <div className="space-y-1 md:col-span-2">
                   <Label>Supporting Evidence (attachments)</Label>
                   <Input ref={fileInputRef} type="file" multiple
                     onChange={(e) => set("supportingFiles", Array.from(e.target.files ?? []))} />
@@ -524,7 +596,7 @@ export default function ActivityReportingTemplateForm({
                     </div>
                   </>
                 )}
-                <div className="space-y-1 md:col-span-3">
+                <div className="space-y-1 md:col-span-2">
                   <Label className={config.variant === "provider" ? "text-rose-700 font-bold" : undefined}>Expected Output</Label>
                   <Textarea rows={2} value={entry.expected_output} onChange={(e) => set("expected_output", e.target.value)} className={config.variant === "provider" ? "border-rose-300 bg-rose-50/40" : undefined} />
                 </div>
@@ -537,7 +609,7 @@ export default function ActivityReportingTemplateForm({
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-1 md:col-span-3">
+                <div className="space-y-1 md:col-span-2">
                   <Label>Remarks / Observations</Label>
                   <Textarea rows={2} value={entry.remarks} onChange={(e) => set("remarks", e.target.value)} />
                 </div>
@@ -607,7 +679,8 @@ export default function ActivityReportingTemplateForm({
             </CardContent>
           </Card>
         </div>
-      )}
+        );
+      }}
     </StateOfficeFormShell>
   );
 }

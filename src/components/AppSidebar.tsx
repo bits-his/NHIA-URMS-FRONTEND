@@ -78,7 +78,18 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { ENROLMENT_DRIVE_TYPES, enrolmentDriveView, enrolmentDrivePath } from "@/src/components/stateOffice/enrolmentDriveTypes";
+import {
+  ENROLMENT_DRIVES_VIEW,
+  ENROLMENT_DRIVES_PATH,
+  ENROLMENT_DRIVE_TYPES,
+  enrolmentDriveView,
+} from "@/src/components/stateOffice/enrolmentDriveTypes";
+import {
+  STAKEHOLDER_MANAGEMENT_VIEW,
+  STAKEHOLDER_MANAGEMENT_PATH,
+  PROVIDER_MANAGEMENT_VIEW,
+  PROVIDER_MANAGEMENT_PATH,
+} from "@/src/components/stateOffice/enrolmentPillarTypes";
 import type { AccessEntry } from "@/src/access/types";
 import {
   MODULE_CONFIG,
@@ -268,7 +279,12 @@ const VIEW_TO_PATH: Record<string, string> = {
   "state-adhoc-special-assignment": "/sdo/projects",
   "state-extra-dependant": "/zonal/beneficiary/extra-dependant",
   "state-weekly-compliance": "/zonal/weekly-compliance",
-  ...Object.fromEntries(ENROLMENT_DRIVE_TYPES.map((t) => [enrolmentDriveView(t.key), enrolmentDrivePath(t.key)])),
+  [ENROLMENT_DRIVES_VIEW]: ENROLMENT_DRIVES_PATH,
+  [STAKEHOLDER_MANAGEMENT_VIEW]: STAKEHOLDER_MANAGEMENT_PATH,
+  [PROVIDER_MANAGEMENT_VIEW]: PROVIDER_MANAGEMENT_PATH,
+  ...Object.fromEntries(
+    ENROLMENT_DRIVE_TYPES.map((t) => [enrolmentDriveView(t.key), `${ENROLMENT_DRIVES_PATH}?type=${t.key}`]),
+  ),
   "state-hcf-change": "/zonal/beneficiary/hcf-change",
   "state-ict-support": "/zonal/ict/support",
   "state-office-meeting": "/zonal/admin-hr/office-meeting",

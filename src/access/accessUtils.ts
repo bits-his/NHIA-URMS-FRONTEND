@@ -22,6 +22,32 @@ import {
 
 } from "./moduleConfig";
 
+import {
+  ENROLMENT_DRIVES_NAV_TITLE,
+  ENROLMENT_DRIVE_TYPES,
+} from "@/src/components/stateOffice/enrolmentDriveTypes";
+import {
+  PROVIDER_MANAGEMENT_NAV_TITLE,
+  PROVIDER_PILLAR_CHILDREN,
+  STAKEHOLDER_MANAGEMENT_NAV_TITLE,
+  STAKEHOLDER_PILLAR_CHILDREN,
+} from "@/src/components/stateOffice/enrolmentPillarTypes";
+
+/** Legacy per-activity privilege titles → single Enrolment Drives leaf */
+const LEGACY_ENROLMENT_DRIVE_TITLES = new Set(
+  ENROLMENT_DRIVE_TYPES.flatMap((t) => [t.title, t.navLabel]),
+);
+
+/** Legacy per-module privilege titles → single Stakeholder Management leaf */
+const LEGACY_STAKEHOLDER_TITLES = new Set(
+  STAKEHOLDER_PILLAR_CHILDREN.flatMap((c) => [c.title, c.navLabel]),
+);
+
+/** Legacy per-module privilege titles → single Provider Management leaf */
+const LEGACY_PROVIDER_TITLES = new Set(
+  PROVIDER_PILLAR_CHILDREN.flatMap((c) => [c.title, c.navLabel]),
+);
+
 
 
 /** Map retired module titles to current MODULE_CONFIG titles */
@@ -111,6 +137,12 @@ export function normalizeFunctionalityTitle(title: string, moduleTitle?: string)
 
     if (title === "ICT Support" || title === "Support") return "ICT Support Register";
 
+    if (LEGACY_ENROLMENT_DRIVE_TITLES.has(title)) return ENROLMENT_DRIVES_NAV_TITLE;
+
+    if (LEGACY_STAKEHOLDER_TITLES.has(title)) return STAKEHOLDER_MANAGEMENT_NAV_TITLE;
+
+    if (LEGACY_PROVIDER_TITLES.has(title)) return PROVIDER_MANAGEMENT_NAV_TITLE;
+
   }
 
 
@@ -142,6 +174,12 @@ export function normalizeFunctionalityTitle(title: string, moduleTitle?: string)
     }
 
     if (title === "ICT Support" || title === "Support") return "ICT Support Register";
+
+    if (LEGACY_ENROLMENT_DRIVE_TITLES.has(title)) return ENROLMENT_DRIVES_NAV_TITLE;
+
+    if (LEGACY_STAKEHOLDER_TITLES.has(title)) return STAKEHOLDER_MANAGEMENT_NAV_TITLE;
+
+    if (LEGACY_PROVIDER_TITLES.has(title)) return PROVIDER_MANAGEMENT_NAV_TITLE;
 
   }
 
@@ -211,26 +249,52 @@ export function expandAccessEntries(access: AccessEntry[]): AccessEntry[] {
 
   );
 
-  if (!hasLegacyVisits) return out;
+  let zonalIdx = out.findIndex(e => resolveModuleTitle(e.access_to) === ZONAL_MODULE);
 
-
-
-  const zonalIdx = out.findIndex(e => resolveModuleTitle(e.access_to) === ZONAL_MODULE);
-
-  if (zonalIdx >= 0) {
-
-    const funcs = out[zonalIdx].functionalities;
-
-    if (!funcs.some(f => normalizeFunctionalityTitle(f, ZONAL_MODULE) === "Monitoring Visits")) {
-
-      out[zonalIdx] = { ...out[zonalIdx], functionalities: [...funcs, "Monitoring Visits"] };
-
+  if (hasLegacyVisits) {
+    if (zonalIdx >= 0) {
+      const funcs = out[zonalIdx].functionalities;
+      if (!funcs.some(f => normalizeFunctionalityTitle(f, ZONAL_MODULE) === "Monitoring Visits")) {
+        out[zonalIdx] = { ...out[zonalIdx], functionalities: [...funcs, "Monitoring Visits"] };
+      }
+    } else {
+      out.push({ access_to: ZONAL_MODULE, functionalities: ["Monitoring Visits"] });
+      zonalIdx = out.length - 1;
     }
+  }
 
-  } else {
-
-    out.push({ access_to: ZONAL_MODULE, functionalities: ["Monitoring Visits"] });
-
+  // Merge legacy per-activity Enrolment Drive / Stakeholder privileges into single leaves
+  zonalIdx = out.findIndex(e => resolveModuleTitle(e.access_to) === ZONAL_MODULE);
+  if (zonalIdx >= 0) {
+    let funcs = out[zonalIdx].functionalities;
+    const hasDrive = funcs.some(
+      f => normalizeFunctionalityTitle(f, ZONAL_MODULE) === ENROLMENT_DRIVES_NAV_TITLE,
+    );
+    if (hasDrive) {
+      funcs = funcs.filter(
+        f => !LEGACY_ENROLMENT_DRIVE_TITLES.has(f) && f !== ENROLMENT_DRIVES_NAV_TITLE,
+      );
+      funcs.push(ENROLMENT_DRIVES_NAV_TITLE);
+    }
+    const hasStakeholder = funcs.some(
+      f => normalizeFunctionalityTitle(f, ZONAL_MODULE) === STAKEHOLDER_MANAGEMENT_NAV_TITLE,
+    );
+    if (hasStakeholder) {
+      funcs = funcs.filter(
+        f => !LEGACY_STAKEHOLDER_TITLES.has(f) && f !== STAKEHOLDER_MANAGEMENT_NAV_TITLE,
+      );
+      funcs.push(STAKEHOLDER_MANAGEMENT_NAV_TITLE);
+    }
+    const hasProvider = funcs.some(
+      f => normalizeFunctionalityTitle(f, ZONAL_MODULE) === PROVIDER_MANAGEMENT_NAV_TITLE,
+    );
+    if (hasProvider) {
+      funcs = funcs.filter(
+        f => !LEGACY_PROVIDER_TITLES.has(f) && f !== PROVIDER_MANAGEMENT_NAV_TITLE,
+      );
+      funcs.push(PROVIDER_MANAGEMENT_NAV_TITLE);
+    }
+    out[zonalIdx] = { ...out[zonalIdx], functionalities: funcs };
   }
 
   return out;
