@@ -22,6 +22,10 @@ interface Props {
   className?: string;
   /** When false, search works without selecting a state first (default true for form flows). */
   requireState?: boolean;
+  /** When false, option labels are name-only (use when HCF code has its own field). Default true. */
+  includeCodeInLabel?: boolean;
+  /** Shown when value is missing from options (e.g. auto-filled from collation). */
+  fallbackLabel?: string;
 }
 
 type CachedOption = SearchSelectOption & {
@@ -49,6 +53,8 @@ export default function HcfFacilitySelect({
   placeholder,
   className,
   requireState = true,
+  includeCodeInLabel = true,
+  fallbackLabel,
 }: Props) {
   const [options, setOptions] = React.useState<SearchSelectOption[]>([]);
   const [loading, setLoading] = React.useState(false);
@@ -102,10 +108,11 @@ export default function HcfFacilitySelect({
         if (nameKey !== "|" && seenHospital.has(nameKey)) continue;
         if (nameKey !== "|") seenHospital.add(nameKey);
         const hospitalCode = f.hospital_code || f.facility_code || f.accreditation_code || undefined;
+        const name = String(f.name || "").trim();
         const o: CachedOption = {
           value: String(f.id),
-          name: f.name,
-          label: formatPartyLabel(f.name, hospitalCode),
+          name,
+          label: includeCodeInLabel ? formatPartyLabel(name, hospitalCode) : (name || hospitalCode || ""),
           sub: [f.lga, f.state_name ?? f.state?.description].filter(Boolean).join(" · ") || undefined,
           code: hospitalCode,
           state_name: f.state_name ?? f.state?.description ?? undefined,
@@ -130,7 +137,7 @@ export default function HcfFacilitySelect({
     } finally {
       setLoading(false);
     }
-  }, [stateId, requireState]);
+  }, [stateId, requireState, includeCodeInLabel]);
 
   React.useEffect(() => {
     if (prevStateId.current !== stateId) {
@@ -172,6 +179,7 @@ export default function HcfFacilitySelect({
         onChange={handleChange}
         disabled={blocked || loading}
         className={className ?? "w-full"}
+        displayLabel={fallbackLabel}
         placeholder={
           requireState && !stateId
             ? "Select state first"

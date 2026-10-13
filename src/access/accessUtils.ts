@@ -32,6 +32,10 @@ import {
   STAKEHOLDER_MANAGEMENT_NAV_TITLE,
   STAKEHOLDER_PILLAR_CHILDREN,
 } from "@/src/components/stateOffice/enrolmentPillarTypes";
+import { HMO_INDEBTEDNESS_CHILDREN } from "@/src/components/stateOffice/hmoIndebtednessTypes";
+
+const HMO_INDEBTEDNESS_TITLES = HMO_INDEBTEDNESS_CHILDREN.map((c) => c.title);
+const HMO_INDEBTEDNESS_COLLATION = "HMO Indebtedness Collation";
 
 /** Legacy per-activity privilege titles → single Enrolment Drives leaf */
 const LEGACY_ENROLMENT_DRIVE_TITLES = new Set(
@@ -293,6 +297,17 @@ export function expandAccessEntries(access: AccessEntry[]): AccessEntry[] {
         f => !LEGACY_PROVIDER_TITLES.has(f) && f !== PROVIDER_MANAGEMENT_NAV_TITLE,
       );
       funcs.push(PROVIDER_MANAGEMENT_NAV_TITLE);
+    }
+    // Legacy collation privilege unlocks all HMO Indebtedness submenu items
+    const hasHmoCollation = funcs.some(
+      f => normalizeFunctionalityTitle(f, ZONAL_MODULE) === HMO_INDEBTEDNESS_COLLATION,
+    );
+    if (hasHmoCollation) {
+      for (const title of HMO_INDEBTEDNESS_TITLES) {
+        if (!funcs.some(f => normalizeFunctionalityTitle(f, ZONAL_MODULE) === title)) {
+          funcs.push(title);
+        }
+      }
     }
     out[zonalIdx] = { ...out[zonalIdx], functionalities: funcs };
   }

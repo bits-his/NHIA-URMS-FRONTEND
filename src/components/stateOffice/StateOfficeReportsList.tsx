@@ -549,9 +549,9 @@ export default function StateOfficeReportsList({
                                 </TableCell>
                                 <TableCell className="text-right">
                                   <Button variant="ghost" size="sm"
-                                    className="h-7 w-7 p-0 text-slate-400 hover:text-primary hover:bg-primary/10"
+                                    className="h-7 gap-1 px-2 text-slate-500 hover:text-primary hover:bg-primary/10"
                                     onClick={() => openReport(r, "view")}>
-                                    <Eye className="w-3.5 h-3.5" />
+                                    <Eye className="w-3.5 h-3.5" /> View
                                   </Button>
                                 </TableCell>
                               </>
@@ -575,9 +575,9 @@ export default function StateOfficeReportsList({
                                 </TableCell>
                                 <TableCell className="text-right">
                                   <Button variant="ghost" size="sm"
-                                    className="h-7 w-7 p-0 text-slate-400 hover:text-primary hover:bg-primary/10"
+                                    className="h-7 gap-1 px-2 text-slate-500 hover:text-primary hover:bg-primary/10"
                                     onClick={() => openReport(r, "view")}>
-                                    <Eye className="w-3.5 h-3.5" />
+                                    <Eye className="w-3.5 h-3.5" /> View
                                   </Button>
                                 </TableCell>
                               </>
@@ -630,9 +630,9 @@ export default function StateOfficeReportsList({
                             </TableCell>
                             <TableCell className="text-right">
                               <Button variant="ghost" size="sm"
-                                className="h-7 w-7 p-0 text-slate-400 hover:text-primary hover:bg-primary/10"
+                                className="h-7 gap-1 px-2 text-slate-500 hover:text-primary hover:bg-primary/10"
                                 onClick={() => openReport(r, "view")}>
-                                <Eye className="w-3.5 h-3.5" />
+                                <Eye className="w-3.5 h-3.5" /> View
                               </Button>
                             </TableCell>
                               </>

@@ -12,6 +12,7 @@ import {
   STAKEHOLDER_MANAGEMENT_VIEW,
   STAKEHOLDER_MANAGEMENT_PATH,
 } from "@/src/components/stateOffice/enrolmentPillarTypes";
+import { HMO_INDEBTEDNESS_CHILDREN } from "@/src/components/stateOffice/hmoIndebtednessTypes";
 
 export type UserRole =
   | "admin" | "state-officer" | "zonal-coordinator"
@@ -207,7 +208,7 @@ export const MODULE_CONFIG: ParentModule[] = [
     children: [
       { type: "group", label: "SERVICOM", children: [
         { title: "SERVICOM Dashboard", view: "servicom-dashboard", path: "/sdo/servicom", navLabel: "Dashboard" },
-        { title: "Charter Performance",          view: "servicom-comment-card", path: "/sdo/servicom/comment-card" },
+        { title: "Charter Performance",          view: "servicom-comment-card", path: "/sdo/servicom/comment-card", navLabel: "Citizens' Comment Card" },
         { title: "Complaints Management",        view: "servicom-complaints",   path: "/sdo/servicom/complaints", navLabel: "Complaints Register" },
         { title: "HCF Customer Satisfaction Survey", view: "servicom-satisfaction", path: "/sdo/servicom/satisfaction", navLabel: "Satisfaction Survey" },
       ]},
@@ -279,7 +280,9 @@ export const MODULE_CONFIG: ParentModule[] = [
       { type: "group", label: "Complaint / Compliance", children: [
         { title: "State Complaints Register", view: "zonal-complaints-register", path: "/zonal/complaints-register", navLabel: "Complaints Register" },
         { title: "Weekly Compliance Report", view: "state-weekly-compliance", path: "/zonal/weekly-compliance", navLabel: "Weekly Compliance" },
-        { title: "HMO Indebtedness Collation", view: "state-hmo-indebtedness", path: "/zonal/hmo-indebtedness" },
+        { type: "group", label: "HMO Indebtedness", children: HMO_INDEBTEDNESS_CHILDREN.map((c) => ({
+          title: c.title, navLabel: c.navLabel, view: c.view, path: c.path,
+        })) },
         { title: "Mystery Shopping", view: "state-mystery-shopping", path: "/zonal/mystery-shopping" },
       ]},
       { type: "group", label: "Internal Management", children: [
@@ -301,7 +304,7 @@ export const MODULE_CONFIG: ParentModule[] = [
           { title: "ICT Support Register", view: "state-ict-support", path: "/zonal/ict/support", navLabel: "Support" },
         ]},
         { type: "group", label: "SERVICOM", children: [
-          { title: "Charter Performance", view: "servicom-comment-card", path: "/zonal/servicom/comment-card" },
+          { title: "Charter Performance", view: "servicom-comment-card", path: "/zonal/servicom/comment-card", navLabel: "Citizens' Comment Card" },
           { title: "HCF Customer Satisfaction Survey", view: "servicom-satisfaction", path: "/zonal/servicom/satisfaction", navLabel: "Satisfaction Survey" },
         ]},
       ]},

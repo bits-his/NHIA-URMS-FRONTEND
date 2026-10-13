@@ -34,7 +34,7 @@ interface Props {
 
 const SEGMENT_LABELS: Record<string, string> = {
   surveys: "Satisfaction Surveys",
-  comment_cards: "Charter Comment Cards",
+  comment_cards: "Citizens' Comment Cards",
   complaints: "Complaints",
   visits: "Monitoring Visits",
 };

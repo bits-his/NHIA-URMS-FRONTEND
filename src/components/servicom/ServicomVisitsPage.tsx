@@ -203,8 +203,8 @@ export default function ServicomVisitsPage({ onBack, defaultStateId, defaultZone
                               <Badge className={`text-[10px] px-2 py-0.5 border ${sc.cls}`}>{sc.label}</Badge>
                             </TableCell>
                             <TableCell className="text-right">
-                              <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => openView(v.id)}>
-                                <Eye className="w-3.5 h-3.5" />
+                              <Button variant="ghost" size="sm" className="h-7 gap-1 px-2" onClick={() => openView(v.id)}>
+                                <Eye className="w-3.5 h-3.5" /> View
                               </Button>
                             </TableCell>
                           </motion.tr>

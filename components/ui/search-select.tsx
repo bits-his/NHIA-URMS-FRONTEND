@@ -22,6 +22,8 @@ interface SearchSelectProps {
   id?: string;
   clearable?: boolean;
   onSearchChange?: (query: string) => void;
+  /** Shown when value is empty or not present in options (e.g. auto-filled name). */
+  displayLabel?: string;
 }
 
 export function SearchSelect({
@@ -35,6 +37,7 @@ export function SearchSelect({
   id,
   clearable = false,
   onSearchChange,
+  displayLabel,
 }: SearchSelectProps) {
   const [open, setOpen] = React.useState(false);
   const [query, setQuery] = React.useState("");
@@ -44,6 +47,8 @@ export function SearchSelect({
   const searchRef = React.useRef<HTMLInputElement>(null);
 
   const selected = options.find(o => o.value === value);
+  const shownLabel = selected?.label || displayLabel || "";
+  const hasSelection = Boolean(selected || (displayLabel && displayLabel.trim()));
 
   const filtered = React.useMemo(() => {
     if (!query.trim()) return options;
@@ -206,12 +211,12 @@ export function SearchSelect({
           className,
         )}
       >
-        <span className={cn("flex-1 min-w-0 truncate", !selected && "text-slate-400")}>
-          {selected ? selected.label : placeholder}
+        <span className={cn("flex-1 min-w-0 truncate", !hasSelection && "text-slate-400")}>
+          {hasSelection ? shownLabel : placeholder}
         </span>
 
         <span className="flex items-center gap-1 shrink-0">
-          {clearable && selected && (
+          {clearable && hasSelection && (
             <span
               role="button"
               onClick={handleClear}
