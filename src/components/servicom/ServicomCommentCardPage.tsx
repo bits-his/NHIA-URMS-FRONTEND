@@ -87,6 +87,7 @@ export default function ServicomCommentCardPage({
   const [selected, setSelected] = React.useState<any | null>(null);
   const [loading, setLoading] = React.useState(!createOnly);
   const [saving, setSaving] = React.useState(false);
+  const [showErrors, setShowErrors] = React.useState(false);
   const [zones, setZones] = React.useState<any[]>([]);
   const [filterStates, setFilterStates] = React.useState<any[]>([]);
   const [formStates, setFormStates] = React.useState<any[]>([]);
@@ -208,9 +209,11 @@ export default function ServicomCommentCardPage({
       return;
     }
     if (scoreSummary.answered < COMMENT_CARD_QUESTIONS.length) {
+      setShowErrors(true);
       toast.error("Please answer all questions.");
       return;
     }
+    setShowErrors(false);
     const selectedState = formStates.find((s) => String(s.id) === String(f.state_id));
     const zoneId = f.zone_id || (selectedState?.zone_id != null ? String(selectedState.zone_id) : "");
     if (!zoneId) {
@@ -452,26 +455,33 @@ export default function ServicomCommentCardPage({
           {COMMENT_CARD_QUESTIONS.map((q, i) => {
             const val = responses[q.id] ?? "";
             const options = commentCardScaleOptions(q.scale);
+            const missing = showErrors && !val;
 
             return (
               <div
                 key={q.id}
                 className={`rounded-xl border p-4 md:p-5 transition-colors ${
-                  val ? "border-[#d4e8dc] bg-white" : "border-slate-200 bg-slate-50/50"
+                  missing
+                    ? "border-rose-300 bg-rose-50/50"
+                    : val
+                      ? "border-[#d4e8dc] bg-white"
+                      : "border-slate-200 bg-slate-50/50"
                 }`}
               >
                 <div className="flex items-start gap-3 mb-4">
                   <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#e8f5ee] text-xs font-bold text-[#145c3f]">
                     {i + 1}
                   </span>
-                  <p className="text-sm font-semibold text-slate-800 leading-snug pt-0.5">{q.question}</p>
+                  <p className="text-sm font-semibold text-slate-800 leading-snug pt-0.5">
+                    {q.question} <span className="text-rose-600">*</span>
+                  </p>
                   {val && (
                     <CheckCircle2 className="w-5 h-5 text-[#25a872] shrink-0 ml-auto" />
                   )}
                 </div>
 
-                <fieldset className="pl-10">
-                  <legend className="sr-only">{q.question}</legend>
+                <fieldset className="pl-10" aria-required="true">
+                  <legend className="sr-only">{q.question} (required)</legend>
                   <div className="flex flex-wrap gap-2">
                     {options.map((o) => {
                       const checked = val === o.value;
@@ -489,6 +499,7 @@ export default function ServicomCommentCardPage({
                             type="radio"
                             name={`cc-${q.id}`}
                             value={o.value}
+                            required
                             checked={checked}
                             onChange={() => setResponse(q.id, o.value)}
                             className="sr-only"
@@ -505,6 +516,9 @@ export default function ServicomCommentCardPage({
                       );
                     })}
                   </div>
+                  {missing && (
+                    <p className="mt-2 text-xs font-medium text-rose-600">This question is required.</p>
+                  )}
                 </fieldset>
               </div>
             );
@@ -584,7 +598,7 @@ export default function ServicomCommentCardPage({
         
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={onBack} className="rounded-full"><ArrowLeft className="w-5 h-5" /></Button>
-         <h2 className="text-xl font-bold tracking-tight">Charter  Performance</h2>
+         <h2 className="text-xl font-bold tracking-tight">Citizens&apos; Comment Card</h2>
          </div>
        
          <div className="flex items-center gap-3"> <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">
@@ -711,8 +725,7 @@ export default function ServicomCommentCardPage({
                               className="h-8 text-xs font-semibold gap-1.5 border-[#d4e8dc] hover:bg-[#e8f5ee] hover:text-[#145c3f]"
                               onClick={() => openView(c)}
                             >
-                              View
-                              <Eye className="w-3.5 h-3.5" />
+                              <Eye className="w-3.5 h-3.5" /> View
                             </Button>
                           </TableCell>
                         </motion.tr>

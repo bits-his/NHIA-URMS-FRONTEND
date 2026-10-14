@@ -81,7 +81,43 @@ export const ACTIONS_TAKEN = [
   "Other",
 ].map(v => ({ value: v, label: v }));
 
-export type InvestigationActionEntry = { action: string; other?: string };
+/** Investigation / escalation chain: state → zonal → enforcement (terminal). */
+export type InvestigationTier = "state" | "zonal" | "enforcement";
+
+export type InvestigationActionEntry = {
+  action: string;
+  other?: string;
+  categories?: string[];
+  /** Which tier recorded this action (state → zonal → enforcement). */
+  level?: InvestigationTier;
+};
+
+export const INVESTIGATION_LEVEL_NOTES_ACTION = "__level_notes__";
+
+/** Outcome action that requires one or more sanction categories. */
+export const SANCTION_OUTCOME_ACTION = "Sanction Recommended/Imposed";
+
+export const SANCTION_CATEGORIES = [
+  "Warning",
+  "Monetary penalties",
+  "Suspension",
+  "Withholding release of funds",
+  "Withdrawal of license / accreditation",
+  "Delisting",
+  "Prosecution",
+  "Refund",
+  "Deductions",
+].map((v) => ({ value: v, label: v }));
+
+export function isSanctionOutcomeAction(action: string | null | undefined): boolean {
+  return String(action ?? "").trim() === SANCTION_OUTCOME_ACTION;
+}
+
+function normalizeInvestigationTier(raw: unknown): InvestigationTier | undefined {
+  const v = String(raw ?? "").trim().toLowerCase();
+  if (v === "state" || v === "zonal" || v === "enforcement") return v;
+  return undefined;
+}
 
 export function parseInvestigationActions(raw: string | null | undefined): InvestigationActionEntry[] {
   if (!raw?.trim()) return [];
@@ -90,9 +126,15 @@ export function parseInvestigationActions(raw: string | null | undefined): Inves
     if (Array.isArray(parsed) && parsed.length) {
       return parsed.map((item) => {
         if (typeof item === "string") return { action: item, other: "" };
+        const categories = Array.isArray(item?.categories)
+          ? item.categories.map((c: unknown) => String(c ?? "").trim()).filter(Boolean)
+          : undefined;
+        const level = normalizeInvestigationTier(item?.level);
         return {
           action: String(item?.action ?? "").trim(),
           other: String(item?.other ?? "").trim(),
+          ...(categories?.length ? { categories } : {}),
+          ...(level ? { level } : {}),
         };
       });
     }
@@ -109,20 +151,103 @@ export function serializeInvestigationActions(actions: InvestigationActionEntry[
       .map((a) => ({
         action: a.action.trim(),
         ...(a.action === "Other" && a.other?.trim() ? { other: a.other.trim() } : {}),
+        ...(a.action === INVESTIGATION_LEVEL_NOTES_ACTION && a.other?.trim()
+          ? { other: a.other.trim() }
+          : {}),
+        ...(isSanctionOutcomeAction(a.action) && a.categories?.length
+          ? { categories: a.categories.map((c) => c.trim()).filter(Boolean) }
+          : {}),
+        ...(a.level ? { level: a.level } : {}),
       })),
   );
 }
 
+/** Visible investigation actions (excludes internal notes snapshots). */
+export function visibleInvestigationActions(actions: InvestigationActionEntry[]): InvestigationActionEntry[] {
+  return actions.filter((a) => a.action && a.action !== INVESTIGATION_LEVEL_NOTES_ACTION);
+}
+
+export function notesForInvestigationTier(
+  actions: InvestigationActionEntry[],
+  tier: InvestigationTier,
+  fallbackDetails?: string | null,
+): string {
+  const note = [...actions].reverse().find(
+    (a) => a.action === INVESTIGATION_LEVEL_NOTES_ACTION && a.level === tier && a.other?.trim(),
+  );
+  if (note?.other) return note.other;
+  if (fallbackDetails?.trim()) return fallbackDetails.trim();
+  return "";
+}
+
+/**
+ * Merge prior-tier actions (immutable) with the current tier's working actions + notes.
+ */
+export function mergeInvestigationActionsForTier(opts: {
+  allActions: InvestigationActionEntry[];
+  currentTier: InvestigationTier;
+  currentActions: InvestigationActionEntry[];
+  currentNotes: string;
+}): InvestigationActionEntry[] {
+  const { allActions, currentTier, currentActions, currentNotes } = opts;
+  const prior = allActions.filter((a) => a.level && a.level !== currentTier);
+  const unleveled = allActions.filter((a) => !a.level && a.action !== INVESTIGATION_LEVEL_NOTES_ACTION);
+  // Legacy unleveled actions belong to state when current work is at a higher tier
+  const preservedLegacy = currentTier === "state"
+    ? []
+    : unleveled.map((a) => ({ ...a, level: "state" as InvestigationTier }));
+  const taggedCurrent = currentActions
+    .filter((a) => a.action?.trim() && a.action !== INVESTIGATION_LEVEL_NOTES_ACTION)
+    .map((a) => ({ ...a, level: currentTier }));
+  const notesEntry: InvestigationActionEntry | null = currentNotes.trim()
+    ? { action: INVESTIGATION_LEVEL_NOTES_ACTION, other: currentNotes.trim(), level: currentTier }
+    : null;
+  const basePrior = currentTier === "state"
+    ? allActions.filter((a) => a.level && a.level !== currentTier)
+    : [...preservedLegacy, ...prior.filter((a) => a.level !== currentTier)];
+  return [...basePrior, ...taggedCurrent, ...(notesEntry ? [notesEntry] : [])];
+}
+
+/** Prior tiers that already recorded investigation work (for read-only history). */
+export function priorInvestigationTiers(
+  actions: InvestigationActionEntry[],
+  currentTier: InvestigationTier,
+): InvestigationTier[] {
+  const order: InvestigationTier[] = ["state", "zonal", "enforcement"];
+  const currentIdx = order.indexOf(currentTier);
+  return order.filter((tier, idx) => {
+    if (idx >= currentIdx) return false;
+    const tierActions = actions.filter((a) => (a.level || "state") === tier);
+    return tierActions.some(
+      (a) => a.action
+        && a.action !== INVESTIGATION_LEVEL_NOTES_ACTION
+        && a.action !== "Investigation commenced",
+    ) || tierActions.some(
+      (a) => a.action === INVESTIGATION_LEVEL_NOTES_ACTION && a.other?.trim(),
+    );
+  });
+}
+
 export function formatInvestigationActionsLabel(raw: string | null | undefined): string {
-  return parseInvestigationActions(raw)
-    .filter((a) => a.action)
-    .map((a) => (a.action === "Other" && a.other ? `Other: ${a.other}` : a.action))
+  return visibleInvestigationActions(parseInvestigationActions(raw))
+    .map((a) => {
+      if (a.action === "Other" && a.other) return `Other: ${a.other}`;
+      if (isSanctionOutcomeAction(a.action) && a.categories?.length) {
+        return `${a.action} (${a.categories.join(", ")})`;
+      }
+      return a.action;
+    })
     .join("; ") || "—";
+}
+
+export function extractSanctionCategories(raw: string | null | undefined): string[] {
+  const entry = parseInvestigationActions(raw).find((a) => isSanctionOutcomeAction(a.action));
+  return entry?.categories ?? [];
 }
 
 /** True when investigation has more than the auto "Investigation commenced" starter. */
 export function hasSubstantiveInvestigationActions(raw: string | null | undefined): boolean {
-  const actions = parseInvestigationActions(raw).filter((a) => a.action);
+  const actions = visibleInvestigationActions(parseInvestigationActions(raw));
   if (!actions.length) return false;
   if (actions.length === 1 && actions[0].action === "Investigation commenced") return false;
   return true;
@@ -130,9 +255,7 @@ export function hasSubstantiveInvestigationActions(raw: string | null | undefine
 
 export const ESCALATION_LEVELS = [
   "Zonal Office",
-  "State Coordinator",
   "Enforcement Department",
-  "Others",
 ].map(v => ({ value: v, label: v }));
 
 /** Stored in escalated_to when level is Enforcement Department — whole dept is notified. */
@@ -141,6 +264,12 @@ export const ENFORCEMENT_ESCALATION_TARGET = "Enforcement Department";
 export const STATE_COORDINATOR_ESCALATION_TARGET = "State Coordinator";
 /** Stored in escalated_to when level is Zonal Office — zonal coordinators for that zone are notified. */
 export const ZONAL_COORDINATOR_ESCALATION_TARGET = "Zonal Office";
+
+export const INVESTIGATION_TIER_LABELS: Record<InvestigationTier, string> = {
+  state: "State",
+  zonal: "Zonal Office",
+  enforcement: "Enforcement Department",
+};
 
 export function isEnforcementEscalationTarget(value: string | null | undefined) {
   const raw = String(value || "").trim().toLowerCase();
@@ -169,23 +298,57 @@ export function isRoleEscalationInbox(value: string | null | undefined) {
     || isZonalCoordinatorEscalationTarget(value);
 }
 
+/**
+ * Where the complaint currently sits for investigation:
+ * Enforcement inbox → enforcement; Zonal Office inbox → zonal; otherwise state.
+ */
+export function investigationTierOf(
+  row?: { escalated?: boolean; escalated_to?: string | null; escalation_level?: string | null; status?: string } | null,
+): InvestigationTier {
+  if (!row) return "state";
+  const target = String(row.escalated_to || "").trim();
+  const level = String(row.escalation_level || "").trim();
+  if (isEnforcementEscalationTarget(target) || level === "Enforcement Department") return "enforcement";
+  if (isZonalCoordinatorEscalationTarget(target) || level === "Zonal Office") return "zonal";
+  return "state";
+}
+
+/** Next escalation target from the current investigation tier (null = cannot escalate). */
+export function nextEscalationFromTier(tier: InvestigationTier): {
+  level: string;
+  target: string;
+} | null {
+  if (tier === "state") {
+    return { level: "Zonal Office", target: ZONAL_COORDINATOR_ESCALATION_TARGET };
+  }
+  if (tier === "zonal") {
+    return { level: "Enforcement Department", target: ENFORCEMENT_ESCALATION_TARGET };
+  }
+  return null;
+}
+
+/** Escalation level options allowed while investigating at this tier. */
+export function escalationLevelsForTier(tier: InvestigationTier) {
+  const next = nextEscalationFromTier(tier);
+  if (!next) return [];
+  return [{ value: next.level, label: next.level }];
+}
+
 export const ESCALATED_TO = [
   "ENF", "SQA", "FSD", "ISD", "LEGAL", "NHIA Headquarters", "Other Regulatory Authority",
 ].map(v => ({ value: v, label: v }));
 
 /** Outcomes available at State level (investigation / resolution). */
 export const STATE_COMPLAINT_OUTCOMES = [
-  "Complaint Upheld",
-  "Partially Upheld",
-  "Not Upheld",
+  "Complaint Upheld / Resolved",
+  "Notify Complainant and Provide Clarification",
   "Withdrawn",
   "Other (Specify)",
 ].map((v) => ({ value: v, label: v }));
 
 /** Outcomes available at Head Office / Enforcement Department. */
 export const HQ_COMPLAINT_OUTCOMES = [
-  "Complaint Upheld",
-  "Partially Upheld",
+  "Complaint Upheld / Resolved",
   "Not Upheld",
   "Withdrawn",
 ].map((v) => ({ value: v, label: v }));
@@ -199,9 +362,21 @@ export function outcomesForScope(scope: "state" | "hq") {
 
 /**
  * Outcomes/Action(s) Taken per outcome — multi-select.
- * Columns from the register matrix: Upheld | Partially Upheld | Not Upheld | Withdrawn.
+ * Columns from the register matrix: Upheld / Resolved | Not Upheld | Withdrawn.
+ * Legacy "Partially Upheld" / "Complaint Upheld" keys kept for existing records.
  */
 export const OUTCOME_ACTIONS: Record<string, string[]> = {
+  "Complaint Upheld / Resolved": [
+    "Sanction Recommended/Imposed",
+    "Refund Processed",
+    "Corrective Action Plan",
+    "Service Restoration",
+    "Written Warning",
+    "Regulatory/Disciplinary Referral",
+    "Follow-up Monitoring",
+    "Approval/Authorization Granted",
+    "Compliance Notice Issued",
+  ],
   "Complaint Upheld": [
     "Sanction Recommended/Imposed",
     "Refund Processed",
@@ -243,6 +418,7 @@ export function normalizeOutcome(outcome: string | null | undefined): string {
   const raw = String(outcome ?? "").trim();
   if (!raw) return "";
   const aliases: Record<string, string> = {
+    "Complaint Upheld": "Complaint Upheld / Resolved",
     "Complaint Partially Upheld": "Partially Upheld",
     "Complaint Not Upheld": "Not Upheld",
     "Complaint Withdrawn": "Withdrawn",
@@ -436,6 +612,14 @@ export const INVESTIGATION_STATUSES = [
   "Resolved",
   "Closed",
 ].map((v) => ({ value: v, label: v }));
+
+/** Investigation outcome statuses for the current tier (Enforcement cannot escalate). */
+export function investigationStatusesForTier(tier: InvestigationTier) {
+  if (tier === "enforcement") {
+    return INVESTIGATION_STATUSES.filter((s) => s.value !== "Escalated");
+  }
+  return INVESTIGATION_STATUSES;
+}
 
 /** Investigation statuses that close the complaint immediately (skip escalation & resolution). */
 export const INVESTIGATION_CLOSING_STATUSES = ["Resolved", "Closed"];

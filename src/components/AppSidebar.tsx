@@ -78,7 +78,18 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { ENROLMENT_DRIVE_TYPES, enrolmentDriveView, enrolmentDrivePath } from "@/src/components/stateOffice/enrolmentDriveTypes";
+import {
+  ENROLMENT_DRIVES_VIEW,
+  ENROLMENT_DRIVES_PATH,
+  ENROLMENT_DRIVE_TYPES,
+  enrolmentDriveView,
+} from "@/src/components/stateOffice/enrolmentDriveTypes";
+import {
+  STAKEHOLDER_MANAGEMENT_VIEW,
+  STAKEHOLDER_MANAGEMENT_PATH,
+  PROVIDER_MANAGEMENT_VIEW,
+  PROVIDER_MANAGEMENT_PATH,
+} from "@/src/components/stateOffice/enrolmentPillarTypes";
 import type { AccessEntry } from "@/src/access/types";
 import {
   MODULE_CONFIG,
@@ -221,7 +232,12 @@ const ICON_MAP: Record<string, React.ElementType> = {
   "Special Project": FolderKanban,
   "STATE OFFICE COORDINATION": Building,
   "Monitoring Visits": MapPin,
+  "HMO Indebtedness": Wallet,
   "HMO Indebtedness Collation": Wallet,
+  "PHI Reconciliation": Wallet,
+  "FFS Reconciliation": Wallet,
+  "Capitation Reconciliation": Wallet,
+  "Reconciliation Master Sheet": Wallet,
   "Mystery Shopping": Search,
   "Operational Monitoring Visit": MapPin,
   "Operation Monitoring Visit": MapPin,
@@ -232,6 +248,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
   "Customer Satisfaction Survey": TrendingUp,
   "HCF Customer Satisfaction Survey": TrendingUp,
   "Charter Performance": Megaphone,
+  "Citizens' Comment Card": Megaphone,
   "Satisfaction Ratings": TrendingUp,
   "Comment Cards": Megaphone,
   "SERVICOM Dashboard": Activity,
@@ -268,7 +285,12 @@ const VIEW_TO_PATH: Record<string, string> = {
   "state-adhoc-special-assignment": "/sdo/projects",
   "state-extra-dependant": "/zonal/beneficiary/extra-dependant",
   "state-weekly-compliance": "/zonal/weekly-compliance",
-  ...Object.fromEntries(ENROLMENT_DRIVE_TYPES.map((t) => [enrolmentDriveView(t.key), enrolmentDrivePath(t.key)])),
+  [ENROLMENT_DRIVES_VIEW]: ENROLMENT_DRIVES_PATH,
+  [STAKEHOLDER_MANAGEMENT_VIEW]: STAKEHOLDER_MANAGEMENT_PATH,
+  [PROVIDER_MANAGEMENT_VIEW]: PROVIDER_MANAGEMENT_PATH,
+  ...Object.fromEntries(
+    ENROLMENT_DRIVE_TYPES.map((t) => [enrolmentDriveView(t.key), `${ENROLMENT_DRIVES_PATH}?type=${t.key}`]),
+  ),
   "state-hcf-change": "/zonal/beneficiary/hcf-change",
   "state-ict-support": "/zonal/ict/support",
   "state-office-meeting": "/zonal/admin-hr/office-meeting",
@@ -286,6 +308,10 @@ const VIEW_TO_PATH: Record<string, string> = {
   "state-infractions": "/zonal/admin-hr/conflict-infraction",
   "servicom-visits": "/zonal/monitoring-visits",
   "state-hmo-indebtedness": "/zonal/hmo-indebtedness",
+  "state-hmo-recon-phi": "/zonal/hmo-indebtedness/phi",
+  "state-hmo-recon-ffs": "/zonal/hmo-indebtedness/ffs",
+  "state-hmo-recon-cap": "/zonal/hmo-indebtedness/cap",
+  "state-hmo-master": "/zonal/hmo-indebtedness/master",
   "state-mystery-shopping": "/zonal/mystery-shopping",
   "servicom-complaints": "/sdo/servicom/complaints",
   "zonal-complaints-register": "/zonal/complaints-register",

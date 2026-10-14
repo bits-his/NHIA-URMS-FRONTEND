@@ -10,6 +10,13 @@ export function isDeptZonalCoordinator(role: string) {
   return role === "zonal-coordinator" || role.endsWith("-zonal-coordinator");
 }
 
+export function isDeptComplaintOfficer(role: string) {
+  const r = String(role || "").toLowerCase().replace(/_/g, "-");
+  return r === "complaint-officer"
+    || r.endsWith("-complaint-officer")
+    || r.includes("complaint-officer");
+}
+
 export function reviewChainFromConfig(
   role: string,
   roleConfig?: { report_scope?: string; can_create_monthly?: boolean; can_review_monthly?: boolean } | null,

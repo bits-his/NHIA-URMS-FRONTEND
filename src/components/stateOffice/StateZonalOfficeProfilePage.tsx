@@ -677,10 +677,10 @@ export default function StateZonalOfficeProfilePage({ onBack, defaultStateId, de
                           <TableCell className="text-right whitespace-nowrap">
                             <Button
                               variant="ghost" size="sm"
-                              className="h-7 w-7 p-0 text-slate-400 hover:text-primary hover:bg-primary/10"
+                              className="h-7 gap-1 px-2 text-slate-500 hover:text-primary hover:bg-primary/10"
                               onClick={() => openView(row)}
                             >
-                              <Eye className="w-3.5 h-3.5" />
+                              <Eye className="w-3.5 h-3.5" /> View
                             </Button>
                           </TableCell>
                         </motion.tr>

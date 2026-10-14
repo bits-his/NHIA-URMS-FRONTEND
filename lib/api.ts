@@ -885,6 +885,47 @@ export const stateOfficeHmoIndebtednessApi = {
     }),
 };
 
+export const stateOfficeHmoReconApi = {
+  list: (filters?: {
+    state_id?: string; zone_id?: string; year?: string; month?: string; status?: string;
+    stream?: string; hmo?: string;
+  }) =>
+    request<{ success: boolean; data: any[] }>(
+      `/state-office/hmo-reconciliation${stateOfficeFilters(filters)}`
+    ),
+  get: (id: number | string) =>
+    request<{ success: boolean; data: any }>(`/state-office/hmo-reconciliation/${id}`),
+  create: (payload: any) =>
+    request<{ success: boolean; data: any }>("/state-office/hmo-reconciliation", {
+      method: "POST", body: JSON.stringify(payload),
+    }),
+  update: (id: number | string, payload: any) =>
+    request<{ success: boolean; data: any }>(`/state-office/hmo-reconciliation/${id}`, {
+      method: "PUT", body: JSON.stringify(payload),
+    }),
+};
+
+export const stateOfficeHmoMasterApi = {
+  compiled: (filters?: { state_id?: string; zone_id?: string; year?: string; month?: string }) =>
+    request<{ success: boolean; data: any[] }>(
+      `/state-office/hmo-master/compiled${stateOfficeFilters(filters)}`
+    ),
+  list: (filters?: { state_id?: string; zone_id?: string; year?: string; month?: string; status?: string }) =>
+    request<{ success: boolean; data: any[] }>(
+      `/state-office/hmo-master${stateOfficeFilters(filters)}`
+    ),
+  get: (id: number | string) =>
+    request<{ success: boolean; data: any }>(`/state-office/hmo-master/${id}`),
+  create: (payload: any) =>
+    request<{ success: boolean; data: any }>("/state-office/hmo-master", {
+      method: "POST", body: JSON.stringify(payload),
+    }),
+  update: (id: number | string, payload: any) =>
+    request<{ success: boolean; data: any }>(`/state-office/hmo-master/${id}`, {
+      method: "PUT", body: JSON.stringify(payload),
+    }),
+};
+
 export const stateOfficeMysteryShoppingApi = {
   list: (filters?: { state_id?: string; zone_id?: string; year?: string; month?: string; status?: string }) =>
     request<{ success: boolean; data: any[] }>(

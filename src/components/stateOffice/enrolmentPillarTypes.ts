@@ -46,6 +46,11 @@ export const ENROLMENT_PILLAR_CHILDREN: PillarChild[] = [
   },
 ];
 
+/** Single sidebar / privilege title for all stakeholder management activities. */
+export const STAKEHOLDER_MANAGEMENT_NAV_TITLE = "Stakeholder Management";
+export const STAKEHOLDER_MANAGEMENT_VIEW = "state-stakeholder-management";
+export const STAKEHOLDER_MANAGEMENT_PATH = "/zonal/stakeholder-management";
+
 /** Image pillar 4 — STAKEHOLDER MANAGEMENT (Monthly · ISD/PRSD) */
 export const STAKEHOLDER_PILLAR_CHILDREN: PillarChild[] = [
   {
@@ -81,6 +86,11 @@ export const STAKEHOLDER_PILLAR_CHILDREN: PillarChild[] = [
     status: "ready",
   },
 ];
+
+/** Single sidebar / privilege title for all provider management activities. */
+export const PROVIDER_MANAGEMENT_NAV_TITLE = "Provider Management";
+export const PROVIDER_MANAGEMENT_VIEW = "state-provider-management";
+export const PROVIDER_MANAGEMENT_PATH = "/zonal/provider-management";
 
 /** Image pillar 5 — PROVIDER MANAGEMENT (Quarterly · SQA) */
 export const PROVIDER_PILLAR_CHILDREN: PillarChild[] = [

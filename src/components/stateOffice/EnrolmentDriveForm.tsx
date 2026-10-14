@@ -20,7 +20,12 @@ import {
   parseSupportingDocuments,
 } from "./constants";
 import {
-  enrolmentDriveConfig, ENROLMENT_DRIVE_TYPES, type EnrolmentDriveCategory, type EnrolmentDriveReportType,
+  enrolmentDriveConfig,
+  enrolmentDriveReportType,
+  ENROLMENT_DRIVE_TYPES,
+  type EnrolmentDriveCategory,
+  type EnrolmentDriveKey,
+  type EnrolmentDriveReportType,
 } from "./enrolmentDriveTypes";
 
 function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
@@ -119,7 +124,7 @@ function MultiSelectField({
   };
 
   return (
-    <div className="space-y-1 md:col-span-3" ref={rootRef}>
+    <div className="space-y-1 md:col-span-2" ref={rootRef}>
       <Label>{label}</Label>
       <div className="relative">
         <button
@@ -191,10 +196,26 @@ function MultiSelectField({
 }
 
 export default function EnrolmentDriveForm({ reportType, reportId, onBack, onCancel, onSubmitted, defaultZoneId, defaultStateId }: Props) {
-  const config = enrolmentDriveConfig(reportType) ?? ENROLMENT_DRIVE_TYPES[0];
+  const initialKey =
+    (enrolmentDriveConfig(reportType)?.key as EnrolmentDriveKey | undefined) ?? ENROLMENT_DRIVE_TYPES[0].key;
+  const [driveKey, setDriveKey] = React.useState<EnrolmentDriveKey>(initialKey);
+  React.useEffect(() => {
+    const key = enrolmentDriveConfig(reportType)?.key as EnrolmentDriveKey | undefined;
+    if (key) setDriveKey(key);
+  }, [reportType]);
+  const activeReportType = enrolmentDriveReportType(driveKey);
+  const config = enrolmentDriveConfig(activeReportType) ?? ENROLMENT_DRIVE_TYPES[0];
   const categories = config.categories;
   const activityCode = (label: string) => codeIn(categories, label);
-  const freshEntry = (): Entry => ({ ...blank(), activity_category: categories[0]?.label ?? "" });
+  const formatCategory = (label: string) => {
+    if (!label) return "";
+    const code = activityCode(label);
+    return code ? `${label} - ${code}` : label;
+  };
+  const freshEntry = React.useCallback(
+    (): Entry => ({ ...blank(), activity_category: categories[0]?.label ?? "" }),
+    [categories],
+  );
   const [plannedActivities, setPlannedActivities] = React.useState("");
   const [lines, setLines] = React.useState<(Entry & { _key: string })[]>([]);
   const [entry, setEntry] = React.useState<Entry>(freshEntry);
@@ -204,6 +225,20 @@ export default function EnrolmentDriveForm({ reportType, reportId, onBack, onCan
   linesRef.current = lines;
 
   const set = <K extends keyof Entry>(k: K, v: Entry[K]) => setEntry((p) => ({ ...p, [k]: v }));
+
+  const changeDriveType = (key: EnrolmentDriveKey) => {
+    if (key === driveKey) return;
+    const nextCats = ENROLMENT_DRIVE_TYPES.find((t) => t.key === key)?.categories ?? [];
+    setDriveKey(key);
+    setEditingKey(null);
+    setEntry({ ...blank(), activity_category: nextCats[0]?.label ?? "" });
+    if (linesRef.current.length > 0) {
+      linesRef.current = [];
+      setLines([]);
+      toast.message("Activities cleared", { description: "Activity list reset for the new drive type." });
+    }
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
 
   const isBudgeted = entry.funding_option === ENROLMENT_DRIVE_BUDGETED;
   const locationNames = ENROLMENT_DRIVE_LOCATIONS[entry.location_category] ?? [];
@@ -269,7 +304,7 @@ export default function EnrolmentDriveForm({ reportType, reportId, onBack, onCan
   const afterPersist = async ({ id }: { id: number }) => {
     const pending = linesRef.current.filter((l) => l.supportingFiles.length > 0);
     if (!pending.length) return;
-    const res = await stateOfficeApi[reportType].get(id);
+    const res = await stateOfficeApi[activeReportType].get(id);
     const saved: any[] = res.data?.lines ?? [];
     const used = new Set<number>();
     for (const line of pending) {
@@ -281,7 +316,7 @@ export default function EnrolmentDriveForm({ reportType, reportId, onBack, onCan
       );
       if (!match) continue;
       used.add(match.id);
-      await stateOfficeApi[reportType].uploadLineFiles(id, match.id, line.supportingFiles);
+      await stateOfficeApi[activeReportType].uploadLineFiles(id, match.id, line.supportingFiles);
     }
     const cleared = linesRef.current.map((l) => ({ ...l, supportingFiles: [] as File[] }));
     linesRef.current = cleared;
@@ -290,18 +325,23 @@ export default function EnrolmentDriveForm({ reportType, reportId, onBack, onCan
 
   return (
     <StateOfficeFormShell
-      reportType={reportType}
+      reportType={activeReportType}
       reportId={reportId}
       onBack={onBack}
       onCancel={onCancel}
       onSubmitted={onSubmitted}
       defaultZoneId={defaultZoneId}
       defaultStateId={defaultStateId}
-      pageTitle={config.title}
+      pageTitle="Enrolment Drives"
+      pageSubtitle={config.title}
       hideFooterActions
       onLoaded={loadData}
       afterPersist={afterPersist}
-      validate={() => (linesRef.current.length === 0 ? `Add at least one ${config.title} activity` : null)}
+      validate={() => {
+        if (!driveKey) return "Select an enrolment drive type";
+        if (linesRef.current.length === 0) return `Add at least one ${config.title} activity`;
+        return null;
+      }}
       buildPayload={(base) => ({
         ...base,
         planned_activities: numOrNull(plannedActivities) ?? linesRef.current.length,
@@ -317,34 +357,55 @@ export default function EnrolmentDriveForm({ reportType, reportId, onBack, onCan
         })),
       })}
     >
-      {({ submitting, persist, requestSubmit }) => (
+      {({ submitting, persist, requestSubmit, savedId }) => {
+        const typeLocked = !!reportId || !!savedId;
+        return (
         <div className="space-y-4">
           <Card className="rounded-2xl border-[#d4e8dc]">
             <CardHeader className="pb-2">
               <CardTitle className="text-base">{config.title} Activities</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid md:grid-cols-3 gap-3">
+              <div className="grid md:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label>Enrolment Drive Type *</Label>
+                  <Select
+                    value={driveKey}
+                    onValueChange={(v) => changeDriveType(v as EnrolmentDriveKey)}
+                    disabled={typeLocked}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select drive type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ENROLMENT_DRIVE_TYPES.map((t) => (
+                        <SelectItem key={t.key} value={t.key}>{t.title}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
                 <div className="space-y-1">
                   <Label>Activity Category *</Label>
                   <Select value={entry.activity_category} onValueChange={(v) => set("activity_category", v)}>
-                    <SelectTrigger><SelectValue placeholder="Select activity" /></SelectTrigger>
+                    <SelectTrigger
+                      displayValue={
+                        entry.activity_category
+                          ? formatCategory(entry.activity_category)
+                          : "Select activity"
+                      }
+                    >
+                      <SelectValue placeholder="Select activity" />
+                    </SelectTrigger>
                     <SelectContent>
-                      {categories.map((a) => <SelectItem key={a.label} value={a.label}>{a.code} — {a.label}</SelectItem>)}
+                      {categories.map((a) => (
+                        <SelectItem key={a.label} value={a.label}>{a.label} - {a.code}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
-                </div>~
-                <div className="space-y-1">
-                  <Label>Enrolment Drive ID</Label>
-                  <Input value={activityCode(entry.activity_category)} readOnly placeholder="Auto" className="bg-slate-50" />
                 </div>
                 <div className="space-y-1">
                   <Label>Activity Date *</Label>
                   <Input type="date" value={entry.activity_date} onChange={(e) => set("activity_date", e.target.value)} />
-                </div>
-                <div className="space-y-1 md:col-span-2">
-                  <Label>Specific Activity Carried Out</Label>
-                  <Input value={entry.specific_activity} onChange={(e) => set("specific_activity", e.target.value)} />
                 </div>
                 <div className="space-y-1">
                   <Label>Funding Option</Label>
@@ -354,6 +415,10 @@ export default function EnrolmentDriveForm({ reportType, reportId, onBack, onCan
                       {ENROLMENT_DRIVE_FUNDING_OPTIONS.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
                     </SelectContent>
                   </Select>
+                </div>
+                <div className="space-y-1 md:col-span-2">
+                  <Label>Specific Activity Carried Out</Label>
+                  <Input value={entry.specific_activity} onChange={(e) => set("specific_activity", e.target.value)} />
                 </div>
                 {isBudgeted && (
                   <>
@@ -406,7 +471,7 @@ export default function EnrolmentDriveForm({ reportType, reportId, onBack, onCan
                   onChange={(v) => set("programs_supported", v)}
                   placeholder="Select programs"
                 />
-                <div className="space-y-1 md:col-span-3">
+                <div className="space-y-1 md:col-span-2">
                   <Label>Activity Details</Label>
                   <Textarea rows={2} value={entry.activity_details} onChange={(e) => set("activity_details", e.target.value)} />
                 </div>
@@ -447,7 +512,7 @@ export default function EnrolmentDriveForm({ reportType, reportId, onBack, onCan
                     <p className="text-xs text-slate-500">Saved: {entry.supporting_documents.map((d) => d.name).join(", ")}</p>
                   )}
                 </div>
-                <div className="space-y-1 md:col-span-3">
+                <div className="space-y-1 md:col-span-2">
                   <Label>Remarks / Observations</Label>
                   <Textarea rows={2} value={entry.remarks} onChange={(e) => set("remarks", e.target.value)} />
                 </div>
@@ -469,7 +534,7 @@ export default function EnrolmentDriveForm({ reportType, reportId, onBack, onCan
                           <TableCell className="text-xs font-mono">{activityCode(l.activity_category) || "—"}</TableCell>
                           <TableCell className="text-sm whitespace-nowrap">{l.activity_date || "—"}</TableCell>
                           <TableCell className="text-sm font-medium">
-                            {l.activity_category}
+                            {formatCategory(l.activity_category)}
                             {l.specific_activity && <div className="text-xs text-slate-500">{l.specific_activity}</div>}
                           </TableCell>
                           <TableCell className="text-xs">{l.funding_option || "—"}</TableCell>
@@ -533,7 +598,8 @@ export default function EnrolmentDriveForm({ reportType, reportId, onBack, onCan
             </CardContent>
           </Card>
         </div>
-      )}
+        );
+      }}
     </StateOfficeFormShell>
   );
 }

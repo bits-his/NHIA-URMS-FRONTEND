@@ -21,7 +21,16 @@ interface Props {
 type CachedOption = SearchSelectOption & {
   address?: string | null;
   facility_type?: string | null;
+  name?: string;
+  code?: string;
 };
+
+function formatProviderLabel(name: string, code?: string | null) {
+  const n = String(name || "").trim();
+  const c = String(code || "").trim();
+  if (n && c) return `${n} - ${c}`;
+  return n || c;
+}
 
 export default function AccreditedProviderSelect({
   type, stateId, value, onChange, disabled, placeholder,
@@ -52,10 +61,13 @@ export default function AccreditedProviderSelect({
         limit: type === "hmo" ? "100" : "200",
       });
       const opts = res.data.map((p: any) => {
+        const code = p.provider_code || p.code || "";
         const o: CachedOption = {
           value: String(p.id),
-          label: p.name,
-          sub: p.provider_code,
+          label: formatProviderLabel(p.name, code),
+          sub: code || undefined,
+          name: p.name,
+          code,
           address: p.address ?? null,
           facility_type: p.facility_type ?? null,
         };
@@ -102,13 +114,13 @@ export default function AccreditedProviderSelect({
       onChange(null);
       return;
     }
-    const opt = cacheRef.current.get(id) ?? options.find((o) => o.value === id);
+    const opt = (cacheRef.current.get(id) ?? options.find((o) => o.value === id)) as CachedOption | undefined;
     onChange({
       id,
-      name: opt?.label ?? "",
-      code: opt?.sub ?? "",
-      address: (opt as CachedOption | undefined)?.address ?? null,
-      facility_type: (opt as CachedOption | undefined)?.facility_type ?? null,
+      name: opt?.name ?? opt?.label ?? "",
+      code: opt?.code ?? opt?.sub ?? "",
+      address: opt?.address ?? null,
+      facility_type: opt?.facility_type ?? null,
     });
   };
 

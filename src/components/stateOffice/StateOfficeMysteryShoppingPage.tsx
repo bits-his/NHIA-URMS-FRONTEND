@@ -743,8 +743,8 @@ export default function StateOfficeMysteryShoppingPage({ onBack, defaultStateId,
                           <TableCell className="text-xs font-mono">{(v.enrollee_score_1 || 0) + (v.enrollee_score_2 || 0) + (v.enrollee_score_3 || 0)}/{ENROLLEE_MAX * 3}</TableCell>
                           <TableCell className="text-xs">{v.state?.description ?? "—"}</TableCell>
                           <TableCell>
-                            <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openView(v)}>
-                              <Eye className="w-4 h-4 text-[#145c3f]" />
+                            <Button size="sm" variant="ghost" className="h-8 gap-1.5 px-2 text-[#145c3f]" onClick={() => openView(v)}>
+                              <Eye className="w-4 h-4" /> View
                             </Button>
                           </TableCell>
                         </motion.tr>

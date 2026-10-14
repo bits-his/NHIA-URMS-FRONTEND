@@ -434,10 +434,10 @@ export default function StateOfficeComplaintsPage({ onBack, defaultStateId, defa
                           <TableCell className="font-medium text-sm">{cat.label}</TableCell>
                           <TableCell className="text-right font-bold text-primary">{formatCount(countFor(cat.value))}</TableCell>
                           <TableCell className="text-center">
-                            <Button variant="ghost" size="icon" className="h-8 w-8"
+                            <Button variant="ghost" size="sm" className="h-8 gap-1.5 px-2"
                               onClick={() => openDrilldown("against", cat.value, `${cat.label} — Complaints`)}
                               disabled={countFor(cat.value) === 0}>
-                              <Eye className="w-4 h-4" />
+                              <Eye className="w-4 h-4" /> View
                             </Button>
                           </TableCell>
                         </motion.tr>
@@ -467,10 +467,10 @@ export default function StateOfficeComplaintsPage({ onBack, defaultStateId, defa
                           <TableCell className="font-medium text-sm">{st.label}</TableCell>
                           <TableCell className="text-right font-bold text-primary">{formatCount(countStatus(st.value))}</TableCell>
                           <TableCell className="text-center">
-                            <Button variant="ghost" size="icon" className="h-8 w-8"
+                            <Button variant="ghost" size="sm" className="h-8 gap-1.5 px-2"
                               onClick={() => openDrilldown("status", st.value, `${st.label} Complaints`)}
                               disabled={countStatus(st.value) === 0}>
-                              <Eye className="w-4 h-4" />
+                              <Eye className="w-4 h-4" /> View
                             </Button>
                           </TableCell>
                         </motion.tr>

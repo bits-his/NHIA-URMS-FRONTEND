@@ -15,23 +15,28 @@ import { toast } from "sonner";
 import { useSearchParams } from "react-router-dom";
 import { servicomApi, stockApi } from "@/lib/api";
 import CustomTable, { type CustomTableField } from "@/components/CustomTable";
-import { isDeptReportingOfficer, isDeptStateCoordinator, isDeptZonalCoordinator } from "@/src/access/departmentRoles";
+import { isDeptReportingOfficer, isDeptStateCoordinator, isDeptZonalCoordinator, isDeptComplaintOfficer } from "@/src/access/departmentRoles";
 import { pickGeoLabel, pickLabel } from "./servicomConstants";
 import {
   COMPLAINANT_CATEGORIES,
   TRANSMISSION_ROUTES,
-  PRIORITY_RATINGS, COMPLAINT_STATUSES, ACTIONS_TAKEN, ESCALATION_LEVELS, ESCALATED_TO,
-  ENFORCEMENT_ESCALATION_TARGET, STATE_COORDINATOR_ESCALATION_TARGET, ZONAL_COORDINATOR_ESCALATION_TARGET,
+  PRIORITY_RATINGS, COMPLAINT_STATUSES, ACTIONS_TAKEN, ESCALATED_TO,
+  ENFORCEMENT_ESCALATION_TARGET, ZONAL_COORDINATOR_ESCALATION_TARGET,
   isEnforcementEscalationTarget, isStateCoordinatorEscalationTarget, isZonalCoordinatorEscalationTarget,
   isRoleEscalationInbox,
+  investigationTierOf, nextEscalationFromTier, investigationStatusesForTier,
+  INVESTIGATION_TIER_LABELS, INVESTIGATION_LEVEL_NOTES_ACTION,
+  visibleInvestigationActions, notesForInvestigationTier, mergeInvestigationActionsForTier,
+  priorInvestigationTiers,
   SLA_SUMMARY, domainCodeFromDomain, computeResolutionPreview,
-  slaForPriority, STATUS_BADGE_CLASS, COMPLAINT_LIFECYCLE, INVESTIGATION_STATUSES, INVESTIGATION_CLOSING_STATUSES,
+  slaForPriority, STATUS_BADGE_CLASS, COMPLAINT_LIFECYCLE, INVESTIGATION_CLOSING_STATUSES,
   AWAITING_INVESTIGATION_STATUSES,
   lifecycleStageFromStatus, getStageCompletion, lifecycleStageLabel,
   isComplaintClosed, nextLifecycleStage, isStageReachable,
   slaColorDotClass, computeSlaOverdueDays, slaRowClass,
   previewComplaintNumber,
   parseInvestigationActions, serializeInvestigationActions, formatInvestigationActionsLabel,
+  SANCTION_CATEGORIES, isSanctionOutcomeAction, extractSanctionCategories,
   hasSubstantiveInvestigationActions,
   outcomesForScope, actionsForOutcome, normalizeOutcome,
   type LifecycleStage, type ComplaintSlaRuleRow, type InvestigationActionEntry,
@@ -40,7 +45,7 @@ import { isDirectorEnforcementUser } from "../enforcement/DirectorEnforcementDas
 import {
   COMPLAINT_PARTY_TYPES, respondentsForComplainant, offencesForParties,
   findOffenceById, offenceSelectOptions, partyTypeFromComplainantCategory,
-  OTHER_ISSUE_VALUE,
+  OTHER_ISSUE_VALUE, complaintIssueLabel,
   type PartyType,
 } from "./complaintOffenceGuide";
 import HmoProviderSelect from "./HmoProviderSelect";
@@ -98,6 +103,7 @@ const emptyForm = (defaultZoneId?: string | null, defaultStateId?: string | null
   actions_taken: "",
   investigation_actions: [] as InvestigationActionEntry[],
   outcome_actions: [] as string[],
+  sanction_categories: [] as string[],
   actions_details: "",
   escalated: false,
   escalation_level: "",
@@ -111,6 +117,17 @@ const emptyForm = (defaultZoneId?: string | null, defaultStateId?: string | null
   remarks: "",
   description: "",
 });
+
+function buildOutcomeActionEntries(
+  outcomeActions: string[],
+  sanctionCategories: string[],
+): InvestigationActionEntry[] {
+  return (outcomeActions ?? []).map((action) => (
+    isSanctionOutcomeAction(action)
+      ? { action, other: "", categories: sanctionCategories ?? [] }
+      : { action, other: "" }
+  ));
+}
 
 function rowToForm(row: any) {
   if (!row) return emptyForm();
@@ -153,18 +170,55 @@ function rowToForm(row: any) {
     against_nhis_id: row.respondent_nhis_id ?? row.respondent_id ?? "",
     officer_assigned: row.officer_assigned ?? row.assigned_officer ?? "",
     investigation_start_date: row.investigation_start_date ?? "",
-    status: row.status ?? "New/Acknowledged",
+    status: (() => {
+      const tier = investigationTierOf(row);
+      // Zone / Enforcement receive an Escalated handoff — continue as Under Investigation
+      if (
+        row.status === "Escalated"
+        && (tier === "zonal" || tier === "enforcement")
+      ) {
+        return "Under Investigation";
+      }
+      return row.status ?? "New/Acknowledged";
+    })(),
     actions_taken: row.actions_taken ?? "",
-    investigation_actions: parseInvestigationActions(row.actions_taken),
+    investigation_actions: (() => {
+      const tier = investigationTierOf(row);
+      const all = parseInvestigationActions(row.actions_taken);
+      return visibleInvestigationActions(all).filter((a) => {
+        if (tier === "state") return !a.level || a.level === "state";
+        return a.level === tier;
+      });
+    })(),
     outcome_actions: (() => {
       const outcome = normalizeOutcome(row.outcome);
       const allowed = new Set(actionsForOutcome(outcome));
       if (!allowed.size) return [] as string[];
-      return parseInvestigationActions(row.actions_taken)
+      const tier = investigationTierOf(row);
+      const all = parseInvestigationActions(row.actions_taken);
+      return visibleInvestigationActions(all)
+        .filter((a) => (tier === "state" ? !a.level || a.level === "state" : a.level === tier))
         .map((a) => a.action)
         .filter((a) => allowed.has(a));
     })(),
-    actions_details: row.actions_details ?? "",
+    sanction_categories: (() => {
+      const tier = investigationTierOf(row);
+      const all = parseInvestigationActions(row.actions_taken);
+      const tierActions = visibleInvestigationActions(all).filter((a) => (
+        tier === "state" ? !a.level || a.level === "state" : a.level === tier
+      ));
+      const entry = tierActions.find((a) => isSanctionOutcomeAction(a.action));
+      return entry?.categories ?? [];
+    })(),
+    actions_details: (() => {
+      const tier = investigationTierOf(row);
+      const all = parseInvestigationActions(row.actions_taken);
+      const tierNotes = notesForInvestigationTier(all, tier);
+      if (tierNotes) return tierNotes;
+      // Legacy single notes field belongs to state until a higher tier starts writing
+      if (tier === "state") return row.actions_details ?? "";
+      return "";
+    })(),
     escalated: !!row.escalated || row.status === "Escalated",
     escalation_level: (() => {
       const raw = row.escalation_level === "Not Escalated" ? "" : (row.escalation_level ?? "");
@@ -563,10 +617,13 @@ export default function ServicomComplaintsPage({
   const roleKey = String(userRole ?? "");
   /** Zonal coordinators see every complaint in their zone (zone comes from profile). */
   const isZonalCoordinator = isDeptZonalCoordinator(roleKey) && !!defaultZoneId;
+  const isComplaintOfficer = isDeptComplaintOfficer(roleKey);
+  /** Zonal Office inbox holders: zonal coordinator or complaint officer only. */
+  const canActOnZonalOfficeInbox = isZonalCoordinator || isComplaintOfficer;
   const isNationalRole = ["admin", "sdo", "hq-department"].includes(roleKey)
     || /director/i.test(roleKey)
     || /director/i.test(String(userName ?? ""))
-    || (!defaultStateId && !isZonalCoordinator);
+    || (!defaultStateId && !isZonalCoordinator && !isComplaintOfficer);
   const isEnforcementUser = isDirectorEnforcementUser({
     role: userRole,
     name: userName,
@@ -577,10 +634,6 @@ export default function ServicomComplaintsPage({
     const name = String(userDepartment?.name || "").toLowerCase();
     return code === "ENF" || code === "AUD" || name.includes("enforcement");
   })();
-  /** HQ / national roles that can forward Enforcement Department escalations onward. */
-  const isHqUser = ["hq-department", "admin", "sdo"].includes(roleKey) || isEnforcementUser;
-  const canForwardEnforcementEscalation = (escalatedTo?: string | null) =>
-    isHqUser && isEnforcementEscalationTarget(escalatedTo);
   /** SDO, directors and HQ see every state even on the state-level register. */
   const stateScope = stateScopeProp && !isNationalRole && !isZonalCoordinator;
   const isStateCoordinator =
@@ -659,6 +712,8 @@ export default function ServicomComplaintsPage({
   const [editingActionIdx, setEditingActionIdx] = React.useState<number | null>(null);
   const [outcomeActionDraft, setOutcomeActionDraft] = React.useState("");
   const [editingOutcomeActionIdx, setEditingOutcomeActionIdx] = React.useState<number | null>(null);
+  const [sanctionCategoryDraft, setSanctionCategoryDraft] = React.useState("");
+  const [editingSanctionCategoryIdx, setEditingSanctionCategoryIdx] = React.useState<number | null>(null);
   /** After investigation is submitted, form is locked until user clicks Update. */
   const [investigationEditing, setInvestigationEditing] = React.useState(false);
   const [commentSaving, setCommentSaving] = React.useState(false);
@@ -855,6 +910,7 @@ export default function ServicomComplaintsPage({
         const hay = [
           c.complaint_number, c.complaint_category, c.complaint_domain,
           c.complaint_type, c.officer_assigned, c.status, c.description,
+          c.offence_reference, complaintIssueLabel(c),
         ].filter(Boolean).join(" ").toLowerCase();
         if (!hay.includes(q)) return false;
       }
@@ -940,8 +996,24 @@ export default function ServicomComplaintsPage({
     const status = row?.status ?? "";
     const officerAssigned = !!(row?.officer_assigned || row?.assigned_officer);
     const escalationComplete = !!(row?.escalation_level && row.escalation_level !== "Not Escalated" && row?.escalated_to);
+    const inboxMine = (() => {
+      const target = String(row?.escalated_to || "");
+      if (!target) return false;
+      if (isEnforcementUser && isEnforcementEscalationTarget(target)) return true;
+      if (
+        isZonalCoordinatorEscalationTarget(target)
+        && canActOnZonalOfficeInbox
+        && defaultZoneId
+        && Number(row?.zone_id) === Number(defaultZoneId)
+      ) {
+        return true;
+      }
+      return false;
+    })();
     // Escalated but escalation details incomplete → escalation tab
     if ((row?.escalated || status === "Escalated") && !escalationComplete) return "escalation";
+    // Zone / Enforcement inbox holders continue investigation at their level
+    if (inboxMine && !isComplaintClosed(status)) return "investigation";
     // Escalated and handed off → resolution for the assignee
     if (row?.escalated || status === "Escalated") return "resolution";
     // State coordinator assigns officers on the investigation stage (only way in before assignment)
@@ -999,6 +1071,8 @@ export default function ServicomComplaintsPage({
       setEditingActionIdx(null);
       setOutcomeActionDraft("");
       setEditingOutcomeActionIdx(null);
+      setSanctionCategoryDraft("");
+      setEditingSanctionCategoryIdx(null);
       setInvestigationEditing(false);
       setActiveStage(nextStage);
       setComplaintsQuery({ mode: "manage", id: res.data.id, stage: nextStage });
@@ -1115,14 +1189,37 @@ export default function ServicomComplaintsPage({
     setF(rowToForm(res.data));
   };
 
-  const statusBadge = (status: string, emphasis = false, opts?: { escalatedToMe?: boolean }) => {
-    if (opts?.escalatedToMe) {
+  const escalationDestinationLabel = (row?: { escalated_to?: string | null; escalation_level?: string | null } | null) => {
+    const target = String(row?.escalated_to || row?.escalation_level || "").trim();
+    if (isEnforcementEscalationTarget(target) || target === "Enforcement Department") {
+      return "Escalated to enforcement";
+    }
+    if (isZonalCoordinatorEscalationTarget(target) || target === "Zonal Office") {
+      return "Escalated to zonal office";
+    }
+    return null;
+  };
+
+  const statusBadge = (
+    status: string,
+    emphasis = false,
+    opts?: { escalatedToMe?: boolean; escalatedTo?: string | null; escalationLevel?: string | null },
+  ) => {
+    const destLabel = escalationDestinationLabel({
+      escalated_to: opts?.escalatedTo,
+      escalation_level: opts?.escalationLevel,
+    });
+    if (destLabel && (opts?.escalatedToMe || status === "Escalated" || status?.toLowerCase().includes("escalat"))) {
       return (
         <Badge
           variant="outline"
-          className={`${emphasis ? "text-xs font-black px-2.5 py-1" : "text-[10px] font-semibold"} bg-rose-600 text-white border-rose-600`}
+          className={`${emphasis ? "text-xs font-black px-2.5 py-1" : "text-[10px] font-semibold"} ${
+            opts?.escalatedToMe
+              ? "bg-rose-600 text-white border-rose-600"
+              : "bg-purple-50 text-purple-800 border-purple-200"
+          }`}
         >
-          Escalated to you
+          {destLabel}
         </Badge>
       );
     }
@@ -1335,17 +1432,30 @@ export default function ServicomComplaintsPage({
                 setSaving(false);
                 return;
               }
+              if ((f.outcome_actions ?? []).some(isSanctionOutcomeAction)
+                && !(f.sanction_categories ?? []).length) {
+                toast.error("Select at least one sanction category.");
+                setSaving(false);
+                return;
+              }
               if (!f.remarks?.trim()) {
-                toast.error("Description is required.");
+                toast.error("Reason for the action is required.");
                 setSaving(false);
                 return;
               }
             }
           }
+          const currentTier = investigationTierOf(selected);
+          const nextEscalate = nextEscalationFromTier(currentTier);
           const nextStatus = startingInvestigation ? "Under Investigation" : f.status;
           const closingFromInvestigation =
             !startingInvestigation && INVESTIGATION_CLOSING_STATUSES.includes(nextStatus);
           const escalatingFromInvestigation = !startingInvestigation && nextStatus === "Escalated";
+          if (escalatingFromInvestigation && !nextEscalate) {
+            toast.error("This complaint cannot be escalated further. Resolve or close it.");
+            setSaving(false);
+            return;
+          }
           const resolvedOutcomeValue = f.outcome === "Other (Specify)"
             ? `Other (Specify) — ${f.outcome_other.trim()}`
             : f.outcome;
@@ -1353,25 +1463,39 @@ export default function ServicomComplaintsPage({
             f.outcome === "Withdrawn" || f.outcome === "Complaint Withdrawn"
               ? "Complaint Withdrawn"
               : nextStatus === "Resolved" ? "Resolved" : "Closed";
-          const closingActions = closingFromInvestigation
+          const workingActions = closingFromInvestigation
             ? [
                 ...(f.investigation_actions ?? []),
-                ...(f.outcome_actions ?? []).map((action) => ({ action, other: "" })),
+                ...buildOutcomeActionEntries(f.outcome_actions ?? [], f.sanction_categories ?? []),
               ]
             : (f.investigation_actions ?? []);
+          const existingActions = parseInvestigationActions(selected.actions_taken);
+          const mergedActions = startingInvestigation
+            ? mergeInvestigationActionsForTier({
+                allActions: existingActions,
+                currentTier,
+                currentActions: [{ action: "Investigation commenced", level: currentTier }],
+                currentNotes: f.actions_details || "",
+              })
+            : mergeInvestigationActionsForTier({
+                allActions: existingActions,
+                currentTier,
+                currentActions: workingActions.map((a) => ({ ...a, level: currentTier })),
+                currentNotes: f.actions_details.trim(),
+              });
           payload = {
             officer_assigned: f.officer_assigned,
             investigation_start_date: f.investigation_start_date || selected.investigation_start_date || today,
             status: closingFromInvestigation ? resolvedStatus : nextStatus,
-            actions_taken: startingInvestigation
-              ? serializeInvestigationActions([{ action: "Investigation commenced" }])
-              : serializeInvestigationActions(closingActions),
+            actions_taken: serializeInvestigationActions(mergedActions),
             actions_details: startingInvestigation
               ? (f.actions_details || null)
               : f.actions_details.trim(),
-            ...(escalatingFromInvestigation
+            ...(escalatingFromInvestigation && nextEscalate
               ? {
                   escalated: true,
+                  escalation_level: nextEscalate.level,
+                  escalated_to: nextEscalate.target,
                   escalation_date: f.escalation_date || today,
                 }
               : {}),
@@ -1394,101 +1518,31 @@ export default function ServicomComplaintsPage({
           setSaving(false);
           return;
         }
-        if (!f.escalation_level?.trim()) {
-          toast.error("Select an escalation level.");
+        // Confirm chain target already set on investigation (state→zone, zone→enforcement)
+        let level = String(f.escalation_level || selected.escalation_level || "").trim();
+        let target = String(f.escalated_to || selected.escalated_to || "").trim();
+        if (!level || !target) {
+          toast.error("Escalation target is missing. Set investigation outcome to Escalated first.");
           setSaving(false);
           return;
         }
-        if (f.escalation_level === "Others" && !f.escalation_level_other?.trim()) {
-          toast.error("Describe the escalation level for Others.");
+        if (
+          isEnforcementEscalationTarget(selected.escalated_to)
+          && level === "Enforcement Department"
+          && !isEnforcementEscalationTarget(target)
+        ) {
+          toast.error("Enforcement cannot escalate further. Resolve or close the complaint.");
           setSaving(false);
           return;
         }
-
-        const alreadyAtEnforcement = isEnforcementEscalationTarget(selected.escalated_to);
-        const alreadyAtStateCoordinator = isStateCoordinatorEscalationTarget(selected.escalated_to);
-        const alreadyAtZonalCoordinator = isZonalCoordinatorEscalationTarget(selected.escalated_to);
-        const coordinatorForwarding =
-          (isStateCoordinator && alreadyAtStateCoordinator)
-          || (isZonalCoordinator && alreadyAtZonalCoordinator);
-
-        // HQ / Enforcement forward an Enforcement escalation onward to another department
-        if (canForwardEnforcementEscalation(selected.escalated_to) && alreadyAtEnforcement) {
-          if (!f.escalated_to?.trim() || isRoleEscalationInbox(f.escalated_to)) {
-            toast.error("Select the department to escalate to.");
-            setSaving(false);
-            return;
-          }
-          payload = {
-            escalated: true,
-            escalation_level: selected.escalation_level || "Enforcement Department",
-            escalation_date: f.escalation_date || today,
-            escalated_to: f.escalated_to,
-            escalate_to_department: true,
-            status: "Escalated",
-          };
-        } else if (coordinatorForwarding) {
-          if (!f.forward_department?.trim()) {
-            toast.error("Select the department to escalate to.");
-            setSaving(false);
-            return;
-          }
-          if (!f.escalated_to?.trim() || isRoleEscalationInbox(f.escalated_to)) {
-            toast.error("Select the user to escalate to.");
-            setSaving(false);
-            return;
-          }
-          payload = {
-            escalated: true,
-            escalation_level: selected.escalation_level
-              || (alreadyAtZonalCoordinator ? "Zonal Office" : "State Coordinator"),
-            escalation_date: f.escalation_date || today,
-            escalated_to: f.escalated_to,
-            status: "Escalated",
-          };
-        } else if (f.escalation_level === "Enforcement Department") {
-          payload = {
-            escalated: true,
-            escalation_level: "Enforcement Department",
-            escalation_date: f.escalation_date || today,
-            escalated_to: ENFORCEMENT_ESCALATION_TARGET,
-            escalate_to_department: true,
-            status: "Escalated",
-          };
-        } else if (f.escalation_level === "State Coordinator") {
-          payload = {
-            escalated: true,
-            escalation_level: "State Coordinator",
-            escalation_date: f.escalation_date || today,
-            escalated_to: STATE_COORDINATOR_ESCALATION_TARGET,
-            status: "Escalated",
-          };
-        } else if (f.escalation_level === "Zonal Office") {
-          payload = {
-            escalated: true,
-            escalation_level: "Zonal Office",
-            escalation_date: f.escalation_date || today,
-            escalated_to: ZONAL_COORDINATOR_ESCALATION_TARGET,
-            status: "Escalated",
-          };
-        } else {
-          // Others — escalate to a selected officer
-          if (!f.escalated_to?.trim()) {
-            toast.error("Select the officer to escalate to.");
-            setSaving(false);
-            return;
-          }
-          const levelValue = f.escalation_level === "Others"
-            ? `Others — ${f.escalation_level_other.trim()}`
-            : f.escalation_level;
-          payload = {
-            escalated: true,
-            escalation_level: levelValue,
-            escalation_date: f.escalation_date || today,
-            escalated_to: f.escalated_to,
-            status: "Escalated",
-          };
-        }
+        payload = {
+          escalated: true,
+          escalation_level: level,
+          escalation_date: f.escalation_date || today,
+          escalated_to: target,
+          status: "Escalated",
+          ...(isEnforcementEscalationTarget(target) ? { escalate_to_department: true } : {}),
+        };
       } else if (stage === "resolution") {
         if (!f.outcome) {
           toast.error("Select an outcome.");
@@ -1503,6 +1557,12 @@ export default function ServicomComplaintsPage({
         const outcomeActionOpts = actionsForOutcome(f.outcome);
         if (outcomeActionOpts.length && !(f.outcome_actions ?? []).length) {
           toast.error("Select at least one Outcomes/Action(s) Taken.");
+          setSaving(false);
+          return;
+        }
+        if ((f.outcome_actions ?? []).some(isSanctionOutcomeAction)
+          && !(f.sanction_categories ?? []).length) {
+          toast.error("Select at least one sanction category.");
           setSaving(false);
           return;
         }
@@ -1521,7 +1581,7 @@ export default function ServicomComplaintsPage({
           : f.outcome;
         const resolutionActions = [
           ...(f.investigation_actions ?? []),
-          ...(f.outcome_actions ?? []).map((action) => ({ action, other: "" })),
+          ...buildOutcomeActionEntries(f.outcome_actions ?? [], f.sanction_categories ?? []),
         ];
         payload = {
           date_closed: f.date_closed,
@@ -1569,6 +1629,8 @@ export default function ServicomComplaintsPage({
         setEditingActionIdx(null);
         setOutcomeActionDraft("");
         setEditingOutcomeActionIdx(null);
+        setSanctionCategoryDraft("");
+        setEditingSanctionCategoryIdx(null);
       }
       await refreshSelected();
       if (
@@ -2098,10 +2160,16 @@ export default function ServicomComplaintsPage({
                 <ViewInfoRow label="State" value={stateLabel(row)} />
               </>
             )}
-            {row.description && (
-              <div className="sm:col-span-2 pt-1.5 mt-0.5 border-t border-slate-50">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-0.5">Issue</p>
-                <p className="text-[13px] text-slate-800 whitespace-pre-wrap leading-snug">{row.description}</p>
+            {(row.offence_reference || row.description) && (
+              <div className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-x-5 pt-1.5 mt-0.5 border-t border-slate-50">
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-0.5">Issue</p>
+                  <p className="text-[13px] text-slate-800 leading-snug">{complaintIssueLabel(row)}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-0.5">Description</p>
+                  <p className="text-[13px] text-slate-800 whitespace-pre-wrap leading-snug">{row.description || "—"}</p>
+                </div>
               </div>
             )}
           </div>
@@ -2144,7 +2212,9 @@ export default function ServicomComplaintsPage({
     return (
       <div className="px-4 md:px-5 py-1.5 border-t border-[#d4e8dc] bg-[#f8fbf9] flex flex-wrap items-center gap-x-2.5 gap-y-1">
         {statusBadge(row.status ?? "New/Acknowledged", false, {
-          escalatedToMe: !!row.escalated && isCurrentAssignee(row) && !isComplaintClosed(row.status),
+          escalatedToMe: showEscalatedToMe(row),
+          escalatedTo: row.escalated_to,
+          escalationLevel: row.escalation_level,
         })}
         {row.priority_rating && (
           <>
@@ -2185,48 +2255,24 @@ export default function ServicomComplaintsPage({
   };
 
   const renderEscalationFields = (readOnly: boolean, row?: any) => {
+    const source = row ?? selected;
     const isEscalated = readOnly
-      ? (!!row?.escalated || row?.status === "Escalated")
+      ? (!!source?.escalated || source?.status === "Escalated")
       : (f.status === "Escalated" || !!f.escalated || selected?.status === "Escalated");
+    const tier = investigationTierOf(source);
     const levelValue = readOnly
-      ? (String(row?.escalation_level ?? "").startsWith("Others") ? "Others" : (row?.escalation_level ?? ""))
-      : f.escalation_level;
-    const inboxTarget = readOnly ? (row?.escalated_to ?? "") : (selected?.escalated_to || f.escalated_to || "");
-    const atEnforcement = isEnforcementEscalationTarget(inboxTarget);
-    const atStateCoordinator = isStateCoordinatorEscalationTarget(inboxTarget);
-    const atZonalCoordinator = isZonalCoordinatorEscalationTarget(inboxTarget);
-    const canForwardEnforcement = canForwardEnforcementEscalation(inboxTarget) && atEnforcement && !readOnly;
-    const canForwardAsCoordinator =
-      ((isStateCoordinator && atStateCoordinator) || (isZonalCoordinator && atZonalCoordinator))
-      && !readOnly;
-    const canForward = canForwardEnforcement || canForwardAsCoordinator;
-    const deptOptions = departmentOptions.length ? departmentOptions : ESCALATED_TO;
-    const forwardDeptOptions = canForwardEnforcement
-      ? deptOptions.filter(
-        (d) => !isEnforcementEscalationTarget(d.value) && !isEnforcementEscalationTarget(d.label),
-      )
-      : deptOptions;
-    const roleInboxLevels = new Set(["Enforcement Department", "State Coordinator", "Zonal Office"]);
-    const officersForForward = f.forward_department
-      ? officerOptions.filter((o) => {
-          const code = String(o.department_code || "").toUpperCase();
-          const name = String(o.department || "").toLowerCase();
-          const selectedDept = String(f.forward_department);
-          const selectedUpper = selectedDept.toUpperCase();
-          const selectedLower = selectedDept.toLowerCase();
-          return code === selectedUpper
-            || name.includes(selectedLower)
-            || selectedLower.includes(name)
-            || String(o.label || "").toLowerCase().includes(selectedLower);
-        })
-      : officerOptions;
+      ? (source?.escalation_level ?? "")
+      : (f.escalation_level || source?.escalation_level || "");
+    const inboxTarget = readOnly
+      ? (source?.escalated_to ?? "")
+      : (selected?.escalated_to || f.escalated_to || "");
 
-    if (!isEscalated) {
+    if (!isEscalated && tier === "state") {
       return (
         <div className="col-span-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-3">
           <p className="text-xs text-slate-600 leading-relaxed">
-            Escalation details appear when investigation status is set to{" "}
-            <span className="font-semibold">Escalated</span>.
+            Escalation chain: <span className="font-semibold">State → Zonal Office → Enforcement Department</span>.
+            Set investigation outcome to <span className="font-semibold">Escalated</span> to send to the next level.
           </p>
         </div>
       );
@@ -2234,138 +2280,51 @@ export default function ServicomComplaintsPage({
 
     return (
       <>
-        <FieldSelect
-          label="Escalation Level *"
-          value={levelValue}
-          options={ESCALATION_LEVELS}
-          readOnly={readOnly || canForward}
-          onChange={(v) => setF((p) => ({
-            ...p,
-            escalation_level: v,
-            escalation_level_other: v === "Others" ? p.escalation_level_other : "",
-            forward_department: "",
-            escalated_to: v === "Enforcement Department"
-              ? ENFORCEMENT_ESCALATION_TARGET
-              : v === "State Coordinator"
-                ? STATE_COORDINATOR_ESCALATION_TARGET
-                : v === "Zonal Office"
-                  ? ZONAL_COORDINATOR_ESCALATION_TARGET
-                  : (isRoleEscalationInbox(p.escalated_to) ? "" : p.escalated_to),
-          }))}
-          placeholder="Select escalation level"
+        <div className="col-span-full rounded-lg border border-purple-200 bg-purple-50/70 px-3 py-2.5">
+          <p className="text-xs text-purple-950 leading-relaxed">
+            {tier === "enforcement" ? (
+              <>
+                This complaint is at the <span className="font-semibold">Enforcement Department</span> (final level).
+                Investigate and resolve or close — further escalation is not available.
+              </>
+            ) : tier === "zonal" ? (
+              <>
+                Escalated to <span className="font-semibold">Zonal Office</span>. Investigate here; if needed,
+                escalate only to the <span className="font-semibold">Enforcement Department</span>.
+              </>
+            ) : (
+              <>
+                Escalated to <span className="font-semibold">Zonal Office</span> — zonal coordinator and complaint
+                officers in the reporting officer&apos;s zone are notified.
+              </>
+            )}
+          </p>
+        </div>
+        <AutoField label="Escalation Level" value={levelValue || (tier === "enforcement" ? "Enforcement Department" : "Zonal Office")} />
+        <AutoField
+          label="Escalated To"
+          value={
+            inboxTarget
+            || (tier === "enforcement" ? ENFORCEMENT_ESCALATION_TARGET : ZONAL_COORDINATOR_ESCALATION_TARGET)
+          }
         />
-        {(levelValue === "Others" || (readOnly && String(row?.escalation_level ?? "").startsWith("Others"))) && (
-          readOnly ? (
-            <div className="col-span-full">
-              <AutoField
-                label="Description"
-                value={
-                  String(row?.escalation_level ?? "").startsWith("Others — ")
-                    ? String(row.escalation_level).slice("Others — ".length)
-                    : row?.escalation_level
-                }
-              />
-            </div>
-          ) : (
-            <div className="col-span-full">
-              <FieldText
-                label="Description *"
-                value={f.escalation_level_other}
-                onChange={(v) => set("escalation_level_other", v)}
-                placeholder="Describe the escalation level"
-              />
-            </div>
-          )
-        )}
-
-        {canForwardEnforcement && (
-          <>
-            <AutoField label="Currently escalated to" value={inboxTarget || ENFORCEMENT_ESCALATION_TARGET} />
-            <FieldSelect
-              label="Escalate to Department *"
-              value={isRoleEscalationInbox(f.escalated_to) ? "" : f.escalated_to}
-              options={forwardDeptOptions}
-              onChange={(v) => set("escalated_to", v)}
-              placeholder="Select department"
-            />
-          </>
-        )}
-
-        {canForwardAsCoordinator && (
-          <>
-            <AutoField
-              label="Currently escalated to"
-              value={
-                inboxTarget
-                || (atZonalCoordinator
-                  ? ZONAL_COORDINATOR_ESCALATION_TARGET
-                  : STATE_COORDINATOR_ESCALATION_TARGET)
-              }
-            />
-            <FieldSelect
-              label="Escalate to Department *"
-              value={f.forward_department}
-              options={forwardDeptOptions}
-              onChange={(v) => setF((p) => ({
-                ...p,
-                forward_department: v,
-                escalated_to: "",
-              }))}
-              placeholder="Select department"
-            />
-            <FieldSelect
-              label="Escalate to User *"
-              value={isRoleEscalationInbox(f.escalated_to) ? "" : f.escalated_to}
-              options={officersForForward}
-              onChange={(v) => set("escalated_to", v)}
-              placeholder={
-                !f.forward_department
-                  ? "Select department first"
-                  : officersForForward.length
-                    ? "Select user"
-                    : "No users in this department"
-              }
-              disabled={!f.forward_department}
-            />
-          </>
-        )}
-
-        {!canForward && levelValue === "Others" && (
-          readOnly ? (
-            <AutoField label="Escalate To (Officer)" value={row?.escalated_to} />
-          ) : (
-            <FieldSelect
-              label="Escalate To (Officer) *"
-              value={f.escalated_to}
-              options={officerOptions}
-              onChange={(v) => set("escalated_to", v)}
-              placeholder={officerOptions.length ? "Select officer" : "No users available"}
-            />
-          )
-        )}
-
-        {readOnly && inboxTarget && !roleInboxLevels.has(String(row?.escalation_level || "")) && (
-          <AutoField
-            label={isRoleEscalationInbox(inboxTarget) || deptOptions.some((d) => d.value === inboxTarget)
-              ? "Escalated To"
-              : "Escalate To (Officer)"}
-            value={inboxTarget}
-          />
-        )}
-
         <FieldText
           label="Escalation Date *"
           type="date"
-          value={readOnly ? (row?.escalation_date ?? "") : (f.escalation_date || today)}
+          value={readOnly ? (source?.escalation_date ?? "") : (f.escalation_date || today)}
           onChange={(v) => set("escalation_date", v)}
-          readOnly={readOnly}
+          readOnly={readOnly || !!source?.escalation_date}
           max={readOnly ? undefined : today}
         />
       </>
     );
   };
 
-  const outcomeOptions = outcomesForScope(isNationalRole ? "hq" : "state");
+  const outcomeOptions = outcomesForScope(
+    isNationalRole || isEnforcementUser || investigationTierOf(selected) === "enforcement"
+      ? "hq"
+      : "state",
+  );
 
   const renderOutcomeActionsMultiSelect = (readOnly: boolean, row?: any) => {
     const outcome = normalizeOutcome(readOnly ? row?.outcome : f.outcome);
@@ -2380,6 +2339,13 @@ export default function ServicomComplaintsPage({
       : (f.outcome_actions ?? []);
     const availableOptions = options.filter(
       (o) => editingOutcomeActionIdx != null || !selected.includes(o.value),
+    );
+    const selectedSanctionCategories = readOnly
+      ? extractSanctionCategories(row?.actions_taken)
+      : (f.sanction_categories ?? []);
+    const showSanctionCategories = selected.some(isSanctionOutcomeAction);
+    const availableSanctionOptions = SANCTION_CATEGORIES.filter(
+      (o) => editingSanctionCategoryIdx != null || !selectedSanctionCategories.includes(o.value),
     );
 
     if (outcome === "Other (Specify)") {
@@ -2415,132 +2381,286 @@ export default function ServicomComplaintsPage({
     }
 
     return (
-      <div className="col-span-full space-y-2">
-        <p className="text-xs font-medium text-slate-600">Outcomes/Action(s) Taken *</p>
-        {!readOnly && (
-          <div className="flex flex-wrap items-end gap-2">
-            <FieldSelect
-              label={editingOutcomeActionIdx != null ? "Edit action *" : "Action *"}
-              value={outcomeActionDraft}
-              options={availableOptions.length ? availableOptions : options}
-              onChange={setOutcomeActionDraft}
-              placeholder="Select action"
-              className="flex-1 min-w-[200px]"
-            />
-            {editingOutcomeActionIdx != null && (
+      <div className="col-span-full space-y-3">
+        <div className="space-y-2">
+          <p className="text-xs font-medium text-slate-600">Outcomes/Action(s) Taken *</p>
+          {!readOnly && (
+            <div className="flex flex-wrap items-end gap-2">
+              <FieldSelect
+                label={editingOutcomeActionIdx != null ? "Edit action *" : "Action *"}
+                value={outcomeActionDraft}
+                options={availableOptions.length ? availableOptions : options}
+                onChange={setOutcomeActionDraft}
+                placeholder="Select action"
+                className="flex-1 min-w-[200px]"
+              />
+              {editingOutcomeActionIdx != null && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-9 text-xs"
+                  onClick={() => {
+                    if (outcomeActionDraft.trim()) {
+                      setF((p) => ({
+                        ...p,
+                        outcome_actions: [...(p.outcome_actions ?? []), outcomeActionDraft.trim()],
+                      }));
+                    }
+                    setOutcomeActionDraft("");
+                    setEditingOutcomeActionIdx(null);
+                  }}
+                >
+                  Cancel
+                </Button>
+              )}
               <Button
                 type="button"
-                variant="outline"
                 size="sm"
-                className="h-9 text-xs"
+                className="h-9 gap-1 text-xs bg-[#145c3f] hover:bg-[#0f3d2e]"
                 onClick={() => {
-                  if (outcomeActionDraft.trim()) {
-                    setF((p) => ({
-                      ...p,
-                      outcome_actions: [...(p.outcome_actions ?? []), outcomeActionDraft.trim()],
-                    }));
+                  if (!outcomeActionDraft.trim()) {
+                    toast.error("Select an action.");
+                    return;
                   }
+                  if ((f.outcome_actions ?? []).includes(outcomeActionDraft.trim())
+                    && editingOutcomeActionIdx == null) {
+                    toast.error("That action is already added.");
+                    return;
+                  }
+                  setF((p) => ({
+                    ...p,
+                    outcome_actions: [...(p.outcome_actions ?? []), outcomeActionDraft.trim()],
+                  }));
                   setOutcomeActionDraft("");
                   setEditingOutcomeActionIdx(null);
                 }}
               >
-                Cancel
+                <Plus className="w-3.5 h-3.5" />
+                {editingOutcomeActionIdx != null ? "Update" : "Add"}
               </Button>
-            )}
-            <Button
-              type="button"
-              size="sm"
-              className="h-9 gap-1 text-xs bg-[#145c3f] hover:bg-[#0f3d2e]"
-              onClick={() => {
-                if (!outcomeActionDraft.trim()) {
-                  toast.error("Select an action.");
-                  return;
-                }
-                if ((f.outcome_actions ?? []).includes(outcomeActionDraft.trim())
-                  && editingOutcomeActionIdx == null) {
-                  toast.error("That action is already added.");
-                  return;
-                }
-                setF((p) => ({
-                  ...p,
-                  outcome_actions: [...(p.outcome_actions ?? []), outcomeActionDraft.trim()],
-                }));
-                setOutcomeActionDraft("");
-                setEditingOutcomeActionIdx(null);
-              }}
-            >
-              <Plus className="w-3.5 h-3.5" />
-              {editingOutcomeActionIdx != null ? "Update" : "Add"}
-            </Button>
-          </div>
-        )}
-        {selected.length === 0 && readOnly ? (
-          <p className="text-sm text-slate-400">No actions recorded</p>
-        ) : null}
-        {selected.length > 0 && (
-          <div className="space-y-1">
-            {selected.map((action, idx) => (
-              <div
-                key={`outcome-action-${idx}`}
-                className="flex items-center gap-2 rounded-md border border-[#e6f2eb] bg-[#f8fbf9] px-2.5 py-1.5"
-              >
-                <span className="text-[11px] font-semibold text-slate-400 tabular-nums w-4 shrink-0">
-                  {idx + 1}.
-                </span>
-                <p className="flex-1 min-w-0 text-sm text-slate-800 truncate" title={action}>
-                  {action || "—"}
-                </p>
-                {!readOnly && (
-                  <div className="flex items-center gap-0.5 shrink-0">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 text-slate-500 hover:text-[#145c3f] hover:bg-[#e8f5ee]"
-                      aria-label="Edit action"
-                      onClick={() => {
-                        setOutcomeActionDraft(action);
-                        setEditingOutcomeActionIdx(idx);
+            </div>
+          )}
+          {selected.length === 0 && readOnly ? (
+            <p className="text-sm text-slate-400">No actions recorded</p>
+          ) : null}
+          {selected.length > 0 && (
+            <div className="space-y-1">
+              {selected.map((action, idx) => (
+                <div
+                  key={`outcome-action-${idx}`}
+                  className="flex items-center gap-2 rounded-md border border-[#e6f2eb] bg-[#f8fbf9] px-2.5 py-1.5"
+                >
+                  <span className="text-[11px] font-semibold text-slate-400 tabular-nums w-4 shrink-0">
+                    {idx + 1}.
+                  </span>
+                  <p className="flex-1 min-w-0 text-sm text-slate-800 truncate" title={action}>
+                    {action || "—"}
+                  </p>
+                  {!readOnly && (
+                    <div className="flex items-center gap-0.5 shrink-0">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-slate-500 hover:text-[#145c3f] hover:bg-[#e8f5ee]"
+                        aria-label="Edit action"
+                        onClick={() => {
+                          setOutcomeActionDraft(action);
+                          setEditingOutcomeActionIdx(idx);
+                          setF((p) => {
+                            const nextActions = (p.outcome_actions ?? []).filter((_, i) => i !== idx);
+                            const stillHasSanction = nextActions.some(isSanctionOutcomeAction);
+                            if (!stillHasSanction) {
+                              setSanctionCategoryDraft("");
+                              setEditingSanctionCategoryIdx(null);
+                            }
+                            return {
+                              ...p,
+                              outcome_actions: nextActions,
+                              sanction_categories: stillHasSanction ? p.sanction_categories : [],
+                            };
+                          });
+                        }}
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-slate-400 hover:text-rose-600 hover:bg-rose-50"
+                        aria-label="Delete action"
+                        onClick={() => {
+                          if (editingOutcomeActionIdx != null && editingOutcomeActionIdx > idx) {
+                            setEditingOutcomeActionIdx(editingOutcomeActionIdx - 1);
+                          }
+                          setF((p) => {
+                            const nextActions = (p.outcome_actions ?? []).filter((_, i) => i !== idx);
+                            const stillHasSanction = nextActions.some(isSanctionOutcomeAction);
+                            if (!stillHasSanction) {
+                              setSanctionCategoryDraft("");
+                              setEditingSanctionCategoryIdx(null);
+                            }
+                            return {
+                              ...p,
+                              outcome_actions: nextActions,
+                              sanction_categories: stillHasSanction ? p.sanction_categories : [],
+                            };
+                          });
+                        }}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {showSanctionCategories && (
+          <div className="space-y-2 rounded-lg border border-[#d4e8dc] bg-[#f8fbf9]/70 px-3 py-2.5">
+            <p className="text-xs font-medium text-slate-600">Sanction categories *</p>
+            {!readOnly && (
+              <div className="flex flex-wrap items-end gap-2">
+                <FieldSelect
+                  label={editingSanctionCategoryIdx != null ? "Edit category *" : "Category *"}
+                  value={sanctionCategoryDraft}
+                  options={availableSanctionOptions.length ? availableSanctionOptions : SANCTION_CATEGORIES}
+                  onChange={setSanctionCategoryDraft}
+                  placeholder="Select sanction category"
+                  className="flex-1 min-w-[200px]"
+                />
+                {editingSanctionCategoryIdx != null && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-9 text-xs"
+                    onClick={() => {
+                      if (sanctionCategoryDraft.trim()) {
                         setF((p) => ({
                           ...p,
-                          outcome_actions: (p.outcome_actions ?? []).filter((_, i) => i !== idx),
+                          sanction_categories: [...(p.sanction_categories ?? []), sanctionCategoryDraft.trim()],
                         }));
-                      }}
-                    >
-                      <Pencil className="w-3.5 h-3.5" />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 text-slate-400 hover:text-rose-600 hover:bg-rose-50"
-                      aria-label="Delete action"
-                      onClick={() => {
-                        if (editingOutcomeActionIdx != null && editingOutcomeActionIdx > idx) {
-                          setEditingOutcomeActionIdx(editingOutcomeActionIdx - 1);
-                        }
-                        setF((p) => ({
-                          ...p,
-                          outcome_actions: (p.outcome_actions ?? []).filter((_, i) => i !== idx),
-                        }));
-                      }}
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </Button>
-                  </div>
+                      }
+                      setSanctionCategoryDraft("");
+                      setEditingSanctionCategoryIdx(null);
+                    }}
+                  >
+                    Cancel
+                  </Button>
                 )}
+                <Button
+                  type="button"
+                  size="sm"
+                  className="h-9 gap-1 text-xs bg-[#145c3f] hover:bg-[#0f3d2e]"
+                  onClick={() => {
+                    if (!sanctionCategoryDraft.trim()) {
+                      toast.error("Select a sanction category.");
+                      return;
+                    }
+                    if ((f.sanction_categories ?? []).includes(sanctionCategoryDraft.trim())
+                      && editingSanctionCategoryIdx == null) {
+                      toast.error("That category is already added.");
+                      return;
+                    }
+                    setF((p) => ({
+                      ...p,
+                      sanction_categories: [...(p.sanction_categories ?? []), sanctionCategoryDraft.trim()],
+                    }));
+                    setSanctionCategoryDraft("");
+                    setEditingSanctionCategoryIdx(null);
+                  }}
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  {editingSanctionCategoryIdx != null ? "Update" : "Add"}
+                </Button>
               </div>
-            ))}
+            )}
+            {selectedSanctionCategories.length === 0 && readOnly ? (
+              <p className="text-sm text-slate-400">No sanction categories recorded</p>
+            ) : null}
+            {selectedSanctionCategories.length > 0 && (
+              <div className="space-y-1">
+                {selectedSanctionCategories.map((category, idx) => (
+                  <div
+                    key={`sanction-category-${idx}`}
+                    className="flex items-center gap-2 rounded-md border border-[#e6f2eb] bg-white px-2.5 py-1.5"
+                  >
+                    <span className="text-[11px] font-semibold text-slate-400 tabular-nums w-4 shrink-0">
+                      {idx + 1}.
+                    </span>
+                    <p className="flex-1 min-w-0 text-sm text-slate-800 truncate" title={category}>
+                      {category || "—"}
+                    </p>
+                    {!readOnly && (
+                      <div className="flex items-center gap-0.5 shrink-0">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-slate-500 hover:text-[#145c3f] hover:bg-[#e8f5ee]"
+                          aria-label="Edit category"
+                          onClick={() => {
+                            setSanctionCategoryDraft(category);
+                            setEditingSanctionCategoryIdx(idx);
+                            setF((p) => ({
+                              ...p,
+                              sanction_categories: (p.sanction_categories ?? []).filter((_, i) => i !== idx),
+                            }));
+                          }}
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-slate-400 hover:text-rose-600 hover:bg-rose-50"
+                          aria-label="Delete category"
+                          onClick={() => {
+                            if (editingSanctionCategoryIdx != null && editingSanctionCategoryIdx > idx) {
+                              setEditingSanctionCategoryIdx(editingSanctionCategoryIdx - 1);
+                            }
+                            setF((p) => ({
+                              ...p,
+                              sanction_categories: (p.sanction_categories ?? []).filter((_, i) => i !== idx),
+                            }));
+                          }}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
     );
   };
 
+  const actionEntryLabel = (entry: InvestigationActionEntry) => {
+    if (entry.action === INVESTIGATION_LEVEL_NOTES_ACTION) return entry.other?.trim() || "";
+    if (entry.action === "Other" && entry.other) return `Other — ${entry.other}`;
+    if (isSanctionOutcomeAction(entry.action) && entry.categories?.length) {
+      return `${entry.action} (${entry.categories.join(", ")})`;
+    }
+    return entry.action;
+  };
+
   const renderActionsTakenBlock = (readOnly: boolean, row?: any) => {
+    const tier = investigationTierOf(row ?? selected);
     const actions = readOnly
-      ? parseInvestigationActions(row?.actions_taken)
-      : (f.investigation_actions ?? []);
+      ? visibleInvestigationActions(parseInvestigationActions(row?.actions_taken)).filter((a) => (
+        tier === "state" ? !a.level || a.level === "state" : a.level === tier
+      ))
+      : visibleInvestigationActions(f.investigation_actions ?? []);
     return (
       <div className="col-span-full space-y-2">
         <p className="text-xs font-medium text-slate-600">Actions Taken *</p>
@@ -2630,9 +2750,7 @@ export default function ServicomComplaintsPage({
         {actions.length > 0 && (
           <div className="space-y-1">
             {actions.map((entry, idx) => {
-              const label = entry.action === "Other" && entry.other
-                ? `Other — ${entry.other}`
-                : entry.action;
+              const label = actionEntryLabel(entry);
               return (
                 <div
                   key={`action-${idx}`}
@@ -2698,9 +2816,12 @@ export default function ServicomComplaintsPage({
       outcome: v,
       outcome_other: v === "Other (Specify)" ? p.outcome_other : "",
       outcome_actions: [],
+      sanction_categories: [],
     }));
     setOutcomeActionDraft("");
     setEditingOutcomeActionIdx(null);
+    setSanctionCategoryDraft("");
+    setEditingSanctionCategoryIdx(null);
   };
 
   const renderResolutionFields = (readOnly: boolean, row?: any) => {
@@ -2746,11 +2867,11 @@ export default function ServicomComplaintsPage({
         )}
         <div className="col-span-full">
           <FieldTextarea
-            label="Description"
+            label="Reason for the action"
             value={readOnly ? (row?.remarks ?? row?.resolution_notes ?? "") : f.remarks}
             onChange={(v) => set("remarks", v)}
             readOnly={readOnly}
-            placeholder="Describe the resolution"
+            placeholder="Reason for the action"
           />
         </div>
         <div className="col-span-full md:col-span-2">
@@ -2768,6 +2889,64 @@ export default function ServicomComplaintsPage({
     );
   };
 
+  const renderPriorInvestigationHistory = (row?: any) => {
+    const tier = investigationTierOf(row ?? selected);
+    const all = parseInvestigationActions(row?.actions_taken ?? selected?.actions_taken);
+    const priors = priorInvestigationTiers(all, tier);
+    if (!priors.length) return null;
+    return (
+      <div className="col-span-full space-y-3">
+        {priors.map((priorTier) => {
+          const actions = visibleInvestigationActions(all).filter((a) => (a.level || "state") === priorTier);
+          const notes = notesForInvestigationTier(
+            all,
+            priorTier,
+            priorTier === "state" ? (row?.actions_details ?? selected?.actions_details) : null,
+          );
+          return (
+            <div
+              key={priorTier}
+              className="rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-3 space-y-2.5"
+            >
+              <p className="text-sm font-bold tracking-tight text-slate-900 border-b border-slate-200 pb-2">
+                {INVESTIGATION_TIER_LABELS[priorTier]} investigation
+              </p>
+              <div className="space-y-1">
+                <p className="text-[11px] font-medium text-slate-500">Actions Taken</p>
+                {actions.length === 0 ? (
+                  <p className="text-xs text-slate-400">No actions recorded</p>
+                ) : (
+                  actions.map((entry, idx) => {
+                    const label = actionEntryLabel(entry);
+                    return (
+                      <div
+                        key={`${priorTier}-${idx}`}
+                        className="flex items-center gap-2 rounded-md border border-[#e6f2eb] bg-white px-2.5 py-1.5"
+                      >
+                        <span className="text-[11px] font-semibold text-slate-400 tabular-nums w-4 shrink-0">
+                          {idx + 1}.
+                        </span>
+                        <p className="flex-1 min-w-0 text-sm text-slate-800 truncate" title={label}>
+                          {label || "—"}
+                        </p>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+              {notes ? (
+                <div className="space-y-1 border-t border-slate-200 pt-2">
+                  <p className="text-[11px] font-medium text-slate-500">Actions Details</p>
+                  <p className="text-sm font-semibold text-slate-800 whitespace-pre-wrap">{notes}</p>
+                </div>
+              ) : null}
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
   const renderInvestigationSection = (
     readOnly: boolean,
     row?: any,
@@ -2776,12 +2955,16 @@ export default function ServicomComplaintsPage({
     onNext?: () => void,
     onAction?: () => void,
   ) => {
+    const currentTier = investigationTierOf(row ?? selected);
+    const nextEscalate = nextEscalationFromTier(currentTier);
+    const statusOptions = readOnly ? COMPLAINT_STATUSES : investigationStatusesForTier(currentTier);
     const started = !!row?.investigation_start_date
       || row?.status === "Under Investigation"
       || row?.status === "Escalated"
-      || (AWAITING_INVESTIGATION_STATUSES as readonly string[]).includes(row?.status);
+      || (AWAITING_INVESTIGATION_STATUSES as readonly string[]).includes(row?.status)
+      || currentTier !== "state";
     const minStartDate = String(row?.date_received ?? "").slice(0, 10) || undefined;
-    const canAssignOfficer = isStateCoordinator && !started && !readOnly;
+    const canAssignOfficer = isStateCoordinator && !started && !readOnly && currentTier === "state";
     const assignOnly =
       canAssignOfficer
       && !officerMatchesUser(f.officer_assigned, userName, userStaffId);
@@ -2791,6 +2974,14 @@ export default function ServicomComplaintsPage({
     return (
       <Card className="rounded-xl border-[#d4e8dc] bg-white shadow-sm w-full py-0 gap-0">
         <CardContent className="p-4 md:p-5 grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-3">
+          {currentTier !== "state" && (
+            <div className="col-span-full rounded-lg border border-blue-200 bg-blue-50/70 px-3 py-2.5">
+              <p className="text-xs text-blue-950 leading-relaxed">
+                Investigating at <span className="font-semibold">{INVESTIGATION_TIER_LABELS[currentTier]}</span>.
+                Prior investigations from lower levels are shown below for reference.
+              </p>
+            </div>
+          )}
           {!readOnly && !started && (
             <div className="col-span-full rounded-lg border border-amber-200/80 bg-amber-50/80 px-3 py-2.5">
               <p className="text-xs text-amber-950 leading-relaxed">
@@ -2835,58 +3026,104 @@ export default function ServicomComplaintsPage({
           )}
           {started && (
             <>
-              {renderActionsTakenBlock(readOnly, row)}
-              <div className="col-span-full">
-                <FieldTextarea
-                  label="Actions Details *"
-                  value={readOnly ? (row?.actions_details ?? "") : f.actions_details}
-                  onChange={(v) => set("actions_details", v)}
-                  readOnly={readOnly}
-                  placeholder="Describe investigation notes / action details"
-                />
-              </div>
-              <FieldSelect
-                label="Status *"
-                value={readOnly ? row?.status : f.status}
-                options={readOnly ? COMPLAINT_STATUSES : INVESTIGATION_STATUSES}
-                readOnly={readOnly}
-                onChange={(v) => setF((p) => ({
-                  ...p,
-                  status: v,
-                  escalated: v === "Escalated" ? true : p.escalated,
-                }))}
-              />
-              {(readOnly ? row?.status === "Escalated" : f.status === "Escalated") && (
-                <div className="col-span-full rounded-lg border border-purple-200 bg-purple-50/70 px-3 py-2.5">
-                  <p className="text-xs text-purple-950 leading-relaxed">
-                    Complete escalation level on the <span className="font-semibold">Escalation</span> tab.
-                    Choosing <span className="font-semibold">Enforcement Department</span> notifies all Enforcement staff.
-                  </p>
-                </div>
-              )}
-              {(INVESTIGATION_CLOSING_STATUSES.includes(readOnly ? (row?.status ?? "") : f.status)
-                || (readOnly && (row?.outcome || row?.remarks))) && (
-                <>
-                  <FieldSelect
-                    label="Outcome *"
-                    value={readOnly ? normalizeOutcome(row?.outcome) : f.outcome}
-                    options={outcomeOptions}
-                    readOnly={readOnly}
-                    onChange={onOutcomeChange}
-                    placeholder="Select outcome"
-                  />
-                  {(readOnly ? !!row?.outcome : !!f.outcome) && renderOutcomeActionsMultiSelect(readOnly, row)}
+              {renderPriorInvestigationHistory(row)}
+              <div className="col-span-full rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-3 space-y-2.5">
+                <p className="text-sm font-bold tracking-tight text-slate-900 border-b border-slate-200 pb-2">
+                  {INVESTIGATION_TIER_LABELS[currentTier]} investigation
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-3">
+                  {renderActionsTakenBlock(readOnly, row)}
                   <div className="col-span-full">
-                    <FieldTextarea
-                      label="Description *"
-                      value={readOnly ? (row?.remarks ?? row?.resolution_notes ?? "") : f.remarks}
-                      onChange={(v) => set("remarks", v)}
-                      readOnly={readOnly}
-                      placeholder="Describe the resolution / outcome"
-                    />
+                    {readOnly ? (
+                      <div className="space-y-1.5">
+                        <p className="text-xs font-medium text-slate-600">Actions Details *</p>
+                        <p className="text-sm font-semibold text-slate-800 whitespace-pre-wrap">
+                          {notesForInvestigationTier(
+                            parseInvestigationActions(row?.actions_taken),
+                            currentTier,
+                            currentTier === "state" ? row?.actions_details : null,
+                          ) || "—"}
+                        </p>
+                      </div>
+                    ) : (
+                      <FieldTextarea
+                        label="Actions Details *"
+                        value={f.actions_details}
+                        onChange={(v) => set("actions_details", v)}
+                        placeholder="Describe investigation notes / action details"
+                      />
+                    )}
                   </div>
-                </>
-              )}
+                  <FieldSelect
+                    label="Outcome of Investigation *"
+                    value={readOnly ? row?.status : f.status}
+                    options={statusOptions}
+                    readOnly={readOnly}
+                    onChange={(v) => setF((p) => ({
+                      ...p,
+                      status: v,
+                      escalated: v === "Escalated" ? true : p.escalated,
+                      ...(v === "Escalated" && nextEscalate
+                        ? {
+                            escalation_level: nextEscalate.level,
+                            escalated_to: nextEscalate.target,
+                            escalation_date: p.escalation_date || today,
+                          }
+                        : {}),
+                    }))}
+                  />
+                  {(readOnly ? row?.status === "Escalated" : f.status === "Escalated") && nextEscalate && (
+                    <div className="col-span-full rounded-lg border border-purple-200 bg-purple-50/70 px-3 py-2.5">
+                      <p className="text-xs text-purple-950 leading-relaxed">
+                        {currentTier === "state" ? (
+                          <>
+                            This complaint will be escalated to the <span className="font-semibold">Zonal Office</span> —
+                            only the <span className="font-semibold">zonal coordinator</span> and{" "}
+                            <span className="font-semibold">complaint officer</span> in that zone can view, comment,
+                            investigate, and escalate further.
+                          </>
+                        ) : (
+                          <>
+                            This complaint will be escalated to the{" "}
+                            <span className="font-semibold">Enforcement Department</span> for further investigation.
+                          </>
+                        )}
+                      </p>
+                    </div>
+                  )}
+                  {currentTier === "enforcement" && !readOnly && (
+                    <div className="col-span-full rounded-lg border border-slate-200 bg-white px-3 py-2.5">
+                      <p className="text-xs text-slate-700 leading-relaxed">
+                        Enforcement is the final investigation level. Choose <span className="font-semibold">Resolved</span> or{" "}
+                        <span className="font-semibold">Closed</span> — further escalation is not available.
+                      </p>
+                    </div>
+                  )}
+                  {(INVESTIGATION_CLOSING_STATUSES.includes(readOnly ? (row?.status ?? "") : f.status)
+                    || (readOnly && (row?.outcome || row?.remarks))) && (
+                    <>
+                      <FieldSelect
+                        label="Outcome *"
+                        value={readOnly ? normalizeOutcome(row?.outcome) : f.outcome}
+                        options={outcomeOptions}
+                        readOnly={readOnly}
+                        onChange={onOutcomeChange}
+                        placeholder="Select outcome"
+                      />
+                      {(readOnly ? !!row?.outcome : !!f.outcome) && renderOutcomeActionsMultiSelect(readOnly, row)}
+                      <div className="col-span-full">
+                        <FieldTextarea
+                          label="Reason for the action *"
+                          value={readOnly ? (row?.remarks ?? row?.resolution_notes ?? "") : f.remarks}
+                          onChange={(v) => set("remarks", v)}
+                          readOnly={readOnly}
+                          placeholder="Reason for the action"
+                        />
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
             </>
           )}
         </CardContent>
@@ -2939,16 +3176,33 @@ export default function ServicomComplaintsPage({
   const isEscalatedToMyInbox = (row?: any) => {
     const target = String(row?.escalated_to || "");
     if (!target) return false;
-    // HQ and Enforcement can act on Enforcement Department escalations
-    if (canForwardEnforcementEscalation(target)) return true;
-    if (isStateCoordinator && isStateCoordinatorEscalationTarget(target)) return true;
-    if (isZonalCoordinator && isZonalCoordinatorEscalationTarget(target)) return true;
+    // Enforcement staff act on Enforcement Department escalations (investigate / resolve — no further escalate)
+    if (isEnforcementEscalationTarget(target)) {
+      return isEnforcementUser;
+    }
+    // Zonal Office: only zonal coordinator and complaint officer in that zone
+    if (isZonalCoordinatorEscalationTarget(target)) {
+      if (!canActOnZonalOfficeInbox) return false;
+      if (!defaultZoneId || Number(row?.zone_id) !== Number(defaultZoneId)) return false;
+      return true;
+    }
+    if (isStateCoordinatorEscalationTarget(target)) {
+      return isStateCoordinator;
+    }
+    // Person/department handoff (not a role inbox) — match department label only
+    if (isRoleEscalationInbox(target)) return false;
     const code = String(userDepartment?.department_code || "");
     const name = String(userDepartment?.name || "");
     if (code && (target === code || target.includes(`(${code})`) || target.startsWith(`${code} `))) return true;
     if (name && target.toLowerCase().includes(name.toLowerCase())) return true;
     return false;
   };
+
+  /** Highlight for inbox holders (zone / enforcement) — never the prior state investigator. */
+  const showEscalatedToMe = (row?: any) =>
+    !!row?.escalated
+    && !isComplaintClosed(row?.status)
+    && isEscalatedToMyInbox(row);
 
   const investigationHasBeenSubmitted = (row?: any) => {
     if (!row?.investigation_start_date) return false;
@@ -2961,6 +3215,23 @@ export default function ServicomComplaintsPage({
     );
   };
 
+  /** Whether the current tier has recorded its own investigation work. */
+  const currentTierHasInvestigation = (row?: any) => {
+    const tier = investigationTierOf(row);
+    const all = parseInvestigationActions(row?.actions_taken);
+    const tierVisible = visibleInvestigationActions(all).filter((a) => {
+      if (tier === "state") return !a.level || a.level === "state";
+      return a.level === tier;
+    });
+    const substantive = tierVisible.filter((a) => a.action !== "Investigation commenced");
+    if (substantive.length) return true;
+    if (notesForInvestigationTier(all, tier)) return true;
+    if (tier === "state") {
+      return investigationHasBeenSubmitted(row);
+    }
+    return false;
+  };
+
   const investigationActionLabel = (row?: any) => {
     if (!row?.investigation_start_date) {
       if (
@@ -2971,9 +3242,11 @@ export default function ServicomComplaintsPage({
       }
       return "Start";
     }
-    if (investigationHasBeenSubmitted(row) && !investigationEditing) return "Update";
+    const tierDone = currentTierHasInvestigation(row);
+    if (tierDone && !investigationEditing && !isEscalatedToMyInbox(row)) return "Update";
     if (INVESTIGATION_CLOSING_STATUSES.includes(f.status)) return "Submit & Close";
-    return investigationHasBeenSubmitted(row) ? "Save" : "Submit";
+    if (f.status === "Escalated") return "Escalate";
+    return tierDone ? "Save" : "Submit";
   };
 
   const renderStageContent = (row?: any) => {
@@ -2981,22 +3254,21 @@ export default function ServicomComplaintsPage({
     const escalated = !!row?.escalated || row?.status === "Escalated";
     const escalationComplete = !!(row?.escalation_level && row.escalation_level !== "Not Escalated" && row?.escalated_to);
     const inboxMine = isEscalatedToMyInbox(row);
-    const escalatedAway = escalated && escalationComplete && !isCurrentAssignee(row) && !inboxMine
+    const currentTier = investigationTierOf(row);
+    // Once handed to a role inbox (Zonal Office / Enforcement), prior investigator is view-only
+    const handedToRoleInbox = isRoleEscalationInbox(row?.escalated_to);
+    const escalatedAway = escalated && escalationComplete && !inboxMine
+      && (handedToRoleInbox || !isCurrentAssignee(row))
       && !isNationalViewer
       && userRole !== "admin" && userRole !== "hq-department" && userRole !== "sdo";
-    // Inbox holders can still forward onward after receiving a role-level escalation
-    const needsInboxForward =
-      (
-        canForwardEnforcementEscalation(row?.escalated_to)
-        || (isStateCoordinator && isStateCoordinatorEscalationTarget(row?.escalated_to))
-        || (isZonalCoordinator && isZonalCoordinatorEscalationTarget(row?.escalated_to))
-      )
-      && activeStage === "escalation"
-      && !closed;
-    // After escalation details are submitted, investigation + escalation lock; resolution stays open for assignee
+    // Zone / Enforcement continue investigation at their tier (do not lock investigation)
+    const inboxInvestigating = inboxMine && !closed && (
+      currentTier === "zonal" || currentTier === "enforcement"
+    );
+    // After escalation is handed off, prior tiers see investigation/escalation read-only
     const stageClosedAfterEscalation = escalated && escalationComplete
       && (activeStage === "investigation" || activeStage === "escalation")
-      && !needsInboxForward;
+      && !inboxInvestigating;
     const coordinatorAssigning =
       isStateCoordinator
       && !closed
@@ -3004,25 +3276,30 @@ export default function ServicomComplaintsPage({
       && activeStage === "investigation"
       && !escalatedAway;
     const completingEscalation =
-      ((escalated && !escalationComplete) || needsInboxForward)
+      escalated && !escalationComplete
       && activeStage === "escalation"
       && !closed;
-    const investigationSubmitted = activeStage === "investigation" && investigationHasBeenSubmitted(row);
+    const investigationSubmitted = activeStage === "investigation"
+      && investigationHasBeenSubmitted(row)
+      && !inboxInvestigating;
     const investigationViewLocked =
       investigationSubmitted
       && !investigationEditing
       && !closed
-      && !coordinatorAssigning;
+      && !coordinatorAssigning
+      && !inboxInvestigating;
     const readOnly = ((closed
       || activeStage === "registration"
       || escalatedAway
       || stageClosedAfterEscalation)
       && !coordinatorAssigning
-      && !completingEscalation)
+      && !completingEscalation
+      && !(inboxInvestigating && activeStage === "investigation"))
       || investigationViewLocked;
     let actionLabel: string | null = null;
     let onAction: (() => void) | undefined;
-    if (row && (!readOnly || investigationViewLocked) && !closed && !escalatedAway && !stageClosedAfterEscalation) {
+    if (row && (!readOnly || investigationViewLocked) && !closed && !escalatedAway
+      && (!stageClosedAfterEscalation || (inboxInvestigating && activeStage === "investigation"))) {
       if (activeStage === "investigation") {
         actionLabel = investigationActionLabel(row);
         if (investigationViewLocked) {
@@ -3031,11 +3308,7 @@ export default function ServicomComplaintsPage({
           onAction = () => handleSaveStage("investigation");
         }
       } else if (activeStage === "escalation") {
-        actionLabel = needsInboxForward
-          ? (canForwardEnforcementEscalation(row?.escalated_to)
-            ? "Escalate to Department"
-            : "Escalate to Department & User")
-          : "Submit";
+        actionLabel = "Submit";
         onAction = () => handleSaveStage("escalation");
       } else if (activeStage === "resolution") {
         actionLabel = row.date_closed || row.outcome ? "Update" : "Submit";
@@ -3212,12 +3485,18 @@ export default function ServicomComplaintsPage({
       </div>
     );
 
-    const NoteBlock = ({ label, text }: { label: string; text?: string | null }) => {
-      if (!text) return null;
+    const NoteBlock = ({
+      label, text, half = false,
+    }: {
+      label: string;
+      text?: string | null;
+      half?: boolean;
+    }) => {
+      if (!text && !half) return null;
       return (
-        <div className="sm:col-span-2 pt-1.5 mt-0.5 border-t border-slate-50">
+        <div className={`${half ? "" : "sm:col-span-2"} pt-1.5 mt-0.5 border-t border-slate-50 sm:border-t-0 sm:pt-0 sm:mt-0`}>
           <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-0.5">{label}</p>
-          <p className="text-[13px] text-slate-800 whitespace-pre-wrap leading-snug">{text}</p>
+          <p className="text-[13px] text-slate-800 whitespace-pre-wrap leading-snug">{text || "—"}</p>
         </div>
       );
     };
@@ -3232,7 +3511,11 @@ export default function ServicomComplaintsPage({
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2 flex-wrap">
                 <h2 className="text-sm font-bold tracking-tight font-mono truncate">{row?.complaint_number ?? "Complaint"}</h2>
-                {statusBadge(row?.status ?? "—", false)}
+                {statusBadge(row?.status ?? "—", false, {
+                  escalatedToMe: showEscalatedToMe(row),
+                  escalatedTo: row?.escalated_to,
+                  escalationLevel: row?.escalation_level,
+                })}
                 {row?.priority_rating && (
                   <span className="rounded-md bg-slate-100 border border-slate-200 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600">
                     {row.priority_rating}
@@ -3289,7 +3572,16 @@ export default function ServicomComplaintsPage({
                       ) : undefined
                     }
                   />
-                  <NoteBlock label="Issue" text={row?.description} />
+                  <div className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-x-5 pt-1.5 mt-0.5 border-t border-slate-50">
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-0.5">Issue</p>
+                      <p className="text-[13px] text-slate-800 leading-snug">{complaintIssueLabel(row)}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-0.5">Description</p>
+                      <p className="text-[13px] text-slate-800 whitespace-pre-wrap leading-snug">{row?.description || "—"}</p>
+                    </div>
+                  </div>
                 </div>
               </ViewSection>
 
@@ -3376,24 +3668,54 @@ export default function ServicomComplaintsPage({
                 )}
               </div>
 
-              <div className="border-t border-slate-100 px-3.5 py-2.5 space-y-2 shrink-0 bg-white rounded-b-xl">
-                <textarea
-                  value={commentDraft}
-                  onChange={(e) => setCommentDraft(e.target.value)}
-                  rows={3}
-                  placeholder="Add a comment…"
-                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#25a872]/30 focus:border-[#25a872] resize-none"
-                />
-                <Button
-                  size="sm"
-                  className="w-full h-8 bg-[#145c3f] hover:bg-[#0f3d2e] gap-1.5 text-xs font-semibold"
-                  disabled={!commentDraft.trim() || commentSaving}
-                  onClick={submitComment}
-                >
-                  {commentSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <MessageSquare className="w-3.5 h-3.5" />}
-                  Post comment
-                </Button>
-              </div>
+              {(() => {
+                const atZonalInbox = isZonalCoordinatorEscalationTarget(row?.escalated_to);
+                const handedToRoleInbox = isRoleEscalationInbox(row?.escalated_to);
+                const formerInvestigatorOnly = handedToRoleInbox
+                  && isCurrentAssignee(row)
+                  && !isEscalatedToMyInbox(row);
+                const canCommentHere = !formerInvestigatorOnly && (
+                  isNationalRole
+                  || isEnforcementUser
+                  || !atZonalInbox
+                  || (
+                    canActOnZonalOfficeInbox
+                    && defaultZoneId
+                    && Number(row?.zone_id) === Number(defaultZoneId)
+                  )
+                );
+                if (!canCommentHere) {
+                  return (
+                    <div className="border-t border-slate-100 px-3.5 py-2.5 shrink-0 bg-slate-50 rounded-b-xl">
+                      <p className="text-[11px] text-slate-500 leading-relaxed">
+                        {formerInvestigatorOnly
+                          ? "This complaint has been escalated. You can view comments but can no longer post."
+                          : "Only the zonal coordinator and complaint officer can comment on this complaint."}
+                      </p>
+                    </div>
+                  );
+                }
+                return (
+                  <div className="border-t border-slate-100 px-3.5 py-2.5 space-y-2 shrink-0 bg-white rounded-b-xl">
+                    <textarea
+                      value={commentDraft}
+                      onChange={(e) => setCommentDraft(e.target.value)}
+                      rows={3}
+                      placeholder="Add a comment…"
+                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#25a872]/30 focus:border-[#25a872] resize-none"
+                    />
+                    <Button
+                      size="sm"
+                      className="w-full h-8 bg-[#145c3f] hover:bg-[#0f3d2e] gap-1.5 text-xs font-semibold"
+                      disabled={!commentDraft.trim() || commentSaving}
+                      onClick={submitComment}
+                    >
+                      {commentSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <MessageSquare className="w-3.5 h-3.5" />}
+                      Post comment
+                    </Button>
+                  </div>
+                );
+              })()}
             </div>
           </div>
         </div>
@@ -3406,9 +3728,10 @@ export default function ServicomComplaintsPage({
     const assignedToMe = isCurrentAssignee(row);
     const inboxMine = isEscalatedToMyInbox(row);
     const escalatedOpen = !!row?.escalated && !isComplaintClosed(row?.status);
+    const handedToRoleInbox = isRoleEscalationInbox(row?.escalated_to);
     const escalatedAwayFromMe = escalatedOpen
-      && !assignedToMe
       && !inboxMine
+      && (handedToRoleInbox || !assignedToMe)
       && !isNationalViewer
       && userRole !== "admin"
       && userRole !== "hq-department"
@@ -3428,10 +3751,11 @@ export default function ServicomComplaintsPage({
               <h2 className="text-sm font-bold tracking-tight truncate font-mono">{row?.complaint_number ?? "Complaint"}</h2>
               <p className="text-[11px] text-slate-500 truncate">
                 {[
-                  escalatedOpen && (assignedToMe || inboxMine)
-                    ? "Escalated to you"
-                    : escalatedOpen ? "Escalated" : null,
-                  row?.escalation_level && escalatedOpen ? row.escalation_level : null,
+                  escalatedOpen
+                    ? (escalationDestinationLabel(row)
+                      || (inboxMine ? "Escalated to you" : null)
+                      || (assignedToMe && handedToRoleInbox ? "Escalated · view only" : "Escalated"))
+                    : null,
                   row?.officer_assigned ?? row?.assigned_officer,
                   row?.date_received,
                 ].filter(Boolean).join(" · ")}
@@ -3459,7 +3783,8 @@ export default function ServicomComplaintsPage({
             <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
               <p className="text-xs text-slate-600">
                 Escalated to <span className="font-semibold text-slate-800">{row.escalated_to || row.officer_assigned}</span>
-                {row.escalation_level ? ` · ${row.escalation_level}` : ""}. You can view this complaint but can no longer update it.
+                {row.escalation_level ? ` · ${row.escalation_level}` : ""}.
+                {" "}You can view this complaint but can no longer act on it.
               </p>
             </div>
           )}
@@ -3526,14 +3851,17 @@ export default function ServicomComplaintsPage({
       : []),
     {
       title: "Issue",
-      value: "description",
+      value: "offence_reference",
       className: isStateScopedViewer ? "w-[24%]" : "w-[16%]",
       custom: true,
-      component: (c) => (
-        <p className="text-[11px] font-medium text-slate-800 line-clamp-2 leading-snug" title={c.description || c.complaint_category || c.category || undefined}>
-          {c.description || c.complaint_category || c.category || "—"}
-        </p>
-      ),
+      component: (c) => {
+        const issue = complaintIssueLabel(c);
+        return (
+          <p className="text-[11px] font-medium text-slate-800 line-clamp-2 leading-snug" title={issue !== "—" ? issue : undefined}>
+            {issue}
+          </p>
+        );
+      },
     },
     {
       title: "Pri.",
@@ -3578,9 +3906,9 @@ export default function ServicomComplaintsPage({
         c.status,
         false,
         {
-          escalatedToMe: !!c.escalated
-            && officerMatchesUser(c.officer_assigned ?? c.assigned_officer ?? c.escalated_to, userName, userStaffId)
-            && !isComplaintClosed(c.status),
+          escalatedToMe: showEscalatedToMe(c),
+          escalatedTo: c.escalated_to,
+          escalationLevel: c.escalation_level,
         },
       ),
     },
@@ -3591,12 +3919,27 @@ export default function ServicomComplaintsPage({
       custom: true,
       component: (c) => {
         const closed = isComplaintClosed(c.status);
-        // State coordinator can Manage open complaints to assign an officer
-        const coordinatorCanAssign = isStateCoordinator && !closed && !c.investigation_start_date;
+        const officerAssigned = !!(c.officer_assigned || c.assigned_officer);
+        // Assign only until an officer is set — after that, View (even if investigator hasn't started)
+        const coordinatorCanAssign =
+          isStateCoordinator && !closed && !c.investigation_start_date && !officerAssigned;
+        const zonalInboxMine = isEscalatedToMyInbox(c)
+          && isZonalCoordinatorEscalationTarget(c.escalated_to)
+          && !closed;
+        const handedToRoleInbox = isRoleEscalationInbox(c.escalated_to);
+        // Former investigator keeps access after escalation, but View only
+        const formerInvestigatorViewOnly = !closed
+          && !!c.escalated
+          && handedToRoleInbox
+          && isCurrentAssignee(c)
+          && !isEscalatedToMyInbox(c);
         const useView = closed
-          || (isZonalCoordinator && !isCurrentAssignee(c))
+          || formerInvestigatorViewOnly
+          || (isZonalCoordinator && !isCurrentAssignee(c) && !zonalInboxMine)
           || (isStateCoordinator && !isCurrentAssignee(c) && !coordinatorCanAssign);
-        const label = useView ? "View" : (coordinatorCanAssign && !isCurrentAssignee(c) ? "Assign" : "Manage");
+        const label = useView
+          ? "View"
+          : (coordinatorCanAssign && !isCurrentAssignee(c) ? "Assign" : "Manage");
         return (
           <div className="flex justify-end">
             <Button

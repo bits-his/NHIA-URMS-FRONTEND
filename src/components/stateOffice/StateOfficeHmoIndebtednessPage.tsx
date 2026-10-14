@@ -1,10 +1,10 @@
 import * as React from "react";
 import {
-  ArrowLeft, Plus, Eye, Pencil, RefreshCw, Loader2, Save, Trash2, Wallet, MapPin, CalendarDays,
+  ArrowLeft, Plus, Eye, Pencil, RefreshCw, Loader2, Save, Trash2, Wallet,
+  ChevronDown, ChevronRight,
 } from "lucide-react";
-import { motion } from "motion/react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -65,15 +65,6 @@ function pickGeoLabel(options: Geo[], value: string, fallback: string) {
   return options.find((o) => String(o.id) === value)?.description ?? fallback;
 }
 
-function InfoField({ label, value }: { label: string; value?: React.ReactNode }) {
-  return (
-    <div className="space-y-1">
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{label}</p>
-      <div className="text-sm font-semibold text-slate-800 break-words">{value || "—"}</div>
-    </div>
-  );
-}
-
 export default function StateOfficeHmoIndebtednessPage({ onBack, defaultStateId, defaultZoneId }: Props) {
   const { canCreate, createOnly } = useStateOfficeAccess();
   const [mode, setMode] = React.useState<Mode>(createOnly ? "create" : "list");
@@ -89,8 +80,11 @@ export default function StateOfficeHmoIndebtednessPage({ onBack, defaultStateId,
   const [stateId, setStateId] = React.useState(defaultStateId ?? "");
   const [periodYear, setPeriodYear] = React.useState(String(new Date().getFullYear()));
   const [periodMonth, setPeriodMonth] = React.useState(String(new Date().getMonth() + 1));
-  const [lines, setLines] = React.useState<Line[]>([emptyLine()]);
+  const [lines, setLines] = React.useState<Line[]>([]);
+  const [entry, setEntry] = React.useState<Line>(emptyLine());
+  const [editingKey, setEditingKey] = React.useState<string | null>(null);
   const [submittedBy, setSubmittedBy] = React.useState("");
+  const [expandedHmos, setExpandedHmos] = React.useState<Record<string, boolean>>({});
 
   const { filterState, setFilterState, apiStateId } = useMonthlyStateFilter(defaultStateId, defaultZoneId);
   const now = new Date();
@@ -124,14 +118,38 @@ export default function StateOfficeHmoIndebtednessPage({ onBack, defaultStateId,
   React.useEffect(() => { if (defaultZoneId) setFilterZone(defaultZoneId); }, [defaultZoneId]);
   React.useEffect(() => {
     const zid = filterZone !== "all" ? filterZone : (defaultZoneId || "");
-    if (!zid) { setDashboardStates([]); return; }
-    stockApi.getStates(zid).then((r) => setDashboardStates(r.data)).catch(() => setDashboardStates([]));
+    const request = zid ? stockApi.getStates(zid) : stockApi.getStates();
+    request.then((r) => setDashboardStates(r.data)).catch(() => setDashboardStates([]));
     if (!stateLocked) setFilterState("all");
   }, [filterZone, defaultZoneId, stateLocked, setFilterState]);
   React.useEffect(() => {
     if (!zoneId) { setStates([]); return; }
     stockApi.getStates(zoneId).then((r) => setStates(r.data)).catch(() => setStates([]));
   }, [zoneId]);
+
+  const hmoRows = React.useMemo(() => {
+    const list: { key: string; name: string; state: string; period: string; hcfCount: number; total: number; row: any }[] = [];
+    for (const row of rows) {
+      const byHmo = new Map<string, any[]>();
+      for (const line of row.lines ?? []) {
+        const name = String(line.hmo_name || "").trim() || "Unassigned HMO";
+        if (!byHmo.has(name)) byHmo.set(name, []);
+        byHmo.get(name)!.push(line);
+      }
+      for (const [name, hmoLines] of byHmo) {
+        list.push({
+          key: `${row.id}-${name}`,
+          name,
+          state: row.state?.description ?? "—",
+          period: `${monthLabel(row.reporting_month)} ${row.reporting_year}`,
+          hcfCount: hmoLines.length,
+          total: hmoLines.reduce((sum: number, line: any) => sum + money(line.total), 0),
+          row,
+        });
+      }
+    }
+    return list.sort((a, b) => a.name.localeCompare(b.name));
+  }, [rows]);
 
   const sheetTotal = lines.reduce((s, l) => s + lineTotal(l), 0);
 
@@ -152,8 +170,23 @@ export default function StateOfficeHmoIndebtednessPage({ onBack, defaultStateId,
       nhia_ffs: String(l.nhia_ffs ?? ""),
       phi: String(l.phi ?? ""),
     }));
-    setLines(mapped.length ? mapped : [emptyLine()]);
+    setLines(mapped);
+    setEntry(emptyLine());
+    setEditingKey(null);
+    const open: Record<string, boolean> = {};
+    mapped.forEach((l) => { if (l.hmo_name) open[l.hmo_name] = true; });
+    setExpandedHmos(open);
   };
+
+  const linesByHmo = React.useMemo(() => {
+    const map = new Map<string, Line[]>();
+    lines.forEach((l) => {
+      const key = l.hmo_name.trim() || "Unassigned HMO";
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(l);
+    });
+    return Array.from(map.entries());
+  }, [lines]);
 
   const openCreate = () => {
     if (!canCreate) return;
@@ -164,8 +197,34 @@ export default function StateOfficeHmoIndebtednessPage({ onBack, defaultStateId,
     setPeriodYear(filterYear !== "all" ? filterYear : String(new Date().getFullYear()));
     setPeriodMonth(filterMonth !== "all" ? filterMonth : String(new Date().getMonth() + 1));
     setSubmittedBy("");
-    setLines([emptyLine()]);
+    setLines([]);
+    setEntry(emptyLine());
+    setEditingKey(null);
     setMode("create");
+  };
+
+  const resetEntry = () => {
+    setEntry(emptyLine());
+    setEditingKey(null);
+  };
+
+  const saveEntry = (): boolean => {
+    if (!entry.hmo_name.trim()) { toast.error("Select an HMO"); return false; }
+    if (!entry.facility_name.trim()) { toast.error("Select a facility (HCF)"); return false; }
+    const next = editingKey
+      ? lines.map((l) => (l._key === editingKey ? { ...entry, _key: editingKey } : l))
+      : [...lines, { ...entry, _key: uid() }];
+    setLines(next);
+    setExpandedHmos((p) => ({ ...p, [entry.hmo_name.trim()]: true }));
+    resetEntry();
+    return true;
+  };
+
+  const editEntry = (key: string) => {
+    const l = lines.find((x) => x._key === key);
+    if (!l) return;
+    setEntry({ ...l });
+    setEditingKey(key);
   };
 
   const leaveForm = () => {
@@ -188,7 +247,7 @@ export default function StateOfficeHmoIndebtednessPage({ onBack, defaultStateId,
     }
     const valid = lines.filter((l) => l.hmo_name.trim() && l.facility_name.trim());
     if (!valid.length) {
-      toast.error("Add at least one HMO–facility row.");
+      toast.error("Add at least one HMO–facility entry.");
       return;
     }
     setSaving(true);
@@ -226,7 +285,6 @@ export default function StateOfficeHmoIndebtednessPage({ onBack, defaultStateId,
     <Card className="rounded-2xl border-[#d4e8dc]">
       <CardHeader className="pb-2">
         <CardTitle className="text-base text-[#145c3f]">HMO Indebtedness Collation Sheet</CardTitle>
-        <CardDescription>Enforcement Department · Template 1</CardDescription>
       </CardHeader>
       <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="space-y-2">
@@ -267,87 +325,166 @@ export default function StateOfficeHmoIndebtednessPage({ onBack, defaultStateId,
     </Card>
   );
 
-  const linesTable = (
-    <Card className="rounded-2xl border-[#d4e8dc] overflow-hidden">
+  const entryForm = (
+    <Card className="rounded-2xl border-[#d4e8dc]">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between gap-3">
-          <CardTitle className="text-base text-[#145c3f]">Alleged Indebtedness</CardTitle>
+          <div>
+            <CardTitle className="text-base text-[#145c3f]">Alleged Indebtedness Entry</CardTitle>
+          </div>
           <span className="text-sm font-bold text-[#145c3f]">Sheet total ₦{naira(sheetTotal)}</span>
         </div>
       </CardHeader>
-      <CardContent className="p-0 overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-[#f0fdf7]">
-              <TableHead className="text-xs font-bold min-w-[180px]">HMO Name</TableHead>
-              <TableHead className="text-xs font-bold min-w-[200px]">Name of Facility</TableHead>
-              <TableHead className="text-xs font-bold min-w-[120px]">HCF Code</TableHead>
-              <TableHead className="text-xs font-bold min-w-[120px]">NHIA CAP</TableHead>
-              <TableHead className="text-xs font-bold min-w-[120px]">NHIA FFS</TableHead>
-              <TableHead className="text-xs font-bold min-w-[120px]">PHI</TableHead>
-              <TableHead className="text-xs font-bold min-w-[120px]">Total</TableHead>
-              <TableHead className="w-10" />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {lines.map((l) => (
-              <TableRow key={l._key}>
-                <TableCell className="align-top py-2">
-                  <AccreditedProviderSelect
-                    type="hmo"
-                    value={l.hmo_id}
-                    placeholder="Select HMO"
-                    onChange={(p) => setLines((prev) => prev.map((x) => x._key === l._key ? {
-                      ...x, hmo_id: p?.id ?? "", hmo_name: p?.name ?? "",
-                    } : x))}
-                  />
-                </TableCell>
-                <TableCell className="align-top py-2">
-                  <HcfFacilitySelect
-                    stateId={stateId || undefined}
-                    value={l.facility_id}
-                    placeholder="Select facility"
-                    onChange={(f) => setLines((prev) => prev.map((x) => x._key === l._key ? {
-                      ...x,
-                      facility_id: f?.id ?? "",
-                      facility_name: f?.name ?? "",
-                      hcf_code: f?.code || f?.facility_code || x.hcf_code,
-                    } : x))}
-                  />
-                </TableCell>
-                <TableCell className="align-top py-2">
-                  <Input className="h-9 font-mono text-xs" value={l.hcf_code} onChange={(e) => setLines((prev) => prev.map((x) => x._key === l._key ? { ...x, hcf_code: e.target.value } : x))} />
-                </TableCell>
-                {(["nhia_cap", "nhia_ffs", "phi"] as const).map((key) => (
-                  <TableCell key={key} className="align-top py-2">
-                    <Input
-                      className="h-9 font-mono text-xs"
-                      type="number"
-                      min={0}
-                      step="0.01"
-                      value={l[key]}
-                      onChange={(e) => setLines((prev) => prev.map((x) => x._key === l._key ? { ...x, [key]: e.target.value } : x))}
-                    />
-                  </TableCell>
-                ))}
-                <TableCell className="align-top py-2 text-sm font-mono font-bold text-[#145c3f]">₦{naira(lineTotal(l))}</TableCell>
-                <TableCell className="align-top py-2">
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setLines((prev) => prev.length <= 1 ? [emptyLine()] : prev.filter((x) => x._key !== l._key))}>
-                    <Trash2 className="w-3.5 h-3.5 text-rose-500" />
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-        <div className="p-3 border-t border-[#d4e8dc]">
-          <Button type="button" variant="outline" className="gap-2" onClick={() => setLines((p) => [...p, emptyLine()])}>
-            <Plus className="w-4 h-4" /> Add row
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="space-y-1">
+            <Label>HMO *</Label>
+            <AccreditedProviderSelect
+              type="hmo"
+              value={entry.hmo_id}
+              placeholder="Select HMO"
+              onChange={(p) => setEntry((prev) => ({
+                ...prev, hmo_id: p?.id ?? "", hmo_name: p?.name ?? "",
+              }))}
+            />
+          </div>
+          <div className="space-y-1">
+            <Label>Facility (HCF) *</Label>
+            <HcfFacilitySelect
+              stateId={stateId || undefined}
+              value={entry.facility_id}
+              fallbackLabel={entry.facility_name}
+              includeCodeInLabel={false}
+              placeholder="Select facility"
+              onChange={(f) => setEntry((prev) => ({
+                ...prev,
+                facility_id: f?.id ?? "",
+                facility_name: f?.name ?? "",
+                hcf_code: f?.code || f?.facility_code || prev.hcf_code,
+              }))}
+            />
+          </div>
+          <div className="space-y-1">
+            <Label>NHIA CAP (₦)</Label>
+            <Input
+              type="number" min={0} step="0.01"
+              value={entry.nhia_cap}
+              onChange={(e) => setEntry((prev) => ({ ...prev, nhia_cap: e.target.value }))}
+            />
+          </div>
+          <div className="space-y-1">
+            <Label>NHIA FFS (₦)</Label>
+            <Input
+              type="number" min={0} step="0.01"
+              value={entry.nhia_ffs}
+              onChange={(e) => setEntry((prev) => ({ ...prev, nhia_ffs: e.target.value }))}
+            />
+          </div>
+          <div className="space-y-1">
+            <Label>PHI (₦)</Label>
+            <Input
+              type="number" min={0} step="0.01"
+              value={entry.phi}
+              onChange={(e) => setEntry((prev) => ({ ...prev, phi: e.target.value }))}
+            />
+          </div>
+          <div className="space-y-1 md:col-span-2">
+            <Label>Line total</Label>
+            <Input readOnly className="bg-slate-50 font-mono font-semibold text-[#145c3f]" value={`₦${naira(lineTotal(entry))}`} />
+          </div>
+        </div>
+        <div className="flex flex-wrap justify-end gap-2 pt-1">
+          {editingKey && (
+            <Button type="button" variant="outline" onClick={resetEntry}>Cancel edit</Button>
+          )}
+          <Button
+            type="button"
+            variant="outline"
+            className="gap-2"
+            onClick={() => {
+              if (saveEntry()) toast.success(editingKey ? "Entry updated" : "Entry added");
+            }}
+          >
+            <Plus className="w-4 h-4" /> {editingKey ? "Update entry" : "Add entry"}
           </Button>
         </div>
       </CardContent>
     </Card>
   );
+
+  const addedEntries = lines.length > 0 ? (
+    <div className="space-y-3">
+      <p className="text-sm font-semibold text-slate-600">
+        Added entries · {linesByHmo.length} HMO{linesByHmo.length === 1 ? "" : "s"} · {lines.length} HCF{lines.length === 1 ? "" : "s"}
+      </p>
+      {linesByHmo.map(([hmo, hcfLines]) => {
+        const open = expandedHmos[hmo] !== false;
+        const hmoTotal = hcfLines.reduce((s, l) => s + lineTotal(l), 0);
+        return (
+          <Card key={hmo} className="rounded-2xl border-[#d4e8dc] overflow-hidden">
+            <button
+              type="button"
+              className="w-full flex items-center justify-between gap-3 px-4 py-3 bg-[#f0fdf7] text-left"
+              onClick={() => setExpandedHmos((p) => ({ ...p, [hmo]: !open }))}
+            >
+              <span className="font-semibold text-[#145c3f] inline-flex items-center gap-2 min-w-0">
+                {open ? <ChevronDown className="w-4 h-4 shrink-0" /> : <ChevronRight className="w-4 h-4 shrink-0" />}
+                <span className="truncate">{hmo}</span>
+              </span>
+              <span className="text-xs text-slate-500 shrink-0">
+                {hcfLines.length} HCF{hcfLines.length === 1 ? "" : "s"} · ₦{naira(hmoTotal)}
+              </span>
+            </button>
+            {open && (
+              <CardContent className="p-0 overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-white">
+                      <TableHead className="text-xs font-bold">Facility (HCF)</TableHead>
+                      <TableHead className="text-xs font-bold">Code</TableHead>
+                      <TableHead className="text-xs font-bold text-right">CAP</TableHead>
+                      <TableHead className="text-xs font-bold text-right">FFS</TableHead>
+                      <TableHead className="text-xs font-bold text-right">PHI</TableHead>
+                      <TableHead className="text-xs font-bold text-right">Total</TableHead>
+                      <TableHead className="w-20" />
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {hcfLines.map((l) => (
+                      <TableRow key={l._key} className={editingKey === l._key ? "bg-amber-50" : undefined}>
+                        <TableCell className="text-sm">{l.facility_name || "—"}</TableCell>
+                        <TableCell className="text-xs font-mono">{l.hcf_code || "—"}</TableCell>
+                        <TableCell className="text-sm font-mono text-right">₦{naira(l.nhia_cap)}</TableCell>
+                        <TableCell className="text-sm font-mono text-right">₦{naira(l.nhia_ffs)}</TableCell>
+                        <TableCell className="text-sm font-mono text-right">₦{naira(l.phi)}</TableCell>
+                        <TableCell className="text-sm font-mono font-bold text-right text-[#145c3f]">₦{naira(lineTotal(l))}</TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-slate-400 hover:text-[#016630]" onClick={() => editEntry(l._key)}>
+                            <Pencil className="w-3.5 h-3.5" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 p-0 text-slate-300 hover:text-rose-500"
+                            onClick={() => {
+                              setLines((prev) => prev.filter((x) => x._key !== l._key));
+                              if (editingKey === l._key) resetEntry();
+                            }}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            )}
+          </Card>
+        );
+      })}
+    </div>
+  ) : null;
 
   if (mode === "view") {
     const zoneName = pickGeoLabel(zones, zoneId, "—");
@@ -356,103 +493,86 @@ export default function StateOfficeHmoIndebtednessPage({ onBack, defaultStateId,
     const capTotal = lines.reduce((s, l) => s + money(l.nhia_cap), 0);
     const ffsTotal = lines.reduce((s, l) => s + money(l.nhia_ffs), 0);
     const phiTotal = lines.reduce((s, l) => s + money(l.phi), 0);
+    const hmoNames = linesByHmo.map(([hmo]) => hmo).join(", ");
     return (
       <div className="flex flex-col h-full bg-slate-50/30">
         <div className="bg-white border-b border-border/50 px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => setMode(createOnly ? "create" : "list")} className="rounded-full"><ArrowLeft className="w-5 h-5" /></Button>
-            <h2 className="text-xl font-bold tracking-tight">View Collation Sheet</h2>
+          <div className="flex items-center gap-3 min-w-0">
+            <Button variant="ghost" size="icon" onClick={() => setMode(createOnly ? "create" : "list")} className="rounded-full shrink-0"><ArrowLeft className="w-5 h-5" /></Button>
+            <div className="min-w-0">
+              <h2 className="text-xl font-bold tracking-tight truncate">{hmoNames || "Collation Sheet"}</h2>
+              <p className="text-xs text-slate-500 truncate">{stateName} · {zoneName} · {period}</p>
+            </div>
           </div>
           {canCreate && (
-          <Button className="bg-orange-action hover:bg-orange-600 gap-2" onClick={() => setMode("edit")}>
+          <Button className="bg-orange-action hover:bg-orange-600 gap-2 shrink-0" onClick={() => setMode("edit")}>
             <Pencil className="w-4 h-4" /> Edit
           </Button>
           )}
         </div>
         <ScrollArea className="flex-1">
           <div className="w-full px-4 md:px-6 py-4 space-y-4 pb-16">
-            <Card className="rounded-2xl border-[#d4e8dc] overflow-hidden">
-              <div className="bg-gradient-to-r from-[#145c3f] to-[#1a7a54] text-white px-6 py-6 flex flex-wrap items-end justify-between gap-4">
-                <div>
-                  <p className="text-xs uppercase tracking-wider text-white/70">HMO Indebtedness Collation · Template 1</p>
-                  <h3 className="text-2xl font-bold mt-1">{stateName}</h3>
-                  <p className="text-sm text-white/80 mt-1 inline-flex items-center gap-3 flex-wrap">
-                    <span className="inline-flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5" />{zoneName}</span>
-                    <span className="inline-flex items-center gap-1.5"><CalendarDays className="w-3.5 h-3.5" />{period}</span>
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-xs uppercase tracking-wider text-white/70">Sheet total</p>
-                  <p className="font-mono text-2xl font-bold">₦{naira(sheetTotal)}</p>
-                  {refId ? <p className="mt-1 font-mono text-xs text-white/80">{refId}</p> : null}
-                </div>
-              </div>
-              <CardContent className="pt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 bg-[#f0fdf7]/40">
-                <InfoField label="Sheet ID" value={<span className="font-mono">{refId}</span>} />
-                <InfoField label="State" value={stateName} />
-                <InfoField label="Period" value={period} />
-                <InfoField label="Prepared by" value={submittedBy} />
-              </CardContent>
-            </Card>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {[
-                { label: "NHIA CAP", value: capTotal },
-                { label: "NHIA FFS", value: ffsTotal },
-                { label: "PHI", value: phiTotal },
-              ].map((item) => (
-                <Card key={item.label} className="rounded-2xl border-[#d4e8dc] bg-white">
-                  <CardContent className="py-4">
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{item.label}</p>
-                    <p className="mt-1 font-mono text-lg font-bold text-[#145c3f]">₦{naira(item.value)}</p>
-                  </CardContent>
-                </Card>
-              ))}
+            <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-slate-600 bg-white border border-[#d4e8dc] rounded-xl px-4 py-3">
+              <span><span className="text-slate-400">CAP</span> ₦{naira(capTotal)}</span>
+              <span><span className="text-slate-400">FFS</span> ₦{naira(ffsTotal)}</span>
+              <span><span className="text-slate-400">PHI</span> ₦{naira(phiTotal)}</span>
+              <span className="font-semibold text-[#145c3f]">Total ₦{naira(sheetTotal)}</span>
+              {submittedBy ? <span className="text-slate-400">Prepared by {submittedBy}</span> : null}
             </div>
 
-            <Card className="rounded-2xl border-[#d4e8dc] overflow-hidden">
-              <CardHeader className="pb-3 border-b bg-[#f0fdf7]">
-                <CardTitle className="text-base text-[#145c3f]">Alleged Indebtedness</CardTitle>
-                <CardDescription>{lines.length} HMO–facility row{lines.length === 1 ? "" : "s"}</CardDescription>
-              </CardHeader>
-              <CardContent className="p-0 overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-white">
-                      <TableHead className="text-xs font-bold text-slate-500 w-10">#</TableHead>
-                      <TableHead className="text-xs font-bold text-slate-500">HMO Name</TableHead>
-                      <TableHead className="text-xs font-bold text-slate-500">Name of Facility</TableHead>
-                      <TableHead className="text-xs font-bold text-slate-500">HCF Code</TableHead>
-                      <TableHead className="text-xs font-bold text-slate-500 text-right">NHIA CAP</TableHead>
-                      <TableHead className="text-xs font-bold text-slate-500 text-right">NHIA FFS</TableHead>
-                      <TableHead className="text-xs font-bold text-slate-500 text-right">PHI</TableHead>
-                      <TableHead className="text-xs font-bold text-slate-500 text-right">Total</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {lines.map((l, i) => (
-                      <TableRow key={l._key} className="border-b border-[#d4e8dc]/70">
-                        <TableCell className="text-xs text-slate-400">{i + 1}</TableCell>
-                        <TableCell className="text-sm font-medium text-slate-800">{l.hmo_name || "—"}</TableCell>
-                        <TableCell className="text-sm text-slate-700">{l.facility_name || "—"}</TableCell>
-                        <TableCell className="text-xs font-mono text-slate-600">{l.hcf_code || "—"}</TableCell>
-                        <TableCell className="text-sm font-mono text-right">₦{naira(l.nhia_cap)}</TableCell>
-                        <TableCell className="text-sm font-mono text-right">₦{naira(l.nhia_ffs)}</TableCell>
-                        <TableCell className="text-sm font-mono text-right">₦{naira(l.phi)}</TableCell>
-                        <TableCell className="text-sm font-mono font-bold text-right text-[#145c3f]">₦{naira(lineTotal(l))}</TableCell>
-                      </TableRow>
-                    ))}
-                    <TableRow className="bg-[#145c3f] hover:bg-[#145c3f]">
-                      <TableCell colSpan={4} className="text-sm font-bold text-white">Grand total</TableCell>
-                      <TableCell className="text-sm font-mono font-bold text-right text-white">₦{naira(capTotal)}</TableCell>
-                      <TableCell className="text-sm font-mono font-bold text-right text-white">₦{naira(ffsTotal)}</TableCell>
-                      <TableCell className="text-sm font-mono font-bold text-right text-white">₦{naira(phiTotal)}</TableCell>
-                      <TableCell className="text-sm font-mono font-bold text-right text-white">₦{naira(sheetTotal)}</TableCell>
-                    </TableRow>
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
+            <div className="space-y-3">
+              {linesByHmo.map(([hmo, hcfLines]) => {
+                const open = expandedHmos[hmo] !== false;
+                const hmoCap = hcfLines.reduce((s, l) => s + money(l.nhia_cap), 0);
+                const hmoFfs = hcfLines.reduce((s, l) => s + money(l.nhia_ffs), 0);
+                const hmoPhi = hcfLines.reduce((s, l) => s + money(l.phi), 0);
+                return (
+                  <Card key={hmo} className="rounded-xl border border-slate-200 overflow-hidden shadow-none">
+                    <button
+                      type="button"
+                      className="w-full flex items-center justify-between gap-3 px-4 py-3 bg-slate-50 text-left hover:bg-slate-100/80"
+                      onClick={() => setExpandedHmos((p) => ({ ...p, [hmo]: !open }))}
+                    >
+                      <span className="font-medium text-slate-800 inline-flex items-center gap-2 min-w-0">
+                        {open ? <ChevronDown className="w-4 h-4 shrink-0 text-slate-400" /> : <ChevronRight className="w-4 h-4 shrink-0 text-slate-400" />}
+                        <span className="truncate">{hmo}</span>
+                      </span>
+                      <span className="text-xs text-slate-500 shrink-0">
+                        {hcfLines.length} HCF{hcfLines.length === 1 ? "" : "s"} · ₦{naira(hmoCap + hmoFfs + hmoPhi)}
+                      </span>
+                    </button>
+                    {open && (
+                      <CardContent className="p-0 overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="text-xs font-medium text-slate-500">Facility</TableHead>
+                              <TableHead className="text-xs font-medium text-slate-500">Code</TableHead>
+                              <TableHead className="text-xs font-medium text-slate-500 text-right">CAP</TableHead>
+                              <TableHead className="text-xs font-medium text-slate-500 text-right">FFS</TableHead>
+                              <TableHead className="text-xs font-medium text-slate-500 text-right">PHI</TableHead>
+                              <TableHead className="text-xs font-medium text-slate-500 text-right">Total</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {hcfLines.map((l) => (
+                              <TableRow key={l._key}>
+                                <TableCell className="text-sm text-slate-700">{l.facility_name || "—"}</TableCell>
+                                <TableCell className="text-xs font-mono text-slate-500">{l.hcf_code || "—"}</TableCell>
+                                <TableCell className="text-sm font-mono text-right">₦{naira(l.nhia_cap)}</TableCell>
+                                <TableCell className="text-sm font-mono text-right">₦{naira(l.nhia_ffs)}</TableCell>
+                                <TableCell className="text-sm font-mono text-right">₦{naira(l.phi)}</TableCell>
+                                <TableCell className="text-sm font-mono text-right text-slate-800">₦{naira(lineTotal(l))}</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </CardContent>
+                    )}
+                  </Card>
+                );
+              })}
+            </div>
           </div>
         </ScrollArea>
       </div>
@@ -465,22 +585,34 @@ export default function StateOfficeHmoIndebtednessPage({ onBack, defaultStateId,
         <div className="bg-white border-b border-border/50 px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30">
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="icon" onClick={mode === "edit" ? () => setMode("view") : leaveForm} className="rounded-full"><ArrowLeft className="w-5 h-5" /></Button>
-            <h2 className="text-xl font-bold tracking-tight">
-              {mode === "edit" ? "Edit Collation Sheet" : "New HMO Indebtedness Sheet"}
-            </h2>
+            <h2 className="text-xl font-bold tracking-tight">HMO Indebtedness Collation</h2>
           </div>
         </div>
         <ScrollArea className="flex-1">
           <div className="w-full px-4 md:px-6 py-4 space-y-4 pb-28">
             {headerFields}
-            {linesTable}
+            {entryForm}
+            {addedEntries}
           </div>
         </ScrollArea>
         <div className="sticky bottom-0 z-30 bg-white border-t px-4 md:px-6 py-3 flex justify-end gap-3">
           <Button variant="outline" onClick={mode === "edit" ? () => setMode("view") : leaveForm}>Cancel</Button>
-          <Button className="bg-orange-action hover:bg-orange-600 gap-2" onClick={handleSave} disabled={saving}>
+          <Button
+            className="bg-orange-action hover:bg-orange-600 gap-2"
+            onClick={() => {
+              const hasDraft = !!(
+                entry.hmo_name || entry.facility_name || entry.hcf_code
+                || entry.nhia_cap || entry.nhia_ffs || entry.phi
+              );
+              if (editingKey || hasDraft) {
+                if (!saveEntry()) return;
+              }
+              handleSave();
+            }}
+            disabled={saving}
+          >
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-            {mode === "edit" ? "Update" : "Save Sheet"}
+            {mode === "edit" ? "Update Sheet" : "Submit Sheet"}
           </Button>
         </div>
       </div>
@@ -553,42 +685,43 @@ export default function StateOfficeHmoIndebtednessPage({ onBack, defaultStateId,
             <CardHeader className="pb-3 border-b">
               <CardTitle className="text-sm font-bold flex items-center gap-2">
                 <Wallet className="w-4 h-4" />
-                {loading ? "Loading..." : `${rows.length} sheet(s)`}
+                {loading ? "Loading..." : `${hmoRows.length} HMO${hmoRows.length === 1 ? "" : "s"}`}
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
               {loading ? (
                 <div className="flex justify-center py-16"><Loader2 className="w-5 h-5 animate-spin text-slate-400" /></div>
+              ) : hmoRows.length === 0 ? (
+                <div className="flex justify-center py-16 text-sm text-slate-400">No HMO indebtedness for this period</div>
               ) : (
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-[#f0fdf7]">
-                      <TableHead className="text-xs font-bold">Reference</TableHead>
-                      <TableHead className="text-xs font-bold">State</TableHead>
-                      <TableHead className="text-xs font-bold">Period</TableHead>
-                      <TableHead className="text-xs font-bold">Rows</TableHead>
+                      <TableHead className="text-xs font-bold">HMO</TableHead>
+                      {!stateLocked && filterState === "all" && <TableHead className="text-xs font-bold">State</TableHead>}
+                      {(filterMonth === "all" || filterYear === "all") && <TableHead className="text-xs font-bold">Period</TableHead>}
+                      <TableHead className="text-xs font-bold">HCFs</TableHead>
                       <TableHead className="text-xs font-bold">Total</TableHead>
                       <TableHead className="text-xs font-bold w-16">View</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {rows.map((v, i) => {
-                      const total = (v.lines ?? []).reduce((s: number, l: any) => s + money(l.total), 0);
-                      return (
-                        <motion.tr key={v.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.02 }} className="border-b border-slate-100">
-                          <TableCell className="font-mono text-xs font-bold text-primary">{v.reference_id}</TableCell>
-                          <TableCell className="text-xs">{v.state?.description ?? "—"}</TableCell>
-                          <TableCell className="text-xs">{monthLabel(v.reporting_month)} {v.reporting_year}</TableCell>
-                          <TableCell className="text-xs">{(v.lines ?? []).length}</TableCell>
-                          <TableCell className="text-xs font-mono font-semibold">₦{naira(total)}</TableCell>
-                          <TableCell>
-                            <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => { applyRow(v); setMode("view"); }}>
-                              <Eye className="w-4 h-4 text-[#145c3f]" />
-                            </Button>
-                          </TableCell>
-                        </motion.tr>
-                      );
-                    })}
+                    {hmoRows.map((item) => (
+                      <TableRow key={item.key}>
+                        <TableCell className="text-sm font-semibold text-slate-800">{item.name}</TableCell>
+                        {!stateLocked && filterState === "all" && <TableCell className="text-xs">{item.state}</TableCell>}
+                        {(filterMonth === "all" || filterYear === "all") && (
+                          <TableCell className="text-xs text-slate-500">{item.period}</TableCell>
+                        )}
+                        <TableCell className="text-xs">{item.hcfCount}</TableCell>
+                        <TableCell className="text-xs font-mono font-semibold">₦{naira(item.total)}</TableCell>
+                        <TableCell>
+                          <Button size="sm" variant="ghost" className="h-8 gap-1.5 px-2 text-[#145c3f]" onClick={() => { applyRow(item.row); setMode("view"); }}>
+                            <Eye className="w-4 h-4" /> View
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
                   </TableBody>
                 </Table>
               )}

@@ -1,5 +1,5 @@
 import * as React from "react";
-import { ArrowLeft, Plus, RefreshCw, Loader2, ClipboardCheck, Eye, Search, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Plus, RefreshCw, Loader2, ClipboardCheck, Eye, Search, CheckCircle2, Trash2 } from "lucide-react";
 import { motion } from "motion/react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,7 +29,6 @@ interface Props {
   defaultZoneId?: string | null;
   defaultStateName?: string;
   defaultZoneName?: string;
-  userName?: string;
   canCreate?: boolean;
   canReview?: boolean;
 }
@@ -37,17 +36,37 @@ interface Props {
 const emptyForm = (
   defaultZoneId?: string | null,
   defaultStateId?: string | null,
-  userName?: string,
 ) => ({
   reference_id: "",
   zone_id: defaultZoneId ?? "",
   state_id: defaultStateId ?? "",
   provider_name: "",
   survey_date: new Date().toISOString().slice(0, 10),
-  survey_officers: userName ?? "",
-  team: "",
+  teamNames: [""] as string[],
   responses: {} as Record<string, string>,
 });
+
+function parseTeamNames(raw: unknown): string[] {
+  if (Array.isArray(raw)) {
+    return raw.map((name) => String(name ?? "").trim()).filter(Boolean);
+  }
+  const text = String(raw ?? "").trim();
+  if (!text) return [];
+  if (text.startsWith("[")) {
+    try {
+      const parsed = JSON.parse(text);
+      if (Array.isArray(parsed)) {
+        return parsed.map((name) => String(name ?? "").trim()).filter(Boolean);
+      }
+    } catch { /* legacy plain text */ }
+  }
+  return text.split(/[,;\n]/).map((name) => name.trim()).filter(Boolean);
+}
+
+function formatTeamNames(raw: unknown) {
+  const names = parseTeamNames(raw);
+  return names.length ? names.join(", ") : "";
+}
 
 function parseStoredResponses(raw: unknown): Record<string, string> {
   let rows: { question_id: string; response?: string }[] = [];
@@ -78,7 +97,6 @@ export default function ServicomSatisfactionSurveyPage({
   defaultZoneId,
   defaultStateName,
   defaultZoneName,
-  userName,
   canCreate = true,
   canReview = true,
 }: Props) {
@@ -94,7 +112,7 @@ export default function ServicomSatisfactionSurveyPage({
   const [zones, setZones] = React.useState<any[]>([]);
   const [states, setStates] = React.useState<any[]>([]);
   const [filterStates, setFilterStates] = React.useState<any[]>([]);
-  const [f, setF] = React.useState(emptyForm(defaultZoneId, defaultStateId, userName));
+  const [f, setF] = React.useState(emptyForm(defaultZoneId, defaultStateId));
 
   const [filterZone, setFilterZone] = React.useState(defaultZoneId ?? "all");
   const [filterState, setFilterState] = React.useState(defaultStateId ?? "all");
@@ -136,7 +154,7 @@ export default function ServicomSatisfactionSurveyPage({
     const q = filterSearch.trim().toLowerCase();
     return surveys.filter((s) => {
       if (q) {
-        const hay = [s.reference_id, s.provider_name, s.survey_officers, s.team]
+        const hay = [s.reference_id, s.provider_name, formatTeamNames(s.team)]
           .filter(Boolean).join(" ").toLowerCase();
         if (!hay.includes(q)) return false;
       }
@@ -147,7 +165,7 @@ export default function ServicomSatisfactionSurveyPage({
 
   const openForm = () => {
     if (!canCreate) return;
-    setF(emptyForm(defaultZoneId, defaultStateId, userName));
+    setF(emptyForm(defaultZoneId, defaultStateId));
     setSelectedProviderId("");
     setSelected(null);
     setMode("form");
@@ -164,7 +182,7 @@ export default function ServicomSatisfactionSurveyPage({
   };
 
   const resetCreateForm = () => {
-    setF(emptyForm(defaultZoneId, defaultStateId, userName));
+    setF(emptyForm(defaultZoneId, defaultStateId));
     setSelectedProviderId("");
     setSelected(null);
     setFormKey((k) => k + 1);
@@ -219,11 +237,13 @@ export default function ServicomSatisfactionSurveyPage({
     }
     setSaving(true);
     try {
+      const { teamNames, ...details } = f;
       const payload = {
-        ...f,
+        ...details,
         reference_id: f.reference_id.trim() || undefined,
         zone_id: f.zone_id ? Number(f.zone_id) : null,
         state_id: f.state_id ? Number(f.state_id) : null,
+        team: parseTeamNames(teamNames),
         responses: buildResponsesPayload(f.responses),
       };
       if (selected?.id) await servicomApi.updateSatisfactionSurvey(selected.id, payload);
@@ -309,29 +329,49 @@ export default function ServicomSatisfactionSurveyPage({
             )}
           </div>
 
-          <div className="space-y-1.5">
-            <Label className="text-xs text-slate-500">Survey Officer(s)</Label>
-            {readOnly ? (
-              <p className="text-sm">{row?.survey_officers || "—"}</p>
-            ) : (
-              <Input
-                placeholder="Officer name(s)"
-                value={f.survey_officers}
-                onChange={(e) => setF((p) => ({ ...p, survey_officers: e.target.value }))}
-              />
-            )}
-          </div>
-
-          <div className="space-y-1.5">
+          <div className="space-y-2 md:col-span-2 xl:col-span-3">
             <Label className="text-xs text-slate-500">Team</Label>
             {readOnly ? (
-              <p className="text-sm">{row?.team || "—"}</p>
+              <p className="text-sm">{formatTeamNames(row?.team) || "—"}</p>
             ) : (
-              <Input
-                placeholder="Survey team"
-                value={f.team}
-                onChange={(e) => setF((p) => ({ ...p, team: e.target.value }))}
-              />
+              <div className="space-y-2">
+                {f.teamNames.map((name, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <Input
+                      placeholder={`Name ${index + 1}`}
+                      value={name}
+                      onChange={(e) => setF((p) => ({
+                        ...p,
+                        teamNames: p.teamNames.map((entry, i) => (i === index ? e.target.value : entry)),
+                      }))}
+                    />
+                    {f.teamNames.length > 1 && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="shrink-0 text-slate-400 hover:text-rose-600"
+                        onClick={() => setF((p) => ({
+                          ...p,
+                          teamNames: p.teamNames.filter((_, i) => i !== index),
+                        }))}
+                        aria-label={`Remove name ${index + 1}`}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
+                ))}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                  onClick={() => setF((p) => ({ ...p, teamNames: [...p.teamNames, ""] }))}
+                >
+                  <Plus className="w-4 h-4" /> Add name
+                </Button>
+              </div>
             )}
           </div>
         </div>
@@ -586,7 +626,7 @@ export default function ServicomSatisfactionSurveyPage({
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                   <Input
                     className="pl-9"
-                    placeholder="Search provider, ID, officer..."
+                    placeholder="Search provider, ID, team..."
                     value={filterSearch}
                     onChange={(e) => setFilterSearch(e.target.value)}
                   />
@@ -639,7 +679,7 @@ export default function ServicomSatisfactionSurveyPage({
                         <TableHead className="text-xs font-bold">Provider</TableHead>
                         <TableHead className="text-xs font-bold">State</TableHead>
                         <TableHead className="text-xs font-bold">Score</TableHead>
-                        <TableHead className="text-xs font-bold">Officer(s)</TableHead>
+                        <TableHead className="text-xs font-bold">Team</TableHead>
                         <TableHead className="text-xs font-bold w-16"></TableHead>
                       </TableRow>
                     </TableHeader>
@@ -651,10 +691,10 @@ export default function ServicomSatisfactionSurveyPage({
                           <TableCell className="text-sm">{s.provider_name}</TableCell>
                           <TableCell className="text-xs">{s.state?.description ?? "—"}</TableCell>
                           <TableCell className="text-sm font-semibold">{s.total_score}/{s.max_score} ({s.percentage_score}%)</TableCell>
-                          <TableCell className="text-xs">{s.survey_officers || "—"}</TableCell>
+                          <TableCell className="text-xs">{formatTeamNames(s.team) || "—"}</TableCell>
                           <TableCell>
-                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openView(s)}>
-                              <Eye className="w-4 h-4" />
+                            <Button variant="ghost" size="sm" className="h-8 gap-1.5 px-2" onClick={() => openView(s)}>
+                              <Eye className="w-4 h-4" /> View
                             </Button>
                           </TableCell>
                         </motion.tr>
