@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Plus, Trash2 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -169,6 +169,7 @@ export default function HcpChangeForm({ reportId, onBack, onCancel, onSubmitted,
       onSubmitted={onSubmitted}
       defaultZoneId={defaultZoneId}
       defaultStateId={defaultStateId}
+      pageTitle="Change of HCP"
       onLoaded={loadData}
       validate={() => (lines.length === 0 ? "Add at least one change of HCP record" : null)}
       buildPayload={(base) => ({ ...base, lines: lines.map(({ _key, ...l }) => l) })}
@@ -177,7 +178,6 @@ export default function HcpChangeForm({ reportId, onBack, onCancel, onSubmitted,
         <Card className="rounded-2xl border-[#d4e8dc]">
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Change of HCP</CardTitle>
-            <CardDescription>Track enrollee HCP/HMO transfer requests for the reporting month.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid md:grid-cols-3 gap-3">

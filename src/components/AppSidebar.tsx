@@ -109,9 +109,7 @@ import { hasModuleAccess } from "@/src/access/roles";
 import {
   normalizeAllowedTitles,
   expandAccessEntries,
-  DASHBOARDS_ENABLED,
   ANNUAL_REPORTS_ENABLED,
-  isDashboardNavTitle,
   isAnnualReportNavTitle,
 } from "@/src/access/accessUtils";
 import { NhiaSidebarBrand } from "@/src/components/NhiaCrest";
@@ -418,7 +416,6 @@ function filterModuleTree(
     }
 
     if (!child.view || !allowedTitles.has(child.title)) continue;
-    if (!DASHBOARDS_ENABLED && isDashboardNavTitle(child.title)) continue;
     if (!ANNUAL_REPORTS_ENABLED && isAnnualReportNavTitle(child.title)) continue;
 
     nodes.push({
@@ -813,14 +810,12 @@ export function AppSidebar({
   const visibleModules = React.useMemo(() => {
     const stripHiddenTitles = (titles: Set<string>) => {
       return new Set([...titles].filter((t) => {
-        if (!DASHBOARDS_ENABLED && isDashboardNavTitle(t)) return false;
         if (!ANNUAL_REPORTS_ENABLED && isAnnualReportNavTitle(t)) return false;
         return true;
       }));
     };
     const isHiddenModule = (title: string) =>
-      (!DASHBOARDS_ENABLED && isDashboardNavTitle(title))
-      || (!ANNUAL_REPORTS_ENABLED && isAnnualReportNavTitle(title));
+      (!ANNUAL_REPORTS_ENABLED && isAnnualReportNavTitle(title));
 
     if (role === "admin") {
       return modulesVisibleToAdmin()

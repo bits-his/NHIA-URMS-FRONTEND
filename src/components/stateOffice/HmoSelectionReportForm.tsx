@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Plus, Trash2 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -98,6 +98,7 @@ export default function HmoSelectionReportForm({ reportId, onBack, onCancel, onS
       onCancel={onCancel}
       onSubmitted={onSubmitted}
       defaultZoneId={defaultZoneId} defaultStateId={defaultStateId}
+      pageTitle="MDA Change of HMO Selection Process"
       onLoaded={loadData}
       afterPersist={afterPersist}
       validate={() => (lines.length === 0 ? "Add at least one MDA selection record" : null)}
@@ -115,7 +116,6 @@ export default function HmoSelectionReportForm({ reportId, onBack, onCancel, onS
         <Card className="rounded-2xl border-[#d4e8dc]">
           <CardHeader className="pb-2">
             <CardTitle className="text-base">MDA Change of HMO Selection Process</CardTitle>
-            <CardDescription>Record MDA HMO selection meetings, compliance, and supporting documents.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid md:grid-cols-3 gap-3">

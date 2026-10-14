@@ -116,7 +116,7 @@ export default function NewPrepaymentAnalysisView() {
         file
       );
       setSuccessMsg(true);
-      toast.success("Prepayment analysis entry saved");
+      toast.success("Stock prepayment register entry saved");
       setTimeout(() => {
         if (createOnly) {
           setForm({ ...EMPTY_FORM });
@@ -139,10 +139,10 @@ export default function NewPrepaymentAnalysisView() {
     <PageLayout
       title={
         <span className="flex items-center gap-2">
-          <FileSpreadsheet className="w-5 h-5 text-[#25a872]" /> Prepayment Analysis Entry
+          <FileSpreadsheet className="w-5 h-5 text-[#25a872]" /> Stock Prepayment Register Entry
         </span>
       }
-      description="Stock Verification Prepayment Analysis Register"
+      description="Stock Verification — Stock Prepayment Register"
       back
       backTo={createOnly ? "/" : "/store-management/prepayment-analysis"}
     >
@@ -153,7 +153,7 @@ export default function NewPrepaymentAnalysisView() {
               <FileSpreadsheet className="h-6 w-6" />
             </div>
             <div>
-              <h2 className="text-base font-bold tracking-tight text-white">Prepayment Analysis Data Entry</h2>
+              <h2 className="text-base font-bold tracking-tight text-white">Stock Prepayment Register Data Entry</h2>
               <p className="text-xs text-emerald-100/90">National Health Insurance Authority — Stock Verification</p>
             </div>
           </div>
@@ -171,7 +171,7 @@ export default function NewPrepaymentAnalysisView() {
         {successMsg && (
           <div className="m-4 mb-0 p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-md font-semibold text-xs flex items-center gap-2 shadow-sm">
             <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
-            Entry saved to the Prepayment Analysis Register.
+            Entry saved to the Stock Prepayment Register.
           </div>
         )}
 

@@ -165,6 +165,10 @@ export function normalizeFunctionalityTitle(title: string, moduleTitle?: string)
 
   if (title === "Asset Register") return "Asset Master Register";
 
+  if (title === "Prepayment Analysis Register" || title === "Prepayment Analysis") {
+    return "Stock Prepayment Register";
+  }
+
 
 
   // Legacy records without module context (admin UI reload, old DB rows)
@@ -388,14 +392,30 @@ export function filterSidebar(
 
 }
 
-/**
- * Temporary kill-switch: hide every dashboard (home + module dashboards)
- * from all roles until product is ready to re-enable them.
- */
-export const DASHBOARDS_ENABLED = false;
+/** Dashboards are controlled by user access privileges (not a global kill-switch). */
+export const DASHBOARDS_ENABLED = true;
 
 /** Temporary kill-switch: hide Annual Reports module for all roles. */
 export const ANNUAL_REPORTS_ENABLED = false;
+
+/** Director role assigned to the Enforcement Department. */
+export function isDirectorEnforcementUser(
+  user: {
+    role?: string | null;
+    role_label?: string | null;
+    department?: { name?: string | null; department_code?: string | null } | null;
+  } | null | undefined,
+): boolean {
+  if (!user) return false;
+  const role = String(user.role || "").toLowerCase().trim();
+  const roleLabel = String(user.role_label || "").toLowerCase().trim();
+  const isDirector = role === "director" || roleLabel === "director";
+  if (!isDirector) return false;
+
+  const code = String(user.department?.department_code || "").toUpperCase().trim();
+  const deptName = String(user.department?.name || "").toLowerCase().trim();
+  return code === "ENF" || deptName.includes("enforcement");
+}
 
 export function isDashboardNavTitle(title: string | null | undefined): boolean {
   const t = String(title || "").trim().toLowerCase();
@@ -413,7 +433,6 @@ export function isAnnualReportNavTitle(title: string | null | undefined): boolea
 }
 
 function isTemporarilyHiddenNavTitle(title: string | null | undefined): boolean {
-  if (!DASHBOARDS_ENABLED && isDashboardNavTitle(title)) return true;
   if (!ANNUAL_REPORTS_ENABLED && isAnnualReportNavTitle(title)) return true;
   return false;
 }
@@ -425,8 +444,9 @@ function isTemporarilyHiddenNavTitle(title: string | null | undefined): boolean 
 export function getFirstAccessiblePath(
   access: AccessEntry[] | undefined,
   role?: string,
+  _authUser?: Parameters<typeof isDirectorEnforcementUser>[0],
 ): string {
-  if (role === "admin" && DASHBOARDS_ENABLED) return "/";
+  if (role === "admin") return "/";
 
   const user: AccessUser = { role: role ?? "", access: access ?? [] };
 
@@ -470,8 +490,8 @@ export function getFirstAccessiblePath(
 export function canAccessHomeDashboard(
   access: AccessEntry[] | undefined,
   role?: string,
+  _authUser?: Parameters<typeof isDirectorEnforcementUser>[0],
 ): boolean {
-  if (!DASHBOARDS_ENABLED) return false;
   if (role === "admin") return true;
   return canAccessFunctionality("Dashboard", "Dashboard", {
     role: role ?? "",

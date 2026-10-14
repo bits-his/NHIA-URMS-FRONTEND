@@ -63,7 +63,7 @@ function AppInner() {
       token: tokenStore.get()!,
       user: { ...userData, functionalities: accessArr },
     }));
-    const landing = getFirstAccessiblePath(accessArr, role);
+    const landing = getFirstAccessiblePath(accessArr, role, userData);
     navigate(landing, { replace: true });
   };
 
