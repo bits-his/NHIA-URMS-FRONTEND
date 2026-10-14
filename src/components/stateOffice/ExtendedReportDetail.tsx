@@ -287,11 +287,12 @@ export default function ExtendedReportDetail({ reportType, reportId, onBack, onE
 
               {reportType === "hcf-change" && (
                 <DataCard title="Change of HCP"
-                  headers={["Date", "Enrollee", "NHIA", "Current HCP/HMO", "New HCP/HMO", "Reason", "Criteria", "Channel", "Request", "End date", "Status"]}
+                  headers={["Date", "Enrollee", "NHIA", "Entity", "Current", "New", "Reason", "Criteria", "Channel", "Request", "End date", "Status"]}
                   rows={(report.lines ?? []).map((l: any) => [
                     l.record_date || "—",
                     l.enrollee_name,
                     l.nhia_number,
+                    (l.entity_type || "—").toString().toUpperCase(),
                     l.current_hcp_hmo || "—",
                     l.new_hcp_hmo || "—",
                     l.reason_for_transfer || "—",

@@ -5,6 +5,7 @@ import OfficeMeetingForm from "./OfficeMeetingForm";
 import EtmcCascadingForm from "./EtmcCascadingForm";
 import OfficeAccommodationForm from "./OfficeAccommodationForm";
 import UtilityServicesForm from "./UtilityServicesForm";
+import UtilityServicesDetail from "./UtilityServicesDetail";
 import VehicleMaintenanceForm from "./VehicleMaintenanceForm";
 import ConflictInfractionForm from "./ConflictInfractionForm";
 import EnrolleeFeedbackForm from "./EnrolleeFeedbackForm";
@@ -45,5 +46,8 @@ export function AdminHrDetailRouter(props: {
   onBack: () => void;
   onEdit?: () => void;
 }) {
+  if (props.reportType === "utility-services") {
+    return <UtilityServicesDetail {...props} />;
+  }
   return <AdminHrDetail {...props} />;
 }

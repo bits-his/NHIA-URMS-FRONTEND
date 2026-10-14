@@ -22,6 +22,8 @@ interface Props {
   pageSubtitle?: string;
   /** Hide sticky Save Draft / Submit bar (forms that provide their own actions) */
   hideFooterActions?: boolean;
+  /** Hide default ReportBasicInfo when the form renders its own zone/state/period header */
+  hideBasicInfo?: boolean;
   children: (ctx: {
     saving: boolean;
     submitting: boolean;
@@ -29,9 +31,10 @@ interface Props {
     stateId: string;
     persist: (status: "draft" | "submitted") => Promise<void>;
     requestSubmit: (action: () => void | Promise<void>) => void;
+    header: ReturnType<typeof useStateOfficeHeader>;
   }) => React.ReactNode;
   buildPayload: (base: Record<string, unknown>) => Record<string, unknown>;
-  validate?: () => string | null;
+  validate?: (status?: "draft" | "submitted") => string | null;
   reportType: keyof typeof stateOfficeApi;
   onLoaded?: (data: any) => void;
   /** Optional reporting week for weekly-actionable forms */
@@ -53,6 +56,7 @@ export default function StateOfficeFormShell({
   pageTitle,
   pageSubtitle,
   hideFooterActions = false,
+  hideBasicInfo = false,
   afterPersist,
 }: Props) {
   const handleCancel = onCancel ?? onBack;
@@ -85,10 +89,15 @@ export default function StateOfficeFormShell({
         header.applyHeader(v);
         let loaded = v;
         if (typeof v?.payload === "string") {
-          try {
-            loaded = { ...v, payload: JSON.parse(v.payload) };
-          } catch {
+          const trimmed = v.payload.trim();
+          if (!trimmed) {
             loaded = { ...v, payload: {} };
+          } else {
+            try {
+              loaded = { ...v, payload: JSON.parse(trimmed) };
+            } catch {
+              loaded = { ...v, payload: {} };
+            }
           }
         }
         onLoaded?.(loaded);
@@ -106,7 +115,7 @@ export default function StateOfficeFormShell({
     const headerErr = header.validateHeader();
     if (headerErr) { toast.error(headerErr); return; }
     if (setReportWeek && !reportWeek) { toast.error("Please select a Reporting Week"); return; }
-    const extraErr = validate?.();
+    const extraErr = validate?.(status);
     if (extraErr) { toast.error(extraErr); return; }
 
     const setter = status === "draft" ? setSaving : setSubmitting;
@@ -172,15 +181,17 @@ export default function StateOfficeFormShell({
             </div>
           ) : (
             <>
-              <ReportBasicInfo
-                {...header}
-                lockZone={header.lockZone}
-                lockState={header.lockState}
-                reportWeek={reportWeek}
-                setReportWeek={setReportWeek}
-                showGeoIds={showGeoIds}
-                showQuarter={showQuarter}
-              />
+              {!hideBasicInfo && (
+                <ReportBasicInfo
+                  {...header}
+                  lockZone={header.lockZone}
+                  lockState={header.lockState}
+                  reportWeek={reportWeek}
+                  setReportWeek={setReportWeek}
+                  showGeoIds={showGeoIds}
+                  showQuarter={showQuarter}
+                />
+              )}
               {children({
                 saving,
                 submitting,
@@ -188,6 +199,7 @@ export default function StateOfficeFormShell({
                 stateId: header.stateId,
                 persist,
                 requestSubmit: submitConfirm.requestSubmit,
+                header,
               })}
             </>
           )}
