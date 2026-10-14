@@ -404,12 +404,12 @@ export const REPORT_CONFIG: Record<StateOfficeReportType, {
   },
   "hmo-selection": {
     title: "MDA Change of HMO Selection Process",
-    subtitle: "MDA HMO selection, compliance, and supporting documents",
+    subtitle: "",
     refLabel: "MDA", countLabel: "Records", totalLabel: "Total Records",
   },
   "extra-dependant": {
     title: "Additional / Extra Dependent",
-    subtitle: "Extra-dependant requests for the reporting month",
+    subtitle: "",
     refLabel: "Enrollee", countLabel: "Records", totalLabel: "Total Records",
   },
   ...(Object.fromEntries(ENROLMENT_DRIVE_TYPES.map((t) => [enrolmentDriveReportType(t.key), {
@@ -419,7 +419,7 @@ export const REPORT_CONFIG: Record<StateOfficeReportType, {
   }])) as Record<EnrolmentDriveReportType, { title: string; subtitle: string; refLabel: string; countLabel: string; totalLabel: string }>),
   "hcf-change": {
     title: "Change of HCP",
-    subtitle: "Enrollee HCP/HMO transfer requests for the reporting month",
+    subtitle: "",
     refLabel: "Enrollee", countLabel: "Records", totalLabel: "Total Records",
   },
   challenges: {

@@ -78,6 +78,21 @@ export const UTILITY_CATEGORIES = [
   "Cleaning & Horticulture",
   "Security",
 ] as const;
+
+export const UTILITY_SERVICE_LOCATIONS = [
+  "State Office",
+  "Zonal Office",
+  "Zonal Warehouse",
+  "State Store / Warehouse",
+  "Annex Office",
+  "Liaison Office",
+] as const;
+
+export const UTILITY_REQUIRED_ATTACHMENTS = [
+  { id: 1, name: "Duly signed Job Completion Certificate" },
+  { id: 2, name: "Firm's Request for Payment" },
+  { id: 3, name: "Invoice for Services Rendered" },
+] as const;
 export const MAINTENANCE_TYPES = ["Emergency Repair", "Preventive Maintenance"] as const;
 export const VEHICLE_STATUSES = ["Operational", "Restricted Use"] as const;
 export const ACTION_STATUSES = ["Pending", "In Progress", "Completed"] as const;

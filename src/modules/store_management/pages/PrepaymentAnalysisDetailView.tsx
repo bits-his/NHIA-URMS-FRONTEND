@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import PageLayout from "../components/PageLayout";
 import { storeManagementApi } from "@/src/services/storeManagementApi";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, ExternalLink, Paperclip } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ExternalLink, FileSpreadsheet, Paperclip } from "lucide-react";
 
 const API_ORIGIN = ((import.meta.env?.VITE_API_URL as string) || "http://localhost:3001/api").replace(/\/api\/?$/, "");
 
@@ -52,7 +52,7 @@ export default function PrepaymentAnalysisDetailView() {
 
   if (loading) {
     return (
-      <PageLayout title="Prepayment Analysis" description="Loading register entry…">
+      <PageLayout title="Stock Prepayment Register" description="Loading register entry…">
         <div className="space-y-3 animate-pulse">
           <div className="h-20 rounded-xl bg-slate-200/70" />
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -69,14 +69,17 @@ export default function PrepaymentAnalysisDetailView() {
     return (
       <PageLayout
         title="Entry Not Found"
-        description="This record is not on the Prepayment Analysis Register"
-        back
-        backTo="/store-management/prepayment-analysis"
+        description="This record is not on the Stock Prepayment Register"
+        actions={
+          <Button variant="outline" size="sm" onClick={() => navigate(-1)} className="text-xs">
+            <ArrowLeft className="h-3.5 w-3.5 mr-1" aria-hidden="true" /> Back
+          </Button>
+        }
       >
         <div className="p-8 text-center bg-white rounded-xl border border-slate-200">
           <AlertTriangle className="h-10 w-10 text-amber-500 mx-auto mb-2" />
           <h3 className="text-base font-bold text-slate-800">No Entry Found</h3>
-          <p className="text-xs text-slate-500 mt-0.5">No prepayment analysis matches ID: {id || "—"}</p>
+          <p className="text-xs text-slate-500 mt-0.5">No stock prepayment register entry matches ID: {id || "—"}</p>
           <Button
             size="sm"
             onClick={() => navigate("/store-management/prepayment-analysis")}
@@ -98,8 +101,12 @@ export default function PrepaymentAnalysisDetailView() {
 
   return (
     <PageLayout
-      title="Prepayment Analysis Entry"
-      description={row.controlNumber}
+      title={
+        <span className="flex items-center gap-2">
+          <FileSpreadsheet className="w-5 h-5 text-[#25a872]" /> Stock Prepayment Register Entry
+        </span>
+      }
+      description={`Register record ${row.controlNumber || ""}`}
       back
       backTo="/store-management/prepayment-analysis"
       contentClassName="flex-1 min-h-0"

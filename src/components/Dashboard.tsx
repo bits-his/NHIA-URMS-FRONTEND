@@ -459,9 +459,9 @@ export default function Dashboard({ role, user, access = [], functionalities = "
       { role, access: expanded },
     );
     if (!allowed) {
-      navigate(getFirstAccessiblePath(expanded, role), { replace: true });
+      navigate(getFirstAccessiblePath(expanded, role, user), { replace: true });
     }
-  }, [view, role, access, navigate]);
+  }, [view, role, access, navigate, user]);
 
   return (
     <SidebarProvider>
@@ -487,7 +487,7 @@ export default function Dashboard({ role, user, access = [], functionalities = "
           <Routes>
             {/* ── Home / Main Dashboard Overview ── */}
             <Route path="/" element={
-              canAccessHomeDashboard(access, role) ? (
+              canAccessHomeDashboard(access, role, user) ? (
               isDirectorEnforcementUser(user) ? (
                 <div className="relative z-10 h-full">
                   <DirectorEnforcementDashboard
@@ -495,6 +495,10 @@ export default function Dashboard({ role, user, access = [], functionalities = "
                       navigate(path);
                       if (path.includes("compliance")) setView("sqa-compliance");
                       else if (path.includes("complaints")) setView("servicom-complaints");
+                      else if (path.includes("comment-card")) setView("servicom-comment-card");
+                      else if (path.includes("satisfaction")) setView("servicom-satisfaction");
+                      else if (path.includes("stock-dashboard")) setView("stock-verifications-list");
+                      else if (path.includes("servicom") && !path.includes("complaints")) setView("servicom-dashboard");
                     }}
                   />
                 </div>
@@ -586,11 +590,11 @@ export default function Dashboard({ role, user, access = [], functionalities = "
               </div>
               )
               ) : (
-                <Navigate to={getFirstAccessiblePath(access, role)} replace />
+                <Navigate to={getFirstAccessiblePath(access, role, user)} replace />
               )
             } />
 
-            <Route path="/dashboard" element={<Navigate to={getFirstAccessiblePath(access, role)} replace />} />
+            <Route path="/dashboard" element={<Navigate to={getFirstAccessiblePath(access, role, user)} replace />} />
 
             {/* ── Annual Reports ── */}
             <Route
@@ -598,7 +602,7 @@ export default function Dashboard({ role, user, access = [], functionalities = "
               element={
                 ANNUAL_REPORTS_ENABLED
                   ? <AnnualReportsList onBack={() => setView("home")} defaultZoneId={monthlyCtx.defaultZoneId ?? (user?.zone_id ? String(user.zone_id) : null)} defaultStateId={monthlyCtx.defaultStateId} reportScope={(user?.role_config?.report_scope as "national" | "zonal" | "state" | "none") ?? "national"} />
-                  : <Navigate to={getFirstAccessiblePath(access, role)} replace />
+                  : <Navigate to={getFirstAccessiblePath(access, role, user)} replace />
               }
             />
             <Route
@@ -606,7 +610,7 @@ export default function Dashboard({ role, user, access = [], functionalities = "
               element={
                 ANNUAL_REPORTS_ENABLED
                   ? <ReportEntry onBack={() => setView("home")} onPreview={() => setView("report-preview")} />
-                  : <Navigate to={getFirstAccessiblePath(access, role)} replace />
+                  : <Navigate to={getFirstAccessiblePath(access, role, user)} replace />
               }
             />
             <Route
@@ -614,7 +618,7 @@ export default function Dashboard({ role, user, access = [], functionalities = "
               element={
                 ANNUAL_REPORTS_ENABLED
                   ? <ZonalReview onCompose={() => setView("zonal-compose")} />
-                  : <Navigate to={getFirstAccessiblePath(access, role)} replace />
+                  : <Navigate to={getFirstAccessiblePath(access, role, user)} replace />
               }
             />
             <Route
@@ -622,7 +626,7 @@ export default function Dashboard({ role, user, access = [], functionalities = "
               element={
                 ANNUAL_REPORTS_ENABLED
                   ? <AnnualReportDetail referenceId={selectedReportRef || "1"} onBack={() => setView("annual-reports-list")} />
-                  : <Navigate to={getFirstAccessiblePath(access, role)} replace />
+                  : <Navigate to={getFirstAccessiblePath(access, role, user)} replace />
               }
             />
 
@@ -633,7 +637,7 @@ export default function Dashboard({ role, user, access = [], functionalities = "
               element={
                 DASHBOARDS_ENABLED
                   ? <StockVerificationDashboard onBack={() => setView("home")} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} />
-                  : <Navigate to={getFirstAccessiblePath(access, role)} replace />
+                  : <Navigate to={getFirstAccessiblePath(access, role, user)} replace />
               }
             />
             <Route path="/sdo/assets" element={<StockAssetManager onBack={() => setView("home")} />} />
@@ -659,7 +663,7 @@ export default function Dashboard({ role, user, access = [], functionalities = "
             <Route path="/monthly/outreach" element={<DeptMonthlyPage dept="programmes" title="Outreach Monthly Reports" section="outreach" onBack={() => setView("home")} defaultZoneId={monthlyCtx.defaultZoneId} defaultStateId={monthlyCtx.defaultStateId} canCreate={monthlyCtx.canCreateMonthly} canReview={monthlyCtx.canReviewMonthly} FormComponent={OutreachMonthlyForm} />} />
             <Route path="/monthly/sqa" element={<DeptMonthlyPage dept="sqa" title="HMO/HCP Quality Assurance Monthly Reports" section="sqa" onBack={() => setView("home")} defaultZoneId={monthlyCtx.defaultZoneId} defaultStateId={monthlyCtx.defaultStateId} canCreate={monthlyCtx.canCreateMonthly} canReview={monthlyCtx.canReviewMonthly} FormComponent={SqaMonthlyForm} />} />
             <Route path="/compliance" element={<ComplianceManagementPage onBack={() => setView("home")} defaultZoneId={monthlyCtx.defaultZoneId} defaultStateId={monthlyCtx.defaultStateId} />} />
-            <Route path="/enforcement/dashboard" element={<Navigate to={getFirstAccessiblePath(access, role)} replace />} />
+            <Route path="/enforcement/dashboard" element={<Navigate to={getFirstAccessiblePath(access, role, user)} replace />} />
             <Route path="/monthly/complaints" element={<DeptMonthlyPage dept="sqa" title="Enrollee Complaints Monthly Reports" section="complaints" onBack={() => setView("home")} defaultZoneId={monthlyCtx.defaultZoneId} defaultStateId={monthlyCtx.defaultStateId} canCreate={monthlyCtx.canCreateMonthly} canReview={monthlyCtx.canReviewMonthly} FormComponent={ComplaintsMonthlyForm} />} />
 
             {/* ── SOC / Zones ── */}
@@ -668,7 +672,7 @@ export default function Dashboard({ role, user, access = [], functionalities = "
               element={
                 DASHBOARDS_ENABLED
                   ? <SocZonesDashboard onBack={() => setView("home")} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} />
-                  : <Navigate to={getFirstAccessiblePath(access, role)} replace />
+                  : <Navigate to={getFirstAccessiblePath(access, role, user)} replace />
               }
             />
             <Route path="/soc/office-profile" element={<StateZonalOfficeProfilePage defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
@@ -817,7 +821,7 @@ export default function Dashboard({ role, user, access = [], functionalities = "
               element={
                 DASHBOARDS_ENABLED
                   ? <DashboardView />
-                  : <Navigate to={getFirstAccessiblePath(access, role)} replace />
+                  : <Navigate to={getFirstAccessiblePath(access, role, user)} replace />
               }
             />
             <Route path="/store-management/assets/register" element={<AssetRegisterView />} />

@@ -14,9 +14,12 @@ import {
   ENROLMENT_BENEFICIARY_CATEGORIES,
   ENROLMENT_BUDGETED,
   ENROLMENT_CHANNELS,
+  ENROLMENT_TYPES,
   ENROLMENT_FUNDING_OPTIONS,
   ENROLMENT_PROGRAMS,
+  ENROLMENT_RENEWABLE_PROGRAM_LABELS,
   ENROLMENT_SSHIA_CHANNELS,
+  ENROLMENT_MODES_OF_REGISTRATION,
 } from "./enrolmentPillarTypes";
 
 function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
@@ -36,7 +39,7 @@ const blank = () => ({
   activity_date: "",
   category: (ENROLMENT_ACTIVITIES[0]?.value ?? "enrolment") as string,
   enrolment_channel: "",
-  sshia_channel: "",
+  enrolment_type: "",
   program_name: "",
   enrolment_category: "",
   beneficiary_category: "",
@@ -73,28 +76,51 @@ export default function EnrolmentActivityForm({
 
   const set = <K extends keyof Entry>(k: K, v: Entry[K]) => setEntry((p) => ({ ...p, [k]: v }));
   const isBudgeted = entry.funding_option === ENROLMENT_BUDGETED;
-  const activityMeta = ENROLMENT_ACTIVITIES.find((a) => a.value === entry.category);
-  const programMeta = ENROLMENT_PROGRAMS.find((p) => p.label === entry.program_name);
-
-  const parseChannel = (raw: string | null | undefined) => {
-    const value = raw ?? "";
-    if (value.startsWith("SSHIA / ")) {
-      return { enrolment_channel: "SSHIA", sshia_channel: value.slice("SSHIA / ".length) };
+  const activityLabel = ENROLMENT_ACTIVITIES.find((a) => a.value === entry.category)?.label
+    ?? entry.category;
+  const programOptions = React.useMemo(() => {
+    if (entry.enrolment_channel === "SSHIA") {
+      return ENROLMENT_SSHIA_CHANNELS.map((label) => ({ code: null as string | null, label }));
     }
-    if (value === "SSHIA") return { enrolment_channel: "SSHIA", sshia_channel: "" };
-    return { enrolment_channel: value, sshia_channel: "" };
+    if (entry.enrolment_channel !== "NHIA") return [];
+    const nhia = ENROLMENT_PROGRAMS.map((p) => ({ code: p.code as string | null, label: p.label }));
+    if (entry.enrolment_type === "Renewal") {
+      return nhia.filter((p) => ENROLMENT_RENEWABLE_PROGRAM_LABELS.has(p.label));
+    }
+    if (entry.enrolment_type === "Non-renewal") {
+      return nhia.filter((p) => !ENROLMENT_RENEWABLE_PROGRAM_LABELS.has(p.label));
+    }
+    return [];
+  }, [entry.enrolment_channel, entry.enrolment_type]);
+
+  /** Legacy rows stored channel as `SSHIA / BHCPF` — fold that into program. */
+  const parseStoredChannel = (raw: string | null | undefined, programName: string | null | undefined) => {
+    const value = String(raw ?? "").trim();
+    if (value.startsWith("SSHIA / ")) {
+      const sshiaProgram = value.slice("SSHIA / ".length).trim();
+      return {
+        enrolment_channel: "SSHIA",
+        program_name: programName || sshiaProgram,
+      };
+    }
+    return {
+      enrolment_channel: value,
+      program_name: programName ?? "",
+    };
   };
 
   const loadData = (v: any) => {
     const next = (v.lines ?? []).map((l: any) => {
-      const ch = parseChannel(l.enrolment_channel);
+      const ch = parseStoredChannel(l.enrolment_channel, l.program_name);
       return {
         _key: uid(),
         activity_date: l.activity_date?.slice?.(0, 10) ?? "",
         category: l.category ?? "enrolment",
         enrolment_channel: ch.enrolment_channel,
-        sshia_channel: ch.sshia_channel,
-        program_name: l.program_name ?? "",
+        enrolment_type: l.enrolment_type
+          || (ch.program_name && ENROLMENT_RENEWABLE_PROGRAM_LABELS.has(ch.program_name) ? "Renewal" : "")
+          || (ch.enrolment_channel === "NHIA" && ch.program_name ? "Non-renewal" : ""),
+        program_name: ch.program_name,
         enrolment_category: l.enrolment_category ?? "",
         beneficiary_category: l.beneficiary_category ?? "",
         funding_option: l.funding_option ?? "",
@@ -154,17 +180,15 @@ export default function EnrolmentActivityForm({
       validate={() => (linesRef.current.length === 0 ? "Add at least one enrolment activity" : null)}
       buildPayload={(base) => ({
         ...base,
-        lines: linesRef.current.map(({ _key, sshia_channel, ...l }) => {
+        lines: linesRef.current.map(({ _key, ...l }) => {
           const act = ENROLMENT_ACTIVITIES.find((a) => a.value === l.category);
           const prog = ENROLMENT_PROGRAMS.find((p) => p.label === l.program_name);
-          const channel = l.enrolment_channel === "SSHIA" && sshia_channel
-            ? `SSHIA / ${sshia_channel}`
-            : l.enrolment_channel;
           return {
             category: l.category,
             activity_code: act?.code ?? null,
             activity_date: l.activity_date || null,
-            enrolment_channel: channel || null,
+            enrolment_channel: l.enrolment_channel || null,
+            enrolment_type: l.enrolment_type || null,
             program_code: prog?.code ?? null,
             program_name: l.program_name || null,
             enrolment_category: l.enrolment_category || null,
@@ -191,17 +215,15 @@ export default function EnrolmentActivityForm({
                 <div className="space-y-1">
                   <Label>Enrolment Activity *</Label>
                   <Select value={entry.category} onValueChange={(v) => set("category", v)}>
-                    <SelectTrigger><SelectValue placeholder="Select activity" /></SelectTrigger>
+                    <SelectTrigger displayValue={activityLabel || "Select activity"}>
+                      <SelectValue placeholder="Select activity" />
+                    </SelectTrigger>
                     <SelectContent>
                       {ENROLMENT_ACTIVITIES.map((a) => (
-                        <SelectItem key={a.value} value={a.value}>{a.code} — {a.label}</SelectItem>
+                        <SelectItem key={a.value} value={a.value}>{a.label}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                </div>
-                <div className="space-y-1">
-                  <Label>Enrolment Activity ID</Label>
-                  <Input value={activityMeta?.code ?? ""} readOnly className="bg-slate-50" placeholder="Auto" />
                 </div>
                 <div className="space-y-1">
                   <Label>Enrolment Date *</Label>
@@ -211,7 +233,13 @@ export default function EnrolmentActivityForm({
                   <Label>Enrolment Channel</Label>
                   <Select
                     value={entry.enrolment_channel}
-                    onValueChange={(v) => setEntry((p) => ({ ...p, enrolment_channel: v, sshia_channel: "" }))}
+                    onValueChange={(v) => setEntry((p) => ({
+                      ...p,
+                      enrolment_channel: v,
+                      enrolment_type: "",
+                      program_name: "",
+                      enrolment_category: "",
+                    }))}
                   >
                     <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
                     <SelectContent>
@@ -219,35 +247,75 @@ export default function EnrolmentActivityForm({
                     </SelectContent>
                   </Select>
                 </div>
-                {entry.enrolment_channel === "SSHIA" && (
-                  <div className="space-y-1">
-                    <Label>SSHIA Channel</Label>
-                    <Select value={entry.sshia_channel} onValueChange={(v) => set("sshia_channel", v)}>
-                      <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                      <SelectContent>
-                        {ENROLMENT_SSHIA_CHANNELS.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
+                <div className="space-y-1">
+                  <Label>Enrolment Type</Label>
+                  <Select
+                    value={entry.enrolment_type}
+                    onValueChange={(v) => setEntry((p) => ({ ...p, enrolment_type: v, program_name: "", enrolment_category: "" }))}
+                    disabled={!entry.enrolment_channel || entry.enrolment_channel === "SSHIA"}
+                  >
+                    <SelectTrigger>
+                      <SelectValue
+                        placeholder={
+                          !entry.enrolment_channel
+                            ? "Select channel first"
+                            : entry.enrolment_channel === "SSHIA"
+                              ? "Not required for SSHIA"
+                              : "Select type"
+                        }
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ENROLMENT_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
                 <div className="space-y-1">
                   <Label>Program</Label>
-                  <Select value={entry.program_name} onValueChange={(v) => set("program_name", v)}>
-                    <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                  <Select
+                    value={entry.program_name}
+                    onValueChange={(v) => setEntry((p) => ({ ...p, program_name: v, enrolment_category: "" }))}
+                    disabled={
+                      !entry.enrolment_channel
+                      || (entry.enrolment_channel === "NHIA" && !entry.enrolment_type)
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue
+                        placeholder={
+                          !entry.enrolment_channel
+                            ? "Select channel first"
+                            : entry.enrolment_channel === "NHIA" && !entry.enrolment_type
+                              ? "Select enrolment type first"
+                              : "Select program"
+                        }
+                      />
+                    </SelectTrigger>
                     <SelectContent>
-                      {ENROLMENT_PROGRAMS.map((p) => (
-                        <SelectItem key={p.code} value={p.label}>{p.code} — {p.label}</SelectItem>
+                      {programOptions.map((p) => (
+                        <SelectItem key={p.label} value={p.label}>{p.label}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-1">
-                  <Label>Program ID</Label>
-                  <Input value={programMeta?.code ?? ""} readOnly className="bg-slate-50" placeholder="Auto" />
-                </div>
-                <div className="space-y-1">
-                  <Label>Enrolment Category</Label>
-                  <Input value={entry.enrolment_category} onChange={(e) => set("enrolment_category", e.target.value)} placeholder="Program-specific category" />
+                  <Label>Mode of Registration</Label>
+                  <Select
+                    value={entry.enrolment_category}
+                    onValueChange={(v) => set("enrolment_category", v)}
+                    disabled={!entry.program_name}
+                  >
+                    <SelectTrigger>
+                      <SelectValue
+                        placeholder={entry.program_name ? "Select mode" : "Select program first"}
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ENROLMENT_MODES_OF_REGISTRATION.map((m) => (
+                        <SelectItem key={m} value={m}>{m}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-1">
                   <Label>Beneficiary Category</Label>
@@ -307,7 +375,7 @@ export default function EnrolmentActivityForm({
                   <Table>
                     <TableHeader>
                       <TableRow className="bg-[#f0fdf7]">
-                        {["ID", "Date", "Activity", "Channel", "Program", "Enrolled", "Validated", "Status", ""].map((h) => (
+                        {["Date", "Activity", "Channel", "Program", "Enrolled", "Validated", "Status", ""].map((h) => (
                           <TableHead key={h} className="text-xs font-bold whitespace-nowrap">{h}</TableHead>
                         ))}
                       </TableRow>
@@ -317,7 +385,6 @@ export default function EnrolmentActivityForm({
                         const act = ENROLMENT_ACTIVITIES.find((a) => a.value === l.category);
                         return (
                           <TableRow key={l._key} className={editingKey === l._key ? "bg-amber-50" : undefined}>
-                            <TableCell className="text-xs font-mono">{act?.code || "—"}</TableCell>
                             <TableCell className="text-sm whitespace-nowrap">{l.activity_date || "—"}</TableCell>
                             <TableCell className="text-sm font-medium">{act?.label || l.category}</TableCell>
                             <TableCell className="text-xs">{l.enrolment_channel || "—"}</TableCell>

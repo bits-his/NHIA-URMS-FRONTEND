@@ -26,24 +26,6 @@ export const ENROLMENT_PILLAR_CHILDREN: PillarChild[] = [
     path: "/zonal/enrolment",
     status: "ready",
   },
-  {
-    key: "nin-validation",
-    title: "NIN Validation",
-    navLabel: "NIN Validation",
-    view: "state-enrolment-nin-validation",
-    path: "/zonal/enrolment/nin-validation",
-    status: "coming_soon",
-    note: "Template not provided. Related details are covered under Enrolment Activity Reporting.",
-  },
-  {
-    key: "id-cards",
-    title: "ID Cards",
-    navLabel: "ID Cards",
-    view: "state-enrolment-id-cards",
-    path: "/zonal/enrolment/id-cards",
-    status: "coming_soon",
-    note: "Template not provided. Related details are covered under Enrolment Activity Reporting.",
-  },
 ];
 
 /** Single sidebar / privilege title for all stakeholder management activities. */
@@ -133,14 +115,15 @@ export const ENROLMENT_ACTIVITIES = [
   { code: "ENR-0001", value: "enrolment", label: "Enrolment" },
   { code: "ENR-0002", value: "nin_validation", label: "NIN Validation" },
   { code: "ENR-0003", value: "id_card_issuance", label: "ID Card Issuance" },
-  { code: "ENR-0004", value: "enrolee_record_update", label: "Enrolee Record Update (Beneficiary Management)" },
   { code: "ENR-0005", value: "validation_of_enrolees", label: "Validation of Enrolees" },
 ] as const;
 
 export const ENROLMENT_CHANNELS = ["NHIA", "SSHIA"] as const;
 
+export const ENROLMENT_TYPES = ["Renewal", "Non-renewal"] as const;
+
 export const ENROLMENT_SSHIA_CHANNELS = [
-  "BHCPF", "Formal Sector", "Informal Sector", "HIV/TB Program",
+  "BHCPF", "Formal Sector", "Informal Sector",
 ] as const;
 
 export const ENROLMENT_PROGRAMS = [
@@ -149,11 +132,20 @@ export const ENROLMENT_PROGRAMS = [
   { code: "PRG-0003", label: "OPS" },
   { code: "PRG-0004", label: "TISHIP" },
   { code: "PRG-0005", label: "GIFSHIP-G" },
-  { code: "PRG-0006", label: "GIFSHIP-N" },
-  { code: "PRG-0007", label: "GIFSHIP-C" },
-  { code: "PRG-0008", label: "GIFSHIP-R" },
+  { code: "PRG-0006", label: "GIFSHIP-N", renewable: true },
+  { code: "PRG-0007", label: "GIFSHIP-C", renewable: true },
+  { code: "PRG-0008", label: "GIFSHIP-R", renewable: true },
   { code: "PRG-0009", label: "CBSHIP" },
   { code: "PRG-0010", label: "Equity Programs" },
+] as const;
+
+export const ENROLMENT_RENEWABLE_PROGRAM_LABELS = new Set(
+  ENROLMENT_PROGRAMS.filter((p) => Boolean((p as { renewable?: boolean }).renewable)).map((p) => p.label),
+);
+
+/** Mode of registration (enrolment sub-category). */
+export const ENROLMENT_MODES_OF_REGISTRATION = [
+  "To be provided",
 ] as const;
 
 export const ENROLMENT_BENEFICIARY_CATEGORIES = [

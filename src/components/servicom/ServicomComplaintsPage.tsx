@@ -626,8 +626,6 @@ export default function ServicomComplaintsPage({
     || (!defaultStateId && !isZonalCoordinator && !isComplaintOfficer);
   const isEnforcementUser = isDirectorEnforcementUser({
     role: userRole,
-    name: userName,
-    staff_id: userStaffId,
     department: userDepartment,
   }) || (() => {
     const code = String(userDepartment?.department_code || "").toUpperCase();

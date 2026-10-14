@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Plus, Trash2 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -103,6 +103,7 @@ export default function ExtraDependantForm({ reportId, onBack, onCancel, onSubmi
       onSubmitted={onSubmitted}
       defaultZoneId={defaultZoneId}
       defaultStateId={defaultStateId}
+      pageTitle="Additional / Extra Dependent"
       onLoaded={loadData}
       afterPersist={afterPersist}
       validate={() => (lines.length === 0 ? "Add at least one extra dependant" : null)}
@@ -119,7 +120,6 @@ export default function ExtraDependantForm({ reportId, onBack, onCancel, onSubmi
         <Card className="rounded-2xl border-[#d4e8dc]">
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Additional / Extra Dependent</CardTitle>
-            <CardDescription>Record extra-dependant requests for the reporting month. Zone and state are set above.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid md:grid-cols-3 gap-3">

@@ -4,7 +4,6 @@ import {
   ENROLMENT_DRIVES_PATH,
 } from "@/src/components/stateOffice/enrolmentDriveTypes";
 import {
-  ENROLMENT_PILLAR_CHILDREN,
   PROVIDER_MANAGEMENT_NAV_TITLE,
   PROVIDER_MANAGEMENT_VIEW,
   PROVIDER_MANAGEMENT_PATH,
@@ -16,7 +15,7 @@ import { HMO_INDEBTEDNESS_CHILDREN } from "@/src/components/stateOffice/hmoIndeb
 
 export type UserRole =
   | "admin" | "state-officer" | "zonal-coordinator"
-  | "state-coordinator" | "department-officer" | "sdo" | "hq-department" | "dg-ceo";
+  | "state-coordinator" | "department-officer" | "sdo" | "hq-department" | "dg-ceo" | "head-of-unit" | "reporting-officer" | "state-unit";
 
 export interface ChildModule {
   title: string;
@@ -215,7 +214,7 @@ export const MODULE_CONFIG: ParentModule[] = [
       { type: "group", label: SDO_STOCK_NAV_GROUP, children: [
         { title: "Stock Verification Dashboard", view: "stock-verification-dashboard", path: "/sdo/stock-dashboard", navLabel: "Dashboard" },
         { title: "Physical Asset Verification", view: "store-verification-verify", path: "/store-management/verification/verify", navLabel: "Asset Verification" },
-        { title: "Prepayment Analysis Register", view: "store-prepayment-analysis", path: "/store-management/prepayment-analysis", navLabel: "Prepayment Analysis" },
+        { title: "Stock Prepayment Register", view: "store-prepayment-analysis", path: "/store-management/prepayment-analysis", navLabel: "Prepayment Analysis" },
         { type: "group", label: "Store Management", children: [
           { title: "Inventory Register",          view: "store-inventory-catalog",   path: "/store-management/inventory/items", navLabel: "Inventory" },
           { title: "Capitalisation & Issuance",   view: "store-asset-transfers",     path: "/store-management/transfers/requests", navLabel: "Issuance" },
@@ -237,7 +236,7 @@ export const MODULE_CONFIG: ParentModule[] = [
       { title: "State/Zonal Office Profile", view: "soc-office-profile", path: "/soc/office-profile", navLabel: "State Office Profile" },
       { title: "State/Zonal Focal Persons Register", view: "soc-focal-persons", path: "/soc/focal-persons", navLabel: "State Focal Persons" },
       { title: "Monthly Enrollee Register", view: "state-enrollee-register", path: "/soc/enrollee-register", navLabel: "Enrollee Register" },
-      { title: "ETMC/TMC Action-Point Register", view: "state-etmc-tmc-action-point", path: "/soc/etmc-tmc-action-point", navLabel: "ETMC Action Points" },
+      { title: "ETMC/TMC Action-Point Register", view: "state-etmc-tmc-action-point", path: "/soc/etmc-tmc-action-point", navLabel: "ETMC/TMC Action-Point Register" },
       { title: "Weekly Actionable", view: "state-weekly-actionable", path: "/soc/weekly-actionable", navLabel: "Escalated Issues" },
       { title: "Contracted Services", view: "state-contracted-services", path: "/soc/contracted-services" },
       { title: "Operation Monitoring Visit", view: "soc-operation-monitoring-visit", path: "/soc/operation-monitoring-visit", navLabel: "Operation Monitoring" },
@@ -250,9 +249,7 @@ export const MODULE_CONFIG: ParentModule[] = [
     title: ZONAL_MODULE,
     roles: "all",
     children: [
-      { type: "group", label: "Enrolment", children: ENROLMENT_PILLAR_CHILDREN.map((c) => ({
-        title: c.title, navLabel: c.navLabel, view: c.view, path: c.path,
-      })) },
+      { title: "Enrolment", view: "state-enrolment", path: "/zonal/enrolment", navLabel: "Enrolment" },
       {
         title: ENROLMENT_DRIVES_NAV_TITLE,
         navLabel: ENROLMENT_DRIVES_NAV_TITLE,
@@ -261,7 +258,7 @@ export const MODULE_CONFIG: ParentModule[] = [
       },
       { type: "group", label: "Beneficiary Management", children: [
         { title: "Additional / Extra Dependant", view: "state-extra-dependant", path: "/zonal/beneficiary/extra-dependant", navLabel: "Extra Dependant" },
-        { title: "HMO Selection Process", view: "state-hmo-selection", path: "/zonal/hmo-selection", navLabel: "MDA HMO Selection" },
+        { title: "HMO Selection Process", view: "state-hmo-selection", path: "/zonal/hmo-selection", navLabel: "MDA Change of HMO Selection Process" },
         { title: "Change of HCF", view: "state-hcf-change", path: "/zonal/beneficiary/hcf-change", navLabel: "Change of HCP" },
       ]},
       {

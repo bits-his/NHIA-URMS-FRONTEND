@@ -5,17 +5,42 @@ import {
 
 const BASE_URL = (import.meta.env?.VITE_API_URL as string) || "http://localhost:3001/api";
 
+async function parseJsonResponse(res: Response): Promise<any> {
+  const text = await res.text();
+  if (!text?.trim()) {
+    throw new Error(
+      !res.ok
+        ? `Request failed (${res.status}) — empty response (often CORS / wrong API URL)`
+        : "Empty response from API",
+    );
+  }
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new Error(
+      !res.ok
+        ? `Request failed (${res.status})`
+        : "Invalid JSON from API — check VITE_API_URL and CORS allowlist",
+    );
+  }
+}
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const token = tokenStore.get();
-  const res = await fetch(`${BASE_URL}${path}`, {
-    cache: "no-store",
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    ...options,
-  });
-  const json = await res.json();
+  let res: Response;
+  try {
+    res = await fetch(`${BASE_URL}${path}`, {
+      cache: "no-store",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      ...options,
+    });
+  } catch {
+    throw new Error("Network error — is the API running on port 3001?");
+  }
+  const json = await parseJsonResponse(res);
   if (!res.ok) {
     const msg =
       json?.errors?.[0]?.msg || json?.message || json?.error || `Request failed (${res.status})`;
@@ -34,12 +59,17 @@ export function apiFileUrl(rel?: string | null) {
 
 async function requestForm<T>(path: string, method: "POST" | "PUT", form: FormData): Promise<T> {
   const token = tokenStore.get();
-  const res = await fetch(`${BASE_URL}${path}`, {
-    method,
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-    body: form,
-  });
-  const json = await res.json();
+  let res: Response;
+  try {
+    res = await fetch(`${BASE_URL}${path}`, {
+      method,
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: form,
+    });
+  } catch {
+    throw new Error("Network error — is the API running on port 3001?");
+  }
+  const json = await parseJsonResponse(res);
   if (!res.ok) {
     const msg =
       json?.errors?.[0]?.msg || json?.message || json?.error || `Request failed (${res.status})`;

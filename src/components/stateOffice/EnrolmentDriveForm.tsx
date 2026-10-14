@@ -78,9 +78,6 @@ interface Props {
 const codeIn = (categories: readonly EnrolmentDriveCategory[], label: string) =>
   categories.find((a) => a.label === label)?.code ?? "";
 
-const programCodes = (labels: string[]) =>
-  labels.map((l) => ENROLMENT_DRIVE_PROGRAMS.find((p) => p.label === l)?.code).filter(Boolean).join(", ");
-
 const numStr = (v: unknown) => (v != null && v !== "" ? String(Number(v)) : "");
 const numOrNull = (v: string) => (v === "" ? null : Number(v));
 
@@ -207,11 +204,6 @@ export default function EnrolmentDriveForm({ reportType, reportId, onBack, onCan
   const config = enrolmentDriveConfig(activeReportType) ?? ENROLMENT_DRIVE_TYPES[0];
   const categories = config.categories;
   const activityCode = (label: string) => codeIn(categories, label);
-  const formatCategory = (label: string) => {
-    if (!label) return "";
-    const code = activityCode(label);
-    return code ? `${label} - ${code}` : label;
-  };
   const freshEntry = React.useCallback(
     (): Entry => ({ ...blank(), activity_category: categories[0]?.label ?? "" }),
     [categories],
@@ -387,18 +379,12 @@ export default function EnrolmentDriveForm({ reportType, reportId, onBack, onCan
                 <div className="space-y-1">
                   <Label>Activity Category *</Label>
                   <Select value={entry.activity_category} onValueChange={(v) => set("activity_category", v)}>
-                    <SelectTrigger
-                      displayValue={
-                        entry.activity_category
-                          ? formatCategory(entry.activity_category)
-                          : "Select activity"
-                      }
-                    >
+                    <SelectTrigger>
                       <SelectValue placeholder="Select activity" />
                     </SelectTrigger>
                     <SelectContent>
                       {categories.map((a) => (
-                        <SelectItem key={a.label} value={a.label}>{a.label} - {a.code}</SelectItem>
+                        <SelectItem key={a.label} value={a.label}>{a.label}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -460,10 +446,6 @@ export default function EnrolmentDriveForm({ reportType, reportId, onBack, onCan
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-1">
-                  <Label>Program ID</Label>
-                  <Input value={programCodes(entry.programs_supported)} readOnly placeholder="Auto" className="bg-slate-50" />
-                </div>
                 <MultiSelectField
                   label="Program Supported"
                   options={ENROLMENT_DRIVE_PROGRAMS.map((p) => p.label)}
@@ -523,7 +505,7 @@ export default function EnrolmentDriveForm({ reportType, reportId, onBack, onCan
                   <Table>
                     <TableHeader>
                       <TableRow className="bg-[#f0fdf7]">
-                        {["ID", "Date", "Activity", "Funding", "Approved (₦)", "Location", "Programs", "Reached", "Leads", "New Enrolments", "Status", "Evidence", ""].map((h) => (
+                        {["Date", "Activity", "Funding", "Approved (₦)", "Location", "Programs", "Reached", "Leads", "New Enrolments", "Status", "Evidence", ""].map((h) => (
                           <TableHead key={h} className="text-xs font-bold whitespace-nowrap">{h}</TableHead>
                         ))}
                       </TableRow>
@@ -531,10 +513,9 @@ export default function EnrolmentDriveForm({ reportType, reportId, onBack, onCan
                     <TableBody>
                       {lines.map((l) => (
                         <TableRow key={l._key} className={editingKey === l._key ? "bg-amber-50" : undefined}>
-                          <TableCell className="text-xs font-mono">{activityCode(l.activity_category) || "—"}</TableCell>
                           <TableCell className="text-sm whitespace-nowrap">{l.activity_date || "—"}</TableCell>
                           <TableCell className="text-sm font-medium">
-                            {formatCategory(l.activity_category)}
+                            {l.activity_category || "—"}
                             {l.specific_activity && <div className="text-xs text-slate-500">{l.specific_activity}</div>}
                           </TableCell>
                           <TableCell className="text-xs">{l.funding_option || "—"}</TableCell>

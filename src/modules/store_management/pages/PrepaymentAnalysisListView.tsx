@@ -283,10 +283,10 @@ export default function PrepaymentAnalysisListView() {
     <PageLayout
       title={
         <span className="flex items-center gap-2">
-          <FileSpreadsheet className="w-5 h-5 text-[#25a872]" /> Prepayment Analysis Register
+          <FileSpreadsheet className="w-5 h-5 text-[#25a872]" /> Stock Prepayment Register
         </span>
       }
-      description="Stock Verification Prepayment Analysis Register"
+      description="Stock Verification — Stock Prepayment Register"
       actions={
         canCreate ? (
         <Button
@@ -339,7 +339,7 @@ export default function PrepaymentAnalysisListView() {
           pageSize={20}
           message={
             bucket === "all"
-              ? "No prepayment analysis records yet — add an entry"
+              ? "No stock prepayment register records yet — add an entry"
               : `No ${bucket} records match this search`
           }
         />
