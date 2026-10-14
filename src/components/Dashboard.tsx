@@ -90,6 +90,7 @@ import AssetRegisterView from "../modules/store_management/pages/AssetRegisterVi
 import AssetDetailView from "../modules/store_management/pages/assets/AssetDetailView";
 import QrLabelsView from "../modules/store_management/pages/assets/QrLabelsView";
 import InventoryItemsView from "../modules/store_management/pages/InventoryItemsView";
+import AddStockView from "../modules/store_management/pages/AddStockView";
 import InventoryItemDetailView from "../modules/store_management/pages/InventoryItemDetailView";
 import GoodsReceiptView from "../modules/store_management/pages/GoodsReceiptView";
 import StockIssuesView from "../modules/store_management/pages/StockIssuesView";
@@ -98,9 +99,6 @@ import StoreListView from "../modules/store_management/pages/StoreListView";
 import StockReturnsView from "../modules/store_management/pages/StockReturnsView";
 import AssetTransfersView from "../modules/store_management/pages/AssetTransfersView";
 import NewTransferView from "../modules/store_management/pages/transfers/NewTransferView";
-import SupplyVerificationView from "../modules/store_management/pages/SupplyVerificationView";
-import NewSupplyVerificationView from "../modules/store_management/pages/verification/NewSupplyVerificationView";
-import SupplyVerificationDetailView from "../modules/store_management/pages/verification/SupplyVerificationDetailView";
 import VerificationView from "../modules/store_management/pages/verification/VerificationView";
 import VerifyAssetView from "../modules/store_management/pages/verification/VerifyAssetView";
 import PhysicalAssetVerificationDetailView from "../modules/store_management/pages/verification/PhysicalAssetVerificationDetailView";
@@ -116,8 +114,6 @@ import UserManagementView from "../modules/store_management/pages/admin/UserMana
 import OfficesView from "../modules/store_management/pages/admin/OfficesView";
 import AuditView from "../modules/store_management/pages/admin/AuditView";
 import AdjustmentsView from "../modules/store_management/pages/AdjustmentsView";
-import AssetConversionView from "../modules/store_management/pages/AssetConversionView";
-import NewCapitalisationView from "../modules/store_management/pages/NewCapitalisationView";
 import MovementLedgerView from "../modules/store_management/pages/MovementLedgerView";
 import { getMonthlyReportContext } from "@/src/access/monthlyReportAccess";
 import { canAccessFunctionality, expandAccessEntries, getFirstAccessiblePath, canAccessHomeDashboard, DASHBOARDS_ENABLED, ANNUAL_REPORTS_ENABLED } from "@/src/access/accessUtils";
@@ -675,7 +671,10 @@ export default function Dashboard({ role, user, access = [], functionalities = "
                   : <Navigate to={getFirstAccessiblePath(access, role)} replace />
               }
             />
-            <Route path="/soc/office-profile" element={<StateZonalOfficeProfilePage onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
+            <Route path="/soc/office-profile" element={<StateZonalOfficeProfilePage defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
+            <Route path="/soc/office-profile/new" element={<StateZonalOfficeProfilePage defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
+            <Route path="/soc/office-profile/:id" element={<StateZonalOfficeProfilePage defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
+            <Route path="/soc/office-profile/:id/edit" element={<StateZonalOfficeProfilePage defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
             <Route path="/soc/focal-persons" element={<StateZonalFocalPersonsPage onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
             <Route path="/soc/weekly-actionable" element={<StateOfficeReportsList key="state-weekly-actionable" reportType="weekly-actionable" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
             <Route path="/soc/contracted-services" element={<StateOfficeReportsList key="state-contracted-services" reportType="contracted-services" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
@@ -828,6 +827,7 @@ export default function Dashboard({ role, user, access = [], functionalities = "
             <Route path="/store-management/assets/categories" element={<CategoriesView />} />
             <Route path="/store-management/assets/qr-labels" element={<QrLabelsView />} />
             <Route path="/store-management/inventory/items" element={<InventoryItemsView />} />
+            <Route path="/store-management/inventory/items/new" element={<AddStockView />} />
             <Route path="/store-management/inventory/items/:id" element={<InventoryItemDetailView />} />
             <Route path="/store-management/inventory/receipts" element={<GoodsReceiptView />} />
             <Route path="/store-management/stores/issues" element={<StockIssuesView />} />
@@ -838,9 +838,8 @@ export default function Dashboard({ role, user, access = [], functionalities = "
             <Route path="/store-management/transfers/new" element={<NewStockIssueView />} />
             <Route path="/transfers/requests" element={<StockIssuesView />} />
             <Route path="/transfers/new" element={<NewStockIssueView />} />
-            <Route path="/store-management/verification/supply" element={<SupplyVerificationView />} />
-            <Route path="/store-management/verification/supply/new" element={<NewSupplyVerificationView />} />
-            <Route path="/store-management/verification/supply/:id" element={<SupplyVerificationDetailView />} />
+            <Route path="/store-management/verification/supply/*" element={<Navigate to="/store-management/prepayment-analysis" replace />} />
+            <Route path="/store-management/verification/supply" element={<Navigate to="/store-management/prepayment-analysis" replace />} />
             <Route path="/store-management/verification/verify" element={<VerificationView />} />
             <Route path="/store-management/verification/verify/new" element={<AssetRegisterView />} />
             <Route path="/store-management/verification/verify/asset/:assetId" element={<VerifyAssetView />} />
@@ -858,8 +857,8 @@ export default function Dashboard({ role, user, access = [], functionalities = "
             <Route path="/store-management/admin/offices" element={<OfficesView />} />
             <Route path="/store-management/admin/logs" element={<AuditView />} />
             <Route path="/store-management/adjustments" element={<AdjustmentsView />} />
-            <Route path="/store-management/conversion" element={<AssetConversionView />} />
-            <Route path="/store-management/conversion/new" element={<NewCapitalisationView />} />
+            <Route path="/store-management/conversion" element={<Navigate to="/store-management/transfers/requests" replace />} />
+            <Route path="/store-management/conversion/new" element={<Navigate to="/store-management/transfers/requests" replace />} />
             <Route path="/store-management/movement-ledger" element={<MovementLedgerView />} />
 
             {/* ── System Administration ── */}

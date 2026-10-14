@@ -1,22 +1,33 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { storeManagementApi } from "@/src/services/storeManagementApi";
+import { stockApi } from "@/lib/api";
 import PageLayout from "../components/PageLayout";
-import {
-  AlertCircle,
-  CheckCircle2,
-  ClipboardList,
-  FileSpreadsheet,
-  FileText,
-  Loader2,
-  Package,
-  Paperclip,
-  Save,
-  Truck,
-} from "lucide-react";
+import { AlertCircle, CheckCircle2, Loader2, Paperclip } from "lucide-react";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { useCreateReviewAccess } from "@/src/access/createReviewAccess";
+import { LOOKUPS } from "@/src/store/useAssetManagement";
+import { storeNameFromState } from "../lib/storeOptions";
+
+type Option = { id: number; label: string };
+
+function FieldLabel({ htmlFor, children, required }: { htmlFor?: string; children: React.ReactNode; required?: boolean }) {
+  return (
+    <label htmlFor={htmlFor} className="block font-bold text-slate-700 mb-1">
+      {children}
+      {required ? <span className="text-rose-600"> *</span> : null}
+    </label>
+  );
+}
+
+const STOCK_CATEGORIES = [
+  "Office Consumables",
+  ...Object.keys(LOOKUPS.primaryCategories).filter((c) => c !== "Land" && c !== "Building"),
+];
+const UNITS = ["Units", "Pieces", "Packs", "Boxes", "Reams", "Cartons", "Sets", "Litres", "Pairs"];
 
 const PROCUREMENT_INSTRUMENTS = [
   "LPO",
@@ -34,6 +45,13 @@ const EMPTY_FORM = {
   contractorAddress: "",
   refInvoiceDeliveryNote: "",
   itemDescription: "",
+  category: "Office Consumables",
+  unitOfMeasure: "Units",
+  zoneId: "",
+  zoneName: "",
+  stateId: "",
+  stateName: "",
+  storeLocation: "",
   quantityOrdered: "",
   quantitySupplied: "",
   rate: "",
@@ -48,6 +66,25 @@ export default function NewPrepaymentAnalysisView() {
   const [validationError, setValidationError] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [form, setForm] = useState({ ...EMPTY_FORM });
+  const [zones, setZones] = useState<Option[]>([]);
+  const [states, setStates] = useState<Option[]>([]);
+
+  useEffect(() => {
+    stockApi.getZones()
+      .then((r) => setZones((r.data || []).map((z: any) => ({ id: z.id, label: z.description }))))
+      .catch(() => setZones([]));
+  }, []);
+
+  useEffect(() => {
+    if (!form.zoneId) { setStates([]); return; }
+    let cancelled = false;
+    stockApi.getStates(form.zoneId)
+      .then((r) => {
+        if (!cancelled) setStates((r.data || []).map((s: any) => ({ id: s.id, label: s.description })));
+      })
+      .catch(() => { if (!cancelled) setStates([]); });
+    return () => { cancelled = true; };
+  }, [form.zoneId]);
 
   const set = (key: string, value: string) => {
     setForm((p) => ({ ...p, [key]: value }));
@@ -79,6 +116,18 @@ export default function NewPrepaymentAnalysisView() {
       setValidationError("Please enter the Item Description.");
       return false;
     }
+    if (!form.category) {
+      setValidationError("Please select a Category.");
+      return false;
+    }
+    if (!form.unitOfMeasure) {
+      setValidationError("Please select a Unit of measure.");
+      return false;
+    }
+    if (!form.zoneId || !form.stateId || !form.storeLocation) {
+      setValidationError("Please select the zone and state office store.");
+      return false;
+    }
     if (form.quantityOrdered === "" || Number(form.quantityOrdered) < 0) {
       setValidationError("Please enter Quantity Ordered.");
       return false;
@@ -108,15 +157,22 @@ export default function NewPrepaymentAnalysisView() {
           contractorAddress: form.contractorAddress.trim(),
           refInvoiceDeliveryNote: form.refInvoiceDeliveryNote.trim(),
           itemDescription: form.itemDescription.trim(),
+          category: form.category,
+          unitOfMeasure: form.unitOfMeasure,
           quantityOrdered: Number(form.quantityOrdered) || 0,
           quantitySupplied: Number(form.quantitySupplied) || 0,
           rate: Number(form.rate) || 0,
+          zone_id: form.zoneId,
+          state_id: form.stateId,
+          zone_name: form.zoneName,
+          state_name: form.stateName,
+          storeLocation: form.storeLocation,
           remarks: form.remarks.trim(),
         },
         file
       );
       setSuccessMsg(true);
-      toast.success("Prepayment analysis entry saved");
+      toast.success("Saved. Quantity supplied was added to the inventory register");
       setTimeout(() => {
         if (createOnly) {
           setForm({ ...EMPTY_FORM });
@@ -137,230 +193,188 @@ export default function NewPrepaymentAnalysisView() {
 
   return (
     <PageLayout
-      title={
-        <span className="flex items-center gap-2">
-          <FileSpreadsheet className="w-5 h-5 text-[#25a872]" /> Prepayment Analysis Entry
-        </span>
-      }
-      description="Stock Verification Prepayment Analysis Register"
+      title="Prepayment Analysis Entry"
+      description="Control number is assigned when this entry is saved"
       back
       backTo={createOnly ? "/" : "/store-management/prepayment-analysis"}
+      contentClassName="flex-1 min-h-0"
     >
-      <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden flex flex-col w-full">
-        <div className="bg-[#145c3f] text-white p-4 border-b border-[#0f3d2e] flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-white/10 border border-white/20 rounded-lg text-emerald-200">
-              <FileSpreadsheet className="h-6 w-6" />
-            </div>
-            <div>
-              <h2 className="text-base font-bold tracking-tight text-white">Prepayment Analysis Data Entry</h2>
-              <p className="text-xs text-emerald-100/90">National Health Insurance Authority — Stock Verification</p>
-            </div>
+      <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden flex flex-col min-h-[600px] w-full flex-1">
+      <form onSubmit={handleSave} className="p-6 flex-1 flex flex-col justify-between gap-6 w-full">
+        <div className="space-y-4 w-full">
+        {validationError ? (
+          <p role="alert" className="text-sm font-medium text-rose-800 bg-rose-50 border border-rose-200 rounded-xl px-3 py-2 flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
+            {validationError}
+          </p>
+        ) : null}
+        {successMsg ? (
+          <p className="text-sm font-medium text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2 flex items-center gap-2">
+            <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden="true" />
+            Entry saved. The supplied quantity is now on the inventory register.
+          </p>
+        ) : null}
+
+        <section className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full">
+          <div>
+            <FieldLabel htmlFor="prepay-date" required>Date</FieldLabel>
+            <Input id="prepay-date" type="date" value={form.entryDate} onChange={(e) => set("entryDate", e.target.value)} />
           </div>
-          <span className="px-3 py-1 rounded text-xs font-mono font-bold bg-white/10 text-emerald-200 border border-white/20">
-            Control No. auto on save
-          </span>
+          <div>
+            <FieldLabel required>Procurement instrument</FieldLabel>
+            <Select value={form.procurementInstrument} onValueChange={(val) => set("procurementInstrument", val)}>
+              <SelectTrigger displayValue={form.procurementInstrument || undefined}>
+                <SelectValue placeholder="Select instrument" />
+              </SelectTrigger>
+              <SelectContent>
+                {PROCUREMENT_INSTRUMENTS.map((p) => (
+                  <SelectItem key={p} value={p}>{p}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <FieldLabel htmlFor="prepay-ref" required>Invoice / delivery note</FieldLabel>
+            <Input id="prepay-ref" className="font-mono" value={form.refInvoiceDeliveryNote} onChange={(e) => set("refInvoiceDeliveryNote", e.target.value)} placeholder="e.g. INV-2026-0041" />
+          </div>
+        </section>
+
+        <section className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
+          <div>
+            <FieldLabel htmlFor="prepay-contractor" required>Contractor&apos;s name</FieldLabel>
+            <Input id="prepay-contractor" value={form.contractorName} onChange={(e) => set("contractorName", e.target.value)} placeholder="Supplier / contractor" />
+          </div>
+          <div>
+            <FieldLabel htmlFor="prepay-address" required>Contractor&apos;s address</FieldLabel>
+            <Input id="prepay-address" value={form.contractorAddress} onChange={(e) => set("contractorAddress", e.target.value)} placeholder="Registered address" />
+          </div>
+        </section>
+
+        <section className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full">
+          <div className="md:col-span-3">
+            <FieldLabel htmlFor="prepay-item" required>Item description</FieldLabel>
+            <Input id="prepay-item" value={form.itemDescription} onChange={(e) => set("itemDescription", e.target.value)} placeholder="Goods covered by this prepayment" />
+          </div>
+          <div>
+            <FieldLabel required>Category</FieldLabel>
+            <Select value={form.category} onValueChange={(val) => set("category", val)}>
+              <SelectTrigger displayValue={form.category}>
+                <SelectValue placeholder="Select category" />
+              </SelectTrigger>
+              <SelectContent>
+                {STOCK_CATEGORIES.map((c) => (
+                  <SelectItem key={c} value={c}>{c}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <FieldLabel required>Unit of measure</FieldLabel>
+            <Select value={form.unitOfMeasure} onValueChange={(val) => set("unitOfMeasure", val)}>
+              <SelectTrigger displayValue={form.unitOfMeasure}>
+                <SelectValue placeholder="Select unit" />
+              </SelectTrigger>
+              <SelectContent>
+                {UNITS.map((u) => (
+                  <SelectItem key={u} value={u}>{u}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <FieldLabel required>Zone</FieldLabel>
+            <Select
+              value={form.zoneId}
+              onValueChange={(val) => {
+                const zoneName = zones.find((z) => String(z.id) === val)?.label || "";
+                setForm((p) => ({ ...p, zoneId: val, zoneName, stateId: "", stateName: "", storeLocation: "" }));
+                if (validationError) setValidationError(null);
+              }}
+            >
+              <SelectTrigger displayValue={form.zoneName || undefined}>
+                <SelectValue placeholder="Select zone" />
+              </SelectTrigger>
+              <SelectContent>
+                {zones.map((z) => (
+                  <SelectItem key={z.id} value={String(z.id)}>{z.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <FieldLabel required>State office store</FieldLabel>
+            <Select
+              value={form.stateId}
+              disabled={!form.zoneId}
+              onValueChange={(val) => {
+                const stateName = states.find((s) => String(s.id) === val)?.label || "";
+                setForm((p) => ({ ...p, stateId: val, stateName, storeLocation: storeNameFromState(stateName) }));
+                if (validationError) setValidationError(null);
+              }}
+            >
+              <SelectTrigger displayValue={form.storeLocation || undefined}>
+                <SelectValue placeholder={form.zoneId ? "Select state store" : "Select zone first"} />
+              </SelectTrigger>
+              <SelectContent>
+                {states.map((s) => (
+                  <SelectItem key={s.id} value={String(s.id)}>{storeNameFromState(s.label)}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <FieldLabel htmlFor="prepay-ordered" required>Quantity ordered</FieldLabel>
+            <Input id="prepay-ordered" type="number" min={0} className="tabular-nums" value={form.quantityOrdered} onChange={(e) => set("quantityOrdered", e.target.value)} placeholder="0" />
+          </div>
+          <div>
+            <FieldLabel htmlFor="prepay-supplied" required>Quantity supplied</FieldLabel>
+            <Input id="prepay-supplied" type="number" min={0} className="tabular-nums" value={form.quantitySupplied} onChange={(e) => set("quantitySupplied", e.target.value)} placeholder="0" />
+          </div>
+          <div>
+            <FieldLabel htmlFor="prepay-rate" required>Rate (NGN)</FieldLabel>
+            <Input id="prepay-rate" type="number" min={0} step="0.01" className="tabular-nums" value={form.rate} onChange={(e) => set("rate", e.target.value)} placeholder="0.00" />
+          </div>
+        </section>
+
+        <section className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
+          <div>
+            <FieldLabel htmlFor="awardLetter">Award letter</FieldLabel>
+            <label
+              htmlFor="awardLetter"
+              className="flex h-11 items-center gap-2 px-3.5 rounded-xl border-2 border-[#1a7a52] bg-[#f4f7f5] text-sm font-medium text-slate-700 cursor-pointer hover:bg-white"
+            >
+              <Paperclip className="w-4 h-4 text-[#145c3f]" aria-hidden="true" />
+              <span className="truncate">{file ? file.name : "Choose PDF, Word, or image"}</span>
+            </label>
+            <input
+              id="awardLetter"
+              type="file"
+              accept=".pdf,.doc,.docx,image/*"
+              className="sr-only"
+              onChange={(e) => setFile(e.target.files?.[0] || null)}
+            />
+          </div>
+          <div>
+            <FieldLabel htmlFor="prepay-remarks">Remarks</FieldLabel>
+            <textarea
+              id="prepay-remarks"
+              value={form.remarks}
+              onChange={(e) => set("remarks", e.target.value)}
+              className="min-h-[96px] w-full rounded-xl border-2 border-[#1a7a52] bg-[#f4f7f5] px-3.5 py-2.5 text-sm text-slate-800 outline-none hover:bg-white focus-visible:bg-white focus-visible:ring-3 focus-visible:ring-[#1a7a52]/25"
+              placeholder="Additional notes"
+            />
+          </div>
+        </section>
+
         </div>
 
-        {validationError && (
-          <div className="m-4 mb-0 p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-md font-semibold text-xs flex items-center gap-2 shadow-sm">
-            <AlertCircle className="h-4 w-4 text-rose-600 shrink-0" />
-            {validationError}
-          </div>
-        )}
-        {successMsg && (
-          <div className="m-4 mb-0 p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-md font-semibold text-xs flex items-center gap-2 shadow-sm">
-            <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
-            Entry saved to the Prepayment Analysis Register.
-          </div>
-        )}
-
-        <form onSubmit={handleSave} className="p-6 flex flex-col gap-6 text-xs">
-          <section className="space-y-4">
-            <h3 className="font-bold text-sm text-slate-900 border-b pb-2 flex items-center gap-2">
-              <ClipboardList className="h-4 w-4 text-[#145c3f]" />
-              PROCUREMENT DETAILS
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">
-                  Date <span className="text-rose-500">*</span>
-                </label>
-                <input
-                  type="date"
-                  value={form.entryDate}
-                  onChange={(e) => set("entryDate", e.target.value)}
-                  className="w-full px-3 py-2 rounded border border-slate-300 font-mono"
-                />
-              </div>
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">
-                  Procurement Instrument <span className="text-rose-500">*</span>
-                </label>
-                <select
-                  value={form.procurementInstrument}
-                  onChange={(e) => set("procurementInstrument", e.target.value)}
-                  className="w-full px-3 py-2 rounded border border-slate-300 bg-white"
-                >
-                  <option value="">Select instrument…</option>
-                  {PROCUREMENT_INSTRUMENTS.map((p) => (
-                    <option key={p} value={p}>{p}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">
-                  Ref (Invoice / Delivery Note) <span className="text-rose-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={form.refInvoiceDeliveryNote}
-                  onChange={(e) => set("refInvoiceDeliveryNote", e.target.value)}
-                  className="w-full px-3 py-2 rounded border border-slate-300 font-mono font-semibold"
-                  placeholder="e.g. INV-2026-0041"
-                />
-              </div>
-            </div>
-          </section>
-
-          <section className="space-y-4">
-            <h3 className="font-bold text-sm text-slate-900 border-b pb-2 flex items-center gap-2">
-              <Truck className="h-4 w-4 text-[#145c3f]" />
-              CONTRACTOR
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">
-                  Contractor&apos;s Name <span className="text-rose-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={form.contractorName}
-                  onChange={(e) => set("contractorName", e.target.value)}
-                  className="w-full px-3 py-2 rounded border border-slate-300 font-semibold"
-                  placeholder="Supplier / contractor"
-                />
-              </div>
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">
-                  Contractor&apos;s Address <span className="text-rose-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={form.contractorAddress}
-                  onChange={(e) => set("contractorAddress", e.target.value)}
-                  className="w-full px-3 py-2 rounded border border-slate-300"
-                  placeholder="Registered address"
-                />
-              </div>
-            </div>
-          </section>
-
-          <section className="space-y-4">
-            <h3 className="font-bold text-sm text-slate-900 border-b pb-2 flex items-center gap-2">
-              <Package className="h-4 w-4 text-[#145c3f]" />
-              ITEM & QUANTITIES
-            </h3>
-            <div>
-              <label className="block font-bold text-slate-700 mb-1">
-                Item Description <span className="text-rose-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={form.itemDescription}
-                onChange={(e) => set("itemDescription", e.target.value)}
-                className="w-full px-3 py-2 rounded border border-slate-300 font-semibold"
-                placeholder="Goods or services covered by this prepayment"
-              />
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-[#f4f7f5] p-4 rounded-lg border border-slate-200">
-              <div>
-                <label className="block font-bold text-slate-800 mb-1">
-                  Quantity Ordered <span className="text-rose-500">*</span>
-                </label>
-                <Input
-                  type="number"
-                  min={0}
-                  value={form.quantityOrdered}
-                  onChange={(e) => set("quantityOrdered", e.target.value)}
-                  className="w-full px-3 py-2 rounded border border-slate-300 font-mono bg-white"
-                  placeholder="0"
-                />
-              </div>
-              <div>
-                <label className="block font-bold text-slate-800 mb-1">
-                  Quantity Supplied <span className="text-rose-500">*</span>
-                </label>
-                <Input
-                  type="number"
-                  min={0}
-                  value={form.quantitySupplied}
-                  onChange={(e) => set("quantitySupplied", e.target.value)}
-                  className="w-full px-3 py-2 rounded border border-slate-300 font-mono bg-white"
-                  placeholder="0"
-                />
-              </div>
-              <div>
-                <label className="block font-bold text-slate-800 mb-1">
-                  Rate (₦) <span className="text-rose-500">*</span>
-                </label>
-                <Input
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  value={form.rate}
-                  onChange={(e) => set("rate", e.target.value)}
-                  className="w-full px-3 py-2 rounded border border-slate-300 font-mono font-bold bg-white"
-                  placeholder="0.00"
-                />
-              </div>
-            </div>
-          </section>
-
-          <section className="space-y-4">
-            <h3 className="font-bold text-sm text-slate-900 border-b pb-2 flex items-center gap-2">
-              <FileText className="h-4 w-4 text-[#145c3f]" />
-              AWARD LETTER & REMARKS
-            </h3>
-            <div>
-              <label className="block font-bold text-slate-700 mb-1">Attach Award Letter</label>
-              <label
-                htmlFor="awardLetter"
-                className="flex h-11 items-center gap-2 px-3 rounded border border-dashed border-slate-300 bg-[#f4f7f5] text-xs font-semibold text-slate-700 cursor-pointer hover:bg-slate-100"
-              >
-                <Paperclip className="w-4 h-4 text-[#145c3f]" aria-hidden="true" />
-                <span className="truncate">{file ? file.name : "Choose PDF, Word, or image…"}</span>
-              </label>
-              <input
-                id="awardLetter"
-                type="file"
-                accept=".pdf,.doc,.docx,image/*"
-                className="sr-only"
-                onChange={(e) => setFile(e.target.files?.[0] || null)}
-              />
-            </div>
-            <div>
-              <label className="block font-bold text-slate-700 mb-1">Remarks</label>
-              <textarea
-                value={form.remarks}
-                onChange={(e) => set("remarks", e.target.value)}
-                className="w-full min-h-[100px] px-3 py-2 rounded border border-slate-300 text-sm"
-                placeholder="Additional notes…"
-              />
-            </div>
-          </section>
-
-          <div className="flex items-center justify-end border-t pt-4">
-            <button
-              type="submit"
-              disabled={saving}
-              className="inline-flex items-center gap-1.5 px-6 py-2 rounded bg-emerald-600 text-white font-bold hover:bg-emerald-700 shadow-md cursor-pointer disabled:opacity-60"
-            >
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-              <span>{saving ? "Saving…" : "Save to Register"}</span>
-            </button>
-          </div>
-        </form>
+        <div className="flex items-center justify-end border-t border-slate-200 pt-4 w-full mt-auto">
+          <Button type="submit" disabled={saving} className="bg-[#145c3f] hover:bg-[#0f3d2e] text-white">
+            {saving ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" aria-hidden="true" /> : null}
+            {saving ? "Saving…" : "Save to register"}
+          </Button>
+        </div>
+      </form>
       </div>
     </PageLayout>
   );

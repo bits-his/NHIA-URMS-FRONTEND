@@ -387,7 +387,7 @@ function filterModuleTree(
             ),
           );
           if (zonalKids.length > 0) {
-            nested.push({
+            nodes.push({
               kind: "folder",
               title: "State Offices",
               children: zonalKids,
@@ -635,7 +635,10 @@ function NavTreeItem({
 
   if (node.kind === "leaf") {
     const path = nodePath(node);
-    const isActive = location.pathname === path || currentView === node.view;
+    const isActive =
+      location.pathname === path
+      || (path !== "/" && location.pathname.startsWith(`${path}/`))
+      || currentView === node.view;
     const LeafIcon = ICON_MAP[node.title] || File;
     const label = displayName(node, role);
     const Wrapper = depth > 0 ? SidebarMenuSubItem : SidebarMenuItem;

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import PageLayout from "@/components/PageLayout";
-import { useAssetManagement, LOOKUPS } from "@/src/store/useAssetManagement";
+import { useAssetManagement, LOOKUPS, CATEGORY_ATTRIBUTES } from "@/src/store/useAssetManagement";
 import { useNavigate, useLocation } from "react-router-dom";
 import { stockApi } from "@/lib/api";
 import {
@@ -15,7 +15,6 @@ import {
   CheckCircle2,
   ChevronRight,
   ChevronLeft,
-  FileSpreadsheet,
   Save,
   Tag,
   MapPin,
@@ -27,7 +26,19 @@ import {
 } from "lucide-react";
 import { useCreateReviewAccess } from "@/src/access/createReviewAccess";
 
-interface Option { id: number; label: string; }
+interface Option { id: number; label: string; isHq?: boolean; }
+
+function mapStateOption(s: any): Option {
+  return { id: s.id, label: s.description, isHq: Boolean(s.is_hq) };
+}
+
+/** Finance completes acquisition cost and depreciation. Hidden until that step is handed to them. */
+const FINANCIAL_STEP_ENABLED = false;
+const LAST_STEP = FINANCIAL_STEP_ENABLED ? 4 : 3;
+const ASSET_VERIFICATION_STATUSES = ["Verified", "Unverified"];
+const PHYSICAL_CONDITIONS = ["Excellent", "Good", "Fair", "Poor", "Defective", "Damaged", "Missing"];
+const CONDITIONS_NEEDING_SERVICEABILITY = new Set(["Fair", "Poor", "Defective", "Damaged", "Missing"]);
+const SERVICEABILITY_OPTIONS = ["Serviceable", "Non serviceable"];
 
 export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) => void }) {
   const navigate = useNavigate();
@@ -90,6 +101,7 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
 
     // Step 4: Lifecycle & Maintenance
     physicalCondition: "",
+    serviceability: "",
     lastVerificationDate: "",
     verificationStatus: "",
     taggingMethod: "",
@@ -117,12 +129,24 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
     }));
     if (prefill.zone_id) {
       stockApi.getStates(prefill.zone_id).then((r: any) => {
-        if (r?.data) setStates(r.data.map((s: any) => ({ id: s.id, label: s.description })));
-      }).catch(() => {});
-    }
-    if (prefill.state_id) {
-      stockApi.getDepartments(prefill.state_id).then((r: any) => {
-        if (r?.data) setDepartments(r.data.map((d: any) => ({ id: d.id, label: d.name })));
+        const mapped = (r?.data || []).map(mapStateOption);
+        setStates(mapped);
+        const selected = mapped.find((s) => String(s.id) === String(prefill.state_id));
+        if (!prefill.state_id) return;
+        if (selected?.isHq) {
+          stockApi.getDepartments(undefined, "hq").then((d: any) => {
+            if (d?.data) setDepartments(d.data.map((row: any) => ({ id: row.id, label: row.name })));
+          }).catch(() => {});
+          if (prefill.department_id) {
+            stockApi.getUnits(prefill.department_id, "division").then((u: any) => {
+              if (u?.data) setUnits(u.data.map((row: any) => ({ id: row.id, label: row.name })));
+            }).catch(() => {});
+          }
+        } else {
+          stockApi.getUnits(undefined, "state").then((u: any) => {
+            if (u?.data) setUnits(u.data.map((row: any) => ({ id: row.id, label: row.name })));
+          }).catch(() => {});
+        }
       }).catch(() => {});
     }
   }, [location.state]);
@@ -157,7 +181,7 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
       try {
         const r = await stockApi.getStates(zoneId);
         if (r?.data) {
-          setStates(r.data.map((s: any) => ({ id: s.id, label: s.description })));
+          setStates(r.data.map(mapStateOption));
         }
       } catch (e) {}
     }
@@ -178,14 +202,16 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
     setDepartments([]);
     setUnits([]);
 
-    if (stateId) {
-      try {
-        const r = await stockApi.getDepartments(stateId);
-        if (r?.data) {
-          setDepartments(r.data.map((d: any) => ({ id: d.id, label: d.name })));
-        }
-      } catch (e) {}
-    }
+    if (!stateId) return;
+    try {
+      if (selectedState?.isHq) {
+        const r = await stockApi.getDepartments(undefined, "hq");
+        if (r?.data) setDepartments(r.data.map((d: any) => ({ id: d.id, label: d.name })));
+      } else {
+        const r = await stockApi.getUnits(undefined, "state");
+        if (r?.data) setUnits(r.data.map((u: any) => ({ id: u.id, label: u.name })));
+      }
+    } catch (e) {}
   };
 
   const handleDepartmentChange = async (deptId: string) => {
@@ -203,7 +229,7 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
 
     if (deptId) {
       try {
-        const r = await stockApi.getUnits(deptId);
+        const r = await stockApi.getUnits(deptId, "division");
         if (r?.data) {
           setUnits(r.data.map((u: any) => ({ id: u.id, label: u.name })));
         }
@@ -278,7 +304,8 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
 
     if (step === 1) {
       if (!formData.name?.trim()) return fail("Please enter the Asset Name / Item Description.");
-      if (!formData.nhiaTagNumber?.trim()) return fail("Please enter the NHIA Serial Number / Tag.");
+      if (!formData.nhiaTagNumber?.trim()) return fail("Please enter the NHIA Tag.");
+      if (!formData.taggingMethod) return fail("Please select a Tagging Method.");
       if (!formData.primaryCategory) return fail("Please select a Primary Category.");
       if (!formData.subCategory) return fail("Please select a Sub Category.");
       if (!formData.specificType) return fail("Please select a Specific Item Type.");
@@ -286,14 +313,19 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
     if (step === 2) {
       if (!formData.zone_id) return fail("Please select a Zone.");
       if (!formData.state_id) return fail("Please select a State.");
+      const hqOffice = Boolean(states.find((s) => String(s.id) === String(formData.state_id))?.isHq);
+      if (hqOffice) {
+        if (!formData.department_id) return fail("Please select a Department.");
+        if (!formData.unit_id) return fail("Please select a Division.");
+      } else if (!formData.unit_id) {
+        return fail("Please select a Unit.");
+      }
       if (!formData.trackingOfficer?.trim()) return fail("Please specify the Tracking Officer.");
       if (!formData.assignedCustodian?.trim()) return fail("Please enter the Assigned Custodian.");
-      if (!formData.facilitySite) return fail("Please select a Facility Site.");
       if (!formData.specificLocation?.trim()) return fail("Please enter the Specific Location (Floor / Room).");
-      if (!formData.yearOfAllocation?.trim()) return fail("Please enter the Year of Allocation.");
       if (!formData.operationalStatus) return fail("Please select an Operational Status.");
     }
-    if (step === 3) {
+    if (FINANCIAL_STEP_ENABLED && step === 3) {
       if (!formData.acquisitionDate) return fail("Please enter the Acquisition Date.");
       if (!formData.acquisitionCost || parseFloat(formData.acquisitionCost) <= 0) {
         return fail("Please enter a valid Acquisition Cost greater than 0.");
@@ -303,18 +335,19 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
       }
       if (!formData.depreciationMethod) return fail("Please select a Depreciation Method.");
     }
-    if (step === 4) {
+    if (step === LAST_STEP) {
       if (!formData.physicalCondition) return fail("Please select the Physical Condition.");
-      if (!formData.lastVerificationDate) return fail("Please enter the Last Physical Verification Date.");
+      if (CONDITIONS_NEEDING_SERVICEABILITY.has(formData.physicalCondition) && !formData.serviceability) {
+        return fail("Please select whether the asset is serviceable.");
+      }
       if (!formData.verificationStatus) return fail("Please select a Verification Status.");
-      if (!formData.taggingMethod) return fail("Please select a Tagging Method.");
     }
     setValidationError(null);
     return true;
   };
 
   const validateAllSteps = (): boolean => {
-    for (const step of [1, 2, 3, 4]) {
+    for (const step of FINANCIAL_STEP_ENABLED ? [1, 2, 3, 4] : [1, 2, 3]) {
       if (!validateStep(step)) return false;
     }
     return true;
@@ -324,16 +357,16 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
     e?.preventDefault();
     e?.stopPropagation();
     if (validateStep(currentStep)) {
-      setCurrentStep((prev) => Math.min(4, prev + 1));
+      setCurrentStep((prev) => Math.min(LAST_STEP, prev + 1));
     }
   };
 
   const handleSave = async (e?: React.FormEvent | React.MouseEvent) => {
     e?.preventDefault();
     e?.stopPropagation?.();
-    if (currentStep !== 4) {
-      // Never create from an earlier step (e.g. Enter key)  only advance
-      if (validateStep(currentStep)) setCurrentStep((s) => Math.min(4, s + 1));
+    if (currentStep !== LAST_STEP) {
+      // Never create from an earlier step (e.g. Enter key) — only advance
+      if (validateStep(currentStep)) setCurrentStep((s) => Math.min(LAST_STEP, s + 1));
       return;
     }
     if (!validateAllSteps()) return;
@@ -380,8 +413,14 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
   const steps = [
     { id: 1, title: "1. Identification, Classification & Attributes", icon: Tag },
     { id: 2, title: "2. Location, Custody & Officers", icon: MapPin },
-    { id: 3, title: "3. Financial & Depreciation Data", icon: CircleDollarSign },
-    { id: 4, title: "4. Lifecycle & Maintenance", icon: History }
+    ...(FINANCIAL_STEP_ENABLED
+      ? [{ id: 3, title: "3. Financial & Depreciation Data", icon: CircleDollarSign }]
+      : []),
+    {
+      id: LAST_STEP,
+      title: `${LAST_STEP}. Lifecycle & Maintenance`,
+      icon: History,
+    },
   ];
 
   return (
@@ -410,25 +449,6 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
       }
     >
       <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden flex flex-col min-h-[600px] w-full">
-        {/* Header Banner */}
-        <div className="bg-[#145c3f] text-white p-4 border-b border-[#0f3d2e] flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-white/10 border border-white/20 rounded-lg text-emerald-200">
-              <FileSpreadsheet className="h-6 w-6" />
-            </div>
-            <div>
-              <h2 className="text-base font-bold tracking-tight text-white">Asset Data Entry Form</h2>
-              <p className="text-xs text-emerald-100/90">National Health Insurance Authority Master Asset Register</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <span className="px-3 py-1 rounded text-xs font-mono font-bold bg-white/10 text-emerald-200 border border-white/20">
-              Category: {formData.primaryCategory}
-            </span>
-          </div>
-        </div>
-
         {capitaliseState && (
           <div className="m-4 mb-0 p-3 bg-[#e8f5ee] border border-[#25a872]/40 text-[#0f3d2e] rounded-md font-semibold text-xs">
             Capitalising {Number(capitaliseState.quantity || 1)} unit{Number(capitaliseState.quantity || 1) === 1 ? "" : "s"} from store stock. Saving will deduct this quantity from inventory.
@@ -489,8 +509,8 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            // Block Enter-to-submit on steps 13; only Save on step 4 creates the asset
-            if (currentStep === 4) handleSave(e);
+            // Block Enter-to-submit on earlier steps; only Save on the last step creates the asset
+            if (currentStep === LAST_STEP) handleSave(e);
             else handleNextStep();
           }}
           className="p-6 flex-1 flex flex-col justify-between text-xs space-y-6"
@@ -498,11 +518,6 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
           {/* STEP 1: IDENTIFICATION & CLASSIFICATION */}
           {currentStep === 1 && (
             <div className="space-y-4">
-              <h3 className="font-bold text-sm text-slate-900 border-b pb-2 flex items-center gap-2">
-                <Tag className="h-4 w-4 text-[#145c3f]" />
-                1. IDENTIFICATION & CLASSIFICATION
-              </h3>
-
               <div>
                 <label className="block font-bold text-slate-700 mb-1">
                   Asset Name / Item Description <span className="text-rose-500">*</span>
@@ -520,21 +535,44 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
                 />
               </div>
 
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">
-                  NHIA Serial Number / Tag <span className="text-rose-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={formData.nhiaTagNumber}
-                  onChange={(e) => {
-                    setFormData({ ...formData, nhiaTagNumber: e.target.value });
-                    if (validationError) setValidationError(null);
-                  }}
-                  className="w-full px-3 py-2 rounded border border-slate-300 font-mono font-semibold focus:ring-1 focus:ring-[#25a872]"
-                  placeholder="e.g. NHIA/OG/SQA/OF/0018"
-                  required
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">
+                    NHIA Tag <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.nhiaTagNumber}
+                    onChange={(e) => {
+                      setFormData({ ...formData, nhiaTagNumber: e.target.value });
+                      if (validationError) setValidationError(null);
+                    }}
+                    className="w-full px-3 py-2 rounded border border-slate-300 font-mono font-semibold focus:ring-1 focus:ring-[#25a872]"
+                    placeholder="e.g. NHIA/OG/SQA/OF/0018"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">
+                    Tagging Method <span className="text-rose-500">*</span>
+                  </label>
+                  <Select
+                    value={formData.taggingMethod || undefined}
+                    onValueChange={(val) => {
+                      setFormData({ ...formData, taggingMethod: val });
+                      if (validationError) setValidationError(null);
+                    }}
+                  >
+                    <SelectTrigger size="sm" displayValue={formData.taggingMethod || undefined} className="bg-white">
+                      <SelectValue placeholder="Select method" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {LOOKUPS.taggingMethods.map((t: string) => (
+                        <SelectItem key={t} value={t}>{t}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               {/* Dynamic Cascading Category Selects */}
@@ -598,83 +636,46 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
                   Category-Specific Attributes for {formData.primaryCategory}
                 </h4>
 
-                {(formData.primaryCategory === "Office Equipment" || formData.primaryCategory === "Plant & Machinery" || formData.primaryCategory === "Plant and Machinery") && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 bg-[#f4f7f5] p-3.5 rounded-lg border border-slate-200">
-                    <div>
-                      <label className="block font-bold text-slate-700 mb-1">Serial Number</label>
-                      <input
-                        type="text"
-                        value={formData.categoryAttributes.serialNumber || ""}
-                        onChange={(e) => handleAttrChange("serialNumber", e.target.value)}
-                        className="w-full px-3 py-1.5 rounded border border-slate-300 font-mono bg-white"
-                        placeholder="e.g. CNB890123"
-                      />
+                {(() => {
+                  const fields = CATEGORY_ATTRIBUTES[formData.primaryCategory] || [];
+                  if (!fields.length) {
+                    return (
+                      <p className="text-xs text-slate-500">No extra attributes for this category.</p>
+                    );
+                  }
+                  return (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 bg-[#f4f7f5] p-3.5 rounded-lg border border-slate-200">
+                      {fields.map((field) => (
+                        <div key={field.key}>
+                          <label className="block font-bold text-slate-700 mb-1">{field.label}</label>
+                          {field.type === "select" ? (
+                            <Select
+                              value={formData.categoryAttributes[field.key] || undefined}
+                              onValueChange={(val) => handleAttrChange(field.key, val)}
+                            >
+                              <SelectTrigger size="sm" displayValue={formData.categoryAttributes[field.key] || undefined} className="bg-white">
+                                <SelectValue placeholder="Select" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {(field.options || []).map((opt) => (
+                                  <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          ) : (
+                            <input
+                              type={field.type === "date" ? "date" : "text"}
+                              value={formData.categoryAttributes[field.key] || ""}
+                              onChange={(e) => handleAttrChange(field.key, e.target.value)}
+                              className="w-full px-3 py-1.5 rounded border border-slate-300 bg-white"
+                              placeholder={field.placeholder || ""}
+                            />
+                          )}
+                        </div>
+                      ))}
                     </div>
-                    <div>
-                      <label className="block font-bold text-slate-700 mb-1">Power Specification (W)</label>
-                      <input
-                        type="text"
-                        value={formData.categoryAttributes.powerSpecification || ""}
-                        onChange={(e) => handleAttrChange("powerSpecification", e.target.value)}
-                        className="w-full px-3 py-1.5 rounded border border-slate-300 bg-white"
-                        placeholder="e.g. 500W"
-                      />
-                    </div>
-                    <div>
-                      <label className="block font-bold text-slate-700 mb-1">Capacity / Output Rating</label>
-                      <input
-                        type="text"
-                        value={formData.categoryAttributes.capacityOutputRating || ""}
-                        onChange={(e) => handleAttrChange("capacityOutputRating", e.target.value)}
-                        className="w-full px-3 py-1.5 rounded border border-slate-300 bg-white"
-                        placeholder="e.g. 40 ppm"
-                      />
-                    </div>
-                    <div>
-                      <label className="block font-bold text-slate-700 mb-1">Last Maintenance Service Date</label>
-                      <input
-                        type="date"
-                        value={formData.categoryAttributes.lastMaintenanceDate || ""}
-                        onChange={(e) => handleAttrChange("lastMaintenanceDate", e.target.value)}
-                        className="w-full px-3 py-1.5 rounded border border-slate-300 font-mono bg-white"
-                      />
-                    </div>
-                    <div>
-                      <label className="block font-bold text-slate-700 mb-1">Next Maintenance Service Date</label>
-                      <input
-                        type="date"
-                        value={formData.categoryAttributes.nextMaintenanceDate || ""}
-                        onChange={(e) => handleAttrChange("nextMaintenanceDate", e.target.value)}
-                        className="w-full px-3 py-1.5 rounded border border-slate-300 font-mono bg-white"
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {formData.primaryCategory === "Computer Equipment" && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-[#f4f7f5] p-3.5 rounded-lg border border-slate-200">
-                    <div>
-                      <label className="block font-bold text-slate-700 mb-1">Processor</label>
-                      <input
-                        type="text"
-                        value={formData.categoryAttributes.processor || ""}
-                        onChange={(e) => handleAttrChange("processor", e.target.value)}
-                        className="w-full px-3 py-1.5 rounded border border-slate-300 bg-white"
-                        placeholder="e.g. Intel Core i7 13th Gen"
-                      />
-                    </div>
-                    <div>
-                      <label className="block font-bold text-slate-700 mb-1">RAM (GB)</label>
-                      <input
-                        type="text"
-                        value={formData.categoryAttributes.ramGb || ""}
-                        onChange={(e) => handleAttrChange("ramGb", e.target.value)}
-                        className="w-full px-3 py-1.5 rounded border border-slate-300 font-mono bg-white"
-                        placeholder="e.g. 16"
-                      />
-                    </div>
-                  </div>
-                )}
+                  );
+                })()}
               </div>
             </div>
           )}
@@ -682,13 +683,10 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
           {/* STEP 2: LOCATION, CUSTODY & OFFICERS (DYNAMIC ZONE, STATE, DEPT, UNIT) */}
           {currentStep === 2 && (
             <div className="space-y-4">
-              <h3 className="font-bold text-sm text-slate-900 border-b pb-2 flex items-center gap-2">
-                <MapPin className="h-4 w-4 text-[#145c3f]" />
-                2. LOCATION, CUSTODY & OFFICERS
-              </h3>
-
-              {/* Dynamic Zone -> State -> Department -> Unit Cascading Selects */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 bg-[#f4f7f5] p-4 rounded-lg border border-slate-200">
+              {(() => {
+                const hqOffice = Boolean(states.find((s) => String(s.id) === String(formData.state_id))?.isHq);
+                return (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
                   <label className="block font-bold text-slate-800 mb-1">
                     Zone <span className="text-rose-500">*</span>
@@ -732,8 +730,11 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
                   </Select>
                 </div>
 
+                {hqOffice && (
                 <div>
-                  <label className="block font-bold text-slate-800 mb-1">Department (Select)</label>
+                  <label className="block font-bold text-slate-800 mb-1">
+                    Department <span className="text-rose-500">*</span>
+                  </label>
                   <Select
                     value={formData.department_id ? String(formData.department_id) : ""}
                     disabled={!formData.state_id}
@@ -753,12 +754,15 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
                     </SelectContent>
                   </Select>
                 </div>
+                )}
 
                 <div>
-                  <label className="block font-bold text-slate-800 mb-1">Unit (Select)</label>
+                  <label className="block font-bold text-slate-800 mb-1">
+                    {hqOffice ? "Division" : "Unit"} <span className="text-rose-500">*</span>
+                  </label>
                   <Select
                     value={formData.unit_id ? String(formData.unit_id) : ""}
-                    disabled={!formData.department_id}
+                    disabled={hqOffice ? !formData.department_id : !formData.state_id}
                     onValueChange={(val) => handleUnitChange(val)}
                   >
                     <SelectTrigger
@@ -766,7 +770,13 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
                       displayValue={formData.unit_name || undefined}
                       className="bg-white"
                     >
-                      <SelectValue placeholder={formData.department_id ? "-- Select Unit --" : "Select Dept first"} />
+                      <SelectValue placeholder={
+                        !formData.state_id
+                          ? "Select State first"
+                          : hqOffice
+                            ? (formData.department_id ? "-- Select Division --" : "Select Department first")
+                            : "-- Select Unit --"
+                      } />
                     </SelectTrigger>
                     <SelectContent>
                       {units.map((u) => (
@@ -775,19 +785,28 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
                     </SelectContent>
                   </Select>
                 </div>
-              </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-lg border border-slate-200">
-                <div>
-                  <label className="block font-bold text-slate-800 mb-1">Coordinator / Director</label>
+                <div className="md:col-span-2">
+                  <label className="block font-bold text-slate-800 mb-1">
+                    Specific Location (Floor / Room) <span className="text-rose-500">*</span>
+                  </label>
                   <input
                     type="text"
-                    value={formData.coordinator}
-                    onChange={(e) => setFormData({ ...formData, coordinator: e.target.value })}
+                    value={formData.specificLocation}
+                    onChange={(e) => {
+                      setFormData({ ...formData, specificLocation: e.target.value });
+                      if (validationError) setValidationError(null);
+                    }}
                     className="w-full px-3 py-2 rounded border border-slate-300 bg-white"
-                    placeholder="e.g. Alhaji Bello"
+                    placeholder="e.g. 2nd Floor, Room 204"
+                    required
                   />
                 </div>
+              </div>
+                );
+              })()}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block font-bold text-slate-800 mb-1">
                     Tracking Officer Name <span className="text-rose-500">*</span>
@@ -802,16 +821,6 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
                     className="w-full px-3 py-2 rounded border border-slate-300 bg-white"
                     placeholder="e.g. Musa Ibrahim"
                     required
-                  />
-                </div>
-                <div>
-                  <label className="block font-bold text-slate-800 mb-1">Supervisor Name</label>
-                  <input
-                    type="text"
-                    value={formData.supervisor}
-                    onChange={(e) => setFormData({ ...formData, supervisor: e.target.value })}
-                    className="w-full px-3 py-2 rounded border border-slate-300 bg-white"
-                    placeholder="e.g. Director SQA"
                   />
                 </div>
                 <div>
@@ -840,60 +849,15 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
                   />
                 </div>
                 <div>
-                  <label className="block font-bold text-slate-800 mb-1">
-                    Year of Allocation <span className="text-rose-500">*</span>
-                  </label>
+                  <label className="block font-bold text-slate-800 mb-1">Year of Allocation</label>
                   <input
                     type="text"
                     value={formData.yearOfAllocation}
-                    onChange={(e) => {
-                      setFormData({ ...formData, yearOfAllocation: e.target.value });
-                      if (validationError) setValidationError(null);
-                    }}
+                    onChange={(e) => setFormData({ ...formData, yearOfAllocation: e.target.value })}
                     className="w-full px-3 py-2 rounded border border-slate-300 font-mono bg-white"
                     placeholder="e.g. 2024"
-                    required
                   />
                 </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">
-                    Facility Site <span className="text-rose-500">*</span>
-                  </label>
-                  <Select
-                    value={formData.facilitySite}
-                    onValueChange={(val) => setFormData({ ...formData, facilitySite: val })}
-                  >
-                    <SelectTrigger size="sm" displayValue={formData.facilitySite} className="bg-white">
-                      <SelectValue placeholder="Select Facility Site" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {LOOKUPS.facilitySites.map((s: string) => (
-                        <SelectItem key={s} value={s}>{s}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">
-                    Specific Location (Floor / Room) <span className="text-rose-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.specificLocation}
-                    onChange={(e) => {
-                      setFormData({ ...formData, specificLocation: e.target.value });
-                      if (validationError) setValidationError(null);
-                    }}
-                    className="w-full px-3 py-2 rounded border border-slate-300"
-                    placeholder="e.g. 2nd Floor, Room 204"
-                    required
-                  />
-                </div>
-
                 <div>
                   <label className="block font-bold text-slate-700 mb-1">
                     Operational Status <span className="text-rose-500">*</span>
@@ -916,14 +880,9 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
             </div>
           )}
 
-          {/* STEP 3: FINANCIAL & DEPRECIATION DATA */}
-          {currentStep === 3 && (
+          {/* STEP 3: FINANCIAL & DEPRECIATION DATA — completed by the Finance department; hidden for now. */}
+          {FINANCIAL_STEP_ENABLED && currentStep === 3 && (
             <div className="space-y-4">
-              <h3 className="font-bold text-sm text-slate-900 border-b pb-2 flex items-center gap-2">
-                <CircleDollarSign className="h-4 w-4 text-[#25a872]" />
-                3. FINANCIAL & DEPRECIATION DATA
-              </h3>
-
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="block font-bold text-slate-700 mb-1">
@@ -1021,14 +980,9 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
             </div>
           )}
 
-          {/* STEP 4: LIFECYCLE & MAINTENANCE */}
-          {currentStep === 4 && (
+          {/* LIFECYCLE & MAINTENANCE */}
+          {currentStep === LAST_STEP && (
             <div className="space-y-4">
-              <h3 className="font-bold text-sm text-slate-900 border-b pb-2 flex items-center gap-2">
-                <History className="h-4 w-4 text-amber-600" />
-                4. LIFECYCLE & MAINTENANCE
-              </h3>
-
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block font-bold text-slate-700 mb-1">
@@ -1036,30 +990,46 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
                   </label>
                   <Select
                     value={formData.physicalCondition || undefined}
-                    onValueChange={(val) => setFormData({ ...formData, physicalCondition: val })}
+                    onValueChange={(val) => setFormData({
+                      ...formData,
+                      physicalCondition: val,
+                      serviceability: CONDITIONS_NEEDING_SERVICEABILITY.has(val) ? formData.serviceability : "",
+                    })}
                   >
                     <SelectTrigger size="sm" displayValue={formData.physicalCondition || undefined} className="bg-white text-[#145c3f] font-bold">
                       <SelectValue placeholder="Select Condition" />
                     </SelectTrigger>
                     <SelectContent>
-                      {LOOKUPS.physicalConditions.map((c: string) => (
+                      {PHYSICAL_CONDITIONS.map((c) => (
                         <SelectItem key={c} value={c}>{c}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
 
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">
-                    Last Physical Verification Date <span className="text-rose-500">*</span>
-                  </label>
-                  <input
-                    type="date"
-                    value={formData.lastVerificationDate || ""}
-                    onChange={(e) => setFormData({ ...formData, lastVerificationDate: e.target.value })}
-                    className="w-full px-3 py-2 rounded border border-slate-300 font-mono"
-                  />
-                </div>
+                {CONDITIONS_NEEDING_SERVICEABILITY.has(formData.physicalCondition) && (
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">
+                      Serviceability <span className="text-rose-500">*</span>
+                    </label>
+                    <Select
+                      value={formData.serviceability || undefined}
+                      onValueChange={(val) => {
+                        setFormData({ ...formData, serviceability: val });
+                        if (validationError) setValidationError(null);
+                      }}
+                    >
+                      <SelectTrigger size="sm" displayValue={formData.serviceability || undefined} className="bg-white">
+                        <SelectValue placeholder="Select serviceability" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {SERVICEABILITY_OPTIONS.map((option) => (
+                          <SelectItem key={option} value={option}>{option}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
 
                 <div>
                   <label className="block font-bold text-slate-700 mb-1">
@@ -1067,37 +1037,39 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
                   </label>
                   <Select
                     value={formData.verificationStatus || undefined}
-                    onValueChange={(val) => setFormData({ ...formData, verificationStatus: val })}
+                    onValueChange={(val) => setFormData({
+                      ...formData,
+                      verificationStatus: val,
+                      lastVerificationDate: val === "Verified" ? formData.lastVerificationDate : "",
+                    })}
                   >
                     <SelectTrigger size="sm" displayValue={formData.verificationStatus || undefined} className="bg-white">
                       <SelectValue placeholder="Select status" />
                     </SelectTrigger>
                     <SelectContent>
-                      {LOOKUPS.verificationStatuses.map((s: string) => (
+                      {ASSET_VERIFICATION_STATUSES.map((s) => (
                         <SelectItem key={s} value={s}>{s}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
 
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">
-                    Tagging Method <span className="text-rose-500">*</span>
-                  </label>
-                  <Select
-                    value={formData.taggingMethod || undefined}
-                    onValueChange={(val) => setFormData({ ...formData, taggingMethod: val })}
-                  >
-                    <SelectTrigger size="sm" displayValue={formData.taggingMethod || undefined} className="bg-white">
-                      <SelectValue placeholder="Select method" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {LOOKUPS.taggingMethods.map((t: string) => (
-                        <SelectItem key={t} value={t}>{t}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                {formData.verificationStatus === "Verified" && (
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">
+                      Last Verified
+                    </label>
+                    <input
+                      type="date"
+                      value={formData.lastVerificationDate || ""}
+                      onChange={(e) => {
+                        setFormData({ ...formData, lastVerificationDate: e.target.value });
+                        if (validationError) setValidationError(null);
+                      }}
+                      className="w-full px-3 py-2 rounded border border-slate-300 font-mono"
+                    />
+                  </div>
+                )}
               </div>
 
               <div>
@@ -1125,7 +1097,7 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
             </button>
 
             <div className="flex items-center gap-2">
-              {currentStep < 4 ? (
+              {currentStep < LAST_STEP ? (
                 <button
                   type="button"
                   onClick={handleNextStep}

@@ -215,7 +215,6 @@ export const MODULE_CONFIG: ParentModule[] = [
       { type: "group", label: SDO_STOCK_NAV_GROUP, children: [
         { title: "Stock Verification Dashboard", view: "stock-verification-dashboard", path: "/sdo/stock-dashboard", navLabel: "Dashboard" },
         { title: "Physical Asset Verification", view: "store-verification-verify", path: "/store-management/verification/verify", navLabel: "Asset Verification" },
-        { title: "Verification of Supply",      view: "store-supply-verification", path: "/store-management/verification/supply", navLabel: "Supply Verification" },
         { title: "Prepayment Analysis Register", view: "store-prepayment-analysis", path: "/store-management/prepayment-analysis", navLabel: "Prepayment Analysis" },
         { type: "group", label: "Store Management", children: [
           { title: "Inventory Register",          view: "store-inventory-catalog",   path: "/store-management/inventory/items", navLabel: "Inventory" },
@@ -235,8 +234,8 @@ export const MODULE_CONFIG: ParentModule[] = [
     roles: "all",
     children: [
       { title: "SOC/Zones Dashboard", view: "soc-zones-dashboard", path: "/soc/dashboard", navLabel: "Dashboard" },
-      { title: "State/Zonal Office Profile", view: "soc-office-profile", path: "/soc/office-profile", navLabel: "Office Profile" },
-      { title: "State/Zonal Focal Persons Register", view: "soc-focal-persons", path: "/soc/focal-persons", navLabel: "Focal Persons" },
+      { title: "State/Zonal Office Profile", view: "soc-office-profile", path: "/soc/office-profile", navLabel: "State Office Profile" },
+      { title: "State/Zonal Focal Persons Register", view: "soc-focal-persons", path: "/soc/focal-persons", navLabel: "State Focal Persons" },
       { title: "Monthly Enrollee Register", view: "state-enrollee-register", path: "/soc/enrollee-register", navLabel: "Enrollee Register" },
       { title: "ETMC/TMC Action-Point Register", view: "state-etmc-tmc-action-point", path: "/soc/etmc-tmc-action-point", navLabel: "ETMC Action Points" },
       { title: "Weekly Actionable", view: "state-weekly-actionable", path: "/soc/weekly-actionable", navLabel: "Escalated Issues" },

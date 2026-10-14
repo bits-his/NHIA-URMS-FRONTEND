@@ -15,9 +15,9 @@ import {
   Layers,
   AlertTriangle,
   FileText,
-  Sliders,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { CATEGORY_ATTRIBUTES } from "@/src/store/useAssetManagement";
 
 function InfoRow({
   label,
@@ -36,10 +36,10 @@ function InfoRow({
     <div className="flex items-center justify-between py-1.5 border-b border-slate-100 last:border-0 gap-2">
       <div className="flex items-center gap-1.5 text-slate-500 shrink-0">
         {Icon ? <Icon className="w-3.5 h-3.5 text-slate-400" /> : null}
-        <span className="text-[11px] font-semibold uppercase tracking-wider">{label}</span>
+        <span className="text-xs font-semibold text-slate-600">{label}</span>
       </div>
       <div
-        className={`text-xs font-semibold break-words text-right truncate max-w-[55%] ${
+        className={`text-sm font-semibold break-words text-right max-w-[60%] ${
           highlight
             ? "text-[#145c3f] font-bold"
             : mono
@@ -52,6 +52,43 @@ function InfoRow({
       </div>
     </div>
   );
+}
+
+function parseAttributes(raw: unknown): Record<string, unknown> {
+  let value = raw;
+  for (let pass = 0; pass < 2 && typeof value === "string"; pass += 1) {
+    const trimmed = value.trim();
+    if (!trimmed) return {};
+    try {
+      value = JSON.parse(trimmed);
+    } catch {
+      return {};
+    }
+  }
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  return value as Record<string, unknown>;
+}
+
+function specFields(category: string, raw: unknown) {
+  const record = parseAttributes(raw);
+  const defined = CATEGORY_ATTRIBUTES[category] || [];
+  const used = new Set<string>();
+  const rows: { key: string; label: string; value: string }[] = [];
+  const push = (key: string, label: string, val: unknown) => {
+    const value = val == null ? "" : String(val).trim();
+    if (!value || used.has(key)) return;
+    used.add(key);
+    rows.push({ key, label, value });
+  };
+  for (const field of defined) push(field.key, field.label, record[field.key]);
+  for (const [key, val] of Object.entries(record)) {
+    const label = key
+      .replace(/[_-]/g, " ")
+      .replace(/([a-z])([A-Z])/g, "$1 $2")
+      .replace(/\b\w/g, (letter) => letter.toUpperCase());
+    push(key, label, val);
+  }
+  return rows;
 }
 
 function conditionTone(raw: string) {
@@ -143,8 +180,8 @@ export function AssetDetailView() {
   const cost = Number(asset.acquisitionCost || asset.acquisitionValue || 0);
   const accum = Number(asset.accumulatedDepreciation || 0);
   const nbv = Number(asset.netBookValue || asset.currentValue || Math.max(0, cost - accum));
-  const attrs = Object.entries(asset.categoryAttributes || {});
-  const naira = new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", maximumFractionDigits: 0 });
+  const specs = specFields(asset.primaryCategory || asset.category || "", asset.categoryAttributes);
+  const money = (amount: number) => `₦${amount.toLocaleString("en-NG", { maximumFractionDigits: 0 })}`;
   const cond = conditionTone(asset.physicalCondition || asset.operationalStatus || "Good");
 
   return (
@@ -207,15 +244,15 @@ export function AssetDetailView() {
 
           <div className="flex items-center gap-3 shrink-0 bg-slate-50 px-3.5 py-2 rounded-lg border border-slate-200/70">
             <div className="pr-3 border-r border-slate-200 text-left">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Net Book Value</p>
-              <p className="text-sm sm:text-base font-bold text-[#145c3f] tabular-nums">{naira.format(nbv)}</p>
+              <p className="text-xs font-semibold text-slate-500">Net book value</p>
+              <p className="text-sm sm:text-base font-bold text-[#145c3f] tabular-nums">{money(nbv)}</p>
             </div>
             <div className="pr-3 border-r border-slate-200 text-left">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Cost</p>
-              <p className="text-sm sm:text-base font-bold text-slate-800 tabular-nums">{naira.format(cost)}</p>
+              <p className="text-xs font-semibold text-slate-500">Cost</p>
+              <p className="text-sm sm:text-base font-bold text-slate-800 tabular-nums">{money(cost)}</p>
             </div>
             <div className="text-left">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Last Verified</p>
+              <p className="text-xs font-semibold text-slate-500">Last verified</p>
               <p className="text-xs font-bold text-slate-700 tabular-nums">{asset.lastVerificationDate || "Never"}</p>
             </div>
           </div>
@@ -232,7 +269,7 @@ export function AssetDetailView() {
                 <Tag className="w-4 h-4" />
               </div>
               <div>
-                <h2 className="text-xs font-bold uppercase tracking-wider text-slate-900">Identification</h2>
+                <h2 className="text-sm font-bold text-slate-900">Identification</h2>
               </div>
             </div>
 
@@ -256,7 +293,7 @@ export function AssetDetailView() {
                 <MapPin className="w-4 h-4" />
               </div>
               <div>
-                <h2 className="text-xs font-bold uppercase tracking-wider text-slate-900">Location & Custody</h2>
+                <h2 className="text-sm font-bold text-slate-900">Location and custody</h2>
               </div>
             </div>
 
@@ -281,14 +318,14 @@ export function AssetDetailView() {
                 <CircleDollarSign className="w-4 h-4" />
               </div>
               <div>
-                <h2 className="text-xs font-bold uppercase tracking-wider text-slate-900">Valuation & Audit</h2>
+                <h2 className="text-sm font-bold text-slate-900">Valuation and audit</h2>
               </div>
             </div>
 
             <div className="divide-y divide-slate-100">
-              <InfoRow label="Acquisition Cost" value={naira.format(cost)} icon={CircleDollarSign} />
-              <InfoRow label="Net Book Value" value={naira.format(nbv)} highlight />
-              <InfoRow label="Accum. Dep." value={naira.format(accum)} />
+              <InfoRow label="Acquisition Cost" value={money(cost)} icon={CircleDollarSign} />
+              <InfoRow label="Net Book Value" value={money(nbv)} highlight />
+              <InfoRow label="Accum. Dep." value={money(accum)} />
               <InfoRow label="Useful Life" value={`${asset.usefulLifeYears || 5} yrs`} />
               <InfoRow label="Dep. Method" value={asset.depreciationMethod || "Straight-Line"} />
               <InfoRow label="Acquired Date" value={asset.acquisitionDate || asset.purchaseDate || asset.date} icon={Calendar} />
@@ -311,37 +348,26 @@ export function AssetDetailView() {
         </div>
       </div>
 
-      {/* ─── Compact Category Attributes (Horizontal strip) ──────────────── */}
-      {attrs.length > 0 && (
-        <div className="bg-white border border-slate-200/90 rounded-xl shadow-sm p-3.5">
-          <div className="flex items-center gap-1.5 mb-2">
-            <Sliders className="w-3.5 h-3.5 text-[#145c3f]" />
-            <h2 className="text-[11px] font-bold uppercase tracking-wider text-slate-700">
-              Technical Specifications ({asset.primaryCategory})
-            </h2>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            {attrs.map(([key, val]) => (
-              <div
-                key={key}
-                className="bg-slate-50 border border-slate-200/80 px-2.5 py-1 rounded-lg text-xs flex items-center gap-1.5"
-              >
-                <span className="font-semibold text-slate-500 uppercase text-[10px]">
-                  {key.replace(/([A-Z])/g, " $1").trim()}:
-                </span>
-                <span className="font-bold text-slate-800">{String(val) || "—"}</span>
+      {specs.length > 0 && (
+        <section className="bg-white border border-slate-200 rounded-lg p-4">
+          <h2 className="text-sm font-bold text-slate-900 mb-3">
+            Technical specifications
+            {asset.primaryCategory ? <span className="font-semibold text-slate-500"> · {asset.primaryCategory}</span> : null}
+          </h2>
+          <dl className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-3">
+            {specs.map((spec) => (
+              <div key={spec.key} className="min-w-0 border-b border-slate-100 pb-2">
+                <dt className="text-xs font-semibold text-slate-500">{spec.label}</dt>
+                <dd className="mt-0.5 text-sm font-semibold text-slate-900 break-words">{spec.value}</dd>
               </div>
             ))}
-          </div>
-        </div>
+          </dl>
+        </section>
       )}
 
       {asset.comments ? (
         <div className="bg-white border border-slate-200/90 rounded-xl shadow-sm p-3.5">
-          <h2 className="text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1.5">
-            Comment / Observations
-          </h2>
+          <h2 className="text-sm font-bold text-slate-900 mb-1.5">Comments</h2>
           <p className="text-sm text-slate-800 whitespace-pre-wrap">{asset.comments}</p>
         </div>
       ) : null}

@@ -3,10 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { storeManagementApi } from "@/src/services/storeManagementApi";
 import CustomTable, { CustomTableField } from "@/components/CustomTable";
 import { Button } from "@/components/ui/button";
-import { Plus, Paperclip, ExternalLink, FileSpreadsheet, Eye } from "lucide-react";
+import { Plus, Paperclip, ExternalLink, FileSpreadsheet, Eye, CheckCircle2, AlertTriangle } from "lucide-react";
 import PageLayout from "../components/PageLayout";
 import ListSearchBar from "../components/ListSearchBar";
-import MetricCards from "../components/MetricCards";
 import { useCreateReviewAccess } from "@/src/access/createReviewAccess";
 
 const API_ORIGIN = ((import.meta.env?.VITE_API_URL as string) || "http://localhost:3001/api").replace(/\/api\/?$/, "");
@@ -106,36 +105,38 @@ export default function PrepaymentAnalysisListView() {
     setBucket((prev) => (prev === next ? "all" : next));
   };
 
-  const metrics = [
+  const kpis = [
     {
-      label: "Total entries",
+      key: "all" as const,
+      label: "Total",
       value: counts.total,
-      hint: "On the register",
+      icon: <FileSpreadsheet className="w-3.5 h-3.5 text-[#25a872]" />,
+      accent: "border-[#d4e8dc] bg-white",
       onClick: () => setBucket("all"),
-      active: bucket === "all",
     },
     {
-      label: "Qty matched",
+      key: "matched" as const,
+      label: "Matched",
       value: counts.matched,
-      hint: "Ordered = supplied",
-      tone: "ok" as const,
+      icon: <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />,
+      accent: "border-emerald-200 bg-emerald-50/50",
       onClick: () => toggleBucket("matched"),
-      active: bucket === "matched",
     },
     {
-      label: "Qty variance",
+      key: "variance" as const,
+      label: "Variance",
       value: counts.variance,
-      hint: "Ordered ≠ supplied",
-      tone: counts.variance ? ("warn" as const) : ("default" as const),
+      icon: <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />,
+      accent: "border-amber-200 bg-amber-50/50",
       onClick: () => toggleBucket("variance"),
-      active: bucket === "variance",
     },
     {
-      label: "With award letter",
+      key: "award" as const,
+      label: "Award letter",
       value: counts.award,
-      hint: "Attachment on file",
+      icon: <Paperclip className="w-3.5 h-3.5 text-slate-500" />,
+      accent: "border-slate-200 bg-white",
       onClick: () => toggleBucket("award"),
-      active: bucket === "award",
     },
   ];
 
@@ -305,7 +306,22 @@ export default function PrepaymentAnalysisListView() {
         </div>
       )}
 
-      <MetricCards items={metrics} />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+        {kpis.map((kpi) => (
+          <button
+            key={kpi.label}
+            type="button"
+            onClick={kpi.onClick}
+            className={`rounded-lg border px-3 py-2 flex items-center gap-2.5 text-left ${kpi.accent} ${bucket === kpi.key ? "ring-2 ring-[#145c3f] ring-offset-1" : ""}`}
+          >
+            {kpi.icon}
+            <div className="min-w-0">
+              <p className="text-lg font-bold text-slate-800 tabular-nums leading-none">{kpi.value}</p>
+              <p className="text-[10px] font-medium text-slate-500 mt-0.5 truncate">{kpi.label}</p>
+            </div>
+          </button>
+        ))}
+      </div>
 
       <ListSearchBar
         value={query}

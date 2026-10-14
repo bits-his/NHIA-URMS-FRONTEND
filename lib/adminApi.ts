@@ -55,7 +55,15 @@ export interface AdminUser {
   createdAt: string;
 }
 export interface ZonalOffice { id: number; zonal_code: string; description: string; states?: StateOffice[]; }
-export interface StateOffice { id: number; code: string; description: string; zonal_id: number; zone?: ZonalOffice; }
+export interface StateOffice {
+  id: number;
+  code: string;
+  description: string;
+  zonal_id: number;
+  is_hq?: boolean;
+  is_zonal_office?: boolean;
+  zone?: ZonalOffice;
+}
 export interface Department { id: number; department_code: string; name: string; description?: string; units?: Unit[]; }
 export interface Unit { id: number; unit_code: string; name: string; description?: string; department_id: number; department?: Department; }
 

@@ -2,7 +2,7 @@ import * as React from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ArrowLeft, RefreshCw, Loader2, ClipboardList,
-  Send, Warehouse, PackageCheck, Tag,
+  Send, Warehouse,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,12 +22,10 @@ const UNIT_NAME = "Stock Verification Unit";
 
 const MODULE_SHORT: Record<string, string> = {
   "Physical Asset Verification": "Physical assets",
-  "Verification of Supply": "Verify supply",
   "Inventory Register": "Inventory",
-  "Capitalisation & Issuance": "Capitalise / issue",
+  "Capitalisation & Issuance": "Issuance",
+  Issuance: "Issuance",
 };
-
-const GEO_SCOPED = new Set(["verifications", "supply_verifications", "variance_items", "assets"]);
 
 interface Props {
   onBack: () => void;
@@ -80,43 +78,25 @@ export default function StockVerificationDashboard({ onBack, defaultStateId, def
   [data]);
 
   const moduleChart = React.useMemo(
-    () => (data?.module_breakdown ?? []).map((row: any) => ({
-      ...row,
-      short: MODULE_SHORT[row.module] || row.module,
-    })),
+    () => (data?.module_breakdown ?? [])
+      .filter((row: any) => row.module !== "Verification of Supply")
+      .map((row: any) => ({
+        ...row,
+        module: row.module === "Capitalisation & Issuance" ? "Issuance" : row.module,
+        short: MODULE_SHORT[row.module] || row.module,
+      })),
     [data],
   );
-  const supplyVerdictChart = React.useMemo(
-    () => (data?.supply_by_verdict ?? []).filter((d: any) => d.count > 0),
-    [data],
-  );
-
   const drillGeoSegment = (segment: string, title: string, extra?: Record<string, string>) => {
     drill.openRecordDrill(segment, title, drillCtx, extra);
-  };
-
-  const drillDirect = (segment: string, title: string, extra?: Record<string, string>) => {
-    drill.openDrill(
-      { segment, ...extra },
-      { title, subtitle: drillCtx.subtitle, breadcrumbs: drillCtx.breadcrumbs },
-      { resetStack: true },
-    );
-  };
-
-  const drillSegment = (segment: string, title: string, extra?: Record<string, string>) => {
-    if (GEO_SCOPED.has(segment)) {
-      drillGeoSegment(segment, title, extra);
-    } else {
-      drillDirect(segment, title, extra);
-    }
   };
 
   const drillModule = (moduleName: string) => {
     const map: Record<string, string> = {
       "Physical Asset Verification": "/store-management/verification/verify",
-      "Verification of Supply": "/store-management/verification/supply",
       "Inventory Register": "/store-management/inventory/items",
       "Capitalisation & Issuance": "/store-management/transfers/requests",
+      Issuance: "/store-management/transfers/requests",
     };
     const path = map[moduleName];
     if (path) navigate(path);
@@ -150,7 +130,7 @@ export default function StockVerificationDashboard({ onBack, defaultStateId, def
             </div>
           ) : !data ? null : (
             <>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <ClickableKpi
                   label="Physical Asset Verification"
                   value={data.tagged_assets ?? data.svo_assets ?? 0}
@@ -158,14 +138,6 @@ export default function StockVerificationDashboard({ onBack, defaultStateId, def
                   hint="Open physical assets"
                   icon={<ClipboardList className="w-5 h-5 text-emerald-600" />}
                   onClick={() => navigate("/store-management/verification/verify")}
-                />
-                <ClickableKpi
-                  label="Verification of Supply"
-                  value={data.supply_verifications ?? 0}
-                  detail={`${data.supply_failed ?? 0} failed certificates`}
-                  hint="Open verify supply"
-                  icon={<PackageCheck className="w-5 h-5 text-blue-600" />}
-                  onClick={() => navigate("/store-management/verification/supply")}
                 />
                 <ClickableKpi
                   label="Inventory Register"
@@ -176,10 +148,10 @@ export default function StockVerificationDashboard({ onBack, defaultStateId, def
                   onClick={() => navigate("/store-management/inventory/items")}
                 />
                 <ClickableKpi
-                  label="Capitalisation & Issuance"
-                  value={data.capitalisation_issuance ?? 0}
-                  detail={`${data.stock_issues ?? 0} issues · ${data.capitalisations ?? 0} capitalised`}
-                  hint="Open capitalise / issue"
+                  label="Issuance"
+                  value={data.stock_issues ?? 0}
+                  detail="Store issues"
+                  hint="Open issuance"
                   icon={<Send className="w-5 h-5 text-indigo-600" />}
                   onClick={() => navigate("/store-management/transfers/requests")}
                 />
@@ -187,10 +159,9 @@ export default function StockVerificationDashboard({ onBack, defaultStateId, def
 
               <div className="flex flex-wrap gap-2">
                 {[
-                  { label: "Verify supply", path: "/store-management/verification/supply", icon: PackageCheck },
                   { label: "Physical assets", path: "/store-management/verification/verify", icon: ClipboardList },
                   { label: "Inventory register", path: "/store-management/inventory/items", icon: Warehouse },
-                  { label: "Capitalise / issue", path: "/store-management/transfers/requests", icon: Tag },
+                  { label: "Issuance", path: "/store-management/transfers/requests", icon: Send },
                 ].map((link) => (
                   <Button
                     key={link.path}
@@ -213,7 +184,7 @@ export default function StockVerificationDashboard({ onBack, defaultStateId, def
                   </CardHeader>
                   <CardContent className="h-[240px]">
                     {monthlyChart.length === 0 ? (
-                      <ChartEmpty message="No physical or supply verifications recorded yet." />
+                      <ChartEmpty message="No physical verifications recorded yet." />
                     ) : (
                       <ResponsiveContainer width="100%" height="100%">
                         <LineChart
@@ -230,7 +201,6 @@ export default function StockVerificationDashboard({ onBack, defaultStateId, def
                           <Tooltip />
                           <Legend wrapperStyle={{ fontSize: 10 }} />
                           <Line type="monotone" dataKey="physical_verifications" name="Physical" stroke="#25a872" strokeWidth={2} dot={{ r: 3 }} />
-                          <Line type="monotone" dataKey="supply_verifications" name="Supply" stroke="#6366f1" strokeWidth={2} dot={{ r: 3 }} />
                           <Line type="monotone" dataKey="approved" name="Approved" stroke="#f59e0b" strokeWidth={2} dot={{ r: 3 }} />
                         </LineChart>
                       </ResponsiveContainer>
@@ -292,30 +262,6 @@ export default function StockVerificationDashboard({ onBack, defaultStateId, def
                   </CardContent>
                 </Card>
 
-                <Card className="rounded-2xl border-[#d4e8dc]">
-                  <CardHeader className="pb-2"><CardTitle className="text-sm font-bold">Supply Verifications by Verdict</CardTitle></CardHeader>
-                  <CardContent className="h-[240px]">
-                    {supplyVerdictChart.length === 0 ? (
-                      <ChartEmpty message="No supply verification certificates yet." />
-                    ) : (
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={supplyVerdictChart}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                          <XAxis dataKey="verdict" tick={{ fontSize: 9 }} />
-                          <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
-                          <Tooltip />
-                          <Bar
-                            dataKey="count" fill="#6366f1" radius={[4, 4, 0, 0]} style={{ cursor: "pointer" }}
-                            onClick={(bar: any) => {
-                              if (bar?.verdict) drillSegment("supply_verifications", `Verdict: ${bar.verdict}`, { verdict: bar.verdict });
-                            }}
-                          />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    )}
-                  </CardContent>
-                </Card>
-
                 <Card className="rounded-2xl border-[#d4e8dc] lg:col-span-2">
                   <CardHeader className="pb-2 flex flex-row items-center justify-between">
                     <CardTitle className="text-sm font-bold">Top States by Verifications</CardTitle>
@@ -330,7 +276,6 @@ export default function StockVerificationDashboard({ onBack, defaultStateId, def
                           <TableRow className="bg-[#f0fdf7]">
                             <TableHead className="text-xs">State</TableHead>
                             <TableHead className="text-xs text-right">Physical</TableHead>
-                            <TableHead className="text-xs text-right">Supply</TableHead>
                             <TableHead className="text-xs text-right">Total</TableHead>
                           </TableRow>
                         </TableHeader>
@@ -343,8 +288,7 @@ export default function StockVerificationDashboard({ onBack, defaultStateId, def
                             >
                               <TableCell className="text-sm">{row.state_name}</TableCell>
                               <TableCell className="text-sm text-right">{row.physical_count ?? 0}</TableCell>
-                              <TableCell className="text-sm text-right">{row.supply_count ?? 0}</TableCell>
-                              <TableCell className="text-sm text-right font-bold">{row.verification_count}</TableCell>
+                              <TableCell className="text-sm text-right font-bold">{row.physical_count ?? row.verification_count}</TableCell>
                             </TableRow>
                           ))}
                         </TableBody>

@@ -8,6 +8,7 @@ const BASE_URL = (import.meta.env?.VITE_API_URL as string) || "http://localhost:
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const token = tokenStore.get();
   const res = await fetch(`${BASE_URL}${path}`, {
+    cache: "no-store",
     headers: {
       "Content-Type": "application/json",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -218,15 +219,21 @@ export const stockApi = {
       `/stock/states${zoneId ? `?zone_id=${zoneId}` : ""}`
     ),
 
-  getDepartments: (stateId?: number | string) =>
-    request<{ success: boolean; data: any[] }>(
-      `/stock/departments${stateId ? `?state_id=${stateId}` : ""}`
-    ),
+  getDepartments: (stateId?: number | string, scope?: "hq" | "state") => {
+    const params = new URLSearchParams();
+    if (stateId) params.set("state_id", String(stateId));
+    if (scope) params.set("scope", scope);
+    const q = params.toString();
+    return request<{ success: boolean; data: any[] }>(`/stock/departments${q ? `?${q}` : ""}`);
+  },
 
-  getUnits: (departmentId?: number | string) =>
-    request<{ success: boolean; data: any[] }>(
-      `/stock/units${departmentId ? `?department_id=${departmentId}` : ""}`
-    ),
+  getUnits: (departmentId?: number | string, scope?: "division" | "state") => {
+    const params = new URLSearchParams();
+    if (departmentId) params.set("department_id", String(departmentId));
+    if (scope) params.set("scope", scope);
+    const q = params.toString();
+    return request<{ success: boolean; data: any[] }>(`/stock/units${q ? `?${q}` : ""}`);
+  },
 
   getAssets: (
     stateId?: number | string,
@@ -785,11 +792,15 @@ export const stateZonalOfficeProfileApi = {
     ),
   get: (id: number | string) =>
     request<{ success: boolean; data: any }>(`/state-office/office-profiles/${id}`),
-  save: (payload: Record<string, string | number | null | undefined>, file?: File | null, id?: number | string | null) => {
+  save: (
+    payload: Record<string, string | number | null | undefined | object>,
+    file?: File | null,
+    id?: number | string | null,
+  ) => {
     const form = new FormData();
     Object.entries(payload).forEach(([k, v]) => {
       if (v === undefined || v === null) return;
-      form.append(k, String(v));
+      form.append(k, typeof v === "object" ? JSON.stringify(v) : String(v));
     });
     if (file) form.append("aop", file);
     if (id) {

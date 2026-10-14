@@ -11,7 +11,7 @@ export const LOOKUPS: any = {
   physicalConditions: ["Excellent", "Good", "Fair", "Poor", "Defective", "Damaged", "Missing", "Obsolete", "Retired"],
   verificationStatuses: ["Verified", "Unverified", "Missing", "Verified & Passed", "Partial Pass", "Failed"],
   approvalStatuses: ["Pending", "Approved", "Rejected"],
-  taggingMethods: ["Barcode", "QR Code", "RFID", "Title Doc"],
+  taggingMethods: ["Barcode", "QR Code", "RFID", "Others"],
 
   primaryCategories: {
     "Office Equipment": {
@@ -50,6 +50,100 @@ export const LOOKUPS: any = {
       "Leasehold Land": ["Leased Office Land"]
     }
   }
+};
+
+export type CategoryAttrField = {
+  key: string;
+  label: string;
+  type?: "text" | "date" | "select";
+  placeholder?: string;
+  options?: string[];
+};
+
+const officeEquipmentAttrs: CategoryAttrField[] = [
+  { key: "make", label: "Make / Manufacturer", placeholder: "e.g. HP" },
+  { key: "modelNumber", label: "Model Number", placeholder: "e.g. LaserJet MFP" },
+  { key: "serialNumber", label: "Serial Number", placeholder: "e.g. CNB890123" },
+  { key: "powerSpecification", label: "Power Specification (W)", placeholder: "e.g. 500W" },
+  { key: "capacityOutputRating", label: "Capacity / Output Rating", placeholder: "e.g. 40 ppm" },
+  { key: "vendor", label: "Vendor", placeholder: "Supplier name" },
+  { key: "lastMaintenanceDate", label: "Last Maintenance Service Date", type: "date" },
+  { key: "nextMaintenanceDate", label: "Next Maintenance Service Date", type: "date" },
+];
+
+const computerEquipmentAttrs: CategoryAttrField[] = [
+  { key: "serialNumber", label: "Serial Number", placeholder: "Manufacturer serial" },
+  { key: "processor", label: "Processor (CPU)", placeholder: "e.g. Intel Core i7" },
+  { key: "ramGb", label: "RAM (GB)", placeholder: "e.g. 16" },
+  { key: "storageGb", label: "Storage (GB)", placeholder: "e.g. 512" },
+  { key: "operatingSystem", label: "Operating System", placeholder: "e.g. Windows 11" },
+  { key: "macAddress", label: "MAC Address", placeholder: "e.g. 00:1B:44:11:3A:B7" },
+  { key: "ipAddress", label: "IP Address", placeholder: "e.g. 10.0.0.12" },
+  { key: "encryption", label: "Encryption", placeholder: "e.g. BitLocker enabled" },
+  { key: "antivirusAgent", label: "Antivirus Agent Status", placeholder: "e.g. Active" },
+];
+
+const motorVehicleAttrs: CategoryAttrField[] = [
+  { key: "make", label: "Make / Manufacturer", placeholder: "e.g. Toyota" },
+  { key: "modelYear", label: "Model & Year", placeholder: "e.g. Prado 2024" },
+  { key: "serialNumber", label: "Serial Number" },
+  { key: "engineNumber", label: "Engine Number" },
+  { key: "licencePlateNumber", label: "Licence Plate Number", placeholder: "e.g. FG-8801-NHIA" },
+  { key: "fuelType", label: "Fuel Type", placeholder: "e.g. Petrol" },
+  { key: "chassisVin", label: "Chassis / VIN Number" },
+  { key: "insurancePolicy", label: "Insurance Policy" },
+  { key: "odometerReading", label: "Current Odometer Reading (Km)", placeholder: "e.g. 24500" },
+  { key: "assignedDriver", label: "Assigned Driver Name" },
+];
+
+const buildingAttrs: CategoryAttrField[] = [
+  { key: "numberOfFloors", label: "Number of Floors" },
+  { key: "grossFloorArea", label: "Gross Floor Area" },
+  { key: "occupancyPermit", label: "Occupancy Permit" },
+  { key: "ownershipStatus", label: "Ownership Status", placeholder: "e.g. Owned / Leased" },
+  { key: "insurancePolicyNo", label: "Property Insurance Policy No." },
+  { key: "tenureType", label: "Tenure Type" },
+  { key: "leaseMonthYear", label: "Lease Month / Year", placeholder: "e.g. Jan 2024" },
+  { key: "leaseExpiry", label: "Lease Expiry Month / Year", placeholder: "e.g. Dec 2029" },
+  { key: "leaseAmount", label: "Lease Amount" },
+];
+
+const landAttrs: CategoryAttrField[] = [
+  { key: "landUse", label: "Land Use Classification", type: "select", options: ["Residential Plot", "Commercial Plot", "Industrial"] },
+  { key: "titleDocumentType", label: "Title Document Type" },
+  { key: "documentNumber", label: "Document Number" },
+  { key: "cofoTitleNo", label: "Certificate of Occupancy (C of O) / Title No." },
+  { key: "plotNo", label: "Plot No." },
+  { key: "areaSqm", label: "Area (SqM)" },
+  { key: "landSize", label: "Land Size" },
+  { key: "fencingStatus", label: "Fencing Status" },
+  { key: "annualGroundRent", label: "Annual Ground Rent" },
+  { key: "developmentLevel", label: "Development Level" },
+  { key: "description", label: "Description" },
+];
+
+/** Fields from the Fixed Asset Register category-attribute sheets. */
+export const CATEGORY_ATTRIBUTES: Record<string, CategoryAttrField[]> = {
+  "Office Equipment": officeEquipmentAttrs,
+  "Office Furniture": [
+    { key: "description", label: "Description" },
+    { key: "color", label: "Color" },
+    { key: "dimension", label: "Dimension", placeholder: "e.g. 120 x 60 cm" },
+  ],
+  "Computer Equipment": computerEquipmentAttrs,
+  "Motor Vehicles": motorVehicleAttrs,
+  "Plant & Machinery": [
+    { key: "serialNumber", label: "Serial Number" },
+    { key: "model", label: "Model" },
+    { key: "capacityKva", label: "Capacity (KVA)", placeholder: "e.g. 100" },
+  ],
+  "Plant and Machinery": [
+    { key: "serialNumber", label: "Serial Number" },
+    { key: "model", label: "Model" },
+    { key: "capacityKva", label: "Capacity (KVA)", placeholder: "e.g. 100" },
+  ],
+  Building: buildingAttrs,
+  Land: landAttrs,
 };
 
 let globalState: any = {
@@ -309,11 +403,14 @@ export function useAssetManagement() {
       accumulatedDepreciation: parseFloat(assetData.accumulatedDepreciation || 0),
       netBookValue: parseFloat(assetData.netBookValue || assetData.acquisitionCost || 0),
       physicalCondition: assetData.physicalCondition || "Excellent",
-      lastVerificationDate: assetData.lastVerificationDate || new Date().toISOString().split('T')[0],
+      categoryAttributes: {
+        ...(assetData.categoryAttributes || {}),
+        ...(assetData.serviceability ? { serviceability: assetData.serviceability } : {}),
+      },
+      lastVerificationDate: assetData.lastVerificationDate || null,
       verificationStatus: assetData.verificationStatus || "Verified & Passed",
       taggingMethod: assetData.taggingMethod || "QR Code",
       barcodeQrCode: `QR-NHIA-${Date.now().toString().slice(-6)}`,
-      categoryAttributes: assetData.categoryAttributes || {}
     };
 
     const historyEntry = {

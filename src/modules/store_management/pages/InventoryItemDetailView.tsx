@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { stockApi } from "@/lib/api";
 import PageLayout from "../components/PageLayout";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, PackageCheck, Send, Tag } from "lucide-react";
+import { Send } from "lucide-react";
 import { toast } from "sonner";
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
@@ -87,16 +87,8 @@ export default function InventoryItemDetailView() {
       <PageLayout
         title="Item not found"
         description="This catalog entry could not be loaded"
-        actions={
-          <Button
-            variant="outline"
-            size="sm"
-            className="text-xs"
-            onClick={() => navigate("/store-management/inventory/items")}
-          >
-            <ArrowLeft className="h-3.5 w-3.5 mr-1" aria-hidden="true" /> Back
-          </Button>
-        }
+        back
+        backTo="/store-management/inventory/items"
       >
         <p className="text-sm text-slate-700">No inventory item for reference {id}.</p>
       </PageLayout>
@@ -109,127 +101,44 @@ export default function InventoryItemDetailView() {
   const stockValue = unitPrice * qty;
   const naira = new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", maximumFractionDigits: 0 });
 
-  const capitalise = () => {
-    navigate("/store-management/assets/register", {
-      state: {
-        fromCapitalisation: true,
-        inventoryItemId: item.id,
-        quantity: 1,
-        prefill: {
-          name: item.name,
-          primaryCategory: item.category || "Office Equipment",
-          acquisitionCost: item.unitPrice || "",
-          facilitySite: "State Office",
-          specificLocation: item.storeLocation,
-        },
-      },
-    });
-  };
-
   return (
     <PageLayout
       title={item.name}
       description={item.itemCode}
+      back
+      backTo="/store-management/inventory/items"
       actions={
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="text-xs"
-            onClick={() => navigate("/store-management/inventory/items")}
-          >
-            <ArrowLeft className="h-3.5 w-3.5 mr-1" aria-hidden="true" /> Back
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="text-xs"
-            onClick={() => navigate("/store-management/transfers/new")}
-          >
-            <Send className="h-3.5 w-3.5 mr-1" aria-hidden="true" /> Issue
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="text-xs"
-            disabled={qty <= 0}
-            onClick={capitalise}
-          >
-            <Tag className="h-3.5 w-3.5 mr-1" aria-hidden="true" /> Capitalise
-          </Button>
-          <Button
-            size="sm"
-            className="bg-[#145c3f] hover:bg-[#0f3d2e] text-white text-xs font-semibold"
-            onClick={() => navigate("/store-management/verification/supply/new")}
-          >
-            <PackageCheck className="h-3.5 w-3.5 mr-1" aria-hidden="true" /> Receive more
-          </Button>
-        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          className="text-xs"
+          onClick={() => navigate("/store-management/transfers/new")}
+        >
+          <Send className="h-3.5 w-3.5 mr-1" aria-hidden="true" /> Issue
+        </Button>
       }
     >
-      <div className="w-full space-y-4">
+      <div className="w-full space-y-5">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="font-mono text-sm font-bold text-[#145c3f]" translate="no">
-            {item.itemCode}
-          </span>
           <span className={`rounded-md px-2 py-0.5 text-[11px] font-semibold ${tone.className}`}>
             {tone.label}
           </span>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-          <section className="lg:col-span-5 rounded-lg border border-slate-200 bg-white p-5">
-            <h2 className="text-sm font-bold text-slate-900 mb-4 text-balance">Item</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Field label="Description">{item.name}</Field>
-              <Field label="Category">{item.category}</Field>
-              <Field label="Unit of measure">{item.unitOfMeasure || "—"}</Field>
-              <Field label="Store">{item.storeLocation || "—"}</Field>
-            </div>
-          </section>
+        <dl className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-4">
+          <Field label="Category">{item.category}</Field>
+          <Field label="Unit">{item.unitOfMeasure || "—"}</Field>
+          <Field label="Store">{item.storeLocation || "—"}</Field>
+          <Field label="On hand"><span className="tabular-nums">{qty}</span></Field>
+          <Field label="Reorder"><span className="tabular-nums">{item.reorderLevel ?? "—"}</span></Field>
+          <Field label="Unit price">{naira.format(unitPrice)}</Field>
+          <Field label="Stock value">{naira.format(stockValue)}</Field>
+        </dl>
 
-          <section className="lg:col-span-4 rounded-lg border border-slate-200 bg-white p-5">
-            <h2 className="text-sm font-bold text-slate-900 mb-4 text-balance">Stock</h2>
-            <div className="grid grid-cols-2 gap-4">
-              <Field label="Quantity on hand">
-                <span className="tabular-nums">{qty}</span>
-              </Field>
-              <Field label="Reorder level">
-                <span className="tabular-nums">{item.reorderLevel ?? "—"}</span>
-              </Field>
-              <Field label="Unit price">{naira.format(unitPrice)}</Field>
-              <Field label="Stock value">{naira.format(stockValue)}</Field>
-            </div>
-          </section>
-
-          <section className="lg:col-span-3 rounded-lg border border-slate-200 bg-white p-5">
-            <h2 className="text-sm font-bold text-slate-900 mb-4 text-balance">Record</h2>
-            <div className="grid grid-cols-1 gap-4">
-              <Field label="Created">
-                {item.created_at
-                  ? new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(
-                      new Date(item.created_at)
-                    )
-                  : "—"}
-              </Field>
-              <Field label="Updated">
-                {item.updated_at
-                  ? new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(
-                      new Date(item.updated_at)
-                    )
-                  : "—"}
-              </Field>
-            </div>
-          </section>
-        </div>
-
-        <section className="rounded-lg border border-slate-200 bg-white overflow-hidden">
-          <div className="px-5 py-4 border-b border-slate-200">
-            <h2 className="text-sm font-bold text-slate-900">Movements</h2>
-            <p className="text-[11px] text-slate-500 mt-0.5">Receipts, issues, and capitalisations for this item</p>
-          </div>
+        <section>
+          <h2 className="text-sm font-bold text-slate-900 mb-2">Movements</h2>
           {movements.length === 0 ? (
-            <p className="px-5 py-8 text-sm text-slate-600">No movements recorded yet.</p>
+            <p className="text-sm text-slate-600">No movements recorded yet.</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">

@@ -7,8 +7,9 @@ import { stockApi } from "@/lib/api";
 import { Send, ArrowLeft, Loader2, Plus, Trash2, MapPin, ListOrdered, User, ChevronLeft, ChevronRight, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { toast } from "sonner";
-import { matchesStore, storeNameFromState, SELECT_CLS, LABEL_CLS } from "../../lib/storeOptions";
+import { matchesStore, storeNameFromState, LABEL_CLS } from "../../lib/storeOptions";
 
 type Line = {
   key: string;
@@ -195,8 +196,6 @@ export function NewStockIssueView() {
     }
   };
 
-  const inputCls = SELECT_CLS;
-
   return (
     <PageLayout
       title="New Stock Issue"
@@ -260,45 +259,58 @@ export function NewStockIssueView() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
                 <label className={LABEL_CLS} htmlFor="issue-number">Voucher No</label>
-                <input id="issue-number" name="issueNumber" autoComplete="off" spellCheck={false} className={`${inputCls} font-mono`} value={form.issueNumber} onChange={(e) => setForm((p) => ({ ...p, issueNumber: e.target.value }))} required />
+                <Input id="issue-number" name="issueNumber" autoComplete="off" spellCheck={false} className="font-mono" value={form.issueNumber} onChange={(e) => setForm((p) => ({ ...p, issueNumber: e.target.value }))} required />
               </div>
               <div>
                 <label className={LABEL_CLS} htmlFor="issue-date">Issue date</label>
-                <input id="issue-date" name="issueDate" type="date" className={inputCls} value={form.issueDate} onChange={(e) => setForm((p) => ({ ...p, issueDate: e.target.value }))} />
+                <Input id="issue-date" name="issueDate" type="date" value={form.issueDate} onChange={(e) => setForm((p) => ({ ...p, issueDate: e.target.value }))} />
               </div>
               <div>
                 <label className={LABEL_CLS} htmlFor="issue-zone">Zone <span className="text-rose-500">*</span></label>
-                <select id="issue-zone" name="zoneId" className={inputCls} value={zoneId} onChange={(e) => changeZone(e.target.value)}>
-                  <option value="">Select zone…</option>
-                  {zones.map((z) => <option key={z.id} value={z.id}>{z.label}</option>)}
-                </select>
+                <Select value={zoneId} onValueChange={changeZone}>
+                  <SelectTrigger id="issue-zone" displayValue={zones.find((z) => String(z.id) === zoneId)?.label}>
+                    <SelectValue placeholder="Select zone" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {zones.map((z) => (
+                      <SelectItem key={z.id} value={String(z.id)}>{z.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div>
                 <label className={LABEL_CLS} htmlFor="issue-state">State office store <span className="text-rose-500">*</span></label>
-                <select id="issue-state" name="stateId" className={inputCls} value={stateId} disabled={!zoneId} onChange={(e) => changeState(e.target.value)}>
-                  <option value="">{zoneId ? "Select state…" : "Select zone first"}</option>
-                  {states.map((s) => <option key={s.id} value={s.id}>{storeNameFromState(s.label)}</option>)}
-                </select>
+                <Select value={stateId} disabled={!zoneId} onValueChange={changeState}>
+                  <SelectTrigger id="issue-state" displayValue={stateId ? storeNameFromState(stateName) : undefined}>
+                    <SelectValue placeholder={zoneId ? "Select state store" : "Select zone first"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {states.map((s) => (
+                      <SelectItem key={s.id} value={String(s.id)}>{storeNameFromState(s.label)}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div>
                 <label className={LABEL_CLS} htmlFor="department">To / Department <span className="text-rose-500">*</span></label>
-                <select
-                  id="department"
-                  name="department"
-                  className={inputCls}
+                <Select
                   value={form.department}
                   disabled={!stateId}
-                  onChange={(e) => setForm((p) => ({ ...p, department: e.target.value }))}
+                  onValueChange={(val) => setForm((p) => ({ ...p, department: val }))}
                 >
-                  <option value="">{stateId ? "Select department…" : "Select state office first"}</option>
-                  {departments.map((d) => (
-                    <option key={d.id} value={d.label}>{d.label}</option>
-                  ))}
-                </select>
+                  <SelectTrigger id="department" displayValue={form.department || undefined}>
+                    <SelectValue placeholder={stateId ? "Select department" : "Select state office first"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {departments.map((d) => (
+                      <SelectItem key={d.id} value={d.label}>{d.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div>
                 <label className={LABEL_CLS} htmlFor="recipient">Recipient officer <span className="text-rose-500">*</span></label>
-                <input id="recipient" name="recipientName" autoComplete="name" className={inputCls} value={form.recipientName} onChange={(e) => setForm((p) => ({ ...p, recipientName: e.target.value }))} placeholder="Officer name" />
+                <Input id="recipient" name="recipientName" autoComplete="name" value={form.recipientName} onChange={(e) => setForm((p) => ({ ...p, recipientName: e.target.value }))} placeholder="Officer name" />
               </div>
             </div>
           )}
@@ -313,25 +325,36 @@ export function NewStockIssueView() {
               </div>
               {available.length === 0 && (
                 <p role="status" className="text-xs text-amber-900 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                  No stock on hand in this store. Receive items via Verification of Supply first.
+                  No stock on hand in this store. Add old stock from the Inventory Register first.
                 </p>
               )}
               {lines.map((line) => (
                 <div key={line.key} className="grid grid-cols-1 sm:grid-cols-[1fr_110px_auto] gap-2 items-end">
                   <div>
                     <label className={LABEL_CLS} htmlFor={`item-${line.key}`}>Item</label>
-                    <select id={`item-${line.key}`} className={inputCls} value={line.inventoryItemId} onChange={(e) => selectItem(line.key, e.target.value)}>
-                      <option value="">Select inventory item…</option>
-                      {storeItems.map((i) => (
-                        <option key={i.id} value={i.id} disabled={Number(i.quantityInStock || 0) <= 0}>
-                          {i.itemCode} — {i.name} ({i.quantityInStock ?? 0} on hand)
-                        </option>
-                      ))}
-                    </select>
+                    <Select value={line.inventoryItemId} onValueChange={(val) => selectItem(line.key, val)}>
+                      <SelectTrigger
+                        id={`item-${line.key}`}
+                        displayValue={
+                          line.itemCode
+                            ? `${line.itemCode} — ${line.name}`
+                            : undefined
+                        }
+                      >
+                        <SelectValue placeholder="Select inventory item" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {storeItems.map((i) => (
+                          <SelectItem key={i.id} value={String(i.id)} disabled={Number(i.quantityInStock || 0) <= 0}>
+                            {i.itemCode} — {i.name} ({i.quantityInStock ?? 0} on hand)
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div>
                     <label className={LABEL_CLS} htmlFor={`qty-${line.key}`}>Qty</label>
-                    <Input id={`qty-${line.key}`} type="number" min={1} max={line.onHand || undefined} inputMode="numeric" className={`${inputCls} tabular-nums`} value={line.quantity} onChange={(e) => setLines((p) => p.map((r) => r.key === line.key ? { ...r, quantity: Number(e.target.value) || 0 } : r))} />
+                    <Input id={`qty-${line.key}`} type="number" min={1} max={line.onHand || undefined} inputMode="numeric" className="tabular-nums" value={line.quantity} onChange={(e) => setLines((p) => p.map((r) => r.key === line.key ? { ...r, quantity: Number(e.target.value) || 0 } : r))} />
                   </div>
                   {lines.length > 1 && (
                     <Button type="button" variant="ghost" size="sm" aria-label="Remove line" className="h-10 text-rose-600" onClick={() => setLines((p) => p.filter((r) => r.key !== line.key))}>
@@ -355,7 +378,7 @@ export function NewStockIssueView() {
               </div>
               <div className="sm:col-span-2">
                 <label className={LABEL_CLS} htmlFor="remarks">Remarks</label>
-                <textarea id="remarks" name="remarks" className={`${inputCls} h-24 py-2.5`} value={form.remarks} onChange={(e) => setForm((p) => ({ ...p, remarks: e.target.value }))} placeholder="Optional note…" />
+                <textarea id="remarks" name="remarks" className="h-24 w-full rounded-xl border-2 border-[#1a7a52] bg-[#f4f7f5] px-3.5 py-2.5 text-sm text-slate-800 outline-none hover:bg-white focus-visible:bg-white focus-visible:ring-3 focus-visible:ring-[#1a7a52]/25" value={form.remarks} onChange={(e) => setForm((p) => ({ ...p, remarks: e.target.value }))} placeholder="Optional note…" />
               </div>
             </div>
           )}

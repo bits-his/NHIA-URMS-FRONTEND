@@ -4,9 +4,8 @@ import { stockApi } from "@/lib/api";
 import { useNavigate } from "react-router-dom";
 import CustomTable, { CustomTableField } from "@/components/CustomTable";
 import { Button } from "@/components/ui/button";
-import { Plus, Eye, ClipboardCheck, Trash2, X, Filter, Search } from "lucide-react";
+import { Plus, Eye, ClipboardCheck, X, Filter, Search, CheckCircle2, AlertTriangle } from "lucide-react";
 import PageLayout from "../../components/PageLayout";
-import MetricCards from "../../components/MetricCards";
 import { matchesStore } from "../../lib/storeOptions";
 import { useCreateReviewAccess } from "@/src/access/createReviewAccess";
 import {
@@ -258,29 +257,39 @@ export default function PhysicalAssetVerificationListView() {
 
   const hasActiveFilters = Boolean(zoneFilter || stateFilter || categoryFilter || query || bucket !== "all");
 
-  const openDisposal = (asset?: any) => {
-    const params = new URLSearchParams({ reason: "OBSOLETE" });
-    if (asset?.id) params.set("assetId", String(asset.id));
-    navigate(`/store-management/disposal/records?${params.toString()}`);
-  };
-
-  const metrics = [
-    { label: "Total assets", value: searched.length, hint: "On the register", onClick: () => setBucket("all"), active: bucket === "all" },
-    { label: "Good", value: counts.good, hint: "Serviceable", tone: "ok" as const, onClick: () => toggleBucket("good"), active: bucket === "good" },
-    { label: "Defective", value: counts.defective, hint: "Poor / damaged", tone: counts.defective ? "bad" as const : "default" as const, onClick: () => toggleBucket("defective"), active: bucket === "defective" },
-    { label: "Missing", value: counts.missing, hint: "Not found", onClick: () => toggleBucket("missing"), active: bucket === "missing" },
+  const kpis = [
     {
-      label: "Obsolete",
-      value: counts.obsolete,
-      hint: "Click to dispose",
-      tone: "warn" as const,
-      onClick: () => {
-        setBucket("obsolete");
-        if (counts.obsolete > 0) openDisposal();
-      },
-      active: bucket === "obsolete",
+      key: "all" as const,
+      label: "Total",
+      value: searched.length,
+      icon: <ClipboardCheck className="w-3.5 h-3.5 text-[#25a872]" />,
+      accent: "border-[#d4e8dc] bg-white",
+      onClick: () => setBucket("all"),
     },
-    { label: "Retired", value: counts.retired, hint: "Disposed / written off", onClick: () => toggleBucket("retired"), active: bucket === "retired" },
+    {
+      key: "good" as const,
+      label: "Good",
+      value: counts.good,
+      icon: <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />,
+      accent: "border-emerald-200 bg-emerald-50/50",
+      onClick: () => toggleBucket("good"),
+    },
+    {
+      key: "defective" as const,
+      label: "Defective",
+      value: counts.defective,
+      icon: <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />,
+      accent: "border-rose-200 bg-rose-50/50",
+      onClick: () => toggleBucket("defective"),
+    },
+    {
+      key: "missing" as const,
+      label: "Missing",
+      value: counts.missing,
+      icon: <Search className="w-3.5 h-3.5 text-slate-500" />,
+      accent: "border-slate-200 bg-white",
+      onClick: () => toggleBucket("missing"),
+    },
   ];
 
   const fields: CustomTableField[] = [
@@ -352,19 +361,8 @@ export default function PhysicalAssetVerificationListView() {
       custom: true,
       component: (item) => {
         const id = item.id || item.assetId || item.assetNumber;
-        const obsolete = conditionBucket(item) === "obsolete";
         return (
           <div className="flex items-center justify-end gap-1.5 whitespace-nowrap">
-            {obsolete ? (
-              <Button
-                size="sm"
-                aria-label={`Dispose ${item.name || "asset"}`}
-                onClick={() => openDisposal(item)}
-                className="h-8 px-2.5 text-[11px] font-semibold bg-amber-400 hover:bg-amber-500 text-amber-950"
-              >
-                <Trash2 className="w-3.5 h-3.5 mr-1" aria-hidden="true" /> Dispose
-              </Button>
-            ) : null}
             <Button
               size="sm"
               variant="outline"
@@ -395,7 +393,7 @@ export default function PhysicalAssetVerificationListView() {
   return (
     <PageLayout
       title="Physical Asset Verification"
-      description="Condition of tagged assets — verify, mark obsolete, or dispose"
+      description="Condition of tagged assets on the register"
       actions={
         canCreate ? (
         <Button
@@ -415,23 +413,22 @@ export default function PhysicalAssetVerificationListView() {
         </div>
       )}
 
-      <MetricCards items={metrics} />
-
-      {bucket === "obsolete" && counts.obsolete > 0 ? (
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2">
-          <p className="text-xs font-semibold text-amber-950">
-            {counts.obsolete} obsolete {counts.obsolete === 1 ? "asset" : "assets"} ready for disposal
-          </p>
-          <Button
-            size="sm"
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+        {kpis.map((kpi) => (
+          <button
+            key={kpi.label}
             type="button"
-            onClick={() => openDisposal()}
-            className="h-8 text-[11px] font-semibold bg-amber-400 hover:bg-amber-500 text-amber-950"
+            onClick={kpi.onClick}
+            className={`rounded-lg border px-3 py-2 flex items-center gap-2.5 text-left ${kpi.accent} ${bucket === kpi.key ? "ring-2 ring-[#145c3f] ring-offset-1" : ""}`}
           >
-            <Trash2 className="w-3.5 h-3.5 mr-1.5" aria-hidden="true" /> Initiate disposal
-          </Button>
-        </div>
-      ) : null}
+            {kpi.icon}
+            <div className="min-w-0">
+              <p className="text-lg font-bold text-slate-800 tabular-nums leading-none">{kpi.value}</p>
+              <p className="text-[10px] font-medium text-slate-500 mt-0.5 truncate">{kpi.label}</p>
+            </div>
+          </button>
+        ))}
+      </div>
 
       {/* Compact Filters in One Row */}
       <div className="flex flex-wrap md:flex-nowrap items-center gap-2.5 bg-white p-2.5 border border-slate-200 rounded-xl shadow-sm">

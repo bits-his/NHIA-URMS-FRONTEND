@@ -16,7 +16,7 @@ export default function AdminStatesPage() {
   const [loading, setLoading] = React.useState(true);
   const [modal, setModal] = React.useState<"create" | "edit" | null>(null);
   const [editing, setEditing] = React.useState<StateOffice | null>(null);
-  const [form, setForm] = React.useState({ code: "", description: "", zonal_id: "" });
+  const [form, setForm] = React.useState({ code: "", description: "", zonal_id: "", is_hq: false, is_zonal_office: false });
   const [saving, setSaving] = React.useState(false);
 
   const load = async () => {
@@ -29,15 +29,31 @@ export default function AdminStatesPage() {
   React.useEffect(() => { load(); }, [filterZone]);
   React.useEffect(() => { zonesApi.list().then(r => setZones(r.data)).catch(() => {}); }, []);
 
-  const openCreate = () => { setForm({ code: "", description: "", zonal_id: "" }); setEditing(null); setModal("create"); };
-  const openEdit = (s: StateOffice) => { setEditing(s); setForm({ code: s.code, description: s.description, zonal_id: String(s.zonal_id) }); setModal("edit"); };
+  const openCreate = () => { setForm({ code: "", description: "", zonal_id: "", is_hq: false, is_zonal_office: false }); setEditing(null); setModal("create"); };
+  const openEdit = (s: StateOffice) => {
+    setEditing(s);
+    setForm({
+      code: s.code,
+      description: s.description,
+      zonal_id: String(s.zonal_id),
+      is_hq: Boolean(s.is_hq),
+      is_zonal_office: Boolean(s.is_zonal_office),
+    });
+    setModal("edit");
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.zonal_id) { toast.error("Please select a zone"); return; }
     setSaving(true);
     try {
-      const payload = { code: form.code, description: form.description, zonal_id: Number(form.zonal_id) };
+      const payload = {
+        code: form.code,
+        description: form.description,
+        zonal_id: Number(form.zonal_id),
+        is_hq: form.is_hq,
+        is_zonal_office: form.is_zonal_office,
+      };
       if (modal === "create") { await statesApi.create(payload); toast.success("State created"); }
       else if (editing) { await statesApi.update(editing.id, payload); toast.success("State updated"); }
       setModal(null); load();
@@ -72,19 +88,27 @@ export default function AdminStatesPage() {
                 <TableHead className="text-xs font-bold text-slate-600">Code</TableHead>
                 <TableHead className="text-xs font-bold text-slate-600">Description</TableHead>
                 <TableHead className="text-xs font-bold text-slate-600">Zone</TableHead>
+                <TableHead className="text-xs font-bold text-slate-600">Office type</TableHead>
                 <TableHead />
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading ? (
-                <TableRow><TableCell colSpan={4} className="text-center py-10 text-slate-400">Loading...</TableCell></TableRow>
+                <TableRow><TableCell colSpan={5} className="text-center py-10 text-slate-400">Loading...</TableCell></TableRow>
               ) : states.length === 0 ? (
-                <TableRow><TableCell colSpan={4} className="text-center py-10 text-slate-400">No states found</TableCell></TableRow>
+                <TableRow><TableCell colSpan={5} className="text-center py-10 text-slate-400">No states found</TableCell></TableRow>
               ) : states.map(s => (
                 <TableRow key={s.id} className="hover:bg-[#f0fdf7] transition-colors">
                   <TableCell><span className="font-mono text-xs font-bold text-[#145c3f]">{s.code}</span></TableCell>
                   <TableCell className="font-medium text-slate-800">{s.description}</TableCell>
                   <TableCell className="text-slate-500 text-sm">{s.zone?.zonal_code ?? "—"}</TableCell>
+                  <TableCell>
+                    <div className="flex flex-wrap gap-1">
+                      {s.is_hq ? <span className="rounded-md bg-[#145c3f] px-2 py-0.5 text-[10px] font-semibold text-white">HQ</span> : null}
+                      {s.is_zonal_office ? <span className="rounded-md bg-[#e8f5ee] px-2 py-0.5 text-[10px] font-semibold text-[#0f3d2e]">Zonal office</span> : null}
+                      {!s.is_hq && !s.is_zonal_office ? <span className="text-xs text-slate-400">State office</span> : null}
+                    </div>
+                  </TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center gap-1 justify-end">
                       <Button variant="ghost" size="sm" onClick={() => openEdit(s)} className="h-7 w-7 p-0 hover:bg-[#e8f5ee] hover:text-[#145c3f]"><Pencil className="w-3.5 h-3.5" /></Button>
@@ -115,6 +139,28 @@ export default function AdminStatesPage() {
               {zones.map(z => <option key={z.id} value={z.id}>{z.zonal_code} – {z.description}</option>)}
             </select>
           </div>
+          <fieldset className="space-y-2 rounded-xl border border-[#d4e8dc] bg-[#f4f7f5] px-3 py-3">
+            <legend className="px-1 text-xs font-bold uppercase tracking-wider text-slate-600">Office type</legend>
+            <label className="flex items-center gap-2 text-sm font-semibold text-slate-700 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={form.is_hq}
+                onChange={e => setForm(f => ({ ...f, is_hq: e.target.checked }))}
+                className="accent-[#145c3f]"
+              />
+              Headquarters (HQ)
+            </label>
+            <label className="flex items-center gap-2 text-sm font-semibold text-slate-700 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={form.is_zonal_office}
+                onChange={e => setForm(f => ({ ...f, is_zonal_office: e.target.checked }))}
+                className="accent-[#145c3f]"
+              />
+              Zonal office
+            </label>
+            <p className="text-[11px] text-slate-500">Leave both unchecked for a regular state office. Either or both can be marked.</p>
+          </fieldset>
           <div className="flex justify-end gap-3 pt-2">
             <Button type="button" variant="ghost" onClick={() => setModal(null)} className="rounded-xl text-slate-600">Cancel</Button>
             <Button type="submit" disabled={saving} className="bg-[#145c3f] hover:bg-[#0f3d2e] text-white rounded-xl">

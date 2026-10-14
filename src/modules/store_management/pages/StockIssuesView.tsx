@@ -3,23 +3,21 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { stockApi } from "@/lib/api";
 import CustomTable, { CustomTableField } from "@/components/CustomTable";
 import { Button } from "@/components/ui/button";
-import { Send, Plus, Tag } from "lucide-react";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import { Send, Plus, Search } from "lucide-react";
 import PageLayout from "../components/PageLayout";
 import { toast } from "sonner";
-import { matchesStore, storeNameFromState, SELECT_CLS, LABEL_CLS } from "../lib/storeOptions";
-import ListSearchBar from "../components/ListSearchBar";
+import { matchesStore, storeNameFromState } from "../lib/storeOptions";
 
 type Option = { id: number; label: string };
 
 export default function StockIssuesView() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const tab = searchParams.get("tab") === "capitalise" ? "capitalise" : "issue";
   const zoneFilter = searchParams.get("zone") || "";
   const stateFilter = searchParams.get("state") || "";
   const q = searchParams.get("q") || "";
   const [rows, setRows] = useState<any[]>([]);
-  const [conversions, setConversions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [zones, setZones] = useState<Option[]>([]);
   const [states, setStates] = useState<Option[]>([]);
@@ -27,16 +25,11 @@ export default function StockIssuesView() {
   const load = useCallback(async () => {
     try {
       setLoading(true);
-      const [issuesRes, convRes] = await Promise.all([
-        stockApi.getStockIssues(),
-        stockApi.getConversions().catch(() => ({ data: [] })),
-      ]);
+      const issuesRes = await stockApi.getStockIssues();
       setRows(Array.isArray(issuesRes.data) ? issuesRes.data : []);
-      setConversions(Array.isArray(convRes.data) ? convRes.data : []);
     } catch (err: any) {
       toast.error(err?.message || "Failed to load records");
       setRows([]);
-      setConversions([]);
     } finally {
       setLoading(false);
     }
@@ -58,9 +51,12 @@ export default function StockIssuesView() {
     return state ? storeNameFromState(state.label) : "";
   }, [states, stateFilter]);
 
-  const setParam = (key: string, val: string) => {
+  const setParams = (patch: Record<string, string>) => {
     const next = new URLSearchParams(searchParams);
-    if (val) next.set(key, val); else next.delete(key);
+    for (const [key, val] of Object.entries(patch)) {
+      if (val) next.set(key, val);
+      else next.delete(key);
+    }
     setSearchParams(next, { replace: true });
   };
 
@@ -79,22 +75,6 @@ export default function StockIssuesView() {
     }
     return list;
   }, [rows, storeLabel, q]);
-
-  const convFiltered = useMemo(() => {
-    let list = conversions;
-    if (storeLabel) list = list.filter((r) => matchesStore(r.storeLocation, storeLabel));
-    const query = q.trim().toLowerCase();
-    if (query) {
-      list = list.filter((r) =>
-        [r.conversionRef, r.itemName, r.itemCode, r.assetNumber, r.storeLocation, r.convertedBy]
-          .filter(Boolean)
-          .join(" ")
-          .toLowerCase()
-          .includes(query)
-      );
-    }
-    return list;
-  }, [conversions, storeLabel, q]);
 
   const issueFields: CustomTableField[] = [
     {
@@ -139,133 +119,84 @@ export default function StockIssuesView() {
     },
   ];
 
-  const convFields: CustomTableField[] = [
-    {
-      title: "Conversion Ref",
-      value: "conversionRef",
-      custom: true,
-      component: (item) => (
-        <span className="font-mono text-sm font-semibold text-[#145c3f]" translate="no">{item.conversionRef}</span>
-      ),
-    },
-    { title: "Item", value: "itemName", className: "font-medium text-slate-900" },
-    { title: "Qty", value: "quantity", className: "tabular-nums font-semibold" },
-    { title: "Store", value: "storeLocation", className: "text-slate-800" },
-    {
-      title: "Asset tag",
-      value: "assetNumber",
-      custom: true,
-      component: (item) => (
-        <span className="font-mono text-sm font-semibold text-slate-900">{item.assetNumber || "—"}</span>
-      ),
-    },
-    { title: "Date", value: "conversionDate", className: "tabular-nums text-slate-700" },
-    { title: "Officer", value: "convertedBy", className: "text-slate-700" },
-  ];
-
   return (
     <PageLayout
       title={
         <span className="flex items-center gap-2">
-          <Send className="w-5 h-5 text-[#25a872]" aria-hidden="true" /> Capitalisation &amp; Issuance
+          <Send className="w-5 h-5 text-[#25a872]" aria-hidden="true" /> Issuance
         </span>
       }
-      description="Issue store stock to departments, or capitalise store items into the asset register"
+      description="Issue store stock to departments"
       actions={
-        <div className="flex gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            className="text-xs h-9 font-semibold"
-            onClick={() => navigate("/store-management/conversion/new")}
-          >
-            <Tag className="w-4 h-4 mr-1.5" aria-hidden="true" /> Capitalise to Asset
-          </Button>
-          <Button
-            size="sm"
-            className="bg-[#145c3f] hover:bg-[#0f3d2e] text-white text-xs h-9 font-semibold"
-            onClick={() => navigate("/store-management/transfers/new")}
-          >
-            <Plus className="w-4 h-4 mr-1.5" aria-hidden="true" /> New Issue
-          </Button>
-        </div>
+        <Button
+          size="sm"
+          className="bg-[#145c3f] hover:bg-[#0f3d2e] text-white text-xs h-9 font-semibold"
+          onClick={() => navigate("/store-management/transfers/new")}
+        >
+          <Plus className="w-4 h-4 mr-1.5" aria-hidden="true" /> New Issue
+        </Button>
       }
     >
-      <div className="flex flex-wrap items-end gap-3">
-        <div className="flex rounded-lg border border-slate-200 overflow-hidden">
-          <button
-            type="button"
-            className={`h-9 px-3 text-xs font-semibold ${tab === "issue" ? "bg-[#145c3f] text-white" : "bg-white text-slate-700 hover:bg-slate-50"}`}
-            onClick={() => setParam("tab", "")}
-          >
-            Issuance
-          </button>
-          <button
-            type="button"
-            className={`h-9 px-3 text-xs font-semibold border-l border-slate-200 ${tab === "capitalise" ? "bg-[#145c3f] text-white" : "bg-white text-slate-700 hover:bg-slate-50"}`}
-            onClick={() => setParam("tab", "capitalise")}
-          >
-            Capitalisation
-          </button>
-        </div>
-        <ListSearchBar
-          value={q}
-          onChange={(v) => setParam("q", v)}
-          placeholder={tab === "capitalise" ? "Search conversion, item, tag…" : "Search voucher, department, recipient…"}
-        />
-        <div className="w-44">
-          <label htmlFor="issue-zone" className={LABEL_CLS}>Zone</label>
-          <select
-            id="issue-zone"
-            name="zone"
-            className={SELECT_CLS}
-            value={zoneFilter}
-            onChange={(e) => { setParam("zone", e.target.value); setParam("state", ""); }}
-          >
-            <option value="">All zones</option>
-            {zones.map((z) => (
-              <option key={z.id} value={z.id}>{z.label}</option>
-            ))}
-          </select>
-        </div>
-        <div className="w-56">
-          <label htmlFor="issue-state" className={LABEL_CLS}>State office store</label>
-          <select
-            id="issue-state"
-            name="state"
-            className={SELECT_CLS}
-            value={stateFilter}
+      <div className="rounded-lg border border-[#d4e8dc] bg-white p-2">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5 items-center">
+          <div className="relative min-w-0">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#5a7a6a] pointer-events-none" aria-hidden="true" />
+            <input
+              id="issue-search"
+              type="search"
+              value={q}
+              onChange={(e) => setParams({ q: e.target.value })}
+              placeholder="Search voucher, department, recipient…"
+              aria-label="Search issuances"
+              className="h-9 w-full rounded-lg border-2 border-[#1a7a52] bg-[#f4f7f5] pl-9 pr-3 text-xs text-slate-900 placeholder:text-slate-400 outline-none hover:bg-white focus-visible:bg-white focus-visible:ring-3 focus-visible:ring-[#1a7a52]/25"
+            />
+          </div>
+          <Select value={zoneFilter || "ALL"} onValueChange={(val) => setParams({ zone: val === "ALL" ? "" : val, state: "" })}>
+            <SelectTrigger id="issue-zone" size="sm" displayValue={zones.find((z) => String(z.id) === zoneFilter)?.label || "All zones"}>
+              <SelectValue placeholder="All zones" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All zones</SelectItem>
+              {zones.map((z) => (
+                <SelectItem key={z.id} value={String(z.id)}>{z.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select
+            value={stateFilter || "ALL"}
             disabled={!zoneFilter}
-            onChange={(e) => setParam("state", e.target.value)}
+            onValueChange={(val) => setParams({ state: val === "ALL" ? "" : val })}
           >
-            <option value="">{zoneFilter ? "All state stores" : "Select zone first"}</option>
-            {states.map((s) => (
-              <option key={s.id} value={s.id}>{storeNameFromState(s.label)}</option>
-            ))}
-          </select>
+            <SelectTrigger
+              id="issue-state"
+              size="sm"
+              displayValue={
+                !zoneFilter
+                  ? "Select zone first"
+                  : storeLabel || "All state stores"
+              }
+            >
+              <SelectValue placeholder="All state stores" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All state stores</SelectItem>
+              {states.map((s) => (
+                <SelectItem key={s.id} value={String(s.id)}>{storeNameFromState(s.label)}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
       <div className="min-w-0 w-full flex-1">
-        {tab === "issue" ? (
-          <CustomTable
-            data={issueFiltered}
-            fields={issueFields}
-            filter={false}
-            loading={loading}
-            pageSize={15}
-            message="No stock issues yet — issue inventory from the catalog"
-          />
-        ) : (
-          <CustomTable
-            data={convFiltered}
-            fields={convFields}
-            filter={false}
-            loading={loading}
-            pageSize={15}
-            message="No capitalisations yet — convert store stock into a tagged asset"
-          />
-        )}
+        <CustomTable
+          data={issueFiltered}
+          fields={issueFields}
+          filter={false}
+          loading={loading}
+          pageSize={15}
+          message="No stock issues yet — issue inventory from the catalog"
+        />
       </div>
     </PageLayout>
   );

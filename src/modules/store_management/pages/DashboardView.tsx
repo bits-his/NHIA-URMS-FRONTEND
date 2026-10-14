@@ -3,7 +3,6 @@ import { useDispatch, useSelector } from "react-redux";
 import { Link, useNavigate } from "react-router-dom";
 import { AppDispatch, RootState } from "@/src/store/store";
 import { fetchAssets, addTransfer, fetchTransfers } from "@/src/store/slices/assetSlice";
-import { fetchSupplyVerifications } from "@/src/store/slices/storeManagementSlice";
 import PageLayout from "../components/PageLayout";
 import {
   Building2,
@@ -13,7 +12,7 @@ import {
   ArrowRightLeft,
   CheckCircle2,
   PlusCircle,
-  PackageCheck,
+  ClipboardList,
   Wrench,
   Warehouse,
   FileSpreadsheet,
@@ -26,12 +25,9 @@ export function DashboardView() {
 
   const { assets } = useSelector((s: RootState) => s.asset);
   const { transfers } = useSelector((s: RootState) => s.asset);
-  const { supplyVerifications } = useSelector((s: RootState) => s.storeManagement);
-
   useEffect(() => {
     dispatch(fetchAssets());
     dispatch(fetchTransfers());
-    dispatch(fetchSupplyVerifications());
   }, [dispatch]);
 
   const [showQuickTransferModal, setShowQuickTransferModal] = useState(false);
@@ -86,11 +82,11 @@ export function DashboardView() {
             Register New Asset
           </Button>
           <Button
-            onClick={() => navigate("/store-management/verification/supply")}
+            onClick={() => navigate("/store-management/prepayment-analysis")}
             className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs h-8"
           >
-            <PackageCheck className="h-3.5 w-3.5 mr-1.5" />
-            Supply Pre-Verification
+            <ClipboardList className="h-3.5 w-3.5 mr-1.5" />
+            Prepayment Analysis
           </Button>
         </div>
       }
@@ -157,13 +153,13 @@ export function DashboardView() {
         <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm flex items-center justify-between">
           <div>
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-              Physical Audit Verified
+              Verified Assets
             </p>
             <h3 className="text-2xl font-bold text-emerald-600 mt-1">
-              {supplyVerifications.length || 14}
+              {assets.filter((a: any) => String(a.verificationStatus || "").toLowerCase().startsWith("verified")).length}
             </h3>
             <p className="text-[11px] text-emerald-600 font-medium mt-0.5">
-              Goods Verification Certs Issued
+              Marked verified on the asset register
             </p>
           </div>
           <div className="h-10 w-10 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center">
