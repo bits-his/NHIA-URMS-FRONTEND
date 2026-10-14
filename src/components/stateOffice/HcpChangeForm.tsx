@@ -19,10 +19,18 @@ import {
 
 const uid = () => Math.random().toString(36).slice(2);
 
+type EntityType = "hcp" | "hmo";
+
+const ENTITY_OPTIONS: { value: EntityType; label: string }[] = [
+  { value: "hcp", label: "HCP" },
+  { value: "hmo", label: "HMO" },
+];
+
 const blank = () => ({
   record_date: "",
   enrollee_name: "",
   nhia_number: "",
+  entity_type: "" as "" | EntityType,
   current_hcp_hmo: "",
   new_hcp_hmo: "",
   reason_for_transfer: "",
@@ -42,10 +50,15 @@ interface Props {
   defaultStateId?: string | null;
 }
 
-function HcpHmoSelect({
-  label, stateId, value, onChange,
+function ProviderSelect({
+  label,
+  entityType,
+  stateId,
+  value,
+  onChange,
 }: {
   label: string;
+  entityType: EntityType | "";
   stateId: string;
   value: string;
   onChange: (name: string) => void;
@@ -53,45 +66,55 @@ function HcpHmoSelect({
   const [options, setOptions] = React.useState<SearchSelectOption[]>([]);
   const [loading, setLoading] = React.useState(false);
   const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-  const prevStateId = React.useRef(stateId);
+  const prevKey = React.useRef(`${entityType}:${stateId}`);
   const onChangeRef = React.useRef(onChange);
   onChangeRef.current = onChange;
 
+  const needsState = entityType === "hcp";
+  const blocked = !entityType || (needsState && !stateId);
+
   const load = React.useCallback(async (q?: string) => {
-    if (!stateId) {
+    if (!entityType) {
+      setOptions([]);
+      return;
+    }
+    if (entityType === "hcp" && !stateId) {
       setOptions([]);
       return;
     }
     setLoading(true);
     try {
       const res = await stateOfficeAccreditedProvidersApi.list({
-        type: "hcp",
-        state_id: stateId,
+        type: entityType,
+        ...(entityType === "hcp" ? { state_id: stateId } : {}),
         q: q?.trim() || undefined,
-        limit: "200",
+        limit: entityType === "hmo" ? "100" : "200",
       });
       setOptions(
         res.data.map((p: any) => ({
-          value: `hcp:${p.id}`,
+          value: `${entityType}:${p.id}`,
           label: p.name,
-          sub: p.provider_code || "HCP",
+          sub: p.provider_code || entityType.toUpperCase(),
         })),
       );
     } catch (err: any) {
       setOptions([]);
-      toast.error("Failed to load HCP list", { description: err.message });
+      toast.error(`Failed to load ${entityType.toUpperCase()} list`, {
+        description: err.message,
+      });
     } finally {
       setLoading(false);
     }
-  }, [stateId]);
+  }, [entityType, stateId]);
 
   React.useEffect(() => {
-    if (prevStateId.current !== stateId) {
-      if (prevStateId.current) onChangeRef.current("");
-      prevStateId.current = stateId;
+    const key = `${entityType}:${stateId}`;
+    if (prevKey.current !== key) {
+      if (prevKey.current) onChangeRef.current("");
+      prevKey.current = key;
     }
     load();
-  }, [load, stateId]);
+  }, [load, entityType, stateId]);
 
   const displayOptions = React.useMemo(() => {
     if (value && !options.some((o) => o.label === value)) {
@@ -101,7 +124,7 @@ function HcpHmoSelect({
   }, [options, value]);
 
   const selectedValue = displayOptions.find((o) => o.label === value)?.value ?? "";
-  const blocked = !stateId;
+  const entityLabel = entityType === "hmo" ? "HMO" : "HCP";
 
   return (
     <div className="space-y-1">
@@ -110,20 +133,29 @@ function HcpHmoSelect({
         options={displayOptions}
         value={selectedValue}
         onChange={(id) => {
-          if (!id) { onChange(""); return; }
+          if (!id) {
+            onChange("");
+            return;
+          }
           const opt = displayOptions.find((o) => o.value === id);
           onChange(opt?.label ?? "");
         }}
         disabled={blocked || loading}
         clearable
         placeholder={
-          blocked
-            ? "Select state first"
-            : loading
-              ? "Loading..."
-              : "Select HCP in selected state"
+          !entityType
+            ? "Select entity first"
+            : needsState && !stateId
+              ? "Select state first"
+              : loading
+                ? "Loading..."
+                : `Select ${entityLabel}`
         }
-        searchPlaceholder="Search HCPs in selected state..."
+        searchPlaceholder={
+          entityType === "hmo"
+            ? "Search accredited HMOs..."
+            : "Search HCPs in selected state..."
+        }
         onSearchChange={(q) => {
           if (debounceRef.current) clearTimeout(debounceRef.current);
           debounceRef.current = setTimeout(() => load(q), 300);
@@ -133,31 +165,59 @@ function HcpHmoSelect({
   );
 }
 
-export default function HcpChangeForm({ reportId, onBack, onCancel, onSubmitted, defaultZoneId, defaultStateId }: Props) {
+export default function HcpChangeForm({
+  reportId,
+  onBack,
+  onCancel,
+  onSubmitted,
+  defaultZoneId,
+  defaultStateId,
+}: Props) {
   const [lines, setLines] = React.useState<any[]>([]);
   const [entry, setEntry] = React.useState(blank());
 
+  const entityType = entry.entity_type;
+  const entityLabel = entityType === "hmo" ? "HMO" : entityType === "hcp" ? "HCP" : "HCP/HMO";
+
   const loadData = (v: any) => {
-    setLines((v.lines ?? []).map((l: any) => ({
-      _key: uid(),
-      record_date: l.record_date?.slice?.(0, 10) ?? "",
-      enrollee_name: l.enrollee_name ?? "",
-      nhia_number: l.nhia_number ?? "",
-      current_hcp_hmo: l.current_hcp_hmo ?? "",
-      new_hcp_hmo: l.new_hcp_hmo ?? "",
-      reason_for_transfer: l.reason_for_transfer ?? "",
-      met_criteria: l.met_criteria ?? "",
-      request_channel: l.request_channel ?? "",
-      request_date: l.request_date?.slice?.(0, 10) ?? "",
-      process_end_date: l.process_end_date?.slice?.(0, 10) ?? "",
-      line_status: l.line_status ?? "pending",
-    })));
+    setLines(
+      (v.lines ?? []).map((l: any) => ({
+        _key: uid(),
+        record_date: l.record_date?.slice?.(0, 10) ?? "",
+        enrollee_name: l.enrollee_name ?? "",
+        nhia_number: l.nhia_number ?? "",
+        entity_type: (l.entity_type === "hmo" || l.entity_type === "hcp" ? l.entity_type : "") as
+          | ""
+          | EntityType,
+        current_hcp_hmo: l.current_hcp_hmo ?? "",
+        new_hcp_hmo: l.new_hcp_hmo ?? "",
+        reason_for_transfer: l.reason_for_transfer ?? "",
+        met_criteria: l.met_criteria ?? "",
+        request_channel: l.request_channel ?? "",
+        request_date: l.request_date?.slice?.(0, 10) ?? "",
+        process_end_date: l.process_end_date?.slice?.(0, 10) ?? "",
+        line_status: l.line_status ?? "pending",
+      })),
+    );
   };
 
   const addLine = () => {
     if (!entry.enrollee_name.trim() || !entry.nhia_number.trim()) return;
+    if (!entry.entity_type) {
+      toast.error("Select entity type (HCP or HMO)");
+      return;
+    }
     setLines((p) => [...p, { _key: uid(), ...entry }]);
     setEntry(blank());
+  };
+
+  const setEntityType = (v: EntityType) => {
+    setEntry((prev) => ({
+      ...prev,
+      entity_type: v,
+      current_hcp_hmo: "",
+      new_hcp_hmo: "",
+    }));
   };
 
   return (
@@ -170,60 +230,189 @@ export default function HcpChangeForm({ reportId, onBack, onCancel, onSubmitted,
       defaultZoneId={defaultZoneId}
       defaultStateId={defaultStateId}
       onLoaded={loadData}
-      validate={() => (lines.length === 0 ? "Add at least one change of HCP record" : null)}
-      buildPayload={(base) => ({ ...base, lines: lines.map(({ _key, ...l }) => l) })}
+      validate={() =>
+        lines.length === 0 ? "Add at least one change of HCP/HMO record" : null
+      }
+      buildPayload={(base) => ({
+        ...base,
+        lines: lines.map(({ _key, ...l }) => l),
+      })}
     >
       {({ stateId }) => (
         <Card className="rounded-2xl border-[#d4e8dc]">
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Change of HCP</CardTitle>
-            <CardDescription>Track enrollee HCP/HMO transfer requests for the reporting month.</CardDescription>
+            <CardDescription>
+              Track enrollee HCP/HMO transfer requests for the reporting month.
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid md:grid-cols-3 gap-3">
-              <div className="space-y-1"><Label>Date</Label><Input type="date" value={entry.record_date} onChange={(e) => setEntry((v) => ({ ...v, record_date: e.target.value }))} /></div>
-              <div className="space-y-1"><Label>Enrollee Name</Label><Input value={entry.enrollee_name} onChange={(e) => setEntry((v) => ({ ...v, enrollee_name: e.target.value }))} /></div>
-              <div className="space-y-1"><Label>NHIA Number</Label><Input value={entry.nhia_number} onChange={(e) => setEntry((v) => ({ ...v, nhia_number: e.target.value }))} /></div>
-              <HcpHmoSelect label="Current HCP/HMO" stateId={stateId} value={entry.current_hcp_hmo} onChange={(name) => setEntry((v) => ({ ...v, current_hcp_hmo: name }))} />
-              <HcpHmoSelect label="New HCP/HMO" stateId={stateId} value={entry.new_hcp_hmo} onChange={(name) => setEntry((v) => ({ ...v, new_hcp_hmo: name }))} />
-              <div className="space-y-1"><Label>Reason for Transfer</Label><Input value={entry.reason_for_transfer} onChange={(e) => setEntry((v) => ({ ...v, reason_for_transfer: e.target.value }))} /></div>
+              <div className="space-y-1">
+                <Label>Date</Label>
+                <Input
+                  type="date"
+                  value={entry.record_date}
+                  onChange={(e) => setEntry((v) => ({ ...v, record_date: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label>Enrollee Name</Label>
+                <Input
+                  value={entry.enrollee_name}
+                  onChange={(e) => setEntry((v) => ({ ...v, enrollee_name: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label>NHIA Number</Label>
+                <Input
+                  value={entry.nhia_number}
+                  onChange={(e) => setEntry((v) => ({ ...v, nhia_number: e.target.value }))}
+                />
+              </div>
+
+              <div className="space-y-1">
+                <Label>
+                  Entity <span className="text-rose-500">*</span>
+                </Label>
+                <Select
+                  value={entry.entity_type || undefined}
+                  onValueChange={(v) => setEntityType(v as EntityType)}
+                >
+                  <SelectTrigger displayValue={entityType ? entityType.toUpperCase() : "Select"}>
+                    <SelectValue placeholder="Select HCP or HMO" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ENTITY_OPTIONS.map((o) => (
+                      <SelectItem key={o.value} value={o.value}>
+                        {o.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <ProviderSelect
+                label={`Current ${entityLabel}`}
+                entityType={entityType}
+                stateId={stateId}
+                value={entry.current_hcp_hmo}
+                onChange={(name) => setEntry((v) => ({ ...v, current_hcp_hmo: name }))}
+              />
+              <ProviderSelect
+                label={`New ${entityLabel}`}
+                entityType={entityType}
+                stateId={stateId}
+                value={entry.new_hcp_hmo}
+                onChange={(name) => setEntry((v) => ({ ...v, new_hcp_hmo: name }))}
+              />
+
+              <div className="space-y-1">
+                <Label>Reason for Transfer</Label>
+                <Input
+                  value={entry.reason_for_transfer}
+                  onChange={(e) =>
+                    setEntry((v) => ({ ...v, reason_for_transfer: e.target.value }))
+                  }
+                />
+              </div>
               <div className="space-y-1">
                 <Label>Met NHIA criteria for change</Label>
-                <Select value={entry.met_criteria} onValueChange={(v) => setEntry((p) => ({ ...p, met_criteria: v }))}>
-                  <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                <Select
+                  value={entry.met_criteria}
+                  onValueChange={(v) => setEntry((p) => ({ ...p, met_criteria: v }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select" />
+                  </SelectTrigger>
                   <SelectContent>
-                    {YES_NO_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                    {YES_NO_OPTIONS.map((o) => (
+                      <SelectItem key={o.value} value={o.value}>
+                        {o.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-1">
                 <Label>Request Channel</Label>
-                <Select value={entry.request_channel} onValueChange={(v) => setEntry((p) => ({ ...p, request_channel: v }))}>
-                  <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                <Select
+                  value={entry.request_channel}
+                  onValueChange={(v) => setEntry((p) => ({ ...p, request_channel: v }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select" />
+                  </SelectTrigger>
                   <SelectContent>
-                    {HCP_CHANGE_CHANNELS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                    {HCP_CHANGE_CHANNELS.map((o) => (
+                      <SelectItem key={o.value} value={o.value}>
+                        {o.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1"><Label>Date of Request</Label><Input type="date" value={entry.request_date} onChange={(e) => setEntry((v) => ({ ...v, request_date: e.target.value }))} /></div>
-              <div className="space-y-1"><Label>Process end date</Label><Input type="date" value={entry.process_end_date} onChange={(e) => setEntry((v) => ({ ...v, process_end_date: e.target.value }))} /></div>
+              <div className="space-y-1">
+                <Label>Date of Request</Label>
+                <Input
+                  type="date"
+                  value={entry.request_date}
+                  onChange={(e) => setEntry((v) => ({ ...v, request_date: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label>Process end date</Label>
+                <Input
+                  type="date"
+                  value={entry.process_end_date}
+                  onChange={(e) =>
+                    setEntry((v) => ({ ...v, process_end_date: e.target.value }))
+                  }
+                />
+              </div>
               <div className="space-y-1">
                 <Label>Status</Label>
-                <Select value={entry.line_status} onValueChange={(v) => setEntry((p) => ({ ...p, line_status: v }))}>
-                  <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                <Select
+                  value={entry.line_status}
+                  onValueChange={(v) => setEntry((p) => ({ ...p, line_status: v }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select" />
+                  </SelectTrigger>
                   <SelectContent>
-                    {HCP_CHANGE_STATUSES.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                    {HCP_CHANGE_STATUSES.map((o) => (
+                      <SelectItem key={o.value} value={o.value}>
+                        {o.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
             </div>
-            <Button onClick={addLine} className="gap-2"><Plus className="w-4 h-4" /> Add row</Button>
+
+            <Button onClick={addLine} className="gap-2">
+              <Plus className="w-4 h-4" /> Add row
+            </Button>
+
             {lines.length > 0 && (
               <Table>
                 <TableHeader>
                   <TableRow className="bg-[#f0fdf7]">
-                    {["Date", "Enrollee", "NHIA", "Current", "New", "Criteria", "Channel", "Status", ""].map((h) => (
-                      <TableHead key={h} className="text-xs font-bold">{h}</TableHead>
+                    {[
+                      "Date",
+                      "Enrollee",
+                      "NHIA",
+                      "Entity",
+                      "Current",
+                      "New",
+                      "Criteria",
+                      "Channel",
+                      "Status",
+                      "",
+                    ].map((h) => (
+                      <TableHead key={h || "action"} className="text-xs font-bold">
+                        {h}
+                      </TableHead>
                     ))}
                   </TableRow>
                 </TableHeader>
@@ -233,13 +422,33 @@ export default function HcpChangeForm({ reportId, onBack, onCancel, onSubmitted,
                       <TableCell className="text-sm">{l.record_date || "—"}</TableCell>
                       <TableCell className="text-sm font-medium">{l.enrollee_name}</TableCell>
                       <TableCell className="text-sm">{l.nhia_number}</TableCell>
+                      <TableCell className="text-sm font-semibold uppercase">
+                        {l.entity_type || "—"}
+                      </TableCell>
                       <TableCell className="text-sm">{l.current_hcp_hmo || "—"}</TableCell>
                       <TableCell className="text-sm">{l.new_hcp_hmo || "—"}</TableCell>
-                      <TableCell className="text-sm">{labelOf(YES_NO_OPTIONS, l.met_criteria, l.met_criteria || "—")}</TableCell>
-                      <TableCell className="text-sm">{labelOf(HCP_CHANGE_CHANNELS, l.request_channel, l.request_channel || "—")}</TableCell>
-                      <TableCell className="text-sm">{labelOf(HCP_CHANGE_STATUSES, l.line_status, l.line_status)}</TableCell>
+                      <TableCell className="text-sm">
+                        {labelOf(YES_NO_OPTIONS, l.met_criteria, l.met_criteria || "—")}
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {labelOf(
+                          HCP_CHANGE_CHANNELS,
+                          l.request_channel,
+                          l.request_channel || "—",
+                        )}
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {labelOf(HCP_CHANGE_STATUSES, l.line_status, l.line_status)}
+                      </TableCell>
                       <TableCell>
-                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-slate-300 hover:text-rose-500" onClick={() => setLines((p) => p.filter((x) => x._key !== l._key))}>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0 text-slate-300 hover:text-rose-500"
+                          onClick={() =>
+                            setLines((p) => p.filter((x) => x._key !== l._key))
+                          }
+                        >
                           <Trash2 className="w-3.5 h-3.5" />
                         </Button>
                       </TableCell>

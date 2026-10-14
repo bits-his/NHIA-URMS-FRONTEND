@@ -262,7 +262,7 @@ export const MODULE_CONFIG: ParentModule[] = [
       },
       { type: "group", label: "Beneficiary Management", children: [
         { title: "Additional / Extra Dependant", view: "state-extra-dependant", path: "/zonal/beneficiary/extra-dependant", navLabel: "Extra Dependant" },
-        { title: "HMO Selection Process", view: "state-hmo-selection", path: "/zonal/hmo-selection", navLabel: "MDA HMO Selection" },
+        { title: "HMO Selection Process", view: "state-hmo-selection", path: "/zonal/hmo-selection", navLabel: "MDA Change of HMO Selection Process" },
         { title: "Change of HCF", view: "state-hcf-change", path: "/zonal/beneficiary/hcf-change", navLabel: "Change of HCP" },
       ]},
       {
