@@ -137,6 +137,7 @@ export default function StateOfficeReportDetail({ reportType, reportId, onBack, 
                                   <TableHead className="text-xs font-bold text-slate-600">{cfg.refLabel}</TableHead>
                                   <TableHead className="text-xs font-bold text-slate-600">Channel</TableHead>
                                   <TableHead className="text-xs font-bold text-slate-600">Program</TableHead>
+                                  <TableHead className="text-xs font-bold text-slate-600">Mode</TableHead>
                                   <TableHead className="text-xs font-bold text-slate-600">Status</TableHead>
                                   <TableHead className="text-xs font-bold text-slate-600 text-right">{cfg.countLabel}</TableHead>
                                   <TableHead className="text-xs font-bold text-slate-600 text-right">Validated</TableHead>
@@ -168,6 +169,9 @@ export default function StateOfficeReportDetail({ reportType, reportId, onBack, 
                                     </TableCell>
                                     <TableCell className="text-xs">{line.enrolment_channel ?? "—"}</TableCell>
                                     <TableCell className="text-xs">{line.program_name ?? "—"}</TableCell>
+                                    <TableCell className="text-xs max-w-[10rem] truncate" title={line.enrolment_category ?? ""}>
+                                      {line.enrolment_category ?? "—"}
+                                    </TableCell>
                                     <TableCell className="text-xs">{line.activity_status ?? "—"}</TableCell>
                                     <TableCell className="text-sm text-right font-semibold tabular-nums">
                                       {formatCount(line.enrolment_count)}
@@ -202,7 +206,7 @@ export default function StateOfficeReportDetail({ reportType, reportId, onBack, 
                             ))}
                             <TableRow className="bg-slate-50 font-bold border-t-2 border-[#d4e8dc]">
                               <TableCell
-                                colSpan={reportType === "enrolment" ? 7 : reportType === "cemonc" ? 3 : 2}
+                                colSpan={reportType === "enrolment" ? 8 : reportType === "cemonc" ? 3 : 2}
                                 className="text-sm text-right text-slate-600"
                               >
                                 {cfg.totalLabel}

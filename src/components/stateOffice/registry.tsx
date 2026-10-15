@@ -17,6 +17,7 @@ import EnrolleeRegisterDetail from "./EnrolleeRegisterDetail";
 import ExtraDependantForm from "./ExtraDependantForm";
 import EnrolmentDriveForm from "./EnrolmentDriveForm";
 import EnrolmentActivityForm from "./EnrolmentActivityForm";
+import EnrolmentReportDetail from "./EnrolmentReportDetail";
 import { ENROLMENT_DRIVE_REPORT_TYPES } from "./enrolmentDriveTypes";
 import HcpChangeForm from "./HcpChangeForm";
 import EtmcTmcActionPointForm from "./EtmcTmcActionPointForm";
@@ -70,6 +71,9 @@ export function StateOfficeDetailRouter(props: {
   onBack: () => void;
   onEdit?: () => void;
 }) {
+  if (props.reportType === "enrolment") {
+    return <EnrolmentReportDetail {...props} reportType="enrolment" />;
+  }
   if (props.reportType === "weekly-actionable") {
     return <WeeklyActionableDetail {...props} />;
   }

@@ -85,6 +85,9 @@ export default function StateOfficeHmoIndebtednessPage({ onBack, defaultStateId,
   const [editingKey, setEditingKey] = React.useState<string | null>(null);
   const [submittedBy, setSubmittedBy] = React.useState("");
   const [expandedHmos, setExpandedHmos] = React.useState<Record<string, boolean>>({});
+  const [viewHmoName, setViewHmoName] = React.useState("");
+  const [viewSheets, setViewSheets] = React.useState<any[]>([]);
+  const [loadingViewSheets, setLoadingViewSheets] = React.useState(false);
 
   const { filterState, setFilterState, apiStateId } = useMonthlyStateFilter(defaultStateId, defaultZoneId);
   const now = new Date();
@@ -128,7 +131,16 @@ export default function StateOfficeHmoIndebtednessPage({ onBack, defaultStateId,
   }, [zoneId]);
 
   const hmoRows = React.useMemo(() => {
-    const list: { key: string; name: string; state: string; period: string; hcfCount: number; total: number; row: any }[] = [];
+    const map = new Map<string, {
+      key: string;
+      name: string;
+      stateId: string;
+      stateName: string;
+      periods: string[];
+      hcfCount: number;
+      total: number;
+      latest: any;
+    }>();
     for (const row of rows) {
       const byHmo = new Map<string, any[]>();
       for (const line of row.lines ?? []) {
@@ -136,24 +148,44 @@ export default function StateOfficeHmoIndebtednessPage({ onBack, defaultStateId,
         if (!byHmo.has(name)) byHmo.set(name, []);
         byHmo.get(name)!.push(line);
       }
+      const stateId = String(row.state_id);
+      const stateName = row.state?.description ?? "—";
+      const period = `${monthLabel(row.reporting_month)} ${row.reporting_year}`;
       for (const [name, hmoLines] of byHmo) {
-        list.push({
-          key: `${row.id}-${name}`,
-          name,
-          state: row.state?.description ?? "—",
-          period: `${monthLabel(row.reporting_month)} ${row.reporting_year}`,
-          hcfCount: hmoLines.length,
-          total: hmoLines.reduce((sum: number, line: any) => sum + money(line.total), 0),
-          row,
-        });
+        const key = `${name.toLowerCase()}::${stateId}`;
+        const total = hmoLines.reduce((sum: number, line: any) => sum + money(line.total), 0);
+        const existing = map.get(key);
+        if (!existing) {
+          map.set(key, {
+            key,
+            name,
+            stateId,
+            stateName,
+            periods: [period],
+            hcfCount: hmoLines.length,
+            total,
+            latest: row,
+          });
+        } else {
+          if (!existing.periods.includes(period)) existing.periods.push(period);
+          existing.hcfCount += hmoLines.length;
+          existing.total += total;
+          const newer =
+            Number(row.reporting_year) > Number(existing.latest.reporting_year)
+            || (Number(row.reporting_year) === Number(existing.latest.reporting_year)
+              && Number(row.reporting_month) >= Number(existing.latest.reporting_month));
+          if (newer) existing.latest = row;
+        }
       }
     }
-    return list.sort((a, b) => a.name.localeCompare(b.name));
+    return Array.from(map.values()).sort((a, b) =>
+      a.stateName.localeCompare(b.stateName) || a.name.localeCompare(b.name),
+    );
   }, [rows]);
 
   const sheetTotal = lines.reduce((s, l) => s + lineTotal(l), 0);
 
-  const applyRow = (row: any) => {
+  const applyRow = (row: any, focusHmo?: string) => {
     setEditingId(row.id);
     setRefId(row.reference_id);
     setZoneId(String(row.zone_id));
@@ -173,20 +205,84 @@ export default function StateOfficeHmoIndebtednessPage({ onBack, defaultStateId,
     setLines(mapped);
     setEntry(emptyLine());
     setEditingKey(null);
+    const focus = (focusHmo || viewHmoName || "").trim();
+    if (focus) setViewHmoName(focus);
     const open: Record<string, boolean> = {};
-    mapped.forEach((l) => { if (l.hmo_name) open[l.hmo_name] = true; });
+    mapped.forEach((l) => {
+      const name = l.hmo_name.trim();
+      if (!name) return;
+      if (!focus || name.toLowerCase() === focus.toLowerCase()) open[name] = true;
+    });
     setExpandedHmos(open);
+  };
+
+  const viewSiblingSheets = React.useMemo(() => {
+    const needle = viewHmoName.trim().toLowerCase();
+    if (!needle || !stateId) return [] as any[];
+    const source = viewSheets.length ? viewSheets : rows;
+    return source.filter((r) =>
+      String(r.state_id) === stateId
+      && (r.lines ?? []).some((l: any) => String(l.hmo_name || "").trim().toLowerCase() === needle),
+    );
+  }, [viewSheets, rows, viewHmoName, stateId]);
+
+  const viewPeriodOptions = React.useMemo(() => {
+    const set = new Set<string>();
+    viewSiblingSheets.forEach((r) => set.add(`${r.reporting_year}-${r.reporting_month}`));
+    return Array.from(set)
+      .map((key) => {
+        const [year, month] = key.split("-");
+        return { key, year, month, label: `${monthLabel(month)} ${year}` };
+      })
+      .sort((a, b) => Number(b.year) - Number(a.year) || Number(b.month) - Number(a.month));
+  }, [viewSiblingSheets]);
+
+  const switchViewPeriod = (nextYear: string, nextMonth: string) => {
+    const match = viewSiblingSheets.find((r) =>
+      String(r.state_id) === stateId
+      && String(r.reporting_year) === nextYear
+      && String(r.reporting_month) === nextMonth,
+    );
+    if (match) {
+      applyRow(match, viewHmoName);
+      return;
+    }
+    toast.message("No collation for this HMO in the selected period.");
+  };
+
+  const openHmoView = async (sheet: any, hmoName: string) => {
+    applyRow(sheet, hmoName);
+    setViewHmoName(hmoName);
+    setMode("view");
+    setLoadingViewSheets(true);
+    try {
+      const res = await stateOfficeHmoIndebtednessApi.list({
+        zone_id: (filterZone && filterZone !== "all") ? filterZone : (defaultZoneId || undefined),
+        state_id: String(sheet.state_id),
+      });
+      const needle = hmoName.trim().toLowerCase();
+      setViewSheets((res.data ?? []).filter((r: any) =>
+        String(r.state_id) === String(sheet.state_id)
+        && (r.lines ?? []).some((l: any) => String(l.hmo_name || "").trim().toLowerCase() === needle),
+      ));
+    } catch {
+      setViewSheets([sheet]);
+    } finally {
+      setLoadingViewSheets(false);
+    }
   };
 
   const linesByHmo = React.useMemo(() => {
     const map = new Map<string, Line[]>();
+    const focus = viewHmoName.trim().toLowerCase();
     lines.forEach((l) => {
       const key = l.hmo_name.trim() || "Unassigned HMO";
+      if (mode === "view" && focus && key.toLowerCase() !== focus) return;
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(l);
     });
     return Array.from(map.entries());
-  }, [lines]);
+  }, [lines, viewHmoName, mode]);
 
   const openCreate = () => {
     if (!canCreate) return;
@@ -487,21 +583,33 @@ export default function StateOfficeHmoIndebtednessPage({ onBack, defaultStateId,
   ) : null;
 
   if (mode === "view") {
-    const zoneName = pickGeoLabel(zones, zoneId, "—");
-    const stateName = pickGeoLabel(states, stateId, "—");
-    const period = `${monthLabel(periodMonth)} ${periodYear}`;
-    const capTotal = lines.reduce((s, l) => s + money(l.nhia_cap), 0);
-    const ffsTotal = lines.reduce((s, l) => s + money(l.nhia_ffs), 0);
-    const phiTotal = lines.reduce((s, l) => s + money(l.phi), 0);
-    const hmoNames = linesByHmo.map(([hmo]) => hmo).join(", ");
+    const viewLines = linesByHmo.flatMap(([, hcfLines]) => hcfLines);
+    const capTotal = viewLines.reduce((s, l) => s + money(l.nhia_cap), 0);
+    const ffsTotal = viewLines.reduce((s, l) => s + money(l.nhia_ffs), 0);
+    const phiTotal = viewLines.reduce((s, l) => s + money(l.phi), 0);
+    const viewTotal = viewLines.reduce((s, l) => s + lineTotal(l), 0);
     return (
       <div className="flex flex-col h-full bg-slate-50/30">
         <div className="bg-white border-b border-border/50 px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30">
           <div className="flex items-center gap-3 min-w-0">
-            <Button variant="ghost" size="icon" onClick={() => setMode(createOnly ? "create" : "list")} className="rounded-full shrink-0"><ArrowLeft className="w-5 h-5" /></Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => {
+                setViewHmoName("");
+                setViewSheets([]);
+                setMode(createOnly ? "create" : "list");
+              }}
+              className="rounded-full shrink-0"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
             <div className="min-w-0">
-              <h2 className="text-xl font-bold tracking-tight truncate">{hmoNames || "Collation Sheet"}</h2>
-              <p className="text-xs text-slate-500 truncate">{stateName} · {zoneName} · {period}</p>
+              <h2 className="text-xl font-bold tracking-tight truncate">{viewHmoName || "Collation Sheet"}</h2>
+              <p className="text-xs text-slate-500 truncate">
+                {pickGeoLabel(states, stateId, "—")}
+                {loadingViewSheets ? " · loading…" : ""}
+              </p>
             </div>
           </div>
           {canCreate && (
@@ -512,11 +620,51 @@ export default function StateOfficeHmoIndebtednessPage({ onBack, defaultStateId,
         </div>
         <ScrollArea className="flex-1">
           <div className="w-full px-4 md:px-6 py-4 space-y-4 pb-16">
+            <Card className="rounded-xl border border-[#d4e8dc]">
+              <CardContent className="pt-4 pb-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Year</Label>
+                  <Select
+                    value={periodYear}
+                    onValueChange={(y) => {
+                      const sameMonth = viewPeriodOptions.find((p) => p.year === y && p.month === periodMonth);
+                      const fallback = viewPeriodOptions.find((p) => p.year === y);
+                      const next = sameMonth || fallback;
+                      if (next) switchViewPeriod(next.year, next.month);
+                    }}
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {Array.from(new Set(viewPeriodOptions.map((p) => p.year))).map((y) => (
+                        <SelectItem key={y} value={y}>{y}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Month</Label>
+                  <Select
+                    value={periodMonth}
+                    onValueChange={(m) => switchViewPeriod(periodYear, m)}
+                  >
+                    <SelectTrigger displayValue={monthLabel(periodMonth)}><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {viewPeriodOptions
+                        .filter((p) => p.year === periodYear)
+                        .map((p) => (
+                          <SelectItem key={p.key} value={p.month}>{monthLabel(p.month)}</SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardContent>
+            </Card>
+
             <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-slate-600 bg-white border border-[#d4e8dc] rounded-xl px-4 py-3">
               <span><span className="text-slate-400">CAP</span> ₦{naira(capTotal)}</span>
               <span><span className="text-slate-400">FFS</span> ₦{naira(ffsTotal)}</span>
               <span><span className="text-slate-400">PHI</span> ₦{naira(phiTotal)}</span>
-              <span className="font-semibold text-[#145c3f]">Total ₦{naira(sheetTotal)}</span>
+              <span className="font-semibold text-[#145c3f]">Total ₦{naira(viewTotal)}</span>
               {submittedBy ? <span className="text-slate-400">Prepared by {submittedBy}</span> : null}
             </div>
 
@@ -698,8 +846,8 @@ export default function StateOfficeHmoIndebtednessPage({ onBack, defaultStateId,
                   <TableHeader>
                     <TableRow className="bg-[#f0fdf7]">
                       <TableHead className="text-xs font-bold">HMO</TableHead>
-                      {!stateLocked && filterState === "all" && <TableHead className="text-xs font-bold">State</TableHead>}
-                      {(filterMonth === "all" || filterYear === "all") && <TableHead className="text-xs font-bold">Period</TableHead>}
+                      <TableHead className="text-xs font-bold">State</TableHead>
+                      <TableHead className="text-xs font-bold">Period</TableHead>
                       <TableHead className="text-xs font-bold">HCFs</TableHead>
                       <TableHead className="text-xs font-bold">Total</TableHead>
                       <TableHead className="text-xs font-bold w-16">View</TableHead>
@@ -709,14 +857,16 @@ export default function StateOfficeHmoIndebtednessPage({ onBack, defaultStateId,
                     {hmoRows.map((item) => (
                       <TableRow key={item.key}>
                         <TableCell className="text-sm font-semibold text-slate-800">{item.name}</TableCell>
-                        {!stateLocked && filterState === "all" && <TableCell className="text-xs">{item.state}</TableCell>}
-                        {(filterMonth === "all" || filterYear === "all") && (
-                          <TableCell className="text-xs text-slate-500">{item.period}</TableCell>
-                        )}
+                        <TableCell className="text-xs">{item.stateName}</TableCell>
+                        <TableCell className="text-xs text-slate-500">
+                          {item.periods.length === 1
+                            ? item.periods[0]
+                            : `${item.periods[0]} · ${item.periods.length} periods`}
+                        </TableCell>
                         <TableCell className="text-xs">{item.hcfCount}</TableCell>
                         <TableCell className="text-xs font-mono font-semibold">₦{naira(item.total)}</TableCell>
                         <TableCell>
-                          <Button size="sm" variant="ghost" className="h-8 gap-1.5 px-2 text-[#145c3f]" onClick={() => { applyRow(item.row); setMode("view"); }}>
+                          <Button size="sm" variant="ghost" className="h-8 gap-1.5 px-2 text-[#145c3f]" onClick={() => void openHmoView(item.latest, item.name)}>
                             <Eye className="w-4 h-4" /> View
                           </Button>
                         </TableCell>

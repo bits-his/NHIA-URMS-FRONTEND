@@ -25,6 +25,7 @@ import {
   REPORT_CONFIG, MONTHS, monthLabel, quarterFromMonth, formatCount, formatDate,
   reportLineTotal, reportLineCount, ENROLLEE_REGISTER_SCHEMES, type StateOfficeReportType,
 } from "./constants";
+import { ENROLMENT_ACTIVITIES, enrolmentLineListSummary } from "./enrolmentPillarTypes";
 import { useStateOfficeAccess } from "@/src/access/createReviewAccess";
 
 interface Report {
@@ -111,15 +112,17 @@ export default function StateOfficeReportsList({
     stateFilterActive,
   } = useMonthlyStateFilter(defaultStateId, defaultZoneId);
 
-  const [filterYear,   setFilterYear]   = React.useState("all");
-  const [filterMonth,  setFilterMonth]  = React.useState("all");
-  const [filterStatus, setFilterStatus] = React.useState("all");
+  const [filterYear,     setFilterYear]     = React.useState("all");
+  const [filterMonth,    setFilterMonth]    = React.useState("all");
+  const [filterStatus,   setFilterStatus]   = React.useState("all");
+  const [filterActivity, setFilterActivity] = React.useState("all");
 
   // Reset nested view when switching report types in the sidebar
   React.useEffect(() => {
     setMode(createOnly ? "create" : "list");
     setSelectedId(null);
     setSelectedReportType(reportType);
+    setFilterActivity("all");
     setFormKey((k) => k + 1);
   }, [reportType, createOnly]);
 
@@ -177,24 +180,34 @@ export default function StateOfficeReportsList({
     setMode(createOnly ? "create" : "list");
   }, [createOnly]);
 
+  const filteredReports = React.useMemo(() => {
+    if (reportType !== "enrolment" || filterActivity === "all") return reports;
+    return reports.filter((r) => r.lines?.[0]?.category === filterActivity);
+  }, [reports, reportType, filterActivity]);
+
   const counts = React.useMemo(() => ({
-    total:     reports.length,
-    draft:     reports.filter(r => r.status === "draft").length,
-    submitted: reports.filter(r => r.status === "submitted").length,
-    approved:  reports.filter(r => r.status === "approved").length,
-  }), [reports]);
+    total:     filteredReports.length,
+    draft:     filteredReports.filter(r => r.status === "draft").length,
+    submitted: filteredReports.filter(r => r.status === "submitted").length,
+    approved:  filteredReports.filter(r => r.status === "approved").length,
+  }), [filteredReports]);
 
   const yearOptions = React.useMemo(
     () => buildReportingYearOptions(reports.map(r => r.reporting_year)),
     [reports],
   );
 
-  const hasFilters = filterYear !== "all" || filterMonth !== "all" || filterStatus !== "all" || stateFilterActive;
+  const hasFilters = filterYear !== "all"
+    || filterMonth !== "all"
+    || filterStatus !== "all"
+    || (reportType === "enrolment" && filterActivity !== "all")
+    || stateFilterActive;
 
   const clearFilters = () => {
     setFilterYear("all");
     setFilterMonth("all");
     setFilterStatus("all");
+    setFilterActivity("all");
     if (showStateFilter) setFilterState(ALL_STATES);
   };
 
@@ -411,6 +424,27 @@ export default function StateOfficeReportsList({
               </Select>
             </div>
 
+            {reportType === "enrolment" && (
+              <div className="flex-1 min-w-[160px]">
+                <Select value={filterActivity} onValueChange={setFilterActivity}>
+                  <SelectTrigger className="w-full"
+                    displayValue={
+                      filterActivity === "all"
+                        ? "All Activities"
+                        : (ENROLMENT_ACTIVITIES.find((a) => a.value === filterActivity)?.label ?? filterActivity)
+                    }>
+                    <SelectValue placeholder="All Activities" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Activities</SelectItem>
+                    {ENROLMENT_ACTIVITIES.map((a) => (
+                      <SelectItem key={a.value} value={a.value}>{a.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
             {hasFilters && (
               <Button variant="ghost" size="sm" className="text-slate-500 gap-1 shrink-0" onClick={clearFilters}>
                 <XCircle className="w-3.5 h-3.5" /> Clear
@@ -424,8 +458,8 @@ export default function StateOfficeReportsList({
                 {loading
                   ? "Loading..."
                   : reportType === "enrollee-register" || reportType === "etmc-tmc-action-point" || reportType === "ict-support-register" || reportType === "adhoc-special-assignment"
-                    ? `${reports.length} register${reports.length !== 1 ? "s" : ""}`
-                    : `${reports.length} report${reports.length !== 1 ? "s" : ""}`}
+                    ? `${filteredReports.length} register${filteredReports.length !== 1 ? "s" : ""}`
+                    : `${filteredReports.length} report${filteredReports.length !== 1 ? "s" : ""}`}
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
@@ -433,7 +467,7 @@ export default function StateOfficeReportsList({
                 <div className="flex items-center justify-center py-16 gap-3 text-slate-400">
                   <Loader2 className="w-5 h-5 animate-spin" /><span className="text-sm">Loading...</span>
                 </div>
-              ) : reports.length === 0 ? (
+              ) : filteredReports.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 gap-2 text-slate-400">
                   <FileText className="w-8 h-8 opacity-30" />
                   <p className="text-sm font-medium">{hasFilters ? "No reports match your filters" : "No reports found"}</p>
@@ -480,6 +514,21 @@ export default function StateOfficeReportsList({
                             <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Status</TableHead>
                             <TableHead className="text-right text-xs font-bold text-slate-600 whitespace-nowrap">View</TableHead>
                           </>
+                        ) : reportType === "enrolment" ? (
+                          <>
+                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Date</TableHead>
+                            {showLocationCols && (
+                              <>
+                                <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Zone</TableHead>
+                                <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">State</TableHead>
+                              </>
+                            )}
+                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Activity</TableHead>
+                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Program</TableHead>
+                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Outcome</TableHead>
+                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Status</TableHead>
+                            <TableHead className="text-right text-xs font-bold text-slate-600 whitespace-nowrap">View</TableHead>
+                          </>
                         ) : (
                           <>
                             <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Reference</TableHead>
@@ -518,10 +567,13 @@ export default function StateOfficeReportsList({
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                    {reports.map((r, i) => {
+                    {filteredReports.map((r, i) => {
                       const sc = STATUS_CONFIG[r.status];
                       const rowType = r.__reportType ?? reportType;
                       const typeLabel = REPORT_CONFIG[rowType]?.title ?? rowType;
+                      const enrolmentSummary = reportType === "enrolment"
+                        ? enrolmentLineListSummary(r.lines?.[0])
+                        : null;
                       return (
                           <motion.tr key={`${rowType}-${r.id}`} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: i * 0.02 }}
@@ -568,6 +620,33 @@ export default function StateOfficeReportsList({
                                 <TableCell className="text-sm text-slate-600 whitespace-nowrap">{monthLabel(r.reporting_month)}</TableCell>
                                 <TableCell className="text-sm text-slate-500 whitespace-nowrap">Q{quarterFromMonth(r.reporting_month)}</TableCell>
                                 <TableCell className="text-sm text-slate-500 whitespace-nowrap">{r.submitted_by || "—"}</TableCell>
+                                <TableCell>
+                                  <Badge className={`text-[10px] px-2 py-0.5 flex items-center gap-1 w-fit border ${sc.cls}`}>
+                                    {sc.icon} {sc.label}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <Button variant="ghost" size="sm"
+                                    className="h-7 gap-1 px-2 text-slate-500 hover:text-primary hover:bg-primary/10"
+                                    onClick={() => openReport(r, "view")}>
+                                    <Eye className="w-3.5 h-3.5" /> View
+                                  </Button>
+                                </TableCell>
+                              </>
+                            ) : reportType === "enrolment" && enrolmentSummary ? (
+                              <>
+                                <TableCell className="text-sm font-semibold text-slate-800 whitespace-nowrap">
+                                  {monthLabel(r.reporting_month)} {r.reporting_year}
+                                </TableCell>
+                                {showLocationCols && (
+                                  <>
+                                    <TableCell className="text-sm text-slate-600 whitespace-nowrap">{r.zone?.description || "—"}</TableCell>
+                                    <TableCell className="text-sm font-semibold text-slate-800 whitespace-nowrap">{r.state?.description || "—"}</TableCell>
+                                  </>
+                                )}
+                                <TableCell className="text-sm font-semibold text-[#0f3d2e] whitespace-nowrap">{enrolmentSummary.activity}</TableCell>
+                                <TableCell className="text-sm text-slate-700 whitespace-nowrap">{enrolmentSummary.program}</TableCell>
+                                <TableCell className="text-sm font-medium text-slate-800 whitespace-nowrap">{enrolmentSummary.outcome}</TableCell>
                                 <TableCell>
                                   <Badge className={`text-[10px] px-2 py-0.5 flex items-center gap-1 w-fit border ${sc.cls}`}>
                                     {sc.icon} {sc.label}

@@ -114,6 +114,8 @@ export default function StateOfficeHmoReconPage({
   const [lines, setLines] = React.useState<Line[]>([emptyLine()]);
   const [loadingHcfs, setLoadingHcfs] = React.useState(false);
   const [selectedHmoFilter, setSelectedHmoFilter] = React.useState<string>("all");
+  const [viewSheets, setViewSheets] = React.useState<any[]>([]);
+  const [loadingViewSheets, setLoadingViewSheets] = React.useState(false);
 
   const { filterState, setFilterState, apiStateId } = useMonthlyStateFilter(defaultStateId, defaultZoneId);
   const now = new Date();
@@ -163,6 +165,81 @@ export default function StateOfficeHmoReconPage({
     rows.forEach((r) => { if (r.hmo_name) names.add(r.hmo_name); });
     return Array.from(names).sort();
   }, [rows]);
+
+  const hmoGroups = React.useMemo(() => {
+    const map = new Map<string, {
+      key: string;
+      name: string;
+      code: string;
+      stateId: string;
+      stateName: string;
+      periods: string[];
+      hcfCount: number;
+      outstanding: number;
+      latest: any;
+    }>();
+    for (const row of rows) {
+      const name = String(row.hmo_name || "").trim() || "Unassigned HMO";
+      const sid = String(row.state_id);
+      const key = `${name.toLowerCase()}::${sid}`;
+      const outstanding = (row.lines ?? []).reduce(
+        (s: number, l: any) => s + money(l.outstanding ?? (Number(l.agreed_amount) - Number(l.amount_paid))),
+        0,
+      );
+      const period = `${monthLabel(row.reporting_month)} ${row.reporting_year}`;
+      const stateName = row.state?.description ?? "—";
+      const existing = map.get(key);
+      if (!existing) {
+        map.set(key, {
+          key,
+          name,
+          code: row.hmo_code ?? "",
+          stateId: sid,
+          stateName,
+          periods: [period],
+          hcfCount: (row.lines ?? []).length,
+          outstanding,
+          latest: row,
+        });
+      } else {
+        if (!existing.periods.includes(period)) existing.periods.push(period);
+        existing.hcfCount += (row.lines ?? []).length;
+        existing.outstanding += outstanding;
+        const newer =
+          Number(row.reporting_year) > Number(existing.latest.reporting_year)
+          || (Number(row.reporting_year) === Number(existing.latest.reporting_year)
+            && Number(row.reporting_month) >= Number(existing.latest.reporting_month));
+        if (newer) {
+          existing.latest = row;
+          existing.code = row.hmo_code ?? existing.code;
+        }
+      }
+    }
+    return Array.from(map.values()).sort((a, b) =>
+      a.stateName.localeCompare(b.stateName) || a.name.localeCompare(b.name),
+    );
+  }, [rows]);
+
+  const viewSiblingSheets = React.useMemo(() => {
+    const needle = hmoName.trim().toLowerCase();
+    if (!needle || !stateId) return [] as any[];
+    const source = viewSheets.length ? viewSheets : rows;
+    return source.filter((r) =>
+      String(r.hmo_name || "").trim().toLowerCase() === needle
+      && String(r.state_id) === stateId,
+    );
+  }, [rows, viewSheets, hmoName, stateId]);
+
+  const viewPeriodOptions = React.useMemo(() => {
+    const set = new Set<string>();
+    viewSiblingSheets.forEach((r) => set.add(`${r.reporting_year}-${r.reporting_month}`));
+    return Array.from(set)
+      .map((key) => {
+        const [year, month] = key.split("-");
+        return { key, year, month, label: `${monthLabel(month)} ${year}` };
+      })
+      .sort((a, b) => Number(b.year) - Number(a.year) || Number(b.month) - Number(a.month));
+  }, [viewSiblingSheets]);
 
   const sheetTotals = React.useMemo(() => {
     const alleged = lines.reduce((s, l) => s + money(l.alleged_amount), 0);
@@ -237,6 +314,40 @@ export default function StateOfficeHmoReconPage({
       from_collation: true,
     }));
     setLines(mapped.length ? mapped : [emptyLine()]);
+  };
+
+  const switchViewPeriod = (nextYear: string, nextMonth: string) => {
+    const needle = hmoName.trim().toLowerCase();
+    const match = viewSiblingSheets.find((r) =>
+      String(r.state_id) === stateId
+      && String(r.reporting_year) === nextYear
+      && String(r.reporting_month) === nextMonth
+      && String(r.hmo_name || "").trim().toLowerCase() === needle,
+    );
+    if (match) {
+      applyRow(match);
+      return;
+    }
+    toast.message("No sheet for this HMO in the selected period.");
+  };
+
+  const openHmoView = async (sheet: any, hmoDisplayName?: string) => {
+    applyRow(sheet);
+    setMode("view");
+    setLoadingViewSheets(true);
+    try {
+      const res = await stateOfficeHmoReconApi.list({
+        stream,
+        hmo: hmoDisplayName || sheet.hmo_name,
+        zone_id: (filterZone && filterZone !== "all") ? filterZone : (defaultZoneId || undefined),
+        state_id: String(sheet.state_id),
+      });
+      setViewSheets(res.data ?? []);
+    } catch {
+      setViewSheets([sheet]);
+    } finally {
+      setLoadingViewSheets(false);
+    }
   };
 
   const openCreate = () => {
@@ -477,17 +588,24 @@ export default function StateOfficeHmoReconPage({
   );
 
   if (mode === "view") {
-    const zoneName = pickGeoLabel(zones, zoneId, "—");
-    const stateName = pickGeoLabel(states, stateId, "—");
-    const period = `${monthLabel(periodMonth)} ${periodYear}`;
     return (
       <div className="flex flex-col h-full bg-slate-50/30">
         <div className="bg-white border-b px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30">
           <div className="flex items-center gap-3 min-w-0">
-            <Button variant="ghost" size="icon" onClick={() => setMode(createOnly ? "create" : "list")} className="rounded-full shrink-0"><ArrowLeft className="w-5 h-5" /></Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => { setViewSheets([]); setMode(createOnly ? "create" : "list"); }}
+              className="rounded-full shrink-0"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
             <div className="min-w-0">
               <h2 className="text-xl font-bold tracking-tight truncate">{hmoLabel(hmoName, hmoCode)}</h2>
-              <p className="text-xs text-slate-500 truncate">{stateName} · {zoneName} · {period}</p>
+              <p className="text-xs text-slate-500 truncate">
+                {pickGeoLabel(states, stateId, "—")}
+                {loadingViewSheets ? " · loading…" : ""}
+              </p>
             </div>
           </div>
           {canCreate && (
@@ -498,6 +616,46 @@ export default function StateOfficeHmoReconPage({
         </div>
         <ScrollArea className="flex-1">
           <div className="w-full px-4 md:px-6 py-4 space-y-4 pb-16">
+            <Card className="rounded-xl border border-[#d4e8dc]">
+              <CardContent className="pt-4 pb-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Year</Label>
+                  <Select
+                    value={periodYear}
+                    onValueChange={(y) => {
+                      const sameMonth = viewPeriodOptions.find((p) => p.year === y && p.month === periodMonth);
+                      const fallback = viewPeriodOptions.find((p) => p.year === y);
+                      const next = sameMonth || fallback;
+                      if (next) switchViewPeriod(next.year, next.month);
+                    }}
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {Array.from(new Set(viewPeriodOptions.map((p) => p.year))).map((y) => (
+                        <SelectItem key={y} value={y}>{y}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Month</Label>
+                  <Select
+                    value={periodMonth}
+                    onValueChange={(m) => switchViewPeriod(periodYear, m)}
+                  >
+                    <SelectTrigger displayValue={monthLabel(periodMonth)}><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {viewPeriodOptions
+                        .filter((p) => p.year === periodYear)
+                        .map((p) => (
+                          <SelectItem key={p.key} value={p.month}>{monthLabel(p.month)}</SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardContent>
+            </Card>
+
             <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-slate-600 bg-white border border-[#d4e8dc] rounded-xl px-4 py-3">
               <span><span className="text-slate-400">Alleged</span> ₦{naira(sheetTotals.alleged)}</span>
               <span><span className="text-slate-400">{meta.actualLabel}</span> ₦{naira(sheetTotals.actual)}</span>
@@ -652,12 +810,14 @@ export default function StateOfficeHmoReconPage({
             <CardHeader className="pb-3 border-b">
               <CardTitle className="text-sm font-bold flex items-center gap-2">
                 <Building2 className="w-4 h-4" />
-                {loading ? "Loading..." : `${rows.length} HMO sheet(s)`}
+                {loading ? "Loading..." : `${hmoGroups.length} HMO${hmoGroups.length === 1 ? "" : "s"}`}
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
               {loading ? (
                 <div className="flex justify-center py-16"><Loader2 className="w-5 h-5 animate-spin text-slate-400" /></div>
+              ) : hmoGroups.length === 0 ? (
+                <div className="flex justify-center py-16 text-sm text-slate-400">No HMO sheets for this filter</div>
               ) : (
                 <Table>
                   <TableHeader>
@@ -671,26 +831,24 @@ export default function StateOfficeHmoReconPage({
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {rows.map((v, i) => {
-                      const outstanding = (v.lines ?? []).reduce(
-                        (s: number, l: any) => s + money(l.outstanding ?? (Number(l.agreed_amount) - Number(l.amount_paid))),
-                        0,
-                      );
-                      return (
-                        <motion.tr key={v.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.02 }} className="border-b border-slate-100">
-                          <TableCell className="text-sm font-semibold text-slate-800">{hmoLabel(v.hmo_name, v.hmo_code)}</TableCell>
-                          <TableCell className="text-xs">{v.state?.description ?? "—"}</TableCell>
-                          <TableCell className="text-xs">{monthLabel(v.reporting_month)} {v.reporting_year}</TableCell>
-                          <TableCell className="text-xs">{(v.lines ?? []).length}</TableCell>
-                          <TableCell className="text-xs font-mono font-semibold">₦{naira(outstanding)}</TableCell>
-                          <TableCell>
-                            <Button size="sm" variant="ghost" className="h-8 gap-1.5 px-2 text-[#145c3f]" onClick={() => { applyRow(v); setMode("view"); }}>
-                              <Eye className="w-4 h-4" /> View
-                            </Button>
-                          </TableCell>
-                        </motion.tr>
-                      );
-                    })}
+                    {hmoGroups.map((g, i) => (
+                      <motion.tr key={g.key} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.02 }} className="border-b border-slate-100">
+                        <TableCell className="text-sm font-semibold text-slate-800">{hmoLabel(g.name, g.code)}</TableCell>
+                        <TableCell className="text-xs">{g.stateName}</TableCell>
+                        <TableCell className="text-xs">
+                          {g.periods.length === 1
+                            ? g.periods[0]
+                            : `${g.periods[0]} · ${g.periods.length} periods`}
+                        </TableCell>
+                        <TableCell className="text-xs">{g.hcfCount}</TableCell>
+                        <TableCell className="text-xs font-mono font-semibold">₦{naira(g.outstanding)}</TableCell>
+                        <TableCell>
+                          <Button size="sm" variant="ghost" className="h-8 gap-1.5 px-2 text-[#145c3f]" onClick={() => void openHmoView(g.latest, g.name)}>
+                            <Eye className="w-4 h-4" /> View
+                          </Button>
+                        </TableCell>
+                      </motion.tr>
+                    ))}
                   </TableBody>
                 </Table>
               )}
