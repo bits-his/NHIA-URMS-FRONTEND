@@ -38,6 +38,8 @@ interface Props {
   showGeoIds?: boolean;
   /** Zone · State · Year · Month · Quarter (hides submission date) */
   showQuarter?: boolean;
+  /** Render fields without an outer card (for embedding in a parent card) */
+  embedded?: boolean;
 }
 
 export default function ReportBasicInfo({
@@ -47,6 +49,7 @@ export default function ReportBasicInfo({
   reportWeek, setReportWeek,
   showGeoIds,
   showQuarter,
+  embedded,
 }: Props) {
   const zoneLabel  = labelOf(zones.map(z => ({ value: String(z.id), label: z.label })), zoneId, "—");
   const stateLabel = labelOf(states.map(s => ({ value: String(s.id), label: s.label })), stateId, "—");
@@ -58,9 +61,7 @@ export default function ReportBasicInfo({
     setReportMonth(String((Number(q) - 1) * 3 + 1));
   };
 
-  return (
-    <Card className="rounded-2xl border-[#d4e8dc]">
-      <CardContent className="pt-6">
+  const fields = (
         <div className={`grid grid-cols-1 md:grid-cols-2 ${showWeek ? "lg:grid-cols-3" : "lg:grid-cols-5"} gap-4`}>
           <div className="space-y-2">
             <Label>Zone <span className="text-red-500">*</span></Label>
@@ -166,6 +167,14 @@ export default function ReportBasicInfo({
             </>
           )}
         </div>
+  );
+
+  if (embedded) return fields;
+
+  return (
+    <Card className="rounded-2xl border-[#d4e8dc]">
+      <CardContent className="pt-6">
+        {fields}
       </CardContent>
     </Card>
   );

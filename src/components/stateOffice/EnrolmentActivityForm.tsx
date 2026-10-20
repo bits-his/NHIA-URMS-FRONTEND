@@ -1,13 +1,14 @@
 import * as React from "react";
-import { Loader2, Save, Send } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Loader2, Save, Send } from "lucide-react";
 import { toast } from "sonner";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import StateOfficeFormShell from "./StateOfficeFormShell";
+import ReportBasicInfo from "./shared/ReportBasicInfo";
 import AccreditedProviderSelect from "./AccreditedProviderSelect";
 import { NIGERIAN_STATE_NAMES, lgasForState } from "./nigeriaGeo";
 import {
@@ -51,7 +52,7 @@ type ProgramDetails = Record<string, string>;
 
 const blank = () => ({
   activity_date: todayIsoDate(),
-  category: (ENROLMENT_ACTIVITIES[0]?.value ?? "enrolment") as string,
+  category: "" as string,
   enrolment_channel: "",
   enrolment_type: "",
   program_name: "",
@@ -67,7 +68,6 @@ const blank = () => ({
   supporting_evidence: "",
   status_reason: "",
   remarks: "",
-  // Activity / program extras (persisted in program_details JSON)
   enrollee_name: "",
   organization_name: "",
   nin_number: "",
@@ -83,6 +83,8 @@ const blank = () => ({
 });
 
 type Entry = ReturnType<typeof blank>;
+
+type StepId = "activity" | "channel" | "details" | "beneficiary" | "review";
 
 interface Props {
   reportId?: number | null;
@@ -128,6 +130,16 @@ function Field({
       </Label>
       {children}
       {error ? <p className="text-[11px] font-medium text-rose-600">{error}</p> : null}
+    </div>
+  );
+}
+
+function ReviewRow({ label, value }: { label: string; value?: React.ReactNode }) {
+  if (value == null || value === "" || value === "—") return null;
+  return (
+    <div className="space-y-0.5 min-w-0">
+      <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{label}</p>
+      <p className="text-sm font-medium text-slate-800 break-words">{value}</p>
     </div>
   );
 }
@@ -232,13 +244,7 @@ function renderProgramField(
   return (
     <Field key={f.key} label={f.label}>
       {f.type === "select" ? (
-        <Select
-          value={values[f.key] ?? ""}
-          onValueChange={(v) => {
-            if (f.key === "renewal_status") onChange(f.key, v);
-            else onChange(f.key, v);
-          }}
-        >
+        <Select value={values[f.key] ?? ""} onValueChange={(v) => onChange(f.key, v)}>
           <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
           <SelectContent>
             {(f.options ?? []).map((o) => (
@@ -324,13 +330,45 @@ function ProgramFieldsGrid({
   );
 }
 
-/** Activity Reporting Template — Enrolment / NIN / ID Cards / Validation */
+/** Content steps after an activity is chosen (picker is separate). */
+function stepsForCategory(category: string): { id: StepId; label: string }[] {
+  if (category === "enrolment") {
+    return [
+      { id: "channel", label: "Channel" },
+      { id: "details", label: "Details" },
+      { id: "beneficiary", label: "Beneficiary" },
+      { id: "review", label: "Review" },
+    ];
+  }
+  if (category === "nin_validation") {
+    return [
+      { id: "details", label: "NIN Validation" },
+      { id: "review", label: "Review" },
+    ];
+  }
+  if (category === "validation_of_enrolees") {
+    return [
+      { id: "details", label: "Validation" },
+      { id: "review", label: "Review" },
+    ];
+  }
+  if (category === "id_card_issuance") {
+    return [
+      { id: "details", label: "ID Card" },
+      { id: "review", label: "Review" },
+    ];
+  }
+  return [];
+}
+
+/** Activity Reporting Template — stepped flow from Enrolment.pptx */
 export default function EnrolmentActivityForm({
   reportId, onBack, onCancel, onSubmitted, defaultZoneId, defaultStateId,
 }: Props) {
   const fresh = (): Entry => ({ ...blank(), program_details: {} });
   const [entry, setEntry] = React.useState<Entry>(fresh);
   const [fieldErrors, setFieldErrors] = React.useState<Record<string, string>>({});
+  const [stepIndex, setStepIndex] = React.useState(0);
   const entryRef = React.useRef(entry);
   entryRef.current = entry;
 
@@ -346,8 +384,19 @@ export default function EnrolmentActivityForm({
   const isIdCard = entry.category === "id_card_issuance";
   const isValidation = entry.category === "validation_of_enrolees";
 
-  const activityLabel = ENROLMENT_ACTIVITIES.find((a) => a.value === entry.category)?.label
-    ?? entry.category;
+  const steps = React.useMemo(() => stepsForCategory(entry.category), [entry.category]);
+  const currentStep = steps.length
+    ? steps[Math.min(stepIndex, steps.length - 1)]
+    : null;
+  const isReviewStep = currentStep?.id === "review";
+
+  React.useEffect(() => {
+    if (!steps.length) {
+      if (stepIndex !== 0) setStepIndex(0);
+      return;
+    }
+    if (stepIndex > steps.length - 1) setStepIndex(steps.length - 1);
+  }, [steps.length, stepIndex]);
 
   const programOptions = React.useMemo(() => {
     if (entry.enrolment_channel === "SSHIA") {
@@ -356,7 +405,6 @@ export default function EnrolmentActivityForm({
     if (entry.enrolment_channel !== "NHIA" && !isNin && !isIdCard && !isValidation) return [];
     const nhia = ENROLMENT_PROGRAMS.map((p) => ({ code: p.code as string | null, label: p.label }));
     if (!isEnrolment) return nhia;
-    // Renewal is limited to GIFSHIP-G / GIFSHIP-C / GIFSHIP-R; Fresh Enrolment shows all NHIA programs.
     if (entry.enrolment_type === "Renewal") {
       return nhia.filter((p) => ENROLMENT_RENEWABLE_PROGRAM_LABELS.has(p.label));
     }
@@ -408,7 +456,7 @@ export default function EnrolmentActivityForm({
   const lineToEntry = (l: any): Entry => {
     const ch = parseStoredChannel(l.enrolment_channel, l.program_name);
     const details = parseDetails(l.program_details);
-    const category = l.category === "enrolee_record_update" ? "enrolment" : (l.category ?? "enrolment");
+    const category = l.category === "enrolee_record_update" ? "enrolment" : (l.category ?? "");
     return {
       activity_date: l.activity_date?.slice?.(0, 10) ?? todayIsoDate(),
       category,
@@ -449,15 +497,14 @@ export default function EnrolmentActivityForm({
     if (first) {
       setEntry(lineToEntry(first));
       setFieldErrors({});
+      setStepIndex(0);
     }
   };
 
-  const resetForActivity = (category: string) => {
-    setEntry({
-      ...fresh(),
-      category,
-    });
+  const selectActivity = (category: string) => {
+    setEntry({ ...fresh(), category });
     setFieldErrors({});
+    setStepIndex(0);
   };
 
   const fail = (key: string, message: string) => {
@@ -501,17 +548,18 @@ export default function EnrolmentActivityForm({
     return filtered;
   };
 
-  const validateEntry = (e: Entry = entryRef.current): string | null => {
+  const validateStep = (stepId: StepId, e: Entry = entryRef.current): string | null => {
     setFieldErrors({});
     const budgeted = e.funding_option === ENROLMENT_BUDGETED;
     const modes = modesOfRegistrationForProgram(e.program_name);
 
-    if (!e.category) return fail("category", "Select an enrolment activity");
-    if (!e.activity_date) {
-      return fail("activity_date", e.category === "id_card_issuance" ? "Enter the date of request" : "Enter the activity date");
+    if (stepId === "activity") {
+      if (!e.category) return fail("category", "Select an enrolment activity");
+      return null;
     }
 
-    if (e.category === "enrolment") {
+    if (stepId === "channel") {
+      if (!e.activity_date) return fail("activity_date", "Enter the enrolment date");
       if (!e.enrolment_channel) return fail("enrolment_channel", "Select enrolment channel");
       if (e.enrolment_channel === "NHIA" && !e.enrolment_type) {
         return fail("enrolment_type", "Select enrolment type");
@@ -522,6 +570,13 @@ export default function EnrolmentActivityForm({
       }
       if (e.enrolment_type === "Renewal" && !ENROLMENT_RENEWABLE_PROGRAM_LABELS.has(e.program_name)) {
         return fail("program_name", "Renewal is only allowed for GIFSHIP-G, GIFSHIP-C or GIFSHIP-R");
+      }
+      return null;
+    }
+
+    if (stepId === "details" && e.category === "enrolment") {
+      if (!e.enrolment_type && e.enrolment_channel === "NHIA") {
+        return fail("enrolment_type", "Select enrolment type");
       }
       if (!e.beneficiary_category) return fail("beneficiary_category", "Select beneficiary category");
       if (!e.beneficiary_status) return fail("beneficiary_status", "Select beneficiary status");
@@ -534,9 +589,10 @@ export default function EnrolmentActivityForm({
       if (e.enrolment_count !== "" && Number(e.enrolment_count) < 0) {
         return fail("enrolment_count", "Number enrolled must be a whole non-negative number");
       }
+      return null;
     }
 
-    if (e.category === "nin_validation") {
+    if (stepId === "details" && e.category === "nin_validation") {
       if (!e.enrollee_name.trim()) return fail("enrollee_name", "Enter enrollee name");
       if (!e.program_name) return fail("program_name", "Select program");
       if (!e.nin_number.trim()) return fail("nin_number", "Enter NIN");
@@ -545,9 +601,11 @@ export default function EnrolmentActivityForm({
       if (e.validation_status === "Not validated" && !e.not_validated_reason.trim()) {
         return fail("not_validated_reason", "Enter reason for not validated");
       }
+      return null;
     }
 
-    if (e.category === "validation_of_enrolees") {
+    if (stepId === "details" && e.category === "validation_of_enrolees") {
+      if (!e.activity_date) return fail("activity_date", "Enter the activity date");
       if (!e.program_name) return fail("program_name", "Select program");
       if (e.enrollees_validated === "") return fail("enrollees_validated", "Enter records validated");
       if (Number(e.enrollees_validated) < 0) {
@@ -555,10 +613,12 @@ export default function EnrolmentActivityForm({
       }
       if (budgeted && e.activity_budget === "") return fail("activity_budget", "Enter activity budget");
       if (budgeted && e.approved_amount === "") return fail("approved_amount", "Enter approved budget");
+      return null;
     }
 
-    if (e.category === "id_card_issuance") {
+    if (stepId === "details" && e.category === "id_card_issuance") {
       if (!e.request_category) return fail("request_category", "Select request category");
+      if (!e.activity_date) return fail("activity_date", "Enter the date of request");
       if (!e.enrollee_name.trim()) return fail("enrollee_name", "Enter enrollee name");
       if (!e.program_name) return fail("program_name", "Select program");
       if (!e.nhia_number.trim()) return fail("nhia_number", "Enter NHIA number");
@@ -569,9 +629,32 @@ export default function EnrolmentActivityForm({
       if (e.request_category.startsWith("Replacement") && !e.payment_reference.trim()) {
         return fail("payment_reference", "Enter payment reference for replacement");
       }
+      return null;
     }
 
-    setFieldErrors({});
+    if (stepId === "beneficiary") {
+      // Program-specific fields are conditional; no hard block unless surname/first_name present in schema
+      const requiredKeys = programSpecificFieldsFor(e.enrolment_channel, e.program_name)
+        .filter((f) => f.key === "surname" || f.key === "first_name")
+        .map((f) => f.key);
+      for (const key of requiredKeys) {
+        if (!String(e.program_details?.[key] ?? "").trim()) {
+          return fail(key, key === "surname" ? "Enter surname" : "Enter first name");
+        }
+      }
+      return null;
+    }
+
+    return null;
+  };
+
+  const validateEntry = (e: Entry = entryRef.current): string | null => {
+    if (!e.category) return fail("category", "Select an enrolment activity");
+    for (const step of stepsForCategory(e.category)) {
+      if (step.id === "review") continue;
+      const err = validateStep(step.id, e);
+      if (err) return err;
+    }
     return null;
   };
 
@@ -609,6 +692,18 @@ export default function EnrolmentActivityForm({
     [],
   );
 
+  const goNext = () => {
+    if (!currentStep) return;
+    const err = validateStep(currentStep.id);
+    if (err) return;
+    setStepIndex((i) => Math.min(i + 1, steps.length - 1));
+  };
+
+  const goBack = () => setStepIndex((i) => Math.max(i - 1, 0));
+
+  const activityLabel = ENROLMENT_ACTIVITIES.find((a) => a.value === entry.category)?.label
+    ?? "Select activity";
+
   return (
     <StateOfficeFormShell
       reportType="enrolment"
@@ -620,6 +715,8 @@ export default function EnrolmentActivityForm({
       defaultStateId={defaultStateId}
       pageTitle="Enrolment Activity Reporting"
       hideFooterActions
+      hideBasicInfo
+      showQuarter
       onLoaded={loadData}
       validate={() => validateEntry(entryRef.current)}
       buildPayload={(base) => ({
@@ -627,242 +724,309 @@ export default function EnrolmentActivityForm({
         lines: [toLinePayload(entryRef.current)],
       })}
     >
-      {({ submitting, saving, persist, requestSubmit, stateId }) => (
-        <div className="space-y-4 pb-2">
+      {({ submitting, saving, persist, requestSubmit, stateId, header }) => (
+        <div className="pb-2">
           <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden">
-            <CardHeader className="pb-3 border-b border-[#e8f3ec] bg-gradient-to-r from-[#f4fbf7] to-white">
-              <div>
-                <CardTitle className="text-base text-[#0f3d2e]">
-                  {activityLabel}
-                </CardTitle>
-              </div>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {ENROLMENT_ACTIVITIES.map((a) => {
-                  const active = entry.category === a.value;
-                  return (
-                    <button
-                      key={a.value}
-                      type="button"
-                      onClick={() => resetForActivity(a.value)}
-                      className={cn(
-                        "rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors border",
-                        active
-                          ? "bg-[#145c3f] text-white border-[#145c3f] shadow-sm"
-                          : "bg-white text-slate-600 border-[#d4e8dc] hover:border-[#1a7a52] hover:text-[#145c3f]",
-                      )}
-                    >
-                      {a.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </CardHeader>
+            <CardContent className="space-y-5 p-4 md:p-5">
+              <ReportBasicInfo
+                {...header}
+                lockZone={header.lockZone}
+                lockState={header.lockState}
+                showQuarter
+                embedded
+              />
 
-            <CardContent className="space-y-6 pt-5">
-              {isEnrolment && (
-                <>
-                  <FieldSection title="Classification">
-                    <Field label="Enrolment Date" required error={fieldErrors.activity_date}>
-                      <Input
-                        type="date"
-                        value={entry.activity_date}
-                        onChange={(e) => set("activity_date", e.target.value)}
-                      />
-                      <p className="text-[10px] text-slate-400">Defaults to today</p>
-                    </Field>
-                    <Field label="Enrolment Channel" required error={fieldErrors.enrolment_channel}>
+              {entry.category ? (
+                <div className="border-t border-[#e8f3ec] pt-4">
+                  <ol className="flex items-center gap-1 sm:gap-2 overflow-x-auto">
+                    {steps.map((s, i) => {
+                      const done = i < stepIndex;
+                      const active = i === stepIndex;
+                      return (
+                        <React.Fragment key={s.id}>
+                          {i > 0 && (
+                            <div className={cn(
+                              "h-px w-4 sm:w-8 shrink-0",
+                              done ? "bg-[#1a7a52]" : "bg-[#d4e8dc]",
+                            )} />
+                          )}
+                          <li className="flex items-center gap-1.5 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => { if (i <= stepIndex) setStepIndex(i); }}
+                              className={cn(
+                                "flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold border transition-colors",
+                                done && "bg-[#145c3f] text-white border-[#145c3f]",
+                                active && !done && "bg-[#145c3f] text-white border-[#145c3f]",
+                                !done && !active && "bg-white text-slate-400 border-[#d4e8dc]",
+                              )}
+                              aria-current={active ? "step" : undefined}
+                              aria-label={s.label}
+                            >
+                              {done ? <Check className="w-3.5 h-3.5" /> : i + 1}
+                            </button>
+                            <span className={cn(
+                              "text-xs font-semibold whitespace-nowrap",
+                              active ? "text-[#0f3d2e]" : "text-slate-400",
+                            )}>
+                              {s.label}
+                            </span>
+                          </li>
+                        </React.Fragment>
+                      );
+                    })}
+                  </ol>
+                </div>
+              ) : null}
+
+              <div className="border-t border-[#e8f3ec] pt-4 space-y-5">
+              {/* STEP: Activity */}
+              {!entry.category && (
+                <div className="space-y-4">
+                  <p className="text-base font-semibold text-[#0f3d2e]">Select an activity to begin</p>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    {ENROLMENT_ACTIVITIES.map((a) => (
+                      <button
+                        key={a.value}
+                        type="button"
+                        onClick={() => selectActivity(a.value)}
+                        className="rounded-2xl border-2 border-[#d4e8dc] bg-white px-6 py-12 min-h-[8.5rem] text-left transition-all hover:border-[#1a7a52] hover:bg-[#f0fdf7]"
+                      >
+                        <p className="text-xl font-bold text-slate-800">{a.label}</p>
+                      </button>
+                    ))}
+                  </div>
+                  {fieldErrors.category && (
+                    <p className="text-[11px] font-medium text-rose-600">{fieldErrors.category}</p>
+                  )}
+                </div>
+              )}
+
+              {/* STEP: Channel & Program (Enrolment) */}
+              {currentStep?.id === "channel" && isEnrolment && (
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  <Field label="Enrolment Date" required error={fieldErrors.activity_date}>
+                    <Input
+                      type="date"
+                      value={entry.activity_date}
+                      onChange={(e) => set("activity_date", e.target.value)}
+                    />
+                  </Field>
+                  <Field label="Enrolment Channel" required error={fieldErrors.enrolment_channel}>
+                    <Select
+                      value={entry.enrolment_channel}
+                      onValueChange={(v) => setEntry((p) => ({
+                        ...p,
+                        enrolment_channel: v,
+                        enrolment_type: "",
+                        program_name: "",
+                        enrolment_category: "",
+                        program_details: {},
+                      }))}
+                    >
+                      <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                      <SelectContent>
+                        {ENROLMENT_CHANNELS.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  {entry.enrolment_channel !== "SSHIA" && (
+                    <Field label="Enrolment Type" required error={fieldErrors.enrolment_type}>
                       <Select
-                        value={entry.enrolment_channel}
+                        value={entry.enrolment_type}
                         onValueChange={(v) => setEntry((p) => ({
                           ...p,
-                          enrolment_channel: v,
-                          enrolment_type: "",
+                          enrolment_type: v,
                           program_name: "",
                           enrolment_category: "",
                           program_details: {},
                         }))}
-                      >
-                        <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                        <SelectContent>
-                          {ENROLMENT_CHANNELS.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </Field>
-                    {entry.enrolment_channel !== "SSHIA" && (
-                      <Field label="Enrolment Type" required error={fieldErrors.enrolment_type}>
-                        <Select
-                          value={entry.enrolment_type}
-                          onValueChange={(v) => setEntry((p) => ({
-                            ...p,
-                            enrolment_type: v,
-                            program_name: "",
-                            enrolment_category: "",
-                            program_details: {},
-                          }))}
-                          disabled={!entry.enrolment_channel}
-                        >
-                          <SelectTrigger>
-                            <SelectValue
-                              placeholder={
-                                !entry.enrolment_channel
-                                  ? "Select channel first"
-                                  : "Select type"
-                              }
-                            />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {ENROLMENT_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
-                      </Field>
-                    )}
-                    <Field label="Program" required error={fieldErrors.program_name}>
-                      <Select
-                        value={entry.program_name}
-                        onValueChange={(v) => setEntry((p) => ({
-                          ...p,
-                          program_name: v,
-                          enrolment_category: "",
-                          program_details: {},
-                        }))}
-                        disabled={
-                          !entry.enrolment_channel
-                          || (entry.enrolment_channel === "NHIA" && !entry.enrolment_type)
-                        }
+                        disabled={!entry.enrolment_channel}
                       >
                         <SelectTrigger>
-                          <SelectValue
-                            placeholder={
-                              !entry.enrolment_channel
-                                ? "Select channel first"
-                                : entry.enrolment_channel === "NHIA" && !entry.enrolment_type
-                                  ? "Select enrolment type first"
-                                  : "Select program"
-                            }
-                          />
+                          <SelectValue placeholder={!entry.enrolment_channel ? "Select channel first" : "Select type"} />
                         </SelectTrigger>
                         <SelectContent>
-                          {programOptions.map((p) => (
-                            <SelectItem key={p.label} value={p.label}>{p.label}</SelectItem>
-                          ))}
+                          {ENROLMENT_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     </Field>
-                    {modeOptions.length > 0 && (
-                      <Field label="Enrolment Mode" required error={fieldErrors.enrolment_category}>
-                        <Select
-                          value={entry.enrolment_category}
-                          onValueChange={(v) => set("enrolment_category", v)}
-                          disabled={!entry.program_name}
-                        >
-                          <SelectTrigger>
-                            <SelectValue
-                              placeholder={
-                                !entry.program_name ? "Select program first" : "Select mode"
-                              }
-                            />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {modeOptions.map((m) => (
-                              <SelectItem key={m} value={m}>{m}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </Field>
-                    )}
-                    <Field label="Beneficiary Category" required error={fieldErrors.beneficiary_category}>
-                      <Select value={entry.beneficiary_category} onValueChange={(v) => set("beneficiary_category", v)}>
-                        <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                        <SelectContent>
-                          {ENROLMENT_BENEFICIARY_CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </Field>
-                    <Field label="Beneficiary Status" required error={fieldErrors.beneficiary_status}>
-                      <Select value={entry.beneficiary_status} onValueChange={(v) => set("beneficiary_status", v)}>
-                        <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                        <SelectContent>
-                          {ENROLMENT_BENEFICIARY_STATUSES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </Field>
-                  </FieldSection>
+                  )}
+                  <Field label="Program" required error={fieldErrors.program_name}>
+                    <Select
+                      value={entry.program_name}
+                      onValueChange={(v) => setEntry((p) => ({
+                        ...p,
+                        program_name: v,
+                        enrolment_category: "",
+                        program_details: {},
+                      }))}
+                      disabled={
+                        !entry.enrolment_channel
+                        || (entry.enrolment_channel === "NHIA" && !entry.enrolment_type)
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue
+                          placeholder={
+                            !entry.enrolment_channel
+                              ? "Select channel first"
+                              : entry.enrolment_channel === "NHIA" && !entry.enrolment_type
+                                ? "Select enrolment type first"
+                                : "Select program"
+                          }
+                        />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {programOptions.map((p) => (
+                          <SelectItem key={p.label} value={p.label}>{p.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  <Field
+                    label="Enrolment Mode"
+                    required={modeOptions.length > 0}
+                    error={fieldErrors.enrolment_category}
+                  >
+                    <Select
+                      value={entry.enrolment_category}
+                      onValueChange={(v) => set("enrolment_category", v)}
+                      disabled={!entry.program_name || modeOptions.length === 0}
+                    >
+                      <SelectTrigger>
+                        <SelectValue
+                          placeholder={
+                            !entry.program_name
+                              ? "Select program first"
+                              : modeOptions.length === 0
+                                ? "No mode for this program"
+                                : "Select mode"
+                          }
+                        />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {modeOptions.map((m) => (
+                          <SelectItem key={m} value={m}>{m}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                </div>
+              )}
 
-                  <FieldSection title="Funding & outcome">
-                    <Field label="Funding Option">
-                      <Select value={entry.funding_option} onValueChange={(v) => set("funding_option", v)}>
-                        <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                        <SelectContent>
-                          {ENROLMENT_FUNDING_OPTIONS.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </Field>
-                    {isBudgeted && (
-                      <>
-                        <Field label="Activity Budget (₦)" required error={fieldErrors.activity_budget}>
-                          <Input type="number" min={0} value={entry.activity_budget} onChange={(e) => set("activity_budget", e.target.value)} />
-                        </Field>
-                        <Field label="Approved Amount (₦)" required error={fieldErrors.approved_amount}>
-                          <Input type="number" min={0} value={entry.approved_amount} onChange={(e) => set("approved_amount", e.target.value)} />
-                        </Field>
-                      </>
-                    )}
-                    <Field label="Number Enrolled / Beneficiaries" error={fieldErrors.enrolment_count}>
-                      <Input type="number" min={0} value={entry.enrolment_count} onChange={(e) => set("enrolment_count", e.target.value)} />
-                    </Field>
-                    <Field label="Activity Status" required error={fieldErrors.activity_status}>
+              {/* STEP: Details & Funding (Enrolment) */}
+              {currentStep?.id === "details" && isEnrolment && (
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {entry.enrolment_channel !== "SSHIA" && (
+                    <Field label="Enrolment Type" required error={fieldErrors.enrolment_type}>
                       <Select
-                        value={entry.activity_status}
-                        onValueChange={(v) => setEntry((p) => ({
-                          ...p,
-                          activity_status: v,
-                          status_reason: ENROLMENT_STATUS_NEEDS_REASON.has(v) ? p.status_reason : "",
-                        }))}
+                        value={entry.enrolment_type}
+                        onValueChange={(v) => set("enrolment_type", v)}
                       >
                         <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
                         <SelectContent>
-                          {ENROLMENT_ACTIVITY_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                          {ENROLMENT_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     </Field>
-                    {ENROLMENT_STATUS_NEEDS_REASON.has(entry.activity_status) && (
-                      <Field label="Reason" required error={fieldErrors.status_reason} className="sm:col-span-2 lg:col-span-3">
-                        <Textarea
-                          rows={2}
-                          value={entry.status_reason}
-                          onChange={(e) => set("status_reason", e.target.value)}
-                          placeholder="Required when status is Not Conducted or Cancelled"
-                        />
-                      </Field>
-                    )}
-                    <Field label="Supporting Evidence">
-                      <Select value={entry.supporting_evidence} onValueChange={(v) => set("supporting_evidence", v)}>
-                        <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                        <SelectContent>
-                          {ENROLMENT_EVIDENCE_TYPES.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </Field>
-                  </FieldSection>
-
-                  {programFields.length > 0 && (
-                    <ProgramFieldsGrid
-                      fields={programFields}
-                      values={entry.program_details}
-                      onChange={setDetail}
-                      onChangeMany={setDetails}
-                      reportStateId={stateId}
-                    />
                   )}
-
+                  <Field label="Beneficiary Category" required error={fieldErrors.beneficiary_category}>
+                    <Select value={entry.beneficiary_category} onValueChange={(v) => set("beneficiary_category", v)}>
+                      <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                      <SelectContent>
+                        {ENROLMENT_BENEFICIARY_STATUSES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  <Field label="Beneficiary Status" required error={fieldErrors.beneficiary_status}>
+                    <Select value={entry.beneficiary_status} onValueChange={(v) => set("beneficiary_status", v)}>
+                      <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                      <SelectContent>
+                        {ENROLMENT_BENEFICIARY_CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  <Field label="Funding Option">
+                    <Select value={entry.funding_option} onValueChange={(v) => set("funding_option", v)}>
+                      <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                      <SelectContent>
+                        {ENROLMENT_FUNDING_OPTIONS.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  {isBudgeted && (
+                    <>
+                      <Field label="Activity Budget (₦)" required error={fieldErrors.activity_budget}>
+                        <Input type="number" min={0} value={entry.activity_budget} onChange={(e) => set("activity_budget", e.target.value)} />
+                      </Field>
+                      <Field label="Approved Amount (₦)" required error={fieldErrors.approved_amount}>
+                        <Input type="number" min={0} value={entry.approved_amount} onChange={(e) => set("approved_amount", e.target.value)} />
+                      </Field>
+                    </>
+                  )}
+                  <Field label="Number Enrolled / Beneficiaries" error={fieldErrors.enrolment_count}>
+                    <Input type="number" min={0} value={entry.enrolment_count} onChange={(e) => set("enrolment_count", e.target.value)} />
+                  </Field>
+                  <Field label="Activity Status" required error={fieldErrors.activity_status}>
+                    <Select
+                      value={entry.activity_status}
+                      onValueChange={(v) => setEntry((p) => ({
+                        ...p,
+                        activity_status: v,
+                        status_reason: ENROLMENT_STATUS_NEEDS_REASON.has(v) ? p.status_reason : "",
+                      }))}
+                    >
+                      <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                      <SelectContent>
+                        {ENROLMENT_ACTIVITY_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  {ENROLMENT_STATUS_NEEDS_REASON.has(entry.activity_status) && (
+                    <Field label="Reason" required error={fieldErrors.status_reason} className="sm:col-span-2 lg:col-span-3">
+                      <Textarea
+                        rows={2}
+                        value={entry.status_reason}
+                        onChange={(e) => set("status_reason", e.target.value)}
+                        placeholder="Required when status is Not Conducted or Cancelled"
+                      />
+                    </Field>
+                  )}
+                  <Field label="Supporting Evidence">
+                    <Select value={entry.supporting_evidence} onValueChange={(v) => set("supporting_evidence", v)}>
+                      <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                      <SelectContent>
+                        {ENROLMENT_EVIDENCE_TYPES.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </Field>
                   <Field label="Remarks" className="sm:col-span-2 lg:col-span-3">
                     <Textarea rows={2} value={entry.remarks} onChange={(e) => set("remarks", e.target.value)} />
                   </Field>
-                </>
+                </div>
               )}
 
-              {isNin && (
-                <FieldSection title="NIN validation">
+              {/* STEP: Beneficiary (Enrolment) */}
+              {currentStep?.id === "beneficiary" && isEnrolment && (
+                programFields.length > 0 ? (
+                  <ProgramFieldsGrid
+                    fields={programFields}
+                    values={entry.program_details}
+                    onChange={setDetail}
+                    onChangeMany={setDetails}
+                    reportStateId={stateId}
+                  />
+                ) : (
+                  <p className="text-sm text-slate-500 py-6 text-center">
+                    No program-specific beneficiary fields for this selection. Continue to review.
+                  </p>
+                )
+              )}
+
+              {/* STEP: NIN Validation */}
+              {currentStep?.id === "details" && isNin && (
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   <Field label="Validation Date" required error={fieldErrors.validation_date}>
                     <Input type="date" value={entry.validation_date || entry.activity_date} onChange={(e) => {
                       set("validation_date", e.target.value);
@@ -915,66 +1079,66 @@ export default function EnrolmentActivityForm({
                   <Field label="Remarks" className="sm:col-span-2 lg:col-span-3">
                     <Textarea rows={2} value={entry.remarks} onChange={(e) => set("remarks", e.target.value)} />
                   </Field>
-                </FieldSection>
+                </div>
               )}
 
-              {isValidation && (
-                <>
-                  <FieldSection title="Validation details">
-                    <Field label="Activity Date" required error={fieldErrors.activity_date}>
-                      <Input type="date" value={entry.activity_date} onChange={(e) => set("activity_date", e.target.value)} />
-                    </Field>
-                    <Field label="Program" required error={fieldErrors.program_name}>
-                      <Select value={entry.program_name} onValueChange={(v) => set("program_name", v)}>
-                        <SelectTrigger><SelectValue placeholder="Select program" /></SelectTrigger>
-                        <SelectContent>
-                          {allProgramsForSimpleSelect.map((p) => (
-                            <SelectItem key={p} value={p}>{p}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </Field>
-                    <Field label="Name of Organization">
-                      <Input value={entry.organization_name} onChange={(e) => set("organization_name", e.target.value)} />
-                    </Field>
-                    <Field label="Funding Option">
-                      <Select value={entry.funding_option} onValueChange={(v) => set("funding_option", v)}>
-                        <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                        <SelectContent>
-                          {ENROLMENT_FUNDING_OPTIONS.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </Field>
-                    {isBudgeted && (
-                      <>
-                        <Field label="Activity Budget Amount (₦)" required error={fieldErrors.activity_budget}>
-                          <Input type="number" min={0} value={entry.activity_budget} onChange={(e) => set("activity_budget", e.target.value)} />
-                        </Field>
-                        <Field label="Approved Budget (₦)" required error={fieldErrors.approved_amount}>
-                          <Input type="number" min={0} value={entry.approved_amount} onChange={(e) => set("approved_amount", e.target.value)} />
-                        </Field>
-                      </>
-                    )}
-                    <Field label="Records Validated" required error={fieldErrors.enrollees_validated}>
-                      <Input type="number" min={0} value={entry.enrollees_validated} onChange={(e) => set("enrollees_validated", e.target.value)} />
-                    </Field>
-                  </FieldSection>
-                    <Field label="Supporting Evidence">
-                      <Select value={entry.supporting_evidence} onValueChange={(v) => set("supporting_evidence", v)}>
-                        <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                        <SelectContent>
-                          {ENROLMENT_EVIDENCE_TYPES.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </Field>
-                    <Field label="Remarks" className="sm:col-span-2 lg:col-span-3">
-                      <Textarea rows={2} value={entry.remarks} onChange={(e) => set("remarks", e.target.value)} />
-                    </Field>
-                  </>
-                )}
+              {/* STEP: Validation of Enrollees */}
+              {currentStep?.id === "details" && isValidation && (
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  <Field label="Activity Date" required error={fieldErrors.activity_date}>
+                    <Input type="date" value={entry.activity_date} onChange={(e) => set("activity_date", e.target.value)} />
+                  </Field>
+                  <Field label="Program" required error={fieldErrors.program_name}>
+                    <Select value={entry.program_name} onValueChange={(v) => set("program_name", v)}>
+                      <SelectTrigger><SelectValue placeholder="Select program" /></SelectTrigger>
+                      <SelectContent>
+                        {allProgramsForSimpleSelect.map((p) => (
+                          <SelectItem key={p} value={p}>{p}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  <Field label="Name of Organization">
+                    <Input value={entry.organization_name} onChange={(e) => set("organization_name", e.target.value)} />
+                  </Field>
+                  <Field label="Funding Option">
+                    <Select value={entry.funding_option} onValueChange={(v) => set("funding_option", v)}>
+                      <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                      <SelectContent>
+                        {ENROLMENT_FUNDING_OPTIONS.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  {isBudgeted && (
+                    <>
+                      <Field label="Activity Budget Amount (₦)" required error={fieldErrors.activity_budget}>
+                        <Input type="number" min={0} value={entry.activity_budget} onChange={(e) => set("activity_budget", e.target.value)} />
+                      </Field>
+                      <Field label="Approved Budget (₦)" required error={fieldErrors.approved_amount}>
+                        <Input type="number" min={0} value={entry.approved_amount} onChange={(e) => set("approved_amount", e.target.value)} />
+                      </Field>
+                    </>
+                  )}
+                  <Field label="Records Validated" required error={fieldErrors.enrollees_validated}>
+                    <Input type="number" min={0} value={entry.enrollees_validated} onChange={(e) => set("enrollees_validated", e.target.value)} />
+                  </Field>
+                  <Field label="Supporting Evidence">
+                    <Select value={entry.supporting_evidence} onValueChange={(v) => set("supporting_evidence", v)}>
+                      <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                      <SelectContent>
+                        {ENROLMENT_EVIDENCE_TYPES.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  <Field label="Remarks" className="sm:col-span-2 lg:col-span-3">
+                    <Textarea rows={2} value={entry.remarks} onChange={(e) => set("remarks", e.target.value)} />
+                  </Field>
+                </div>
+              )}
 
-              {isIdCard && (
-                <FieldSection title="ID card request">
+              {/* STEP: ID Card */}
+              {currentStep?.id === "details" && isIdCard && (
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   <Field label="Request Category" required error={fieldErrors.request_category}>
                     <Select value={entry.request_category} onValueChange={(v) => set("request_category", v)}>
                       <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
@@ -1036,29 +1200,108 @@ export default function EnrolmentActivityForm({
                   <Field label="Remarks / notes" className="sm:col-span-2 lg:col-span-3">
                     <Textarea rows={2} value={entry.remarks} onChange={(e) => set("remarks", e.target.value)} placeholder="Exception or replacement reason" />
                   </Field>
-                </FieldSection>
+                </div>
               )}
 
-              <div className="flex flex-wrap items-center justify-end gap-2 pt-2 border-t border-[#e8f3ec]">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="gap-2"
-                  disabled={saving || submitting}
-                  onClick={() => persist("draft")}
-                >
-                  {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                  Save draft
-                </Button>
-                <Button
-                  className="bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20"
-                  disabled={saving || submitting}
-                  onClick={() => requestSubmit(() => persist("submitted"))}
-                >
-                  {submitting
-                    ? <><Loader2 className="w-4 h-4 animate-spin" /> Submitting...</>
-                    : <><Send className="w-4 h-4" /> Submit</>}
-                </Button>
+              {/* STEP: Review */}
+              {currentStep?.id === "review" && (
+                <div className="space-y-5">
+                  <div className="rounded-2xl border border-[#d4e8dc] bg-[#f8fbf9] p-4 space-y-3">
+                    <p className="text-[11px] font-bold uppercase tracking-wide text-[#145c3f]">Ready to submit</p>
+                    <ul className="grid gap-1.5 text-sm text-slate-700 sm:grid-cols-2">
+                      {[
+                        "State and zone confirmed above",
+                        "Activity selected",
+                        isEnrolment ? "Programme and mode combination set" : "Activity details completed",
+                        "Required fields completed",
+                        "Funding / budget rules applied where needed",
+                      ].map((item) => (
+                        <li key={item} className="flex items-start gap-2">
+                          <Check className="w-4 h-4 text-[#145c3f] shrink-0 mt-0.5" />
+                          <span>{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-4">
+                    <ReviewRow label="Activity" value={activityLabel} />
+                    <ReviewRow label="Date" value={entry.activity_date || entry.validation_date} />
+                    <ReviewRow label="Channel" value={entry.enrolment_channel} />
+                    <ReviewRow label="Enrolment type" value={entry.enrolment_type} />
+                    <ReviewRow label="Program" value={entry.program_name} />
+                    <ReviewRow label="Enrolment mode" value={entry.enrolment_category} />
+                    <ReviewRow label="Beneficiary category" value={entry.beneficiary_category} />
+                    <ReviewRow label="Beneficiary status" value={entry.beneficiary_status} />
+                    <ReviewRow label="Funding" value={entry.funding_option} />
+                    <ReviewRow label="Activity status" value={entry.activity_status || entry.validation_status || entry.id_card_status} />
+                    <ReviewRow label="Number enrolled" value={entry.enrolment_count} />
+                    <ReviewRow label="Records validated" value={entry.enrollees_validated} />
+                    <ReviewRow label="Enrollee" value={entry.enrollee_name} />
+                    <ReviewRow label="NIN" value={entry.nin_number} />
+                    <ReviewRow label="NHIA number" value={entry.nhia_number} />
+                    <ReviewRow label="Evidence" value={entry.supporting_evidence} />
+                    <ReviewRow label="Remarks" value={entry.remarks} />
+                  </div>
+                </div>
+              )}
+
+              {/* Footer nav — only after an activity is chosen */}
+              {entry.category ? (
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-[#e8f3ec]">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="gap-2"
+                    disabled={saving || submitting}
+                    onClick={() => {
+                      if (stepIndex === 0) {
+                        // Return to activity picker
+                        setEntry(fresh());
+                        setStepIndex(0);
+                        setFieldErrors({});
+                        return;
+                      }
+                      goBack();
+                    }}
+                  >
+                    <ArrowLeft className="w-4 h-4" /> Back
+                  </Button>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    {isReviewStep ? (
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="gap-2"
+                          disabled={saving || submitting}
+                          onClick={() => persist("draft")}
+                        >
+                          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                          Save draft
+                        </Button>
+                        <Button
+                          className="bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20"
+                          disabled={saving || submitting}
+                          onClick={() => requestSubmit(() => persist("submitted"))}
+                        >
+                          {submitting
+                            ? <><Loader2 className="w-4 h-4 animate-spin" /> Submitting...</>
+                            : <><Send className="w-4 h-4" /> Submit</>}
+                        </Button>
+                      </>
+                    ) : (
+                      <Button
+                        className="bg-[#145c3f] hover:bg-[#0f3d2e] gap-2 text-white"
+                        onClick={goNext}
+                      >
+                        Next <ArrowRight className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ) : null}
               </div>
             </CardContent>
           </Card>

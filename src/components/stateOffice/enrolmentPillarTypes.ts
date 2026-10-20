@@ -114,8 +114,8 @@ export const PROVIDER_PILLAR_CHILDREN: PillarChild[] = [
 export const ENROLMENT_ACTIVITIES = [
   { code: "ENR-0001", value: "enrolment", label: "Enrolment" },
   { code: "ENR-0002", value: "nin_validation", label: "NIN Validation" },
-  { code: "ENR-0003", value: "id_card_issuance", label: "ID Card Issuance" },
-  { code: "ENR-0004", value: "validation_of_enrolees", label: "Validation of Enrolees" },
+  { code: "ENR-0003", value: "id_card_issuance", label: "ID Card Issuance/Renewal" },
+  { code: "ENR-0004", value: "validation_of_enrolees", label: "Validation of Enrollees" },
 ] as const;
 
 export const ENROLMENT_CHANNELS = ["NHIA", "SSHIA"] as const;
