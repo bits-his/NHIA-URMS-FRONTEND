@@ -1,30 +1,19 @@
 import * as React from "react";
-import {
-  RefreshCw, Loader2, TrendingUp, CheckCircle2,
-  ClipboardCheck, MessageSquare, XCircle,
-} from "lucide-react";
+import { RefreshCw, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  LineChart, Line, PieChart, Pie, Cell, Legend,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from "recharts";
 import { toast } from "sonner";
 import { servicomApi, stockApi } from "@/lib/api";
-import DashboardDrillPanel from "@/components/dashboard/DashboardDrillPanel";
-import { useDashboardDrill } from "@/components/dashboard/useDashboardDrill";
-import { ClickableKpi, DrillHint, COLORS, getUnitHeadScope } from "@/components/dashboard/dashboardUi";
-import { TRANSMISSION_ROUTES } from "./complaintRegisterConstants";
+import { DashKpi, DashChartCard } from "@/components/dashboard/dashboardUi";
 import { pickGeoLabel } from "./servicomConstants";
-import HcfFacilitySelect from "./HcfFacilitySelect";
-import HmoProviderSelect from "./HmoProviderSelect";
-
-const UNIT_NAME = "SERVICOM Unit";
+import { satisfactionCategoryLabel } from "./servicomSurveyConstants";
 
 interface Props {
   onBack: () => void;
@@ -32,53 +21,41 @@ interface Props {
   defaultZoneId?: string | null;
 }
 
-const SEGMENT_LABELS: Record<string, string> = {
-  surveys: "Satisfaction Surveys",
-  comment_cards: "Citizens' Comment Cards",
-  complaints: "Complaints",
-  visits: "Monitoring Visits",
-};
+const currentYear = new Date().getFullYear();
+const YEARS = ["all", ...Array.from({ length: 5 }, (_, i) => String(currentYear - i))];
 
-function ChartEmpty({ message = "No records in the system for this view yet." }: { message?: string }) {
+function ChartEmpty({ message }: { message: string }) {
   return (
-    <div className="flex h-full min-h-[160px] items-center justify-center px-4 text-center">
+    <div className="flex h-full min-h-[220px] items-center justify-center px-4 text-center">
       <p className="text-xs text-slate-500">{message}</p>
     </div>
   );
 }
 
-export default function ServicomDashboard({ onBack, defaultStateId, defaultZoneId }: Props) {
+function rateTone(rate: number) {
+  if (rate >= 70) return "#1a7a52";
+  if (rate >= 50) return "#d97706";
+  return "#e11d48";
+}
+
+function fmtScore(value: number | null | undefined, digits = 2) {
+  if (value == null || Number.isNaN(Number(value))) return "—";
+  return Number(value).toFixed(digits);
+}
+
+export default function ServicomDashboard({ defaultStateId, defaultZoneId }: Props) {
   const geoLocked = !!(defaultZoneId && defaultStateId);
   const [data, setData] = React.useState<any | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [zones, setZones] = React.useState<any[]>([]);
   const [states, setStates] = React.useState<any[]>([]);
+  const [year, setYear] = React.useState(String(currentYear));
+  const [quarter, setQuarter] = React.useState("all");
   const [filterZone, setFilterZone] = React.useState(defaultZoneId ?? "all");
   const [filterState, setFilterState] = React.useState(defaultStateId ?? "all");
-  const [filterFacilityId, setFilterFacilityId] = React.useState("");
-  const [filterFacilityName, setFilterFacilityName] = React.useState("");
-  const [filterHmoId, setFilterHmoId] = React.useState("");
-  const [filterTransmission, setFilterTransmission] = React.useState("all");
-
-  const scope = React.useMemo(() => ({
-    state_id: geoLocked
-      ? (defaultStateId ?? undefined)
-      : (filterState !== "all" ? filterState : undefined),
-    zone_id: geoLocked
-      ? (defaultZoneId ?? undefined)
-      : (filterZone !== "all" ? filterZone : undefined),
-    facility_name: filterFacilityName || undefined,
-    hmo_id: filterHmoId || undefined,
-    transmission_route: filterTransmission !== "all" ? filterTransmission : undefined,
-  }), [
-    geoLocked, defaultStateId, defaultZoneId, filterState, filterZone,
-    filterFacilityName, filterHmoId, filterTransmission,
-  ]);
-
-  const drill = useDashboardDrill(
-    (params) => servicomApi.getDashboardDrill(params),
-    scope,
-  );
+  const [provider, setProvider] = React.useState("");
+  const [surveyDate, setSurveyDate] = React.useState("");
+  const [categoryFocus, setCategoryFocus] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     stockApi.getZones().then((r) => setZones(r.data || [])).catch(() => setZones([]));
@@ -86,479 +63,269 @@ export default function ServicomDashboard({ onBack, defaultStateId, defaultZoneI
 
   React.useEffect(() => {
     if (geoLocked) return;
-    setFilterState("all");
-    setFilterFacilityId("");
-    setFilterFacilityName("");
     const zoneArg = filterZone === "all" ? undefined : filterZone;
     stockApi.getStates(zoneArg).then((r) => setStates(r.data || [])).catch(() => setStates([]));
   }, [filterZone, geoLocked]);
+
+  const scope = React.useMemo(() => ({
+    state_id: geoLocked ? (defaultStateId ?? undefined) : (filterState !== "all" ? filterState : undefined),
+    zone_id: geoLocked ? (defaultZoneId ?? undefined) : (filterZone !== "all" ? filterZone : undefined),
+    year: year === "all" ? undefined : year,
+    quarter: quarter === "all" ? undefined : quarter,
+    provider: provider.trim() || undefined,
+    survey_date: surveyDate || undefined,
+  }), [geoLocked, defaultStateId, defaultZoneId, filterState, filterZone, year, quarter, provider, surveyDate]);
 
   const load = React.useCallback(async () => {
     setLoading(true);
     try {
       const res = await servicomApi.getDashboard(scope);
-      setData(res.data);
+      setData(res.data?.quality ?? null);
     } catch (err: any) {
-      toast.error("Failed to load dashboard", { description: err.message });
-    } finally { setLoading(false); }
+      toast.error("Failed to load SERVICOM dashboard", { description: err.message });
+    } finally {
+      setLoading(false);
+    }
   }, [scope]);
 
   React.useEffect(() => { load(); }, [load]);
 
-  const hasFilters = (!geoLocked && filterZone !== (defaultZoneId ?? "all"))
-    || (!geoLocked && filterState !== (defaultStateId ?? "all"))
-    || !!filterFacilityName
-    || !!filterHmoId
-    || filterTransmission !== "all";
-
-  const clearFilters = () => {
-    if (!geoLocked) {
-      setFilterZone(defaultZoneId ?? "all");
-      setFilterState(defaultStateId ?? "all");
-    }
-    setFilterFacilityId("");
-    setFilterFacilityName("");
-    setFilterHmoId("");
-    setFilterTransmission("all");
-  };
-
-  const unitScope = getUnitHeadScope(UNIT_NAME, scope.state_id, scope.zone_id);
-  const drillCtx = { subtitle: unitScope.drillSubtitle, breadcrumbs: [UNIT_NAME] };
-
-  const monthlyChart = React.useMemo(() => {
-    if (!data?.monthly_activity) return [];
-    return data.monthly_activity.map((m: any) => ({
-      ...m,
-      label: m.month?.slice(5) ?? m.month,
-    }));
-  }, [data]);
-
-  const statusChartData = React.useMemo(
-    () => (data?.complaint_by_status ?? []).filter((d: any) => d.count > 0),
-    [data],
+  const card = data?.comment_card;
+  const survey = data?.satisfaction;
+  const indicators = (survey?.indicators ?? []).filter((row: any) =>
+    !categoryFocus || row.category === categoryFocus,
   );
 
-  const drillSegment = (segment: string, title: string, extra?: Record<string, string>) => {
-    drill.openRecordDrill(segment, title, drillCtx, extra);
-  };
-
-  const drillComplaints = (title: string, filters: Record<string, string>) => {
-    drill.openRecordDrill("complaints", title, drillCtx, filters);
-  };
-
-  const drillMonth = (segment: string, month: string) => {
-    drill.openRecordDrill(
-      segment,
-      `${SEGMENT_LABELS[segment] || segment} — ${month}`,
-      { ...drillCtx, breadcrumbs: [...drillCtx.breadcrumbs, "Monthly Activity"] },
-      { month },
-    );
-  };
-
-  const onStateRow = (stateId: number, stateName: string) => {
-    drill.openDrill(
-      { segment: "state_breakdown", state_id: String(stateId) },
-      {
-        title: stateName,
-        subtitle: "Breakdown by record type under SERVICOM",
-        breadcrumbs: [UNIT_NAME, "By State"],
-      },
-      { resetStack: true },
-    );
-  };
-
-  const zoneLabel = filterZone === "all" ? "All Zones" : pickGeoLabel(zones, filterZone, "Zone");
-  const stateLabel = filterState === "all" ? "All States" : pickGeoLabel(states, filterState, "State");
+  const zoneLabel = filterZone === "all" ? "All zones" : pickGeoLabel(zones, filterZone, "Zone");
+  const stateLabel = filterState === "all" ? "All states" : pickGeoLabel(states, filterState, "State");
 
   return (
-    <div className="flex flex-col h-full bg-slate-50/30">
-      <div className="bg-white border-b border-border/50 px-4 md:px-6 py-3 sticky top-0 z-30 space-y-3">
-        <div className="flex items-center justify-end">
+    <div className="flex flex-col h-full bg-slate-50/40">
+      <div className="bg-white border-b border-slate-200 px-4 md:px-6 py-4 sticky top-0 z-30 space-y-3">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h1 className="text-lg font-semibold text-slate-900">SERVICOM</h1>
+            <p className="text-xs text-slate-500">Service delivery gaps across comment cards and facility surveys</p>
+          </div>
           <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
           </Button>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-2">
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-2">
+          <Filter label="Year">
+            <Select value={year} onValueChange={setYear}>
+              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {YEARS.map((y) => <SelectItem key={y} value={y}>{y === "all" ? "All years" : y}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </Filter>
+          <Filter label="Quarter">
+            <Select value={quarter} onValueChange={setQuarter}>
+              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All quarters</SelectItem>
+                <SelectItem value="1">Q1</SelectItem>
+                <SelectItem value="2">Q2</SelectItem>
+                <SelectItem value="3">Q3</SelectItem>
+                <SelectItem value="4">Q4</SelectItem>
+              </SelectContent>
+            </Select>
+          </Filter>
           {!geoLocked && (
             <>
-              <div className="space-y-1">
-                <Label className="text-[11px] text-slate-500">Zone</Label>
-                <Select value={filterZone} onValueChange={(v) => { setFilterZone(v); setFilterFacilityId(""); setFilterFacilityName(""); }}>
-                  <SelectTrigger className="h-9 w-full" displayValue={zoneLabel}>
-                    <SelectValue placeholder="Zone" />
-                  </SelectTrigger>
+              <Filter label="Zone">
+                <Select value={filterZone} onValueChange={(v) => { setFilterZone(v); setFilterState("all"); }}>
+                  <SelectTrigger className="h-9" displayValue={zoneLabel}><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Zones</SelectItem>
+                    <SelectItem value="all">All zones</SelectItem>
                     {zones.map((z) => <SelectItem key={z.id} value={String(z.id)}>{z.description}</SelectItem>)}
                   </SelectContent>
                 </Select>
-              </div>
-              <div className="space-y-1">
-                <Label className="text-[11px] text-slate-500">State</Label>
-                <Select value={filterState} onValueChange={(v) => { setFilterState(v); setFilterFacilityId(""); setFilterFacilityName(""); }}>
-                  <SelectTrigger className="h-9 w-full" displayValue={stateLabel}>
-                    <SelectValue placeholder="State" />
-                  </SelectTrigger>
+              </Filter>
+              <Filter label="State">
+                <Select value={filterState} onValueChange={setFilterState}>
+                  <SelectTrigger className="h-9" displayValue={stateLabel}><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All States</SelectItem>
+                    <SelectItem value="all">All states</SelectItem>
                     {states.map((s) => <SelectItem key={s.id} value={String(s.id)}>{s.description}</SelectItem>)}
                   </SelectContent>
                 </Select>
-              </div>
+              </Filter>
             </>
           )}
-          <div className="space-y-1">
-            <Label className="text-[11px] text-slate-500">Facility</Label>
-            <HcfFacilitySelect
-              requireState={false}
-              stateId={filterState !== "all" ? filterState : (defaultStateId ?? undefined)}
-              value={filterFacilityId}
-              onChange={(fac) => {
-                setFilterFacilityId(fac?.id ?? "");
-                setFilterFacilityName(fac?.name ?? "");
-              }}
-              placeholder="HCF facility"
-              className="h-9"
-            />
-          </div>
-          <div className="space-y-1">
-            <Label className="text-[11px] text-slate-500">HMO</Label>
-            <HmoProviderSelect
-              value={filterHmoId}
-              onChange={(hmo) => setFilterHmoId(hmo?.id ?? "")}
-              placeholder="HMO"
-              className="h-9"
-            />
-          </div>
-          <div className="space-y-1">
-            <Label className="text-[11px] text-slate-500">Transmission</Label>
-            <Select value={filterTransmission} onValueChange={setFilterTransmission}>
-              <SelectTrigger className="h-9 w-full" displayValue={filterTransmission === "all" ? "All channels" : filterTransmission}>
-                <SelectValue placeholder="Channel" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All channels</SelectItem>
-                {TRANSMISSION_ROUTES.map((r) => (
-                  <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          {hasFilters && (
-            <div className="flex items-end">
-              <Button variant="ghost" size="sm" className="h-9 text-slate-500 gap-1" onClick={clearFilters}>
-                <XCircle className="w-3.5 h-3.5" /> Clear filters
-              </Button>
-            </div>
-          )}
+          <Filter label="Facility">
+            <Input className="h-9" placeholder="Provider name" value={provider} onChange={(e) => setProvider(e.target.value)} />
+          </Filter>
+          <Filter label="Survey date">
+            <Input className="h-9" type="date" value={surveyDate} onChange={(e) => setSurveyDate(e.target.value)} />
+          </Filter>
         </div>
       </div>
 
       <ScrollArea className="flex-1">
-        <div className="w-full px-4 md:px-6 py-4 space-y-4">
+        <div className="px-4 md:px-6 py-5 space-y-8 max-w-[1400px]">
           {loading ? (
             <div className="flex items-center justify-center py-24 gap-3 text-slate-400">
-              <Loader2 className="w-6 h-6 animate-spin" /><span>Loading dashboard...</span>
+              <Loader2 className="w-5 h-5 animate-spin" /> Loading dashboard…
             </div>
-          ) : !data ? null : (
+          ) : (
             <>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <ClickableKpi
-                  label="Satisfaction Surveys"
-                  value={data.satisfaction_surveys ?? 0}
-                  icon={<ClipboardCheck className="w-5 h-5 text-emerald-600" />}
-                  onClick={() => drillSegment("surveys", "Satisfaction Surveys")}
-                />
-                <ClickableKpi
-                  label="Complaints Received"
-                  value={data.complaints_received ?? 0}
-                  icon={<MessageSquare className="w-5 h-5 text-blue-600" />}
-                  onClick={() => drillSegment("complaints", "All Complaints")}
-                />
-                <ClickableKpi
-                  label="Avg Satisfaction"
-                  value={data.avg_satisfaction != null ? `${data.avg_satisfaction}%` : "—"}
-                  icon={<TrendingUp className="w-5 h-5 text-[#25a872]" />}
-                  onClick={() => drillSegment("surveys", "Satisfaction Surveys")}
-                />
-                <ClickableKpi
-                  label="Resolution Rate"
-                  value={`${data.complaint_resolution_rate ?? 0}%`}
-                  icon={<CheckCircle2 className="w-5 h-5 text-emerald-600" />}
-                  onClick={() => drillComplaints("Resolved / Closed Complaints", { status: "resolved" })}
-                />
-              </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <Card className="rounded-2xl border-[#d4e8dc]">
-                  <CardHeader className="pb-2 flex flex-row items-center justify-between">
-                    <CardTitle className="text-sm font-bold">Monthly Activity</CardTitle>
-                    <DrillHint label="All surveys" onClick={() => drillSegment("surveys", "Satisfaction Surveys")} />
-                  </CardHeader>
-                  <CardContent className="h-[240px]">
-                    {monthlyChart.length === 0 ? (
-                      <ChartEmpty message="No surveys, charter cards, or complaints recorded yet." />
+              <section className="space-y-4">
+                <SectionTitle title="Citizens' Comment Card" note="Reception and overall use the 1–5 scale. The other questions stay on 1–4 and are shown as a percent of their own scale." />
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-stretch">
+                  <DashKpi label="Count of responses" value={card?.responses ?? 0} detail="Comment cards in this period" />
+                  <DashKpi label="Reception average" value={fmtScore(card?.reception_average)} detail="Mean of the reception question (1–5)" />
+                  <DashKpi label="Overall rating" value={fmtScore(card?.overall_rating)} detail="Mean of the overall question (1–5)" />
+                </div>
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 items-stretch">
+                  <DashChartCard title="Average score by question">
+                    {(card?.avg_by_question ?? []).every((q: any) => !q.responses) ? (
+                      <ChartEmpty message="No comment cards in this period." />
                     ) : (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart
-                        data={monthlyChart}
-                        onClick={(e: any) => {
-                          const month = e?.activePayload?.[0]?.payload?.month;
-                          if (month) drillMonth("complaints", month);
-                        }}
-                        style={{ cursor: "pointer" }}
-                      >
-                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                        <XAxis dataKey="label" tick={{ fontSize: 10 }} />
-                        <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
-                        <Tooltip />
-                        <Legend
-                          wrapperStyle={{ fontSize: 10, cursor: "pointer" }}
-                          onClick={(e: any) => {
-                            const key = String(e?.dataKey || "");
-                            const seg = key === "comment_cards" ? "comment_cards" : key === "surveys" ? "surveys" : "complaints";
-                            drillSegment(seg, SEGMENT_LABELS[seg] || seg);
-                          }}
-                        />
-                        <Line type="monotone" dataKey="surveys" name="Surveys" stroke="#25a872" strokeWidth={2} dot={{ r: 3 }} />
-                        <Line type="monotone" dataKey="comment_cards" name="Charter" stroke="#6366f1" strokeWidth={2} dot={{ r: 3 }} />
-                        <Line type="monotone" dataKey="complaints" name="Complaints" stroke="#3b82f6" strokeWidth={2} dot={{ r: 3 }} />
-                      </LineChart>
-                    </ResponsiveContainer>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={card?.avg_by_question ?? []} margin={{ left: 4, right: 8, top: 8 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                          <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+                          <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} unit="%" />
+                          <Tooltip formatter={(value: any, _n, item: any) => [`${value}% · avg ${item?.payload?.average ?? "—"} / ${item?.payload?.max}`, "Score"]} />
+                          <Bar dataKey="percent" fill="#1a7a52" radius={[4, 4, 0, 0]} maxBarSize={42} />
+                        </BarChart>
+                      </ResponsiveContainer>
                     )}
-                  </CardContent>
-                </Card>
-
-                <Card className="rounded-2xl border-[#d4e8dc]">
-                  <CardHeader className="pb-2 flex flex-row items-center justify-between">
-                    <CardTitle className="text-sm font-bold">Complaints by Status</CardTitle>
-                    <DrillHint label="All complaints" onClick={() => drillSegment("complaints", "All Complaints")} />
-                  </CardHeader>
-                  <CardContent className="h-[240px]">
-                    {statusChartData.length === 0 ? (
-                      <ChartEmpty message="No complaints recorded in the system." />
+                  </DashChartCard>
+                  <DashChartCard title="Response distribution: reception vs overall">
+                    {(card?.distribution ?? []).every((d: any) => !d.reception && !d.overall) ? (
+                      <ChartEmpty message="No reception or overall scores yet." />
                     ) : (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={statusChartData}
-                          dataKey="count" nameKey="status" cx="50%" cy="50%" outerRadius={75}
-                          label={({ status, count }) => `${String(status).slice(0, 14)}: ${count}`}
-                          style={{ cursor: "pointer" }}
-                          onClick={(_: any, idx: number) => {
-                            const row = statusChartData[idx];
-                            if (row?.status) drillComplaints(`Complaints — ${row.status}`, { status: row.status });
-                          }}
-                        >
-                          {statusChartData.map((_: any, i: number) => (
-                            <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                          ))}
-                        </Pie>
-                        <Tooltip />
-                      </PieChart>
-                    </ResponsiveContainer>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={card?.distribution ?? []} margin={{ left: 4, right: 8, top: 8 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                          <XAxis dataKey="score" tick={{ fontSize: 11 }} />
+                          <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
+                          <Tooltip />
+                          <Legend wrapperStyle={{ fontSize: 12 }} />
+                          <Bar dataKey="reception" name="Reception" fill="#1a7a52" radius={[4, 4, 0, 0]} maxBarSize={28} />
+                          <Bar dataKey="overall" name="Overall" fill="#7eb89a" radius={[4, 4, 0, 0]} maxBarSize={28} />
+                        </BarChart>
+                      </ResponsiveContainer>
                     )}
-                  </CardContent>
-                </Card>
-              </div>
+                  </DashChartCard>
+                </div>
+              </section>
 
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                <Card className="rounded-2xl border-[#d4e8dc]">
-                  <CardHeader className="pb-2 flex flex-row items-center justify-between">
-                    <CardTitle className="text-sm font-bold">By Category</CardTitle>
-                    <DrillHint label="All complaints" onClick={() => drillSegment("complaints", "All Complaints")} />
-                  </CardHeader>
-                  <CardContent className="h-[220px]">
-                    {(data.complaint_by_category ?? []).length === 0 ? (
-                      <ChartEmpty />
+              <section className="space-y-4">
+                <SectionTitle title="Healthcare facility customer satisfaction" note="A Yes answer is a positive response. Facility and survey date apply to this section." />
+                <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 items-stretch">
+                  <DashKpi label="Facilities surveyed" value={survey?.facilities_surveyed ?? 0} detail={`${survey?.surveys ?? 0} survey records`} />
+                  <DashKpi label="Overall response rate" value={survey?.overall_response_rate != null ? `${survey.overall_response_rate}%` : "—"} detail="Share of Yes answers" />
+                  <DashKpi label="Strongest category" value={survey?.strongest_category ? satisfactionCategoryLabel(survey.strongest_category.name) : "—"} detail={survey?.strongest_category ? `${survey.strongest_category.rate}% positive` : "Needs survey data"} />
+                  <DashKpi label="Priority category" value={survey?.priority_category ? satisfactionCategoryLabel(survey.priority_category.name) : "—"} detail={survey?.priority_category ? `${survey.priority_category.rate}% positive` : "Lowest category appears here"} />
+                </div>
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 items-start">
+                  <div className="rounded-xl border border-[#d4e8dc] bg-white p-4">
+                    <p className="text-sm font-semibold text-slate-800">Positive response rate by category</p>
+                    <p className="text-[11px] text-slate-500 mt-0.5 mb-3">Select a category to filter the indicators.</p>
+                    {(survey?.by_category ?? []).every((c: any) => c.positive_rate == null) ? (
+                      <ChartEmpty message="No satisfaction surveys in this period." />
                     ) : (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={data.complaint_by_category ?? []} layout="vertical" margin={{ left: 4 }}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis type="number" tick={{ fontSize: 10 }} />
-                        <YAxis type="category" dataKey="category" width={90} tick={{ fontSize: 9 }} />
-                        <Tooltip />
-                        <Bar
-                          dataKey="count" fill="#25a872" barSize={12} style={{ cursor: "pointer" }}
-                          onClick={(bar: any) => {
-                            if (bar?.category) drillComplaints(`Category: ${bar.category}`, { category: bar.category });
-                          }}
-                        />
-                      </BarChart>
-                    </ResponsiveContainer>
+                      <div className="space-y-2.5">
+                        {(survey?.by_category ?? []).map((row: any) => {
+                          const rate = Number(row.positive_rate) || 0;
+                          const selected = categoryFocus === row.category;
+                          return (
+                            <button
+                              key={row.category}
+                              type="button"
+                              onClick={() => setCategoryFocus(selected ? null : row.category)}
+                              className={`w-full rounded-lg px-2 py-1.5 text-left ${selected ? "bg-[#e8f6ee]" : "hover:bg-slate-50"}`}
+                            >
+                              <span className="flex items-baseline justify-between gap-3">
+                                <span className="text-sm font-medium text-slate-800">{satisfactionCategoryLabel(row.category)}</span>
+                                <span className="text-sm font-semibold tabular-nums text-slate-800">{rate}%</span>
+                              </span>
+                              <span className="mt-1.5 block h-2.5 rounded-full bg-slate-100 overflow-hidden">
+                                <span
+                                  className="block h-full rounded-full"
+                                  style={{ width: `${Math.max(0, Math.min(100, rate))}%`, background: rateTone(rate) }}
+                                />
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
                     )}
-                  </CardContent>
-                </Card>
-
-                <Card className="rounded-2xl border-[#d4e8dc]">
-                  <CardHeader className="pb-2 flex flex-row items-center justify-between">
-                    <CardTitle className="text-sm font-bold">By Domain</CardTitle>
-                    <DrillHint label="All complaints" onClick={() => drillSegment("complaints", "All Complaints")} />
-                  </CardHeader>
-                  <CardContent className="h-[220px]">
-                    {(data.complaint_by_domain ?? []).length === 0 ? (
-                      <ChartEmpty />
-                    ) : (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={data.complaint_by_domain ?? []}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="domain" tick={{ fontSize: 9 }} />
-                        <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
-                        <Tooltip />
-                        <Bar
-                          dataKey="count" fill="#3b82f6" barSize={20} style={{ cursor: "pointer" }}
-                          onClick={(bar: any) => {
-                            if (bar?.domain) drillComplaints(`Domain: ${bar.domain}`, { domain: bar.domain });
-                          }}
-                        />
-                      </BarChart>
-                    </ResponsiveContainer>
-                    )}
-                  </CardContent>
-                </Card>
-
-                <Card className="rounded-2xl border-[#d4e8dc]">
-                  <CardHeader className="pb-2 flex flex-row items-center justify-between">
-                    <CardTitle className="text-sm font-bold">By Priority</CardTitle>
-                    <DrillHint label="All complaints" onClick={() => drillSegment("complaints", "All Complaints")} />
-                  </CardHeader>
-                  <CardContent className="h-[220px]">
-                    {(data.complaint_by_priority ?? []).length === 0 ? (
-                      <ChartEmpty />
-                    ) : (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={data.complaint_by_priority ?? []}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="priority" tick={{ fontSize: 10 }} />
-                        <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
-                        <Tooltip />
-                        <Bar
-                          dataKey="count" fill="#f59e0b" barSize={24} style={{ cursor: "pointer" }}
-                          onClick={(bar: any) => {
-                            if (bar?.priority) drillComplaints(`Priority: ${bar.priority}`, { priority: bar.priority });
-                          }}
-                        />
-                      </BarChart>
-                    </ResponsiveContainer>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <Card className="rounded-2xl border-emerald-200 bg-emerald-50/30">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-bold text-emerald-800">Top Performing States</CardTitle>
-                    <p className="text-[11px] text-emerald-700/80">States with survey or charter data — ranked by composite score</p>
-                  </CardHeader>
-                  <CardContent className="space-y-2">
-                    {(data.top_states || []).map((s: any, i: number) => (
-                      <button
-                        key={s.state_id}
-                        type="button"
-                        className="flex items-center justify-between gap-2 text-sm w-full text-left hover:bg-emerald-100/50 rounded-lg px-2 py-1.5"
-                        onClick={() => onStateRow(s.state_id, s.state_name ?? `State #${s.state_id}`)}
-                      >
-                        <span className="flex items-center gap-2 min-w-0">
-                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-[10px] font-bold text-white">
-                            {i + 1}
-                          </span>
-                          <span className="font-semibold truncate">{s.state_name ?? `State #${s.state_id}`}</span>
-                        </span>
-                        <Badge variant="outline" className="shrink-0 text-emerald-700 border-emerald-300">{s.avg_score}%</Badge>
-                      </button>
-                    ))}
-                    {!(data.top_states?.length) && (
-                      <p className="text-xs text-slate-500">Need data from at least one state to rank performers.</p>
-                    )}
-                  </CardContent>
-                </Card>
-                <Card className="rounded-2xl border-rose-200 bg-rose-50/30">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-bold text-rose-800">Low Performing States</CardTitle>
-                    <p className="text-[11px] text-rose-700/80">Bottom half of ranked states — never duplicates the top list</p>
-                  </CardHeader>
-                  <CardContent className="space-y-2">
-                    {(data.low_states || []).map((s: any, i: number) => (
-                      <button
-                        key={s.state_id}
-                        type="button"
-                        className="flex items-center justify-between gap-2 text-sm w-full text-left hover:bg-rose-100/50 rounded-lg px-2 py-1.5"
-                        onClick={() => onStateRow(s.state_id, s.state_name ?? `State #${s.state_id}`)}
-                      >
-                        <span className="flex items-center gap-2 min-w-0">
-                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-rose-600 text-[10px] font-bold text-white">
-                            {i + 1}
-                          </span>
-                          <span className="font-semibold truncate">{s.state_name ?? `State #${s.state_id}`}</span>
-                        </span>
-                        <Badge variant="outline" className="shrink-0 text-rose-700 border-rose-300">{s.avg_score}%</Badge>
-                      </button>
-                    ))}
-                    {!(data.low_states?.length) && (
-                      <p className="text-xs text-slate-500">
-                        {(data.top_states?.length ?? 0) <= 1
-                          ? "Add data for more states to show low performers."
-                          : "No separate low performers in the current ranking."}
-                      </p>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <Card className="rounded-2xl border-[#d4e8dc] overflow-hidden">
-                  <CardHeader className="pb-2 border-b border-[#d4e8dc] flex flex-row items-center justify-between">
-                    <CardTitle className="text-sm font-bold">State Performance Rankings</CardTitle>
-                    <DrillHint label="All surveys" onClick={() => drillSegment("surveys", "Satisfaction Surveys")} />
-                  </CardHeader>
-                  <CardContent className="p-0">
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="bg-[#f0fdf7]">
-                          <TableHead className="text-xs">#</TableHead>
-                          <TableHead className="text-xs">State</TableHead>
-                          <TableHead className="text-xs text-right">Surveys</TableHead>
-                          <TableHead className="text-xs text-right">Charter</TableHead>
-                          <TableHead className="text-xs text-right">Score</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {(data.state_satisfaction_rankings ?? []).slice(0, 10).map((s: any, i: number) => (
-                          <TableRow
-                            key={s.state_id}
-                            className="cursor-pointer hover:bg-[#f0fdf7]"
-                            onClick={() => onStateRow(s.state_id, s.state_name ?? `State #${s.state_id}`)}
-                          >
-                            <TableCell className="text-xs font-bold">{i + 1}</TableCell>
-                            <TableCell className="text-sm font-semibold">{s.state_name ?? `State #${s.state_id}`}</TableCell>
-                            <TableCell className="text-xs text-right">{s.surveys ?? 0}</TableCell>
-                            <TableCell className="text-xs text-right">{s.comment_cards ?? 0}</TableCell>
-                            <TableCell className="text-xs text-right font-bold text-[#25a872]">{s.avg_score}%</TableCell>
+                  </div>
+                  <div className="rounded-xl border border-[#d4e8dc] bg-white p-4 flex flex-col min-h-[320px]">
+                    <div className="flex items-center justify-between gap-2 mb-3">
+                      <p className="text-sm font-semibold text-slate-800">Indicator-level positive response</p>
+                      {categoryFocus && (
+                        <button type="button" className="text-[11px] font-semibold text-[#145c3f]" onClick={() => setCategoryFocus(null)}>
+                          Show all
+                        </button>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-slate-500 mb-2">
+                      {categoryFocus ? satisfactionCategoryLabel(categoryFocus) : "All categories"}. Repeated means under 50% Yes in two or more quarters.
+                    </p>
+                    <div className="flex-1 overflow-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="text-xs">Indicator</TableHead>
+                            <TableHead className="text-xs text-right">Positive</TableHead>
+                            <TableHead className="text-xs">Flag</TableHead>
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </CardContent>
-                </Card>
-              </div>
+                        </TableHeader>
+                        <TableBody>
+                          {indicators.length === 0 ? (
+                            <TableRow><TableCell colSpan={3} className="text-xs text-slate-500">No indicators in this view.</TableCell></TableRow>
+                          ) : indicators.map((row: any) => (
+                            <TableRow key={row.id}>
+                              <TableCell className="text-xs">
+                                <span className="font-medium text-slate-700">{row.id}</span>
+                                <span className="block text-slate-500">{row.question}</span>
+                              </TableCell>
+                              <TableCell className="text-xs text-right tabular-nums">{row.positive_rate != null ? `${row.positive_rate}%` : "—"}</TableCell>
+                              <TableCell className="text-xs">
+                                {row.repeated_low ? (
+                                  <span className="text-rose-700 font-semibold">Repeated low</span>
+                                ) : row.low ? (
+                                  <span className="text-amber-700 font-semibold">Low</span>
+                                ) : (
+                                  <span className="text-slate-400">—</span>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+                </div>
+              </section>
             </>
           )}
         </div>
       </ScrollArea>
+    </div>
+  );
+}
 
-      <DashboardDrillPanel
-        open={drill.open}
-        context={drill.context}
-        rows={drill.rows}
-        loading={drill.loading}
-        onClose={drill.close}
-        onBack={drill.canGoBack ? drill.back : undefined}
-        onRowClick={(row) => {
-          if (row.meta?.match(/^(zone:|state:|segment:|report_type:)/)) drill.handleNestedRow(row);
-        }}
-        onStatClick={drill.handleStatClick}
-      />
+function Filter({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-1 min-w-0">
+      <Label className="text-[11px] text-slate-500">{label}</Label>
+      {children}
+    </div>
+  );
+}
+
+function SectionTitle({ title, note }: { title: string; note: string }) {
+  return (
+    <div>
+      <h2 className="text-base font-semibold text-slate-900">{title}</h2>
+      <p className="text-xs text-slate-500 mt-0.5">{note}</p>
     </div>
   );
 }

@@ -42,6 +42,7 @@ import {
   type LifecycleStage, type ComplaintSlaRuleRow, type InvestigationActionEntry,
 } from "./complaintRegisterConstants";
 import { isDirectorEnforcementUser } from "../enforcement/DirectorEnforcementDashboard";
+import ComplaintRegisterDashboard from "./ComplaintRegisterDashboard";
 import {
   COMPLAINT_PARTY_TYPES, respondentsForComplainant, offencesForParties,
   findOffenceById, offenceSelectOptions, partyTypeFromComplainantCategory,
@@ -664,6 +665,7 @@ export default function ServicomComplaintsPage({
   const queryStage = searchParams.get("stage") as LifecycleStage | null;
 
   const [formKey, setFormKey] = React.useState(0);
+  const [listPanel, setListPanel] = React.useState<"dashboard" | "register">("dashboard");
   const [complaints, setComplaints] = React.useState<any[]>([]);
   const [selected, setSelected] = React.useState<any | null>(null);
   const [loading, setLoading] = React.useState(true);
@@ -3962,6 +3964,26 @@ export default function ServicomComplaintsPage({
           <p className="text-[11px] text-slate-500">{listStats.total} complaint{listStats.total === 1 ? "" : "s"}</p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-1 p-0.5 rounded-lg bg-slate-100">
+            <Button
+              type="button"
+              variant={listPanel === "dashboard" ? "default" : "ghost"}
+              size="sm"
+              className={`h-7 text-[11px] px-2.5 ${listPanel === "dashboard" ? "bg-[#145c3f] hover:bg-[#0f4a31]" : ""}`}
+              onClick={() => setListPanel("dashboard")}
+            >
+              Dashboard
+            </Button>
+            <Button
+              type="button"
+              variant={listPanel === "register" ? "default" : "ghost"}
+              size="sm"
+              className={`h-7 text-[11px] px-2.5 ${listPanel === "register" ? "bg-[#145c3f] hover:bg-[#0f4a31]" : ""}`}
+              onClick={() => setListPanel("register")}
+            >
+              Register
+            </Button>
+          </div>
           <Button variant="outline" size="sm" onClick={load} disabled={loading} className="h-8 gap-1.5 text-xs">
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh
           </Button>
@@ -3974,6 +3996,14 @@ export default function ServicomComplaintsPage({
       </div>
 
       <div className="w-full px-4 md:px-5 py-3 space-y-3">
+        {listPanel === "dashboard" ? (
+          <ComplaintRegisterDashboard
+            defaultStateId={defaultStateId}
+            defaultZoneId={defaultZoneId}
+            lockLocation={hideGeoFields}
+          />
+        ) : (
+        <>
         {!isReportingOfficer && (
           <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-2">
             {[
@@ -4174,6 +4204,8 @@ export default function ServicomComplaintsPage({
           fitViewport
           getRowClassName={(c) => slaRowClass(c.sla?.color)}
         />
+        </>
+        )}
       </div>
     </div>
   );

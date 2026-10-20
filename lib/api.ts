@@ -320,7 +320,7 @@ export const stockApi = {
       method: "PATCH", body: JSON.stringify({ status }),
     }),
 
-  getDashboard: (filters?: { state_id?: string; zone_id?: string }) => {
+  getDashboard: (filters?: Record<string, string | undefined>) => {
     const params = new URLSearchParams(
       Object.entries(filters || {}).filter(([, v]) => !!v) as [string, string][]
     ).toString();
@@ -549,6 +549,9 @@ export const servicomApi = {
 
   listComplaints: (filters?: Record<string, string | undefined>) =>
     request<{ success: boolean; data: any[] }>(`/servicom/complaints${servicomFilters(filters)}`),
+
+  getComplaintsDashboard: (filters?: Record<string, string | undefined>) =>
+    request<{ success: boolean; data: any }>(`/servicom/complaints-dashboard${servicomFilters(filters)}`),
 
   previewComplaintNumber: (filters?: Record<string, string | undefined>) =>
     request<{ success: boolean; data: { complaint_number: string } }>(

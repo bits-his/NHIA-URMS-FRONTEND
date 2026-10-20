@@ -70,6 +70,46 @@ export function ClickableKpi({
   );
 }
 
+/** Equal-height KPI used by the SERVICOM, SVU, and complaint dashboards. */
+export function DashKpi({
+  label, value, detail, onClick,
+}: {
+  label: string;
+  value: string | number;
+  detail?: string;
+  onClick?: () => void;
+}) {
+  const Tag = onClick ? "button" : "div";
+  return (
+    <Tag
+      type={Tag === "button" ? "button" : undefined}
+      onClick={onClick}
+      className={`h-full min-h-[108px] rounded-xl border border-[#d4e8dc] bg-white p-4 text-left flex flex-col ${
+        onClick ? "hover:shadow-md hover:-translate-y-0.5 transition-all" : ""
+      }`}
+    >
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 leading-tight min-h-[28px]">{label}</p>
+      <p className="mt-1 text-xl font-semibold tabular-nums text-slate-900 leading-tight break-words">{value}</p>
+      <p className="mt-auto pt-2 text-xs text-slate-500 leading-snug min-h-[32px]">{detail || " "}</p>
+    </Tag>
+  );
+}
+
+export function DashChartCard({
+  title, children, className = "",
+}: {
+  title: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={`rounded-xl border border-[#d4e8dc] bg-white p-4 flex flex-col min-h-[320px] ${className}`}>
+      <p className="text-sm font-semibold text-slate-800 mb-3">{title}</p>
+      <div className="flex-1 min-h-[240px]">{children}</div>
+    </div>
+  );
+}
+
 export function DrillHint({ onClick, label = "View details" }: { onClick?: () => void; label?: string }) {
   if (!onClick) return null;
   return (
