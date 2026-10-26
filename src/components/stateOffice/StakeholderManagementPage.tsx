@@ -1,6 +1,6 @@
 import * as React from "react";
 import {
-  ArrowLeft, CheckCircle2, Clock, Eye, FileText, Loader2, Plus, RefreshCw,
+  ArrowLeft, CheckCircle2, Clock, Eye, FileText, Loader2, Plus, RefreshCw, XCircle,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -28,20 +28,23 @@ interface Props {
   defaultStateId?: string | null;
 }
 
-const STATUS_CONFIG = {
-  draft:     { label: "Draft",     cls: "bg-slate-100 text-slate-600 border-slate-200",       icon: <FileText className="w-3.5 h-3.5" /> },
-  submitted: { label: "Submitted", cls: "bg-blue-100 text-blue-700 border-blue-200",          icon: <Clock className="w-3.5 h-3.5" /> },
-  approved:  { label: "Approved",  cls: "bg-emerald-100 text-emerald-700 border-emerald-200", icon: <CheckCircle2 className="w-3.5 h-3.5" /> },
+const STATUS_CONFIG: Record<string, { label: string; cls: string; icon: React.ReactNode }> = {
+  draft:            { label: "Draft",           cls: "bg-slate-100 text-slate-600 border-slate-200",        icon: <FileText className="w-3.5 h-3.5" /> },
+  awaiting_review:  { label: "Awaiting review", cls: "bg-amber-100 text-amber-800 border-amber-200",       icon: <Clock className="w-3.5 h-3.5" /> },
+  returned:         { label: "Returned",        cls: "bg-rose-100 text-rose-700 border-rose-200",          icon: <XCircle className="w-3.5 h-3.5" /> },
+  endorsed:         { label: "Endorsed",        cls: "bg-teal-100 text-teal-800 border-teal-200",          icon: <CheckCircle2 className="w-3.5 h-3.5" /> },
+  submitted:        { label: "Submitted",       cls: "bg-emerald-100 text-emerald-700 border-emerald-200", icon: <CheckCircle2 className="w-3.5 h-3.5" /> },
+  approved:         { label: "Approved",        cls: "bg-emerald-100 text-emerald-700 border-emerald-200", icon: <CheckCircle2 className="w-3.5 h-3.5" /> },
 };
 
 type Mode = "list" | "create" | "edit" | "view";
 
 /**
  * Stakeholder Management hub — polished list + PPT form/detail.
- * Reporting officers see only their own reports; coordinators review/return.
+ * Reporting officers send for review → SC endorses → RO final-submits.
  */
 export default function StakeholderManagementPage({ onBack, defaultZoneId, defaultStateId }: Props) {
-  const { canCreate } = useStateOfficeAccess();
+  const { canCreate, canReview } = useStateOfficeAccess();
   const [mode, setMode] = React.useState<Mode>("list");
   const [selectedId, setSelectedId] = React.useState<number | null>(null);
   const [reports, setReports] = React.useState<any[]>([]);
@@ -75,9 +78,10 @@ export default function StakeholderManagementPage({ onBack, defaultZoneId, defau
 
   const counts = React.useMemo(() => ({
     total: reports.length,
-    draft: reports.filter((r) => r.status === "draft").length,
-    submitted: reports.filter((r) => r.status === "submitted").length,
-    approved: reports.filter((r) => r.status === "approved").length,
+    draft: reports.filter((r) => r.status === "draft" || r.status === "returned").length,
+    awaiting_review: reports.filter((r) => r.status === "awaiting_review").length,
+    endorsed: reports.filter((r) => r.status === "endorsed").length,
+    submitted: reports.filter((r) => r.status === "submitted" || r.status === "approved").length,
   }), [reports]);
 
   const backToList = () => {
@@ -123,7 +127,9 @@ export default function StakeholderManagementPage({ onBack, defaultZoneId, defau
               {STAKEHOLDER_MANAGEMENT_NAV_TITLE}
             </h2>
             <p className="text-xs text-slate-500 truncate">
-              {canCreate ? "Your engagement reports for the period" : "Review submitted engagement reports"}
+              {canReview
+                ? "Review and endorse engagement reports"
+                : "Draft, send for review, then final-submit after endorsement"}
             </p>
           </div>
         </div>
@@ -144,12 +150,13 @@ export default function StakeholderManagementPage({ onBack, defaultZoneId, defau
 
       <ScrollArea className="flex-1">
         <div className="w-full px-4 md:px-6 py-5 space-y-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
             {[
               { label: "Total", value: counts.total, tone: "text-[#0f3d2e] bg-white border-[#d4e8dc]" },
-              { label: "Draft", value: counts.draft, tone: "text-slate-600 bg-white border-slate-200" },
-              { label: "Submitted", value: counts.submitted, tone: "text-blue-700 bg-blue-50/80 border-blue-100" },
-              { label: "Approved", value: counts.approved, tone: "text-emerald-700 bg-emerald-50/80 border-emerald-100" },
+              { label: "Draft / Returned", value: counts.draft, tone: "text-slate-600 bg-white border-slate-200" },
+              { label: "Awaiting review", value: counts.awaiting_review, tone: "text-amber-800 bg-amber-50/80 border-amber-100" },
+              { label: "Endorsed", value: counts.endorsed, tone: "text-teal-800 bg-teal-50/80 border-teal-100" },
+              { label: "Submitted", value: counts.submitted, tone: "text-emerald-700 bg-emerald-50/80 border-emerald-100" },
             ].map((c) => (
               <div key={c.label} className={`rounded-xl border px-4 py-3 ${c.tone}`}>
                 <p className="text-2xl font-bold tabular-nums">{c.value}</p>
@@ -200,7 +207,7 @@ export default function StakeholderManagementPage({ onBack, defaultZoneId, defau
             </Select>
             <Select value={filterStatus} onValueChange={setFilterStatus}>
               <SelectTrigger className="w-full h-10 bg-[#f4f7f5] border-2 border-[#1a7a52]"
-                displayValue={filterStatus === "all" ? "All Statuses" : STATUS_CONFIG[filterStatus as keyof typeof STATUS_CONFIG]?.label}>
+                displayValue={filterStatus === "all" ? "All Statuses" : STATUS_CONFIG[filterStatus]?.label}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -247,7 +254,7 @@ export default function StakeholderManagementPage({ onBack, defaultZoneId, defau
                     </TableHeader>
                     <TableBody>
                       {reports.map((r) => {
-                        const sc = STATUS_CONFIG[r.status as keyof typeof STATUS_CONFIG] ?? STATUS_CONFIG.draft;
+                        const sc = STATUS_CONFIG[r.status] ?? STATUS_CONFIG.draft;
                         const activities = r.lines?.length ?? r.planned_activities ?? 0;
                         return (
                           <TableRow key={r.id} className="hover:bg-[#f8fdfb] border-b border-[#e8f3ec] last:border-0">
