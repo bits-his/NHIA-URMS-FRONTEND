@@ -96,6 +96,7 @@ import {
   PROVIDER_MANAGEMENT_PATH,
   PROVIDER_MANAGEMENT_DASHBOARD_VIEW,
   PROVIDER_MANAGEMENT_DASHBOARD_PATH,
+  PROVIDER_MANAGEMENT_DASHBOARD_NAV_TITLE,
 } from "@/src/components/stateOffice/enrolmentPillarTypes";
 import type { AccessEntry } from "@/src/access/types";
 import {
@@ -606,7 +607,15 @@ function formatNavTitle(title: string) {
   return title;
 }
 
-function displayName(node: TreeNode, role: string) {
+function displayName(node: TreeNode, role: string, depth = 0) {
+  // Standalone PM dashboard (group collapsed) — full title, not bare "Dashboard"
+  if (
+    node.kind === "leaf"
+    && depth === 0
+    && node.title === PROVIDER_MANAGEMENT_DASHBOARD_NAV_TITLE
+  ) {
+    return formatNavTitle(PROVIDER_MANAGEMENT_DASHBOARD_NAV_TITLE);
+  }
   if (node.kind === "leaf" && node.navLabel) return formatNavTitle(node.navLabel);
   if (role === "sdo" && node.title === "Dashboard") return "SDO Dashboard";
   return formatNavTitle(node.title);
@@ -647,7 +656,7 @@ function NavTreeItem({
       || (path !== "/" && location.pathname.startsWith(`${path}/`))
       || currentView === node.view;
     const LeafIcon = ICON_MAP[node.title] || File;
-    const label = displayName(node, role);
+    const label = displayName(node, role, depth);
     const Wrapper = depth > 0 ? SidebarMenuSubItem : SidebarMenuItem;
 
     return (
@@ -674,7 +683,7 @@ function NavTreeItem({
   }
 
   const FolderIcon = ICON_MAP[node.title] || Folder;
-  const folderLabel = displayName(node, role);
+  const folderLabel = displayName(node, role, depth);
   const FolderWrap = depth > 0 ? SidebarMenuSubItem : SidebarMenuItem;
 
   return (
