@@ -1,13 +1,26 @@
 import * as React from "react";
+import {
+  ArrowLeft, CheckCircle2, Clock, Eye, FileText, Loader2, Plus, RefreshCw,
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import StateOfficeReportsList from "./StateOfficeReportsList";
-import ActivityReportingTemplateForm from "./ActivityReportingTemplateForm";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { stateOfficeApi } from "@/lib/api";
+import { MONTHS, monthLabel, formatCount, formatDate, quarterFromMonth } from "./constants";
+import { buildReportingYearOptions } from "../monthly/reportingYears";
+import { ALL_STATES, useMonthlyStateFilter } from "../monthly/useMonthlyStateFilter";
 import {
   STAKEHOLDER_MANAGEMENT_NAV_TITLE,
   STAKEHOLDER_MANAGEMENT_PATH,
-  STAKEHOLDER_PILLAR_CHILDREN,
 } from "./enrolmentPillarTypes";
-import { ACTIVITY_TEMPLATE_BY_MODULE } from "./activityReportTemplateConfig";
+import { useStateOfficeAccess } from "@/src/access/createReviewAccess";
+import StakeholderEngagementForm from "./StakeholderEngagementForm";
+import StakeholderReportDetail from "./StakeholderReportDetail";
 
 interface Props {
   onBack: () => void;
@@ -15,39 +28,271 @@ interface Props {
   defaultStateId?: string | null;
 }
 
-const DEFAULT_MODULE = STAKEHOLDER_PILLAR_CHILDREN[0]?.key ?? "meetings-sshias";
-const DEFAULT_CONFIG = ACTIVITY_TEMPLATE_BY_MODULE[DEFAULT_MODULE]!;
+const STATUS_CONFIG = {
+  draft:     { label: "Draft",     cls: "bg-slate-100 text-slate-600 border-slate-200",       icon: <FileText className="w-3.5 h-3.5" /> },
+  submitted: { label: "Submitted", cls: "bg-blue-100 text-blue-700 border-blue-200",          icon: <Clock className="w-3.5 h-3.5" /> },
+  approved:  { label: "Approved",  cls: "bg-emerald-100 text-emerald-700 border-emerald-200", icon: <CheckCircle2 className="w-3.5 h-3.5" /> },
+};
 
-const MODULE_LABELS = Object.fromEntries(
-  STAKEHOLDER_PILLAR_CHILDREN.map((c) => [c.key, c.navLabel]),
-);
+type Mode = "list" | "create" | "edit" | "view";
 
 /**
- * Single Stakeholder Management hub: one list for all modules; type chosen in the form.
+ * Stakeholder Management hub — polished list + PPT form/detail.
+ * Reporting officers see only their own reports; coordinators review/return.
  */
 export default function StakeholderManagementPage({ onBack, defaultZoneId, defaultStateId }: Props) {
+  const { canCreate } = useStateOfficeAccess();
+  const [mode, setMode] = React.useState<Mode>("list");
+  const [selectedId, setSelectedId] = React.useState<number | null>(null);
+  const [reports, setReports] = React.useState<any[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [filterYear, setFilterYear] = React.useState("all");
+  const [filterMonth, setFilterMonth] = React.useState("all");
+  const [filterStatus, setFilterStatus] = React.useState("all");
+  const yearOptions = React.useMemo(() => buildReportingYearOptions(), []);
+  const { showStateFilter, filterState, setFilterState, states, apiStateId } = useMonthlyStateFilter(defaultStateId);
+
+  const load = React.useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await stateOfficeApi.stakeholder.list({
+        status: filterStatus !== "all" ? filterStatus : undefined,
+        zone_id: defaultZoneId ?? undefined,
+        state_id: apiStateId ?? undefined,
+        year: filterYear !== "all" ? filterYear : undefined,
+        month: filterMonth !== "all" ? filterMonth : undefined,
+      });
+      setReports(res.data ?? []);
+    } catch (err: any) {
+      toast.error("Failed to load reports", { description: err.message });
+      setReports([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [filterStatus, defaultZoneId, apiStateId, filterYear, filterMonth]);
+
+  React.useEffect(() => { load(); }, [load]);
+
+  const counts = React.useMemo(() => ({
+    total: reports.length,
+    draft: reports.filter((r) => r.status === "draft").length,
+    submitted: reports.filter((r) => r.status === "submitted").length,
+    approved: reports.filter((r) => r.status === "approved").length,
+  }), [reports]);
+
+  const backToList = () => {
+    setMode("list");
+    setSelectedId(null);
+    load();
+  };
+
+  if (mode === "create" || mode === "edit") {
+    return (
+      <StakeholderEngagementForm
+        activityModule="engagement-coordination"
+        pageTitle={STAKEHOLDER_MANAGEMENT_NAV_TITLE}
+        reportId={mode === "edit" ? selectedId : null}
+        onBack={backToList}
+        onCancel={backToList}
+        onSubmitted={backToList}
+        defaultZoneId={defaultZoneId}
+        defaultStateId={defaultStateId}
+      />
+    );
+  }
+
+  if (mode === "view" && selectedId != null) {
+    return (
+      <StakeholderReportDetail
+        reportId={selectedId}
+        onBack={backToList}
+        onEdit={canCreate ? () => setMode("edit") : undefined}
+      />
+    );
+  }
+
   return (
-    <StateOfficeReportsList
-      reportType="stakeholder"
-      listTitle={STAKEHOLDER_MANAGEMENT_NAV_TITLE}
-      activityModuleColumn
-      activityModuleLabels={MODULE_LABELS}
-      onBack={onBack}
-      defaultZoneId={defaultZoneId}
-      defaultStateId={defaultStateId}
-      renderForm={({ reportId, onBack: formBack, onSubmitted, defaultZoneId: z, defaultStateId: s }) => (
-        <ActivityReportingTemplateForm
-          config={DEFAULT_CONFIG}
-          allowModuleSelect
-          reportId={reportId}
-          onBack={formBack}
-          onCancel={formBack}
-          onSubmitted={onSubmitted}
-          defaultZoneId={z}
-          defaultStateId={s}
-        />
-      )}
-    />
+    <div className="flex flex-col h-full bg-[#f4f7f5]">
+      <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3.5 flex items-center justify-between sticky top-0 z-30 gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <Button variant="ghost" size="icon" onClick={onBack} className="rounded-full shrink-0" aria-label="Back">
+            <ArrowLeft className="w-5 h-5" />
+          </Button>
+          <div className="min-w-0">
+            <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">
+              {STAKEHOLDER_MANAGEMENT_NAV_TITLE}
+            </h2>
+            <p className="text-xs text-slate-500 truncate">
+              {canCreate ? "Your engagement reports for the period" : "Review submitted engagement reports"}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2 border-[#d4e8dc]">
+            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
+          </Button>
+          {canCreate && (
+            <Button
+              className="bg-orange-action hover:bg-orange-600 gap-2 shadow-md shadow-orange-500/15"
+              onClick={() => { setSelectedId(null); setMode("create"); }}
+            >
+              <Plus className="w-4 h-4" /> New Report
+            </Button>
+          )}
+        </div>
+      </div>
+
+      <ScrollArea className="flex-1">
+        <div className="w-full px-4 md:px-6 py-5 space-y-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {[
+              { label: "Total", value: counts.total, tone: "text-[#0f3d2e] bg-white border-[#d4e8dc]" },
+              { label: "Draft", value: counts.draft, tone: "text-slate-600 bg-white border-slate-200" },
+              { label: "Submitted", value: counts.submitted, tone: "text-blue-700 bg-blue-50/80 border-blue-100" },
+              { label: "Approved", value: counts.approved, tone: "text-emerald-700 bg-emerald-50/80 border-emerald-100" },
+            ].map((c) => (
+              <div key={c.label} className={`rounded-xl border px-4 py-3 ${c.tone}`}>
+                <p className="text-2xl font-bold tabular-nums">{c.value}</p>
+                <p className="text-[11px] font-semibold text-slate-500 mt-0.5">{c.label}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className={`grid gap-3 w-full rounded-xl border border-[#d4e8dc] bg-white px-4 py-4 ${
+            showStateFilter ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4" : "grid-cols-1 sm:grid-cols-3"
+          }`}>
+            {showStateFilter && (
+              <Select value={filterState} onValueChange={setFilterState}>
+                <SelectTrigger className="w-full h-10 bg-[#f4f7f5] border-2 border-[#1a7a52]"
+                  displayValue={filterState === ALL_STATES
+                    ? "All States"
+                    : (states.find((s) => String(s.id) === filterState)?.description ?? filterState)}>
+                  <SelectValue placeholder="All States" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ALL_STATES}>All States</SelectItem>
+                  {states.map((s) => (
+                    <SelectItem key={s.id} value={String(s.id)}>{s.description}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            <Select value={filterYear} onValueChange={setFilterYear}>
+              <SelectTrigger className="w-full h-10 bg-[#f4f7f5] border-2 border-[#1a7a52]" displayValue={filterYear === "all" ? "All Years" : filterYear}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Years</SelectItem>
+                {yearOptions.map((y) => <SelectItem key={y} value={y}>{y}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={filterMonth} onValueChange={setFilterMonth}>
+              <SelectTrigger className="w-full h-10 bg-[#f4f7f5] border-2 border-[#1a7a52]"
+                displayValue={filterMonth === "all" ? "All Months" : monthLabel(filterMonth)}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Months</SelectItem>
+                {MONTHS.map((m) => (
+                  <SelectItem key={m.value} value={String(m.value)}>{m.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={filterStatus} onValueChange={setFilterStatus}>
+              <SelectTrigger className="w-full h-10 bg-[#f4f7f5] border-2 border-[#1a7a52]"
+                displayValue={filterStatus === "all" ? "All Statuses" : STATUS_CONFIG[filterStatus as keyof typeof STATUS_CONFIG]?.label}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Statuses</SelectItem>
+                {Object.entries(STATUS_CONFIG).map(([k, v]) => (
+                  <SelectItem key={k} value={k}>{v.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden">
+            <CardContent className="p-0">
+              {loading ? (
+                <div className="flex items-center justify-center py-20 gap-3 text-slate-400">
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <span className="text-sm">Loading reports...</span>
+                </div>
+              ) : reports.length === 0 ? (
+                <div className="py-16 text-center space-y-3">
+                  <p className="text-sm text-slate-500">No stakeholder reports yet for these filters.</p>
+                  {canCreate && (
+                    <Button
+                      className="bg-orange-action hover:bg-orange-600 gap-2"
+                      onClick={() => { setSelectedId(null); setMode("create"); }}
+                    >
+                      <Plus className="w-4 h-4" /> Create first report
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-[#e8f5ee] hover:bg-[#e8f5ee] border-b border-[#d4e8dc]">
+                        <TableHead className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e]">Period</TableHead>
+                        <TableHead className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e]">State</TableHead>
+                        <TableHead className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e]">Quarter</TableHead>
+                        <TableHead className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e] text-right">Activities</TableHead>
+                        <TableHead className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e]">Submitted</TableHead>
+                        <TableHead className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e]">Status</TableHead>
+                        <TableHead className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e] text-right">Action</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {reports.map((r) => {
+                        const sc = STATUS_CONFIG[r.status as keyof typeof STATUS_CONFIG] ?? STATUS_CONFIG.draft;
+                        const activities = r.lines?.length ?? r.planned_activities ?? 0;
+                        return (
+                          <TableRow key={r.id} className="hover:bg-[#f8fdfb] border-b border-[#e8f3ec] last:border-0">
+                            <TableCell className="text-sm font-semibold text-[#0f3d2e] whitespace-nowrap">
+                              {monthLabel(r.reporting_month)} {r.reporting_year}
+                            </TableCell>
+                            <TableCell className="text-sm text-slate-700 whitespace-nowrap">
+                              {r.state?.description || "—"}
+                            </TableCell>
+                            <TableCell className="text-sm text-slate-500 whitespace-nowrap">
+                              Q{quarterFromMonth(r.reporting_month)}
+                            </TableCell>
+                            <TableCell className="text-sm font-semibold text-[#145c3f] text-right tabular-nums">
+                              {formatCount(activities)}
+                            </TableCell>
+                            <TableCell className="text-xs text-slate-500 whitespace-nowrap">
+                              {r.submission_date ? formatDate(r.submission_date) : "—"}
+                            </TableCell>
+                            <TableCell>
+                              <Badge className={`text-[10px] px-2 py-0.5 flex items-center gap-1 w-fit border ${sc.cls}`}>
+                                {sc.icon} {sc.label}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 gap-1.5 text-[#145c3f] hover:bg-[#eef6f1]"
+                                onClick={() => { setSelectedId(r.id); setMode("view"); }}
+                              >
+                                <Eye className="w-3.5 h-3.5" /> View
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </ScrollArea>
+    </div>
   );
 }
 

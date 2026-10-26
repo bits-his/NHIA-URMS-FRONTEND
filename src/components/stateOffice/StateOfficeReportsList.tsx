@@ -696,6 +696,16 @@ export default function StateOfficeReportsList({
                             <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Status</TableHead>
                             <TableHead className="text-right text-xs font-bold text-slate-600 whitespace-nowrap">View</TableHead>
                           </>
+                        ) : reportType === "stakeholder" ? (
+                          <>
+                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Period</TableHead>
+                            {showLocationCols && (
+                              <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">State</TableHead>
+                            )}
+                            <TableHead className="text-xs font-bold text-slate-600 text-right whitespace-nowrap">Activities</TableHead>
+                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Status</TableHead>
+                            <TableHead className="text-right text-xs font-bold text-slate-600 whitespace-nowrap">View</TableHead>
+                          </>
                         ) : (
                           <>
                             <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Reference</TableHead>
@@ -814,6 +824,32 @@ export default function StateOfficeReportsList({
                                 <TableCell className="text-sm font-semibold text-[#0f3d2e] whitespace-nowrap">{enrolmentSummary.activity}</TableCell>
                                 <TableCell className="text-sm text-slate-700 whitespace-nowrap">{enrolmentSummary.program}</TableCell>
                                 <TableCell className="text-sm font-medium text-slate-800 whitespace-nowrap">{enrolmentSummary.outcome}</TableCell>
+                                <TableCell>
+                                  <Badge className={`text-[10px] px-2 py-0.5 flex items-center gap-1 w-fit border ${sc.cls}`}>
+                                    {sc.icon} {sc.label}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <Button variant="ghost" size="sm"
+                                    className="h-7 gap-1 px-2 text-slate-500 hover:text-primary hover:bg-primary/10"
+                                    onClick={() => openReport(r, "view")}>
+                                    <Eye className="w-3.5 h-3.5" /> View
+                                  </Button>
+                                </TableCell>
+                              </>
+                            ) : reportType === "stakeholder" ? (
+                              <>
+                                <TableCell className="text-sm font-semibold text-slate-800 whitespace-nowrap">
+                                  {monthLabel(r.reporting_month)} {r.reporting_year}
+                                </TableCell>
+                                {showLocationCols && (
+                                  <TableCell className="text-sm font-semibold text-slate-800 whitespace-nowrap">
+                                    {r.state?.description || "—"}
+                                  </TableCell>
+                                )}
+                                <TableCell className="text-sm font-semibold text-[#145c3f] text-right tabular-nums">
+                                  {formatCount(reportLineCount(rowType, r))}
+                                </TableCell>
                                 <TableCell>
                                   <Badge className={`text-[10px] px-2 py-0.5 flex items-center gap-1 w-fit border ${sc.cls}`}>
                                     {sc.icon} {sc.label}

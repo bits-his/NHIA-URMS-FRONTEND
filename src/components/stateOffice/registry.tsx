@@ -6,6 +6,7 @@ import ExtendedReportDetail from "./ExtendedReportDetail";
 import ComplaintsReportForm from "./ComplaintsReportForm";
 import AccreditationReportForm from "./AccreditationReportForm";
 import StakeholderReportForm from "./StakeholderReportForm";
+import StakeholderReportDetail from "./StakeholderReportDetail";
 import HmoSelectionReportForm from "./HmoSelectionReportForm";
 import ChallengesReportForm from "./ChallengesReportForm";
 import WeeklyActionableForm from "./WeeklyActionableForm";
@@ -28,7 +29,7 @@ import AdhocSpecialAssignmentForm from "./AdhocSpecialAssignmentForm";
 import AdhocSpecialAssignmentDetail from "./AdhocSpecialAssignmentDetail";
 
 const EXTENDED_DETAIL = new Set<StateOfficeReportType>([
-  "complaints", "accreditation", "stakeholder", "hmo-selection", "challenges",
+  "complaints", "accreditation", "hmo-selection", "challenges",
   "extra-dependant", "hcf-change", ...ENROLMENT_DRIVE_REPORT_TYPES,
 ]);
 
@@ -74,6 +75,9 @@ export function StateOfficeDetailRouter(props: {
 }) {
   if (props.reportType === "enrolment") {
     return <EnrolmentReportDetail {...props} reportType="enrolment" />;
+  }
+  if (props.reportType === "stakeholder") {
+    return <StakeholderReportDetail {...props} reportType="stakeholder" />;
   }
   if (props.reportType === "weekly-actionable") {
     return <WeeklyActionableDetail {...props} />;
