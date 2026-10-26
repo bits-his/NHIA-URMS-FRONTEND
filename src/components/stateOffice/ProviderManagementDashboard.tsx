@@ -116,6 +116,13 @@ export default function ProviderManagementDashboard({
   /** SDO Level 3: national overview vs accreditation/reaccreditation pipeline (both mockups). */
   const [sdoView, setSdoView] = React.useState<"national" | "pipeline">("national");
   const [outputMeasure, setOutputMeasure] = React.useState<"accredited" | "reaccredited" | "awaiting" | "covered">("accredited");
+  const [compareWith, setCompareWith] = React.useState<"none" | "previous">("none");
+  const [trendSeries, setTrendSeries] = React.useState({
+    fsship_accreditation: true,
+    fsship_reaccreditation: true,
+    bhcpf_accreditation: true,
+    bhcpf_reaccreditation: true,
+  });
 
   React.useEffect(() => {
     stockApi.getZones().then((r) => setZones(r.data || [])).catch(() => setZones([]));
@@ -142,8 +149,9 @@ export default function ProviderManagementDashboard({
       programme,
       activity: activityFilter,
       activity_status: activityStatus,
+      compare_with: level === 4 && compareWith === "previous" ? "previous" : undefined,
     };
-  }, [level, sdoView, year, month, quarter, lockZone, lockState, defaultZoneId, defaultStateId, filterZone, filterState, programme, activity, activityStatus]);
+  }, [level, sdoView, year, month, quarter, lockZone, lockState, defaultZoneId, defaultStateId, filterZone, filterState, programme, activity, activityStatus, compareWith]);
 
   const load = React.useCallback(async () => {
     setLoading(true);
@@ -269,7 +277,7 @@ export default function ProviderManagementDashboard({
                   <SelectContent>{MONTHS.map((m) => <SelectItem key={m.v} value={m.v}>{m.l}</SelectItem>)}</SelectContent>
                 </Select>
               </FilterField>
-              {!lockZone && level >= 2 && (
+              {!lockZone && level >= 2 && level < 4 && (
                 <FilterField label="Zone">
                   <Select value={filterZone} onValueChange={(v) => { setFilterZone(v); setFilterState("all"); }}>
                     <SelectTrigger><SelectValue placeholder="All zones" /></SelectTrigger>
@@ -349,6 +357,28 @@ export default function ProviderManagementDashboard({
                   </Select>
                 </FilterField>
               )}
+              {level === 4 && (
+                <>
+                  <FilterField label="Geography">
+                    <Select value={filterZone} onValueChange={(v) => { setFilterZone(v); setFilterState("all"); }}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">National</SelectItem>
+                        {zones.map((z) => <SelectItem key={z.id} value={String(z.id)}>{z.description}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </FilterField>
+                  <FilterField label="Compare with">
+                    <Select value={compareWith} onValueChange={(v) => setCompareWith(v as "none" | "previous")}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">No comparison</SelectItem>
+                        <SelectItem value="previous">Previous period</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </FilterField>
+                </>
+              )}
               {level <= 2 && (
                 <FilterField label="Status">
                   <Select value={activityStatus} onValueChange={setActivityStatus}>
@@ -425,10 +455,10 @@ export default function ProviderManagementDashboard({
 
               {level === 4 && (
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                  <AccentKpi accent="blue" label="FSSHIP facilities accredited" value={fmtNum(kpis.fsship_accredited)} detail="Illustrative · selected period" />
-                  <AccentKpi accent="teal" label="FSSHIP facilities re-accredited" value={fmtNum(kpis.fsship_reaccredited)} detail="Separate output" />
-                  <AccentKpi accent="amber" label="BHCPF PHCs accredited" value={fmtNum(kpis.bhcpf_phcs_accredited)} detail="BHCPF only" />
-                  <AccentKpi accent="purple" label="BHCPF PHCs re-accredited" value={fmtNum(kpis.bhcpf_phcs_reaccredited)} detail="BHCPF only" />
+                  <AccentKpi accent="blue" label="FSSHIP facilities accredited" value={fmtNum(kpis.fsship_accredited)} detail={deltaDetail(kpis.fsship_accredited_delta, "Selected period")} />
+                  <AccentKpi accent="teal" label="FSSHIP facilities re-accredited" value={fmtNum(kpis.fsship_reaccredited)} detail={deltaDetail(kpis.fsship_reaccredited_delta, "Separate output")} />
+                  <AccentKpi accent="amber" label="BHCPF PHCs accredited" value={fmtNum(kpis.bhcpf_phcs_accredited)} detail={deltaDetail(kpis.bhcpf_phcs_accredited_delta, "BHCPF only")} />
+                  <AccentKpi accent="purple" label="BHCPF PHCs re-accredited" value={fmtNum(kpis.bhcpf_phcs_reaccredited)} detail={deltaDetail(kpis.bhcpf_phcs_reaccredited_delta, "BHCPF only")} />
                 </div>
               )}
 
@@ -586,17 +616,38 @@ export default function ProviderManagementDashboard({
               {level === 4 && (
                 <div className="grid lg:grid-cols-2 gap-4">
                   <DashChartCard title="Programme and activity output trend">
+                    <div className="flex flex-wrap gap-2 mb-2 px-1">
+                      {([
+                        ["fsship_accreditation", "FSSHIP accreditation", "#0ea5e9"],
+                        ["fsship_reaccreditation", "FSSHIP reaccreditation", "#ef4444"],
+                        ["bhcpf_accreditation", "BHCPF PHC accreditation", "#14b8a6"],
+                        ["bhcpf_reaccreditation", "BHCPF PHC reaccreditation", "#8b5cf6"],
+                      ] as const).map(([key, label, color]) => (
+                        <button
+                          key={key}
+                          type="button"
+                          onClick={() => setTrendSeries((s) => ({ ...s, [key]: !s[key] }))}
+                          className={`text-[10px] px-2 py-1 rounded-full border ${
+                            trendSeries[key] ? "bg-white border-slate-300 text-slate-700" : "bg-slate-100 border-slate-200 text-slate-400 line-through"
+                          }`}
+                        >
+                          <span className="inline-block w-2 h-2 rounded-full mr-1.5" style={{ background: color }} />
+                          {label}
+                        </button>
+                      ))}
+                    </div>
                     {execTrend.length === 0 ? <ChartEmpty message="No executive trend" /> : (
                       <ResponsiveContainer width="100%" height="100%">
                         <LineChart data={execTrend}>
                           <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                           <XAxis dataKey="label" tick={{ fontSize: 11 }} />
-                          <YAxis tick={{ fontSize: 11 }} />
+                          <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
                           <Tooltip contentStyle={tooltipStyle()} />
                           <Legend />
-                          <Line type="monotone" dataKey="bhcpf_accreditation" name="BHCPF PHC accreditation" stroke="#14b8a6" strokeWidth={2} dot={{ r: 3 }} />
-                          <Line type="monotone" dataKey="fsship_reaccreditation" name="FSSHIP reaccreditation" stroke="#ef4444" strokeWidth={2} dot={{ r: 3 }} />
-                          <Line type="monotone" dataKey="fsship_accreditation" name="FSSHIP accreditation" stroke="#0ea5e9" strokeWidth={2} dot={{ r: 3 }} />
+                          {trendSeries.bhcpf_accreditation && <Line type="monotone" dataKey="bhcpf_accreditation" name="BHCPF PHC accreditation" stroke="#14b8a6" strokeWidth={2} dot={{ r: 3 }} />}
+                          {trendSeries.bhcpf_reaccreditation && <Line type="monotone" dataKey="bhcpf_reaccreditation" name="BHCPF PHC reaccreditation" stroke="#8b5cf6" strokeWidth={2} dot={{ r: 3 }} />}
+                          {trendSeries.fsship_reaccreditation && <Line type="monotone" dataKey="fsship_reaccreditation" name="FSSHIP reaccreditation" stroke="#ef4444" strokeWidth={2} dot={{ r: 3 }} />}
+                          {trendSeries.fsship_accreditation && <Line type="monotone" dataKey="fsship_accreditation" name="FSSHIP accreditation" stroke="#0ea5e9" strokeWidth={2} dot={{ r: 3 }} />}
                         </LineChart>
                       </ResponsiveContainer>
                     )}
@@ -683,6 +734,13 @@ export default function ProviderManagementDashboard({
   );
 }
 
+function deltaDetail(delta: number | null | undefined, fallback: string) {
+  if (delta == null || Number.isNaN(Number(delta))) return fallback;
+  const n = Number(delta);
+  const sign = n > 0 ? "+" : "";
+  return `${fallback} · vs previous ${sign}${n.toLocaleString()}`;
+}
+
 function ActivityAnalysisPanel({ items }: { items: any[] }) {
   return (
     <div className="space-y-4">
@@ -694,10 +752,12 @@ function ActivityAnalysisPanel({ items }: { items: any[] }) {
         {items.map((item) => {
           const color = ANALYSIS_COLORS[item.key] || "#64748b";
           const rate = Math.min(100, Math.max(0, Number(item.plan_achievement) || 0));
+          const byState = item.by_state || [];
+          const byStatus = item.by_status || [];
           return (
-            <div key={item.key} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div key={item.key} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm space-y-3">
               <p className="text-sm font-bold uppercase tracking-wide" style={{ color }}>{item.title}</p>
-              <ul className="mt-3 space-y-2">
+              <ul className="space-y-2">
                 {(item.bullets || []).map((b: string) => (
                   <li key={b} className="text-sm text-slate-700 flex gap-2">
                     <span className="mt-1.5 h-1.5 w-1.5 rounded-full shrink-0" style={{ background: color }} />
@@ -705,9 +765,38 @@ function ActivityAnalysisPanel({ items }: { items: any[] }) {
                   </li>
                 ))}
               </ul>
-              <div className="mt-4 h-2 rounded-full bg-slate-100 overflow-hidden">
+              <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
                 <div className="h-full rounded-full transition-all" style={{ width: `${rate}%`, background: color }} />
               </div>
+              {(byState.length > 0 || byStatus.length > 0) && (
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  {byState.length > 0 && (
+                    <div className="h-[120px]">
+                      <p className="text-[10px] uppercase text-slate-400 mb-1">By state</p>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={byState.slice(0, 5)} layout="vertical" margin={{ top: 0, right: 4, left: 0, bottom: 0 }}>
+                          <XAxis type="number" hide />
+                          <YAxis type="category" dataKey="name" width={56} tick={{ fontSize: 9 }} />
+                          <Bar dataKey="covered" fill={color} radius={[0, 3, 3, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
+                  {byStatus.length > 0 && (
+                    <div className="h-[120px]">
+                      <p className="text-[10px] uppercase text-slate-400 mb-1">Status</p>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie data={byStatus} dataKey="count" nameKey="name" innerRadius={22} outerRadius={40}>
+                            {byStatus.map((_: any, i: number) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                          </Pie>
+                          <Tooltip contentStyle={tooltipStyle()} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           );
         })}
