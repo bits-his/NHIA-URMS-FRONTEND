@@ -112,6 +112,7 @@ export default function ProviderManagementDashboard({
   const [programme, setProgramme] = React.useState("all");
   const [activity, setActivity] = React.useState("all");
   const [activityStatus, setActivityStatus] = React.useState("all");
+  const [mainTab, setMainTab] = React.useState<"overview" | "analysis">("overview");
   /** SDO Level 3: national overview vs accreditation/reaccreditation pipeline (both mockups). */
   const [sdoView, setSdoView] = React.useState<"national" | "pipeline">("national");
   const [outputMeasure, setOutputMeasure] = React.useState<"accredited" | "reaccredited" | "awaiting" | "covered">("accredited");
@@ -383,6 +384,31 @@ export default function ProviderManagementDashboard({
             </div>
           </motion.div>
 
+          <div className="flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm w-full sm:w-fit">
+            <button
+              type="button"
+              onClick={() => setMainTab("overview")}
+              className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                mainTab === "overview"
+                  ? "bg-teal-700 text-white shadow-sm"
+                  : "text-slate-600 hover:bg-slate-50"
+              }`}
+            >
+              Overview
+            </button>
+            <button
+              type="button"
+              onClick={() => setMainTab("analysis")}
+              className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                mainTab === "analysis"
+                  ? "bg-teal-700 text-white shadow-sm"
+                  : "text-slate-600 hover:bg-slate-50"
+              }`}
+            >
+              Activity analysis
+            </button>
+          </div>
+
           {loading ? (
             <div className="flex items-center justify-center py-24 gap-3 text-slate-400">
               <Loader2 className="w-6 h-6 animate-spin text-teal-700" />
@@ -392,6 +418,8 @@ export default function ProviderManagementDashboard({
             <div className="rounded-xl border border-dashed border-slate-200 bg-white py-16 text-center text-sm text-slate-500">
               No dashboard data for this scope.
             </div>
+          ) : mainTab === "analysis" ? (
+            <ActivityAnalysisPanel items={activityAnalysis} />
           ) : (
             <>
               {/* ── Level KPI rows ── */}
@@ -713,10 +741,6 @@ export default function ProviderManagementDashboard({
               <p className="text-[11px] text-slate-400 text-center">
                 Rates use summed numerators ÷ summed denominators (not averages of percentages). Forms sold / returned are excluded from performance ranking.
               </p>
-
-              <div className="border-t border-slate-200 pt-6">
-                <ActivityAnalysisPanel items={activityAnalysis} />
-              </div>
             </>
           )}
         </div>
