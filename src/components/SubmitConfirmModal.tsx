@@ -23,7 +23,9 @@ const DEFAULTS = {
 
 export function useReportingOfficerSubmitConfirm() {
   const role = useSelector((s: RootState) => s.auth.user?.role ?? "");
-  const needsConfirm = CONFIRM_ROLES.has(role);
+  const needsConfirm = CONFIRM_ROLES.has(role)
+    || role === "reporting-officer"
+    || role.endsWith("-reporting-officer");
   const [open, setOpen] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
   const [copy, setCopy] = React.useState(DEFAULTS);

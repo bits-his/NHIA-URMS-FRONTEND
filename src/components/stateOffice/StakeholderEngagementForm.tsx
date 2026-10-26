@@ -426,6 +426,7 @@ export default function StakeholderEngagementForm({
   const [lines, setLines] = React.useState<Line[]>([]);
   const linesRef = React.useRef(lines);
   linesRef.current = lines;
+  const [reportStatus, setReportStatus] = React.useState("draft");
 
   const [view, setView] = React.useState<"register" | "activity">("register");
   const [entry, setEntry] = React.useState<Entry>(blankEntry);
@@ -633,9 +634,14 @@ export default function StakeholderEngagementForm({
     });
     linesRef.current = next;
     setLines(next);
+    setReportStatus(v.status || "draft");
     setView("register");
     if (v.activity_module && allowModuleSelect) setModuleKey(v.activity_module);
   };
+
+  const canEditContent = ["draft", "returned"].includes(reportStatus) || !reportId;
+  const canSendReview = canEditContent;
+  const canFinalSubmit = reportStatus === "endorsed";
 
   const afterPersist = async ({ id }: { id: number }) => {
     const pending = linesRef.current.filter((l) => l.supportingFiles.length > 0);
@@ -764,18 +770,24 @@ export default function StakeholderEngagementForm({
                                 </TableCell>
                                 <TableCell className="text-sm">{l.follow_up_required || "—"}</TableCell>
                                 <TableCell className="whitespace-nowrap">
-                                  <Button variant="ghost" size="sm" className="h-7 gap-1 px-2 text-[#145c3f]" onClick={() => startEdit(l._key)}>
-                                    <Pencil className="w-3.5 h-3.5" /> View / Edit
-                                  </Button>
-                                  <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-rose-500"
-                                    onClick={() => {
-                                      const next = linesRef.current.filter((x) => x._key !== l._key);
-                                      linesRef.current = next;
-                                      setLines(next);
-                                    }}
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                  </Button>
+                                  {canEditContent ? (
+                                    <>
+                                      <Button variant="ghost" size="sm" className="h-7 gap-1 px-2 text-[#145c3f]" onClick={() => startEdit(l._key)}>
+                                        <Pencil className="w-3.5 h-3.5" /> View / Edit
+                                      </Button>
+                                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-rose-500"
+                                        onClick={() => {
+                                          const next = linesRef.current.filter((x) => x._key !== l._key);
+                                          linesRef.current = next;
+                                          setLines(next);
+                                        }}
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                      </Button>
+                                    </>
+                                  ) : (
+                                    <span className="text-xs text-slate-400">Locked</span>
+                                  )}
                                 </TableCell>
                               </TableRow>
                             );
@@ -785,9 +797,13 @@ export default function StakeholderEngagementForm({
                     </div>
                   )}
                   <div className="px-4 py-3 border-t border-[#d4e8dc] flex flex-wrap items-center justify-between gap-2 bg-[#f4f7f5]">
-                    <Button variant="outline" className="gap-2 border-[#1a7a52] text-[#0f3d2e] hover:bg-[#eef6f1]" onClick={startAdd}>
-                      <Plus className="w-4 h-4" /> Add Activity
-                    </Button>
+                    {canEditContent ? (
+                      <Button variant="outline" className="gap-2 border-[#1a7a52] text-[#0f3d2e] hover:bg-[#eef6f1]" onClick={startAdd}>
+                        <Plus className="w-4 h-4" /> Add Activity
+                      </Button>
+                    ) : (
+                      <span />
+                    )}
                     <p className="text-[11px] text-slate-500">
                       Monthly activity count is calculated from saved records.
                     </p>
@@ -796,19 +812,62 @@ export default function StakeholderEngagementForm({
               </Card>
 
               <div className="flex flex-wrap items-center justify-end gap-2">
-                <Button variant="ghost" size="sm" className="gap-2" disabled={saving || submitting} onClick={() => persist("draft")}>
-                  {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                  Save Draft
-                </Button>
-                <Button
-                  className="bg-orange-action hover:bg-orange-600 gap-2"
-                  disabled={saving || submitting || lines.length === 0}
-                  onClick={() => requestSubmit(() => persist("submitted"))}
-                >
-                  {submitting
-                    ? <><Loader2 className="w-4 h-4 animate-spin" /> Submitting...</>
-                    : <><Send className="w-4 h-4" /> Submit Report</>}
-                </Button>
+                {canEditContent && (
+                  <>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="gap-2"
+                      disabled={saving || submitting}
+                      onClick={() => void persist(reportStatus === "returned" ? "returned" : "draft").then(() => {
+                        setReportStatus(reportStatus === "returned" ? "returned" : "draft");
+                      })}
+                    >
+                      {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                      Save Draft
+                    </Button>
+                    {canSendReview && (
+                      <Button
+                        className="bg-orange-action hover:bg-orange-600 gap-2"
+                        disabled={saving || submitting || lines.length === 0}
+                        onClick={() => requestSubmit(() => void persist("awaiting_review").then(() => setReportStatus("awaiting_review")))}
+                      >
+                        {submitting
+                          ? <><Loader2 className="w-4 h-4 animate-spin" /> Sending...</>
+                          : <><Send className="w-4 h-4" /> Send for Review</>}
+                      </Button>
+                    )}
+                  </>
+                )}
+                {canFinalSubmit && (
+                  <Button
+                    className="bg-[#0f3d2e] hover:bg-[#145c3f] gap-2"
+                    disabled={saving || submitting}
+                    onClick={() => requestSubmit(
+                      () => void persist("submitted").then(() => setReportStatus("submitted")),
+                      {
+                        force: true,
+                        title: "Confirm final submission",
+                        description: "This will complete the report after State Coordinator endorsement. You will not be able to edit it afterwards.",
+                        confirmLabel: "Yes, final submit",
+                      },
+                    )}
+                  >
+                    {submitting
+                      ? <><Loader2 className="w-4 h-4 animate-spin" /> Submitting...</>
+                      : <><Send className="w-4 h-4" /> Final Submit</>}
+                  </Button>
+                )}
+                {!canEditContent && !canFinalSubmit && (
+                  <p className="text-xs text-slate-500">
+                    This report is {reportStatus.replace(/_/g, " ")}. Editing is locked.
+                  </p>
+                )}
+                {canFinalSubmit && (
+                  <p className="text-xs text-slate-500 w-full text-right">
+                    Endorsed by the State Coordinator — make the final submission to complete.
+                  </p>
+                )}
               </div>
             </>
           ) : (
