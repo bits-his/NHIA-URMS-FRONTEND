@@ -145,7 +145,7 @@ export const ENROLMENT_PROGRAMS = [
   { code: "PRG-0010", label: "Equity Programs" },
 ] as const;
 
-export const ENROLMENT_RENEWABLE_PROGRAM_LABELS = new Set(
+export const ENROLMENT_RENEWABLE_PROGRAM_LABELS = new Set<string>(
   ENROLMENT_PROGRAMS.filter((p) => Boolean((p as { renewable?: boolean }).renewable)).map((p) => p.label),
 );
 
