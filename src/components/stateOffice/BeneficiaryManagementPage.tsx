@@ -1,10 +1,13 @@
 import * as React from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { BadgeCheck, CheckCircle2, Clock, FileText, Plus, RefreshCw, Send } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Clock, Eye, FileText, Loader2, Plus, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import CustomTable, { type CustomTableField } from "@/components/CustomTable";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { stateOfficeApi } from "@/lib/api";
 import { useStateOfficeAccess } from "@/src/access/createReviewAccess";
 import { buildReportingYearOptions } from "../monthly/reportingYears";
@@ -46,10 +49,10 @@ interface Report {
 const REPORT_TYPES = new Set<string>(BENEFICIARY_REPORT_TYPES);
 
 const STATUS = {
-  draft: { label: "Draft", cls: "bg-slate-100 text-slate-600" },
-  submitted: { label: "In review", cls: "bg-blue-50 text-blue-700" },
-  approved: { label: "Approved", cls: "bg-emerald-50 text-emerald-700" },
-  endorsed: { label: "Endorsed", cls: "bg-amber-50 text-amber-800" },
+  draft: { label: "Draft", cls: "bg-slate-100 text-slate-600 border-slate-200", icon: <FileText className="w-3.5 h-3.5" /> },
+  submitted: { label: "In review", cls: "bg-amber-100 text-amber-800 border-amber-200", icon: <Clock className="w-3.5 h-3.5" /> },
+  approved: { label: "Approved", cls: "bg-emerald-100 text-emerald-700 border-emerald-200", icon: <CheckCircle2 className="w-3.5 h-3.5" /> },
+  endorsed: { label: "Endorsed", cls: "bg-teal-100 text-teal-800 border-teal-200", icon: <CheckCircle2 className="w-3.5 h-3.5" /> },
 } as const;
 
 function reportStatus(row: { status: keyof typeof STATUS; endorsed?: boolean | number }) {
@@ -63,7 +66,7 @@ function isReportType(value: string | null): value is ReportType {
 
 export default function BeneficiaryManagementPage({ onBack, defaultZoneId, defaultStateId }: Props) {
   const [searchParams, setSearchParams] = useSearchParams();
-  const { canCreate } = useStateOfficeAccess();
+  const { canCreate, canReview } = useStateOfficeAccess();
   const modeParam = searchParams.get("mode");
   const mode: Mode =
     modeParam === "new" || modeParam === "view" || modeParam === "edit"
@@ -166,99 +169,6 @@ export default function BeneficiaryManagementPage({ onBack, defaultZoneId, defau
     setFormKey((key) => key + 1);
   }, [setQuery]);
 
-  const fields: CustomTableField[] = [
-    {
-      title: "Period",
-      value: "period",
-      className: "w-[14%]",
-      custom: true,
-      component: (row: Report) => (
-        <span className="text-[11px] font-medium text-slate-800 whitespace-nowrap">
-          {monthLabel(row.reporting_month)} {row.reporting_year}
-        </span>
-      ),
-    },
-    ...(showLocation
-      ? [
-          {
-            title: "Zone",
-            value: "zone",
-            className: "w-[12%]",
-            custom: true,
-            component: (row: Report) => (
-              <span className="text-[11px] truncate block">{row.zone?.description || "—"}</span>
-            ),
-          },
-          {
-            title: "State",
-            value: "state",
-            className: "w-[12%]",
-            custom: true,
-            component: (row: Report) => (
-              <span className="text-[11px] font-medium truncate block">{row.state?.description || "—"}</span>
-            ),
-          },
-        ] satisfies CustomTableField[]
-      : []),
-    {
-      title: "Activity",
-      value: "activity",
-      className: "w-[18%]",
-      custom: true,
-      component: (row: Report) => (
-        <span className="text-[11px] font-semibold text-[#145c3f]">
-          {beneficiaryListSummary(row).activity}
-        </span>
-      ),
-    },
-    {
-      title: "Subject",
-      value: "subject",
-      className: "w-[22%]",
-      custom: true,
-      component: (row: Report) => {
-        const subject = beneficiaryListSummary(row).subject;
-        return (
-          <span className="text-[11px] text-slate-700 truncate block" title={subject}>
-            {subject}
-          </span>
-        );
-      },
-    },
-    {
-      title: "Status",
-      value: "status",
-      className: "w-[12%]",
-      custom: true,
-      component: (row: Report) => {
-        const status = reportStatus(row);
-        return (
-          <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${status.cls}`}>
-            {status.label}
-          </span>
-        );
-      },
-    },
-    {
-      title: "",
-      value: "action",
-      className: "w-[8%] text-right",
-      custom: true,
-      component: (row: Report) => (
-        <div className="flex justify-end">
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-7 px-2 text-[11px] font-semibold border-[#d4e8dc] hover:bg-[#e8f5ee] hover:text-[#145c3f]"
-            onClick={() => setQuery({ mode: "view", id: row.id, type: row.__reportType })}
-          >
-            View
-          </Button>
-        </div>
-      ),
-    },
-  ];
-
   if (mode === "view" && reportId) {
     return (
       <BeneficiaryReportView
@@ -295,60 +205,67 @@ export default function BeneficiaryManagementPage({ onBack, defaultZoneId, defau
     approved: filtered.filter((row) => row.status === "approved").length,
   };
   const statCards = [
-    { label: "Total", value: counts.total, icon: <FileText className="w-3.5 h-3.5 text-[#25a872]" />, accent: "border-[#d4e8dc] bg-white" },
-    { label: "Draft", value: counts.draft, icon: <Clock className="w-3.5 h-3.5 text-amber-600" />, accent: "border-amber-200 bg-amber-50/50" },
-    { label: "In review", value: counts.submitted, icon: <Send className="w-3.5 h-3.5 text-blue-600" />, accent: "border-blue-200 bg-blue-50/50" },
-    { label: "Endorsed", value: counts.endorsed, icon: <BadgeCheck className="w-3.5 h-3.5 text-[#145c3f]" />, accent: "border-[#d4e8dc] bg-[#f4fbf7]" },
-    { label: "Approved", value: counts.approved, icon: <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />, accent: "border-emerald-200 bg-emerald-50/50" },
+    { label: "Total", value: counts.total, tone: "text-[#0f3d2e] bg-white border-[#d4e8dc]" },
+    { label: "Draft", value: counts.draft, tone: "text-slate-600 bg-white border-slate-200" },
+    { label: "In review", value: counts.submitted, tone: "text-amber-800 bg-amber-50/80 border-amber-100" },
+    { label: "Endorsed", value: counts.endorsed, tone: "text-teal-800 bg-teal-50/80 border-teal-100" },
+    { label: "Approved", value: counts.approved, tone: "text-emerald-700 bg-emerald-50/80 border-emerald-100" },
   ];
 
   return (
-    <div className="bg-[#f4f7f5] min-h-full">
-      <div className="bg-white border-b px-4 md:px-5 py-2.5 flex items-center justify-between gap-3 sticky top-0 z-30">
-        <div className="min-w-0">
-          <h2 className="text-base font-bold tracking-tight truncate">{BENEFICIARY_MANAGEMENT_NAV_TITLE}</h2>
-          <p className="text-[11px] text-slate-500">
-            {loading ? "Loading…" : `${filtered.length} report${filtered.length === 1 ? "" : "s"}`}
-          </p>
+    <div className="flex flex-col h-full bg-[#f4f7f5]">
+      <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3.5 flex items-center justify-between sticky top-0 z-30 gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <Button variant="ghost" size="icon" onClick={onBack} className="rounded-full shrink-0" aria-label="Back">
+            <ArrowLeft className="w-5 h-5" />
+          </Button>
+          <div className="min-w-0">
+            <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">
+              {BENEFICIARY_MANAGEMENT_NAV_TITLE}
+            </h2>
+            <p className="text-xs text-slate-500 truncate">
+              {canReview
+                ? "Review and endorse beneficiary reports"
+                : "Send for review, then submit as approved after endorsement"}
+            </p>
+          </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <Button variant="outline" size="sm" onClick={load} disabled={loading} className="h-8 gap-1.5 text-xs">
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh
+          <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2 border-[#d4e8dc]">
+            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
           </Button>
           {canCreate && (
             <Button
-              size="sm"
-              className="h-8 bg-orange-action hover:bg-orange-600 gap-1.5 text-xs"
+              className="bg-orange-action hover:bg-orange-600 gap-2 shadow-md shadow-orange-500/15"
               onClick={() => {
                 setFormKey((key) => key + 1);
                 setQuery({ mode: "new" });
               }}
             >
-              <Plus className="w-3.5 h-3.5" /> New Report
+              <Plus className="w-4 h-4" /> New Report
             </Button>
           )}
         </div>
       </div>
 
-      <div className="w-full px-4 md:px-5 py-3 space-y-3">
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-2">
-          {statCards.map((card) => (
-            <div key={card.label} className={`rounded-lg border px-3 py-2 flex items-center gap-2.5 ${card.accent}`}>
-              {card.icon}
-              <div className="min-w-0">
-                <p className="text-lg font-bold text-slate-800 tabular-nums leading-none">{loading ? "—" : card.value}</p>
-                <p className="text-[10px] font-medium text-slate-500 mt-0.5 truncate">{card.label}</p>
+      <ScrollArea className="flex-1">
+        <div className="w-full px-4 md:px-6 py-5 space-y-4">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            {statCards.map((card) => (
+              <div key={card.label} className={`rounded-xl border px-4 py-3 ${card.tone}`}>
+                <p className="text-2xl font-bold tabular-nums">{loading ? "—" : card.value}</p>
+                <p className="text-[11px] font-semibold text-slate-500 mt-0.5">{card.label}</p>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
 
-        <div className="rounded-lg border border-[#d4e8dc] bg-white p-2">
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-1.5">
+          <div className={`grid gap-3 w-full rounded-xl border border-[#d4e8dc] bg-white px-4 py-4 ${
+            showStateFilter ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-5" : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4"
+          }`}>
             {showStateFilter && (
               <Select value={filterState} onValueChange={setFilterState}>
-                <SelectTrigger className="h-8 w-full text-xs" displayValue={filterState === ALL_STATES ? "State" : (states.find((s) => String(s.id) === filterState)?.description ?? "State")}>
-                  <SelectValue placeholder="State" />
+                <SelectTrigger className="w-full h-10 bg-[#f4f7f5] border-2 border-[#1a7a52]" displayValue={filterState === ALL_STATES ? "All States" : (states.find((s) => String(s.id) === filterState)?.description ?? filterState)}>
+                  <SelectValue placeholder="All States" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value={ALL_STATES}>All States</SelectItem>
@@ -357,8 +274,8 @@ export default function BeneficiaryManagementPage({ onBack, defaultZoneId, defau
               </Select>
             )}
             <Select value={filterYear} onValueChange={setFilterYear}>
-              <SelectTrigger className="h-8 w-full text-xs" displayValue={filterYear === "all" ? "Year" : filterYear}>
-                <SelectValue placeholder="Year" />
+              <SelectTrigger className="w-full h-10 bg-[#f4f7f5] border-2 border-[#1a7a52]" displayValue={filterYear === "all" ? "All Years" : filterYear}>
+                <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Years</SelectItem>
@@ -366,8 +283,8 @@ export default function BeneficiaryManagementPage({ onBack, defaultZoneId, defau
               </SelectContent>
             </Select>
             <Select value={filterMonth} onValueChange={setFilterMonth}>
-              <SelectTrigger className="h-8 w-full text-xs" displayValue={filterMonth === "all" ? "Month" : monthLabel(filterMonth)}>
-                <SelectValue placeholder="Month" />
+              <SelectTrigger className="w-full h-10 bg-[#f4f7f5] border-2 border-[#1a7a52]" displayValue={filterMonth === "all" ? "All Months" : monthLabel(filterMonth)}>
+                <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Months</SelectItem>
@@ -375,8 +292,8 @@ export default function BeneficiaryManagementPage({ onBack, defaultZoneId, defau
               </SelectContent>
             </Select>
             <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="h-8 w-full text-xs" displayValue={filterStatus === "all" ? "Status" : STATUS[filterStatus as keyof typeof STATUS]?.label}>
-                <SelectValue placeholder="Status" />
+              <SelectTrigger className="w-full h-10 bg-[#f4f7f5] border-2 border-[#1a7a52]" displayValue={filterStatus === "all" ? "All Statuses" : STATUS[filterStatus as keyof typeof STATUS]?.label}>
+                <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Statuses</SelectItem>
@@ -387,8 +304,8 @@ export default function BeneficiaryManagementPage({ onBack, defaultZoneId, defau
               </SelectContent>
             </Select>
             <Select value={filterActivity} onValueChange={setFilterActivity}>
-              <SelectTrigger className="h-8 w-full text-xs" displayValue={filterActivity === "all" ? "Activity" : (BENEFICIARY_LIST_FILTERS.find((item) => item.value === filterActivity)?.label ?? "Activity")}>
-                <SelectValue placeholder="Activity" />
+              <SelectTrigger className="w-full h-10 bg-[#f4f7f5] border-2 border-[#1a7a52]" displayValue={filterActivity === "all" ? "All Activities" : (BENEFICIARY_LIST_FILTERS.find((item) => item.value === filterActivity)?.label ?? "Activity")}>
+                <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Activities</SelectItem>
@@ -400,7 +317,7 @@ export default function BeneficiaryManagementPage({ onBack, defaultZoneId, defau
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-8 px-2 text-slate-500 text-[11px]"
+                  className="text-slate-500"
                   onClick={() => {
                     setFilterYear("all");
                     setFilterMonth("all");
@@ -414,17 +331,94 @@ export default function BeneficiaryManagementPage({ onBack, defaultZoneId, defau
               </div>
             )}
           </div>
-        </div>
 
-        <CustomTable
-          data={filtered}
-          fields={fields}
-          loading={loading}
-          pageSize={15}
-          message="No reports found — create a report or adjust the filters"
-          fitViewport
-        />
-      </div>
+          <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden">
+            <CardContent className="p-0">
+              {loading ? (
+                <div className="flex items-center justify-center py-20 gap-3 text-slate-400">
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <span className="text-sm">Loading reports...</span>
+                </div>
+              ) : filtered.length === 0 ? (
+                <div className="py-16 text-center space-y-3">
+                  <p className="text-sm text-slate-500">No beneficiary reports yet for these filters.</p>
+                  {canCreate && (
+                    <Button
+                      className="bg-orange-action hover:bg-orange-600 gap-2"
+                      onClick={() => {
+                        setFormKey((key) => key + 1);
+                        setQuery({ mode: "new" });
+                      }}
+                    >
+                      <Plus className="w-4 h-4" /> Create first report
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-[#e8f5ee] hover:bg-[#e8f5ee] border-b border-[#d4e8dc]">
+                        <TableHead className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e]">Period</TableHead>
+                        {showLocation && (
+                          <TableHead className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e]">Zone</TableHead>
+                        )}
+                        <TableHead className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e]">State</TableHead>
+                        <TableHead className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e]">Activity</TableHead>
+                        <TableHead className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e]">Subject</TableHead>
+                        <TableHead className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e]">Status</TableHead>
+                        <TableHead className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e] text-right">Action</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filtered.map((row) => {
+                        const status = reportStatus(row);
+                        const summary = beneficiaryListSummary(row);
+                        return (
+                          <TableRow key={`${row.__reportType}-${row.id}`} className="hover:bg-[#f8fdfb] border-b border-[#e8f3ec] last:border-0">
+                            <TableCell className="text-sm font-semibold text-[#0f3d2e] whitespace-nowrap">
+                              {monthLabel(row.reporting_month)} {row.reporting_year}
+                            </TableCell>
+                            {showLocation && (
+                              <TableCell className="text-sm text-slate-700 whitespace-nowrap">
+                                {row.zone?.description || "—"}
+                              </TableCell>
+                            )}
+                            <TableCell className="text-sm text-slate-700 whitespace-nowrap">
+                              {row.state?.description || "—"}
+                            </TableCell>
+                            <TableCell className="text-sm font-semibold text-[#145c3f] whitespace-nowrap">
+                              {summary.activity}
+                            </TableCell>
+                            <TableCell className="text-sm text-slate-700 max-w-[16rem] truncate" title={summary.subject}>
+                              {summary.subject}
+                            </TableCell>
+                            <TableCell>
+                              <Badge className={`text-[10px] px-2 py-0.5 flex items-center gap-1 w-fit border ${status.cls}`}>
+                                {status.icon} {status.label}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 gap-1.5 text-[#145c3f] hover:bg-[#eef6f1]"
+                                onClick={() => setQuery({ mode: "view", id: row.id, type: row.__reportType })}
+                              >
+                                <Eye className="w-3.5 h-3.5" /> View
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </ScrollArea>
     </div>
   );
 }

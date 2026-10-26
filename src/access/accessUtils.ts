@@ -43,7 +43,7 @@ const HMO_INDEBTEDNESS_TITLES = HMO_INDEBTEDNESS_CHILDREN.map((c) => c.title);
 const HMO_INDEBTEDNESS_COLLATION = "HMO Indebtedness Collation";
 
 /** Legacy per-activity privilege titles → single Enrolment Drives leaf */
-const LEGACY_ENROLMENT_DRIVE_TITLES = new Set(
+const LEGACY_ENROLMENT_DRIVE_TITLES = new Set<string>(
   ENROLMENT_DRIVE_TYPES.flatMap((t) => [t.title, t.navLabel]),
 );
 

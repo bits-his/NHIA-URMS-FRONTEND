@@ -635,7 +635,6 @@ export default function BeneficiaryManagementForm({
       hideBasicInfo
       showQuarter
       preserveHeader
-      compact
       onLoaded={loadData}
       afterPersist={afterPersist}
       validate={() => {
@@ -749,25 +748,28 @@ export default function BeneficiaryManagementForm({
         };
         return (
           <div className="space-y-4 pb-2">
-            <div className="rounded-lg border border-[#d4e8dc] bg-white p-4 md:p-5">
-              <ReportBasicInfo {...header} lockZone={header.lockZone} lockState={header.lockState} showQuarter embedded />
-            </div>
-
-            {!activity && (
-              <div className="grid gap-4 sm:grid-cols-2">
-                {BENEFICIARY_ACTIVITIES.map((item) => (
-                  <button
-                    key={item.key}
-                    type="button"
-                    onClick={() => pickActivity(item.key)}
-                    className="rounded-2xl border-2 border-[#d4e8dc] bg-white px-6 py-12 min-h-[8.5rem] text-left transition-all hover:border-[#1a7a52] hover:bg-[#f0fdf7] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1a7a52]/40"
-                  >
-                    <p className="text-xl font-bold text-slate-800">{item.label}</p>
-                    <p className="text-sm text-slate-600 mt-2">{item.hint}</p>
-                  </button>
-                ))}
-              </div>
-            )}
+            <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden">
+              <CardContent className="space-y-5 p-4 md:p-5">
+                <ReportBasicInfo {...header} lockZone={header.lockZone} lockState={header.lockState} showQuarter embedded />
+                {!activity && (
+                  <div className="border-t border-[#e8f3ec] pt-4 space-y-4">
+                    <p className="text-base font-semibold text-[#0f3d2e]">Select an activity to begin</p>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      {BENEFICIARY_ACTIVITIES.map((item) => (
+                        <button
+                          key={item.key}
+                          type="button"
+                          onClick={() => pickActivity(item.key)}
+                          className="rounded-2xl border-2 border-[#d4e8dc] bg-white px-6 py-12 min-h-[8.5rem] text-left transition-all hover:border-[#1a7a52] hover:bg-[#f0fdf7]"
+                        >
+                          <p className="text-xl font-bold text-slate-800">{item.label}</p>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
             {activity && lines.length > 0 && (
               <div className="rounded-lg border border-[#d4e8dc] bg-white overflow-hidden">

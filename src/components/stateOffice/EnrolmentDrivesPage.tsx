@@ -7,6 +7,7 @@ import {
   ENROLMENT_DRIVE_REPORT_TYPES,
   ENROLMENT_DRIVE_TYPES,
   enrolmentDriveReportType,
+  isEnrolmentDriveType,
 } from "./enrolmentDriveTypes";
 
 interface Props {
@@ -31,7 +32,7 @@ export default function EnrolmentDrivesPage({ onBack, defaultZoneId, defaultStat
       defaultStateId={defaultStateId}
       renderForm={({ reportId, reportType, onBack: formBack, onSubmitted, defaultZoneId: z, defaultStateId: s }) => (
         <EnrolmentDriveForm
-          reportType={reportType}
+          reportType={isEnrolmentDriveType(reportType) ? reportType : DEFAULT_REPORT_TYPE}
           reportId={reportId}
           onBack={formBack}
           onCancel={formBack}
