@@ -293,7 +293,8 @@ export function expandAccessEntries(access: AccessEntry[]): AccessEntry[] {
   // Merge legacy per-activity Enrolment Drive / Stakeholder privileges into single leaves
   zonalIdx = out.findIndex(e => resolveModuleTitle(e.access_to) === ZONAL_MODULE);
   if (zonalIdx >= 0) {
-    let funcs = out[zonalIdx].functionalities;
+    // Clone — Redux/Immer freezes functionalities; never push onto the store array.
+    let funcs = [...(out[zonalIdx].functionalities ?? [])];
     const hasDrive = funcs.some(
       f => normalizeFunctionalityTitle(f, ZONAL_MODULE) === ENROLMENT_DRIVES_NAV_TITLE,
     );
