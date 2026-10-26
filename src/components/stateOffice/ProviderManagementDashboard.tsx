@@ -107,6 +107,8 @@ export default function ProviderManagementDashboard({
   const [year, setYear] = React.useState(String(currentYear));
   const [month, setMonth] = React.useState("all");
   const [quarter, setQuarter] = React.useState("all");
+  /** DG Level 4 period preset — matches PPTX “Year to date”. */
+  const [periodPreset, setPeriodPreset] = React.useState<"ytd" | "year" | "q1" | "q2" | "q3" | "q4">("ytd");
   const [filterZone, setFilterZone] = React.useState(defaultZoneId ?? "all");
   const [filterState, setFilterState] = React.useState(defaultStateId ?? "all");
   const [programme, setProgramme] = React.useState("all");
@@ -116,12 +118,14 @@ export default function ProviderManagementDashboard({
   /** SDO Level 3: national overview vs accreditation/reaccreditation pipeline (both mockups). */
   const [sdoView, setSdoView] = React.useState<"national" | "pipeline">("national");
   const [outputMeasure, setOutputMeasure] = React.useState<"accredited" | "reaccredited" | "awaiting" | "covered">("accredited");
-  const [compareWith, setCompareWith] = React.useState<"none" | "previous">("none");
+  const [compareWith, setCompareWith] = React.useState<"none" | "previous">(
+    () => (levelFromRole(user?.role || "") === 4 ? "previous" : "none"),
+  );
   const [trendSeries, setTrendSeries] = React.useState({
     fsship_accreditation: true,
     fsship_reaccreditation: true,
     bhcpf_accreditation: true,
-    bhcpf_reaccreditation: true,
+    bhcpf_reaccreditation: false, // Level 4 mockup shows three series by default
   });
 
   React.useEffect(() => {
@@ -139,11 +143,32 @@ export default function ProviderManagementDashboard({
     const activityFilter = (level === 3 && sdoView === "pipeline")
       ? "all"
       : activity;
+
+    let periodMonth = month === "all" ? undefined : month;
+    let periodQuarter = quarter === "all" ? undefined : quarter;
+    let period: string | undefined;
+    if (level === 4) {
+      if (periodPreset === "ytd") {
+        period = "ytd";
+        periodMonth = undefined;
+        periodQuarter = undefined;
+      } else if (periodPreset === "year") {
+        period = undefined;
+        periodMonth = undefined;
+        periodQuarter = undefined;
+      } else {
+        period = undefined;
+        periodMonth = undefined;
+        periodQuarter = periodPreset.replace("q", "");
+      }
+    }
+
     return {
       level,
       year,
-      month: month === "all" ? undefined : month,
-      quarter: quarter === "all" ? undefined : quarter,
+      month: periodMonth,
+      quarter: periodQuarter,
+      period,
       zone_id: lockZone ? (defaultZoneId ?? undefined) : (filterZone !== "all" ? filterZone : undefined),
       state_id: lockState ? (defaultStateId ?? undefined) : (filterState !== "all" ? filterState : undefined),
       programme,
@@ -151,7 +176,7 @@ export default function ProviderManagementDashboard({
       activity_status: activityStatus,
       compare_with: level === 4 && compareWith === "previous" ? "previous" : undefined,
     };
-  }, [level, sdoView, year, month, quarter, lockZone, lockState, defaultZoneId, defaultStateId, filterZone, filterState, programme, activity, activityStatus, compareWith]);
+  }, [level, sdoView, year, month, quarter, periodPreset, lockZone, lockState, defaultZoneId, defaultStateId, filterZone, filterState, programme, activity, activityStatus, compareWith]);
 
   const load = React.useCallback(async () => {
     setLoading(true);
@@ -245,116 +270,49 @@ export default function ProviderManagementDashboard({
             animate={{ opacity: 1, y: 0 }}
             className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
           >
-            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
-              <FilterField label="Reporting period · Year">
-                <Select value={year} onValueChange={setYear}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{YEARS.map((y) => <SelectItem key={y} value={y}>{y}</SelectItem>)}</SelectContent>
-                </Select>
-              </FilterField>
-              <FilterField label="Quarter">
-                <Select value={quarter} onValueChange={(v) => { setQuarter(v); if (v !== "all") setMonth("all"); }}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All quarters</SelectItem>
-                    {[1, 2, 3, 4].map((q) => <SelectItem key={q} value={String(q)}>Q{q}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </FilterField>
-              <FilterField label="Month">
-                <Select value={month} onValueChange={(v) => { setMonth(v); if (v !== "all") setQuarter("all"); }}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{MONTHS.map((m) => <SelectItem key={m.v} value={m.v}>{m.l}</SelectItem>)}</SelectContent>
-                </Select>
-              </FilterField>
-              {!lockZone && level >= 2 && level < 4 && (
-                <FilterField label="Zone">
-                  <Select value={filterZone} onValueChange={(v) => { setFilterZone(v); setFilterState("all"); }}>
-                    <SelectTrigger><SelectValue placeholder="All zones" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All zones</SelectItem>
-                      {zones.map((z) => <SelectItem key={z.id} value={String(z.id)}>{z.description}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </FilterField>
-              )}
-              {!lockState && level <= 2 && (
-                <FilterField label="State">
-                  <Select value={filterState} onValueChange={setFilterState} disabled={lockState}>
-                    <SelectTrigger><SelectValue placeholder={lockState ? "Assigned state" : "All states"} /></SelectTrigger>
-                    <SelectContent>
-                      {!lockState && <SelectItem value="all">All states</SelectItem>}
-                      {states.map((s) => <SelectItem key={s.id} value={String(s.id)}>{s.description}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </FilterField>
-              )}
-              <FilterField label="Programme">
-                <Select value={programme} onValueChange={setProgramme}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All programmes</SelectItem>
-                    {PROVIDER_RELATED_PROGRAMMES.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </FilterField>
-              <FilterField label={level === 3 && sdoPipeline ? "Activity type" : "Activity"}>
-                <Select
-                  value={activity}
-                  onValueChange={(v) => {
-                    setActivity(v);
-                    if (level === 3 && (v === "accreditation" || v === "reaccreditation")) {
-                      setSdoView("pipeline");
-                    }
-                  }}
-                >
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All activities</SelectItem>
-                    {PROVIDER_FORM_TYPES.map((f) => <SelectItem key={f.key} value={f.key}>{f.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </FilterField>
-              {level === 3 && (
-                <FilterField label="View">
-                  <Select
-                    value={sdoView}
-                    onValueChange={(v) => {
-                      const next = v as "national" | "pipeline";
-                      setSdoView(next);
-                      if (next === "pipeline" && activity === "all") setActivity("accreditation");
-                      if (next === "national") setActivity("all");
-                    }}
-                  >
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="national">National / zone</SelectItem>
-                      <SelectItem value="pipeline">Pipeline (Acc / Re-acc)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </FilterField>
-              )}
-              {level === 3 && sdoPipeline && (
-                <FilterField label="Output measure">
-                  <Select value={outputMeasure} onValueChange={(v) => setOutputMeasure(v as typeof outputMeasure)}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="accredited">Facilities accredited</SelectItem>
-                      <SelectItem value="reaccredited">Facilities re-accredited</SelectItem>
-                      <SelectItem value="awaiting">Awaiting</SelectItem>
-                      <SelectItem value="covered">Facilities covered</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </FilterField>
-              )}
-              {level === 4 && (
+            <div className={`grid grid-cols-2 md:grid-cols-3 gap-3 ${level === 4 ? "xl:grid-cols-5" : "xl:grid-cols-6"}`}>
+              {level === 4 ? (
                 <>
+                  <FilterField label="Period">
+                    <Select
+                      value={periodPreset}
+                      onValueChange={(v) => setPeriodPreset(v as typeof periodPreset)}
+                    >
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="ytd">Year to date</SelectItem>
+                        <SelectItem value="year">Full year ({year})</SelectItem>
+                        <SelectItem value="q1">Q1</SelectItem>
+                        <SelectItem value="q2">Q2</SelectItem>
+                        <SelectItem value="q3">Q3</SelectItem>
+                        <SelectItem value="q4">Q4</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </FilterField>
                   <FilterField label="Geography">
                     <Select value={filterZone} onValueChange={(v) => { setFilterZone(v); setFilterState("all"); }}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">National</SelectItem>
                         {zones.map((z) => <SelectItem key={z.id} value={String(z.id)}>{z.description}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </FilterField>
+                  <FilterField label="Programme">
+                    <Select value={programme} onValueChange={setProgramme}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">FSSHIP / BHCPF</SelectItem>
+                        {PROVIDER_RELATED_PROGRAMMES.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </FilterField>
+                  <FilterField label="Activity type">
+                    <Select value={activity} onValueChange={setActivity}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Select activity</SelectItem>
+                        {PROVIDER_FORM_TYPES.map((f) => <SelectItem key={f.key} value={f.key}>{f.label}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </FilterField>
@@ -368,18 +326,122 @@ export default function ProviderManagementDashboard({
                     </Select>
                   </FilterField>
                 </>
-              )}
-              {level <= 2 && (
-                <FilterField label="Status">
-                  <Select value={activityStatus} onValueChange={setActivityStatus}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {ACTIVITY_STATUSES.map((s) => (
-                        <SelectItem key={s} value={s}>{s === "all" ? "All activity statuses" : s}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </FilterField>
+              ) : (
+                <>
+                  <FilterField label="Reporting period · Year">
+                    <Select value={year} onValueChange={setYear}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>{YEARS.map((y) => <SelectItem key={y} value={y}>{y}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </FilterField>
+                  <FilterField label="Quarter">
+                    <Select value={quarter} onValueChange={(v) => { setQuarter(v); if (v !== "all") setMonth("all"); }}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All quarters</SelectItem>
+                        {[1, 2, 3, 4].map((q) => <SelectItem key={q} value={String(q)}>Q{q}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </FilterField>
+                  <FilterField label="Month">
+                    <Select value={month} onValueChange={(v) => { setMonth(v); if (v !== "all") setQuarter("all"); }}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>{MONTHS.map((m) => <SelectItem key={m.v} value={m.v}>{m.l}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </FilterField>
+                  {!lockZone && level >= 2 && (
+                    <FilterField label="Zone">
+                      <Select value={filterZone} onValueChange={(v) => { setFilterZone(v); setFilterState("all"); }}>
+                        <SelectTrigger><SelectValue placeholder="All zones" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All zones</SelectItem>
+                          {zones.map((z) => <SelectItem key={z.id} value={String(z.id)}>{z.description}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </FilterField>
+                  )}
+                  {!lockState && level <= 2 && (
+                    <FilterField label="State">
+                      <Select value={filterState} onValueChange={setFilterState} disabled={lockState}>
+                        <SelectTrigger><SelectValue placeholder={lockState ? "Assigned state" : "All states"} /></SelectTrigger>
+                        <SelectContent>
+                          {!lockState && <SelectItem value="all">All states</SelectItem>}
+                          {states.map((s) => <SelectItem key={s.id} value={String(s.id)}>{s.description}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </FilterField>
+                  )}
+                  <FilterField label="Programme">
+                    <Select value={programme} onValueChange={setProgramme}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All programmes</SelectItem>
+                        {PROVIDER_RELATED_PROGRAMMES.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </FilterField>
+                  <FilterField label={level === 3 && sdoPipeline ? "Activity type" : "Activity"}>
+                    <Select
+                      value={activity}
+                      onValueChange={(v) => {
+                        setActivity(v);
+                        if (level === 3 && (v === "accreditation" || v === "reaccreditation")) {
+                          setSdoView("pipeline");
+                        }
+                      }}
+                    >
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All activities</SelectItem>
+                        {PROVIDER_FORM_TYPES.map((f) => <SelectItem key={f.key} value={f.key}>{f.label}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </FilterField>
+                  {level === 3 && (
+                    <FilterField label="View">
+                      <Select
+                        value={sdoView}
+                        onValueChange={(v) => {
+                          const next = v as "national" | "pipeline";
+                          setSdoView(next);
+                          if (next === "pipeline" && activity === "all") setActivity("accreditation");
+                          if (next === "national") setActivity("all");
+                        }}
+                      >
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="national">National / zone</SelectItem>
+                          <SelectItem value="pipeline">Pipeline (Acc / Re-acc)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </FilterField>
+                  )}
+                  {level === 3 && sdoPipeline && (
+                    <FilterField label="Output measure">
+                      <Select value={outputMeasure} onValueChange={(v) => setOutputMeasure(v as typeof outputMeasure)}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="accredited">Facilities accredited</SelectItem>
+                          <SelectItem value="reaccredited">Facilities re-accredited</SelectItem>
+                          <SelectItem value="awaiting">Awaiting</SelectItem>
+                          <SelectItem value="covered">Facilities covered</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </FilterField>
+                  )}
+                  {level <= 2 && (
+                    <FilterField label="Status">
+                      <Select value={activityStatus} onValueChange={setActivityStatus}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {ACTIVITY_STATUSES.map((s) => (
+                            <SelectItem key={s} value={s}>{s === "all" ? "All activity statuses" : s}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </FilterField>
+                  )}
+                </>
               )}
             </div>
           </motion.div>
@@ -697,46 +759,56 @@ export default function ProviderManagementDashboard({
               )}
 
               {/* ── Action / exceptions panel ── */}
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
-                <div className="flex items-center gap-2 mb-3">
-                  <AlertTriangle className="w-4 h-4 text-amber-600" />
-                  <p className="text-sm font-bold uppercase tracking-wide text-slate-800">
-                    {level === 1 ? "State action queue" : level === 2 ? "Zonal follow-up" : level === 3 ? "National exceptions" : "Executive decisions"}
+              {level === 4 ? (
+                <div className="rounded-xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
+                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500 mb-2">Executive decisions</p>
+                  <p className="text-sm text-slate-700 leading-relaxed">
+                    {actionQueue[0]
+                      || "Direct follow-up by programme and activity; request time-bound improvement plans from zones; monitor accreditation and re-accreditation separately."}
                   </p>
                 </div>
-                {level === 1 && showPipelineDrill ? (
-                  <p className="text-sm text-slate-600 leading-relaxed">
-                    Review initial accreditation and reaccreditation pipelines separately. Drill down by facility, programme and activity record.
-                  </p>
-                ) : level === 3 && sdoPipeline ? (
-                  <p className="text-sm text-slate-600 leading-relaxed">
-                    Highlight zones with high pending workloads or low outputs for the selected programme/activity. Use BHCPF PHC-specific fields when BHCPF is selected.
-                  </p>
-                ) : level === 3 && !sdoPipeline ? (
-                  <ul className="space-y-2">
-                    {[
-                      "Identify zones with sustained low plan achievement",
-                      "Separate accreditation and reaccreditation outputs",
-                      "Review programme-specific BHCPF PHC counts",
-                      "Escalate recurring operational barriers",
-                    ].map((item) => (
-                      <li key={item} className="text-sm text-slate-700 flex gap-2 leading-snug">
-                        <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-teal-600 shrink-0" />
-                        {item}
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <ul className="space-y-2">
-                    {actionQueue.map((item: string) => (
-                      <li key={item} className="text-sm text-slate-700 flex gap-2 leading-snug">
-                        <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-teal-600 shrink-0" />
-                        {item}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
+              ) : (
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
+                  <div className="flex items-center gap-2 mb-3">
+                    <AlertTriangle className="w-4 h-4 text-amber-600" />
+                    <p className="text-sm font-bold uppercase tracking-wide text-slate-800">
+                      {level === 1 ? "State action queue" : level === 2 ? "Zonal follow-up" : "National exceptions"}
+                    </p>
+                  </div>
+                  {level === 1 && showPipelineDrill ? (
+                    <p className="text-sm text-slate-600 leading-relaxed">
+                      Review initial accreditation and reaccreditation pipelines separately. Drill down by facility, programme and activity record.
+                    </p>
+                  ) : level === 3 && sdoPipeline ? (
+                    <p className="text-sm text-slate-600 leading-relaxed">
+                      Highlight zones with high pending workloads or low outputs for the selected programme/activity. Use BHCPF PHC-specific fields when BHCPF is selected.
+                    </p>
+                  ) : level === 3 && !sdoPipeline ? (
+                    <ul className="space-y-2">
+                      {[
+                        "Identify zones with sustained low plan achievement",
+                        "Separate accreditation and reaccreditation outputs",
+                        "Review programme-specific BHCPF PHC counts",
+                        "Escalate recurring operational barriers",
+                      ].map((item) => (
+                        <li key={item} className="text-sm text-slate-700 flex gap-2 leading-snug">
+                          <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-teal-600 shrink-0" />
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <ul className="space-y-2">
+                      {actionQueue.map((item: string) => (
+                        <li key={item} className="text-sm text-slate-700 flex gap-2 leading-snug">
+                          <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-teal-600 shrink-0" />
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
 
               <p className="text-[11px] text-slate-400 text-center">
                 Rates use summed numerators ÷ summed denominators (not averages of percentages). Forms sold / returned are excluded from performance ranking.
