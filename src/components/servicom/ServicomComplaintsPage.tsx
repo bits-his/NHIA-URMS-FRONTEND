@@ -640,10 +640,14 @@ export default function ServicomComplaintsPage({
   const isStateOfficer = roleKey === "state-officer";
   /** Hide zone/state pickers for state-level roles (geo comes from profile). */
   const isStateScopedViewer = stateScope || isStateCoordinator || isStateOfficer;
+  /** Reporting officers only — never treat complaint officers as ROs (they need zonal inbox + dashboard). */
   const isReportingOfficer =
-    roleKey === "reporting-officer"
-    || isDeptReportingOfficer(roleKey)
-    || (canCreate && !canReview && !isStateScopedViewer);
+    !isComplaintOfficer
+    && (
+      roleKey === "reporting-officer"
+      || isDeptReportingOfficer(roleKey)
+      || (canCreate && !canReview && !isStateScopedViewer)
+    );
   /** Coordinators are view-only: they can't register complaints (they may still manage ones assigned to them). */
   const canRegister = canCreate && !isStateCoordinator && !isZonalCoordinator;
   const showAssignedFilter =
@@ -665,7 +669,9 @@ export default function ServicomComplaintsPage({
   const queryStage = searchParams.get("stage") as LifecycleStage | null;
 
   const [formKey, setFormKey] = React.useState(0);
-  const [listPanel, setListPanel] = React.useState<"dashboard" | "register">("dashboard");
+  const [listPanel, setListPanel] = React.useState<"dashboard" | "register">(
+    isReportingOfficer ? "register" : "dashboard",
+  );
   const [complaints, setComplaints] = React.useState<any[]>([]);
   const [selected, setSelected] = React.useState<any | null>(null);
   const [loading, setLoading] = React.useState(true);
@@ -865,6 +871,10 @@ export default function ServicomComplaintsPage({
   ]);
 
   React.useEffect(() => { if (mode === "list") load(); }, [load, mode]);
+  // Reporting officers stay on the register only — no complaint dashboard
+  React.useEffect(() => {
+    if (isReportingOfficer) setListPanel("register");
+  }, [isReportingOfficer]);
   React.useEffect(() => { stockApi.getZones().then((r) => setZones(r.data)).catch(() => {}); }, []);
   React.useEffect(() => {
     const zoneId = geoLocked ? (defaultZoneId || f.zone_id) : f.zone_id;
@@ -3964,26 +3974,28 @@ export default function ServicomComplaintsPage({
           <p className="text-[11px] text-slate-500">{listStats.total} complaint{listStats.total === 1 ? "" : "s"}</p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <div className="flex items-center gap-1 p-0.5 rounded-lg bg-slate-100">
-            <Button
-              type="button"
-              variant={listPanel === "dashboard" ? "default" : "ghost"}
-              size="sm"
-              className={`h-7 text-[11px] px-2.5 ${listPanel === "dashboard" ? "bg-[#145c3f] hover:bg-[#0f4a31]" : ""}`}
-              onClick={() => setListPanel("dashboard")}
-            >
-              Dashboard
-            </Button>
-            <Button
-              type="button"
-              variant={listPanel === "register" ? "default" : "ghost"}
-              size="sm"
-              className={`h-7 text-[11px] px-2.5 ${listPanel === "register" ? "bg-[#145c3f] hover:bg-[#0f4a31]" : ""}`}
-              onClick={() => setListPanel("register")}
-            >
-              Register
-            </Button>
-          </div>
+          {!isReportingOfficer && (
+            <div className="flex items-center gap-1 p-0.5 rounded-lg bg-slate-100">
+              <Button
+                type="button"
+                variant={listPanel === "dashboard" ? "default" : "ghost"}
+                size="sm"
+                className={`h-7 text-[11px] px-2.5 ${listPanel === "dashboard" ? "bg-[#145c3f] hover:bg-[#0f4a31]" : ""}`}
+                onClick={() => setListPanel("dashboard")}
+              >
+                Dashboard
+              </Button>
+              <Button
+                type="button"
+                variant={listPanel === "register" ? "default" : "ghost"}
+                size="sm"
+                className={`h-7 text-[11px] px-2.5 ${listPanel === "register" ? "bg-[#145c3f] hover:bg-[#0f4a31]" : ""}`}
+                onClick={() => setListPanel("register")}
+              >
+                Register
+              </Button>
+            </div>
+          )}
           <Button variant="outline" size="sm" onClick={load} disabled={loading} className="h-8 gap-1.5 text-xs">
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh
           </Button>
@@ -3996,7 +4008,7 @@ export default function ServicomComplaintsPage({
       </div>
 
       <div className="w-full px-4 md:px-5 py-3 space-y-3">
-        {listPanel === "dashboard" ? (
+        {listPanel === "dashboard" && !isReportingOfficer ? (
           <ComplaintRegisterDashboard
             defaultStateId={defaultStateId}
             defaultZoneId={defaultZoneId}
