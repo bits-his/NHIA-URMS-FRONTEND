@@ -4,6 +4,11 @@ import {
   ENROLMENT_DRIVES_PATH,
 } from "@/src/components/stateOffice/enrolmentDriveTypes";
 import {
+  BENEFICIARY_MANAGEMENT_NAV_TITLE,
+  BENEFICIARY_MANAGEMENT_PATH,
+  BENEFICIARY_MANAGEMENT_VIEW,
+} from "@/src/components/stateOffice/beneficiaryManagementTypes";
+import {
   PROVIDER_MANAGEMENT_NAV_TITLE,
   PROVIDER_MANAGEMENT_VIEW,
   PROVIDER_MANAGEMENT_PATH,
@@ -259,11 +264,12 @@ export const MODULE_CONFIG: ParentModule[] = [
         view: ENROLMENT_DRIVES_VIEW,
         path: ENROLMENT_DRIVES_PATH,
       },
-      { type: "group", label: "Beneficiary Management", children: [
-        { title: "Additional / Extra Dependant", view: "state-extra-dependant", path: "/zonal/beneficiary/extra-dependant", navLabel: "Extra Dependant" },
-        { title: "HMO Selection Process", view: "state-hmo-selection", path: "/zonal/hmo-selection", navLabel: "MDA Change of HMO Selection Process" },
-        { title: "Change of HCF", view: "state-hcf-change", path: "/zonal/beneficiary/hcf-change", navLabel: "Change of HCP" },
-      ]},
+      {
+        title: BENEFICIARY_MANAGEMENT_NAV_TITLE,
+        navLabel: BENEFICIARY_MANAGEMENT_NAV_TITLE,
+        view: BENEFICIARY_MANAGEMENT_VIEW,
+        path: BENEFICIARY_MANAGEMENT_PATH,
+      },
       {
         title: STAKEHOLDER_MANAGEMENT_NAV_TITLE,
         navLabel: STAKEHOLDER_MANAGEMENT_NAV_TITLE,

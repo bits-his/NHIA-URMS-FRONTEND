@@ -27,6 +27,10 @@ import {
   ENROLMENT_DRIVE_TYPES,
 } from "@/src/components/stateOffice/enrolmentDriveTypes";
 import {
+  BENEFICIARY_MANAGEMENT_NAV_TITLE,
+  LEGACY_BENEFICIARY_TITLES,
+} from "@/src/components/stateOffice/beneficiaryManagementTypes";
+import {
   PROVIDER_MANAGEMENT_NAV_TITLE,
   PROVIDER_MANAGEMENT_DASHBOARD_NAV_TITLE,
   PROVIDER_PILLAR_CHILDREN,
@@ -55,6 +59,9 @@ const LEGACY_PROVIDER_TITLES = new Set([
   "Accreditation/Reaccreditation",
   "Accreditation & Reaccreditation",
 ]);
+
+/** Legacy beneficiary screens → single Beneficiary Management leaf */
+const LEGACY_BENEFICIARY_TITLE_SET = new Set<string>(LEGACY_BENEFICIARY_TITLES);
 
 
 
@@ -151,6 +158,8 @@ export function normalizeFunctionalityTitle(title: string, moduleTitle?: string)
 
     if (LEGACY_PROVIDER_TITLES.has(title)) return PROVIDER_MANAGEMENT_NAV_TITLE;
 
+    if (LEGACY_BENEFICIARY_TITLE_SET.has(title)) return BENEFICIARY_MANAGEMENT_NAV_TITLE;
+
   }
 
   if (title === "Accreditation / Reaccreditation"
@@ -196,6 +205,8 @@ export function normalizeFunctionalityTitle(title: string, moduleTitle?: string)
     if (LEGACY_STAKEHOLDER_TITLES.has(title)) return STAKEHOLDER_MANAGEMENT_NAV_TITLE;
 
     if (LEGACY_PROVIDER_TITLES.has(title)) return PROVIDER_MANAGEMENT_NAV_TITLE;
+
+    if (LEGACY_BENEFICIARY_TITLE_SET.has(title)) return BENEFICIARY_MANAGEMENT_NAV_TITLE;
 
   }
 
@@ -312,6 +323,15 @@ export function expandAccessEntries(access: AccessEntry[]): AccessEntry[] {
           && f !== PROVIDER_MANAGEMENT_DASHBOARD_NAV_TITLE,
       );
       funcs.push(PROVIDER_MANAGEMENT_NAV_TITLE, PROVIDER_MANAGEMENT_DASHBOARD_NAV_TITLE);
+    }
+    const hasBeneficiary = funcs.some(
+      f => normalizeFunctionalityTitle(f, ZONAL_MODULE) === BENEFICIARY_MANAGEMENT_NAV_TITLE,
+    );
+    if (hasBeneficiary) {
+      funcs = funcs.filter(
+        f => !LEGACY_BENEFICIARY_TITLE_SET.has(f) && f !== BENEFICIARY_MANAGEMENT_NAV_TITLE,
+      );
+      funcs.push(BENEFICIARY_MANAGEMENT_NAV_TITLE);
     }
     // Legacy collation privilege unlocks all HMO Indebtedness submenu items
     const hasHmoCollation = funcs.some(

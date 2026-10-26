@@ -40,6 +40,8 @@ interface Props {
   showQuarter?: boolean;
   /** Render fields without an outer card (for embedding in a parent card) */
   embedded?: boolean;
+  /** Tighter labels and gaps for compact forms. */
+  dense?: boolean;
 }
 
 export default function ReportBasicInfo({
@@ -50,6 +52,7 @@ export default function ReportBasicInfo({
   showGeoIds,
   showQuarter,
   embedded,
+  dense = false,
 }: Props) {
   const zoneLabel  = labelOf(zones.map(z => ({ value: String(z.id), label: z.label })), zoneId, "—");
   const stateLabel = labelOf(states.map(s => ({ value: String(s.id), label: s.label })), stateId, "—");
@@ -60,13 +63,16 @@ export default function ReportBasicInfo({
   const setQuarter = (q: string) => {
     setReportMonth(String((Number(q) - 1) * 3 + 1));
   };
+  const stack = dense ? "space-y-1" : "space-y-2";
+  const labelCls = dense ? "text-xs font-semibold text-slate-600" : undefined;
+  const trigger = (extra = "") => `w-full ${dense ? "h-8 text-xs" : ""} ${extra}`.trim();
 
   const fields = (
-        <div className={`grid grid-cols-1 md:grid-cols-2 ${showWeek ? "lg:grid-cols-3" : "lg:grid-cols-5"} gap-4`}>
-          <div className="space-y-2">
-            <Label>Zone <span className="text-red-500">*</span></Label>
+        <div className={`grid grid-cols-2 md:grid-cols-3 ${showWeek ? "lg:grid-cols-3" : "lg:grid-cols-5"} ${dense ? "gap-1.5" : "gap-4"}`}>
+          <div className={stack}>
+            <Label className={labelCls}>Zone <span className="text-red-500">*</span></Label>
             <Select value={zoneId} onValueChange={setZoneId} disabled={lockZone}>
-              <SelectTrigger className={`w-full ${lockZone ? "opacity-70 bg-slate-50" : ""}`} displayValue={zoneLabel}>
+              <SelectTrigger className={trigger(lockZone ? "opacity-70 bg-slate-50" : "")} displayValue={zoneLabel}>
                 <SelectValue placeholder="Select Zone" />
               </SelectTrigger>
               <SelectContent>
@@ -77,10 +83,10 @@ export default function ReportBasicInfo({
               <p className="text-[11px] text-slate-500">Zone ID: <span className="font-semibold tabular-nums text-slate-700">{zoneId || "—"}</span></p>
             )}
           </div>
-          <div className="space-y-2">
-            <Label>State <span className="text-red-500">*</span></Label>
+          <div className={stack}>
+            <Label className={labelCls}>State <span className="text-red-500">*</span></Label>
             <Select value={stateId} onValueChange={setStateId} disabled={lockState || !zoneId}>
-              <SelectTrigger className={`w-full ${lockState ? "opacity-70 bg-slate-50" : ""}`} displayValue={stateLabel}>
+              <SelectTrigger className={trigger(lockState ? "opacity-70 bg-slate-50" : "")} displayValue={stateLabel}>
                 <SelectValue placeholder="Select State" />
               </SelectTrigger>
               <SelectContent>
@@ -94,10 +100,10 @@ export default function ReportBasicInfo({
 
           {showQuarter ? (
             <>
-              <div className="space-y-2">
-                <Label>Year <span className="text-red-500">*</span></Label>
+              <div className={stack}>
+                <Label className={labelCls}>Year <span className="text-red-500">*</span></Label>
                 <Select value={reportYear} onValueChange={setReportYear}>
-                  <SelectTrigger className="w-full" displayValue={reportYear || "Select Year"}>
+                  <SelectTrigger className={trigger()} displayValue={reportYear || "Select Year"}>
                     <SelectValue placeholder="Select Year" />
                   </SelectTrigger>
                   <SelectContent>
@@ -105,10 +111,10 @@ export default function ReportBasicInfo({
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
-                <Label>Month <span className="text-red-500">*</span></Label>
+              <div className={stack}>
+                <Label className={labelCls}>Month <span className="text-red-500">*</span></Label>
                 <Select value={reportMonth} onValueChange={setReportMonth}>
-                  <SelectTrigger className="w-full" displayValue={monthLabel(reportMonth)}>
+                  <SelectTrigger className={trigger()} displayValue={monthLabel(reportMonth)}>
                     <SelectValue placeholder="Select Month" />
                   </SelectTrigger>
                   <SelectContent>
@@ -116,10 +122,10 @@ export default function ReportBasicInfo({
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
-                <Label>Quarter</Label>
+              <div className={stack}>
+                <Label className={labelCls}>Quarter</Label>
                 <Select value={quarter} onValueChange={setQuarter}>
-                  <SelectTrigger className="w-full" displayValue={`Q${quarter}`}>
+                  <SelectTrigger className={trigger()} displayValue={`Q${quarter}`}>
                     <SelectValue placeholder="Select Quarter" />
                   </SelectTrigger>
                   <SelectContent>
@@ -130,14 +136,14 @@ export default function ReportBasicInfo({
             </>
           ) : (
             <>
-              <div className="space-y-2">
-                <Label>Date of Submission</Label>
+              <div className={stack}>
+                <Label className={labelCls}>Date of Submission</Label>
                 <Input type="date" value={submitDate} onChange={e => setSubmitDate(e.target.value)} />
               </div>
-              <div className="space-y-2">
-                <Label>Reporting Month <span className="text-red-500">*</span></Label>
+              <div className={stack}>
+                <Label className={labelCls}>Reporting Month <span className="text-red-500">*</span></Label>
                 <Select value={reportMonth} onValueChange={setReportMonth}>
-                  <SelectTrigger className="w-full" displayValue={monthLabel(reportMonth)}>
+                  <SelectTrigger className={trigger()} displayValue={monthLabel(reportMonth)}>
                     <SelectValue placeholder="Select Month" />
                   </SelectTrigger>
                   <SelectContent>
@@ -146,10 +152,10 @@ export default function ReportBasicInfo({
                 </Select>
               </div>
               {showWeek && (
-                <div className="space-y-2">
-                  <Label>Reporting Week <span className="text-red-500">*</span></Label>
+                <div className={stack}>
+                  <Label className={labelCls}>Reporting Week <span className="text-red-500">*</span></Label>
                   <Select value={reportWeek} onValueChange={setReportWeek}>
-                    <SelectTrigger className="w-full" displayValue={weekLabel}>
+                    <SelectTrigger className={trigger()} displayValue={weekLabel}>
                       <SelectValue placeholder="Select Week" />
                     </SelectTrigger>
                     <SelectContent>
@@ -160,8 +166,8 @@ export default function ReportBasicInfo({
                   </Select>
                 </div>
               )}
-              <div className="space-y-2">
-                <Label>Reporting Year <span className="text-red-500">*</span></Label>
+              <div className={stack}>
+                <Label className={labelCls}>Reporting Year <span className="text-red-500">*</span></Label>
                 <Input type="number" min="2000" max="2100" value={reportYear} onChange={e => setReportYear(e.target.value)} />
               </div>
             </>
