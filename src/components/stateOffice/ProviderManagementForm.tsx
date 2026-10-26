@@ -626,7 +626,16 @@ export default function ProviderManagementForm({
                           if (editingKey || entryInProgress || lines.length === 0) {
                             if (!saveLine()) return;
                           }
-                          requestSubmit(() => void persist("awaiting_review").then(() => setReportStatus("awaiting_review")));
+                          requestSubmit(
+                            () => void persist("awaiting_review").then(() => setReportStatus("awaiting_review")),
+                            {
+                              force: true,
+                              title: "Send for coordinator review?",
+                              description:
+                                "This will lock editing and send the report to the State Coordinator for endorsement. Continue?",
+                              confirmLabel: "Yes, send for review",
+                            },
+                          );
                         }}
                       >
                         {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
@@ -640,7 +649,16 @@ export default function ProviderManagementForm({
                     className="bg-[#016630] hover:bg-[#014d24] gap-2"
                     disabled={submitting}
                     onClick={() => {
-                      requestSubmit(() => void persist("submitted").then(() => setReportStatus("submitted")));
+                      requestSubmit(
+                        () => void persist("submitted").then(() => setReportStatus("submitted")),
+                        {
+                          force: true,
+                          title: "Submit this report?",
+                          description:
+                            "This report is endorsed. Submitting will send it for final approval. You will not be able to edit it afterwards.",
+                          confirmLabel: "Yes, submit",
+                        },
+                      );
                     }}
                   >
                     {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}

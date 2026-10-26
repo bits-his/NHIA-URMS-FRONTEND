@@ -6,7 +6,11 @@ import { toast } from "sonner";
 import { stateOfficeApi } from "@/lib/api";
 import { useStateOfficeHeader } from "./shared/useStateOfficeHeader";
 import ReportBasicInfo from "./shared/ReportBasicInfo";
-import { SubmitConfirmModal, useReportingOfficerSubmitConfirm } from "@/src/components/SubmitConfirmModal";
+import {
+  SubmitConfirmModal,
+  useReportingOfficerSubmitConfirm,
+  type SubmitConfirmOptions,
+} from "@/src/components/SubmitConfirmModal";
 
 interface Props {
   reportId?: number | null;
@@ -30,7 +34,7 @@ interface Props {
     savedId: number | null;
     stateId: string;
     persist: (status: string) => Promise<void>;
-    requestSubmit: (action: () => void | Promise<void>) => void;
+    requestSubmit: (action: () => void | Promise<void>, options?: SubmitConfirmOptions) => void;
     header: ReturnType<typeof useStateOfficeHeader>;
   }) => React.ReactNode;
   buildPayload: (base: Record<string, unknown>) => Record<string, unknown>;
@@ -256,6 +260,9 @@ export default function StateOfficeFormShell({
       <SubmitConfirmModal
         open={submitConfirm.open}
         busy={submitConfirm.busy || submitting}
+        title={submitConfirm.title}
+        description={submitConfirm.description}
+        confirmLabel={submitConfirm.confirmLabel}
         onConfirm={submitConfirm.confirm}
         onCancel={submitConfirm.cancel}
       />

@@ -4,21 +4,46 @@ import type { RootState } from "@/src/store/store";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 
-const CONFIRM_ROLES = new Set(["reporting-officer"]);
+const CONFIRM_ROLES = new Set(["reporting-officer", "department-officer"]);
+
+export type SubmitConfirmOptions = {
+  /** Always show the dialog, regardless of role. */
+  force?: boolean;
+  title?: string;
+  description?: string;
+  confirmLabel?: string;
+};
+
+const DEFAULTS = {
+  title: "Confirm submission",
+  description:
+    "Please confirm you want to submit this record. You will not be able to edit it after submission in most workflows.",
+  confirmLabel: "Yes, submit",
+};
 
 export function useReportingOfficerSubmitConfirm() {
   const role = useSelector((s: RootState) => s.auth.user?.role ?? "");
   const needsConfirm = CONFIRM_ROLES.has(role);
   const [open, setOpen] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
+  const [copy, setCopy] = React.useState(DEFAULTS);
   const pendingRef = React.useRef<(() => void | Promise<void>) | null>(null);
 
-  const requestSubmit = React.useCallback((action: () => void | Promise<void>) => {
-    if (!needsConfirm) {
+  const requestSubmit = React.useCallback((
+    action: () => void | Promise<void>,
+    options?: SubmitConfirmOptions,
+  ) => {
+    const shouldConfirm = options?.force || needsConfirm;
+    if (!shouldConfirm) {
       void action();
       return;
     }
     pendingRef.current = action;
+    setCopy({
+      title: options?.title ?? DEFAULTS.title,
+      description: options?.description ?? DEFAULTS.description,
+      confirmLabel: options?.confirmLabel ?? DEFAULTS.confirmLabel,
+    });
     setOpen(true);
   }, [needsConfirm]);
 
@@ -40,7 +65,17 @@ export function useReportingOfficerSubmitConfirm() {
     }
   }, []);
 
-  return { open, busy, needsConfirm, requestSubmit, confirm, cancel };
+  return {
+    open,
+    busy,
+    needsConfirm,
+    title: copy.title,
+    description: copy.description,
+    confirmLabel: copy.confirmLabel,
+    requestSubmit,
+    confirm,
+    cancel,
+  };
 }
 
 type ModalProps = {
@@ -57,9 +92,9 @@ type ModalProps = {
 export function SubmitConfirmModal({
   open,
   busy = false,
-  title = "Confirm submission",
-  description = "Please confirm you want to submit this record. You will not be able to edit it after submission in most workflows.",
-  confirmLabel = "Yes, submit",
+  title = DEFAULTS.title,
+  description = DEFAULTS.description,
+  confirmLabel = DEFAULTS.confirmLabel,
   onConfirm,
   onCancel,
 }: ModalProps) {
@@ -89,7 +124,7 @@ export function SubmitConfirmModal({
             disabled={busy}
           >
             {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-            {busy ? "Submitting…" : confirmLabel}
+            {busy ? "Please wait…" : confirmLabel}
           </Button>
         </div>
       </div>
