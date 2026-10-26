@@ -632,7 +632,7 @@ export type StateOfficeReportType =
   | "vehicle-maintenance" | "conflict-infraction" | "enrollee-feedback";
 
 const makeStateOfficeApi = (type: StateOfficeReportType) => ({
-  list: (filters?: { state_id?: string; zone_id?: string; year?: string; month?: string; status?: string; activity_module?: string }) => {
+  list: (filters?: { state_id?: string; zone_id?: string; year?: string; month?: string; status?: string; activity_module?: string; principal_lookup?: string }) => {
     const p = new URLSearchParams(Object.entries(filters || {}).filter(([, v]) => !!v) as [string, string][]).toString();
     return request<{ success: boolean; data: any[] }>(
       `/state-office/${type}/reports${p ? `?${p}` : ""}`
