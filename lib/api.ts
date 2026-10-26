@@ -632,7 +632,7 @@ export type StateOfficeReportType =
   | "vehicle-maintenance" | "conflict-infraction" | "enrollee-feedback";
 
 const makeStateOfficeApi = (type: StateOfficeReportType) => ({
-  list: (filters?: { state_id?: string; zone_id?: string; year?: string; month?: string; status?: string; activity_module?: string }) => {
+  list: (filters?: { state_id?: string; zone_id?: string; year?: string; month?: string; status?: string; activity_module?: string; principal_lookup?: string }) => {
     const p = new URLSearchParams(Object.entries(filters || {}).filter(([, v]) => !!v) as [string, string][]).toString();
     return request<{ success: boolean; data: any[] }>(
       `/state-office/${type}/reports${p ? `?${p}` : ""}`
@@ -682,18 +682,7 @@ const enrolmentDriveApis = Object.fromEntries(
 ) as Record<EnrolmentDriveReportType, ReturnType<typeof makeEnrolmentDriveApi>>;
 
 export const stateOfficeApi = {
-  enrolment: {
-    ...makeStateOfficeApi("enrolment"),
-    /** State/zone-scoped principals for Beneficiary Management (not limited to caller's own enrolment reports). */
-    listPrincipals: (filters?: { state_id?: string; zone_id?: string; year?: string; month?: string }) => {
-      const p = new URLSearchParams(
-        Object.entries(filters || {}).filter(([, v]) => !!v) as [string, string][],
-      ).toString();
-      return request<{ success: boolean; data: any[] }>(
-        `/state-office/enrolment/principals${p ? `?${p}` : ""}`,
-      );
-    },
-  },
+  enrolment: makeStateOfficeApi("enrolment"),
   migration: makeStateOfficeApi("migration"),
   cemonc:    makeStateOfficeApi("cemonc"),
   complaints: makeStateOfficeApi("complaints"),
