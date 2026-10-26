@@ -117,10 +117,30 @@ export const PROVIDER_PILLAR_CHILDREN: PillarChild[] = [
 
 /** Enrolment Activity dropdown — from Enrolment (New).xlsx */
 export const ENROLMENT_ACTIVITIES = [
-  { code: "ENR-0001", value: "enrolment", label: "Enrolment" },
-  { code: "ENR-0002", value: "nin_validation", label: "NIN Validation" },
-  { code: "ENR-0003", value: "id_card_issuance", label: "ID Card Issuance/Renewal" },
-  { code: "ENR-0004", value: "validation_of_enrolees", label: "Validation of Enrollees" },
+  {
+    code: "ENR-0001",
+    value: "enrolment",
+    label: "Enrolment",
+    description: "Register new people and capture their details.",
+  },
+  {
+    code: "ENR-0002",
+    value: "nin_validation",
+    label: "NIN Validation",
+    description: "Check National Identification Numbers against records.",
+  },
+  {
+    code: "ENR-0003",
+    value: "id_card_issuance",
+    label: "ID Card Issuance/Renewal",
+    description: "Issue new cards or renew expired ones.",
+  },
+  {
+    code: "ENR-0004",
+    value: "validation_of_enrolees",
+    label: "Validation of Enrollees",
+    description: "Confirm enrolment records are complete and correct.",
+  },
 ] as const;
 
 export const ENROLMENT_CHANNELS = ["NHIA", "SSHIA"] as const;

@@ -1,5 +1,8 @@
 import * as React from "react";
-import { ArrowLeft, ArrowRight, Check, Loader2, Save, Send } from "lucide-react";
+import {
+  ArrowLeft, ArrowRight, Check, ChevronRight, ClipboardCheck, IdCard,
+  Loader2, Save, Send, ShieldCheck, UserPlus, type LucideIcon,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -11,6 +14,7 @@ import StateOfficeFormShell from "./StateOfficeFormShell";
 import ReportBasicInfo from "./shared/ReportBasicInfo";
 import AccreditedProviderSelect from "./AccreditedProviderSelect";
 import { NIGERIAN_STATE_NAMES, lgasForState } from "./nigeriaGeo";
+import { labelOf, monthLabel, quarterFromMonth } from "./constants";
 import {
   ENROLMENT_ACTIVITIES,
   ENROLMENT_ACTIVITY_STATUSES,
@@ -35,6 +39,13 @@ import {
   todayIsoDate,
   type EnrolmentProgramFieldDef,
 } from "./enrolmentPillarTypes";
+
+const ENROLMENT_ACTIVITY_ICONS: Record<(typeof ENROLMENT_ACTIVITIES)[number]["value"], LucideIcon> = {
+  enrolment: UserPlus,
+  nin_validation: ShieldCheck,
+  id_card_issuance: IdCard,
+  validation_of_enrolees: ClipboardCheck,
+};
 
 function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return (
@@ -724,10 +735,17 @@ export default function EnrolmentActivityForm({
         lines: [toLinePayload(entryRef.current)],
       })}
     >
-      {({ submitting, saving, persist, requestSubmit, stateId, header }) => (
-        <div className="pb-2">
+      {({ submitting, saving, persist, requestSubmit, stateId, header }) => {
+        const periodBadge = [
+          labelOf(header.states.map((s) => ({ value: String(s.id), label: s.label })), header.stateId, ""),
+          [monthLabel(header.reportMonth), header.reportYear].filter(Boolean).join(" "),
+          header.reportMonth ? `(Q${quarterFromMonth(header.reportMonth)})` : "",
+        ].filter(Boolean).join(", ").replace(", (", " (");
+
+        return (
+        <div className="space-y-4 pb-2">
           <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden">
-            <CardContent className="space-y-5 p-4 md:p-5">
+            <CardContent className={cn("p-4 md:p-5", entry.category && "space-y-5")}>
               <ReportBasicInfo
                 {...header}
                 lockZone={header.lockZone}
@@ -779,29 +797,8 @@ export default function EnrolmentActivityForm({
                 </div>
               ) : null}
 
+              {entry.category ? (
               <div className="border-t border-[#e8f3ec] pt-4 space-y-5">
-              {/* STEP: Activity */}
-              {!entry.category && (
-                <div className="space-y-4">
-                  <p className="text-base font-semibold text-[#0f3d2e]">Select an activity to begin</p>
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    {ENROLMENT_ACTIVITIES.map((a) => (
-                      <button
-                        key={a.value}
-                        type="button"
-                        onClick={() => selectActivity(a.value)}
-                        className="rounded-2xl border-2 border-[#d4e8dc] bg-white px-6 py-12 min-h-[8.5rem] text-left transition-all hover:border-[#1a7a52] hover:bg-[#f0fdf7]"
-                      >
-                        <p className="text-xl font-bold text-slate-800">{a.label}</p>
-                      </button>
-                    ))}
-                  </div>
-                  {fieldErrors.category && (
-                    <p className="text-[11px] font-medium text-rose-600">{fieldErrors.category}</p>
-                  )}
-                </div>
-              )}
-
               {/* STEP: Channel & Program (Enrolment) */}
               {currentStep?.id === "channel" && isEnrolment && (
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -1303,10 +1300,50 @@ export default function EnrolmentActivityForm({
                 </div>
               ) : null}
               </div>
+              ) : null}
             </CardContent>
           </Card>
+
+          {!entry.category && (
+            <div className="space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-3 px-1">
+                <h2 className="text-xl font-bold text-slate-900">Activities</h2>
+                {periodBadge && (
+                  <span className="inline-flex items-center rounded-full bg-[#e8f6ee] px-3 py-1 text-xs font-semibold text-[#145c3f]">
+                    {periodBadge}
+                  </span>
+                )}
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                {ENROLMENT_ACTIVITIES.map((a) => {
+                  const Icon = ENROLMENT_ACTIVITY_ICONS[a.value];
+                  return (
+                    <button
+                      key={a.value}
+                      type="button"
+                      onClick={() => selectActivity(a.value)}
+                      className="group flex items-center gap-4 rounded-2xl border border-[#d4e8dc] bg-white px-5 py-5 text-left shadow-sm transition-all hover:border-[#1a7a52] hover:bg-[#f7fcf9] hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1a7a52]/40"
+                    >
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#e8f6ee] text-[#145c3f]">
+                        <Icon className="h-6 w-6" strokeWidth={1.75} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-base font-bold text-slate-900">{a.label}</p>
+                        <p className="mt-0.5 text-sm text-slate-500 leading-snug">{a.description}</p>
+                      </div>
+                      <ChevronRight className="h-5 w-5 shrink-0 text-[#145c3f] opacity-70 transition group-hover:opacity-100" />
+                    </button>
+                  );
+                })}
+              </div>
+              {fieldErrors.category && (
+                <p className="text-[11px] font-medium text-rose-600 px-1">{fieldErrors.category}</p>
+              )}
+            </div>
+          )}
         </div>
-      )}
+        );
+      }}
     </StateOfficeFormShell>
   );
 }
