@@ -29,12 +29,12 @@ interface Props {
     submitting: boolean;
     savedId: number | null;
     stateId: string;
-    persist: (status: "draft" | "submitted") => Promise<void>;
+    persist: (status: "draft" | "submitted" | "approved") => Promise<void>;
     requestSubmit: (action: () => void | Promise<void>) => void;
     header: ReturnType<typeof useStateOfficeHeader>;
   }) => React.ReactNode;
   buildPayload: (base: Record<string, unknown>) => Record<string, unknown>;
-  validate?: (status?: "draft" | "submitted") => string | null;
+  validate?: (status?: "draft" | "submitted" | "approved") => string | null;
   reportType: keyof typeof stateOfficeApi;
   onLoaded?: (data: any) => void;
   /** Optional reporting week for weekly-actionable forms */
@@ -119,7 +119,7 @@ export default function StateOfficeFormShell({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reportId, api, reportType]);
 
-  const persist = async (status: "draft" | "submitted") => {
+  const persist = async (status: "draft" | "submitted" | "approved") => {
     const headerErr = header.validateHeader();
     if (headerErr) { toast.error(headerErr); return; }
     if (setReportWeek && !reportWeek) { toast.error("Please select a Reporting Week"); return; }
@@ -141,10 +141,12 @@ export default function StateOfficeFormShell({
       if (afterPersist) {
         await afterPersist({ id: res.data.id });
       }
-      toast.success(status === "draft" ? "Draft saved" : "Report submitted", {
-        description: `Ref: ${res.data.reference_id}`,
-      });
-      if (status === "submitted") handleSubmitted();
+      const submittedLabel = pageTitle === "Beneficiary Management" ? "Sent for review" : "Report submitted";
+      toast.success(
+        status === "draft" ? "Draft saved" : status === "approved" ? "Report approved" : submittedLabel,
+        { description: `Ref: ${res.data.reference_id}` },
+      );
+      if (status === "submitted" || status === "approved") handleSubmitted();
     } catch (err: any) {
       toast.error(status === "draft" ? "Save failed" : "Submission failed", { description: err.message });
     } finally { setter(false); }

@@ -3,6 +3,7 @@ import { ArrowLeft, Loader2, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { stateOfficeApi, apiFileUrl } from "@/lib/api";
+import { useStateOfficeAccess } from "@/src/access/createReviewAccess";
 import {
   EXTRA_DEPENDANT_STATUSES,
   HCP_CHANGE_STATUSES,
@@ -31,6 +32,7 @@ const STATUS = {
   draft: { label: "Draft", cls: "bg-slate-100 text-slate-600" },
   submitted: { label: "Submitted", cls: "bg-blue-50 text-blue-700" },
   approved: { label: "Approved", cls: "bg-emerald-50 text-emerald-700" },
+  endorsed: { label: "Endorsed", cls: "bg-amber-50 text-amber-800" },
 } as const;
 
 const IDENTITY_LABELS: { key: string; label: string }[] = [
@@ -175,22 +177,59 @@ function mdaFacts(line: any) {
 }
 
 export default function BeneficiaryReportView({ reportType, reportId, onBack, onEdit }: Props) {
+  const { canCreate, canReview } = useStateOfficeAccess();
   const [report, setReport] = React.useState<any>(null);
   const [loading, setLoading] = React.useState(true);
+  const [note, setNote] = React.useState("");
+  const [busy, setBusy] = React.useState(false);
 
-  React.useEffect(() => {
-    let cancelled = false;
+  const reload = React.useCallback(() => {
     setLoading(true);
-    stateOfficeApi[reportType].get(reportId)
-      .then((res) => { if (!cancelled) setReport(res.data); })
-      .catch((err: { message?: string }) => {
-        if (!cancelled) toast.error("Failed to load report", { description: err.message });
+    return stateOfficeApi[reportType].get(reportId)
+      .then((res) => {
+        setReport(res.data);
+        setNote("");
       })
-      .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
+      .catch((err: { message?: string }) => {
+        toast.error("Failed to load report", { description: err.message });
+      })
+      .finally(() => setLoading(false));
   }, [reportType, reportId]);
 
-  const status = report ? STATUS[report.status as keyof typeof STATUS] : null;
+  React.useEffect(() => { reload(); }, [reload]);
+
+  const review = async (action: "endorse" | "return" | "final_submit") => {
+    if ((action === "endorse" || action === "return") && !note.trim()) {
+      toast.error(action === "endorse" ? "Enter an endorsement comment" : "Enter a comment before returning the report");
+      return;
+    }
+    setBusy(true);
+    try {
+      await stateOfficeApi[reportType].updateStatus(
+        reportId,
+        action === "final_submit" ? "approved" : "draft",
+        note.trim(),
+        action,
+      );
+      toast.success(
+        action === "endorse"
+          ? "Endorsed and returned to the reporting officer"
+          : action === "return"
+            ? "Returned for correction"
+            : "Report approved",
+      );
+      await reload();
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Review action failed");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const endorsed = !!report?.endorsed;
+  const status = report
+    ? (report.status === "draft" && endorsed ? STATUS.endorsed : STATUS[report.status as keyof typeof STATUS])
+    : null;
   const summary = report ? beneficiaryListSummary({ ...report, __reportType: reportType }) : null;
   const lines: any[] = report?.lines ?? [];
 
@@ -231,6 +270,58 @@ export default function BeneficiaryReportView({ reportType, reportId, onBack, on
           <p className="text-sm text-slate-600 py-16 text-center">Report not found.</p>
         ) : (
           <>
+            {report.status === "submitted" && !endorsed && canReview && (
+              <section className="rounded-lg border border-[#d4e8dc] bg-white p-4 space-y-3">
+                <div>
+                  <h3 className="text-sm font-semibold text-[#0f3d2e]">Endorse</h3>
+                  <p className="text-sm text-slate-600 mt-0.5">Add a comment. The report returns to the reporting officer for final approval.</p>
+                </div>
+                <textarea
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  rows={3}
+                  placeholder="Endorsement comment"
+                  className="w-full rounded-md border border-[#d4e8dc] px-3 py-2 text-sm text-slate-800"
+                />
+                <div className="flex flex-wrap justify-end gap-2">
+                  <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => review("return")}>
+                    Return for correction
+                  </Button>
+                  <Button type="button" size="sm" className="bg-[#145c3f] hover:bg-[#0f3d2e] text-white" disabled={busy} onClick={() => review("endorse")}>
+                    {busy ? "Saving…" : "Endorse"}
+                  </Button>
+                </div>
+              </section>
+            )}
+            {report.status === "submitted" && !endorsed && !canReview && (
+              <p className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+                Sent for review. Waiting for the state coordinator to endorse it.
+              </p>
+            )}
+            {report.status === "draft" && endorsed && (
+              <section className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 space-y-2">
+                <p className="text-sm font-semibold text-amber-900">
+                  Endorsed{report.coordinator_reviewed_by ? ` by ${report.coordinator_reviewed_by}` : ""}. Returned to the reporting officer for final approval.
+                </p>
+                {report.coordinator_review_note && (
+                  <p className="text-sm text-amber-950 whitespace-pre-wrap">{report.coordinator_review_note}</p>
+                )}
+                {canCreate && (
+                  <div className="flex justify-end">
+                    <Button type="button" size="sm" className="bg-orange-action hover:bg-orange-600" disabled={busy} onClick={() => review("final_submit")}>
+                      {busy ? "Submitting…" : "Submit as approved"}
+                    </Button>
+                  </div>
+                )}
+              </section>
+            )}
+            {report.status === "draft" && !endorsed && report.coordinator_review_note && (
+              <section className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+                <p className="text-sm font-semibold text-amber-900">Returned for correction</p>
+                <p className="text-sm text-amber-950 whitespace-pre-wrap mt-1">{report.coordinator_review_note}</p>
+              </section>
+            )}
+
             <dl className="rounded-lg border border-[#d4e8dc] bg-white px-3 py-2.5 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-x-4 gap-y-2">
               <Fact label="Zone" value={report.zone?.description} />
               <Fact label="State" value={report.state?.description} />

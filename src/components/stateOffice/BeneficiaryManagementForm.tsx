@@ -356,6 +356,9 @@ export default function BeneficiaryManagementForm({
   const savedIdRef = React.useRef<number | null>(null);
   const [principals, setPrincipals] = React.useState<PrincipalOption[]>([]);
   const [principalsError, setPrincipalsError] = React.useState("");
+  const [reportStatus, setReportStatus] = React.useState<"draft" | "submitted" | "approved">("draft");
+  const [endorsed, setEndorsed] = React.useState(false);
+  const [reviewNote, setReviewNote] = React.useState("");
 
   React.useEffect(() => {
     if (activity !== "additional" && activity !== "extra" && activity !== "provider") return;
@@ -408,6 +411,9 @@ export default function BeneficiaryManagementForm({
   };
 
   const loadData = (v: any) => {
+    setReportStatus(v?.status === "submitted" || v?.status === "approved" ? v.status : "draft");
+    setEndorsed(!!v?.endorsed);
+    setReviewNote(typeof v?.coordinator_review_note === "string" ? v.coordinator_review_note : "");
     if (apiType === "extra-dependant" || (!activity && reportType === "extra-dependant")) {
       const next: Line[] = (v.lines ?? []).map((l: any) => {
         const request = decodeDependantRequest(l.program, l.relationship);
@@ -748,16 +754,16 @@ export default function BeneficiaryManagementForm({
             </div>
 
             {!activity && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid gap-4 sm:grid-cols-2">
                 {BENEFICIARY_ACTIVITIES.map((item) => (
                   <button
                     key={item.key}
                     type="button"
                     onClick={() => pickActivity(item.key)}
-                    className="rounded-lg border border-[#d4e8dc] bg-white px-4 py-4 text-left hover:border-[#145c3f] hover:bg-[#f4fbf7] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1a7a52]/40"
+                    className="rounded-2xl border-2 border-[#d4e8dc] bg-white px-6 py-12 min-h-[8.5rem] text-left transition-all hover:border-[#1a7a52] hover:bg-[#f0fdf7] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1a7a52]/40"
                   >
-                    <p className="text-sm font-semibold text-slate-800">{item.label}</p>
-                    <p className="text-sm text-slate-600 mt-1">{item.hint}</p>
+                    <p className="text-xl font-bold text-slate-800">{item.label}</p>
+                    <p className="text-sm text-slate-600 mt-2">{item.hint}</p>
                   </button>
                 ))}
               </div>
@@ -826,7 +832,7 @@ export default function BeneficiaryManagementForm({
             {(activity === "additional" || activity === "extra") && entry.kind === "dependant" && (
               <Card className="rounded-lg border border-[#d4e8dc] gap-0 py-0 shadow-none ring-0">
                 <CardContent className="p-4 md:p-5 space-y-1">
-                  <Block title="Principal enrollee" hint="Only enrolment records that name a principal and have an enrolment type are listed. The type is taken from that record.">
+                  <Block title="Principal enrollee">
                     <Field label="Enrolment type">
                       <Input
                         value={[entry.program_name, entry.enrolment_type].filter(Boolean).join(" · ")}
@@ -1126,20 +1132,36 @@ export default function BeneficiaryManagementForm({
 
             </div>
 
-            {activity ? (
+            {activity && reviewNote && reportStatus !== "submitted" ? (
+              <p className={`rounded-lg border px-4 py-3 text-sm whitespace-pre-wrap ${endorsed ? "border-[#d4e8dc] bg-[#f4fbf7] text-[#0f3d2e]" : "border-amber-200 bg-amber-50 text-amber-950"}`}>
+                <span className="font-semibold">{endorsed ? "Endorsement" : "Returned for correction"}. </span>
+                {reviewNote}
+              </p>
+            ) : null}
+
+            {activity && reportStatus !== "approved" ? (
               <div className="flex flex-wrap items-center justify-end gap-2">
-                <Button variant="ghost" size="sm" className="gap-2" disabled={saving || submitting} onClick={() => persist("draft")}>
-                  {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                  Save draft
-                </Button>
-                <Button
-                  className="bg-orange-action hover:bg-orange-600 gap-2"
-                  disabled={saving || submitting}
-                  onClick={() => requestSubmit(() => persist("submitted"))}
-                >
-                  {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                  Submit
-                </Button>
+                {reportStatus === "submitted" && !endorsed ? (
+                  <p className="text-sm text-slate-600 mr-auto">Waiting for the state coordinator to endorse this report.</p>
+                ) : (
+                  <>
+                    {endorsed && (
+                      <p className="text-sm text-[#0f3d2e] mr-auto">Endorsed. Submit it as approved.</p>
+                    )}
+                    <Button variant="ghost" size="sm" className="gap-2" disabled={saving || submitting} onClick={() => persist("draft")}>
+                      {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                      Save draft
+                    </Button>
+                    <Button
+                      className="bg-orange-action hover:bg-orange-600 gap-2"
+                      disabled={saving || submitting}
+                      onClick={() => requestSubmit(() => persist(endorsed ? "approved" : "submitted"))}
+                    >
+                      {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                      {endorsed ? "Submit as approved" : "Send for review"}
+                    </Button>
+                  </>
+                )}
               </div>
             ) : null}
           </div>

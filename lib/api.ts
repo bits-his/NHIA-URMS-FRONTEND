@@ -648,12 +648,13 @@ const makeStateOfficeApi = (type: StateOfficeReportType) => ({
     request<{ success: boolean; data: any }>(`/state-office/${type}/reports/${id}`, {
       method: "PUT", body: JSON.stringify(payload),
     }),
-  updateStatus: (id: number | string, status: string, review_note?: string) =>
+  updateStatus: (id: number | string, status: string, review_note?: string, action?: "endorse" | "return" | "final_submit") =>
     request<{ success: boolean; data: any }>(`/state-office/${type}/reports/${id}/status`, {
       method: "PATCH",
       body: JSON.stringify({
         status,
         ...(review_note?.trim() ? { review_note: review_note.trim() } : {}),
+        ...(action ? { action } : {}),
       }),
     }),
 });
