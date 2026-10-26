@@ -1,13 +1,12 @@
 import * as React from "react";
 import { useNavigate } from "react-router-dom";
 import StateOfficeReportsList from "./StateOfficeReportsList";
-import ActivityReportingTemplateForm from "./ActivityReportingTemplateForm";
+import ProviderManagementForm from "./ProviderManagementForm";
 import {
   PROVIDER_MANAGEMENT_NAV_TITLE,
   PROVIDER_MANAGEMENT_PATH,
   PROVIDER_PILLAR_CHILDREN,
 } from "./enrolmentPillarTypes";
-import { ACTIVITY_TEMPLATE_BY_MODULE } from "./activityReportTemplateConfig";
 
 interface Props {
   onBack: () => void;
@@ -15,15 +14,12 @@ interface Props {
   defaultStateId?: string | null;
 }
 
-const DEFAULT_MODULE = PROVIDER_PILLAR_CHILDREN[0]?.key ?? "medical-audits";
-const DEFAULT_CONFIG = ACTIVITY_TEMPLATE_BY_MODULE[DEFAULT_MODULE]!;
-
 const MODULE_LABELS = Object.fromEntries(
   PROVIDER_PILLAR_CHILDREN.map((c) => [c.key, c.navLabel]),
 );
 
 /**
- * Single Provider Management hub: one list for all modules; type chosen in the form.
+ * Provider Management hub — four forms, endorsement workflow, linked facility counts.
  */
 export default function ProviderManagementPage({ onBack, defaultZoneId, defaultStateId }: Props) {
   return (
@@ -32,19 +28,19 @@ export default function ProviderManagementPage({ onBack, defaultZoneId, defaultS
       listTitle={PROVIDER_MANAGEMENT_NAV_TITLE}
       activityModuleColumn
       activityModuleLabels={MODULE_LABELS}
+      providerWorkflow
       onBack={onBack}
       defaultZoneId={defaultZoneId}
       defaultStateId={defaultStateId}
-      renderForm={({ reportId, onBack: formBack, onSubmitted, defaultZoneId: z, defaultStateId: s }) => (
-        <ActivityReportingTemplateForm
-          config={DEFAULT_CONFIG}
-          allowModuleSelect
+      renderForm={({ reportId, onBack: formBack, onSubmitted, defaultZoneId: z, defaultStateId: s, onPersisted }) => (
+        <ProviderManagementForm
           reportId={reportId}
           onBack={formBack}
           onCancel={formBack}
           onSubmitted={onSubmitted}
           defaultZoneId={z}
           defaultStateId={s}
+          onPersisted={onPersisted}
         />
       )}
     />

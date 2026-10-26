@@ -32,6 +32,7 @@ import {
 } from "@/src/components/stateOffice/beneficiaryManagementTypes";
 import {
   PROVIDER_MANAGEMENT_NAV_TITLE,
+  PROVIDER_MANAGEMENT_DASHBOARD_NAV_TITLE,
   PROVIDER_PILLAR_CHILDREN,
   STAKEHOLDER_MANAGEMENT_NAV_TITLE,
   STAKEHOLDER_PILLAR_CHILDREN,
@@ -52,9 +53,12 @@ const LEGACY_STAKEHOLDER_TITLES = new Set(
 );
 
 /** Legacy per-module privilege titles → single Provider Management leaf */
-const LEGACY_PROVIDER_TITLES = new Set(
-  PROVIDER_PILLAR_CHILDREN.flatMap((c) => [c.title, c.navLabel]),
-);
+const LEGACY_PROVIDER_TITLES = new Set([
+  ...PROVIDER_PILLAR_CHILDREN.flatMap((c) => [c.title, c.navLabel]),
+  "Accreditation / Reaccreditation",
+  "Accreditation/Reaccreditation",
+  "Accreditation & Reaccreditation",
+]);
 
 /** Legacy beneficiary screens → single Beneficiary Management leaf */
 const LEGACY_BENEFICIARY_TITLE_SET = new Set<string>(LEGACY_BENEFICIARY_TITLES);
@@ -158,7 +162,11 @@ export function normalizeFunctionalityTitle(title: string, moduleTitle?: string)
 
   }
 
-
+  if (title === "Accreditation / Reaccreditation"
+    || title === "Accreditation/Reaccreditation"
+    || title === "Accreditation & Reaccreditation") {
+    return PROVIDER_MANAGEMENT_NAV_TITLE;
+  }
 
   if (title === "My Submissions" || title === "New Annual Report") return "Annual Report";
 
@@ -285,7 +293,8 @@ export function expandAccessEntries(access: AccessEntry[]): AccessEntry[] {
   // Merge legacy per-activity Enrolment Drive / Stakeholder privileges into single leaves
   zonalIdx = out.findIndex(e => resolveModuleTitle(e.access_to) === ZONAL_MODULE);
   if (zonalIdx >= 0) {
-    let funcs = out[zonalIdx].functionalities;
+    // Clone — Redux/Immer freezes functionalities; never push onto the store array.
+    let funcs = [...(out[zonalIdx].functionalities ?? [])];
     const hasDrive = funcs.some(
       f => normalizeFunctionalityTitle(f, ZONAL_MODULE) === ENROLMENT_DRIVES_NAV_TITLE,
     );
@@ -304,14 +313,22 @@ export function expandAccessEntries(access: AccessEntry[]): AccessEntry[] {
       );
       funcs.push(STAKEHOLDER_MANAGEMENT_NAV_TITLE);
     }
-    const hasProvider = funcs.some(
-      f => normalizeFunctionalityTitle(f, ZONAL_MODULE) === PROVIDER_MANAGEMENT_NAV_TITLE,
+    // Keep form and dashboard privileges separate — do not unlock Dashboard from register-only access.
+    const hasProviderForm = funcs.some(
+      f => normalizeFunctionalityTitle(f, ZONAL_MODULE) === PROVIDER_MANAGEMENT_NAV_TITLE
+        || LEGACY_PROVIDER_TITLES.has(f),
     );
-    if (hasProvider) {
+    const hasProviderDashboard = funcs.some(
+      f => f === PROVIDER_MANAGEMENT_DASHBOARD_NAV_TITLE,
+    );
+    if (hasProviderForm || hasProviderDashboard) {
       funcs = funcs.filter(
-        f => !LEGACY_PROVIDER_TITLES.has(f) && f !== PROVIDER_MANAGEMENT_NAV_TITLE,
+        f => !LEGACY_PROVIDER_TITLES.has(f)
+          && f !== PROVIDER_MANAGEMENT_NAV_TITLE
+          && f !== PROVIDER_MANAGEMENT_DASHBOARD_NAV_TITLE,
       );
-      funcs.push(PROVIDER_MANAGEMENT_NAV_TITLE);
+      if (hasProviderForm) funcs.push(PROVIDER_MANAGEMENT_NAV_TITLE);
+      if (hasProviderDashboard) funcs.push(PROVIDER_MANAGEMENT_DASHBOARD_NAV_TITLE);
     }
     const hasBeneficiary = funcs.some(
       f => normalizeFunctionalityTitle(f, ZONAL_MODULE) === BENEFICIARY_MANAGEMENT_NAV_TITLE,

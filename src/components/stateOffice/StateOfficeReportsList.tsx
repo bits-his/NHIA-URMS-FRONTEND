@@ -4,6 +4,7 @@ import {
   FileText, Clock, CheckCircle2, XCircle,
 } from "lucide-react";
 import { motion } from "motion/react";
+import { useSelector } from "react-redux";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import { stateOfficeApi } from "@/lib/api";
+import type { RootState } from "@/src/store/store";
 import { buildReportingYearOptions } from "../monthly/reportingYears";
 import { ALL_STATES, useMonthlyStateFilter } from "../monthly/useMonthlyStateFilter";
 import { StateOfficeFormRouter, StateOfficeDetailRouter } from "./registry";
@@ -35,7 +37,7 @@ interface Report {
   reporting_month: number;
   submission_date: string | null;
   submitted_by: string | null;
-  status: "draft" | "submitted" | "approved";
+  status: string;
   createdAt?: string;
   zone_id?: number;
   state_id?: number;
@@ -61,6 +63,7 @@ interface FormRenderProps {
   onSubmitted: () => void;
   defaultZoneId?: string | null;
   defaultStateId?: string | null;
+  onPersisted?: (saved: { id: number; status: string; reference_id?: string }) => void;
 }
 
 interface Props {
@@ -82,16 +85,21 @@ interface Props {
     summarize: (report: Report) => { key: string; activity: string; subject: string };
   };
   renderForm?: (props: FormRenderProps) => React.ReactNode;
+  /** Provider Management endorsement statuses on accreditation reports. */
+  providerWorkflow?: boolean;
 }
 
-const STATUS_CONFIG = {
-  draft:     { label: "Draft",     cls: "bg-slate-100 text-slate-600 border-slate-200",       icon: <FileText className="w-3 h-3" /> },
-  submitted: { label: "Submitted", cls: "bg-blue-100 text-blue-700 border-blue-200",          icon: <Clock className="w-3 h-3" /> },
-  approved:  { label: "Approved",  cls: "bg-emerald-100 text-emerald-700 border-emerald-200", icon: <CheckCircle2 className="w-3 h-3" /> },
+const STATUS_CONFIG: Record<string, { label: string; cls: string; icon: React.ReactNode }> = {
+  draft:            { label: "Draft",     cls: "bg-slate-100 text-slate-600 border-slate-200",       icon: <FileText className="w-3 h-3" /> },
+  awaiting_review:  { label: "Awaiting review", cls: "bg-amber-100 text-amber-800 border-amber-200", icon: <Clock className="w-3 h-3" /> },
+  returned:         { label: "Returned",  cls: "bg-rose-100 text-rose-700 border-rose-200",          icon: <XCircle className="w-3 h-3" /> },
+  endorsed:         { label: "Endorsed",  cls: "bg-teal-100 text-teal-800 border-teal-200",          icon: <CheckCircle2 className="w-3 h-3" /> },
+  submitted:        { label: "Submitted", cls: "bg-blue-100 text-blue-700 border-blue-200",          icon: <Clock className="w-3 h-3" /> },
+  approved:         { label: "Approved",  cls: "bg-emerald-100 text-emerald-700 border-emerald-200", icon: <CheckCircle2 className="w-3 h-3" /> },
 };
 
 export default function StateOfficeReportsList({
-  reportType, reportTypes, onBack, defaultZoneId, defaultStateId, activityModule, activityModuleColumn, activityModuleLabels, listTitle, activityRows, renderForm,
+  reportType, reportTypes, onBack, defaultZoneId, defaultStateId, activityModule, activityModuleColumn, activityModuleLabels, listTitle, activityRows, renderForm, providerWorkflow,
 }: Props) {
   const cfg = REPORT_CONFIG[reportType];
   const typesToLoad = React.useMemo(
@@ -100,6 +108,7 @@ export default function StateOfficeReportsList({
   );
   const multiType = typesToLoad.length > 1;
   const { canCreate, createOnly } = useStateOfficeAccess();
+  const authUser = useSelector((s: RootState) => s.auth.user);
 
   const [mode, setMode] = React.useState<"list" | "create" | "view" | "edit">(createOnly ? "create" : "list");
   const [formKey, setFormKey] = React.useState(0);
@@ -107,6 +116,8 @@ export default function StateOfficeReportsList({
   const [selectedReportType, setSelectedReportType] = React.useState<StateOfficeReportType>(reportType);
   const [reports, setReports] = React.useState<Report[]>([]);
   const [loading, setLoading] = React.useState(!createOnly);
+  const [myDrafts, setMyDrafts] = React.useState<Report[]>([]);
+  const [resumingDraft, setResumingDraft] = React.useState(!!createOnly);
 
   const {
     showStateFilter,
@@ -122,6 +133,54 @@ export default function StateOfficeReportsList({
   const [filterStatus,   setFilterStatus]   = React.useState("all");
   const [filterActivity, setFilterActivity] = React.useState("all");
 
+  const isOwnDraft = React.useCallback((r: Report) => {
+    if (!authUser) return true;
+    if (authUser.name && r.submitted_by && String(r.submitted_by) === String(authUser.name)) return true;
+    return !r.submitted_by;
+  }, [authUser]);
+
+  const refreshMyDrafts = React.useCallback(async () => {
+    if (!createOnly) return [] as Report[];
+    // Resume work-in-progress only. Awaiting-review stays with the coordinator (not reopened as a draft).
+    const statuses = providerWorkflow ? ["draft", "returned", "endorsed"] : ["draft"];
+    const batches = await Promise.all(
+      typesToLoad.map(async (t) => {
+        const results = await Promise.all(
+          statuses.map((status) =>
+            stateOfficeApi[t].list({
+              status,
+              zone_id: defaultZoneId ?? undefined,
+              state_id: apiStateId,
+              activity_module: activityModule,
+            }),
+          ),
+        );
+        return results.flatMap((res) =>
+          ((res.data as Report[]) || []).map((r) => ({ ...r, __reportType: t })),
+        );
+      }),
+    );
+    const merged = batches.flat().filter(isOwnDraft).sort((a, b) => b.id - a.id);
+    setMyDrafts(merged);
+    return merged;
+  }, [
+    createOnly, providerWorkflow, typesToLoad, defaultZoneId, apiStateId, activityModule, isOwnDraft,
+  ]);
+
+  const openDraft = React.useCallback((r: Report) => {
+    setSelectedReportType(r.__reportType ?? reportType);
+    setSelectedId(r.id);
+    setMode("edit");
+    setFormKey((k) => k + 1);
+  }, [reportType]);
+
+  const startBlankCreate = React.useCallback(() => {
+    setSelectedId(null);
+    setSelectedReportType(reportType);
+    setMode("create");
+    setFormKey((k) => k + 1);
+  }, [reportType]);
+
   // Reset nested view when switching report types in the sidebar
   React.useEffect(() => {
     setMode(createOnly ? "create" : "list");
@@ -130,6 +189,30 @@ export default function StateOfficeReportsList({
     setFilterActivity("all");
     setFormKey((k) => k + 1);
   }, [reportType, createOnly]);
+
+  // Create-only officers: reopen unfinished drafts instead of a blank form
+  React.useEffect(() => {
+    if (!createOnly) {
+      setResumingDraft(false);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      setResumingDraft(true);
+      try {
+        const drafts = await refreshMyDrafts();
+        if (cancelled) return;
+        if (drafts.length > 0) openDraft(drafts[0]);
+      } catch {
+        /* start blank if draft load fails */
+      } finally {
+        if (!cancelled) setResumingDraft(false);
+      }
+    })();
+    return () => { cancelled = true; };
+    // Resume once when the create-only page (or geo/auth context) mounts
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [createOnly, authUser?.staff_id, authUser?.name, defaultZoneId, defaultStateId, reportType, activityModule]);
 
   const openReport = (r: Report, nextMode: "view" | "edit") => {
     setSelectedReportType(r.__reportType ?? reportType);
@@ -170,20 +253,43 @@ export default function StateOfficeReportsList({
 
   const leaveForm = React.useCallback(() => {
     if (createOnly) {
-      setSelectedId(null);
-      setFormKey((k) => k + 1);
-      setMode("create");
+      void (async () => {
+        setResumingDraft(true);
+        try {
+          const drafts = await refreshMyDrafts();
+          if (drafts.length > 0) openDraft(drafts[0]);
+          else startBlankCreate();
+        } catch {
+          startBlankCreate();
+        } finally {
+          setResumingDraft(false);
+        }
+      })();
       return;
     }
     setSelectedId(null);
     setMode("list");
     load();
-  }, [createOnly, load]);
+  }, [createOnly, load, refreshMyDrafts, openDraft, startBlankCreate]);
 
   const leaveDetail = React.useCallback(() => {
+    if (createOnly) {
+      leaveForm();
+      return;
+    }
     setSelectedId(null);
-    setMode(createOnly ? "create" : "list");
-  }, [createOnly]);
+    setMode("list");
+    load();
+  }, [createOnly, leaveForm, load]);
+
+  const handlePersisted = React.useCallback((saved: { id: number; status: string; reference_id?: string }) => {
+    if (!createOnly) return;
+    if (saved.status === "draft" || saved.status === "returned" || saved.status === "endorsed") {
+      setSelectedId(saved.id);
+      setMode("edit");
+      void refreshMyDrafts().catch(() => {});
+    }
+  }, [createOnly, refreshMyDrafts]);
 
   const filteredReports = React.useMemo(() => {
     if (filterActivity === "all") return reports;
@@ -194,7 +300,9 @@ export default function StateOfficeReportsList({
 
   const counts = React.useMemo(() => ({
     total:     filteredReports.length,
-    draft:     filteredReports.filter(r => r.status === "draft").length,
+    draft:     filteredReports.filter(r => r.status === "draft" || r.status === "returned").length,
+    awaiting_review: filteredReports.filter(r => r.status === "awaiting_review").length,
+    endorsed:  filteredReports.filter(r => r.status === "endorsed").length,
     submitted: filteredReports.filter(r => r.status === "submitted").length,
     approved:  filteredReports.filter(r => r.status === "approved").length,
   }), [filteredReports]);
@@ -259,71 +367,116 @@ export default function StateOfficeReportsList({
   }
 
   if (mode === "create" || mode === "edit") {
+    if (createOnly && resumingDraft) {
+      return (
+        <div className="flex flex-col h-full items-center justify-center gap-3 bg-slate-50/30">
+          <Loader2 className="w-6 h-6 animate-spin text-[#145c3f]" />
+          <p className="text-sm text-slate-500">Loading your draft…</p>
+        </div>
+      );
+    }
+
     const cancelCreate = createOnly ? onBack : leaveForm;
-    const formBack = mode === "edit" ? leaveDetail : cancelCreate;
+    const formBack = createOnly ? onBack : (mode === "edit" ? leaveDetail : cancelCreate);
     const formDone = leaveForm;
     const formReportType = mode === "edit" ? selectedReportType : reportType;
-    if (formReportType === "igr") {
-      return (
-        <IgrReportPage
-          key={formKey}
-          reportId={mode === "edit" ? selectedId : null}
-          onBack={formBack}
-          onSubmitted={formDone}
-          defaultZoneId={defaultZoneId}
-          defaultStateId={defaultStateId}
-        />
-      );
-    }
-    if (formReportType === "sshia-financial") {
-      return (
-        <SshiaFinancialReportPage
-          key={formKey}
-          reportId={mode === "edit" ? selectedId : null}
-          onBack={formBack}
-          onSubmitted={formDone}
-          defaultZoneId={defaultZoneId}
-          defaultStateId={defaultStateId}
-        />
-      );
-    }
-    if (formReportType === "expenditure-profile") {
-      return (
-        <ExpenditureProfileReportPage
-          key={formKey}
-          reportId={mode === "edit" ? selectedId : null}
-          onBack={formBack}
-          onSubmitted={formDone}
-          defaultZoneId={defaultZoneId}
-          defaultStateId={defaultStateId}
-        />
-      );
-    }
-    if (renderForm) {
-      return (
-        <React.Fragment key={formKey}>
-          {renderForm({
-            reportId: mode === "edit" ? selectedId : null,
-            reportType: formReportType,
-            onBack: formBack,
-            onSubmitted: formDone,
-            defaultZoneId,
-            defaultStateId,
-          })}
-        </React.Fragment>
-      );
-    }
-    return (
+    const formReportId = mode === "edit" ? selectedId : null;
+    const otherDrafts = createOnly ? myDrafts.filter((d) => d.id !== selectedId) : [];
+    const activeDraft = createOnly && selectedId
+      ? myDrafts.find((d) => d.id === selectedId)
+      : null;
+
+    const formNode = formReportType === "igr" ? (
+      <IgrReportPage
+        key={formKey}
+        reportId={formReportId}
+        onBack={formBack}
+        onSubmitted={formDone}
+        defaultZoneId={defaultZoneId}
+        defaultStateId={defaultStateId}
+      />
+    ) : formReportType === "sshia-financial" ? (
+      <SshiaFinancialReportPage
+        key={formKey}
+        reportId={formReportId}
+        onBack={formBack}
+        onSubmitted={formDone}
+        defaultZoneId={defaultZoneId}
+        defaultStateId={defaultStateId}
+      />
+    ) : formReportType === "expenditure-profile" ? (
+      <ExpenditureProfileReportPage
+        key={formKey}
+        reportId={formReportId}
+        onBack={formBack}
+        onSubmitted={formDone}
+        defaultZoneId={defaultZoneId}
+        defaultStateId={defaultStateId}
+      />
+    ) : renderForm ? (
+      <React.Fragment key={formKey}>
+        {renderForm({
+          reportId: formReportId,
+          reportType: formReportType,
+          onBack: formBack,
+          onSubmitted: formDone,
+          defaultZoneId,
+          defaultStateId,
+          onPersisted: handlePersisted,
+        })}
+      </React.Fragment>
+    ) : (
       <StateOfficeFormRouter
         key={formKey}
         reportType={formReportType}
-        reportId={mode === "edit" ? selectedId : null}
+        reportId={formReportId}
         onBack={formBack}
         onCancel={formBack}
         onSubmitted={formDone}
         defaultZoneId={defaultZoneId}
         defaultStateId={defaultStateId}
+        onPersisted={handlePersisted}
       />
+    );
+
+    if (!createOnly) return formNode;
+
+    return (
+      <div className="flex flex-col h-full min-h-0">
+        {(myDrafts.length > 0 || selectedId) && (
+          <div className="bg-[#f4f7f5] border-b border-[#d4e8dc] px-4 md:px-6 py-2.5 flex flex-wrap items-center gap-2 shrink-0">
+            <span className="text-xs text-slate-600 shrink-0">
+              {selectedId
+                ? `Continuing draft${activeDraft?.reference_id ? ` ${activeDraft.reference_id}` : ""}`
+                : `${myDrafts.length} unfinished draft${myDrafts.length === 1 ? "" : "s"}`}
+            </span>
+            {otherDrafts.slice(0, 3).map((d) => (
+              <Button
+                key={d.id}
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs"
+                onClick={() => openDraft(d)}
+              >
+                {d.reference_id || `Draft #${d.id}`}
+              </Button>
+            ))}
+            {selectedId && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs ml-auto"
+                onClick={startBlankCreate}
+              >
+                Start new report
+              </Button>
+            )}
+          </div>
+        )}
+        <div className="flex-1 min-h-0">{formNode}</div>
+      </div>
     );
   }
 
@@ -361,13 +514,20 @@ export default function StateOfficeReportsList({
               <span><span className="font-semibold text-slate-800">{counts.approved}</span> approved</span>
             </div>
           ) : (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {[
+          <div className={`grid grid-cols-2 gap-4 ${providerWorkflow ? "md:grid-cols-3 xl:grid-cols-6" : "md:grid-cols-4"}`}>
+            {(providerWorkflow ? [
+              { label: "Total", value: counts.total, color: "bg-slate-50 border-slate-200", text: "text-slate-700" },
+              { label: "Draft / Returned", value: counts.draft, color: "bg-slate-50 border-slate-200", text: "text-slate-600" },
+              { label: "Awaiting review", value: counts.awaiting_review, color: "bg-amber-50 border-amber-200", text: "text-amber-800" },
+              { label: "Endorsed", value: counts.endorsed, color: "bg-teal-50 border-teal-200", text: "text-teal-800" },
+              { label: "Submitted", value: counts.submitted, color: "bg-blue-50 border-blue-200", text: "text-blue-700" },
+              { label: "Approved", value: counts.approved, color: "bg-emerald-50 border-emerald-200", text: "text-emerald-700" },
+            ] : [
               { label: "Total",     value: counts.total,     color: "bg-slate-50 border-slate-200",     text: "text-slate-700"  },
               { label: "Draft",     value: counts.draft,     color: "bg-slate-50 border-slate-200",     text: "text-slate-600"  },
               { label: "Submitted", value: counts.submitted, color: "bg-blue-50 border-blue-200",       text: "text-blue-700"   },
               { label: "Approved",  value: counts.approved,  color: "bg-emerald-50 border-emerald-200", text: "text-emerald-700" },
-            ].map(c => (
+            ]).map(c => (
               <motion.div key={c.label} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                 className={`rounded-2xl p-5 border ${c.color}`}>
                 <p className={`text-3xl font-black ${c.text}`}>{c.value}</p>
@@ -434,6 +594,13 @@ export default function StateOfficeReportsList({
                 <SelectContent>
                   <SelectItem value="all">All Statuses</SelectItem>
                   <SelectItem value="draft">Draft</SelectItem>
+                  {providerWorkflow && (
+                    <>
+                      <SelectItem value="awaiting_review">Awaiting review</SelectItem>
+                      <SelectItem value="returned">Returned</SelectItem>
+                      <SelectItem value="endorsed">Endorsed</SelectItem>
+                    </>
+                  )}
                   <SelectItem value="submitted">Submitted</SelectItem>
                   <SelectItem value="approved">Approved</SelectItem>
                 </SelectContent>
@@ -594,7 +761,7 @@ export default function StateOfficeReportsList({
                     </TableHeader>
                     <TableBody>
                     {filteredReports.map((r, i) => {
-                      const sc = STATUS_CONFIG[r.status];
+                      const sc = STATUS_CONFIG[r.status] || STATUS_CONFIG.draft;
                       const rowType = r.__reportType ?? reportType;
                       const typeLabel = REPORT_CONFIG[rowType]?.title ?? rowType;
                       const enrolmentSummary = reportType === "enrolment"

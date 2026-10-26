@@ -6,7 +6,11 @@ import { toast } from "sonner";
 import { stateOfficeApi } from "@/lib/api";
 import { useStateOfficeHeader } from "./shared/useStateOfficeHeader";
 import ReportBasicInfo from "./shared/ReportBasicInfo";
-import { SubmitConfirmModal, useReportingOfficerSubmitConfirm } from "@/src/components/SubmitConfirmModal";
+import {
+  SubmitConfirmModal,
+  useReportingOfficerSubmitConfirm,
+  type SubmitConfirmOptions,
+} from "@/src/components/SubmitConfirmModal";
 
 interface Props {
   reportId?: number | null;
@@ -29,12 +33,12 @@ interface Props {
     submitting: boolean;
     savedId: number | null;
     stateId: string;
-    persist: (status: "draft" | "submitted" | "approved") => Promise<void>;
-    requestSubmit: (action: () => void | Promise<void>) => void;
+    persist: (status: string) => Promise<void>;
+    requestSubmit: (action: () => void | Promise<void>, options?: SubmitConfirmOptions) => void;
     header: ReturnType<typeof useStateOfficeHeader>;
   }) => React.ReactNode;
   buildPayload: (base: Record<string, unknown>) => Record<string, unknown>;
-  validate?: (status?: "draft" | "submitted" | "approved") => string | null;
+  validate?: (status?: string) => string | null;
   reportType: keyof typeof stateOfficeApi;
   onLoaded?: (data: any) => void;
   /** Optional reporting week for weekly-actionable forms */
@@ -45,6 +49,8 @@ interface Props {
   /** Zone · State · Year · Month · Quarter header (ICT register) */
   showQuarter?: boolean;
   afterPersist?: (saved: { id: number }) => Promise<void>;
+  /** Fired after every successful create/update (e.g. draft resume for create-only officers). */
+  onPersisted?: (saved: { id: number; status: string; reference_id?: string }) => void;
   /** Keep zone, state, and period when the report type changes before the first save. */
   preserveHeader?: boolean;
   /** Match the compact register chrome (smaller header, tighter page). */
@@ -62,6 +68,7 @@ export default function StateOfficeFormShell({
   hideFooterActions = false,
   hideBasicInfo = false,
   afterPersist,
+  onPersisted,
   preserveHeader = false,
   compact = false,
 }: Props) {
@@ -119,36 +126,51 @@ export default function StateOfficeFormShell({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reportId, api, reportType]);
 
-  const persist = async (status: "draft" | "submitted" | "approved") => {
+  const persist = async (status: string) => {
     const headerErr = header.validateHeader();
     if (headerErr) { toast.error(headerErr); return; }
     if (setReportWeek && !reportWeek) { toast.error("Please select a Reporting Week"); return; }
     const extraErr = validate?.(status);
     if (extraErr) { toast.error(extraErr); return; }
 
-    const setter = status === "draft" ? setSaving : setSubmitting;
+    const isDraftSave = status === "draft" || status === "returned";
+    const setter = isDraftSave ? setSaving : setSubmitting;
     setter(true);
     try {
-      const payload = buildPayload(header.headerPayload(status) as Record<string, unknown>);
+      const payload = buildPayload(header.headerPayload(
+        isDraftSave ? "draft" : status === "approved" ? "approved" : "submitted",
+      ) as Record<string, unknown>);
       let res;
       if (savedId) {
         res = await api.update(savedId, { ...payload, status });
       } else {
-        res = await api.create(payload);
+        res = await api.create({ ...payload, status });
         setSavedId(res.data.id);
       }
       setRefId(res.data.reference_id);
       if (afterPersist) {
         await afterPersist({ id: res.data.id });
       }
+      onPersisted?.({
+        id: res.data.id,
+        status: res.data.status || status,
+        reference_id: res.data.reference_id,
+      });
       const submittedLabel = pageTitle === "Beneficiary Management" ? "Sent for review" : "Report submitted";
-      toast.success(
-        status === "draft" ? "Draft saved" : status === "approved" ? "Report approved" : submittedLabel,
-        { description: `Ref: ${res.data.reference_id}` },
-      );
-      if (status === "submitted" || status === "approved") handleSubmitted();
+      const messages: Record<string, string> = {
+        draft: "Draft saved",
+        returned: "Draft saved",
+        awaiting_review: "Sent for State Coordinator review",
+        endorsed: "Endorsement recorded",
+        submitted: submittedLabel,
+        approved: "Report approved",
+      };
+      toast.success(messages[status] || "Saved", {
+        description: `Ref: ${res.data.reference_id}`,
+      });
+      if (status === "submitted" || status === "awaiting_review" || status === "approved") handleSubmitted();
     } catch (err: any) {
-      toast.error(status === "draft" ? "Save failed" : "Submission failed", { description: err.message });
+      toast.error(isDraftSave ? "Save failed" : "Action failed", { description: err.message });
     } finally { setter(false); }
   };
 
@@ -237,6 +259,9 @@ export default function StateOfficeFormShell({
       <SubmitConfirmModal
         open={submitConfirm.open}
         busy={submitConfirm.busy || submitting}
+        title={submitConfirm.title}
+        description={submitConfirm.description}
+        confirmLabel={submitConfirm.confirmLabel}
         onConfirm={submitConfirm.confirm}
         onCancel={submitConfirm.cancel}
       />

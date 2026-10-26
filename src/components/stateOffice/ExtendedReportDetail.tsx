@@ -1,5 +1,6 @@
 import * as React from "react";
-import { ArrowLeft, Loader2, FileText, Clock, CheckCircle2, Pencil } from "lucide-react";
+import { useSelector } from "react-redux";
+import { ArrowLeft, Loader2, FileText, Clock, CheckCircle2, Pencil, XCircle, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -7,6 +8,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
 import { stateOfficeApi, apiFileUrl } from "@/lib/api";
+import type { RootState } from "@/src/store/store";
+import { isDeptStateCoordinator, isDeptZonalCoordinator } from "@/src/access/departmentRoles";
 import {
   REPORT_CONFIG, ACCREDITATION_INDICATORS, ACCREDITATION_PROCESS_TYPES,
   ACCREDITATION_ENTRY_TYPES, expandAccreditationLines,
@@ -24,12 +27,16 @@ interface Props {
   reportId: number;
   onBack: () => void;
   onEdit?: () => void;
+  onReviewed?: () => void;
 }
 
-const STATUS_CONFIG = {
-  draft:     { label: "Draft",     cls: "bg-slate-100 text-slate-600 border-slate-200",       icon: <FileText className="w-3.5 h-3.5" /> },
-  submitted: { label: "Submitted", cls: "bg-blue-100 text-blue-700 border-blue-200",          icon: <Clock className="w-3.5 h-3.5" /> },
-  approved:  { label: "Approved",  cls: "bg-emerald-100 text-emerald-700 border-emerald-200", icon: <CheckCircle2 className="w-3.5 h-3.5" /> },
+const STATUS_CONFIG: Record<string, { label: string; cls: string; icon: React.ReactNode }> = {
+  draft:            { label: "Draft",     cls: "bg-slate-100 text-slate-600 border-slate-200",       icon: <FileText className="w-3.5 h-3.5" /> },
+  awaiting_review:  { label: "Awaiting review", cls: "bg-amber-100 text-amber-800 border-amber-200", icon: <Clock className="w-3.5 h-3.5" /> },
+  returned:         { label: "Returned",  cls: "bg-rose-100 text-rose-700 border-rose-200",          icon: <FileText className="w-3.5 h-3.5" /> },
+  endorsed:         { label: "Endorsed",  cls: "bg-teal-100 text-teal-800 border-teal-200",          icon: <CheckCircle2 className="w-3.5 h-3.5" /> },
+  submitted:        { label: "Submitted", cls: "bg-blue-100 text-blue-700 border-blue-200",          icon: <Clock className="w-3.5 h-3.5" /> },
+  approved:         { label: "Approved",  cls: "bg-emerald-100 text-emerald-700 border-emerald-200", icon: <CheckCircle2 className="w-3.5 h-3.5" /> },
 };
 
 function InfoField({ label, value }: { label: string; value: string }) {
@@ -41,11 +48,23 @@ function InfoField({ label, value }: { label: string; value: string }) {
   );
 }
 
-export default function ExtendedReportDetail({ reportType, reportId, onBack, onEdit }: Props) {
+export default function ExtendedReportDetail({ reportType, reportId, onBack, onEdit, onReviewed }: Props) {
   const cfg = REPORT_CONFIG[reportType];
   const api = stateOfficeApi[reportType];
+  const authUser = useSelector((s: RootState) => s.auth.user);
+  const canReview = isDeptStateCoordinator(authUser?.role || "") || isDeptZonalCoordinator(authUser?.role || "");
   const [report, setReport] = React.useState<any>(null);
   const [loading, setLoading] = React.useState(true);
+  const [acting, setActing] = React.useState(false);
+  /** Document: coordinator adds comments, then Endorse / Return / Approve. */
+  const [reviewAction, setReviewAction] = React.useState<"endorse" | "return" | "approve" | null>(null);
+  const [reviewNote, setReviewNote] = React.useState("");
+
+  const reload = React.useCallback(async () => {
+    const res = await api.get(reportId);
+    setReport(res.data);
+    return res.data;
+  }, [api, reportId]);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -63,8 +82,61 @@ export default function ExtendedReportDetail({ reportType, reportId, onBack, onE
     return () => { cancelled = true; };
   }, [api, reportId]);
 
-  const statusCfg = report ? STATUS_CONFIG[report.status as keyof typeof STATUS_CONFIG] : null;
+  const statusCfg = report ? (STATUS_CONFIG[report.status] || null) : null;
   const quarter = report ? quarterFromMonth(report.reporting_month) : 0;
+  const canEditProvider = reportType === "accreditation"
+    && ["draft", "returned", "endorsed"].includes(report?.status);
+  const canEditStandard = report?.status === "draft";
+  const providerWorkflow = reportType === "accreditation";
+  const showEndorse = canReview && providerWorkflow && report?.status === "awaiting_review";
+  const showApprove = canReview && providerWorkflow && report?.status === "submitted";
+
+  const openReview = (action: "endorse" | "return" | "approve") => {
+    setReviewNote("");
+    setReviewAction(action);
+  };
+
+  const closeReview = () => {
+    if (acting) return;
+    setReviewAction(null);
+    setReviewNote("");
+  };
+
+  const confirmReview = async () => {
+    if (!reviewAction) return;
+    const note = reviewNote.trim();
+    if (reviewAction === "return" && !note) {
+      toast.error("A comment is required when returning a report");
+      return;
+    }
+    setActing(true);
+    try {
+      if (reviewAction === "endorse") {
+        await api.updateStatus(reportId, "endorsed", note || undefined);
+        toast.success("Report endorsed", { description: "The officer can now submit this report." });
+      } else if (reviewAction === "approve") {
+        await api.updateStatus(reportId, "approved", note || undefined);
+        toast.success("Report approved");
+      } else {
+        const next = report?.status === "awaiting_review" ? "returned" : "draft";
+        await api.updateStatus(reportId, next, note);
+        toast.success(next === "returned" ? "Returned for correction" : "Returned to draft");
+      }
+      setReviewAction(null);
+      setReviewNote("");
+      await reload();
+      onReviewed?.();
+    } catch (err: any) {
+      toast.error(
+        reviewAction === "endorse" ? "Endorsement failed"
+          : reviewAction === "approve" ? "Approval failed"
+            : "Could not return report",
+        { description: err.message },
+      );
+    } finally {
+      setActing(false);
+    }
+  };
 
   return (
     <div className="flex flex-col h-full bg-slate-50/30">
@@ -72,8 +144,8 @@ export default function ExtendedReportDetail({ reportType, reportId, onBack, onE
         <Button variant="ghost" size="icon" onClick={onBack} className="rounded-full">
           <ArrowLeft className="w-5 h-5" />
         </Button>
-        {report?.status === "draft" && onEdit && (
-          <Button variant="outline" size="sm" onClick={onEdit} className="gap-2"><Pencil className="w-4 h-4" /> Edit Draft</Button>
+        {onEdit && ((reportType === "accreditation" ? canEditProvider : canEditStandard)) && (
+          <Button variant="outline" size="sm" onClick={onEdit} className="gap-2"><Pencil className="w-4 h-4" /> Edit</Button>
         )}
       </div>
 
@@ -130,30 +202,69 @@ export default function ExtendedReportDetail({ reportType, reportId, onBack, onE
                   })
                   .filter(Boolean);
                 if (templateLines.length > 0) {
+                  const coveredTotal = templateLines.reduce(
+                    (s: number, l: any) => s + (Number(l.facilities_covered ?? l.stakeholders_engaged) || 0),
+                    0,
+                  );
                   return (
                     <>
-                      <DataCard title="Activity Summary" headers={["Planned Activities", "Activities Conducted", "Activities Recorded", "Facilities Engaged"]}
+                      {(report.coordinator_reviewed_by || report.coordinator_review_note) && (
+                        <Card className="rounded-2xl border-[#d4e8dc]">
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-base">Coordinator review</CardTitle>
+                          </CardHeader>
+                          <CardContent className="grid sm:grid-cols-2 gap-4 text-sm">
+                            <InfoField label="Reviewed by" value={report.coordinator_reviewed_by || "—"} />
+                            <InfoField label="Reviewed at" value={report.coordinator_reviewed_at ? formatDate(report.coordinator_reviewed_at) : "—"} />
+                            <div className="sm:col-span-2">
+                              <InfoField label="Comment" value={report.coordinator_review_note || "—"} />
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
+                      <DataCard title="Activity Summary"
+                        headers={["Form", "Activities", "Completed", "Facilities Covered"]}
                         rows={[[
-                          report.planned_activities ?? "—",
-                          formatCount(templateLines.filter((l: any) => l.activity_status === "Completed").length),
+                          report.activity_module || "—",
                           formatCount(templateLines.length),
-                          formatCount(templateLines.reduce((s: number, l: any) => s + (Number(l.stakeholders_engaged) || 0), 0)),
+                          formatCount(templateLines.filter((l: any) => l.activity_status === "Completed").length),
+                          formatCount(coveredTotal),
                         ]]} />
                       <DataCard title="Provider Management Activities"
-                        headers={["ID", "Date", "Activity", "Specific Activity", "Funding", "Location", "Programs", "Facilities", "Follow-up", "Status", "Remarks"]}
+                        headers={["ID", "Date", "Programme", "BHCPF Type", "Planned", "Covered", "Funding", "Status", "Remarks"]}
                         rows={templateLines.map((l: any) => [
-                          l.engagement_code || "—",
+                          l.provider_management_id || l.engagement_code || "—",
                           l.activity_date || "—",
-                          l.engagement_category || "—",
-                          l.specific_activity || "—",
+                          l.related_programme || (Array.isArray(l.programs_supported) ? l.programs_supported.join(", ") : null) || "—",
+                          l.bhcpf_activity_type || "—",
+                          formatCount(l.facilities_planned ?? l.planned_target_stakeholders),
+                          formatCount(l.facilities_covered ?? l.stakeholders_engaged),
                           l.funding_option || "—",
-                          [l.location_category, l.location_name].filter(Boolean).join(" — ") || "—",
-                          (Array.isArray(l.programs_supported) ? l.programs_supported.join(", ") : null) || "—",
-                          formatCount(l.stakeholders_engaged),
-                          l.follow_up_required || "—",
                           l.activity_status || "—",
                           l.remarks || "—",
                         ])} />
+                      {templateLines.some((l: any) => l.metrics && Object.keys(l.metrics).length) && (
+                        <DataCard title="Activity-specific metrics"
+                          headers={["ID", "Metric", "Value"]}
+                          rows={templateLines.flatMap((l: any) => {
+                            const metrics = l.metrics && typeof l.metrics === "object" ? l.metrics : {};
+                            const linked = l.related_programme === "BHCPF"
+                              ? (l.bhcpf_activity_type === "Reaccreditation"
+                                ? [["Number of PHCs Re-accredited", l.facilities_covered ?? l.stakeholders_engaged]]
+                                : [["Number of PHCs Accredited", l.facilities_covered ?? l.stakeholders_engaged]])
+                              : (l.form_type === "reaccreditation" || l.engagement_category === "Re-accreditation"
+                                ? [["Number of Facilities Re-accredited", l.facilities_covered ?? l.stakeholders_engaged]]
+                                : (l.form_type === "accreditation" || l.engagement_category === "Accreditation"
+                                  ? [["Number of Facilities Accredited", l.facilities_covered ?? l.stakeholders_engaged]]
+                                  : []));
+                            return [
+                              ...Object.entries(metrics).map(([k, v]) => [
+                                l.provider_management_id || "—", k, formatCount(v as any),
+                              ]),
+                              ...linked.map(([k, v]) => [l.provider_management_id || "—", `${k} (linked)`, formatCount(v as any)]),
+                            ];
+                          })} />
+                      )}
                     </>
                   );
                 }
@@ -337,6 +448,80 @@ export default function ExtendedReportDetail({ reportType, reportId, onBack, onE
           )}
         </div>
       </ScrollArea>
+
+      {(showEndorse || showApprove) && (
+        <div className="shrink-0 border-t border-[#d4e8dc] bg-white px-4 md:px-6 py-3 flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between">
+          <p className="text-xs text-slate-500 flex items-center gap-1.5">
+            <MessageSquare className="w-3.5 h-3.5" />
+            {showEndorse
+              ? "Add a comment if needed, then confirm Endorse — or return for correction with a required comment."
+              : "Add a comment if needed, then confirm Approve — or return with a required comment."}
+          </p>
+          <div className="flex gap-2 justify-end">
+            <Button
+              variant="outline"
+              className="border-rose-200 text-rose-700 hover:bg-rose-50 gap-2"
+              disabled={acting}
+              onClick={() => openReview("return")}
+            >
+              <XCircle className="w-4 h-4" /> {showEndorse ? "Return for Correction" : "Return"}
+            </Button>
+            <Button
+              className="bg-[#016630] hover:bg-[#014d24] gap-2"
+              disabled={acting}
+              onClick={() => openReview(showEndorse ? "endorse" : "approve")}
+            >
+              <CheckCircle2 className="w-4 h-4" />
+              {showEndorse ? "Endorse" : "Approve"}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {reviewAction && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40" onClick={closeReview} />
+          <div className="relative z-10 w-full max-w-md rounded-2xl border border-[#d4e8dc] bg-white p-5 shadow-xl space-y-3">
+            <p className="text-sm font-bold text-slate-900">
+              {reviewAction === "endorse" && "Confirm endorsement"}
+              {reviewAction === "approve" && "Confirm approval"}
+              {reviewAction === "return" && (showEndorse ? "Return for correction" : "Return report to draft")}
+            </p>
+            <p className="text-xs text-slate-500">
+              {report?.reference_id || `Report #${reportId}`}
+              {reviewAction === "endorse" && " — confirm you have reviewed this report. Comments are optional."}
+              {reviewAction === "approve" && " — confirm final approval. Comments are optional."}
+              {reviewAction === "return" && " — explain what must be corrected (required)."}
+            </p>
+            <textarea
+              value={reviewNote}
+              onChange={(e) => setReviewNote(e.target.value)}
+              rows={4}
+              placeholder={reviewAction === "return" ? "Review comment (required)…" : "Review comment (optional)…"}
+              className="w-full rounded-xl border border-[#d4e8dc] bg-[#f8fdfb] p-3 text-sm resize-none outline-none focus:ring-2 focus:ring-[#1a7a52]/30"
+            />
+            <div className="flex gap-2">
+              <Button variant="outline" className="flex-1" onClick={closeReview} disabled={acting}>
+                Cancel
+              </Button>
+              <Button
+                className={`flex-1 gap-2 ${
+                  reviewAction === "return"
+                    ? "bg-rose-600 hover:bg-rose-700"
+                    : "bg-[#016630] hover:bg-[#014d24]"
+                }`}
+                disabled={acting || (reviewAction === "return" && !reviewNote.trim())}
+                onClick={() => void confirmReview()}
+              >
+                {acting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                {reviewAction === "endorse" && "Confirm Endorse"}
+                {reviewAction === "approve" && "Confirm Approve"}
+                {reviewAction === "return" && "Return with comment"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

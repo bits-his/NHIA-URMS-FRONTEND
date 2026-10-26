@@ -61,6 +61,7 @@ export function StateOfficeFormRouter(props: {
   onSubmitted?: () => void;
   defaultZoneId?: string | null;
   defaultStateId?: string | null;
+  onPersisted?: (saved: { id: number; status: string; reference_id?: string }) => void;
 }) {
   const Form = FORM_COMPONENTS[props.reportType] ?? StateOfficeReportPage;
   return <Form {...props} />;

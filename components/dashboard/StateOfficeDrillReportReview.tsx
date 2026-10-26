@@ -7,6 +7,7 @@ import { stateOfficeApi } from "@/lib/api";
 import { StateOfficeDetailRouter } from "@/src/components/stateOffice/registry";
 import type { StateOfficeReportType } from "@/src/components/stateOffice/constants";
 import type { AuthUser } from "@/src/store/authSlice";
+import { isDeptStateCoordinator, isDeptZonalCoordinator } from "@/src/access/departmentRoles";
 
 interface Props {
   open: boolean;
@@ -18,11 +19,16 @@ interface Props {
   onReviewed?: () => void;
 }
 
-function RejectDialog({
-  open, reference, onCancel, onConfirm, loading,
+function ReviewDialog({
+  open, reference, title, hint, confirmLabel, noteRequired, confirmClassName, onCancel, onConfirm, loading,
 }: {
   open: boolean;
   reference?: string | null;
+  title: string;
+  hint: string;
+  confirmLabel: string;
+  noteRequired: boolean;
+  confirmClassName?: string;
   onCancel: () => void;
   onConfirm: (note: string) => void;
   loading: boolean;
@@ -34,23 +40,23 @@ function RejectDialog({
     <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40" onClick={onCancel} />
       <div className="relative z-10 w-full max-w-md rounded-2xl border border-[#d4e8dc] bg-white p-5 shadow-xl space-y-3">
-        <p className="text-sm font-bold text-slate-900">Return report to draft</p>
-        <p className="text-xs text-slate-500">{reference || "Report"} — explain what must be corrected.</p>
+        <p className="text-sm font-bold text-slate-900">{title}</p>
+        <p className="text-xs text-slate-500">{reference || "Report"} — {hint}</p>
         <textarea
           value={note}
           onChange={(e) => setNote(e.target.value)}
           rows={4}
-          placeholder="Review comment (required)…"
-          className="w-full rounded-xl border border-[#d4e8dc] bg-[#f8fdfb] p-3 text-sm resize-none outline-none focus:ring-2 focus:ring-rose-300"
+          placeholder={noteRequired ? "Review comment (required)…" : "Review comment (optional)…"}
+          className="w-full rounded-xl border border-[#d4e8dc] bg-[#f8fdfb] p-3 text-sm resize-none outline-none focus:ring-2 focus:ring-[#1a7a52]/30"
         />
         <div className="flex gap-2">
           <Button variant="outline" className="flex-1" onClick={onCancel} disabled={loading}>Cancel</Button>
           <Button
-            className="flex-1 bg-rose-600 hover:bg-rose-700"
-            disabled={!note.trim() || loading}
+            className={`flex-1 ${confirmClassName || "bg-[#016630] hover:bg-[#014d24]"}`}
+            disabled={(noteRequired && !note.trim()) || loading}
             onClick={() => onConfirm(note.trim())}
           >
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Return with comment"}
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : confirmLabel}
           </Button>
         </div>
       </div>
@@ -64,10 +70,11 @@ export default function StateOfficeDrillReportReview({
   const [status, setStatus] = React.useState<string | null>(null);
   const [loadingStatus, setLoadingStatus] = React.useState(true);
   const [acting, setActing] = React.useState(false);
-  const [rejectOpen, setRejectOpen] = React.useState(false);
+  const [dialog, setDialog] = React.useState<"endorse" | "return" | "approve" | null>(null);
 
   const api = stateOfficeApi[reportType];
-  const canReview = user?.role === "state-coordinator" || user?.role === "zonal-coordinator";
+  const canReview = isDeptStateCoordinator(user?.role || "") || isDeptZonalCoordinator(user?.role || "");
+  const providerWorkflow = reportType === "accreditation";
 
   React.useEffect(() => {
     if (!open) return;
@@ -91,36 +98,42 @@ export default function StateOfficeDrillReportReview({
     return () => { cancelled = true; };
   }, [open, api, reportId]);
 
-  const approve = async () => {
+  const confirmAction = async (note: string) => {
+    if (!dialog) return;
     setActing(true);
     try {
-      await api.updateStatus(reportId, "approved");
-      toast.success("Report approved");
+      if (dialog === "endorse") {
+        await api.updateStatus(reportId, "endorsed", note || undefined);
+        toast.success("Report endorsed", { description: "The state officer can now submit this report." });
+      } else if (dialog === "approve") {
+        await api.updateStatus(reportId, "approved", note || undefined);
+        toast.success("Report approved");
+      } else {
+        const nextStatus = providerWorkflow && status === "awaiting_review" ? "returned" : "draft";
+        await api.updateStatus(reportId, nextStatus, note);
+        toast.success(
+          nextStatus === "returned" ? "Returned for correction" : "Report returned to draft",
+          { description: "The submitter can revise and resubmit." },
+        );
+      }
+      setDialog(null);
       onReviewed?.();
       onClose();
     } catch (err: unknown) {
-      toast.error("Approval failed", { description: err instanceof Error ? err.message : "Request failed" });
+      toast.error(
+        dialog === "endorse" ? "Endorsement failed"
+          : dialog === "approve" ? "Approval failed"
+            : "Could not return report",
+        { description: err instanceof Error ? err.message : "Request failed" },
+      );
     } finally {
       setActing(false);
     }
   };
 
-  const reject = async (note: string) => {
-    setActing(true);
-    try {
-      await api.updateStatus(reportId, "draft", note);
-      toast.success("Report returned to draft", { description: "The submitter can revise and resubmit." });
-      setRejectOpen(false);
-      onReviewed?.();
-      onClose();
-    } catch (err: unknown) {
-      toast.error("Could not return report", { description: err instanceof Error ? err.message : "Request failed" });
-    } finally {
-      setActing(false);
-    }
-  };
-
-  const showActions = canReview && status === "submitted" && !loadingStatus;
+  const showProviderActions = canReview && providerWorkflow && status === "awaiting_review" && !loadingStatus;
+  const showStandardActions = canReview && !providerWorkflow && status === "submitted" && !loadingStatus;
+  const showSubmittedApprove = canReview && providerWorkflow && status === "submitted" && !loadingStatus;
 
   return (
     <>
@@ -142,7 +155,9 @@ export default function StateOfficeDrillReportReview({
             >
               <div className="flex items-center justify-between border-b border-[#d4e8dc] bg-[#f0fdf7] px-4 py-3 shrink-0">
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-[#1a7a52]">Report review</p>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-[#1a7a52]">
+                    {providerWorkflow ? "State Coordinator review" : "Report review"}
+                  </p>
                   <p className="text-sm font-black text-slate-900">{reference || `Report #${reportId}`}</p>
                 </div>
                 <button
@@ -158,7 +173,34 @@ export default function StateOfficeDrillReportReview({
                 <StateOfficeDetailRouter reportType={reportType} reportId={reportId} onBack={onClose} />
               </div>
 
-              {showActions && (
+              {showProviderActions && (
+                <div className="shrink-0 border-t border-[#d4e8dc] bg-white px-4 py-3 flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between">
+                  <p className="text-xs text-slate-500 flex items-center gap-1.5">
+                    <MessageSquare className="w-3.5 h-3.5" />
+                    Endorse so the officer can submit, or return for correction with a comment.
+                  </p>
+                  <div className="flex gap-2 justify-end">
+                    <Button
+                      variant="outline"
+                      className="border-rose-200 text-rose-700 hover:bg-rose-50 gap-2"
+                      disabled={acting}
+                      onClick={() => setDialog("return")}
+                    >
+                      <XCircle className="w-4 h-4" /> Return for Correction
+                    </Button>
+                    <Button
+                      className="bg-[#016630] hover:bg-[#014d24] gap-2"
+                      disabled={acting}
+                      onClick={() => setDialog("endorse")}
+                    >
+                      <CheckCircle2 className="w-4 h-4" />
+                      Endorse
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {(showStandardActions || showSubmittedApprove) && (
                 <div className="shrink-0 border-t border-[#d4e8dc] bg-white px-4 py-3 flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between">
                   <p className="text-xs text-slate-500 flex items-center gap-1.5">
                     <MessageSquare className="w-3.5 h-3.5" />
@@ -169,16 +211,16 @@ export default function StateOfficeDrillReportReview({
                       variant="outline"
                       className="border-rose-200 text-rose-700 hover:bg-rose-50 gap-2"
                       disabled={acting}
-                      onClick={() => setRejectOpen(true)}
+                      onClick={() => setDialog("return")}
                     >
                       <XCircle className="w-4 h-4" /> Return
                     </Button>
                     <Button
                       className="bg-[#016630] hover:bg-[#014d24] gap-2"
                       disabled={acting}
-                      onClick={() => void approve()}
+                      onClick={() => setDialog("approve")}
                     >
-                      {acting ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                      <CheckCircle2 className="w-4 h-4" />
                       Approve
                     </Button>
                   </div>
@@ -188,11 +230,38 @@ export default function StateOfficeDrillReportReview({
           </div>
         )}
       </AnimatePresence>
-      <RejectDialog
-        open={rejectOpen}
+      <ReviewDialog
+        open={dialog === "return"}
         reference={reference}
-        onCancel={() => setRejectOpen(false)}
-        onConfirm={(note) => void reject(note)}
+        title={providerWorkflow && status === "awaiting_review" ? "Return for correction" : "Return report to draft"}
+        hint="explain what must be corrected (required)."
+        confirmLabel="Return with comment"
+        noteRequired
+        confirmClassName="bg-rose-600 hover:bg-rose-700"
+        onCancel={() => setDialog(null)}
+        onConfirm={(note) => void confirmAction(note)}
+        loading={acting}
+      />
+      <ReviewDialog
+        open={dialog === "endorse"}
+        reference={reference}
+        title="Confirm endorsement"
+        hint="confirm you have reviewed this report. Comments are optional."
+        confirmLabel="Confirm Endorse"
+        noteRequired={false}
+        onCancel={() => setDialog(null)}
+        onConfirm={(note) => void confirmAction(note)}
+        loading={acting}
+      />
+      <ReviewDialog
+        open={dialog === "approve"}
+        reference={reference}
+        title="Confirm approval"
+        hint="confirm final approval. Comments are optional."
+        confirmLabel="Confirm Approve"
+        noteRequired={false}
+        onCancel={() => setDialog(null)}
+        onConfirm={(note) => void confirmAction(note)}
         loading={acting}
       />
     </>

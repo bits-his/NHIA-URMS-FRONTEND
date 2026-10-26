@@ -12,6 +12,9 @@ import {
   PROVIDER_MANAGEMENT_NAV_TITLE,
   PROVIDER_MANAGEMENT_VIEW,
   PROVIDER_MANAGEMENT_PATH,
+  PROVIDER_MANAGEMENT_DASHBOARD_NAV_TITLE,
+  PROVIDER_MANAGEMENT_DASHBOARD_VIEW,
+  PROVIDER_MANAGEMENT_DASHBOARD_PATH,
   STAKEHOLDER_MANAGEMENT_NAV_TITLE,
   STAKEHOLDER_MANAGEMENT_VIEW,
   STAKEHOLDER_MANAGEMENT_PATH,
@@ -273,12 +276,20 @@ export const MODULE_CONFIG: ParentModule[] = [
         view: STAKEHOLDER_MANAGEMENT_VIEW,
         path: STAKEHOLDER_MANAGEMENT_PATH,
       },
-      {
-        title: PROVIDER_MANAGEMENT_NAV_TITLE,
-        navLabel: PROVIDER_MANAGEMENT_NAV_TITLE,
-        view: PROVIDER_MANAGEMENT_VIEW,
-        path: PROVIDER_MANAGEMENT_PATH,
-      },
+      { type: "group", label: "Provider Management", children: [
+        {
+          title: PROVIDER_MANAGEMENT_DASHBOARD_NAV_TITLE,
+          navLabel: "Dashboard",
+          view: PROVIDER_MANAGEMENT_DASHBOARD_VIEW,
+          path: PROVIDER_MANAGEMENT_DASHBOARD_PATH,
+        },
+        {
+          title: PROVIDER_MANAGEMENT_NAV_TITLE,
+          navLabel: PROVIDER_MANAGEMENT_NAV_TITLE,
+          view: PROVIDER_MANAGEMENT_VIEW,
+          path: PROVIDER_MANAGEMENT_PATH,
+        },
+      ]},
       { type: "group", label: "Complaint / Compliance", children: [
         { title: "State Complaints Register", view: "zonal-complaints-register", path: "/zonal/complaints-register", navLabel: "Complaints Register" },
         { title: "Weekly Compliance Report", view: "state-weekly-compliance", path: "/zonal/weekly-compliance", navLabel: "Weekly Compliance" },
