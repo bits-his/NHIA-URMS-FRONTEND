@@ -142,21 +142,25 @@ export const ACTIVITY_TEMPLATE_BY_MODULE: Record<string, ActivityReportTemplateC
     activityModule: "accreditation",
     pageTitle: "Accreditation",
     activityFilter: ["Accreditation"],
+    metricsByActivity: PROVIDER_METRICS_BY_ACTIVITY,
   }),
   reaccreditation: providerBase({
     activityModule: "reaccreditation",
     pageTitle: "Reaccreditation",
     activityFilter: ["Re-accreditation"],
+    metricsByActivity: PROVIDER_METRICS_BY_ACTIVITY,
   }),
   "medical-audits": providerBase({
     activityModule: "medical-audits",
     pageTitle: "Medical Audits",
     activityFilter: ["Medical Audit"],
+    metricsByActivity: { "Medical Audit": {} },
   }),
   "qa-inspections": providerBase({
     activityModule: "qa-inspections",
     pageTitle: "Quality Assurance Inspections",
     activityFilter: ["Quality Assurance"],
+    metricsByActivity: { "Quality Assurance": {} },
   }),
 };
 

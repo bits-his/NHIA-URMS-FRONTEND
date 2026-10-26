@@ -28,6 +28,7 @@ import {
 } from "@/src/components/stateOffice/enrolmentDriveTypes";
 import {
   PROVIDER_MANAGEMENT_NAV_TITLE,
+  PROVIDER_MANAGEMENT_DASHBOARD_NAV_TITLE,
   PROVIDER_PILLAR_CHILDREN,
   STAKEHOLDER_MANAGEMENT_NAV_TITLE,
   STAKEHOLDER_PILLAR_CHILDREN,
@@ -48,9 +49,12 @@ const LEGACY_STAKEHOLDER_TITLES = new Set(
 );
 
 /** Legacy per-module privilege titles → single Provider Management leaf */
-const LEGACY_PROVIDER_TITLES = new Set(
-  PROVIDER_PILLAR_CHILDREN.flatMap((c) => [c.title, c.navLabel]),
-);
+const LEGACY_PROVIDER_TITLES = new Set([
+  ...PROVIDER_PILLAR_CHILDREN.flatMap((c) => [c.title, c.navLabel]),
+  "Accreditation / Reaccreditation",
+  "Accreditation/Reaccreditation",
+  "Accreditation & Reaccreditation",
+]);
 
 
 
@@ -149,7 +153,11 @@ export function normalizeFunctionalityTitle(title: string, moduleTitle?: string)
 
   }
 
-
+  if (title === "Accreditation / Reaccreditation"
+    || title === "Accreditation/Reaccreditation"
+    || title === "Accreditation & Reaccreditation") {
+    return PROVIDER_MANAGEMENT_NAV_TITLE;
+  }
 
   if (title === "My Submissions" || title === "New Annual Report") return "Annual Report";
 
@@ -294,13 +302,16 @@ export function expandAccessEntries(access: AccessEntry[]): AccessEntry[] {
       funcs.push(STAKEHOLDER_MANAGEMENT_NAV_TITLE);
     }
     const hasProvider = funcs.some(
-      f => normalizeFunctionalityTitle(f, ZONAL_MODULE) === PROVIDER_MANAGEMENT_NAV_TITLE,
+      f => normalizeFunctionalityTitle(f, ZONAL_MODULE) === PROVIDER_MANAGEMENT_NAV_TITLE
+        || f === PROVIDER_MANAGEMENT_DASHBOARD_NAV_TITLE,
     );
     if (hasProvider) {
       funcs = funcs.filter(
-        f => !LEGACY_PROVIDER_TITLES.has(f) && f !== PROVIDER_MANAGEMENT_NAV_TITLE,
+        f => !LEGACY_PROVIDER_TITLES.has(f)
+          && f !== PROVIDER_MANAGEMENT_NAV_TITLE
+          && f !== PROVIDER_MANAGEMENT_DASHBOARD_NAV_TITLE,
       );
-      funcs.push(PROVIDER_MANAGEMENT_NAV_TITLE);
+      funcs.push(PROVIDER_MANAGEMENT_NAV_TITLE, PROVIDER_MANAGEMENT_DASHBOARD_NAV_TITLE);
     }
     // Legacy collation privilege unlocks all HMO Indebtedness submenu items
     const hasHmoCollation = funcs.some(

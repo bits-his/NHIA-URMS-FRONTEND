@@ -29,12 +29,12 @@ interface Props {
     submitting: boolean;
     savedId: number | null;
     stateId: string;
-    persist: (status: "draft" | "submitted") => Promise<void>;
+    persist: (status: string) => Promise<void>;
     requestSubmit: (action: () => void | Promise<void>) => void;
     header: ReturnType<typeof useStateOfficeHeader>;
   }) => React.ReactNode;
   buildPayload: (base: Record<string, unknown>) => Record<string, unknown>;
-  validate?: (status?: "draft" | "submitted") => string | null;
+  validate?: (status?: string) => string | null;
   reportType: keyof typeof stateOfficeApi;
   onLoaded?: (data: any) => void;
   /** Optional reporting week for weekly-actionable forms */
@@ -45,6 +45,8 @@ interface Props {
   /** Zone · State · Year · Month · Quarter header (ICT register) */
   showQuarter?: boolean;
   afterPersist?: (saved: { id: number }) => Promise<void>;
+  /** Fired after every successful create/update (e.g. draft resume for create-only officers). */
+  onPersisted?: (saved: { id: number; status: string; reference_id?: string }) => void;
 }
 
 export default function StateOfficeFormShell({
@@ -58,6 +60,7 @@ export default function StateOfficeFormShell({
   hideFooterActions = false,
   hideBasicInfo = false,
   afterPersist,
+  onPersisted,
 }: Props) {
   const handleCancel = onCancel ?? onBack;
   const handleSubmitted = onSubmitted ?? onBack;
@@ -111,34 +114,52 @@ export default function StateOfficeFormShell({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reportId, api, reportType]);
 
-  const persist = async (status: "draft" | "submitted") => {
+  const persist = async (status: string) => {
     const headerErr = header.validateHeader();
     if (headerErr) { toast.error(headerErr); return; }
     if (setReportWeek && !reportWeek) { toast.error("Please select a Reporting Week"); return; }
     const extraErr = validate?.(status);
     if (extraErr) { toast.error(extraErr); return; }
 
-    const setter = status === "draft" ? setSaving : setSubmitting;
+    const isDraftSave = status === "draft" || status === "returned";
+    const setter = isDraftSave ? setSaving : setSubmitting;
     setter(true);
     try {
-      const payload = buildPayload(header.headerPayload(status) as Record<string, unknown>);
+      const headerStatus = status === "awaiting_review" || status === "endorsed" || status === "submitted"
+        ? status
+        : (status === "returned" ? "returned" : "draft");
+      const payload = buildPayload(header.headerPayload(
+        headerStatus === "draft" || headerStatus === "returned" ? "draft" : "submitted",
+      ) as Record<string, unknown>);
       let res;
       if (savedId) {
         res = await api.update(savedId, { ...payload, status });
       } else {
-        res = await api.create(payload);
+        res = await api.create({ ...payload, status });
         setSavedId(res.data.id);
       }
       setRefId(res.data.reference_id);
       if (afterPersist) {
         await afterPersist({ id: res.data.id });
       }
-      toast.success(status === "draft" ? "Draft saved" : "Report submitted", {
+      onPersisted?.({
+        id: res.data.id,
+        status: res.data.status || status,
+        reference_id: res.data.reference_id,
+      });
+      const messages: Record<string, string> = {
+        draft: "Draft saved",
+        returned: "Draft saved",
+        awaiting_review: "Sent for State Coordinator review",
+        endorsed: "Endorsement recorded",
+        submitted: "Report submitted",
+      };
+      toast.success(messages[status] || "Saved", {
         description: `Ref: ${res.data.reference_id}`,
       });
-      if (status === "submitted") handleSubmitted();
+      if (status === "submitted" || status === "awaiting_review") handleSubmitted();
     } catch (err: any) {
-      toast.error(status === "draft" ? "Save failed" : "Submission failed", { description: err.message });
+      toast.error(isDraftSave ? "Save failed" : "Action failed", { description: err.message });
     } finally { setter(false); }
   };
 

@@ -74,6 +74,11 @@ export const PROVIDER_MANAGEMENT_NAV_TITLE = "Provider Management";
 export const PROVIDER_MANAGEMENT_VIEW = "state-provider-management";
 export const PROVIDER_MANAGEMENT_PATH = "/zonal/provider-management";
 
+/** Analytics dashboards (four levels) on the same activity register. */
+export const PROVIDER_MANAGEMENT_DASHBOARD_NAV_TITLE = "Provider Management Dashboard";
+export const PROVIDER_MANAGEMENT_DASHBOARD_VIEW = "state-provider-management-dashboard";
+export const PROVIDER_MANAGEMENT_DASHBOARD_PATH = "/zonal/provider-management/dashboard";
+
 /** Image pillar 5 — PROVIDER MANAGEMENT (Quarterly · SQA) */
 export const PROVIDER_PILLAR_CHILDREN: PillarChild[] = [
   {

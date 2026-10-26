@@ -685,7 +685,33 @@ export const stateOfficeApi = {
   migration: makeStateOfficeApi("migration"),
   cemonc:    makeStateOfficeApi("cemonc"),
   complaints: makeStateOfficeApi("complaints"),
-  accreditation: makeStateOfficeApi("accreditation"),
+  accreditation: {
+    ...makeStateOfficeApi("accreditation"),
+    getDashboard: (filters?: Record<string, string | number | undefined | null>) => {
+      const p = new URLSearchParams(
+        Object.entries(filters || {})
+          .filter(([, v]) => v != null && v !== "" && v !== "all")
+          .map(([k, v]) => [k, String(v)]),
+      ).toString();
+      return request<{ success: boolean; data: any }>(
+        `/state-office/accreditation/dashboard${p ? `?${p}` : ""}`,
+      );
+    },
+    uploadLineFiles: (reportId: number | string, lineId: number | string, files: File[]) => {
+      const token = tokenStore.get();
+      const form = new FormData();
+      files.forEach((file) => form.append("files", file));
+      return fetch(`${BASE_URL}/state-office/accreditation/reports/${reportId}/lines/${lineId}/files`, {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: form,
+      }).then(async (res) => {
+        const json = await res.json();
+        if (!res.ok) throw new Error(json?.message || "Upload failed");
+        return json as { success: boolean; data: any };
+      });
+    },
+  },
   stakeholder: {
     ...makeStateOfficeApi("stakeholder"),
     uploadLineFiles: (reportId: number | string, lineId: number | string, files: File[]) => {

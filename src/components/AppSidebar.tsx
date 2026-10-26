@@ -55,6 +55,7 @@ import {
   Building2,
   GraduationCap,
   Radio,
+  LayoutDashboard,
 } from "lucide-react";
 import {
   Collapsible,
@@ -89,6 +90,8 @@ import {
   STAKEHOLDER_MANAGEMENT_PATH,
   PROVIDER_MANAGEMENT_VIEW,
   PROVIDER_MANAGEMENT_PATH,
+  PROVIDER_MANAGEMENT_DASHBOARD_VIEW,
+  PROVIDER_MANAGEMENT_DASHBOARD_PATH,
 } from "@/src/components/stateOffice/enrolmentPillarTypes";
 import type { AccessEntry } from "@/src/access/types";
 import {
@@ -180,6 +183,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
   "Capacity Building": GraduationCap,
   "Media Parley / Campaigns": Radio,
   "Provider Management": Stethoscope,
+  "Provider Management Dashboard": LayoutDashboard,
   "Medical Audits": ClipboardList,
   Accreditation: Stethoscope,
   "Accreditation / Reaccreditation": Stethoscope,
@@ -286,6 +290,7 @@ const VIEW_TO_PATH: Record<string, string> = {
   [ENROLMENT_DRIVES_VIEW]: ENROLMENT_DRIVES_PATH,
   [STAKEHOLDER_MANAGEMENT_VIEW]: STAKEHOLDER_MANAGEMENT_PATH,
   [PROVIDER_MANAGEMENT_VIEW]: PROVIDER_MANAGEMENT_PATH,
+  [PROVIDER_MANAGEMENT_DASHBOARD_VIEW]: PROVIDER_MANAGEMENT_DASHBOARD_PATH,
   ...Object.fromEntries(
     ENROLMENT_DRIVE_TYPES.map((t) => [enrolmentDriveView(t.key), `${ENROLMENT_DRIVES_PATH}?type=${t.key}`]),
   ),

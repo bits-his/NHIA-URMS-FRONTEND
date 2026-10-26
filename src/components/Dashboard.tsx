@@ -39,9 +39,11 @@ import {
   PROVIDER_PILLAR_CHILDREN,
   STAKEHOLDER_MANAGEMENT_PATH,
   PROVIDER_MANAGEMENT_PATH,
+  PROVIDER_MANAGEMENT_DASHBOARD_PATH,
 } from "./stateOffice/enrolmentPillarTypes";
 import StakeholderManagementPage, { StakeholderManagementLegacyRedirect } from "./stateOffice/StakeholderManagementPage";
 import ProviderManagementPage, { ProviderManagementLegacyRedirect } from "./stateOffice/ProviderManagementPage";
+import ProviderManagementDashboard from "./stateOffice/ProviderManagementDashboard";
 import TemplateComingSoonPage from "./stateOffice/TemplateComingSoonPage";
 import AdminHrReportsList from "./stateOffice/adminHr/AdminHrReportsList";
 import StateOfficeComplaintsPage from "./stateOffice/StateOfficeComplaintsPage";
@@ -736,6 +738,17 @@ export default function Dashboard({ role, user, access = [], functionalities = "
                 element={<StakeholderManagementLegacyRedirect />}
               />
             ))}
+            <Route
+              path={PROVIDER_MANAGEMENT_DASHBOARD_PATH}
+              element={
+                <ProviderManagementDashboard
+                  key="state-provider-management-dashboard"
+                  onBack={() => setView("home")}
+                  defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId}
+                  defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId}
+                />
+              }
+            />
             <Route
               path={PROVIDER_MANAGEMENT_PATH}
               element={
