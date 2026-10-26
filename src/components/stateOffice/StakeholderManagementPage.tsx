@@ -18,6 +18,7 @@ import {
   STAKEHOLDER_MANAGEMENT_NAV_TITLE,
   STAKEHOLDER_MANAGEMENT_PATH,
 } from "./enrolmentPillarTypes";
+import { useStateOfficeAccess } from "@/src/access/createReviewAccess";
 import StakeholderEngagementForm from "./StakeholderEngagementForm";
 import StakeholderReportDetail from "./StakeholderReportDetail";
 
@@ -37,8 +38,10 @@ type Mode = "list" | "create" | "edit" | "view";
 
 /**
  * Stakeholder Management hub — polished list + PPT form/detail.
+ * Reporting officers see only their own reports; coordinators review/return.
  */
 export default function StakeholderManagementPage({ onBack, defaultZoneId, defaultStateId }: Props) {
+  const { canCreate } = useStateOfficeAccess();
   const [mode, setMode] = React.useState<Mode>("list");
   const [selectedId, setSelectedId] = React.useState<number | null>(null);
   const [reports, setReports] = React.useState<any[]>([]);
@@ -103,7 +106,7 @@ export default function StakeholderManagementPage({ onBack, defaultZoneId, defau
       <StakeholderReportDetail
         reportId={selectedId}
         onBack={backToList}
-        onEdit={() => setMode("edit")}
+        onEdit={canCreate ? () => setMode("edit") : undefined}
       />
     );
   }
@@ -119,19 +122,23 @@ export default function StakeholderManagementPage({ onBack, defaultZoneId, defau
             <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">
               {STAKEHOLDER_MANAGEMENT_NAV_TITLE}
             </h2>
-            <p className="text-xs text-slate-500 truncate">Engagement reports for the period</p>
+            <p className="text-xs text-slate-500 truncate">
+              {canCreate ? "Your engagement reports for the period" : "Review submitted engagement reports"}
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2 border-[#d4e8dc]">
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
           </Button>
-          <Button
-            className="bg-orange-action hover:bg-orange-600 gap-2 shadow-md shadow-orange-500/15"
-            onClick={() => { setSelectedId(null); setMode("create"); }}
-          >
-            <Plus className="w-4 h-4" /> New Report
-          </Button>
+          {canCreate && (
+            <Button
+              className="bg-orange-action hover:bg-orange-600 gap-2 shadow-md shadow-orange-500/15"
+              onClick={() => { setSelectedId(null); setMode("create"); }}
+            >
+              <Plus className="w-4 h-4" /> New Report
+            </Button>
+          )}
         </div>
       </div>
 
@@ -215,12 +222,14 @@ export default function StakeholderManagementPage({ onBack, defaultZoneId, defau
               ) : reports.length === 0 ? (
                 <div className="py-16 text-center space-y-3">
                   <p className="text-sm text-slate-500">No stakeholder reports yet for these filters.</p>
-                  <Button
-                    className="bg-orange-action hover:bg-orange-600 gap-2"
-                    onClick={() => { setSelectedId(null); setMode("create"); }}
-                  >
-                    <Plus className="w-4 h-4" /> Create first report
-                  </Button>
+                  {canCreate && (
+                    <Button
+                      className="bg-orange-action hover:bg-orange-600 gap-2"
+                      onClick={() => { setSelectedId(null); setMode("create"); }}
+                    >
+                      <Plus className="w-4 h-4" /> Create first report
+                    </Button>
+                  )}
                 </div>
               ) : (
                 <div className="overflow-x-auto">

@@ -1,12 +1,16 @@
 import * as React from "react";
-import { ArrowLeft, CheckCircle2, ChevronDown, Clock, FileText, Loader2, Pencil } from "lucide-react";
+import {
+  ArrowLeft, CheckCircle2, ChevronDown, Clock, FileText, Loader2, Pencil, Save,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
 import { stateOfficeApi, apiFileUrl } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { useStateOfficeAccess } from "@/src/access/createReviewAccess";
 import {
   monthLabel, formatCount, formatDate, formatAmount, parseSupportingDocuments,
 } from "./constants";
@@ -93,6 +97,28 @@ function plannedAudience(line: any): string {
   } catch {
     return asText(line.planned_target_audience);
   }
+}
+
+function lineHasEvidence(line: any) {
+  return parseSupportingDocuments(line.supporting_documents).some((d) => d.path);
+}
+
+function reviewSummary(lines: any[]) {
+  return {
+    total: lines.length,
+    withEvidence: lines.filter(lineHasEvidence).length,
+  };
+}
+
+function SectionBand({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section className="rounded-2xl border border-[#d4e8dc] bg-white overflow-hidden shadow-sm">
+      <div className="bg-[#e8f5ee] px-4 py-2.5 border-b border-[#d4e8dc]">
+        <h3 className="text-[12px] font-bold uppercase tracking-[0.06em] text-[#0f3d2e]">{title}</h3>
+      </div>
+      <div className="p-4 bg-[#f4f7f5]">{children}</div>
+    </section>
+  );
 }
 
 function ActivityExpanded({ line }: { line: any }) {
@@ -215,34 +241,68 @@ function ActivityExpanded({ line }: { line: any }) {
 }
 
 export default function StakeholderReportDetail({ reportId, onBack, onEdit }: Props) {
+  const { canCreate, canReview } = useStateOfficeAccess();
   const [report, setReport] = React.useState<any>(null);
   const [loading, setLoading] = React.useState(true);
   const [openKey, setOpenKey] = React.useState<string | null>(null);
+  const [reviewNote, setReviewNote] = React.useState("");
+  const [reviewBusy, setReviewBusy] = React.useState(false);
+
+  const reload = React.useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await stateOfficeApi.stakeholder.get(reportId);
+      const data = res.data;
+      setReport(data);
+      setOpenKey(null);
+      setReviewNote(data?.coordinator_review_note || "");
+    } catch (err: any) {
+      toast.error("Failed to load report", { description: err.message });
+    } finally {
+      setLoading(false);
+    }
+  }, [reportId]);
 
   React.useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      setLoading(true);
-      try {
-        const res = await stateOfficeApi.stakeholder.get(reportId);
-        if (!cancelled) {
-          setReport(res.data);
-          setOpenKey(null);
-        }
-      } catch (err: any) {
-        if (!cancelled) toast.error("Failed to load report", { description: err.message });
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [reportId]);
+    reload();
+  }, [reload]);
+
+  const review = async (status: "approved" | "draft" | "submitted") => {
+    if (status === "draft" && !reviewNote.trim()) {
+      toast.error("Enter remarks before returning for correction");
+      return;
+    }
+    setReviewBusy(true);
+    try {
+      await stateOfficeApi.stakeholder.updateStatus(reportId, status, reviewNote.trim() || undefined);
+      toast.success(
+        status === "approved"
+          ? "Report endorsed"
+          : status === "draft"
+            ? "Returned for correction"
+            : "Review saved",
+      );
+      await reload();
+    } catch (err: any) {
+      toast.error(err.message || "Review action failed");
+    } finally {
+      setReviewBusy(false);
+    }
+  };
 
   const lines: any[] = report?.lines ?? [];
   const statusCfg = report ? STATUS_CONFIG[report.status as keyof typeof STATUS_CONFIG] : null;
   const period = report
     ? `${monthLabel(report.reporting_month)} ${report.reporting_year}`
     : "—";
+  const summary = reviewSummary(lines);
+  const canAct = canReview && report?.status === "submitted";
+  // RO sees coordinator decision once the report has left draft (or was returned)
+  const showDecisionBlock = !!report && (
+    report.status === "submitted"
+    || report.status === "approved"
+    || (report.status === "draft" && !!report.coordinator_review_note)
+  );
 
   return (
     <div className="flex flex-col h-full bg-slate-50/30">
@@ -262,7 +322,7 @@ export default function StakeholderReportDetail({ reportId, onBack, onEdit }: Pr
               {statusCfg.icon} {statusCfg.label}
             </Badge>
           )}
-          {report?.status === "draft" && onEdit && (
+          {report?.status === "draft" && onEdit && canCreate && (
             <Button variant="outline" size="sm" onClick={onEdit} className="gap-2">
               <Pencil className="w-4 h-4" /> Edit Draft
             </Button>
@@ -281,25 +341,53 @@ export default function StakeholderReportDetail({ reportId, onBack, onEdit }: Pr
             <div className="text-center py-24 text-slate-400 text-sm">Report not found.</div>
           ) : (
             <>
-              <section className="rounded-2xl border border-[#d4e8dc] bg-white overflow-hidden shadow-sm">
-                <div className="bg-[#e8f5ee] px-4 py-2.5 border-b border-[#d4e8dc]">
-                  <h3 className="text-[12px] font-bold uppercase tracking-[0.06em] text-[#0f3d2e]">
-                    Report Information
-                  </h3>
-                </div>
-                <div className="p-4 grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <InfoField label="Reporting period" value={period} />
-                  <InfoField label="State" value={report.state?.description ?? "—"} />
-                  <InfoField label="Reporting officer" value={report.submitted_by || "—"} />
-                  <InfoField label="Reporting month" value={period} />
-                </div>
-              </section>
+              {canReview ? (
+                <SectionBand title="Report Review">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {[
+                      {
+                        label: "State / reporting period",
+                        value: `${report.state?.description ?? "—"} / ${period}`,
+                      },
+                      {
+                        label: "Submitted by",
+                        value: report.submitted_by || "Reporting Officer",
+                      },
+                      {
+                        label: "Activities recorded",
+                        value: String(summary.total),
+                      },
+                      {
+                        label: "Evidence completeness",
+                        value: `${summary.withEvidence} / ${summary.total}`,
+                      },
+                    ].map((card) => (
+                      <div
+                        key={card.label}
+                        className="rounded-xl border border-[#d4e8dc] bg-white px-3.5 py-3 shadow-sm"
+                      >
+                        <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 mb-1">
+                          {card.label}
+                        </p>
+                        <p className="text-sm font-semibold text-[#0f3d2e] break-words">{card.value}</p>
+                      </div>
+                    ))}
+                  </div>
+                </SectionBand>
+              ) : (
+                <SectionBand title="Report Information">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <InfoField label="Reporting period" value={period} />
+                    <InfoField label="State" value={report.state?.description ?? "—"} />
+                    <InfoField label="Reporting officer" value={report.submitted_by || "—"} />
+                    <InfoField label="Reporting month" value={period} />
+                  </div>
+                </SectionBand>
+              )}
 
-              <section className="rounded-2xl border border-[#d4e8dc] bg-white overflow-hidden shadow-sm">
-                <div className="bg-[#e8f5ee] px-4 py-2.5 border-b border-[#d4e8dc] flex items-center justify-between gap-2">
-                  <h3 className="text-[12px] font-bold uppercase tracking-[0.06em] text-[#0f3d2e]">
-                    Activity Register
-                  </h3>
+              <SectionBand title="Activity Register">
+                <div className="-m-4">
+                <div className="px-4 py-2 border-b border-[#d4e8dc] flex justify-end bg-white">
                   <p className="text-[11px] text-[#145c3f]">
                     {formatCount(lines.length)} activit{lines.length === 1 ? "y" : "ies"}
                     {report.submission_date ? ` · ${formatDate(report.submission_date)}` : ""}
@@ -363,7 +451,101 @@ export default function StakeholderReportDetail({ reportId, onBack, onEdit }: Pr
                     </Table>
                   </div>
                 )}
-              </section>
+                </div>
+              </SectionBand>
+
+              {showDecisionBlock && (
+                <SectionBand title="Coordinator Decision">
+                  <div className="space-y-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                        Coordinator remarks
+                      </Label>
+                      {canAct ? (
+                        <textarea
+                          rows={3}
+                          value={reviewNote}
+                          onChange={(e) => setReviewNote(e.target.value)}
+                          placeholder="Enter remarks"
+                          disabled={reviewBusy}
+                          className="w-full rounded-xl border border-[#d4e8dc] bg-white px-3.5 py-2.5 text-sm text-slate-800 shadow-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#25a872]/30 focus:border-[#25a872]"
+                        />
+                      ) : (
+                        <div className="rounded-xl border border-[#d4e8dc] bg-white px-3.5 py-2.5 text-sm text-slate-700 min-h-[4.5rem] whitespace-pre-wrap shadow-sm">
+                          {reviewNote.trim() || (
+                            <span className="text-slate-400 italic">
+                              {report.status === "approved"
+                                ? "Endorsed with no additional remarks."
+                                : "No remarks recorded yet."}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {canAct ? (
+                      <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={reviewBusy}
+                          onClick={() => review("draft")}
+                          className="border-slate-300 bg-white hover:bg-slate-50"
+                        >
+                          Return for Correction
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={reviewBusy}
+                          onClick={() => review("submitted")}
+                          className="border-slate-300 bg-white hover:bg-slate-50 gap-2"
+                        >
+                          {reviewBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                          Save Review
+                        </Button>
+                        <Button
+                          type="button"
+                          disabled={reviewBusy}
+                          onClick={() => review("approved")}
+                          className="bg-[#0f3d2e] hover:bg-[#145c3f] text-white gap-2"
+                        >
+                          {reviewBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                          Endorse
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="rounded-xl border border-[#d4e8dc] bg-white px-3.5 py-3 text-sm shadow-sm">
+                        {report.status === "approved" && (
+                          <p className="text-[#145c3f] font-medium">
+                            Endorsed
+                            {report.coordinator_reviewed_by ? ` by ${report.coordinator_reviewed_by}` : ""}
+                            {report.coordinator_reviewed_at
+                              ? ` · ${formatDate(report.coordinator_reviewed_at)}`
+                              : ""}
+                          </p>
+                        )}
+                        {report.status === "submitted" && (
+                          <p className="text-blue-700 font-medium">Awaiting state coordinator endorsement</p>
+                        )}
+                        {report.status === "draft" && !!report.coordinator_review_note && (
+                          <p className="text-amber-700 font-medium">
+                            Returned for correction
+                            {report.coordinator_reviewed_by ? ` by ${report.coordinator_reviewed_by}` : ""}
+                            {report.coordinator_reviewed_at
+                              ? ` · ${formatDate(report.coordinator_reviewed_at)}`
+                              : ""}
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    <p className="text-[11px] text-slate-400">
+                      Endorsement / signature and submission timestamp are recorded in the system audit trail.
+                    </p>
+                  </div>
+                </SectionBand>
+              )}
             </>
           )}
         </div>
