@@ -76,6 +76,11 @@ interface Props {
   activityModuleColumn?: boolean;
   activityModuleLabels?: Record<string, string>;
   listTitle?: string;
+  /** Enrolment-style columns: period, activity, subject, status. */
+  activityRows?: {
+    options: { value: string; label: string }[];
+    summarize: (report: Report) => { key: string; activity: string; subject: string };
+  };
   renderForm?: (props: FormRenderProps) => React.ReactNode;
 }
 
@@ -86,7 +91,7 @@ const STATUS_CONFIG = {
 };
 
 export default function StateOfficeReportsList({
-  reportType, reportTypes, onBack, defaultZoneId, defaultStateId, activityModule, activityModuleColumn, activityModuleLabels, listTitle, renderForm,
+  reportType, reportTypes, onBack, defaultZoneId, defaultStateId, activityModule, activityModuleColumn, activityModuleLabels, listTitle, activityRows, renderForm,
 }: Props) {
   const cfg = REPORT_CONFIG[reportType];
   const typesToLoad = React.useMemo(
@@ -181,9 +186,11 @@ export default function StateOfficeReportsList({
   }, [createOnly]);
 
   const filteredReports = React.useMemo(() => {
-    if (reportType !== "enrolment" || filterActivity === "all") return reports;
+    if (filterActivity === "all") return reports;
+    if (activityRows) return reports.filter((r) => activityRows.summarize(r).key === filterActivity);
+    if (reportType !== "enrolment") return reports;
     return reports.filter((r) => r.lines?.[0]?.category === filterActivity);
-  }, [reports, reportType, filterActivity]);
+  }, [reports, reportType, filterActivity, activityRows]);
 
   const counts = React.useMemo(() => ({
     total:     filteredReports.length,
@@ -200,7 +207,7 @@ export default function StateOfficeReportsList({
   const hasFilters = filterYear !== "all"
     || filterMonth !== "all"
     || filterStatus !== "all"
-    || (reportType === "enrolment" && filterActivity !== "all")
+    || ((reportType === "enrolment" || !!activityRows) && filterActivity !== "all")
     || stateFilterActive;
 
   const clearFilters = () => {
@@ -346,6 +353,14 @@ export default function StateOfficeReportsList({
 
       <ScrollArea className="flex-1">
         <div className="w-full px-4 md:px-6 py-4 space-y-4">
+          {activityRows ? (
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-600">
+              <span><span className="font-semibold text-slate-800">{counts.total}</span> reports</span>
+              <span><span className="font-semibold text-slate-800">{counts.draft}</span> draft</span>
+              <span><span className="font-semibold text-slate-800">{counts.submitted}</span> submitted</span>
+              <span><span className="font-semibold text-slate-800">{counts.approved}</span> approved</span>
+            </div>
+          ) : (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
               { label: "Total",     value: counts.total,     color: "bg-slate-50 border-slate-200",     text: "text-slate-700"  },
@@ -360,6 +375,7 @@ export default function StateOfficeReportsList({
               </motion.div>
             ))}
           </div>
+          )}
 
           {/* Filters */}
           <div className="flex flex-row flex-wrap items-center gap-3 w-full bg-white rounded-2xl border border-[#d4e8dc] px-5 py-4">
@@ -424,20 +440,20 @@ export default function StateOfficeReportsList({
               </Select>
             </div>
 
-            {reportType === "enrolment" && (
+            {(reportType === "enrolment" || activityRows) && (
               <div className="flex-1 min-w-[160px]">
                 <Select value={filterActivity} onValueChange={setFilterActivity}>
                   <SelectTrigger className="w-full"
                     displayValue={
                       filterActivity === "all"
                         ? "All Activities"
-                        : (ENROLMENT_ACTIVITIES.find((a) => a.value === filterActivity)?.label ?? filterActivity)
+                        : ((activityRows?.options ?? ENROLMENT_ACTIVITIES).find((a) => a.value === filterActivity)?.label ?? filterActivity)
                     }>
                     <SelectValue placeholder="All Activities" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Activities</SelectItem>
-                    {ENROLMENT_ACTIVITIES.map((a) => (
+                    {(activityRows?.options ?? ENROLMENT_ACTIVITIES).map((a) => (
                       <SelectItem key={a.value} value={a.value}>{a.label}</SelectItem>
                     ))}
                   </SelectContent>
@@ -529,6 +545,20 @@ export default function StateOfficeReportsList({
                             <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Status</TableHead>
                             <TableHead className="text-right text-xs font-bold text-slate-600 whitespace-nowrap">View</TableHead>
                           </>
+                        ) : activityRows ? (
+                          <>
+                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Period</TableHead>
+                            {showLocationCols && (
+                              <>
+                                <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Zone</TableHead>
+                                <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">State</TableHead>
+                              </>
+                            )}
+                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Activity</TableHead>
+                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Subject</TableHead>
+                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Status</TableHead>
+                            <TableHead className="text-right text-xs font-bold text-slate-600 whitespace-nowrap">View</TableHead>
+                          </>
                         ) : (
                           <>
                             <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Reference</TableHead>
@@ -574,6 +604,7 @@ export default function StateOfficeReportsList({
                       const enrolmentSummary = reportType === "enrolment"
                         ? enrolmentLineListSummary(r.lines?.[0])
                         : null;
+                      const activitySummary = activityRows ? activityRows.summarize(r) : null;
                       return (
                           <motion.tr key={`${rowType}-${r.id}`} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: i * 0.02 }}
@@ -647,6 +678,32 @@ export default function StateOfficeReportsList({
                                 <TableCell className="text-sm font-semibold text-[#0f3d2e] whitespace-nowrap">{enrolmentSummary.activity}</TableCell>
                                 <TableCell className="text-sm text-slate-700 whitespace-nowrap">{enrolmentSummary.program}</TableCell>
                                 <TableCell className="text-sm font-medium text-slate-800 whitespace-nowrap">{enrolmentSummary.outcome}</TableCell>
+                                <TableCell>
+                                  <Badge className={`text-[10px] px-2 py-0.5 flex items-center gap-1 w-fit border ${sc.cls}`}>
+                                    {sc.icon} {sc.label}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <Button variant="ghost" size="sm"
+                                    className="h-7 gap-1 px-2 text-slate-500 hover:text-primary hover:bg-primary/10"
+                                    onClick={() => openReport(r, "view")}>
+                                    <Eye className="w-3.5 h-3.5" /> View
+                                  </Button>
+                                </TableCell>
+                              </>
+                            ) : activitySummary ? (
+                              <>
+                                <TableCell className="text-sm font-semibold text-slate-800 whitespace-nowrap">
+                                  {monthLabel(r.reporting_month)} {r.reporting_year}
+                                </TableCell>
+                                {showLocationCols && (
+                                  <>
+                                    <TableCell className="text-sm text-slate-600 whitespace-nowrap">{r.zone?.description || "—"}</TableCell>
+                                    <TableCell className="text-sm font-semibold text-slate-800 whitespace-nowrap">{r.state?.description || "—"}</TableCell>
+                                  </>
+                                )}
+                                <TableCell className="text-sm font-semibold text-[#0f3d2e] whitespace-nowrap">{activitySummary.activity}</TableCell>
+                                <TableCell className="text-sm text-slate-700 max-w-[240px] truncate" title={activitySummary.subject}>{activitySummary.subject}</TableCell>
                                 <TableCell>
                                   <Badge className={`text-[10px] px-2 py-0.5 flex items-center gap-1 w-fit border ${sc.cls}`}>
                                     {sc.icon} {sc.label}

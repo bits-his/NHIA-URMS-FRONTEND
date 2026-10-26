@@ -747,7 +747,23 @@ export const stateOfficeApi = {
       });
     },
   },
-  "hcf-change": makeStateOfficeApi("hcf-change"),
+  "hcf-change": {
+    ...makeStateOfficeApi("hcf-change"),
+    uploadLineFiles: (reportId: number | string, lineId: number | string, files: File[]) => {
+      const token = tokenStore.get();
+      const form = new FormData();
+      files.forEach((file) => form.append("files", file));
+      return fetch(`${BASE_URL}/state-office/hcf-change/reports/${reportId}/lines/${lineId}/files`, {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: form,
+      }).then(async (res) => {
+        const json = await res.json();
+        if (!res.ok) throw new Error(json?.message || "Upload failed");
+        return json as { success: boolean; data: any };
+      });
+    },
+  },
   ...enrolmentDriveApis,
   "office-meeting": makeStateOfficeApi("office-meeting"),
   "etmc-cascading": makeStateOfficeApi("etmc-cascading"),

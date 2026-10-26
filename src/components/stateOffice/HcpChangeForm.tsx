@@ -50,7 +50,7 @@ interface Props {
   defaultStateId?: string | null;
 }
 
-function ProviderSelect({
+export function ProviderSelect({
   label,
   entityType,
   stateId,

@@ -11,12 +11,13 @@ import {
   REPORT_CONFIG, ACCREDITATION_INDICATORS, ACCREDITATION_PROCESS_TYPES,
   ACCREDITATION_ENTRY_TYPES, expandAccreditationLines,
   COMPLAINT_SUMMARY_CATEGORIES, COMPLAINT_STATUS_TYPES,
-  EXTRA_DEPENDANT_RELATIONSHIPS, EXTRA_DEPENDANT_STATUSES, parseSupportingDocuments,
+  EXTRA_DEPENDANT_STATUSES, parseSupportingDocuments,
   YES_NO_OPTIONS, HCP_CHANGE_CHANNELS, HCP_CHANGE_STATUSES,
   ENROLMENT_DRIVE_PROGRAMS, formatAmount,
   monthLabel, quarterFromMonth, labelOf, formatCount, formatDate, type StateOfficeReportType,
 } from "./constants";
 import { isEnrolmentDriveType } from "./enrolmentDriveTypes";
+import { decodeDependantRequest, entityLabel } from "./beneficiaryManagementTypes";
 
 interface Props {
   reportType: StateOfficeReportType;
@@ -266,8 +267,8 @@ export default function ExtendedReportDetail({ reportType, reportId, onBack, onE
                     l.enrollee_name,
                     l.principle_nhia_number,
                     l.age ?? "—",
-                    labelOf(EXTRA_DEPENDANT_RELATIONSHIPS, l.relationship, l.relationship),
-                    l.program || "—",
+                    entityLabel(decodeDependantRequest(l.program, l.relationship), l.relationship),
+                    String(l.program || "FSSHIP").split("|")[0] || "—",
                     l.request_date || "—",
                     l.process_end_date || "—",
                     labelOf(EXTRA_DEPENDANT_STATUSES, l.line_status, l.line_status),

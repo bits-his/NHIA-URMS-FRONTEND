@@ -33,6 +33,8 @@ import StockAssetManager from "./StockAssetManager";
 import StateOfficeReportsList from "./stateOffice/StateOfficeReportsList";
 import { ENROLMENT_DRIVE_TYPES, enrolmentDrivePath } from "./stateOffice/enrolmentDriveTypes";
 import EnrolmentDrivesPage, { EnrolmentDriveLegacyRedirect } from "./stateOffice/EnrolmentDrivesPage";
+import BeneficiaryManagementPage, { BeneficiaryManagementLegacyRedirect } from "./stateOffice/BeneficiaryManagementPage";
+import { BENEFICIARY_MANAGEMENT_PATH } from "./stateOffice/beneficiaryManagementTypes";
 import {
   ENROLMENT_PILLAR_CHILDREN,
   STAKEHOLDER_PILLAR_CHILDREN,
@@ -699,7 +701,7 @@ export default function Dashboard({ role, user, access = [], functionalities = "
             <Route path="/soc/monitoring-visits" element={<Navigate to="/zonal/monitoring-visits" replace />} />
             <Route path="/soc/accreditation" element={<Navigate to="/zonal/accreditation" replace />} />
             <Route path="/soc/stakeholder" element={<Navigate to="/zonal/stakeholder" replace />} />
-            <Route path="/soc/hmo-selection" element={<Navigate to="/zonal/hmo-selection" replace />} />
+            <Route path="/soc/hmo-selection" element={<Navigate to={BENEFICIARY_MANAGEMENT_PATH} replace />} />
             <Route path="/soc/challenges" element={<Navigate to="/zonal/challenges" replace />} />
             <Route path="/soc/igr" element={<Navigate to="/zonal/igr" replace />} />
             <Route path="/soc/sshia-financial" element={<Navigate to="/zonal/sshia-financial" replace />} />
@@ -710,7 +712,7 @@ export default function Dashboard({ role, user, access = [], functionalities = "
             <Route path="/others/monitoring-visits" element={<Navigate to="/zonal/monitoring-visits" replace />} />
             <Route path="/others/accreditation" element={<Navigate to="/zonal/accreditation" replace />} />
             <Route path="/others/stakeholder" element={<Navigate to="/zonal/stakeholder" replace />} />
-            <Route path="/others/hmo-selection" element={<Navigate to="/zonal/hmo-selection" replace />} />
+            <Route path="/others/hmo-selection" element={<Navigate to={BENEFICIARY_MANAGEMENT_PATH} replace />} />
             <Route path="/others/challenges" element={<Navigate to="/zonal/challenges" replace />} />
             <Route path="/others/igr" element={<Navigate to="/zonal/igr" replace />} />
             <Route path="/others/sshia-financial" element={<Navigate to="/zonal/sshia-financial" replace />} />
@@ -791,9 +793,20 @@ export default function Dashboard({ role, user, access = [], functionalities = "
                 element={<EnrolmentDriveLegacyRedirect driveKey={t.key} />}
               />
             ))}
-            <Route path="/zonal/hmo-selection" element={<StateOfficeReportsList key="state-hmo-selection" reportType="hmo-selection" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
-            <Route path="/zonal/beneficiary/extra-dependant" element={<StateOfficeReportsList key="state-extra-dependant" reportType="extra-dependant" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
-            <Route path="/zonal/beneficiary/hcf-change" element={<StateOfficeReportsList key="state-hcf-change" reportType="hcf-change" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
+            <Route
+              path={BENEFICIARY_MANAGEMENT_PATH}
+              element={
+                <BeneficiaryManagementPage
+                  key="state-beneficiary-management"
+                  onBack={() => setView("home")}
+                  defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId}
+                  defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId}
+                />
+              }
+            />
+            <Route path="/zonal/hmo-selection" element={<BeneficiaryManagementLegacyRedirect />} />
+            <Route path="/zonal/beneficiary/extra-dependant" element={<BeneficiaryManagementLegacyRedirect />} />
+            <Route path="/zonal/beneficiary/hcf-change" element={<BeneficiaryManagementLegacyRedirect />} />
             <Route path="/zonal/challenges" element={<StateOfficeReportsList key="state-challenges" reportType="challenges" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
             <Route path="/zonal/servicom/comment-card" element={<ServicomCommentCardPage onBack={() => setView("home")} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateName={user?.state?.description} defaultZoneName={user?.zone?.description} canCreate={monthlyCtx.canCreateMonthly && !isCoordinator} canReview={monthlyCtx.canReviewMonthly} />} />
             <Route path="/zonal/servicom/satisfaction" element={<ServicomSatisfactionSurveyPage onBack={() => setView("home")} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateName={user?.state?.description} defaultZoneName={user?.zone?.description} canCreate={monthlyCtx.canCreateMonthly && !isCoordinator} canReview={monthlyCtx.canReviewMonthly} />} />

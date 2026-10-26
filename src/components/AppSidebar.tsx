@@ -85,6 +85,10 @@ import {
   enrolmentDriveView,
 } from "@/src/components/stateOffice/enrolmentDriveTypes";
 import {
+  BENEFICIARY_MANAGEMENT_VIEW,
+  BENEFICIARY_MANAGEMENT_PATH,
+} from "@/src/components/stateOffice/beneficiaryManagementTypes";
+import {
   STAKEHOLDER_MANAGEMENT_VIEW,
   STAKEHOLDER_MANAGEMENT_PATH,
   PROVIDER_MANAGEMENT_VIEW,
@@ -281,7 +285,8 @@ const VIEW_TO_PATH: Record<string, string> = {
   "state-etmc-tmc-action-point": "/soc/etmc-tmc-action-point",
   "state-ict-support-register": "/zonal/ict/support",
   "state-adhoc-special-assignment": "/sdo/projects",
-  "state-extra-dependant": "/zonal/beneficiary/extra-dependant",
+  "state-extra-dependant": BENEFICIARY_MANAGEMENT_PATH,
+  [BENEFICIARY_MANAGEMENT_VIEW]: BENEFICIARY_MANAGEMENT_PATH,
   "state-weekly-compliance": "/zonal/weekly-compliance",
   [ENROLMENT_DRIVES_VIEW]: ENROLMENT_DRIVES_PATH,
   [STAKEHOLDER_MANAGEMENT_VIEW]: STAKEHOLDER_MANAGEMENT_PATH,
@@ -289,7 +294,7 @@ const VIEW_TO_PATH: Record<string, string> = {
   ...Object.fromEntries(
     ENROLMENT_DRIVE_TYPES.map((t) => [enrolmentDriveView(t.key), `${ENROLMENT_DRIVES_PATH}?type=${t.key}`]),
   ),
-  "state-hcf-change": "/zonal/beneficiary/hcf-change",
+  "state-hcf-change": BENEFICIARY_MANAGEMENT_PATH,
   "state-ict-support": "/zonal/ict/support",
   "state-office-meeting": "/zonal/admin-hr/office-meeting",
   "state-etmc-cascading": "/zonal/admin-hr/etmc-cascading",
