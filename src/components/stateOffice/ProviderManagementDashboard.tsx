@@ -278,7 +278,20 @@ export default function ProviderManagementDashboard({
                       value={periodPreset}
                       onValueChange={(v) => setPeriodPreset(v as typeof periodPreset)}
                     >
-                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectTrigger
+                        displayValue={
+                          ({
+                            ytd: "Year to date",
+                            year: `Full year (${year})`,
+                            q1: "Q1",
+                            q2: "Q2",
+                            q3: "Q3",
+                            q4: "Q4",
+                          } as const)[periodPreset]
+                        }
+                      >
+                        <SelectValue placeholder="Year to date" />
+                      </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="ytd">Year to date</SelectItem>
                         <SelectItem value="year">Full year ({year})</SelectItem>
@@ -291,7 +304,15 @@ export default function ProviderManagementDashboard({
                   </FilterField>
                   <FilterField label="Geography">
                     <Select value={filterZone} onValueChange={(v) => { setFilterZone(v); setFilterState("all"); }}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectTrigger
+                        displayValue={
+                          filterZone === "all"
+                            ? "National"
+                            : (zones.find((z) => String(z.id) === String(filterZone))?.description || filterZone)
+                        }
+                      >
+                        <SelectValue placeholder="National" />
+                      </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">National</SelectItem>
                         {zones.map((z) => <SelectItem key={z.id} value={String(z.id)}>{z.description}</SelectItem>)}
@@ -300,7 +321,9 @@ export default function ProviderManagementDashboard({
                   </FilterField>
                   <FilterField label="Programme">
                     <Select value={programme} onValueChange={setProgramme}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectTrigger displayValue={programme === "all" ? "FSSHIP / BHCPF" : programme}>
+                        <SelectValue placeholder="FSSHIP / BHCPF" />
+                      </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">FSSHIP / BHCPF</SelectItem>
                         {PROVIDER_RELATED_PROGRAMMES.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
@@ -309,7 +332,15 @@ export default function ProviderManagementDashboard({
                   </FilterField>
                   <FilterField label="Activity type">
                     <Select value={activity} onValueChange={setActivity}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectTrigger
+                        displayValue={
+                          activity === "all"
+                            ? "Select activity"
+                            : (PROVIDER_FORM_TYPES.find((f) => f.key === activity)?.label || activity)
+                        }
+                      >
+                        <SelectValue placeholder="Select activity" />
+                      </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">Select activity</SelectItem>
                         {PROVIDER_FORM_TYPES.map((f) => <SelectItem key={f.key} value={f.key}>{f.label}</SelectItem>)}
@@ -318,7 +349,11 @@ export default function ProviderManagementDashboard({
                   </FilterField>
                   <FilterField label="Compare with">
                     <Select value={compareWith} onValueChange={(v) => setCompareWith(v as "none" | "previous")}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectTrigger
+                        displayValue={compareWith === "previous" ? "Previous period" : "No comparison"}
+                      >
+                        <SelectValue placeholder="Previous period" />
+                      </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="none">No comparison</SelectItem>
                         <SelectItem value="previous">Previous period</SelectItem>
@@ -330,13 +365,15 @@ export default function ProviderManagementDashboard({
                 <>
                   <FilterField label="Reporting period · Year">
                     <Select value={year} onValueChange={setYear}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectTrigger displayValue={year}><SelectValue /></SelectTrigger>
                       <SelectContent>{YEARS.map((y) => <SelectItem key={y} value={y}>{y}</SelectItem>)}</SelectContent>
                     </Select>
                   </FilterField>
                   <FilterField label="Quarter">
                     <Select value={quarter} onValueChange={(v) => { setQuarter(v); if (v !== "all") setMonth("all"); }}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectTrigger displayValue={quarter === "all" ? "All quarters" : `Q${quarter}`}>
+                        <SelectValue />
+                      </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">All quarters</SelectItem>
                         {[1, 2, 3, 4].map((q) => <SelectItem key={q} value={String(q)}>Q{q}</SelectItem>)}
@@ -345,14 +382,24 @@ export default function ProviderManagementDashboard({
                   </FilterField>
                   <FilterField label="Month">
                     <Select value={month} onValueChange={(v) => { setMonth(v); if (v !== "all") setQuarter("all"); }}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectTrigger displayValue={MONTHS.find((m) => m.v === month)?.l || month}>
+                        <SelectValue />
+                      </SelectTrigger>
                       <SelectContent>{MONTHS.map((m) => <SelectItem key={m.v} value={m.v}>{m.l}</SelectItem>)}</SelectContent>
                     </Select>
                   </FilterField>
                   {!lockZone && level >= 2 && (
                     <FilterField label="Zone">
                       <Select value={filterZone} onValueChange={(v) => { setFilterZone(v); setFilterState("all"); }}>
-                        <SelectTrigger><SelectValue placeholder="All zones" /></SelectTrigger>
+                        <SelectTrigger
+                          displayValue={
+                            filterZone === "all"
+                              ? "All zones"
+                              : (zones.find((z) => String(z.id) === String(filterZone))?.description || filterZone)
+                          }
+                        >
+                          <SelectValue placeholder="All zones" />
+                        </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="all">All zones</SelectItem>
                           {zones.map((z) => <SelectItem key={z.id} value={String(z.id)}>{z.description}</SelectItem>)}
@@ -363,7 +410,17 @@ export default function ProviderManagementDashboard({
                   {!lockState && level <= 2 && (
                     <FilterField label="State">
                       <Select value={filterState} onValueChange={setFilterState} disabled={lockState}>
-                        <SelectTrigger><SelectValue placeholder={lockState ? "Assigned state" : "All states"} /></SelectTrigger>
+                        <SelectTrigger
+                          displayValue={
+                            lockState
+                              ? (states.find((s) => String(s.id) === String(filterState))?.description || "Assigned state")
+                              : filterState === "all"
+                                ? "All states"
+                                : (states.find((s) => String(s.id) === String(filterState))?.description || filterState)
+                          }
+                        >
+                          <SelectValue placeholder={lockState ? "Assigned state" : "All states"} />
+                        </SelectTrigger>
                         <SelectContent>
                           {!lockState && <SelectItem value="all">All states</SelectItem>}
                           {states.map((s) => <SelectItem key={s.id} value={String(s.id)}>{s.description}</SelectItem>)}
@@ -373,7 +430,9 @@ export default function ProviderManagementDashboard({
                   )}
                   <FilterField label="Programme">
                     <Select value={programme} onValueChange={setProgramme}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectTrigger displayValue={programme === "all" ? "All programmes" : programme}>
+                        <SelectValue />
+                      </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">All programmes</SelectItem>
                         {PROVIDER_RELATED_PROGRAMMES.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
@@ -390,7 +449,15 @@ export default function ProviderManagementDashboard({
                         }
                       }}
                     >
-                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectTrigger
+                        displayValue={
+                          activity === "all"
+                            ? "All activities"
+                            : (PROVIDER_FORM_TYPES.find((f) => f.key === activity)?.label || activity)
+                        }
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">All activities</SelectItem>
                         {PROVIDER_FORM_TYPES.map((f) => <SelectItem key={f.key} value={f.key}>{f.label}</SelectItem>)}
@@ -408,7 +475,11 @@ export default function ProviderManagementDashboard({
                           if (next === "national") setActivity("all");
                         }}
                       >
-                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectTrigger
+                          displayValue={sdoView === "pipeline" ? "Pipeline (Acc / Re-acc)" : "National / zone"}
+                        >
+                          <SelectValue />
+                        </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="national">National / zone</SelectItem>
                           <SelectItem value="pipeline">Pipeline (Acc / Re-acc)</SelectItem>
@@ -419,7 +490,18 @@ export default function ProviderManagementDashboard({
                   {level === 3 && sdoPipeline && (
                     <FilterField label="Output measure">
                       <Select value={outputMeasure} onValueChange={(v) => setOutputMeasure(v as typeof outputMeasure)}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectTrigger
+                          displayValue={
+                            ({
+                              accredited: "Facilities accredited",
+                              reaccredited: "Facilities re-accredited",
+                              awaiting: "Awaiting",
+                              covered: "Facilities covered",
+                            } as const)[outputMeasure]
+                          }
+                        >
+                          <SelectValue />
+                        </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="accredited">Facilities accredited</SelectItem>
                           <SelectItem value="reaccredited">Facilities re-accredited</SelectItem>
@@ -432,7 +514,11 @@ export default function ProviderManagementDashboard({
                   {level <= 2 && (
                     <FilterField label="Status">
                       <Select value={activityStatus} onValueChange={setActivityStatus}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectTrigger
+                          displayValue={activityStatus === "all" ? "All activity statuses" : activityStatus}
+                        >
+                          <SelectValue />
+                        </SelectTrigger>
                         <SelectContent>
                           {ACTIVITY_STATUSES.map((s) => (
                             <SelectItem key={s} value={s}>{s === "all" ? "All activity statuses" : s}</SelectItem>
