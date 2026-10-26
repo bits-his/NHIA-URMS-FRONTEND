@@ -454,6 +454,17 @@ export function isDirectorEnforcementUser(
   return code === "ENF" || deptName.includes("enforcement");
 }
 
+/** True for Director-General / CEO — main `/` home uses DGExecutiveDashboard. */
+export function isDgCeoUser(
+  user?: { role?: string | null; staff_id?: string | null } | null,
+  role?: string | null,
+): boolean {
+  const r = String(role || user?.role || "").toLowerCase().trim();
+  if (r === "dg-ceo" || r === "dg" || r === "ceo") return true;
+  const sid = String(user?.staff_id || "").toUpperCase().trim();
+  return /^DG([-_]|$)/.test(sid);
+}
+
 export function isDashboardNavTitle(title: string | null | undefined): boolean {
   const t = String(title || "").trim().toLowerCase();
   if (!t) return false;
@@ -481,9 +492,16 @@ function isTemporarilyHiddenNavTitle(title: string | null | undefined): boolean 
 export function getFirstAccessiblePath(
   access: AccessEntry[] | undefined,
   role?: string,
-  _authUser?: Parameters<typeof isDirectorEnforcementUser>[0],
+  _authUser?: Parameters<typeof isDirectorEnforcementUser>[0] & { staff_id?: string | null },
 ): string {
   if (role === "admin") return "/";
+  // DG always lands on the main home dashboard (not a nested module page).
+  if (
+    isDgCeoUser(_authUser, role)
+    && canAccessFunctionality("Dashboard", "Dashboard", { role: role ?? "", access: access ?? [] })
+  ) {
+    return "/";
+  }
 
   const user: AccessUser = { role: role ?? "", access: access ?? [] };
 
