@@ -1,5 +1,4 @@
-import ActivityReportingTemplateForm from "./ActivityReportingTemplateForm";
-import { ACTIVITY_TEMPLATE_BY_MODULE } from "./activityReportTemplateConfig";
+import StakeholderEngagementForm from "./StakeholderEngagementForm";
 
 interface Props {
   reportId?: number | null;
@@ -10,12 +9,13 @@ interface Props {
   defaultStateId?: string | null;
 }
 
-/** Default stakeholder engagement menu — shared activity template. */
+/** Default stakeholder engagement — stepped PPT form. */
 export default function StakeholderReportForm(props: Props) {
   return (
-    <ActivityReportingTemplateForm
+    <StakeholderEngagementForm
       {...props}
-      config={ACTIVITY_TEMPLATE_BY_MODULE["engagement-coordination"]}
+      activityModule="engagement-coordination"
+      pageTitle="Stakeholder Engagement"
     />
   );
 }

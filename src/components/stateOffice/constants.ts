@@ -398,9 +398,9 @@ export const REPORT_CONFIG: Record<StateOfficeReportType, {
     refLabel: "Indicator", countLabel: "Count", totalLabel: "Grand Total",
   },
   stakeholder: {
-    title: "Stakeholder Engagement",
+    title: "Stakeholder Management",
     subtitle: "",
-    refLabel: "Engagement Activity", countLabel: "Stakeholders Engaged", totalLabel: "Total Engaged",
+    refLabel: "Engagement Activity", countLabel: "Activities", totalLabel: "Activities",
   },
   "hmo-selection": {
     title: "MDA Change of HMO Selection Process",
@@ -697,8 +697,7 @@ export function reportLineTotal(reportType: StateOfficeReportType, report: any) 
       s + (Number(l.primary_count) || 0) + (Number(l.secondary_count) || 0), 0);
   }
   if (reportType === "stakeholder") {
-    return (report.lines ?? []).reduce((s: number, l: any) =>
-      s + (Number(l.stakeholders_engaged ?? l.audience_size) || 0), 0);
+    return report.lines?.length ?? report.planned_activities ?? 0;
   }
   if (isEnrolmentDriveType(reportType)) {
     return (report.lines ?? []).reduce((s: number, l: any) => s + (Number(l.new_enrolments) || 0), 0);

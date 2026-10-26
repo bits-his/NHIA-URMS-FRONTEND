@@ -545,17 +545,13 @@ export default function StateOfficeReportsList({
                             <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Status</TableHead>
                             <TableHead className="text-right text-xs font-bold text-slate-600 whitespace-nowrap">View</TableHead>
                           </>
-                        ) : activityRows ? (
+                        ) : reportType === "stakeholder" ? (
                           <>
                             <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Period</TableHead>
                             {showLocationCols && (
-                              <>
-                                <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Zone</TableHead>
-                                <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">State</TableHead>
-                              </>
+                              <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">State</TableHead>
                             )}
-                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Activity</TableHead>
-                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Subject</TableHead>
+                            <TableHead className="text-xs font-bold text-slate-600 text-right whitespace-nowrap">Activities</TableHead>
                             <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Status</TableHead>
                             <TableHead className="text-right text-xs font-bold text-slate-600 whitespace-nowrap">View</TableHead>
                           </>
@@ -691,19 +687,19 @@ export default function StateOfficeReportsList({
                                   </Button>
                                 </TableCell>
                               </>
-                            ) : activitySummary ? (
+                            ) : reportType === "stakeholder" ? (
                               <>
                                 <TableCell className="text-sm font-semibold text-slate-800 whitespace-nowrap">
                                   {monthLabel(r.reporting_month)} {r.reporting_year}
                                 </TableCell>
                                 {showLocationCols && (
-                                  <>
-                                    <TableCell className="text-sm text-slate-600 whitespace-nowrap">{r.zone?.description || "—"}</TableCell>
-                                    <TableCell className="text-sm font-semibold text-slate-800 whitespace-nowrap">{r.state?.description || "—"}</TableCell>
-                                  </>
+                                  <TableCell className="text-sm font-semibold text-slate-800 whitespace-nowrap">
+                                    {r.state?.description || "—"}
+                                  </TableCell>
                                 )}
-                                <TableCell className="text-sm font-semibold text-[#0f3d2e] whitespace-nowrap">{activitySummary.activity}</TableCell>
-                                <TableCell className="text-sm text-slate-700 max-w-[240px] truncate" title={activitySummary.subject}>{activitySummary.subject}</TableCell>
+                                <TableCell className="text-sm font-semibold text-[#145c3f] text-right tabular-nums">
+                                  {formatCount(reportLineCount(rowType, r))}
+                                </TableCell>
                                 <TableCell>
                                   <Badge className={`text-[10px] px-2 py-0.5 flex items-center gap-1 w-fit border ${sc.cls}`}>
                                     {sc.icon} {sc.label}
