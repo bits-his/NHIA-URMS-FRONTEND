@@ -219,13 +219,10 @@ export default function ProviderManagementDashboard({
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="min-w-0">
               <h2 className="text-xl md:text-2xl font-bold tracking-tight text-slate-900">Provider Management Dashboard</h2>
-              <span className="inline-flex items-center rounded-full bg-teal-600 px-3 py-0.5 text-[11px] font-bold uppercase tracking-wide text-white">
-                Level {level}
-              </span>
+              <p className="text-sm text-slate-500 mt-1 max-w-3xl">{displayBlurb}</p>
             </div>
-            <p className="text-sm text-slate-500 mt-1 max-w-3xl">{displayBlurb}</p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <Button
