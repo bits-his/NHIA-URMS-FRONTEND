@@ -752,25 +752,8 @@ function NavMain({
   }, [modules, role]);
 
   const sections = React.useMemo(() => {
-    const headingFor = (title: string) => {
-      if (title === "State Offices") return "State Offices";
-      return "";
-    };
-    const out: { heading: string; nodes: TreeNode[] }[] = [];
-    const push = (heading: string, nodes: TreeNode[]) => {
-      const last = out[out.length - 1];
-      if (last && last.heading === heading) last.nodes.push(...nodes);
-      else out.push({ heading, nodes: [...nodes] });
-    };
-    for (const node of trees) {
-      const heading = headingFor(node.title);
-      if (heading && node.kind === "folder" && node.title === heading) {
-        push(heading, node.children);
-        continue;
-      }
-      push(heading, [node]);
-    }
-    return out;
+    // Keep folders (including State Offices) as collapsible dropdowns with nested children.
+    return [{ heading: "", nodes: trees }];
   }, [trees]);
 
   return (
