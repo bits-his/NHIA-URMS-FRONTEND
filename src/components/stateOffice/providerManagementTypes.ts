@@ -3,10 +3,34 @@
  */
 
 export const PROVIDER_FORM_TYPES = [
-  { key: "accreditation", label: "Accreditation", code: "PM-0001", activity: "Accreditation" },
-  { key: "reaccreditation", label: "Reaccreditation", code: "PM-0002", activity: "Re-accreditation" },
-  { key: "qa-inspections", label: "Quality Assurance", code: "PM-0003", activity: "Quality Assurance" },
-  { key: "medical-audits", label: "Medical Audit", code: "PM-0004", activity: "Medical Audit" },
+  {
+    key: "accreditation",
+    label: "Accreditation",
+    code: "PM-0001",
+    activity: "Accreditation",
+    description: "Assess and accredit healthcare facilities for NHIA participation.",
+  },
+  {
+    key: "reaccreditation",
+    label: "Reaccreditation",
+    code: "PM-0002",
+    activity: "Re-accreditation",
+    description: "Review and renew accreditation for existing facilities.",
+  },
+  {
+    key: "qa-inspections",
+    label: "Quality Assurance",
+    code: "PM-0003",
+    activity: "Quality Assurance",
+    description: "Inspect facilities and record quality assurance findings.",
+  },
+  {
+    key: "medical-audits",
+    label: "Medical Audit",
+    code: "PM-0004",
+    activity: "Medical Audit",
+    description: "Conduct medical audits and document compliance outcomes.",
+  },
 ] as const;
 
 export type ProviderFormKey = (typeof PROVIDER_FORM_TYPES)[number]["key"];

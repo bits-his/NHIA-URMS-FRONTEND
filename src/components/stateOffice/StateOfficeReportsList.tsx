@@ -90,12 +90,12 @@ interface Props {
 }
 
 const STATUS_CONFIG: Record<string, { label: string; cls: string; icon: React.ReactNode }> = {
-  draft:            { label: "Draft",     cls: "bg-slate-100 text-slate-600 border-slate-200",       icon: <FileText className="w-3 h-3" /> },
-  awaiting_review:  { label: "Awaiting review", cls: "bg-amber-100 text-amber-800 border-amber-200", icon: <Clock className="w-3 h-3" /> },
-  returned:         { label: "Returned",  cls: "bg-rose-100 text-rose-700 border-rose-200",          icon: <XCircle className="w-3 h-3" /> },
-  endorsed:         { label: "Endorsed",  cls: "bg-teal-100 text-teal-800 border-teal-200",          icon: <CheckCircle2 className="w-3 h-3" /> },
-  submitted:        { label: "Submitted", cls: "bg-blue-100 text-blue-700 border-blue-200",          icon: <Clock className="w-3 h-3" /> },
-  approved:         { label: "Approved",  cls: "bg-emerald-100 text-emerald-700 border-emerald-200", icon: <CheckCircle2 className="w-3 h-3" /> },
+  draft:            { label: "Draft",           cls: "bg-slate-100 text-slate-600 border-slate-200",        icon: <FileText className="w-3 h-3" /> },
+  awaiting_review:  { label: "Awaiting review", cls: "bg-amber-100 text-amber-800 border-amber-200",       icon: <Clock className="w-3 h-3" /> },
+  returned:         { label: "Returned",        cls: "bg-rose-100 text-rose-700 border-rose-200",          icon: <XCircle className="w-3 h-3" /> },
+  endorsed:         { label: "Endorsed",        cls: "bg-teal-100 text-teal-800 border-teal-200",          icon: <CheckCircle2 className="w-3 h-3" /> },
+  submitted:        { label: "Submitted",       cls: "bg-emerald-100 text-emerald-700 border-emerald-200", icon: <CheckCircle2 className="w-3 h-3" /> },
+  approved:         { label: "Approved",        cls: "bg-emerald-100 text-emerald-700 border-emerald-200", icon: <CheckCircle2 className="w-3 h-3" /> },
 };
 
 export default function StateOfficeReportsList({
@@ -107,8 +107,11 @@ export default function StateOfficeReportsList({
     [reportTypes, reportType],
   );
   const multiType = typesToLoad.length > 1;
-  const { canCreate, createOnly } = useStateOfficeAccess();
+  const { canCreate, canReview, createOnly: baseCreateOnly } = useStateOfficeAccess();
   const authUser = useSelector((s: RootState) => s.auth.user);
+  // Match Stakeholder Management: officers with the endorsement workflow see their own list
+  // (draft → awaiting review → endorsed → final submit), not a create-only form-first screen.
+  const createOnly = providerWorkflow ? false : baseCreateOnly;
 
   const [mode, setMode] = React.useState<"list" | "create" | "view" | "edit">(createOnly ? "create" : "list");
   const [formKey, setFormKey] = React.useState(0);
@@ -303,7 +306,8 @@ export default function StateOfficeReportsList({
     draft:     filteredReports.filter(r => r.status === "draft" || r.status === "returned").length,
     awaiting_review: filteredReports.filter(r => r.status === "awaiting_review").length,
     endorsed:  filteredReports.filter(r => r.status === "endorsed").length,
-    submitted: filteredReports.filter(r => r.status === "submitted").length,
+    // Stakeholder-style: final submission is the done state (submitted or approved)
+    submitted: filteredReports.filter(r => r.status === "submitted" || r.status === "approved").length,
     approved:  filteredReports.filter(r => r.status === "approved").length,
   }), [filteredReports]);
 
@@ -487,7 +491,16 @@ export default function StateOfficeReportsList({
           <Button variant="ghost" size="icon" onClick={onBack} className="rounded-full shrink-0" aria-label="Back">
             <ArrowLeft className="w-5 h-5" />
           </Button>
-          <h2 className="text-xl font-bold tracking-tight truncate">{listTitle ?? cfg.title}</h2>
+          <div className="min-w-0">
+            <h2 className="text-xl font-bold tracking-tight truncate">{listTitle ?? cfg.title}</h2>
+            {providerWorkflow && (
+              <p className="text-xs text-slate-500 truncate">
+                {canReview
+                  ? "Review and endorse reports awaiting your action"
+                  : "Your reports — draft, send for review, then final-submit after endorsement"}
+              </p>
+            )}
+          </div>
         </div>
         <div className="flex items-center gap-3">
           <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">
@@ -514,14 +527,13 @@ export default function StateOfficeReportsList({
               <span><span className="font-semibold text-slate-800">{counts.approved}</span> approved</span>
             </div>
           ) : (
-          <div className={`grid grid-cols-2 gap-4 ${providerWorkflow ? "md:grid-cols-3 xl:grid-cols-6" : "md:grid-cols-4"}`}>
+          <div className={`grid grid-cols-2 gap-4 ${providerWorkflow ? "md:grid-cols-5" : "md:grid-cols-4"}`}>
             {(providerWorkflow ? [
               { label: "Total", value: counts.total, color: "bg-slate-50 border-slate-200", text: "text-slate-700" },
               { label: "Draft / Returned", value: counts.draft, color: "bg-slate-50 border-slate-200", text: "text-slate-600" },
               { label: "Awaiting review", value: counts.awaiting_review, color: "bg-amber-50 border-amber-200", text: "text-amber-800" },
               { label: "Endorsed", value: counts.endorsed, color: "bg-teal-50 border-teal-200", text: "text-teal-800" },
-              { label: "Submitted", value: counts.submitted, color: "bg-blue-50 border-blue-200", text: "text-blue-700" },
-              { label: "Approved", value: counts.approved, color: "bg-emerald-50 border-emerald-200", text: "text-emerald-700" },
+              { label: "Submitted", value: counts.submitted, color: "bg-emerald-50 border-emerald-200", text: "text-emerald-700" },
             ] : [
               { label: "Total",     value: counts.total,     color: "bg-slate-50 border-slate-200",     text: "text-slate-700"  },
               { label: "Draft",     value: counts.draft,     color: "bg-slate-50 border-slate-200",     text: "text-slate-600"  },

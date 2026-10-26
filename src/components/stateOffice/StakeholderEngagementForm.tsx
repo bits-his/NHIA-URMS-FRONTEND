@@ -428,7 +428,7 @@ export default function StakeholderEngagementForm({
   linesRef.current = lines;
   const [reportStatus, setReportStatus] = React.useState("draft");
 
-  const [view, setView] = React.useState<"register" | "activity">("register");
+  const [view, setView] = React.useState<"register" | "activity">(reportId ? "register" : "activity");
   const [entry, setEntry] = React.useState<Entry>(blankEntry);
   const [draftOutcome, setDraftOutcome] = React.useState<OutcomeRow>({ outcome_category: "", specific_outcome: "" });
   const [editingKey, setEditingKey] = React.useState<string | null>(null);
@@ -634,8 +634,18 @@ export default function StakeholderEngagementForm({
     });
     linesRef.current = next;
     setLines(next);
-    setReportStatus(v.status || "draft");
-    setView("register");
+    const status = v.status || "draft";
+    setReportStatus(status);
+    const editable = ["draft", "returned"].includes(status);
+    if (next.length === 0 && editable) {
+      setEntry(blankEntry());
+      resetDraftOutcome();
+      setEditingKey(null);
+      setFieldErrors({});
+      setView("activity");
+    } else {
+      setView("register");
+    }
     if (v.activity_module && allowModuleSelect) setModuleKey(v.activity_module);
   };
 

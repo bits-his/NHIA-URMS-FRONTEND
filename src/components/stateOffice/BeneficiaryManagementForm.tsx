@@ -1,12 +1,17 @@
 import * as React from "react";
-import { Loader2, Plus, Save, Send } from "lucide-react";
+import {
+  ArrowRightLeft, Building2, ChevronRight, Loader2, Pencil, Plus, Save, Send,
+  Trash2, UserPlus, Users, type LucideIcon,
+} from "lucide-react";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SearchSelect } from "@/components/ui/search-select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { stateOfficeApi } from "@/lib/api";
 import StateOfficeFormShell from "./StateOfficeFormShell";
@@ -17,7 +22,9 @@ import {
   HCP_CHANGE_STATUSES,
   YES_NO_OPTIONS,
   labelOf,
+  monthLabel,
   parseSupportingDocuments,
+  quarterFromMonth,
 } from "./constants";
 import {
   BENEFICIARY_ACTIVITIES,
@@ -35,6 +42,13 @@ import {
   unpackReason,
   type BeneficiaryActivityKey,
 } from "./beneficiaryManagementTypes";
+
+const BENEFICIARY_ACTIVITY_ICONS: Record<BeneficiaryActivityKey, LucideIcon> = {
+  additional: UserPlus,
+  extra: Users,
+  provider: ArrowRightLeft,
+  mda: Building2,
+};
 
 const uid = () => Math.random().toString(36).slice(2);
 type SavedDoc = { name: string; path: string };
@@ -344,11 +358,11 @@ export default function BeneficiaryManagementForm({
 }: Props) {
   const initial = reportId ? activityFromReportType(reportType) : null;
   const [activity, setActivity] = React.useState<BeneficiaryActivityKey | null>(initial);
+  const [view, setView] = React.useState<"register" | "activity">(reportId ? "register" : "activity");
   const [lines, setLines] = React.useState<Line[]>([]);
   const [entry, setEntry] = React.useState<Entry>(() => blankFor(initial ?? "extra"));
   const [editingKey, setEditingKey] = React.useState<string | null>(null);
   const fileRef = React.useRef<HTMLInputElement>(null);
-  const formRef = React.useRef<HTMLDivElement>(null);
   const linesRef = React.useRef(lines);
   linesRef.current = lines;
   const activityRef = React.useRef(activity);
@@ -400,7 +414,10 @@ export default function BeneficiaryManagementForm({
 
   const pickActivity = (key: BeneficiaryActivityKey) => {
     if (reportId || savedIdRef.current) return;
-    if (key === activity) return;
+    if (key === activity) {
+      setView("activity");
+      return;
+    }
     if (linesRef.current.length) {
       linesRef.current = [];
       setLines([]);
@@ -408,12 +425,15 @@ export default function BeneficiaryManagementForm({
     }
     setActivity(key);
     resetEntry(key);
+    setView("activity");
   };
 
   const loadData = (v: any) => {
-    setReportStatus(v?.status === "submitted" || v?.status === "approved" ? v.status : "draft");
+    const status = v?.status === "submitted" || v?.status === "approved" ? v.status : "draft";
+    setReportStatus(status);
     setEndorsed(!!v?.endorsed);
     setReviewNote(typeof v?.coordinator_review_note === "string" ? v.coordinator_review_note : "");
+    const editable = status === "draft";
     if (apiType === "extra-dependant" || (!activity && reportType === "extra-dependant")) {
       const next: Line[] = (v.lines ?? []).map((l: any) => {
         const request = decodeDependantRequest(l.program, l.relationship);
@@ -447,6 +467,8 @@ export default function BeneficiaryManagementForm({
       setEntry(blankDep(request));
       linesRef.current = next;
       setLines(next);
+      setEditingKey(null);
+      setView(next.length === 0 && editable ? "activity" : "register");
       return;
     }
     if (apiType === "hcf-change") {
@@ -475,6 +497,8 @@ export default function BeneficiaryManagementForm({
       });
       linesRef.current = next;
       setLines(next);
+      setEditingKey(null);
+      setView(next.length === 0 && editable ? "activity" : "register");
       return;
     }
     const next: Line[] = (v.lines ?? []).map((l: any) => {
@@ -503,9 +527,35 @@ export default function BeneficiaryManagementForm({
     });
     linesRef.current = next;
     setLines(next);
+    setEditingKey(null);
+    setView(next.length === 0 && editable ? "activity" : "register");
   };
 
-  const commitLine = () => {
+  const startAdd = () => {
+    resetEntry();
+    setView("activity");
+  };
+
+  const startEdit = (key: string) => {
+    const row = linesRef.current.find((l) => l._key === key);
+    if (!row) return;
+    const { _key, ...rest } = row;
+    setEntry(rest);
+    setEditingKey(key);
+    setView("activity");
+    if (fileRef.current) fileRef.current.value = "";
+  };
+
+  const backToRegister = () => {
+    resetEntry();
+    if (linesRef.current.length === 0 && !reportId && !savedIdRef.current) {
+      setActivity(null);
+      return;
+    }
+    setView("register");
+  };
+
+  const saveActivity = () => {
     if (entry.kind === "dependant") {
       if (!entry.enrollee_name.trim()) {
         toast.error("Select the principal enrollee");
@@ -537,17 +587,9 @@ export default function BeneficiaryManagementForm({
       : [...linesRef.current, { ...entry, _key: uid() }];
     linesRef.current = next;
     setLines(next);
-    toast.success(editingKey ? "Entry updated" : "Entry added");
+    toast.success(editingKey ? "Activity updated" : "Activity saved");
     resetEntry();
-  };
-
-  const editLine = (key: string) => {
-    const row = linesRef.current.find((l) => l._key === key);
-    if (!row) return;
-    const { _key, ...rest } = row;
-    setEntry(rest);
-    setEditingKey(key);
-    window.setTimeout(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+    setView("register");
   };
 
   const afterPersist = async ({ id }: { id: number }) => {
@@ -630,7 +672,7 @@ export default function BeneficiaryManagementForm({
       defaultZoneId={defaultZoneId}
       defaultStateId={defaultStateId}
       pageTitle="Beneficiary Management"
-      pageSubtitle={meta?.label}
+      pageSubtitle={meta?.label ?? "Select an activity"}
       hideFooterActions
       hideBasicInfo
       showQuarter
@@ -746,443 +788,523 @@ export default function BeneficiaryManagementForm({
             mda: entry.mda || picked.organization,
           });
         };
+        const canEdit = reportStatus === "draft" || (!reportId && !savedId);
+        const periodBadge = [
+          labelOf(header.states.map((s) => ({ value: String(s.id), label: s.label })), header.stateId, ""),
+          [monthLabel(header.reportMonth), header.reportYear].filter(Boolean).join(" "),
+          header.reportMonth ? `(Q${quarterFromMonth(header.reportMonth)})` : "",
+        ].filter(Boolean).join(", ").replace(", (", " (");
+
         return (
           <div className="space-y-4 pb-2">
             <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden">
-              <CardContent className="space-y-5 p-4 md:p-5">
+              <CardContent className="p-4 md:p-5">
                 <ReportBasicInfo {...header} lockZone={header.lockZone} lockState={header.lockState} showQuarter embedded />
-                {!activity && (
-                  <div className="border-t border-[#e8f3ec] pt-4 space-y-4">
-                    <p className="text-base font-semibold text-[#0f3d2e]">Select an activity to begin</p>
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      {BENEFICIARY_ACTIVITIES.map((item) => (
-                        <button
-                          key={item.key}
-                          type="button"
-                          onClick={() => pickActivity(item.key)}
-                          className="rounded-2xl border-2 border-[#d4e8dc] bg-white px-6 py-12 min-h-[8.5rem] text-left transition-all hover:border-[#1a7a52] hover:bg-[#f0fdf7]"
-                        >
-                          <p className="text-xl font-bold text-slate-800">{item.label}</p>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </CardContent>
             </Card>
 
-            {activity && lines.length > 0 && (
-              <div className="rounded-lg border border-[#d4e8dc] bg-white overflow-hidden">
-                <div className="px-4 py-3 border-b border-[#e8f3ec] flex items-center justify-between gap-3">
-                  <p className="text-sm font-semibold text-slate-800">
-                    {lines.length} {lines.length === 1 ? "entry" : "entries"}
-                  </p>
-                  <p className="text-xs text-slate-500">Add another below, or edit one already listed.</p>
+            {!activity ? (
+              <div className="space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-3 px-1">
+                  <h2 className="text-xl font-bold text-slate-900">Activities</h2>
+                  {periodBadge && (
+                    <span className="inline-flex items-center rounded-full bg-[#e8f6ee] px-3 py-1 text-xs font-semibold text-[#145c3f]">
+                      {periodBadge}
+                    </span>
+                  )}
                 </div>
-                {lines.length === 0 ? (
-                  <p className="px-4 py-6 text-sm text-slate-600">No entries yet. Fill the form, then add it to this report.</p>
-                ) : (
-                  <ul>
-                    {lines.map((l) => {
-                      const cells = rowCells(l);
-                      const active = editingKey === l._key;
-                      return (
-                        <li
-                          key={l._key}
-                          className={`flex items-center gap-3 px-4 py-3 border-t border-[#e8f3ec] first:border-t-0 ${active ? "bg-[#f4fbf7]" : "bg-white"}`}
-                        >
-                          <div className="min-w-0 flex-1">
-                            <p className="text-sm font-semibold text-[#0f3d2e] truncate">{cells.subject}</p>
-                            <p className="text-xs text-slate-600 truncate">{cells.activity} · {cells.detail}</p>
-                          </div>
-                          <span className="text-xs text-slate-500 shrink-0 hidden sm:inline">{cells.status}</span>
-                          <Button type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={() => editLine(l._key)}>
-                            {active ? "Editing" : "Edit"}
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 text-xs text-slate-500 hover:text-rose-600"
-                            onClick={() => {
-                              const next = linesRef.current.filter((x) => x._key !== l._key);
-                              linesRef.current = next;
-                              setLines(next);
-                              if (editingKey === l._key) resetEntry();
-                            }}
-                          >
-                            Remove
-                          </Button>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {BENEFICIARY_ACTIVITIES.map((item) => {
+                    const Icon = BENEFICIARY_ACTIVITY_ICONS[item.key];
+                    return (
+                      <button
+                        key={item.key}
+                        type="button"
+                        onClick={() => pickActivity(item.key)}
+                        className="group flex items-center gap-4 rounded-2xl border border-[#d4e8dc] bg-white px-5 py-5 text-left shadow-sm transition-all hover:border-[#1a7a52] hover:bg-[#f7fcf9] hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1a7a52]/40"
+                      >
+                        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#e8f6ee] text-[#145c3f]">
+                          <Icon className="h-6 w-6" strokeWidth={1.75} />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-base font-bold text-slate-900">{item.label}</p>
+                          <p className="mt-0.5 text-sm text-slate-500 leading-snug">{item.description}</p>
+                        </div>
+                        <ChevronRight className="h-5 w-5 shrink-0 text-[#145c3f] opacity-70 transition group-hover:opacity-100" />
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-            )}
-
-            <div ref={formRef} className="space-y-4 scroll-mt-20">
-            {editingKey && entry && (
-              <div className="rounded-lg border border-[#145c3f] bg-[#f4fbf7] px-4 py-3 flex items-center justify-between gap-3">
-                <p className="text-sm text-[#0f3d2e]">
-                  Editing <span className="font-semibold">{rowCells(entry as Line).subject || "this entry"}</span>
-                </p>
-                <Button type="button" variant="ghost" size="sm" onClick={() => resetEntry()}>Cancel</Button>
-              </div>
-            )}
-
-            {(activity === "additional" || activity === "extra") && entry.kind === "dependant" && (
-              <Card className="rounded-lg border border-[#d4e8dc] gap-0 py-0 shadow-none ring-0">
-                <CardContent className="p-4 md:p-5 space-y-1">
-                  <Block title="Principal enrollee">
-                    <Field label="Enrolment type">
-                      <Input
-                        value={[entry.program_name, entry.enrolment_type].filter(Boolean).join(" · ")}
-                        readOnly
-                        placeholder="From the enrollee record"
-                      />
-                    </Field>
-                    <Field label="Principal enrollee" required className="sm:col-span-2">
-                      <SearchSelect
-                        options={visiblePrincipals.map((p) => ({ value: p.value, label: p.label, sub: p.sub }))}
-                        value={entry.principal_key}
-                        displayLabel={entry.enrollee_name ? `${entry.enrollee_name}${entry.principle_nhia_number ? ` · ${entry.principle_nhia_number}` : ""}` : undefined}
-                        onChange={applyPrincipal}
-                        placeholder={principalsError ? "Enrolment could not be loaded" : "Select from enrolment"}
-                        searchPlaceholder="Search name or number"
-                        disabled={!!principalsError}
-                      />
-                      {principalsError && (
-                        <p className="text-xs text-red-600">{principalsError}</p>
-                      )}
-                      {!principalsError && visiblePrincipals.length === 0 && (
-                        <p className="text-xs text-slate-500">No enrolment record for this state has a principal and an enrolment type yet.</p>
-                      )}
-                    </Field>
-                    <Field label="Principal NHIA number">
-                      <Input value={entry.principle_nhia_number} readOnly placeholder="From enrolment record" />
-                    </Field>
-                    <Field label="Dependant" required>
-                      <Select
-                        value={entry.entity_type || undefined}
-                        onValueChange={(v) => setEntry({
-                          ...entry,
-                          entity_type: v,
-                          relationship_kind: v.startsWith("child") ? "child" : v,
-                        })}
-                      >
-                        <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                        <SelectContent>
-                          {entityChoices.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </Field>
-                  </Block>
-
-                  <Block title="Identity from the enrolment record" hint="Organisation is Unemployed. HMO is inherited from the principal and cannot be edited.">
-                    {IDENTITY_FIELDS.map((field) => (
-                      <Field key={field.key} label={field.label}>
-                        <Input value={entry.identity[field.key] || ""} readOnly placeholder="From enrolment record" />
-                      </Field>
-                    ))}
-                    <Field label="Organisation / MDA">
-                      <Input value="Unemployed" readOnly />
-                    </Field>
-                    <Field label="HMO">
-                      <Input value={entry.identity.hmo || ""} readOnly placeholder="Inherited from principal" />
-                    </Field>
-                    <ProviderSelect
-                      label="HCF"
-                      entityType="hcp"
-                      stateId={stateId}
-                      value={entry.hcf}
-                      onChange={(name) => setEntry((p) => p.kind === "dependant" ? { ...p, hcf: name } : p)}
-                    />
-                    <ProviderSelect
-                      label="Alternative provider"
-                      entityType="hcp"
-                      stateId={stateId}
-                      value={entry.alternative_provider}
-                      onChange={(name) => setEntry((p) => p.kind === "dependant" ? { ...p, alternative_provider: name } : p)}
-                    />
-                  </Block>
-
-                  <Block title="Request">
-                    <Field label="Date of request">
-                      <Input type="date" value={entry.request_date} onChange={(e) => setEntry({ ...entry, request_date: e.target.value })} />
-                    </Field>
-                    <Field label="Process end date">
-                      <Input type="date" value={entry.process_end_date} onChange={(e) => setEntry({ ...entry, process_end_date: e.target.value })} />
-                    </Field>
-                    <Field label="Status">
-                      <Select value={entry.line_status} onValueChange={(v) => setEntry({ ...entry, line_status: v })}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {EXTRA_DEPENDANT_STATUSES.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </Field>
-                    <Field label="Supporting documents" className="sm:col-span-2 lg:col-span-3">
-                      <Input
-                        ref={fileRef}
-                        type="file"
-                        multiple
-                        onChange={(e) => setEntry({ ...entry, supportingFiles: Array.from(e.target.files ?? []) })}
-                      />
-                    </Field>
-                  </Block>
-                    <AddButton editing={!!editingKey} onClick={commitLine} onCancel={() => resetEntry()} />
-                </CardContent>
-              </Card>
-            )}
-
-            {activity === "provider" && entry.kind === "provider" && (
-              <Card className="rounded-lg border border-[#d4e8dc] gap-0 py-0 shadow-none ring-0">
-                <CardContent className="p-4 md:p-5 space-y-1">
-                  <Block title="Beneficiary" hint="The enrollee, NHIA number, and programme come from an enrolment record for this state.">
-                    <Field label="Date of request">
-                      <Input type="date" value={entry.record_date} onChange={(e) => setEntry({ ...entry, record_date: e.target.value })} />
-                    </Field>
-                    <Field label="Enrollee" required className="sm:col-span-2">
-                      <SearchSelect
-                        options={visiblePrincipals.map((p) => ({ value: p.value, label: p.label, sub: p.sub }))}
-                        value={entry.enrollee_key}
-                        displayLabel={entry.enrollee_name ? `${entry.enrollee_name}${entry.nhia_number ? ` · ${entry.nhia_number}` : ""}` : undefined}
-                        onChange={applyEnrollee}
-                        placeholder={principalsError ? "Enrolment could not be loaded" : "Select from enrolment"}
-                        searchPlaceholder="Search name or number"
-                        disabled={!!principalsError}
-                      />
-                      {principalsError && <p className="text-xs text-red-600">{principalsError}</p>}
-                      {!principalsError && visiblePrincipals.length === 0 && (
-                        <p className="text-xs text-slate-500">No enrolment record for this state has a principal and an enrolment type yet.</p>
-                      )}
-                    </Field>
-                    <Field label="NHIA number">
-                      <Input value={entry.nhia_number} readOnly placeholder="From the enrollee record" />
-                    </Field>
-                    <Field label="Programme">
-                      <Input value={entry.program} readOnly placeholder="From the enrollee record" />
-                    </Field>
-                    <Field label="Request type" required>
-                      <Select
-                        value={entry.entity_type || undefined}
-                        onValueChange={(v) => setEntry({
-                          ...entry,
-                          entity_type: v as "hcp" | "hmo",
-                          current_hcp_hmo: "",
-                          new_hcp_hmo: "",
-                          reason_category: "",
-                          reason_other: "",
-                        })}
-                      >
-                        <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="hcp">Change of HCP</SelectItem>
-                          <SelectItem value="hmo">Change of HMO</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </Field>
-                    <Field label="MDA (if applicable)">
-                      <Input value={entry.mda} onChange={(e) => setEntry({ ...entry, mda: e.target.value })} />
-                    </Field>
-                  </Block>
-                  <Block title="Provider change">
-                    <ProviderSelect
-                      label="Current provider"
-                      entityType={entry.entity_type}
-                      stateId={stateId}
-                      value={entry.current_hcp_hmo}
-                      onChange={(name) => setEntry((p) => p.kind === "provider" ? { ...p, current_hcp_hmo: name } : p)}
-                    />
-                    <ProviderSelect
-                      label="Requested provider"
-                      entityType={entry.entity_type}
-                      stateId={stateId}
-                      value={entry.new_hcp_hmo}
-                      onChange={(name) => setEntry((p) => p.kind === "provider" ? { ...p, new_hcp_hmo: name } : p)}
-                    />
-                    <Field label="Reason category" required>
-                      <Select
-                        value={entry.reason_category || undefined}
-                        disabled={!entry.entity_type}
-                        onValueChange={(v) => setEntry({ ...entry, reason_category: v, reason_other: v === OTHER_REASON ? entry.reason_other : "" })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder={entry.entity_type ? "Select" : "Select request type first"} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {reasons.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </Field>
-                    <Field label="Additional explanation" required={entry.reason_category === OTHER_REASON} className="sm:col-span-2">
-                      <Input
-                        value={entry.reason_other}
-                        disabled={entry.reason_category !== OTHER_REASON}
-                        placeholder={entry.reason_category === OTHER_REASON ? "Required for Other" : "Only when reason is Other"}
-                        onChange={(e) => setEntry({ ...entry, reason_other: e.target.value })}
-                      />
-                    </Field>
-                    <Field label="Met NHIA criteria?">
-                      <Select value={entry.met_criteria || undefined} onValueChange={(v) => setEntry({ ...entry, met_criteria: v })}>
-                        <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                        <SelectContent>
-                          {YES_NO_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </Field>
-                    <Field label="Status">
-                      <Select value={entry.line_status} onValueChange={(v) => setEntry({ ...entry, line_status: v })}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {HCP_CHANGE_STATUSES.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </Field>
-                    <Field label="Supporting documents" className="lg:col-span-3">
-                      <Input
-                        ref={fileRef}
-                        type="file"
-                        multiple
-                        onChange={(e) => setEntry({ ...entry, supportingFiles: Array.from(e.target.files ?? []) })}
-                      />
-                    </Field>
-                  </Block>
-                    <AddButton editing={!!editingKey} onClick={commitLine} onCancel={() => resetEntry()} />
-                </CardContent>
-              </Card>
-            )}
-
-            {activity === "mda" && entry.kind === "mda" && (
-              <Card className="rounded-lg border border-[#d4e8dc] gap-0 py-0 shadow-none ring-0">
-                <CardContent className="p-4 md:p-5 space-y-1">
-                  <Block title="MDA and selection">
-                    <Field label="Date">
-                      <Input type="date" value={entry.selection_date} onChange={(e) => setEntry({ ...entry, selection_date: e.target.value })} />
-                    </Field>
-                    <Field label="Name of MDA" required className="sm:col-span-2">
-                      <Input value={entry.mda} onChange={(e) => setEntry({ ...entry, mda: e.target.value })} />
-                    </Field>
-                    <ProviderSelect
-                      label="Former HMO"
-                      entityType="hmo"
-                      stateId={stateId}
-                      value={entry.former_hmo}
-                      onChange={(name) => setEntry((p) => p.kind === "mda" ? { ...p, former_hmo: name } : p)}
-                    />
-                    <Field label="Reason for change" className="sm:col-span-2">
-                      <Input value={entry.reason_for_change} onChange={(e) => setEntry({ ...entry, reason_for_change: e.target.value })} />
-                    </Field>
-                  </Block>
-                  <Block title="Selection process" hint="HMOs are the accredited list. Guideline and transparency are Yes or No.">
-                    <Field label="HMOs invited">
-                      <Input type="number" min={0} value={entry.hmos_invited} onChange={(e) => setEntry({ ...entry, hmos_invited: e.target.value })} />
-                    </Field>
-                    <Field label="HMOs attended">
-                      <Input type="number" min={0} value={entry.hmos_attended} onChange={(e) => setEntry({ ...entry, hmos_attended: e.target.value })} />
-                    </Field>
-                    <Field label="NHIA guideline complied?">
-                      <Select value={entry.compliance_guideline || undefined} onValueChange={(v) => setEntry({ ...entry, compliance_guideline: v })}>
-                        <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                        <SelectContent>
-                          {YES_NO_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </Field>
-                    <Field label="Transparent process?">
-                      <Select value={entry.transparent_process || undefined} onValueChange={(v) => setEntry({ ...entry, transparent_process: v })}>
-                        <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                        <SelectContent>
-                          {YES_NO_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </Field>
-                    <ProviderSelect
-                      label="Selected HMO"
-                      entityType="hmo"
-                      stateId={stateId}
-                      value={entry.selected_hmo}
-                      onChange={(name) => setEntry((p) => p.kind === "mda" ? { ...p, selected_hmo: name } : p)}
-                    />
-                  </Block>
-                  <Block title="Evidence">
-                    <Field label="Evidence of selection">
-                      <Input type="file" onChange={(e) => setEntry({ ...entry, evidenceFile: e.target.files?.[0] ?? null })} />
-                      {entry.evidence_name ? <p className="text-xs text-slate-600">{entry.evidence_name}</p> : null}
-                    </Field>
-                    <Field label="Full selection report">
-                      <Input type="file" onChange={(e) => setEntry({ ...entry, reportFile: e.target.files?.[0] ?? null })} />
-                      {entry.report_name ? <p className="text-xs text-slate-600">{entry.report_name}</p> : null}
-                    </Field>
-                    <Field label="Status">
-                      <Select value={entry.line_status} onValueChange={(v) => setEntry({ ...entry, line_status: v })}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {HCP_CHANGE_STATUSES.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </Field>
-                    <Field label="Remarks" className="sm:col-span-2 lg:col-span-3">
-                      <Input value={entry.remarks} onChange={(e) => setEntry({ ...entry, remarks: e.target.value })} />
-                    </Field>
-                  </Block>
-                    <AddButton editing={!!editingKey} onClick={commitLine} onCancel={() => resetEntry()} />
-                </CardContent>
-              </Card>
-            )}
-
-            </div>
-
-            {activity && reviewNote && reportStatus !== "submitted" ? (
-              <p className={`rounded-lg border px-4 py-3 text-sm whitespace-pre-wrap ${endorsed ? "border-[#d4e8dc] bg-[#f4fbf7] text-[#0f3d2e]" : "border-amber-200 bg-amber-50 text-amber-950"}`}>
-                <span className="font-semibold">{endorsed ? "Endorsement" : "Returned for correction"}. </span>
-                {reviewNote}
-              </p>
-            ) : null}
-
-            {activity && reportStatus !== "approved" ? (
-              <div className="flex flex-wrap items-center justify-end gap-2">
-                {reportStatus === "submitted" && !endorsed ? (
-                  <p className="text-sm text-slate-600 mr-auto">Waiting for the state coordinator to endorse this report.</p>
-                ) : (
-                  <>
-                    {endorsed && (
-                      <p className="text-sm text-[#0f3d2e] mr-auto">Endorsed. Submit it as approved.</p>
-                    )}
-                    <Button variant="ghost" size="sm" className="gap-2" disabled={saving || submitting} onClick={() => persist("draft")}>
-                      {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                      Save draft
-                    </Button>
+            ) : view === "register" ? (
+              <>
+                <div className="flex flex-wrap items-center justify-between gap-2 px-1">
+                  <p className="text-sm font-semibold text-[#0f3d2e]">
+                    Activity: <span className="text-slate-800">{meta?.label}</span>
+                  </p>
+                  {canEdit && !reportId && !savedId && lines.length === 0 && (
                     <Button
-                      className="bg-orange-action hover:bg-orange-600 gap-2"
-                      disabled={saving || submitting}
-                      onClick={() => requestSubmit(() => persist(endorsed ? "approved" : "submitted"))}
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="text-[#145c3f]"
+                      onClick={() => setActivity(null)}
                     >
-                      {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                      {endorsed ? "Submit as approved" : "Send for review"}
+                      Change activity
                     </Button>
-                  </>
+                  )}
+                </div>
+
+                {reviewNote && reportStatus !== "submitted" ? (
+                  <p className={`rounded-lg border px-4 py-3 text-sm whitespace-pre-wrap ${endorsed ? "border-[#d4e8dc] bg-[#f4fbf7] text-[#0f3d2e]" : "border-amber-200 bg-amber-50 text-amber-950"}`}>
+                    <span className="font-semibold">{endorsed ? "Endorsement" : "Returned for correction"}. </span>
+                    {reviewNote}
+                  </p>
+                ) : null}
+
+                <Card className="rounded-xl border border-[#d4e8dc] shadow-sm overflow-hidden">
+                  <div className="bg-[#e8f5ee] px-4 py-2.5 border-b border-[#d4e8dc] flex flex-wrap items-center justify-between gap-2">
+                    <h3 className="text-[12px] font-bold uppercase tracking-[0.06em] text-[#0f3d2e]">
+                      Activity Register
+                    </h3>
+                    <p className="text-[11px] text-[#145c3f]">
+                      {lines.length} activit{lines.length === 1 ? "y" : "ies"} this period
+                    </p>
+                  </div>
+                  <CardContent className="p-0 bg-white">
+                    {lines.length === 0 ? (
+                      <div className="py-14 text-center text-sm text-slate-400">
+                        No activities yet. Click Add Activity to create one.
+                      </div>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow className="bg-[#eef6f1] hover:bg-[#eef6f1]">
+                              {["Subject", "Detail", "Date", "Status", "Action"].map((h) => (
+                                <TableHead key={h} className="text-[11px] font-bold text-[#0f3d2e] whitespace-nowrap">{h}</TableHead>
+                              ))}
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {lines.map((l) => {
+                              const cells = rowCells(l);
+                              return (
+                                <TableRow key={l._key} className="hover:bg-[#f4f7f5]">
+                                  <TableCell className="text-sm font-medium">{cells.subject || "—"}</TableCell>
+                                  <TableCell className="text-xs max-w-[14rem] truncate" title={cells.detail}>
+                                    {cells.detail}
+                                  </TableCell>
+                                  <TableCell className="text-sm whitespace-nowrap">{cells.date}</TableCell>
+                                  <TableCell>
+                                    <Badge variant="outline" className="text-[10px]">{cells.status}</Badge>
+                                  </TableCell>
+                                  <TableCell className="whitespace-nowrap">
+                                    {canEdit ? (
+                                      <>
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="h-7 gap-1 px-2 text-[#145c3f]"
+                                          onClick={() => startEdit(l._key)}
+                                        >
+                                          <Pencil className="w-3.5 h-3.5" /> View / Edit
+                                        </Button>
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="h-7 w-7 p-0 text-rose-500"
+                                          onClick={() => {
+                                            const next = linesRef.current.filter((x) => x._key !== l._key);
+                                            linesRef.current = next;
+                                            setLines(next);
+                                          }}
+                                        >
+                                          <Trash2 className="w-3.5 h-3.5" />
+                                        </Button>
+                                      </>
+                                    ) : (
+                                      <span className="text-xs text-slate-400">Locked</span>
+                                    )}
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
+                    <div className="px-4 py-3 border-t border-[#d4e8dc] flex flex-wrap items-center justify-between gap-2 bg-[#f4f7f5]">
+                      {canEdit ? (
+                        <Button
+                          variant="outline"
+                          className="gap-2 border-[#1a7a52] text-[#0f3d2e] hover:bg-[#eef6f1]"
+                          onClick={startAdd}
+                        >
+                          <Plus className="w-4 h-4" /> Add Activity
+                        </Button>
+                      ) : (
+                        <span />
+                      )}
+                      <p className="text-[11px] text-slate-500">
+                        Monthly activity count is calculated from saved records.
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {reportStatus !== "approved" && (
+                  <div className="flex flex-wrap items-center justify-end gap-2">
+                    {reportStatus === "submitted" && !endorsed ? (
+                      <p className="text-sm text-slate-600 mr-auto">Waiting for the state coordinator to endorse this report.</p>
+                    ) : (
+                      <>
+                        {endorsed && (
+                          <p className="text-sm text-[#0f3d2e] mr-auto">Endorsed. Submit it as approved.</p>
+                        )}
+                        {canEdit && (
+                          <Button variant="ghost" size="sm" className="gap-2" disabled={saving || submitting} onClick={() => persist("draft")}>
+                            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                            Save Draft
+                          </Button>
+                        )}
+                        {(canEdit || endorsed) && (
+                          <Button
+                            className="bg-orange-action hover:bg-orange-600 gap-2"
+                            disabled={saving || submitting || (canEdit && lines.length === 0)}
+                            onClick={() => requestSubmit(() => persist(endorsed ? "approved" : "submitted"))}
+                          >
+                            {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                            {endorsed ? "Submit as approved" : "Send for Review"}
+                          </Button>
+                        )}
+                      </>
+                    )}
+                  </div>
                 )}
-              </div>
-            ) : null}
+              </>
+            ) : (
+              <>
+                <div className="flex items-center justify-between gap-2 px-1">
+                  <h2 className="text-sm font-bold text-[#0f3d2e]">
+                    {editingKey ? "Edit Activity" : "New Activity"}
+                    <span className="font-medium text-slate-500"> · {meta?.label}</span>
+                  </h2>
+                  <Button variant="ghost" size="sm" onClick={backToRegister}>Cancel</Button>
+                </div>
+
+                {(activity === "additional" || activity === "extra") && entry.kind === "dependant" && (
+                  <Card className="rounded-lg border border-[#d4e8dc] gap-0 py-0 shadow-none ring-0">
+                    <CardContent className="p-4 md:p-5 space-y-1">
+                      <Block title="Principal enrollee">
+                        <Field label="Enrolment type">
+                          <Input
+                            value={[entry.program_name, entry.enrolment_type].filter(Boolean).join(" · ")}
+                            readOnly
+                            placeholder="From the enrollee record"
+                          />
+                        </Field>
+                        <Field label="Principal enrollee" required className="sm:col-span-2">
+                          <SearchSelect
+                            options={visiblePrincipals.map((p) => ({ value: p.value, label: p.label, sub: p.sub }))}
+                            value={entry.principal_key}
+                            displayLabel={entry.enrollee_name ? `${entry.enrollee_name}${entry.principle_nhia_number ? ` · ${entry.principle_nhia_number}` : ""}` : undefined}
+                            onChange={applyPrincipal}
+                            placeholder={principalsError ? "Enrolment could not be loaded" : "Select from enrolment"}
+                            searchPlaceholder="Search name or number"
+                            disabled={!!principalsError}
+                          />
+                          {principalsError && (
+                            <p className="text-xs text-red-600">{principalsError}</p>
+                          )}
+                          {!principalsError && visiblePrincipals.length === 0 && (
+                            <p className="text-xs text-slate-500">No enrolment record for this state has a principal and an enrolment type yet.</p>
+                          )}
+                        </Field>
+                        <Field label="Principal NHIA number">
+                          <Input value={entry.principle_nhia_number} readOnly placeholder="From enrolment record" />
+                        </Field>
+                        <Field label="Dependant" required>
+                          <Select
+                            value={entry.entity_type || undefined}
+                            onValueChange={(v) => setEntry({
+                              ...entry,
+                              entity_type: v,
+                              relationship_kind: v.startsWith("child") ? "child" : v,
+                            })}
+                          >
+                            <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                            <SelectContent>
+                              {entityChoices.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </Field>
+                      </Block>
+
+                      <Block title="Identity from the enrolment record" hint="Organisation is Unemployed. HMO is inherited from the principal and cannot be edited.">
+                        {IDENTITY_FIELDS.map((field) => (
+                          <Field key={field.key} label={field.label}>
+                            <Input value={entry.identity[field.key] || ""} readOnly placeholder="From enrolment record" />
+                          </Field>
+                        ))}
+                        <Field label="Organisation / MDA">
+                          <Input value="Unemployed" readOnly />
+                        </Field>
+                        <Field label="HMO">
+                          <Input value={entry.identity.hmo || ""} readOnly placeholder="Inherited from principal" />
+                        </Field>
+                        <ProviderSelect
+                          label="HCF"
+                          entityType="hcp"
+                          stateId={stateId}
+                          value={entry.hcf}
+                          onChange={(name) => setEntry((p) => p.kind === "dependant" ? { ...p, hcf: name } : p)}
+                        />
+                        <ProviderSelect
+                          label="Alternative provider"
+                          entityType="hcp"
+                          stateId={stateId}
+                          value={entry.alternative_provider}
+                          onChange={(name) => setEntry((p) => p.kind === "dependant" ? { ...p, alternative_provider: name } : p)}
+                        />
+                      </Block>
+
+                      <Block title="Request">
+                        <Field label="Date of request">
+                          <Input type="date" value={entry.request_date} onChange={(e) => setEntry({ ...entry, request_date: e.target.value })} />
+                        </Field>
+                        <Field label="Process end date">
+                          <Input type="date" value={entry.process_end_date} onChange={(e) => setEntry({ ...entry, process_end_date: e.target.value })} />
+                        </Field>
+                        <Field label="Status">
+                          <Select value={entry.line_status} onValueChange={(v) => setEntry({ ...entry, line_status: v })}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {EXTRA_DEPENDANT_STATUSES.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </Field>
+                        <Field label="Supporting documents" className="sm:col-span-2 lg:col-span-3">
+                          <Input
+                            ref={fileRef}
+                            type="file"
+                            multiple
+                            onChange={(e) => setEntry({ ...entry, supportingFiles: Array.from(e.target.files ?? []) })}
+                          />
+                        </Field>
+                      </Block>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {activity === "provider" && entry.kind === "provider" && (
+                  <Card className="rounded-lg border border-[#d4e8dc] gap-0 py-0 shadow-none ring-0">
+                    <CardContent className="p-4 md:p-5 space-y-1">
+                      <Block title="Beneficiary" hint="The enrollee, NHIA number, and programme come from an enrolment record for this state.">
+                        <Field label="Date of request">
+                          <Input type="date" value={entry.record_date} onChange={(e) => setEntry({ ...entry, record_date: e.target.value })} />
+                        </Field>
+                        <Field label="Enrollee" required className="sm:col-span-2">
+                          <SearchSelect
+                            options={visiblePrincipals.map((p) => ({ value: p.value, label: p.label, sub: p.sub }))}
+                            value={entry.enrollee_key}
+                            displayLabel={entry.enrollee_name ? `${entry.enrollee_name}${entry.nhia_number ? ` · ${entry.nhia_number}` : ""}` : undefined}
+                            onChange={applyEnrollee}
+                            placeholder={principalsError ? "Enrolment could not be loaded" : "Select from enrolment"}
+                            searchPlaceholder="Search name or number"
+                            disabled={!!principalsError}
+                          />
+                          {principalsError && <p className="text-xs text-red-600">{principalsError}</p>}
+                          {!principalsError && visiblePrincipals.length === 0 && (
+                            <p className="text-xs text-slate-500">No enrolment record for this state has a principal and an enrolment type yet.</p>
+                          )}
+                        </Field>
+                        <Field label="NHIA number">
+                          <Input value={entry.nhia_number} readOnly placeholder="From the enrollee record" />
+                        </Field>
+                        <Field label="Programme">
+                          <Input value={entry.program} readOnly placeholder="From the enrollee record" />
+                        </Field>
+                        <Field label="Request type" required>
+                          <Select
+                            value={entry.entity_type || undefined}
+                            onValueChange={(v) => setEntry({
+                              ...entry,
+                              entity_type: v as "hcp" | "hmo",
+                              current_hcp_hmo: "",
+                              new_hcp_hmo: "",
+                              reason_category: "",
+                              reason_other: "",
+                            })}
+                          >
+                            <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="hcp">Change of HCP</SelectItem>
+                              <SelectItem value="hmo">Change of HMO</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </Field>
+                        <Field label="MDA (if applicable)">
+                          <Input value={entry.mda} onChange={(e) => setEntry({ ...entry, mda: e.target.value })} />
+                        </Field>
+                      </Block>
+                      <Block title="Provider change">
+                        <ProviderSelect
+                          label="Current provider"
+                          entityType={entry.entity_type}
+                          stateId={stateId}
+                          value={entry.current_hcp_hmo}
+                          onChange={(name) => setEntry((p) => p.kind === "provider" ? { ...p, current_hcp_hmo: name } : p)}
+                        />
+                        <ProviderSelect
+                          label="Requested provider"
+                          entityType={entry.entity_type}
+                          stateId={stateId}
+                          value={entry.new_hcp_hmo}
+                          onChange={(name) => setEntry((p) => p.kind === "provider" ? { ...p, new_hcp_hmo: name } : p)}
+                        />
+                        <Field label="Reason category" required>
+                          <Select
+                            value={entry.reason_category || undefined}
+                            disabled={!entry.entity_type}
+                            onValueChange={(v) => setEntry({ ...entry, reason_category: v, reason_other: v === OTHER_REASON ? entry.reason_other : "" })}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder={entry.entity_type ? "Select" : "Select request type first"} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {reasons.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </Field>
+                        <Field label="Additional explanation" required={entry.reason_category === OTHER_REASON} className="sm:col-span-2">
+                          <Input
+                            value={entry.reason_other}
+                            disabled={entry.reason_category !== OTHER_REASON}
+                            placeholder={entry.reason_category === OTHER_REASON ? "Required for Other" : "Only when reason is Other"}
+                            onChange={(e) => setEntry({ ...entry, reason_other: e.target.value })}
+                          />
+                        </Field>
+                        <Field label="Met NHIA criteria?">
+                          <Select value={entry.met_criteria || undefined} onValueChange={(v) => setEntry({ ...entry, met_criteria: v })}>
+                            <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                            <SelectContent>
+                              {YES_NO_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </Field>
+                        <Field label="Status">
+                          <Select value={entry.line_status} onValueChange={(v) => setEntry({ ...entry, line_status: v })}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {HCP_CHANGE_STATUSES.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </Field>
+                        <Field label="Supporting documents" className="lg:col-span-3">
+                          <Input
+                            ref={fileRef}
+                            type="file"
+                            multiple
+                            onChange={(e) => setEntry({ ...entry, supportingFiles: Array.from(e.target.files ?? []) })}
+                          />
+                        </Field>
+                      </Block>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {activity === "mda" && entry.kind === "mda" && (
+                  <Card className="rounded-lg border border-[#d4e8dc] gap-0 py-0 shadow-none ring-0">
+                    <CardContent className="p-4 md:p-5 space-y-1">
+                      <Block title="MDA and selection">
+                        <Field label="Date">
+                          <Input type="date" value={entry.selection_date} onChange={(e) => setEntry({ ...entry, selection_date: e.target.value })} />
+                        </Field>
+                        <Field label="Name of MDA" required className="sm:col-span-2">
+                          <Input value={entry.mda} onChange={(e) => setEntry({ ...entry, mda: e.target.value })} />
+                        </Field>
+                        <ProviderSelect
+                          label="Former HMO"
+                          entityType="hmo"
+                          stateId={stateId}
+                          value={entry.former_hmo}
+                          onChange={(name) => setEntry((p) => p.kind === "mda" ? { ...p, former_hmo: name } : p)}
+                        />
+                        <Field label="Reason for change" className="sm:col-span-2">
+                          <Input value={entry.reason_for_change} onChange={(e) => setEntry({ ...entry, reason_for_change: e.target.value })} />
+                        </Field>
+                      </Block>
+                      <Block title="Selection process" hint="HMOs are the accredited list. Guideline and transparency are Yes or No.">
+                        <Field label="HMOs invited">
+                          <Input type="number" min={0} value={entry.hmos_invited} onChange={(e) => setEntry({ ...entry, hmos_invited: e.target.value })} />
+                        </Field>
+                        <Field label="HMOs attended">
+                          <Input type="number" min={0} value={entry.hmos_attended} onChange={(e) => setEntry({ ...entry, hmos_attended: e.target.value })} />
+                        </Field>
+                        <Field label="NHIA guideline complied?">
+                          <Select value={entry.compliance_guideline || undefined} onValueChange={(v) => setEntry({ ...entry, compliance_guideline: v })}>
+                            <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                            <SelectContent>
+                              {YES_NO_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </Field>
+                        <Field label="Transparent process?">
+                          <Select value={entry.transparent_process || undefined} onValueChange={(v) => setEntry({ ...entry, transparent_process: v })}>
+                            <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                            <SelectContent>
+                              {YES_NO_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </Field>
+                        <ProviderSelect
+                          label="Selected HMO"
+                          entityType="hmo"
+                          stateId={stateId}
+                          value={entry.selected_hmo}
+                          onChange={(name) => setEntry((p) => p.kind === "mda" ? { ...p, selected_hmo: name } : p)}
+                        />
+                      </Block>
+                      <Block title="Evidence">
+                        <Field label="Evidence of selection">
+                          <Input type="file" onChange={(e) => setEntry({ ...entry, evidenceFile: e.target.files?.[0] ?? null })} />
+                          {entry.evidence_name ? <p className="text-xs text-slate-600">{entry.evidence_name}</p> : null}
+                        </Field>
+                        <Field label="Full selection report">
+                          <Input type="file" onChange={(e) => setEntry({ ...entry, reportFile: e.target.files?.[0] ?? null })} />
+                          {entry.report_name ? <p className="text-xs text-slate-600">{entry.report_name}</p> : null}
+                        </Field>
+                        <Field label="Status">
+                          <Select value={entry.line_status} onValueChange={(v) => setEntry({ ...entry, line_status: v })}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {HCP_CHANGE_STATUSES.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </Field>
+                        <Field label="Remarks" className="sm:col-span-2 lg:col-span-3">
+                          <Input value={entry.remarks} onChange={(e) => setEntry({ ...entry, remarks: e.target.value })} />
+                        </Field>
+                      </Block>
+                    </CardContent>
+                  </Card>
+                )}
+
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  <Button variant="ghost" onClick={backToRegister}>Cancel</Button>
+                  {canEdit && (
+                    <Button variant="outline" className="gap-2" onClick={saveActivity}>
+                      <Save className="w-4 h-4" /> Save Activity
+                    </Button>
+                  )}
+                </div>
+              </>
+            )}
           </div>
         );
       }}
     </StateOfficeFormShell>
-  );
-}
-
-function AddButton({ editing, onClick, onCancel }: { editing: boolean; onClick: () => void; onCancel: () => void }) {
-  return (
-    <div className="flex justify-end gap-2 pt-4">
-      {editing && (
-        <Button type="button" variant="ghost" size="sm" onClick={onCancel}>Cancel</Button>
-      )}
-      <Button type="button" size="sm" className="bg-[#145c3f] hover:bg-[#0f3d2e] text-white gap-1.5" onClick={onClick}>
-        <Plus className="w-3.5 h-3.5" /> {editing ? "Update entry" : "Add entry"}
-      </Button>
-    </div>
   );
 }
 
