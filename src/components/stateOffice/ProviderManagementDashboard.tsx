@@ -125,6 +125,9 @@ export default function ProviderManagementDashboard({
   const [activity, setActivity] = React.useState("all");
   const [activityStatus, setActivityStatus] = React.useState("all");
   const [showAnalysis, setShowAnalysis] = React.useState(false);
+  /** SDO Level 3: national overview vs accreditation/reaccreditation pipeline (both mockups). */
+  const [sdoView, setSdoView] = React.useState<"national" | "pipeline">("national");
+  const [outputMeasure, setOutputMeasure] = React.useState<"accredited" | "reaccredited" | "awaiting" | "covered">("accredited");
 
   React.useEffect(() => {
     stockApi.getZones().then((r) => setZones(r.data || [])).catch(() => setZones([]));
@@ -136,17 +139,23 @@ export default function ProviderManagementDashboard({
     stockApi.getStates(zoneArg).then((r) => setStates(r.data || [])).catch(() => setStates([]));
   }, [filterZone, lockZone, lockState, defaultZoneId]);
 
-  const scope = React.useMemo(() => ({
-    level,
-    year,
-    month: month === "all" ? undefined : month,
-    quarter: quarter === "all" ? undefined : quarter,
-    zone_id: lockZone ? (defaultZoneId ?? undefined) : (filterZone !== "all" ? filterZone : undefined),
-    state_id: lockState ? (defaultStateId ?? undefined) : (filterState !== "all" ? filterState : undefined),
-    programme,
-    activity,
-    activity_status: activityStatus,
-  }), [level, year, month, quarter, lockZone, lockState, defaultZoneId, defaultStateId, filterZone, filterState, programme, activity, activityStatus]);
+  const scope = React.useMemo(() => {
+    // Pipeline view keeps Acc + Re-acc KPIs together (mockup 2); do not narrow to one activity.
+    const activityFilter = (level === 3 && sdoView === "pipeline")
+      ? "all"
+      : activity;
+    return {
+      level,
+      year,
+      month: month === "all" ? undefined : month,
+      quarter: quarter === "all" ? undefined : quarter,
+      zone_id: lockZone ? (defaultZoneId ?? undefined) : (filterZone !== "all" ? filterZone : undefined),
+      state_id: lockState ? (defaultStateId ?? undefined) : (filterState !== "all" ? filterState : undefined),
+      programme,
+      activity: activityFilter,
+      activity_status: activityStatus,
+    };
+  }, [level, sdoView, year, month, quarter, lockZone, lockState, defaultZoneId, defaultStateId, filterZone, filterState, programme, activity, activityStatus]);
 
   const load = React.useCallback(async () => {
     setLoading(true);
@@ -177,6 +186,34 @@ export default function ProviderManagementDashboard({
   const priorities = data?.priority_areas || [];
   const showPipelineDrill = level === 1 && (activity === "accreditation" || activity === "reaccreditation");
   const isReacc = activity === "reaccreditation";
+  const sdoPipeline = level === 3 && sdoView === "pipeline";
+  const displayTitle = sdoPipeline
+    ? "Level 3 — SDO / Headquarters"
+    : meta.title;
+  const displayBlurb = sdoPipeline
+    ? "National monitoring by zone, programme and activity type, with distinct pipelines."
+    : meta.blurb;
+
+  const sdoZoneBarKey = outputMeasure === "reaccredited"
+    ? "reaccredited"
+    : outputMeasure === "awaiting"
+      ? "awaiting"
+      : outputMeasure === "covered"
+        ? "covered"
+        : "accredited";
+  const sdoZoneBarLabel = {
+    accredited: "Facilities accredited",
+    reaccredited: "Facilities re-accredited",
+    awaiting: "Awaiting",
+    covered: "Facilities covered",
+  }[outputMeasure];
+
+  const zoneChartData = React.useMemo(() => {
+    return (byZone as any[]).map((z) => ({
+      ...z,
+      awaiting: (z.awaiting_accreditation || 0) + (z.awaiting_reaccreditation || 0),
+    }));
+  }, [byZone]);
 
   return (
     <div className="flex flex-col h-full bg-[#f7fafc]">
@@ -187,12 +224,12 @@ export default function ProviderManagementDashboard({
           </Button>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-xl md:text-2xl font-bold tracking-tight text-slate-900">{meta.title}</h2>
+              <h2 className="text-xl md:text-2xl font-bold tracking-tight text-slate-900">{displayTitle}</h2>
               <span className="inline-flex items-center rounded-full bg-teal-600 px-3 py-0.5 text-[11px] font-bold uppercase tracking-wide text-white">
                 Level {level}
               </span>
             </div>
-            <p className="text-sm text-slate-500 mt-1 max-w-3xl">{meta.blurb}</p>
+            <p className="text-sm text-slate-500 mt-1 max-w-3xl">{displayBlurb}</p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <Button
@@ -270,8 +307,16 @@ export default function ProviderManagementDashboard({
                   </SelectContent>
                 </Select>
               </FilterField>
-              <FilterField label="Activity">
-                <Select value={activity} onValueChange={setActivity}>
+              <FilterField label={level === 3 && sdoPipeline ? "Activity type" : "Activity"}>
+                <Select
+                  value={activity}
+                  onValueChange={(v) => {
+                    setActivity(v);
+                    if (level === 3 && (v === "accreditation" || v === "reaccreditation")) {
+                      setSdoView("pipeline");
+                    }
+                  }}
+                >
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All activities</SelectItem>
@@ -279,6 +324,38 @@ export default function ProviderManagementDashboard({
                   </SelectContent>
                 </Select>
               </FilterField>
+              {level === 3 && (
+                <FilterField label="View">
+                  <Select
+                    value={sdoView}
+                    onValueChange={(v) => {
+                      const next = v as "national" | "pipeline";
+                      setSdoView(next);
+                      if (next === "pipeline" && activity === "all") setActivity("accreditation");
+                      if (next === "national") setActivity("all");
+                    }}
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="national">National / zone</SelectItem>
+                      <SelectItem value="pipeline">Pipeline (Acc / Re-acc)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </FilterField>
+              )}
+              {level === 3 && sdoPipeline && (
+                <FilterField label="Output measure">
+                  <Select value={outputMeasure} onValueChange={(v) => setOutputMeasure(v as typeof outputMeasure)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="accredited">Facilities accredited</SelectItem>
+                      <SelectItem value="reaccredited">Facilities re-accredited</SelectItem>
+                      <SelectItem value="awaiting">Awaiting</SelectItem>
+                      <SelectItem value="covered">Facilities covered</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </FilterField>
+              )}
               {level <= 2 && (
                 <FilterField label="Status">
                   <Select value={activityStatus} onValueChange={setActivityStatus}>
@@ -335,18 +412,18 @@ export default function ProviderManagementDashboard({
                 </div>
               )}
 
-              {level === 3 && !(activity === "accreditation" || activity === "reaccreditation") && (
+              {level === 3 && !sdoPipeline && (
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                  <DashKpi label="Activities planned" value={fmtNum(kpis.activities_planned)} detail="Across reporting states" />
-                  <DashKpi label="Activities completed" value={fmtNum(kpis.activities_completed)} detail={`${fmtPct(kpis.activity_completion_rate)} completion rate`} />
-                  <DashKpi label="Plan achievement" value={fmtPct(kpis.plan_achievement_rate)} detail="National aggregate rate" />
-                  <DashKpi label="Facilities covered" value={fmtNum(kpis.facilities_covered)} detail="Sum of valid reported coverage" />
+                  <AccentKpi accent="blue" label="Activities planned" value={fmtNum(kpis.activities_planned)} detail="Across reporting states" />
+                  <AccentKpi accent="teal" label="Activities completed" value={fmtNum(kpis.activities_completed)} detail={`${fmtPct(kpis.activity_completion_rate)} completion rate`} />
+                  <AccentKpi accent="amber" label="Plan achievement" value={fmtPct(kpis.plan_achievement_rate)} detail="National aggregate rate" />
+                  <AccentKpi accent="green" label="Facilities covered" value={fmtNum(kpis.facilities_covered)} detail="Sum of valid reported coverage" />
                 </div>
               )}
 
-              {level === 3 && (activity === "accreditation" || activity === "reaccreditation") && (
+              {level === 3 && sdoPipeline && (
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                  <AccentKpi accent="blue" label="Awaiting accreditation" value={fmtNum(kpis.awaiting_accreditation)} detail="Selected programme / activity" />
+                  <AccentKpi accent="teal" label="Awaiting accreditation" value={fmtNum(kpis.awaiting_accreditation)} detail="Selected programme / activity" />
                   <AccentKpi accent="teal" label="Accredited this period" value={fmtNum(kpis.accredited)} detail="Selected programme / activity" />
                   <AccentKpi accent="amber" label="Awaiting reaccreditation" value={fmtNum(kpis.awaiting_reaccreditation)} detail="Separate reaccreditation queue" />
                   <AccentKpi accent="purple" label="Reaccredited this period" value={fmtNum(kpis.reaccredited)} detail="Separate reaccreditation output" />
@@ -460,17 +537,20 @@ export default function ProviderManagementDashboard({
 
               {level === 3 && (
                 <div className="grid lg:grid-cols-2 gap-4">
-                  <DashChartCard title={(activity === "accreditation" || activity === "reaccreditation") ? "Outputs by zone — selected programme / activity" : "Performance by zone"}>
-                    {byZone.length === 0 ? <ChartEmpty message="No zone comparison" /> : (
+                  <DashChartCard title={sdoPipeline ? "Outputs by zone — selected programme / activity" : "Performance by zone"}>
+                    {zoneChartData.length === 0 ? <ChartEmpty message="No zone comparison" /> : (
                       <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={[...byZone].slice(0, 10).reverse()} layout="vertical" margin={{ top: 8, right: 16, left: 8, bottom: 0 }}>
+                        <BarChart data={[...zoneChartData].slice(0, 10).reverse()} layout="vertical" margin={{ top: 8, right: 16, left: 8, bottom: 0 }}>
                           <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                          <XAxis type="number" tick={{ fontSize: 11 }} />
+                          <XAxis type="number" tick={{ fontSize: 11 }} domain={sdoPipeline ? [0, "auto"] : [0, 100]} />
                           <YAxis type="category" dataKey="name" width={110} tick={{ fontSize: 10 }} />
-                          <Tooltip contentStyle={tooltipStyle()} />
+                          <Tooltip
+                            contentStyle={tooltipStyle()}
+                            formatter={(v: any) => (sdoPipeline ? fmtNum(Number(v)) : fmtPct(Number(v)))}
+                          />
                           <Bar
-                            dataKey={(activity === "accreditation" || activity === "reaccreditation") ? (isReacc ? "reaccredited" : "accredited") : "plan_achievement"}
-                            name={(activity === "accreditation" || activity === "reaccreditation") ? (isReacc ? "Re-accredited" : "Accredited") : "Plan achievement %"}
+                            dataKey={sdoPipeline ? sdoZoneBarKey : "plan_achievement"}
+                            name={sdoPipeline ? sdoZoneBarLabel : "Plan achievement %"}
                             fill="#14b8a6"
                             radius={[0, 4, 4, 0]}
                           />
@@ -478,7 +558,7 @@ export default function ProviderManagementDashboard({
                       </ResponsiveContainer>
                     )}
                   </DashChartCard>
-                  <DashChartCard title={(activity === "accreditation" || activity === "reaccreditation") ? "Accreditation vs reaccreditation trend" : "Monthly activity trend"}>
+                  <DashChartCard title={sdoPipeline ? "Accreditation vs reaccreditation trend" : "Monthly activity trend"}>
                     {byMonth.length === 0 ? <ChartEmpty message="No monthly trend" /> : (
                       <ResponsiveContainer width="100%" height="100%">
                         <LineChart data={byMonth}>
@@ -487,7 +567,7 @@ export default function ProviderManagementDashboard({
                           <YAxis tick={{ fontSize: 11 }} />
                           <Tooltip contentStyle={tooltipStyle()} />
                           <Legend />
-                          {(activity === "accreditation" || activity === "reaccreditation") ? (
+                          {sdoPipeline ? (
                             <>
                               <Line type="monotone" dataKey="accredited" name="Accredited" stroke="#0ea5e9" strokeWidth={2} dot={{ r: 3 }} />
                               <Line type="monotone" dataKey="reaccredited" name="Re-accredited" stroke="#ef4444" strokeWidth={2} dot={{ r: 3 }} />
@@ -564,6 +644,24 @@ export default function ProviderManagementDashboard({
                   <p className="text-sm text-slate-600 leading-relaxed">
                     Review initial accreditation and reaccreditation pipelines separately. Drill down by facility, programme and activity record.
                   </p>
+                ) : level === 3 && sdoPipeline ? (
+                  <p className="text-sm text-slate-600 leading-relaxed">
+                    Highlight zones with high pending workloads or low outputs for the selected programme/activity. Use BHCPF PHC-specific fields when BHCPF is selected.
+                  </p>
+                ) : level === 3 && !sdoPipeline ? (
+                  <ul className="space-y-2">
+                    {[
+                      "Identify zones with sustained low plan achievement",
+                      "Separate accreditation and reaccreditation outputs",
+                      "Review programme-specific BHCPF PHC counts",
+                      "Escalate recurring operational barriers",
+                    ].map((item) => (
+                      <li key={item} className="text-sm text-slate-700 flex gap-2 leading-snug">
+                        <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-teal-600 shrink-0" />
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
                 ) : (
                   <ul className="space-y-2">
                     {actionQueue.map((item: string) => (
