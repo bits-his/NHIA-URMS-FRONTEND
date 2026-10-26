@@ -682,7 +682,18 @@ const enrolmentDriveApis = Object.fromEntries(
 ) as Record<EnrolmentDriveReportType, ReturnType<typeof makeEnrolmentDriveApi>>;
 
 export const stateOfficeApi = {
-  enrolment: makeStateOfficeApi("enrolment"),
+  enrolment: {
+    ...makeStateOfficeApi("enrolment"),
+    /** State/zone-scoped principals for Beneficiary Management (not limited to caller's own enrolment reports). */
+    listPrincipals: (filters?: { state_id?: string; zone_id?: string; year?: string; month?: string }) => {
+      const p = new URLSearchParams(
+        Object.entries(filters || {}).filter(([, v]) => !!v) as [string, string][],
+      ).toString();
+      return request<{ success: boolean; data: any[] }>(
+        `/state-office/enrolment/principals${p ? `?${p}` : ""}`,
+      );
+    },
+  },
   migration: makeStateOfficeApi("migration"),
   cemonc:    makeStateOfficeApi("cemonc"),
   complaints: makeStateOfficeApi("complaints"),

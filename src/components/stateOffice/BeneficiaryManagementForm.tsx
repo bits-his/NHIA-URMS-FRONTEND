@@ -378,7 +378,7 @@ export default function BeneficiaryManagementForm({
     if (activity !== "additional" && activity !== "extra" && activity !== "provider") return;
     let cancelled = false;
     setPrincipalsError("");
-    stateOfficeApi.enrolment.list()
+    stateOfficeApi.enrolment.listPrincipals()
       .then((res) => {
         if (cancelled) return;
         setPrincipals(principalsFromReports(res.data ?? []));
