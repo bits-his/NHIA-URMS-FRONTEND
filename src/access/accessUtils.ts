@@ -312,17 +312,22 @@ export function expandAccessEntries(access: AccessEntry[]): AccessEntry[] {
       );
       funcs.push(STAKEHOLDER_MANAGEMENT_NAV_TITLE);
     }
-    const hasProvider = funcs.some(
+    // Keep form and dashboard privileges separate — do not unlock Dashboard from register-only access.
+    const hasProviderForm = funcs.some(
       f => normalizeFunctionalityTitle(f, ZONAL_MODULE) === PROVIDER_MANAGEMENT_NAV_TITLE
-        || f === PROVIDER_MANAGEMENT_DASHBOARD_NAV_TITLE,
+        || LEGACY_PROVIDER_TITLES.has(f),
     );
-    if (hasProvider) {
+    const hasProviderDashboard = funcs.some(
+      f => f === PROVIDER_MANAGEMENT_DASHBOARD_NAV_TITLE,
+    );
+    if (hasProviderForm || hasProviderDashboard) {
       funcs = funcs.filter(
         f => !LEGACY_PROVIDER_TITLES.has(f)
           && f !== PROVIDER_MANAGEMENT_NAV_TITLE
           && f !== PROVIDER_MANAGEMENT_DASHBOARD_NAV_TITLE,
       );
-      funcs.push(PROVIDER_MANAGEMENT_NAV_TITLE, PROVIDER_MANAGEMENT_DASHBOARD_NAV_TITLE);
+      if (hasProviderForm) funcs.push(PROVIDER_MANAGEMENT_NAV_TITLE);
+      if (hasProviderDashboard) funcs.push(PROVIDER_MANAGEMENT_DASHBOARD_NAV_TITLE);
     }
     const hasBeneficiary = funcs.some(
       f => normalizeFunctionalityTitle(f, ZONAL_MODULE) === BENEFICIARY_MANAGEMENT_NAV_TITLE,
