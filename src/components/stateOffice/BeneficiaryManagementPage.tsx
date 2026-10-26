@@ -1,6 +1,6 @@
 import * as React from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { CheckCircle2, Clock, FileText, Plus, RefreshCw, Send } from "lucide-react";
+import { BadgeCheck, CheckCircle2, Clock, FileText, Plus, RefreshCw, Send } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -39,6 +39,7 @@ interface Report {
   zone?: { description?: string };
   state?: { description?: string };
   lines?: unknown[];
+  endorsed?: boolean | number;
   __reportType: ReportType;
 }
 
@@ -46,9 +47,15 @@ const REPORT_TYPES = new Set<string>(BENEFICIARY_REPORT_TYPES);
 
 const STATUS = {
   draft: { label: "Draft", cls: "bg-slate-100 text-slate-600" },
-  submitted: { label: "Submitted", cls: "bg-blue-50 text-blue-700" },
+  submitted: { label: "In review", cls: "bg-blue-50 text-blue-700" },
   approved: { label: "Approved", cls: "bg-emerald-50 text-emerald-700" },
+  endorsed: { label: "Endorsed", cls: "bg-amber-50 text-amber-800" },
 } as const;
+
+function reportStatus(row: { status: keyof typeof STATUS; endorsed?: boolean | number }) {
+  if (row.status === "draft" && row.endorsed) return STATUS.endorsed;
+  return STATUS[row.status] ?? STATUS.draft;
+}
 
 function isReportType(value: string | null): value is ReportType {
   return !!value && REPORT_TYPES.has(value);
@@ -56,14 +63,12 @@ function isReportType(value: string | null): value is ReportType {
 
 export default function BeneficiaryManagementPage({ onBack, defaultZoneId, defaultStateId }: Props) {
   const [searchParams, setSearchParams] = useSearchParams();
-  const { canCreate, createOnly } = useStateOfficeAccess();
+  const { canCreate } = useStateOfficeAccess();
   const modeParam = searchParams.get("mode");
   const mode: Mode =
     modeParam === "new" || modeParam === "view" || modeParam === "edit"
       ? modeParam
-      : createOnly
-        ? "new"
-        : "list";
+      : "list";
   const queryId = Number(searchParams.get("id"));
   const queryType = searchParams.get("type");
   const reportId = Number.isFinite(queryId) && queryId > 0 ? queryId : null;
@@ -102,11 +107,12 @@ export default function BeneficiaryManagementPage({ onBack, defaultZoneId, defau
   }, [setSearchParams]);
 
   const load = React.useCallback(async () => {
-    if (createOnly) return;
     setLoading(true);
     try {
       const listParams = {
-        status: filterStatus !== "all" ? filterStatus : undefined,
+        status: filterStatus === "endorsed" || filterStatus === "draft"
+          ? "draft"
+          : filterStatus !== "all" ? filterStatus : undefined,
         zone_id: defaultZoneId ?? undefined,
         state_id: apiStateId,
         year: filterYear !== "all" ? filterYear : undefined,
@@ -130,7 +136,7 @@ export default function BeneficiaryManagementPage({ onBack, defaultZoneId, defau
     } finally {
       setLoading(false);
     }
-  }, [createOnly, filterStatus, defaultZoneId, apiStateId, filterYear, filterMonth]);
+  }, [filterStatus, defaultZoneId, apiStateId, filterYear, filterMonth]);
 
   React.useEffect(() => {
     if (mode === "list") load();
@@ -138,14 +144,17 @@ export default function BeneficiaryManagementPage({ onBack, defaultZoneId, defau
 
   React.useEffect(() => {
     if ((mode === "view" || mode === "edit") && (!reportId || !isReportType(queryType))) {
-      setQuery({ mode: createOnly ? "new" : "list" }, { replace: true });
+      setQuery({ mode: "list" }, { replace: true });
     }
-  }, [mode, reportId, queryType, createOnly, setQuery]);
+  }, [mode, reportId, queryType, setQuery]);
 
   const filtered = React.useMemo(() => {
-    if (filterActivity === "all") return reports;
-    return reports.filter((row) => beneficiaryListSummary(row).key === filterActivity);
-  }, [reports, filterActivity]);
+    let rows = reports;
+    if (filterStatus === "draft") rows = rows.filter((row) => row.status === "draft" && !row.endorsed);
+    if (filterStatus === "endorsed") rows = rows.filter((row) => row.status === "draft" && !!row.endorsed);
+    if (filterActivity === "all") return rows;
+    return rows.filter((row) => beneficiaryListSummary(row).key === filterActivity);
+  }, [reports, filterActivity, filterStatus]);
 
   const yearOptions = React.useMemo(
     () => buildReportingYearOptions(reports.map((row) => row.reporting_year)),
@@ -153,13 +162,9 @@ export default function BeneficiaryManagementPage({ onBack, defaultZoneId, defau
   );
 
   const openList = React.useCallback(() => {
-    if (createOnly) {
-      onBack();
-      return;
-    }
     setQuery({ mode: "list" });
     setFormKey((key) => key + 1);
-  }, [createOnly, onBack, setQuery]);
+  }, [setQuery]);
 
   const fields: CustomTableField[] = [
     {
@@ -226,7 +231,7 @@ export default function BeneficiaryManagementPage({ onBack, defaultZoneId, defau
       className: "w-[12%]",
       custom: true,
       component: (row: Report) => {
-        const status = STATUS[row.status] ?? STATUS.draft;
+        const status = reportStatus(row);
         return (
           <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${status.cls}`}>
             {status.label}
@@ -284,14 +289,16 @@ export default function BeneficiaryManagementPage({ onBack, defaultZoneId, defau
     || filterActivity !== "all" || (showStateFilter && filterState !== ALL_STATES);
   const counts = {
     total: filtered.length,
-    draft: filtered.filter((row) => row.status === "draft").length,
+    draft: filtered.filter((row) => row.status === "draft" && !row.endorsed).length,
+    endorsed: filtered.filter((row) => row.status === "draft" && !!row.endorsed).length,
     submitted: filtered.filter((row) => row.status === "submitted").length,
     approved: filtered.filter((row) => row.status === "approved").length,
   };
   const statCards = [
     { label: "Total", value: counts.total, icon: <FileText className="w-3.5 h-3.5 text-[#25a872]" />, accent: "border-[#d4e8dc] bg-white" },
     { label: "Draft", value: counts.draft, icon: <Clock className="w-3.5 h-3.5 text-amber-600" />, accent: "border-amber-200 bg-amber-50/50" },
-    { label: "Submitted", value: counts.submitted, icon: <Send className="w-3.5 h-3.5 text-blue-600" />, accent: "border-blue-200 bg-blue-50/50" },
+    { label: "In review", value: counts.submitted, icon: <Send className="w-3.5 h-3.5 text-blue-600" />, accent: "border-blue-200 bg-blue-50/50" },
+    { label: "Endorsed", value: counts.endorsed, icon: <BadgeCheck className="w-3.5 h-3.5 text-[#145c3f]" />, accent: "border-[#d4e8dc] bg-[#f4fbf7]" },
     { label: "Approved", value: counts.approved, icon: <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />, accent: "border-emerald-200 bg-emerald-50/50" },
   ];
 
@@ -324,7 +331,7 @@ export default function BeneficiaryManagementPage({ onBack, defaultZoneId, defau
       </div>
 
       <div className="w-full px-4 md:px-5 py-3 space-y-3">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-2">
           {statCards.map((card) => (
             <div key={card.label} className={`rounded-lg border px-3 py-2 flex items-center gap-2.5 ${card.accent}`}>
               {card.icon}
@@ -374,7 +381,8 @@ export default function BeneficiaryManagementPage({ onBack, defaultZoneId, defau
               <SelectContent>
                 <SelectItem value="all">All Statuses</SelectItem>
                 <SelectItem value="draft">Draft</SelectItem>
-                <SelectItem value="submitted">Submitted</SelectItem>
+                <SelectItem value="submitted">In review</SelectItem>
+                <SelectItem value="endorsed">Endorsed</SelectItem>
                 <SelectItem value="approved">Approved</SelectItem>
               </SelectContent>
             </Select>

@@ -137,11 +137,8 @@ export default function StateOfficeFormShell({
     const setter = isDraftSave ? setSaving : setSubmitting;
     setter(true);
     try {
-      const headerStatus = status === "awaiting_review" || status === "endorsed" || status === "submitted"
-        ? status
-        : (status === "returned" ? "returned" : "draft");
       const payload = buildPayload(header.headerPayload(
-        headerStatus === "draft" || headerStatus === "returned" ? "draft" : "submitted",
+        isDraftSave ? "draft" : status === "approved" ? "approved" : "submitted",
       ) as Record<string, unknown>);
       let res;
       if (savedId) {
@@ -159,17 +156,19 @@ export default function StateOfficeFormShell({
         status: res.data.status || status,
         reference_id: res.data.reference_id,
       });
+      const submittedLabel = pageTitle === "Beneficiary Management" ? "Sent for review" : "Report submitted";
       const messages: Record<string, string> = {
         draft: "Draft saved",
         returned: "Draft saved",
         awaiting_review: "Sent for State Coordinator review",
         endorsed: "Endorsement recorded",
-        submitted: "Report submitted",
+        submitted: submittedLabel,
+        approved: "Report approved",
       };
       toast.success(messages[status] || "Saved", {
         description: `Ref: ${res.data.reference_id}`,
       });
-      if (status === "submitted" || status === "awaiting_review") handleSubmitted();
+      if (status === "submitted" || status === "awaiting_review" || status === "approved") handleSubmitted();
     } catch (err: any) {
       toast.error(isDraftSave ? "Save failed" : "Action failed", { description: err.message });
     } finally { setter(false); }

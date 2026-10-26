@@ -63,7 +63,7 @@ export function useStateOfficeHeader(defaultZoneId?: string | null, defaultState
     setSubmitDate(new Date().toISOString().slice(0, 10));
   };
 
-  const headerPayload = (status: "draft" | "submitted") => ({
+  const headerPayload = (status: "draft" | "submitted" | "approved") => ({
     zone_id: zoneId,
     state_id: stateId,
     reporting_year: Number(reportYear),
