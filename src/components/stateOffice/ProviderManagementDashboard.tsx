@@ -112,7 +112,6 @@ export default function ProviderManagementDashboard({
   const [programme, setProgramme] = React.useState("all");
   const [activity, setActivity] = React.useState("all");
   const [activityStatus, setActivityStatus] = React.useState("all");
-  const [showAnalysis, setShowAnalysis] = React.useState(false);
   /** SDO Level 3: national overview vs accreditation/reaccreditation pipeline (both mockups). */
   const [sdoView, setSdoView] = React.useState<"national" | "pipeline">("national");
   const [outputMeasure, setOutputMeasure] = React.useState<"accredited" | "reaccredited" | "awaiting" | "covered">("accredited");
@@ -232,19 +231,9 @@ export default function ProviderManagementDashboard({
               <p className="text-sm text-slate-500 mt-1 max-w-3xl">{displayBlurb}</p>
             </div>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <Button
-              variant={showAnalysis ? "default" : "outline"}
-              size="sm"
-              className={showAnalysis ? "bg-teal-700 hover:bg-teal-800" : ""}
-              onClick={() => setShowAnalysis((v) => !v)}
-            >
-              Activity analysis
-            </Button>
-            <Button variant="outline" size="sm" className="gap-2" onClick={() => void load()} disabled={loading}>
-              <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
-            </Button>
-          </div>
+          <Button variant="outline" size="sm" className="gap-2 shrink-0" onClick={() => void load()} disabled={loading}>
+            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
+          </Button>
         </div>
       </div>
 
@@ -403,8 +392,6 @@ export default function ProviderManagementDashboard({
             <div className="rounded-xl border border-dashed border-slate-200 bg-white py-16 text-center text-sm text-slate-500">
               No dashboard data for this scope.
             </div>
-          ) : showAnalysis ? (
-            <ActivityAnalysisPanel items={activityAnalysis} />
           ) : (
             <>
               {/* ── Level KPI rows ── */}
@@ -726,6 +713,10 @@ export default function ProviderManagementDashboard({
               <p className="text-[11px] text-slate-400 text-center">
                 Rates use summed numerators ÷ summed denominators (not averages of percentages). Forms sold / returned are excluded from performance ranking.
               </p>
+
+              <div className="border-t border-slate-200 pt-6">
+                <ActivityAnalysisPanel items={activityAnalysis} />
+              </div>
             </>
           )}
         </div>
@@ -741,12 +732,20 @@ function deltaDetail(delta: number | null | undefined, fallback: string) {
   return `${fallback} · vs previous ${sign}${n.toLocaleString()}`;
 }
 
+function parseBullet(b: string): { label: string; value: string } {
+  const idx = b.lastIndexOf(":");
+  if (idx > 0) {
+    return { label: b.slice(0, idx).trim(), value: b.slice(idx + 1).trim() };
+  }
+  return { label: b, value: "" };
+}
+
 function ActivityAnalysisPanel({ items }: { items: any[] }) {
   return (
-    <div className="space-y-4">
-      <div>
-        <h3 className="text-lg font-bold text-slate-900">Activity analysis — accreditation, reaccreditation, QA and medical audit</h3>
-        <p className="text-sm text-slate-500 mt-1">Use separate pipelines and measures; this page can be accessed from the four dashboards.</p>
+    <div className="space-y-5">
+      <div className="flex items-end justify-between gap-3">
+        <h3 className="text-lg md:text-xl font-bold tracking-tight text-slate-900">Activity analysis</h3>
+        <p className="text-xs text-slate-400 hidden sm:block">Accreditation · Reaccreditation · QA · Medical audit</p>
       </div>
       <div className="grid md:grid-cols-2 gap-4">
         {items.map((item) => {
@@ -754,56 +753,80 @@ function ActivityAnalysisPanel({ items }: { items: any[] }) {
           const rate = Math.min(100, Math.max(0, Number(item.plan_achievement) || 0));
           const byState = item.by_state || [];
           const byStatus = item.by_status || [];
+          const metrics = (item.bullets || []).map(parseBullet);
           return (
-            <div key={item.key} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm space-y-3">
-              <p className="text-sm font-bold uppercase tracking-wide" style={{ color }}>{item.title}</p>
-              <ul className="space-y-2">
-                {(item.bullets || []).map((b: string) => (
-                  <li key={b} className="text-sm text-slate-700 flex gap-2">
-                    <span className="mt-1.5 h-1.5 w-1.5 rounded-full shrink-0" style={{ background: color }} />
-                    {b}
-                  </li>
-                ))}
-              </ul>
-              <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
-                <div className="h-full rounded-full transition-all" style={{ width: `${rate}%`, background: color }} />
-              </div>
-              {(byState.length > 0 || byStatus.length > 0) && (
-                <div className="grid grid-cols-2 gap-2 pt-1">
-                  {byState.length > 0 && (
-                    <div className="h-[120px]">
-                      <p className="text-[10px] uppercase text-slate-400 mb-1">By state</p>
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={byState.slice(0, 5)} layout="vertical" margin={{ top: 0, right: 4, left: 0, bottom: 0 }}>
-                          <XAxis type="number" hide />
-                          <YAxis type="category" dataKey="name" width={56} tick={{ fontSize: 9 }} />
-                          <Bar dataKey="covered" fill={color} radius={[0, 3, 3, 0]} />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-                  )}
-                  {byStatus.length > 0 && (
-                    <div className="h-[120px]">
-                      <p className="text-[10px] uppercase text-slate-400 mb-1">Status</p>
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie data={byStatus} dataKey="count" nameKey="name" innerRadius={22} outerRadius={40}>
-                            {byStatus.map((_: any, i: number) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-                          </Pie>
-                          <Tooltip contentStyle={tooltipStyle()} />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    </div>
-                  )}
+            <motion.div
+              key={item.key}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_8px_30px_rgba(15,23,42,0.04)]"
+            >
+              <div className="absolute inset-x-0 top-0 h-1" style={{ background: `linear-gradient(90deg, ${color}, ${color}66)` }} />
+              <div className="p-5 space-y-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em]" style={{ color }}>{item.title}</p>
+                    <p className="text-2xl font-semibold tabular-nums text-slate-900 mt-1">{fmtPct(item.plan_achievement)}</p>
+                    <p className="text-xs text-slate-500">Plan achievement</p>
+                  </div>
+                  <div className="h-12 w-12 rounded-2xl flex items-center justify-center text-white text-sm font-bold shadow-sm" style={{ background: color }}>
+                    {Math.round(rate)}%
+                  </div>
                 </div>
-              )}
-            </div>
+
+                <div className="grid grid-cols-1 gap-2">
+                  {metrics.map((m: { label: string; value: string }) => (
+                    <div key={m.label} className="flex items-center justify-between gap-3 rounded-xl bg-slate-50/90 px-3 py-2.5">
+                      <span className="text-xs text-slate-500 leading-snug">{m.label}</span>
+                      <span className="text-sm font-semibold tabular-nums text-slate-900 shrink-0">{m.value || "—"}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between text-[10px] uppercase tracking-wide text-slate-400 mb-1.5">
+                    <span>Progress</span>
+                    <span>{fmtPct(item.plan_achievement)}</span>
+                  </div>
+                  <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+                    <div className="h-full rounded-full transition-all duration-500" style={{ width: `${rate}%`, background: color }} />
+                  </div>
+                </div>
+
+                {(byState.length > 0 || byStatus.length > 0) && (
+                  <div className="grid grid-cols-2 gap-3 pt-1 border-t border-slate-100">
+                    {byState.length > 0 && (
+                      <div className="h-[130px] pt-2">
+                        <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 mb-1">By state</p>
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={byState.slice(0, 5)} layout="vertical" margin={{ top: 0, right: 4, left: 0, bottom: 0 }}>
+                            <XAxis type="number" hide />
+                            <YAxis type="category" dataKey="name" width={58} tick={{ fontSize: 9, fill: "#64748b" }} />
+                            <Bar dataKey="covered" fill={color} radius={[0, 4, 4, 0]} />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    )}
+                    {byStatus.length > 0 && (
+                      <div className="h-[130px] pt-2">
+                        <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 mb-1">Status mix</p>
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie data={byStatus} dataKey="count" nameKey="name" innerRadius={26} outerRadius={44} paddingAngle={2}>
+                              {byStatus.map((_: any, i: number) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                            </Pie>
+                            <Tooltip contentStyle={tooltipStyle()} />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </motion.div>
           );
         })}
       </div>
-      <p className="text-sm text-rose-600 font-medium">
-        Do not include forms sold or completed forms returned in state performance ranking. Treat these as contextual process measures only, if retained.
-      </p>
     </div>
   );
 }
