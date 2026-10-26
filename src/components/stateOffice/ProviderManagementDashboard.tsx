@@ -56,22 +56,10 @@ function levelFromRole(role: string): 1 | 2 | 3 | 4 {
 
 function levelMeta(level: 1 | 2 | 3 | 4) {
   return ({
-    1: {
-      title: "Dashboard 1 — State Coordinator",
-      blurb: "Operational view for planning, execution and follow-up within the assigned state.",
-    },
-    2: {
-      title: "Dashboard 2 — Zonal Director",
-      blurb: "Compare state delivery and identify where coordination or follow-up is needed.",
-    },
-    3: {
-      title: "Dashboard 3 — SDO / Headquarters",
-      blurb: "National monitoring across zones, programmes and activity types.",
-    },
-    4: {
-      title: "Level 4 — Director-General",
-      blurb: "Executive overview with distinct programme and activity outputs, trends and priority decisions.",
-    },
+    1: "Operational view for planning, execution and follow-up within the assigned state.",
+    2: "Compare state delivery and identify where coordination or follow-up is needed.",
+    3: "National monitoring across zones, programmes and activity types.",
+    4: "Executive overview with distinct programme and activity outputs, trends and priority decisions.",
   } as const)[level];
 }
 
@@ -108,7 +96,7 @@ export default function ProviderManagementDashboard({
   const user = useSelector((s: RootState) => s.auth.user);
   const role = user?.role || "";
   const level = levelFromRole(role);
-  const meta = levelMeta(level);
+  const blurb = levelMeta(level);
   const lockZone = !!(defaultZoneId && (level === 1 || level === 2 || isDeptZonalCoordinator(role) || isDeptStateCoordinator(role)));
   const lockState = !!(defaultStateId && level === 1);
 
@@ -187,12 +175,20 @@ export default function ProviderManagementDashboard({
   const showPipelineDrill = level === 1 && (activity === "accreditation" || activity === "reaccreditation");
   const isReacc = activity === "reaccreditation";
   const sdoPipeline = level === 3 && sdoView === "pipeline";
-  const displayTitle = sdoPipeline
-    ? "Level 3 — SDO / Headquarters"
-    : meta.title;
   const displayBlurb = sdoPipeline
     ? "National monitoring by zone, programme and activity type, with distinct pipelines."
-    : meta.blurb;
+    : blurb;
+
+  const monthlyTrend = React.useMemo(() => {
+    return ((byMonth as any[]) || []).map((r) => ({
+      ...r,
+      label: r.label || r.period,
+      planned: Number(r.planned_records ?? 0),
+      completed: Number(r.completed_records ?? r.completed ?? 0),
+    }));
+  }, [byMonth]);
+
+  const hasMonthlyTrend = monthlyTrend.some((r) => r.planned > 0 || r.completed > 0);
 
   const sdoZoneBarKey = outputMeasure === "reaccredited"
     ? "reaccredited"
@@ -224,7 +220,7 @@ export default function ProviderManagementDashboard({
           </Button>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-xl md:text-2xl font-bold tracking-tight text-slate-900">{displayTitle}</h2>
+              <h2 className="text-xl md:text-2xl font-bold tracking-tight text-slate-900">Provider Management Dashboard</h2>
               <span className="inline-flex items-center rounded-full bg-teal-600 px-3 py-0.5 text-[11px] font-bold uppercase tracking-wide text-white">
                 Level {level}
               </span>
@@ -559,12 +555,17 @@ export default function ProviderManagementDashboard({
                     )}
                   </DashChartCard>
                   <DashChartCard title={sdoPipeline ? "Accreditation vs reaccreditation trend" : "Monthly activity trend"}>
-                    {byMonth.length === 0 ? <ChartEmpty message="No monthly trend" /> : (
+                    {(sdoPipeline
+                      ? !monthlyTrend.some((r) => Number(r.accredited) > 0 || Number(r.reaccredited) > 0)
+                      : !hasMonthlyTrend
+                    ) ? (
+                      <ChartEmpty message="No monthly trend data for this period. Seed Provider Management activities or widen filters." />
+                    ) : (
                       <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={byMonth}>
+                        <LineChart data={monthlyTrend} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
                           <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                           <XAxis dataKey="label" tick={{ fontSize: 11 }} />
-                          <YAxis tick={{ fontSize: 11 }} />
+                          <YAxis tick={{ fontSize: 11 }} allowDecimals={false} width={40} />
                           <Tooltip contentStyle={tooltipStyle()} />
                           <Legend />
                           {sdoPipeline ? (
