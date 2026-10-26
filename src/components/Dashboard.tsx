@@ -120,7 +120,7 @@ import AuditView from "../modules/store_management/pages/admin/AuditView";
 import AdjustmentsView from "../modules/store_management/pages/AdjustmentsView";
 import MovementLedgerView from "../modules/store_management/pages/MovementLedgerView";
 import { getMonthlyReportContext } from "@/src/access/monthlyReportAccess";
-import { canAccessFunctionality, expandAccessEntries, getFirstAccessiblePath, canAccessHomeDashboard, DASHBOARDS_ENABLED, ANNUAL_REPORTS_ENABLED } from "@/src/access/accessUtils";
+import { canAccessFunctionality, expandAccessEntries, getFirstAccessiblePath, canAccessHomeDashboard, isDgCeoUser, DASHBOARDS_ENABLED, ANNUAL_REPORTS_ENABLED } from "@/src/access/accessUtils";
 import { VIEW_MODULE_ACCESS } from "@/src/access/moduleConfig";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -449,6 +449,7 @@ export default function Dashboard({ role, user, access = [], functionalities = "
   const [selectedReportRef, setSelectedReportRef] = React.useState<string | null>(null);
   const monthlyCtx = getMonthlyReportContext(role, user);
   const isCoordinator = isCoordinatorRole(role);
+  const isDg = isDgCeoUser(user, role);
 
   React.useEffect(() => {
     if (role === "admin") return;
@@ -508,7 +509,7 @@ export default function Dashboard({ role, user, access = [], functionalities = "
                 </div>
               ) : (
               <div className="relative z-10 p-6 max-w-7xl mx-auto space-y-6">
-                {role !== "sdo" && role !== "dg-ceo" && !isDeptZonalCoordinator(role) && role !== "state-officer" && !isDeptReportingOfficer(role) && !isDeptStateCoordinator(role) && role !== "department-officer" && role !== "admin" && role !== "hq-department" && (
+                {!isDg && role !== "sdo" && !isDeptZonalCoordinator(role) && role !== "state-officer" && !isDeptReportingOfficer(role) && !isDeptStateCoordinator(role) && role !== "department-officer" && role !== "admin" && role !== "hq-department" && (
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                     <KPICard title="Reports Submitted" value="124" trend="+12%" trendUp icon={<FileText className="w-5 h-5 text-blue-600" />} tint="kpi-blue" sub="This month" />
                     <KPICard title="Pending Review"    value="18"  trend="-5%"  icon={<Clock className="w-5 h-5 text-amber-600" />}  tint="kpi-amber" sub="Awaiting action" />
@@ -517,7 +518,7 @@ export default function Dashboard({ role, user, access = [], functionalities = "
                   </div>
                 )}
 
-                {role === "dg-ceo" ? (
+                {isDg ? (
                   <DGExecutiveDashboard />
                 ) : role === "sdo" ? (
                   <SDONationalDashboard
