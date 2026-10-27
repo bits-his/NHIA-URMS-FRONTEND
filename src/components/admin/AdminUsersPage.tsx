@@ -173,10 +173,11 @@ export default function AdminUsersPage({ showOverview = false }: { showOverview?
 
       const payload: any = {
         name: form.name, email: form.email || undefined, role: form.role,
-        zone_id: form.zone_id ? Number(form.zone_id) : undefined,
-        state_id: form.state_id ? Number(form.state_id) : undefined,
-        department_id: form.department_id ? Number(form.department_id) : undefined,
-        unit_id: form.unit_id ? Number(form.unit_id) : undefined,
+        // null clears optional FKs on update (undefined is omitted from JSON and left unchanged)
+        zone_id: form.zone_id ? Number(form.zone_id) : null,
+        state_id: form.state_id ? Number(form.state_id) : null,
+        department_id: form.department_id ? Number(form.department_id) : null,
+        unit_id: form.unit_id ? Number(form.unit_id) : null,
         is_active: form.is_active,
         access,
       };
