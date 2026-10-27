@@ -253,10 +253,12 @@ export default function NewPhysicalAssetVerificationView() {
     try {
       const res = await stockApi.createPhysicalVerification({
         ...form,
-        zone_id: form.zone_id ? Number(form.zone_id) : null,
-        state_id: form.state_id ? Number(form.state_id) : null,
-        department_id: form.department_id ? Number(form.department_id) : null,
-        unit_id: form.unit_id ? Number(form.unit_id) : null,
+        zone_id: form.zone_id || null,
+        state_id: form.state_id || null,
+        zonal_code: form.zone_id || null,
+        state_code: form.state_id || null,
+        department_code: form.department_id || null,
+        unit_code: form.unit_id || null,
         zone_name: form.zone_name || labelOf(zones, form.zone_id),
         state_name: form.state_name || labelOf(states, form.state_id),
         department_name: form.department_name || labelOf(departments, form.department_id),
@@ -264,6 +266,7 @@ export default function NewPhysicalAssetVerificationView() {
         status,
         items: rows.map((r) => ({
           assetId: r.assetId,
+          assetCode: r.assetId,
           assetNumber: r.assetNumber,
           assetName: r.assetName,
           category: r.category,

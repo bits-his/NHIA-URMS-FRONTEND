@@ -98,6 +98,7 @@ const blank = (formKey: ProviderFormKey): Entry => {
 
 interface Props {
   reportId?: number | null;
+  initialFormKey?: ProviderFormKey;
   onBack: () => void;
   onCancel?: () => void;
   onSubmitted?: () => void;
@@ -107,10 +108,10 @@ interface Props {
 }
 
 export default function ProviderManagementForm({
-  reportId, onBack, onCancel, onSubmitted, defaultZoneId, defaultStateId, onPersisted,
+  reportId, initialFormKey = "accreditation", onBack, onCancel, onSubmitted, defaultZoneId, defaultStateId, onPersisted,
 }: Props) {
-  const api = stateOfficeApi.accreditation;
-  const [formKey, setFormKey] = React.useState<ProviderFormKey>("accreditation");
+  const [formKey, setFormKey] = React.useState<ProviderFormKey>(initialFormKey);
+  const api = stateOfficeApi.providerByFormKey(formKey);
   const [activityChosen, setActivityChosen] = React.useState(!!reportId);
   const [view, setView] = React.useState<"register" | "activity">("register");
   const [reportStatus, setReportStatus] = React.useState<string>("draft");

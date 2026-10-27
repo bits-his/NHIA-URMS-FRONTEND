@@ -30,8 +30,8 @@ const EMPTY = {
   email: "",
   password: "",
   role: "",
-  zone_id: "",
-  state_id: "",
+  zonal_code: "",
+  state_code: "",
   department_id: "",
   unit_id: "",
   is_active: true,
@@ -101,7 +101,7 @@ export default function AdminUsersPage({ showOverview = false }: { showOverview?
   const load = React.useCallback(async () => {
     setLoading(true);
     try {
-      const res = await usersApi.list({ page, limit: 100, search: search || undefined, role: filterRole || undefined, zone_id: filterZone ? Number(filterZone) : undefined });
+      const res = await usersApi.list({ page, limit: 100, search: search || undefined, role: filterRole || undefined, zonal_code: filterZone || undefined });
       setUsers(res.data); setTotal(res.total); setPages(res.pages);
     } catch (e: any) { toast.error(e.message); }
     finally { setLoading(false); }
@@ -114,14 +114,14 @@ export default function AdminUsersPage({ showOverview = false }: { showOverview?
     departmentsApi.list().then(r => setDepts(r.data)).catch(() => {});
   }, []);
 
-  const filteredStates = form.zone_id ? states.filter(s => String(s.zonal_id) === String(form.zone_id)) : states;
+  const filteredStates = form.zonal_code ? states.filter(s => s.zonal_code === form.zonal_code) : states;
 
   // When dept changes in form, fetch its units
-  const handleDeptChange = async (deptId: string) => {
-    setForm(f => ({ ...f, department_id: deptId, unit_id: "" }));
+  const handleDeptChange = async (deptCode: string) => {
+    setForm(f => ({ ...f, department_id: deptCode, unit_id: "" }));
     setFormUnits([]);
-    if (!deptId) return;
-    try { const r = await unitsApi.list(Number(deptId)); setFormUnits(r.data); } catch { /* silent */ }
+    if (!deptCode) return;
+    try { const r = await unitsApi.list(deptCode); setFormUnits(r.data); } catch { /* silent */ }
   };
 
   const applyAccessTemplate = async (roleKey: string, unitCode?: string, syncDept = true) => {
@@ -131,7 +131,7 @@ export default function AdminUsersPage({ showOverview = false }: { showOverview?
       setGranted(grantedFromAccess(res.data));
       if (syncDept && res.department_code) {
         const d = depts.find(x => x.department_code === res.department_code);
-        if (d) await handleDeptChange(String(d.id));
+        if (d) await handleDeptChange(d.department_code);
       }
     } catch { /* keep current grants */ }
   };
@@ -139,10 +139,12 @@ export default function AdminUsersPage({ showOverview = false }: { showOverview?
   const openCreate = () => { setForm({ ...EMPTY, role: defaultRole }); setFormUnits([]); setGranted(new Set()); setActiveTab("info"); setEditing(null); setModal("create"); };
   const openEdit = async (u: AdminUser) => {
     setEditing(u);
+    const deptCode = u.department_code || (u as any).department?.department_code || "";
     setForm({
       name: u.name, email: u.email || "", password: "", role: u.role,
-      zone_id: String(u.zone_id || ""), state_id: String(u.state_id || ""),
-      department_id: String(u.department_id || ""), unit_id: String(u.unit_id || ""),
+      zonal_code: String(u.zonal_code || u.zone?.zonal_code || ""), state_code: String(u.state_code || u.state?.code || ""),
+      department_id: String(deptCode || ""),
+      unit_id: String(u.unit_code || (u as any).unit?.unit_code || ""),
       is_active: u.is_active,
     });
     // Load existing access into granted set
@@ -159,8 +161,8 @@ export default function AdminUsersPage({ showOverview = false }: { showOverview?
       }
     });
     setGranted(keys);
-    if (u.department_id) {
-      try { const r = await unitsApi.list(u.department_id); setFormUnits(r.data); } catch { setFormUnits([]); }
+    if (deptCode) {
+      try { const r = await unitsApi.list(deptCode); setFormUnits(r.data); } catch { setFormUnits([]); }
     } else { setFormUnits([]); }
     setActiveTab("info");
     setModal("edit");
@@ -173,10 +175,10 @@ export default function AdminUsersPage({ showOverview = false }: { showOverview?
 
       const payload: any = {
         name: form.name, email: form.email || undefined, role: form.role,
-        zone_id: form.zone_id ? Number(form.zone_id) : undefined,
-        state_id: form.state_id ? Number(form.state_id) : undefined,
-        department_id: form.department_id ? Number(form.department_id) : undefined,
-        unit_id: form.unit_id ? Number(form.unit_id) : undefined,
+        zonal_code: form.zonal_code || undefined,
+        state_code: form.state_code || undefined,
+        department_code: form.department_id || undefined,
+        unit_code: form.unit_id || undefined,
         is_active: form.is_active,
         access,
       };
@@ -241,7 +243,7 @@ export default function AdminUsersPage({ showOverview = false }: { showOverview?
         <select className="h-10 px-3 rounded-xl border border-[#d4e8dc] bg-white text-sm text-slate-700 focus:ring-2 focus:ring-[#25a872] outline-none"
           value={filterZone} onChange={e => { setFilterZone(e.target.value); setPage(1); }}>
           <option value="">All Zones</option>
-          {zones.map(z => <option key={z.id} value={z.id}>{z.zonal_code}</option>)}
+          {zones.map(z => <option key={z.zonal_code} value={z.zonal_code}>{z.zonal_code}</option>)}
         </select>
         <Button onClick={openCreate} className="bg-[#145c3f] hover:bg-[#0f3d2e] text-white rounded-xl h-10 gap-2 shadow-sm">
           <Plus className="w-4 h-4" /> Add User
@@ -366,20 +368,20 @@ export default function AdminUsersPage({ showOverview = false }: { showOverview?
             <Field label="Zone">
               <SearchSelect
                 clearable
-                value={form.zone_id}
-                onChange={v => setForm(f => ({ ...f, zone_id: v, state_id: "" }))}
+                value={form.zonal_code}
+                onChange={v => setForm(f => ({ ...f, zonal_code: v, state_code: "" }))}
                 placeholder="— Select Zone —"
-                options={zones.map(z => ({ value: String(z.id), label: z.description, sub: z.zonal_code }))}
+                options={zones.map(z => ({ value: z.zonal_code, label: z.description, sub: z.zonal_code }))}
               />
             </Field>
 
             <Field label="State">
               <SearchSelect
                 clearable
-                value={form.state_id}
-                onChange={v => setForm(f => ({ ...f, state_id: v }))}
+                value={form.state_code}
+                onChange={v => setForm(f => ({ ...f, state_code: v }))}
                 placeholder="— Select State —"
-                options={filteredStates.map(s => ({ value: String(s.id), label: s.description, sub: s.code }))}
+                options={filteredStates.map(s => ({ value: s.code, label: s.description, sub: s.code }))}
               />
             </Field>
 
@@ -389,7 +391,7 @@ export default function AdminUsersPage({ showOverview = false }: { showOverview?
                 value={form.department_id}
                 onChange={v => handleDeptChange(v)}
                 placeholder="— Select Department —"
-                options={depts.map(d => ({ value: String(d.id), label: d.name, sub: d.department_code }))}
+                options={depts.map(d => ({ value: d.department_code, label: d.name, sub: d.department_code }))}
               />
             </Field>
 
@@ -400,11 +402,11 @@ export default function AdminUsersPage({ showOverview = false }: { showOverview?
                 value={form.unit_id}
                 onChange={v => {
                   setForm(f => ({ ...f, unit_id: v }));
-                  const unit = formUnits.find(u => String(u.id) === v);
+                  const unit = formUnits.find(u => u.unit_code === v);
                   void applyAccessTemplate(form.role, unit?.unit_code, false);
                 }}
                 placeholder={form.department_id ? "— Select Unit —" : "Select a department first"}
-                options={formUnits.map(u => ({ value: String(u.id), label: u.name, sub: u.unit_code }))}
+                options={formUnits.map(u => ({ value: u.unit_code, label: u.name, sub: u.unit_code }))}
               />
             </Field>
           </div>

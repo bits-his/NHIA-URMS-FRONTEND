@@ -1,10 +1,10 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 import type { AccessEntry } from "@/src/access/types";
 
-export interface AuthStateOffice  { id: number; code: string; description: string; zonal_id?: number; }
-export interface AuthZonalOffice  { id: number; zonal_code: string; description: string; }
-export interface AuthDepartment   { id: number; name: string; department_code?: string; }
-export interface AuthUnit         { id: number; name: string; unit_code?: string; department_id?: number; }
+export interface AuthStateOffice  { code: string; description: string; zonal_code?: string; }
+export interface AuthZonalOffice  { zonal_code: string; description: string; }
+export interface AuthDepartment   { department_code: string; name: string; }
+export interface AuthUnit         { unit_code: string; name: string; department_code?: string; }
 
 export interface AuthUser {
   id: number;
@@ -14,10 +14,15 @@ export interface AuthUser {
   role: string;
   /** Structured access — [{access_to, functionalities[]}] */
   functionalities?: AccessEntry[];
-  zone_id?: number;
-  state_id?: number;
-  department_id?: number;
-  unit_id?: number;
+  zonal_code?: string;
+  state_code?: string;
+  department_code?: string;
+  unit_code?: string;
+  /** @deprecated legacy numeric ids */
+  zone_id?: number | string;
+  state_id?: number | string;
+  department_id?: number | string;
+  unit_id?: number | string;
   is_active?: boolean;
   /** Nested objects returned by the backend on login/me */
   state?:      AuthStateOffice;

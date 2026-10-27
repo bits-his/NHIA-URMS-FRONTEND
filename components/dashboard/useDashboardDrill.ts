@@ -25,7 +25,20 @@ const resolveRecordSegment = (params: DrillParams) => {
 
 export function useDashboardDrill(
   fetchDrill: (params: DrillParams) => Promise<{ success: boolean; data: DrillRow[] }>,
-  scope: { state_id?: string; zone_id?: string; year?: string; month?: string },
+  scope: {
+    state_id?: string;
+    zone_id?: string;
+    state_code?: string;
+    zonal_code?: string;
+    year?: string;
+    month?: string;
+    quarter?: string;
+    location?: string;
+    provider?: string;
+    survey_date?: string;
+    date?: string;
+    [key: string]: string | undefined;
+  },
   options?: { onReportRecord?: (row: DrillRow) => void },
 ) {
   const [open, setOpen] = React.useState(false);

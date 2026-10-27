@@ -8,7 +8,7 @@ import { AlertTriangle, CheckCircle2, Eye, Package, PackagePlus, PackageX, Searc
 import PageLayout from "../components/PageLayout";
 import { matchesStore, storeNameFromState } from "../lib/storeOptions";
 
-type Option = { id: number; label: string };
+type Option = { id: string | number; label: string };
 type StockKey = "in" | "low" | "out";
 
 function stockTone(item: any): { key: StockKey; label: string; className: string } {
@@ -109,14 +109,23 @@ export default function InventoryItemsView() {
 
   const located = useMemo(() => {
     let list = items;
-    if (storeLabel && selectedState) {
+    if (stateFilter) {
       list = list.filter(
-        (item) => sameStore(item.storeLocation, storeLabel) || sameStore(item.storeLocation, selectedState.label)
+        (item) =>
+          String(item.state_code || item.stateCode || "") === String(stateFilter) ||
+          (storeLabel && (
+            sameStore(item.storeLocation, storeLabel) ||
+            (selectedState && sameStore(item.storeLocation, selectedState.label))
+          )),
       );
     } else if (zoneFilter && statesReady && states.length) {
+      const stateCodes = new Set(states.map((s) => String(s.id)));
       const names = states.map((s) => storeNameFromState(s.label));
-      list = list.filter((item) =>
-        names.some((name) => sameStore(item.storeLocation, name))
+      list = list.filter(
+        (item) =>
+          stateCodes.has(String(item.state_code || item.stateCode || "")) ||
+          String(item.zonal_code || item.zoneId || "") === String(zoneFilter) ||
+          names.some((name) => sameStore(item.storeLocation, name)),
       );
     }
     const query = q.trim().toLowerCase();
@@ -130,7 +139,7 @@ export default function InventoryItemsView() {
       );
     }
     return list;
-  }, [items, storeLabel, selectedState, zoneFilter, statesReady, states, q]);
+  }, [items, storeLabel, selectedState, stateFilter, zoneFilter, statesReady, states, q]);
 
   const counts = useMemo(() => {
     const next = { total: located.length, in: 0, low: 0, out: 0 };

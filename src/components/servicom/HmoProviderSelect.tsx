@@ -31,8 +31,9 @@ export default function HmoProviderSelect({ value, onChange, disabled, placehold
     try {
       const res = await hmoProvidersApi.list({ q: q?.trim() || undefined, limit: "200" });
       const opts = res.data.map((p: any) => {
+        const code = String(p.hmo_code || p.id);
         const o: CachedOption = {
-          value: String(p.id),
+          value: code,
           name: p.name,
           label: formatPartyLabel(p.name, p.hmo_code),
           code: p.hmo_code,
@@ -56,16 +57,16 @@ export default function HmoProviderSelect({ value, onChange, disabled, placehold
     debounceRef.current = setTimeout(() => load(q), 300);
   }, [load]);
 
-  const handleChange = (id: string) => {
-    if (!id) {
+  const handleChange = (code: string) => {
+    if (!code) {
       onChange(null);
       return;
     }
-    const opt = (cacheRef.current.get(id) ?? options.find((o) => o.value === id)) as CachedOption | undefined;
+    const opt = (cacheRef.current.get(code) ?? options.find((o) => o.value === code)) as CachedOption | undefined;
     onChange({
-      id,
+      id: code,
       name: opt?.name ?? opt?.label ?? "",
-      code: opt?.code ?? "",
+      code: opt?.code ?? code,
     });
   };
 

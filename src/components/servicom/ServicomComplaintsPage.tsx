@@ -13,7 +13,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { useSearchParams } from "react-router-dom";
-import { servicomApi, stockApi } from "@/lib/api";
+import { servicomApi } from "@/lib/api";
+import { zonesApi, statesApi, departmentsApi } from "@/lib/adminApi";
 import CustomTable, { type CustomTableField } from "@/components/CustomTable";
 import { isDeptReportingOfficer, isDeptStateCoordinator, isDeptZonalCoordinator, isDeptComplaintOfficer } from "@/src/access/departmentRoles";
 import { pickGeoLabel, pickLabel } from "./servicomConstants";
@@ -70,8 +71,8 @@ interface Props {
 type Mode = "list" | "register" | "manage" | "view";
 
 const emptyForm = (defaultZoneId?: string | null, defaultStateId?: string | null) => ({
-  zone_id: defaultZoneId ?? "",
-  state_id: defaultStateId ?? "",
+  zonal_code: defaultZoneId ?? "",
+  state_code: defaultStateId ?? "",
   complaint_type: "" as PartyType | "",
   complaint_against: "" as PartyType | "",
   offence_reference: "",
@@ -86,14 +87,16 @@ const emptyForm = (defaultZoneId?: string | null, defaultStateId?: string | null
   complainant_id: "",
   respondent_category: "",
   respondent_id: "",
-  from_hmo_id: "",
-  from_hcf_id: "",
+  from_hmo_code: "",
+  from_hcf_code: "",
+  from_hcf_name: "",
   from_name: "",
   from_organization: "",
   from_phone: "",
   from_nhis_id: "",
-  against_hmo_id: "",
-  against_hcf_id: "",
+  against_hmo_code: "",
+  against_hcf_code: "",
+  against_hcf_name: "",
   against_name: "",
   against_organization: "",
   against_phone: "",
@@ -141,8 +144,8 @@ function rowToForm(row: any) {
     if (fromCategory) fromParty = fromCategory;
   }
   return {
-    zone_id: row.zone_id ? String(row.zone_id) : "",
-    state_id: row.state_id ? String(row.state_id) : "",
+    zonal_code: row.zonal_code ? String(row.zonal_code) : (row.zone?.zonal_code ? String(row.zone.zonal_code) : ""),
+    state_code: row.state_code ? String(row.state_code) : (row.state?.code ? String(row.state.code) : ""),
     complaint_type: fromParty,
     complaint_against: againstParty,
     offence_reference: row.offence_reference ?? "",
@@ -157,14 +160,16 @@ function rowToForm(row: any) {
     complainant_id: row.complainant_id ?? "",
     respondent_category: row.respondent_category ?? "",
     respondent_id: row.respondent_id ?? "",
-    from_hmo_id: row.complainant_hmo_id ? String(row.complainant_hmo_id) : "",
-    from_hcf_id: row.complainant_hcf_id ? String(row.complainant_hcf_id) : "",
+    from_hmo_code: row.complainant_hmo_code ? String(row.complainant_hmo_code) : "",
+    from_hcf_code: row.complainant_hcf_code ? String(row.complainant_hcf_code) : "",
+    from_hcf_name: row.complainant_hcf_name ? String(row.complainant_hcf_name) : "",
     from_name: row.complainant_name ?? "",
     from_organization: row.complainant_organization ?? "",
     from_phone: row.complainant_phone ?? "",
     from_nhis_id: row.complainant_nhis_id ?? row.complainant_id ?? "",
-    against_hmo_id: row.respondent_hmo_id ? String(row.respondent_hmo_id) : "",
-    against_hcf_id: row.respondent_hcf_id ? String(row.respondent_hcf_id) : "",
+    against_hmo_code: row.respondent_hmo_code ? String(row.respondent_hmo_code) : "",
+    against_hcf_code: row.respondent_hcf_code ? String(row.respondent_hcf_code) : "",
+    against_hcf_name: row.respondent_hcf_name ? String(row.respondent_hcf_name) : "",
     against_name: row.respondent_name ?? "",
     against_organization: row.respondent_organization ?? "",
     against_phone: row.respondent_phone ?? "",
@@ -182,7 +187,9 @@ function rowToForm(row: any) {
       }
       return row.status ?? "New/Acknowledged";
     })(),
-    actions_taken: row.actions_taken ?? "",
+    actions_taken: typeof row.actions_taken === "string"
+      ? row.actions_taken
+      : serializeInvestigationActions(parseInvestigationActions(row.actions_taken)),
     investigation_actions: (() => {
       const tier = investigationTierOf(row);
       const all = parseInvestigationActions(row.actions_taken);
@@ -617,10 +624,21 @@ export default function ServicomComplaintsPage({
   const [searchParams, setSearchParams] = useSearchParams();
   const roleKey = String(userRole ?? "");
   /** Zonal coordinators see every complaint in their zone (zone comes from profile). */
-  const isZonalCoordinator = isDeptZonalCoordinator(roleKey) && !!defaultZoneId;
+  const isZonalCoordinator = isDeptZonalCoordinator(roleKey);
   const isComplaintOfficer = isDeptComplaintOfficer(roleKey);
   /** Zonal Office inbox holders: zonal coordinator or complaint officer only. */
   const canActOnZonalOfficeInbox = isZonalCoordinator || isComplaintOfficer;
+  const myZoneCode = String(defaultZoneId ?? "").trim().toUpperCase();
+  const complaintZoneCode = (row?: any) =>
+    String(row?.zonal_code ?? row?.zone?.zonal_code ?? "").trim().toUpperCase();
+  const zoneMatchesMyInbox = (row?: any) => {
+    const rowZone = complaintZoneCode(row);
+    if (myZoneCode && rowZone) return myZoneCode === rowZone;
+    // Zone-scoped ZC/officer with zone on the row only (list already filtered by API)
+    if (canActOnZonalOfficeInbox && rowZone) return true;
+    if (canActOnZonalOfficeInbox && myZoneCode) return true;
+    return false;
+  };
   const isNationalRole = ["admin", "sdo", "hq-department"].includes(roleKey)
     || /director/i.test(roleKey)
     || /director/i.test(String(userName ?? ""))
@@ -637,6 +655,27 @@ export default function ServicomComplaintsPage({
   const stateScope = stateScopeProp && !isNationalRole && !isZonalCoordinator;
   const isStateCoordinator =
     roleKey === "state-coordinator" || isDeptStateCoordinator(roleKey);
+
+  /** True when escalated_to is a role/department inbox this user belongs to. */
+  const isEscalatedToMyInbox = (row?: any) => {
+    const target = String(row?.escalated_to || "");
+    if (!target) return false;
+    if (isEnforcementEscalationTarget(target)) {
+      return isEnforcementUser;
+    }
+    if (isZonalCoordinatorEscalationTarget(target)) {
+      return canActOnZonalOfficeInbox && zoneMatchesMyInbox(row);
+    }
+    if (isStateCoordinatorEscalationTarget(target)) {
+      return isStateCoordinator;
+    }
+    if (isRoleEscalationInbox(target)) return false;
+    const code = String(userDepartment?.department_code || "");
+    const name = String(userDepartment?.name || "");
+    if (code && (target === code || target.includes(`(${code})`) || target.startsWith(`${code} `))) return true;
+    if (name && target.toLowerCase().includes(name.toLowerCase())) return true;
+    return false;
+  };
   const isStateOfficer = roleKey === "state-officer";
   /** Hide zone/state pickers for state-level roles (geo comes from profile). */
   const isStateScopedViewer = stateScope || isStateCoordinator || isStateOfficer;
@@ -665,7 +704,7 @@ export default function ServicomComplaintsPage({
   const queryStage = searchParams.get("stage") as LifecycleStage | null;
 
   const [formKey, setFormKey] = React.useState(0);
-  const [listPanel, setListPanel] = React.useState<"dashboard" | "register">("dashboard");
+  const [listPanel, setListPanel] = React.useState<"dashboard" | "register">("register");
   const [complaints, setComplaints] = React.useState<any[]>([]);
   const [selected, setSelected] = React.useState<any | null>(null);
   const [loading, setLoading] = React.useState(true);
@@ -703,7 +742,7 @@ export default function ServicomComplaintsPage({
   const [departmentOptions, setDepartmentOptions] = React.useState<{ value: string; label: string }[]>(ESCALATED_TO);
   const [idPreview, setIdPreview] = React.useState("ENF/HCF/…/…/…");
   const [comments, setComments] = React.useState<{
-    id: number; body: string; created_by?: string | null;
+    complaint_number?: string; comment_seq: number; body: string; created_by?: string | null;
     created_by_staff_id?: string | null; createdAt?: string; created_at?: string;
   }[]>([]);
   const [commentDraft, setCommentDraft] = React.useState("");
@@ -777,14 +816,15 @@ export default function ServicomComplaintsPage({
       || "";
     const against = complainantParty || "HCF";
     const date = f.date_received || today;
-    const stateId = defaultStateId || f.state_id || undefined;
-    const stateCode = (states.find((s) => String(s.id) === String(stateId)) as { code?: string } | undefined)?.code;
+    const stateId = defaultStateId || f.state_code || undefined;
+    const stateCode = stateId
+      || (states.find((s: any) => String(s.code) === String(stateId) || String(s.id) === String(stateId)) as { code?: string } | undefined)?.code;
     let cancelled = false;
     const t = window.setTimeout(() => {
       servicomApi.previewComplaintNumber({
         against,
         date_received: date,
-        state_id: stateId,
+        state_code: stateId,
       })
         .then((r) => {
           if (!cancelled && r.data?.complaint_number) setIdPreview(r.data.complaint_number);
@@ -794,11 +834,11 @@ export default function ServicomComplaintsPage({
         });
     }, 200);
     return () => { cancelled = true; window.clearTimeout(t); };
-  }, [mode, f.complaint_type, f.complainant_category, f.date_received, f.state_id, defaultStateId, today, states]);
+  }, [mode, f.complaint_type, f.complainant_category, f.date_received, f.state_code, defaultStateId, today, states]);
 
   React.useEffect(() => {
     if (mode !== "manage" && mode !== "register") return;
-    stockApi.getDepartments()
+    departmentsApi.list()
       .then((r) => {
         const rows = Array.isArray(r.data) ? r.data : [];
         if (!rows.length) {
@@ -825,27 +865,27 @@ export default function ServicomComplaintsPage({
         status: filterStatus !== "all" ? filterStatus : undefined,
         priority: filterPriority !== "all" ? filterPriority : undefined,
         facility_name: filterFacilityName || undefined,
-        hmo_id: filterHmoId || undefined,
+        hmo_code: filterHmoId || undefined,
         transmission_route: filterTransmission !== "all" ? filterTransmission : undefined,
       };
 
       if (isZonalCoordinator) {
-        filters.zone_id = defaultZoneId ?? undefined;
-        filters.state_id = filterState !== "all" ? filterState : undefined;
+        filters.zonal_code = defaultZoneId ?? undefined;
+        filters.state_code = filterState !== "all" ? filterState : undefined;
       } else if (stateScope) {
         filters.scope = "state";
       } else if (isStateCoordinator) {
-        filters.state_id = defaultStateId ?? undefined;
-        filters.zone_id = defaultZoneId ?? undefined;
+        filters.state_code = defaultStateId ?? undefined;
+        filters.zonal_code = defaultZoneId ?? undefined;
       } else if (isReportingOfficer) {
         filters.mine = "1";
       } else if (isStateOfficer) {
         filters.assigned_to_me = "1";
       } else {
-        filters.state_id = geoLocked
+        filters.state_code = geoLocked
           ? (defaultStateId ?? undefined)
           : (filterState !== "all" ? filterState : undefined);
-        filters.zone_id = geoLocked
+        filters.zonal_code = geoLocked
           ? (defaultZoneId ?? undefined)
           : (filterZone !== "all" ? filterZone : undefined);
         filters.assigned_to_me =
@@ -865,15 +905,15 @@ export default function ServicomComplaintsPage({
   ]);
 
   React.useEffect(() => { if (mode === "list") load(); }, [load, mode]);
-  React.useEffect(() => { stockApi.getZones().then((r) => setZones(r.data)).catch(() => {}); }, []);
+  React.useEffect(() => { zonesApi.list().then((r) => setZones(r.data)).catch(() => {}); }, []);
   React.useEffect(() => {
-    const zoneId = geoLocked ? (defaultZoneId || f.zone_id) : f.zone_id;
+    const zoneId = geoLocked ? (defaultZoneId || f.zonal_code) : f.zonal_code;
     if (!zoneId) { setStates([]); return; }
-    stockApi.getStates(zoneId).then((r) => setStates(r.data)).catch(() => setStates([]));
-  }, [f.zone_id, geoLocked, defaultZoneId]);
+    statesApi.list(zoneId).then((r) => setStates(r.data)).catch(() => setStates([]));
+  }, [f.zonal_code, geoLocked, defaultZoneId]);
   React.useEffect(() => {
     if (geoLocked || filterZone === "all") { setFilterStates([]); return; }
-    stockApi.getStates(filterZone).then((r) => setFilterStates(r.data)).catch(() => {});
+    statesApi.list(filterZone).then((r) => setFilterStates(r.data)).catch(() => {});
   }, [filterZone, geoLocked]);
 
   const hasFilters = filterSearch.trim() !== ""
@@ -1000,12 +1040,7 @@ export default function ServicomComplaintsPage({
       const target = String(row?.escalated_to || "");
       if (!target) return false;
       if (isEnforcementUser && isEnforcementEscalationTarget(target)) return true;
-      if (
-        isZonalCoordinatorEscalationTarget(target)
-        && canActOnZonalOfficeInbox
-        && defaultZoneId
-        && Number(row?.zone_id) === Number(defaultZoneId)
-      ) {
+      if (isZonalCoordinatorEscalationTarget(target) && canActOnZonalOfficeInbox && zoneMatchesMyInbox(row)) {
         return true;
       }
       return false;
@@ -1041,15 +1076,15 @@ export default function ServicomComplaintsPage({
 
   const goToStage = (stage: LifecycleStage, opts?: { replace?: boolean }) => {
     setActiveStage(stage);
-    if (mode === "manage" && (selected?.id || queryId)) {
+    if (mode === "manage" && (selected?.complaint_number || queryId)) {
       setComplaintsQuery(
-        { mode: "manage", id: selected?.id ?? queryId, stage },
+        { mode: "manage", id: selected?.complaint_number ?? queryId, stage },
         { replace: opts?.replace },
       );
     }
   };
 
-  const loadComments = async (complaintId: number | string) => {
+  const loadComments = async (complaintId: string) => {
     setCommentsLoading(true);
     try {
       const res = await servicomApi.listComplaintComments(complaintId);
@@ -1063,7 +1098,7 @@ export default function ServicomComplaintsPage({
 
   const openManage = async (row: any, stage?: LifecycleStage) => {
     try {
-      const res = await servicomApi.getComplaint(row.id);
+      const res = await servicomApi.getComplaint(row.complaint_number);
       const nextStage = stage ?? defaultStageForComplaint(res.data);
       setSelected(res.data);
       setF(rowToForm(res.data));
@@ -1075,7 +1110,7 @@ export default function ServicomComplaintsPage({
       setEditingSanctionCategoryIdx(null);
       setInvestigationEditing(false);
       setActiveStage(nextStage);
-      setComplaintsQuery({ mode: "manage", id: res.data.id, stage: nextStage });
+      setComplaintsQuery({ mode: "manage", id: res.data.complaint_number, stage: nextStage });
     } catch (err: any) {
       toast.error("Failed to load complaint", { description: err.message });
     }
@@ -1083,24 +1118,24 @@ export default function ServicomComplaintsPage({
 
   const openView = async (row: any) => {
     try {
-      const res = await servicomApi.getComplaint(row.id);
+      const res = await servicomApi.getComplaint(row.complaint_number);
       setSelected(res.data);
       setF(rowToForm(res.data));
       setCommentDraft("");
-      setComplaintsQuery({ mode: "view", id: res.data.id });
-      await loadComments(res.data.id);
+      setComplaintsQuery({ mode: "view", id: res.data.complaint_number });
+      await loadComments(res.data.complaint_number);
     } catch (err: any) {
       toast.error("Failed to load complaint", { description: err.message });
     }
   };
 
   const submitComment = async () => {
-    if (!selected?.id || !commentDraft.trim()) return;
+    if (!selected?.complaint_number || !commentDraft.trim()) return;
     setCommentSaving(true);
     try {
-      await servicomApi.addComplaintComment(selected.id, commentDraft.trim());
+      await servicomApi.addComplaintComment(selected.complaint_number, commentDraft.trim());
       setCommentDraft("");
-      await loadComments(selected.id);
+      await loadComments(selected.complaint_number);
       toast.success("Comment added");
     } catch (err: any) {
       toast.error("Failed to add comment", { description: err.message });
@@ -1118,7 +1153,7 @@ export default function ServicomComplaintsPage({
   };
 
   const selectedIdRef = React.useRef<string | null>(null);
-  selectedIdRef.current = selected?.id != null ? String(selected.id) : null;
+  selectedIdRef.current = selected?.complaint_number != null ? String(selected.complaint_number) : null;
 
   // Sync page state from URL (browser back/forward + deep links)
   React.useEffect(() => {
@@ -1161,11 +1196,11 @@ export default function ServicomComplaintsPage({
             const stage = stageFromQuery ?? defaultStageForComplaint(res.data);
             setActiveStage(stage);
             if (!stageFromQuery) {
-              setComplaintsQuery({ mode: "manage", id: res.data.id, stage }, { replace: true });
+              setComplaintsQuery({ mode: "manage", id: res.data.complaint_number, stage }, { replace: true });
             }
           } else {
             setCommentDraft("");
-            await loadComments(res.data.id);
+            await loadComments(res.data.complaint_number);
           }
         } catch (err: any) {
           if (cancelled) return;
@@ -1183,8 +1218,8 @@ export default function ServicomComplaintsPage({
 
 
   const refreshSelected = async () => {
-    if (!selected?.id) return;
-    const res = await servicomApi.getComplaint(selected.id);
+    if (!selected?.complaint_number) return;
+    const res = await servicomApi.getComplaint(selected.complaint_number);
     setSelected(res.data);
     setF(rowToForm(res.data));
   };
@@ -1246,11 +1281,11 @@ export default function ServicomComplaintsPage({
   ) => {
     if (!partyType) return role === "from" ? "Complaint type is required." : "Complaint against is required.";
     if (partyType === "HMO") {
-      const id = role === "from" ? f.from_hmo_id : f.against_hmo_id;
+      const id = role === "from" ? f.from_hmo_code : f.against_hmo_code;
       if (!id) return role === "from" ? "Select the filing HMO." : "Select the HMO.";
     }
     if (partyType === "HCF") {
-      const id = role === "from" ? f.from_hcf_id : f.against_hcf_id;
+      const id = role === "from" ? f.from_hcf_code : f.against_hcf_code;
       if (!id) return role === "from" ? "Select the filing HCF." : "Select the HCF.";
     }
     if (partyType === "Enrollee") {
@@ -1272,8 +1307,8 @@ export default function ServicomComplaintsPage({
       toast.error("Date received is required.");
       return;
     }
-    const zoneId = defaultZoneId ?? f.zone_id;
-    const stateId = defaultStateId ?? f.state_id;
+    const zoneId = defaultZoneId ?? f.zonal_code;
+    const stateId = defaultStateId ?? f.state_code;
     if (!isStateScopedViewer && (!zoneId || !stateId)) {
       toast.error("Zone and state are required.");
       return;
@@ -1322,22 +1357,24 @@ export default function ServicomComplaintsPage({
         description: f.description,
         complainant_category: f.complainant_category || undefined,
         complainant_id: f.from_nhis_id || f.complainant_id || undefined,
-        complainant_hmo_id: f.from_hmo_id ? Number(f.from_hmo_id) : null,
-        complainant_hcf_id: f.from_hcf_id ? Number(f.from_hcf_id) : null,
+        complainant_hmo_code: f.from_hmo_code || null,
+        complainant_hcf_code: f.from_hcf_code || null,
+        complainant_hcf_name: f.from_hcf_name || f.from_name || null,
         complainant_name: f.from_name || undefined,
         complainant_organization: f.from_organization || undefined,
         complainant_phone: f.from_phone || undefined,
         complainant_nhis_id: f.from_nhis_id || undefined,
         respondent_category: f.respondent_category || undefined,
         respondent_id: f.against_nhis_id || f.respondent_id || undefined,
-        respondent_hmo_id: f.against_hmo_id ? Number(f.against_hmo_id) : null,
-        respondent_hcf_id: f.against_hcf_id ? Number(f.against_hcf_id) : null,
+        respondent_hmo_code: f.against_hmo_code || null,
+        respondent_hcf_code: f.against_hcf_code || null,
+        respondent_hcf_name: f.against_hcf_name || f.against_name || null,
         respondent_name: f.against_name || undefined,
         respondent_organization: f.against_organization || undefined,
         respondent_phone: f.against_phone || undefined,
         respondent_nhis_id: f.against_nhis_id || undefined,
-        zone_id: zoneId ? Number(zoneId) : null,
-        state_id: stateId ? Number(stateId) : null,
+        zonal_code: zoneId || null,
+        state_code: stateId || null,
         status: "New/Acknowledged",
       };
       const res = await servicomApi.createComplaint(payload);
@@ -1345,7 +1382,7 @@ export default function ServicomComplaintsPage({
       setSelected(res.data);
       setF(rowToForm(res.data));
       setActiveStage("registration");
-      setComplaintsQuery({ mode: "manage", id: res.data.id, stage: "registration" });
+      setComplaintsQuery({ mode: "manage", id: res.data.complaint_number, stage: "registration" });
       load();
     } catch (err: any) {
       toast.error("Failed to register complaint", { description: err.message });
@@ -1353,25 +1390,38 @@ export default function ServicomComplaintsPage({
   };
 
   const handleSaveStage = async (stage: LifecycleStage) => {
-    if (!selected?.id) return;
+    if (!selected?.complaint_number) return;
     setSaving(true);
     try {
       let payload: Record<string, unknown> = {};
       let startingInvestigation = false;
       if (stage === "investigation") {
-        if (!f.officer_assigned) {
+        const inboxMineNow = isEscalatedToMyInbox(selected);
+        // Zonal/Enforcement inbox holders take ownership when acting
+        const officerForSave = f.officer_assigned?.trim()
+          || (inboxMineNow && userName ? String(userName).trim() : "");
+        if (!officerForSave) {
           toast.error("Select an officer to assign.");
           setSaving(false);
           return;
         }
+        if (!f.officer_assigned?.trim() && officerForSave) {
+          setF((p) => ({ ...p, officer_assigned: officerForSave }));
+        }
         const assignOnly =
           isStateCoordinator
+          && !inboxMineNow
           && !selected.investigation_start_date
-          && !officerMatchesUser(f.officer_assigned, userName, userStaffId);
+          && !officerMatchesUser(officerForSave, userName, userStaffId);
         if (assignOnly) {
-          payload = { officer_assigned: f.officer_assigned };
+          payload = { officer_assigned: officerForSave };
         } else {
-          startingInvestigation = !selected.investigation_start_date;
+          const tier = investigationTierOf(selected);
+          // Must match investigationActionLabel "Start": commence-only / empty current tier
+          // still means Start — do not require actions details yet.
+          const currentTierReady = currentTierHasInvestigation(selected);
+          startingInvestigation = !selected.investigation_start_date
+            || ((inboxMineNow || tier !== "state") && !currentTierReady);
           if (startingInvestigation) {
             const startDate = f.investigation_start_date || today;
             const received = String(selected.date_received ?? "").slice(0, 10);
@@ -1445,7 +1495,7 @@ export default function ServicomComplaintsPage({
               }
             }
           }
-          const currentTier = investigationTierOf(selected);
+          const currentTier = tier;
           const nextEscalate = nextEscalationFromTier(currentTier);
           const nextStatus = startingInvestigation ? "Under Investigation" : f.status;
           const closingFromInvestigation =
@@ -1484,7 +1534,7 @@ export default function ServicomComplaintsPage({
                 currentNotes: f.actions_details.trim(),
               });
           payload = {
-            officer_assigned: f.officer_assigned,
+            officer_assigned: officerForSave,
             investigation_start_date: f.investigation_start_date || selected.investigation_start_date || today,
             status: closingFromInvestigation ? resolvedStatus : nextStatus,
             actions_taken: serializeInvestigationActions(mergedActions),
@@ -1600,7 +1650,7 @@ export default function ServicomComplaintsPage({
           }
         }
       }
-      await servicomApi.updateComplaint(selected.id, payload);
+      await servicomApi.updateComplaint(selected.complaint_number, payload);
       const assignOnlySaved =
         stage === "investigation"
         && isStateCoordinator
@@ -1648,7 +1698,7 @@ export default function ServicomComplaintsPage({
   };
 
   const handleCloseComplaint = async () => {
-    if (!selected?.id) return;
+    if (!selected?.complaint_number) return;
     const { status, fromInvestigation, remarks } = closeModal;
     setSaving(true);
     try {
@@ -1667,7 +1717,7 @@ export default function ServicomComplaintsPage({
         payload.actions_taken = serializeInvestigationActions(f.investigation_actions ?? []) || f.actions_taken || null;
         payload.actions_details = f.actions_details || null;
       }
-      await servicomApi.updateComplaint(selected.id, payload);
+      await servicomApi.updateComplaint(selected.complaint_number, payload);
       toast.success(`Complaint ${status.toLowerCase()}`);
       setCloseModal((p) => ({ ...p, open: false, remarks: "" }));
       load();
@@ -1696,15 +1746,17 @@ export default function ServicomComplaintsPage({
         complainant_category: category,
         complaint_type: party,
         ...(partyChanged ? {
-          from_hmo_id: "",
-          from_hcf_id: "",
+          from_hmo_code: "",
+          from_hcf_code: "",
+          from_hcf_name: "",
           from_name: "",
           from_organization: "",
           from_phone: "",
           from_nhis_id: "",
           complaint_against: "",
-          against_hmo_id: "",
-          against_hcf_id: "",
+          against_hmo_code: "",
+          against_hcf_code: "",
+          against_hcf_name: "",
           against_name: "",
           against_organization: "",
           against_phone: "",
@@ -1723,8 +1775,9 @@ export default function ServicomComplaintsPage({
       ...p,
       complaint_against: v,
       respondent_category: respondentCategory,
-      against_hmo_id: "",
-      against_hcf_id: "",
+      against_hmo_code: "",
+      against_hcf_code: "",
+      against_hcf_name: "",
       against_name: "",
       against_organization: "",
       against_phone: "",
@@ -1758,7 +1811,7 @@ export default function ServicomComplaintsPage({
     }));
   };
 
-  const activeStateId = defaultStateId ?? f.state_id;
+  const activeStateId = defaultStateId ?? f.state_code;
 
   const renderInlinePartyPicker = (
     role: "from" | "against",
@@ -1778,8 +1831,8 @@ export default function ServicomComplaintsPage({
 
     if (partyType === "HMO") {
       const hmoId = readOnly
-        ? String(isFrom ? row?.complainant_hmo_id : row?.respondent_hmo_id ?? "")
-        : (isFrom ? f.from_hmo_id : f.against_hmo_id);
+        ? String(isFrom ? row?.complainant_hmo_code : row?.respondent_hmo_code ?? "")
+        : (isFrom ? f.from_hmo_code : f.against_hmo_code);
       const hmoName = isFrom
         ? row?.complainant_hmo?.name ?? row?.complainant_name
         : row?.respondent_hmo?.name ?? row?.respondent_name;
@@ -1799,8 +1852,8 @@ export default function ServicomComplaintsPage({
           <HmoProviderSelect
             value={hmoId}
             onChange={(p) => setF((prev) => isFrom
-              ? { ...prev, from_hmo_id: p?.id ?? "", from_name: p?.name ?? "", from_nhis_id: p?.code ?? "" }
-              : { ...prev, against_hmo_id: p?.id ?? "", against_name: p?.name ?? "", against_nhis_id: p?.code ?? "" })}
+              ? { ...prev, from_hmo_code: p?.code ?? p?.id ?? "", from_name: p?.name ?? "", from_nhis_id: p?.code ?? "" }
+              : { ...prev, against_hmo_code: p?.code ?? p?.id ?? "", against_name: p?.name ?? "", against_nhis_id: p?.code ?? "" })}
           />
         </div>
       );
@@ -1808,8 +1861,8 @@ export default function ServicomComplaintsPage({
 
     if (partyType === "HCF") {
       const hcfId = readOnly
-        ? String(isFrom ? row?.complainant_hcf_id : row?.respondent_hcf_id ?? row?.facility_id ?? "")
-        : (isFrom ? f.from_hcf_id : f.against_hcf_id);
+        ? String(isFrom ? row?.complainant_hcf_code : row?.respondent_hcf_code ?? "")
+        : (isFrom ? f.from_hcf_code : f.against_hcf_code);
       const hcfName = isFrom
         ? row?.complainant_hcf?.name ?? row?.complainant_name
         : row?.facility_name ?? row?.respondent_name;
@@ -1830,8 +1883,8 @@ export default function ServicomComplaintsPage({
             stateId={activeStateId || undefined}
             value={hcfId}
             onChange={(fac) => setF((prev) => isFrom
-              ? { ...prev, from_hcf_id: fac?.id ?? "", from_name: fac?.name ?? "", from_nhis_id: fac?.code ?? "" }
-              : { ...prev, against_hcf_id: fac?.id ?? "", against_name: fac?.name ?? "", against_nhis_id: fac?.code ?? "" })}
+              ? { ...prev, from_hcf_code: fac?.facility_code || fac?.code || fac?.id || "", from_hcf_name: fac?.name ?? "", from_name: fac?.name ?? "", from_nhis_id: fac?.code ?? fac?.facility_code ?? "" }
+              : { ...prev, against_hcf_code: fac?.facility_code || fac?.code || fac?.id || "", against_hcf_name: fac?.name ?? "", against_name: fac?.name ?? "", against_nhis_id: fac?.code ?? fac?.facility_code ?? "" })}
           />
         </div>
       );
@@ -1893,9 +1946,9 @@ export default function ServicomComplaintsPage({
   );
 
   const zoneLabel = (row?: any) =>
-    row?.zone?.description ?? pickGeoLabel(zones, String(row?.zone_id ?? ""), "—");
+    row?.zone?.description ?? pickGeoLabel(zones, String(row?.zonal_code ?? ""), "—");
   const stateLabel = (row?: any) =>
-    row?.state?.description ?? pickGeoLabel(states.length ? states : filterStates, String(row?.state_id ?? ""), "—");
+    row?.state?.description ?? pickGeoLabel(states.length ? states : filterStates, String(row?.state_code ?? ""), "—");
 
   const renderGeoFields = (readOnly: boolean, row?: any) => {
     // State officer/coordinator: no zone/state on the form (profile geo is applied on save)
@@ -1903,8 +1956,8 @@ export default function ServicomComplaintsPage({
     // When viewing a locked record for state users, still hide geo
     if (isStateScopedViewer) return null;
 
-    const zoneVal = readOnly ? String(row?.zone_id ?? "") : f.zone_id;
-    const stateVal = readOnly ? String(row?.state_id ?? "") : f.state_id;
+    const zoneVal = readOnly ? String(row?.zonal_code ?? "") : f.zonal_code;
+    const stateVal = readOnly ? String(row?.state_code ?? "") : f.state_code;
 
     if (readOnly) {
       return (
@@ -1920,16 +1973,19 @@ export default function ServicomComplaintsPage({
         <FieldSelect
           label="Zone *"
           value={zoneVal}
-          options={zones.map((z) => ({ value: String(z.id), label: z.description }))}
+          options={zones.map((z: any) => ({ value: String(z.zonal_code || z.id), label: z.description }))}
           readOnly={false}
-          onChange={(v) => setF((p) => ({ ...p, zone_id: v, state_id: "" }))}
+          onChange={(v) => setF((p) => ({ ...p, zonal_code: v, state_code: "" }))}
         />
         <FieldSelect
           label="State *"
           value={stateVal}
-          options={states.map((s) => ({ value: String(s.id), label: s.description }))}
+          options={states.map((s: any) => ({ value: String(s.code || s.id), label: s.description }))}
           readOnly={false}
-          onChange={(v) => set("state_id", v)}
+          onChange={(v) => {
+            const state = states.find((s: any) => String(s.code || s.id) === String(v));
+            setF((p) => ({ ...p, state_code: v, zonal_code: (state as any)?.zonal_code || p.zonal_code }));
+          }}
         />
       </>
     );
@@ -2958,11 +3014,15 @@ export default function ServicomComplaintsPage({
     const currentTier = investigationTierOf(row ?? selected);
     const nextEscalate = nextEscalationFromTier(currentTier);
     const statusOptions = readOnly ? COMPLAINT_STATUSES : investigationStatusesForTier(currentTier);
-    const started = !!row?.investigation_start_date
-      || row?.status === "Under Investigation"
-      || row?.status === "Escalated"
-      || (AWAITING_INVESTIGATION_STATUSES as readonly string[]).includes(row?.status)
-      || currentTier !== "state";
+    const inboxMineHere = isEscalatedToMyInbox(row ?? selected);
+    // Higher-tier inbox holders commence their own investigation even when state already started
+    const tierWorkStarted = currentTier === "state"
+      ? (!!row?.investigation_start_date
+        || row?.status === "Under Investigation"
+        || row?.status === "Escalated"
+        || (AWAITING_INVESTIGATION_STATUSES as readonly string[]).includes(row?.status))
+      : currentTierHasInvestigation(row ?? selected);
+    const started = tierWorkStarted || (!inboxMineHere && currentTier !== "state" && !!row?.investigation_start_date);
     const minStartDate = String(row?.date_received ?? "").slice(0, 10) || undefined;
     const canAssignOfficer = isStateCoordinator && !started && !readOnly && currentTier === "state";
     const assignOnly =
@@ -3024,9 +3084,10 @@ export default function ServicomComplaintsPage({
                 : "Not started"}
             />
           )}
+          {/* Always show lower-tier history at zonal/enforcement — including before this tier starts */}
+          {renderPriorInvestigationHistory(row)}
           {started && (
             <>
-              {renderPriorInvestigationHistory(row)}
               <div className="col-span-full rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-3 space-y-2.5">
                 <p className="text-sm font-bold tracking-tight text-slate-900 border-b border-slate-200 pb-2">
                   {INVESTIGATION_TIER_LABELS[currentTier]} investigation
@@ -3172,32 +3233,6 @@ export default function ServicomComplaintsPage({
     officerMatchesUser(row?.officer_assigned ?? row?.assigned_officer, userName, userStaffId)
     || officerMatchesUser(row?.escalated_to, userName, userStaffId);
 
-  /** True when escalated_to is a role/department inbox this user belongs to. */
-  const isEscalatedToMyInbox = (row?: any) => {
-    const target = String(row?.escalated_to || "");
-    if (!target) return false;
-    // Enforcement staff act on Enforcement Department escalations (investigate / resolve — no further escalate)
-    if (isEnforcementEscalationTarget(target)) {
-      return isEnforcementUser;
-    }
-    // Zonal Office: only zonal coordinator and complaint officer in that zone
-    if (isZonalCoordinatorEscalationTarget(target)) {
-      if (!canActOnZonalOfficeInbox) return false;
-      if (!defaultZoneId || Number(row?.zone_id) !== Number(defaultZoneId)) return false;
-      return true;
-    }
-    if (isStateCoordinatorEscalationTarget(target)) {
-      return isStateCoordinator;
-    }
-    // Person/department handoff (not a role inbox) — match department label only
-    if (isRoleEscalationInbox(target)) return false;
-    const code = String(userDepartment?.department_code || "");
-    const name = String(userDepartment?.name || "");
-    if (code && (target === code || target.includes(`(${code})`) || target.startsWith(`${code} `))) return true;
-    if (name && target.toLowerCase().includes(name.toLowerCase())) return true;
-    return false;
-  };
-
   /** Highlight for inbox holders (zone / enforcement) — never the prior state investigator. */
   const showEscalatedToMe = (row?: any) =>
     !!row?.escalated
@@ -3215,7 +3250,7 @@ export default function ServicomComplaintsPage({
     );
   };
 
-  /** Whether the current tier has recorded its own investigation work. */
+  /** Whether the current tier has commenced or recorded its own investigation work. */
   const currentTierHasInvestigation = (row?: any) => {
     const tier = investigationTierOf(row);
     const all = parseInvestigationActions(row?.actions_taken);
@@ -3229,13 +3264,16 @@ export default function ServicomComplaintsPage({
     if (tier === "state") {
       return investigationHasBeenSubmitted(row);
     }
-    return false;
+    // Zonal / Enforcement: "Investigation commenced" means this tier has started
+    return tierVisible.some((a) => a.action === "Investigation commenced");
   };
 
   const investigationActionLabel = (row?: any) => {
-    if (!row?.investigation_start_date) {
+    const inboxMine = isEscalatedToMyInbox(row);
+    if (!row?.investigation_start_date || (inboxMine && !currentTierHasInvestigation(row))) {
       if (
         isStateCoordinator
+        && !inboxMine
         && !officerMatchesUser(f.officer_assigned || row?.officer_assigned, userName, userStaffId)
       ) {
         return "Assign Officer";
@@ -3243,7 +3281,7 @@ export default function ServicomComplaintsPage({
       return "Start";
     }
     const tierDone = currentTierHasInvestigation(row);
-    if (tierDone && !investigationEditing && !isEscalatedToMyInbox(row)) return "Update";
+    if (tierDone && !investigationEditing && !inboxMine) return "Update";
     if (INVESTIGATION_CLOSING_STATUSES.includes(f.status)) return "Submit & Close";
     if (f.status === "Escalated") return "Escalate";
     return tierDone ? "Save" : "Submit";
@@ -3652,7 +3690,7 @@ export default function ServicomComplaintsPage({
                   <p className="text-xs text-slate-400 text-center py-10">No comments yet</p>
                 ) : (
                   comments.map((c) => (
-                    <div key={c.id} className="rounded-lg border border-slate-100 bg-[#f8fbf9] px-2.5 py-2">
+                    <div key={`${c.complaint_number || ""}-${c.comment_seq}`} className="rounded-lg border border-slate-100 bg-[#f8fbf9] px-2.5 py-2">
                       <div className="flex items-baseline justify-between gap-2 mb-0.5">
                         <p className="text-[11px] font-semibold text-slate-800 truncate">
                           {c.created_by || "Officer"}
@@ -3678,11 +3716,7 @@ export default function ServicomComplaintsPage({
                   isNationalRole
                   || isEnforcementUser
                   || !atZonalInbox
-                  || (
-                    canActOnZonalOfficeInbox
-                    && defaultZoneId
-                    && Number(row?.zone_id) === Number(defaultZoneId)
-                  )
+                  || (canActOnZonalOfficeInbox && zoneMatchesMyInbox(row))
                 );
                 if (!canCommentHere) {
                   return (
@@ -4088,7 +4122,7 @@ export default function ServicomComplaintsPage({
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">All Zones</SelectItem>
-                        {zones.map((z) => <SelectItem key={z.id} value={String(z.id)}>{z.description}</SelectItem>)}
+                        {zones.map((z: any) => <SelectItem key={z.zonal_code || z.id} value={String(z.zonal_code || z.id)}>{z.description}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
@@ -4100,7 +4134,7 @@ export default function ServicomComplaintsPage({
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All States</SelectItem>
-                      {filterStates.map((s) => <SelectItem key={s.id} value={String(s.id)}>{s.description}</SelectItem>)}
+                      {filterStates.map((s: any) => <SelectItem key={s.code || s.id} value={String(s.code || s.id)}>{s.description}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
@@ -4151,7 +4185,7 @@ export default function ServicomComplaintsPage({
                 stateId={filterState !== "all" ? filterState : (defaultStateId ?? undefined)}
                 value={filterFacilityId}
                 onChange={(fac) => {
-                  setFilterFacilityId(fac?.id ?? "");
+                  setFilterFacilityId(fac?.facility_code || fac?.code || fac?.id || "");
                   setFilterFacilityName(fac?.name ?? "");
                 }}
                 placeholder="HCF"
@@ -4161,7 +4195,7 @@ export default function ServicomComplaintsPage({
             <div className="min-w-0">
               <HmoProviderSelect
                 value={filterHmoId}
-                onChange={(hmo) => setFilterHmoId(hmo?.id ?? "")}
+                onChange={(hmo) => setFilterHmoId(hmo?.code || hmo?.id || "")}
                 placeholder="HMO"
                 className="h-8 w-full text-xs px-3 rounded-xl"
               />

@@ -77,11 +77,15 @@ export function pickStatusLabel(
 }
 
 export function pickGeoLabel(
-  options: { id: number; description?: string; label?: string }[],
+  options: { id?: number | string; code?: string; zonal_code?: string; description?: string; label?: string }[],
   value: string,
   fallback: string,
 ): string {
-  const item = options.find((o) => String(o.id) === value);
+  const item = options.find((o) =>
+    String(o.id ?? "") === value
+    || String(o.code ?? "") === value
+    || String(o.zonal_code ?? "") === value,
+  );
   return item?.description ?? item?.label ?? fallback;
 }
 

@@ -16,12 +16,12 @@ export default function AdminStatesPage() {
   const [loading, setLoading] = React.useState(true);
   const [modal, setModal] = React.useState<"create" | "edit" | null>(null);
   const [editing, setEditing] = React.useState<StateOffice | null>(null);
-  const [form, setForm] = React.useState({ code: "", description: "", zonal_id: "", is_hq: false, is_zonal_office: false });
+  const [form, setForm] = React.useState({ code: "", description: "", zonal_code: "", is_hq: false, is_zonal_office: false });
   const [saving, setSaving] = React.useState(false);
 
   const load = async () => {
     setLoading(true);
-    try { const r = await statesApi.list(filterZone ? Number(filterZone) : undefined); setStates(r.data); }
+    try { const r = await statesApi.list(filterZone || undefined); setStates(r.data); }
     catch (e: any) { toast.error(e.message); }
     finally { setLoading(false); }
   };
@@ -29,13 +29,13 @@ export default function AdminStatesPage() {
   React.useEffect(() => { load(); }, [filterZone]);
   React.useEffect(() => { zonesApi.list().then(r => setZones(r.data)).catch(() => {}); }, []);
 
-  const openCreate = () => { setForm({ code: "", description: "", zonal_id: "", is_hq: false, is_zonal_office: false }); setEditing(null); setModal("create"); };
+  const openCreate = () => { setForm({ code: "", description: "", zonal_code: "", is_hq: false, is_zonal_office: false }); setEditing(null); setModal("create"); };
   const openEdit = (s: StateOffice) => {
     setEditing(s);
     setForm({
       code: s.code,
       description: s.description,
-      zonal_id: String(s.zonal_id),
+      zonal_code: s.zonal_code,
       is_hq: Boolean(s.is_hq),
       is_zonal_office: Boolean(s.is_zonal_office),
     });
@@ -44,18 +44,18 @@ export default function AdminStatesPage() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.zonal_id) { toast.error("Please select a zone"); return; }
+    if (!form.zonal_code) { toast.error("Please select a zone"); return; }
     setSaving(true);
     try {
       const payload = {
         code: form.code,
         description: form.description,
-        zonal_id: Number(form.zonal_id),
+        zonal_code: form.zonal_code,
         is_hq: form.is_hq,
         is_zonal_office: form.is_zonal_office,
       };
       if (modal === "create") { await statesApi.create(payload); toast.success("State created"); }
-      else if (editing) { await statesApi.update(editing.id, payload); toast.success("State updated"); }
+      else if (editing) { await statesApi.update(editing.code, { description: payload.description, zonal_code: payload.zonal_code, is_hq: payload.is_hq, is_zonal_office: payload.is_zonal_office }); toast.success("State updated"); }
       setModal(null); load();
     } catch (e: any) { toast.error(e.message); }
     finally { setSaving(false); }
@@ -63,7 +63,7 @@ export default function AdminStatesPage() {
 
   const handleDelete = async (s: StateOffice) => {
     if (!confirm(`Delete state "${s.code}"?`)) return;
-    try { await statesApi.delete(s.id); toast.success("State deleted"); load(); }
+    try { await statesApi.delete(s.code); toast.success("Deleted"); load(); }
     catch (e: any) { toast.error(e.message); }
   };
 
@@ -73,7 +73,7 @@ export default function AdminStatesPage() {
         <select className="h-10 px-3 rounded-xl border border-[#d4e8dc] bg-white text-sm text-slate-700 focus:ring-2 focus:ring-[#25a872] outline-none"
           value={filterZone} onChange={e => setFilterZone(e.target.value)}>
           <option value="">All Zones</option>
-          {zones.map(z => <option key={z.id} value={z.id}>{z.zonal_code} – {z.description}</option>)}
+          {zones.map(z => <option key={z.zonal_code} value={z.zonal_code}>{z.zonal_code} – {z.description}</option>)}
         </select>
         <Button onClick={openCreate} className="bg-[#145c3f] hover:bg-[#0f3d2e] text-white rounded-xl h-10 gap-2 shadow-sm">
           <Plus className="w-4 h-4" /> Add State
@@ -98,10 +98,10 @@ export default function AdminStatesPage() {
               ) : states.length === 0 ? (
                 <TableRow><TableCell colSpan={5} className="text-center py-10 text-slate-400">No states found</TableCell></TableRow>
               ) : states.map(s => (
-                <TableRow key={s.id} className="hover:bg-[#f0fdf7] transition-colors">
+                <TableRow key={s.code} className="hover:bg-[#f0fdf7] transition-colors">
                   <TableCell><span className="font-mono text-xs font-bold text-[#145c3f]">{s.code}</span></TableCell>
                   <TableCell className="font-medium text-slate-800">{s.description}</TableCell>
-                  <TableCell className="text-slate-500 text-sm">{s.zone?.zonal_code ?? "—"}</TableCell>
+                  <TableCell className="text-slate-500 text-sm">{s.zone?.zonal_code ?? s.zonal_code ?? "—"}</TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
                       {s.is_hq ? <span className="rounded-md bg-[#145c3f] px-2 py-0.5 text-[10px] font-semibold text-white">HQ</span> : null}
@@ -126,7 +126,7 @@ export default function AdminStatesPage() {
         <form onSubmit={handleSave} className="space-y-4">
           <div>
             <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">State Code <span className="text-rose-500">*</span></label>
-            <input className={inputCls} placeholder="e.g. LAGOS" value={form.code} onChange={e => setForm(f => ({ ...f, code: e.target.value }))} required />
+            <input className={inputCls} placeholder="e.g. LAG" value={form.code} onChange={e => setForm(f => ({ ...f, code: e.target.value }))} required disabled={modal === "edit"} />
           </div>
           <div>
             <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">Description <span className="text-rose-500">*</span></label>
@@ -134,9 +134,9 @@ export default function AdminStatesPage() {
           </div>
           <div>
             <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">Zone <span className="text-rose-500">*</span></label>
-            <select className={inputCls} value={form.zonal_id} onChange={e => setForm(f => ({ ...f, zonal_id: e.target.value }))} required>
+            <select className={inputCls} value={form.zonal_code} onChange={e => setForm(f => ({ ...f, zonal_code: e.target.value }))} required>
               <option value="">— Select Zone —</option>
-              {zones.map(z => <option key={z.id} value={z.id}>{z.zonal_code} – {z.description}</option>)}
+              {zones.map(z => <option key={z.zonal_code} value={z.zonal_code}>{z.zonal_code} – {z.description}</option>)}
             </select>
           </div>
           <fieldset className="space-y-2 rounded-xl border border-[#d4e8dc] bg-[#f4f7f5] px-3 py-3">

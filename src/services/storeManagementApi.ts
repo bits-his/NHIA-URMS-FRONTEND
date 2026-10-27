@@ -53,23 +53,14 @@ export const storeManagementApi = {
 
   getPrepaymentAnalyses: () => fetchWithAuth("/prepayment-analysis"),
   getPrepaymentAnalysisById: (id: number | string) => fetchWithAuth(`/prepayment-analysis/${id}`),
-  createPrepaymentAnalysis: async (payload: Record<string, any>, file?: File | null) => {
-    const token = tokenStore.get();
-    if (file) {
-      const fd = new FormData();
-      Object.entries(payload).forEach(([k, v]) => {
-        if (v !== undefined && v !== null) fd.append(k, String(v));
-      });
-      fd.append("awardLetter", file);
-      const res = await fetch(`${API_BASE}/prepayment-analysis`, {
-        method: "POST",
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-        body: fd,
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || data.error || "API Request Failed");
-      return data;
-    }
-    return fetchWithAuth("/prepayment-analysis", { method: "POST", body: JSON.stringify(payload) });
-  },
+  /** Award letter upload is not part of the simplified store pack — JSON body only. */
+  createPrepaymentAnalysis: async (payload: Record<string, any>, _file?: File | null) =>
+    fetchWithAuth("/prepayment-analysis", { method: "POST", body: JSON.stringify(payload) }),
+
+  getPhysicalVerifications: () => fetchWithAuth("/verification/physical"),
+  getPhysicalVerificationById: (id: number | string) => fetchWithAuth(`/verification/physical/${id}`),
+  createPhysicalVerification: (payload: any) =>
+    fetchWithAuth("/verification/physical", { method: "POST", body: JSON.stringify(payload) }),
+  updatePhysicalVerification: (id: number | string, payload: any) =>
+    fetchWithAuth(`/verification/physical/${id}`, { method: "PUT", body: JSON.stringify(payload) }),
 };

@@ -119,29 +119,58 @@ function normalizeInvestigationTier(raw: unknown): InvestigationTier | undefined
   return undefined;
 }
 
-export function parseInvestigationActions(raw: string | null | undefined): InvestigationActionEntry[] {
-  if (!raw?.trim()) return [];
-  try {
-    const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed) && parsed.length) {
-      return parsed.map((item) => {
-        if (typeof item === "string") return { action: item, other: "" };
-        const categories = Array.isArray(item?.categories)
-          ? item.categories.map((c: unknown) => String(c ?? "").trim()).filter(Boolean)
-          : undefined;
-        const level = normalizeInvestigationTier(item?.level);
-        return {
-          action: String(item?.action ?? "").trim(),
-          other: String(item?.other ?? "").trim(),
-          ...(categories?.length ? { categories } : {}),
-          ...(level ? { level } : {}),
-        };
-      });
+function mapInvestigationActionItems(parsed: unknown[]): InvestigationActionEntry[] {
+  return parsed.map((item) => {
+    if (typeof item === "string") return { action: item, other: "" };
+    const row = item as { action?: unknown; other?: unknown; categories?: unknown; level?: unknown };
+    const categories = Array.isArray(row?.categories)
+      ? row.categories.map((c: unknown) => String(c ?? "").trim()).filter(Boolean)
+      : undefined;
+    const level = normalizeInvestigationTier(row?.level);
+    return {
+      action: String(row?.action ?? "").trim(),
+      other: String(row?.other ?? "").trim(),
+      ...(categories?.length ? { categories } : {}),
+      ...(level ? { level } : {}),
+    };
+  });
+}
+
+/** Unwrap string / double-encoded JSON into an array or leave as-is. */
+function coerceActionsPayload(raw: unknown): unknown {
+  let v = raw;
+  for (let i = 0; i < 3; i += 1) {
+    if (typeof v !== "string") break;
+    const s = v.trim();
+    if (!s) return [];
+    try {
+      v = JSON.parse(s);
+    } catch {
+      return v;
     }
-  } catch {
-    /* legacy single free-text value */
   }
-  return [{ action: raw.trim(), other: "" }];
+  return v;
+}
+
+/** Accepts legacy string JSON, double-encoded JSON, arrays, or free text. */
+export function parseInvestigationActions(raw: unknown): InvestigationActionEntry[] {
+  if (raw == null || raw === "") return [];
+  const coerced = coerceActionsPayload(raw);
+  if (Array.isArray(coerced)) {
+    // Rare: ["[{...}]"] from wrapping a JSON string as a 1-element array
+    if (coerced.length === 1 && typeof coerced[0] === "string") {
+      const inner = coerceActionsPayload(coerced[0]);
+      if (Array.isArray(inner)) {
+        return inner.length ? mapInvestigationActionItems(inner) : [];
+      }
+    }
+    return coerced.length ? mapInvestigationActionItems(coerced) : [];
+  }
+  if (typeof coerced === "string") {
+    if (!coerced.trim()) return [];
+    return [{ action: coerced.trim(), other: "" }];
+  }
+  return [];
 }
 
 export function serializeInvestigationActions(actions: InvestigationActionEntry[]): string {
@@ -218,26 +247,33 @@ export function priorInvestigationTiers(
   return order.filter((tier, idx) => {
     if (idx >= currentIdx) return false;
     const tierActions = actions.filter((a) => (a.level || "state") === tier);
+    // Any recorded action, commence marker, or notes at that tier counts as history
     return tierActions.some(
       (a) => a.action
-        && a.action !== INVESTIGATION_LEVEL_NOTES_ACTION
-        && a.action !== "Investigation commenced",
-    ) || tierActions.some(
-      (a) => a.action === INVESTIGATION_LEVEL_NOTES_ACTION && a.other?.trim(),
+        && (
+          a.action !== INVESTIGATION_LEVEL_NOTES_ACTION
+          || !!a.other?.trim()
+        ),
     );
   });
 }
 
-export function formatInvestigationActionsLabel(raw: string | null | undefined): string {
-  return visibleInvestigationActions(parseInvestigationActions(raw))
+export function formatInvestigationActionsLabel(raw: unknown): string {
+  const parsed = parseInvestigationActions(raw);
+  const labels = visibleInvestigationActions(parsed)
     .map((a) => {
       if (a.action === "Other" && a.other) return `Other: ${a.other}`;
       if (isSanctionOutcomeAction(a.action) && a.categories?.length) {
         return `${a.action} (${a.categories.join(", ")})`;
       }
       return a.action;
-    })
-    .join("; ") || "—";
+    });
+  // Surface investigation notes without exposing the internal __level_notes__ key
+  const notes = parsed
+    .filter((a) => a.action === INVESTIGATION_LEVEL_NOTES_ACTION && a.other?.trim())
+    .map((a) => a.other.trim());
+  if (notes.length) labels.push(`Notes: ${notes.join(" · ")}`);
+  return labels.join("; ") || "—";
 }
 
 export function extractSanctionCategories(raw: string | null | undefined): string[] {
@@ -246,7 +282,7 @@ export function extractSanctionCategories(raw: string | null | undefined): strin
 }
 
 /** True when investigation has more than the auto "Investigation commenced" starter. */
-export function hasSubstantiveInvestigationActions(raw: string | null | undefined): boolean {
+export function hasSubstantiveInvestigationActions(raw: unknown): boolean {
   const actions = visibleInvestigationActions(parseInvestigationActions(raw));
   if (!actions.length) return false;
   if (actions.length === 1 && actions[0].action === "Investigation commenced") return false;
@@ -681,7 +717,13 @@ const STAGE_ORDER: LifecycleStage[] = ["registration", "investigation", "escalat
 export function isStageReachable(
   stage: LifecycleStage,
   completion: Record<LifecycleStage, boolean>,
-  row?: { escalated?: boolean; status?: string; officer_assigned?: string | null; assigned_officer?: string | null },
+  row?: {
+    escalated?: boolean;
+    status?: string;
+    escalated_to?: string | null;
+    officer_assigned?: string | null;
+    assigned_officer?: string | null;
+  },
 ) {
   const idx = STAGE_ORDER.indexOf(stage);
   if (idx <= 0) return true;
@@ -691,6 +733,10 @@ export function isStageReachable(
   const officerAssigned = !!(row?.officer_assigned || row?.assigned_officer);
 
   if (stage === "investigation") {
+    // Role-inbox escalations (Zonal Office / Enforcement) reopen investigation for that tier
+    if (escalated && isRoleEscalationInbox(row?.escalated_to)) {
+      return !!completion.registration;
+    }
     // Investigation stays inactive until an officer is assigned
     return !!completion.registration && officerAssigned;
   }

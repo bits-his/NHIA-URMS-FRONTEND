@@ -241,56 +241,85 @@ export interface OperationalDataRow {
 // ─── Stock Verification ───────────────────────────────────────────────────────
 
 export const stockApi = {
-  getZones: () =>
-    request<{ success: boolean; data: any[] }>("/stock/zones"),
-
-  getStates: (zoneId?: number | string) =>
-    request<{ success: boolean; data: any[] }>(
-      `/stock/states${zoneId ? `?zone_id=${zoneId}` : ""}`
-    ),
-
-  getDepartments: (stateId?: number | string, scope?: "hq" | "state") => {
-    const params = new URLSearchParams();
-    if (stateId) params.set("state_id", String(stateId));
-    if (scope) params.set("scope", scope);
-    const q = params.toString();
-    return request<{ success: boolean; data: any[] }>(`/stock/departments${q ? `?${q}` : ""}`);
+  /** Org lists — use admin APIs (stock org routes are retired in rebuild mode). */
+  getZones: async () => {
+    const res = await request<{ success: boolean; data: any[] }>("/admin/zones");
+    return {
+      ...res,
+      data: (res.data || []).map((z: any) => ({
+        ...z,
+        id: z.zonal_code ?? z.id,
+        description: z.description,
+      })),
+    };
   },
 
-  getUnits: (departmentId?: number | string, scope?: "division" | "state") => {
-    const params = new URLSearchParams();
-    if (departmentId) params.set("department_id", String(departmentId));
-    if (scope) params.set("scope", scope);
-    const q = params.toString();
-    return request<{ success: boolean; data: any[] }>(`/stock/units${q ? `?${q}` : ""}`);
+  getStates: async (zoneId?: number | string) => {
+    const q = zoneId ? `?zone_id=${encodeURIComponent(String(zoneId))}` : "";
+    const res = await request<{ success: boolean; data: any[] }>(`/admin/states${q}`);
+    return {
+      ...res,
+      data: (res.data || []).map((s: any) => ({
+        ...s,
+        id: s.code ?? s.id,
+        description: s.description,
+      })),
+    };
   },
 
-  getAssets: (
+  getDepartments: async (_stateId?: number | string, _scope?: "hq" | "state") => {
+    const res = await request<{ success: boolean; data: any[] }>("/admin/departments");
+    return {
+      ...res,
+      data: (res.data || []).map((d: any) => ({
+        ...d,
+        id: d.department_code ?? d.id,
+        name: d.name,
+        description: d.name || d.description,
+      })),
+    };
+  },
+
+  getUnits: async (departmentId?: number | string, _scope?: "division" | "state") => {
+    const q = departmentId ? `?department_id=${encodeURIComponent(String(departmentId))}` : "";
+    const res = await request<{ success: boolean; data: any[] }>(`/admin/units${q}`);
+    return {
+      ...res,
+      data: (res.data || []).map((u: any) => ({
+        ...u,
+        id: u.unit_code ?? u.id,
+        name: u.name,
+        description: u.name || u.description,
+      })),
+    };
+  },
+
+  getAssets: async (
     stateId?: number | string,
-    unitId?: number | string,
-    status: "all" | "active" | "inactive" = "all",
+    _unitId?: number | string,
+    _status: "all" | "active" | "inactive" = "all",
   ) => {
     const params = new URLSearchParams();
     if (stateId) params.set("state_id", String(stateId));
-    if (unitId)  params.set("unit_id",  String(unitId));
-    params.set("status", status);
     const qs = params.toString();
-    return request<{ success: boolean; data: any[] }>(`/stock/assets${qs ? `?${qs}` : ""}`);
+    return request<{ success: boolean; data: any[] }>(
+      `/store-management/assets${qs ? `?${qs}` : ""}`,
+    );
   },
 
   createAsset: (payload: any) =>
-    request<{ success: boolean; data: any }>("/stock/assets", {
+    request<{ success: boolean; data: any }>("/store-management/assets", {
       method: "POST", body: JSON.stringify(payload),
     }),
 
   updateAsset: (id: number | string, payload: any) =>
-    request<{ success: boolean; data: any }>(`/stock/assets/${id}`, {
+    request<{ success: boolean; data: any }>(`/store-management/assets/${id}`, {
       method: "PUT", body: JSON.stringify(payload),
     }),
 
   setAssetStatus: (id: number | string, is_active: boolean) =>
-    request<{ success: boolean; message: string; data: any }>(`/stock/assets/${id}/status`, {
-      method: "PATCH", body: JSON.stringify({ is_active }),
+    request<{ success: boolean; message: string; data: any }>(`/store-management/assets/${id}`, {
+      method: "PUT", body: JSON.stringify({ status: is_active ? "ACTIVE" : "INACTIVE" }),
     }),
 
   listVerifications: (filters?: { zone_id?: string; state_id?: string; status?: string; type?: string }) => {
@@ -298,33 +327,35 @@ export const stockApi = {
       Object.entries(filters || {}).filter(([, v]) => !!v) as [string, string][]
     ).toString();
     return request<{ success: boolean; data: any[] }>(
-      `/stock/verifications${params ? `?${params}` : ""}`
+      `/store-management/verification/physical${params ? `?${params}` : ""}`
     );
   },
 
   getVerification: (id: number | string) =>
-    request<{ success: boolean; data: any }>(`/stock/verifications/${id}`),
+    request<{ success: boolean; data: any }>(`/store-management/verification/physical/${id}`),
 
   createVerification: (payload: any) =>
-    request<{ success: boolean; data: any }>("/stock/verifications", {
+    request<{ success: boolean; data: any }>("/store-management/verification/physical", {
       method: "POST", body: JSON.stringify(payload),
     }),
 
   updateVerification: (id: number | string, payload: any) =>
-    request<{ success: boolean; data: any }>(`/stock/verifications/${id}`, {
+    request<{ success: boolean; data: any }>(`/store-management/verification/physical/${id}`, {
       method: "PUT", body: JSON.stringify(payload),
     }),
 
   updateStatus: (id: number | string, status: string) =>
-    request<{ success: boolean; data: any }>(`/stock/verifications/${id}/status`, {
-      method: "PATCH", body: JSON.stringify({ status }),
+    request<{ success: boolean; data: any }>(`/store-management/verification/physical/${id}`, {
+      method: "PUT", body: JSON.stringify({ status }),
     }),
 
   getDashboard: (filters?: Record<string, string | undefined>) => {
     const params = new URLSearchParams(
       Object.entries(filters || {}).filter(([, v]) => !!v) as [string, string][]
     ).toString();
-    return request<{ success: boolean; data: any }>(`/stock/dashboard${params ? `?${params}` : ""}`);
+    return request<{ success: boolean; data: any }>(
+      `/store-management/dashboard${params ? `?${params}` : ""}`,
+    );
   },
 
   getDashboardDrill: (filters?: Record<string, string | undefined>) => {
@@ -561,60 +592,64 @@ export const servicomApi = {
   listComplaintSla: () =>
     request<{ success: boolean; data: any[] }>("/servicom/complaint-sla"),
 
-  getComplaint: (id: number | string) =>
-    request<{ success: boolean; data: any }>(`/servicom/complaints/${id}`),
+  getComplaint: (complaint_number: string) =>
+    request<{ success: boolean; data: any }>(
+      `/servicom/complaints/${encodeURIComponent(complaint_number)}`,
+    ),
 
   createComplaint: (payload: any) =>
     request<{ success: boolean; data: any }>("/servicom/complaints", {
       method: "POST", body: JSON.stringify(payload),
     }),
 
-  updateComplaint: (id: number | string, payload: any) =>
-    request<{ success: boolean; data: any }>(`/servicom/complaints/${id}`, {
-      method: "PUT", body: JSON.stringify(payload),
-    }),
+  updateComplaint: (complaint_number: string, payload: any) =>
+    request<{ success: boolean; data: any }>(
+      `/servicom/complaints/${encodeURIComponent(complaint_number)}`,
+      { method: "PUT", body: JSON.stringify(payload) },
+    ),
 
-  listComplaintComments: (id: number | string) =>
+  listComplaintComments: (complaint_number: string) =>
     request<{ success: boolean; data: {
-      id: number; complaint_id: number; body: string;
+      complaint_number: string; comment_seq: number; body: string;
       created_by?: string | null; created_by_staff_id?: string | null;
       createdAt?: string; created_at?: string;
-    }[] }>(`/servicom/complaints/${id}/comments`),
+    }[] }>(`/servicom/complaints/${encodeURIComponent(complaint_number)}/comments`),
 
-  addComplaintComment: (id: number | string, body: string) =>
-    request<{ success: boolean; data: any }>(`/servicom/complaints/${id}/comments`, {
-      method: "POST", body: JSON.stringify({ body }),
-    }),
+  addComplaintComment: (complaint_number: string, body: string) =>
+    request<{ success: boolean; data: any }>(
+      `/servicom/complaints/${encodeURIComponent(complaint_number)}/comments`,
+      { method: "POST", body: JSON.stringify({ body }) },
+    ),
 
   listSatisfactionSurveys: (filters?: Record<string, string | undefined>) =>
     request<{ success: boolean; data: any[] }>(`/servicom/satisfaction-surveys${servicomFilters(filters)}`),
 
-  getSatisfactionSurvey: (id: number | string) =>
-    request<{ success: boolean; data: any }>(`/servicom/satisfaction-surveys/${id}`),
+  getSatisfactionSurvey: (reference_id: string) =>
+    request<{ success: boolean; data: any }>(`/servicom/satisfaction-surveys/${encodeURIComponent(reference_id)}`),
 
   createSatisfactionSurvey: (payload: any) =>
     request<{ success: boolean; data: any }>("/servicom/satisfaction-surveys", {
       method: "POST", body: JSON.stringify(payload),
     }),
 
-  updateSatisfactionSurvey: (id: number | string, payload: any) =>
-    request<{ success: boolean; data: any }>(`/servicom/satisfaction-surveys/${id}`, {
+  updateSatisfactionSurvey: (reference_id: string, payload: any) =>
+    request<{ success: boolean; data: any }>(`/servicom/satisfaction-surveys/${encodeURIComponent(reference_id)}`, {
       method: "PUT", body: JSON.stringify(payload),
     }),
 
   listCommentCards: (filters?: Record<string, string | undefined>) =>
     request<{ success: boolean; data: any[] }>(`/servicom/comment-cards${servicomFilters(filters)}`),
 
-  getCommentCard: (id: number | string) =>
-    request<{ success: boolean; data: any }>(`/servicom/comment-cards/${id}`),
+  getCommentCard: (reference_id: string) =>
+    request<{ success: boolean; data: any }>(`/servicom/comment-cards/${encodeURIComponent(reference_id)}`),
 
   createCommentCard: (payload: any) =>
     request<{ success: boolean; data: any }>("/servicom/comment-cards", {
       method: "POST", body: JSON.stringify(payload),
     }),
 
-  updateCommentCard: (id: number | string, payload: any) =>
-    request<{ success: boolean; data: any }>(`/servicom/comment-cards/${id}`, {
+  updateCommentCard: (reference_id: string, payload: any) =>
+    request<{ success: boolean; data: any }>(`/servicom/comment-cards/${encodeURIComponent(reference_id)}`, {
       method: "PUT", body: JSON.stringify(payload),
     }),
 };
@@ -624,6 +659,8 @@ export const servicomApi = {
 export type StateOfficeReportType =
   | "enrolment" | "migration" | "cemonc"
   | "complaints" | "accreditation" | "stakeholder" | "hmo-selection" | "challenges"
+  | "provider-accreditation" | "provider-reaccreditation"
+  | "provider-medical-audits" | "provider-qa-inspections"
   | "igr" | "sshia-financial" | "expenditure-profile"
   | "weekly-actionable" | "contracted-services" | "enrollee-register" | "etmc-tmc-action-point"
   | "ict-support-register" | "adhoc-special-assignment"
@@ -659,7 +696,7 @@ const makeStateOfficeApi = (type: StateOfficeReportType) => ({
     }),
 });
 
-const makeEnrolmentDriveApi = (type: EnrolmentDriveReportType) => ({
+const withLineFileUpload = (type: StateOfficeReportType) => ({
   ...makeStateOfficeApi(type),
   uploadLineFiles: (reportId: number | string, lineId: number | string, files: File[]) => {
     const token = tokenStore.get();
@@ -677,6 +714,8 @@ const makeEnrolmentDriveApi = (type: EnrolmentDriveReportType) => ({
   },
 });
 
+const makeEnrolmentDriveApi = (type: EnrolmentDriveReportType) => withLineFileUpload(type);
+
 const enrolmentDriveApis = Object.fromEntries(
   ENROLMENT_DRIVE_REPORT_TYPES.map((t) => [t, makeEnrolmentDriveApi(t)]),
 ) as Record<EnrolmentDriveReportType, ReturnType<typeof makeEnrolmentDriveApi>>;
@@ -686,8 +725,38 @@ export const stateOfficeApi = {
   migration: makeStateOfficeApi("migration"),
   cemonc:    makeStateOfficeApi("cemonc"),
   complaints: makeStateOfficeApi("complaints"),
+  /** Dedicated Provider Management tables (one API segment per form). */
+  providerAccreditation: withLineFileUpload("provider-accreditation"),
+  providerReaccreditation: withLineFileUpload("provider-reaccreditation"),
+  providerMedicalAudits: withLineFileUpload("provider-medical-audits"),
+  providerQaInspections: withLineFileUpload("provider-qa-inspections"),
+  /** Resolve API for a provider form key (dedicated table, no shared filter). */
+  providerByFormKey(formKey: string) {
+    switch (formKey) {
+      case "reaccreditation":
+        return this.providerReaccreditation;
+      case "medical-audits":
+        return this.providerMedicalAudits;
+      case "qa-inspections":
+        return this.providerQaInspections;
+      case "accreditation":
+      default:
+        return this.providerAccreditation;
+    }
+  },
+  async listAllProviderReports(filters?: Record<string, string | number | undefined | null>) {
+    const keys = ["accreditation", "reaccreditation", "medical-audits", "qa-inspections"] as const;
+    const results = await Promise.all(
+      keys.map(async (key) => {
+        const res = await this.providerByFormKey(key).list(filters);
+        const rows = Array.isArray(res?.data) ? res.data : [];
+        return rows.map((r: any) => ({ ...r, activity_module: key }));
+      }),
+    );
+    return { success: true, data: results.flat() };
+  },
   accreditation: {
-    ...makeStateOfficeApi("accreditation"),
+    ...makeStateOfficeApi("provider-accreditation"),
     getDashboard: (filters?: Record<string, string | number | undefined | null>) => {
       const p = new URLSearchParams(
         Object.entries(filters || {})
@@ -702,7 +771,7 @@ export const stateOfficeApi = {
       const token = tokenStore.get();
       const form = new FormData();
       files.forEach((file) => form.append("files", file));
-      return fetch(`${BASE_URL}/state-office/accreditation/reports/${reportId}/lines/${lineId}/files`, {
+      return fetch(`${BASE_URL}/state-office/provider-accreditation/reports/${reportId}/lines/${lineId}/files`, {
         method: "POST",
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         body: form,

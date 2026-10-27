@@ -34,7 +34,7 @@ export default function AdminZonesPage() {
     e.preventDefault(); setSaving(true);
     try {
       if (modal === "create") { await zonesApi.create(form); toast.success("Zone created"); }
-      else if (editing) { await zonesApi.update(editing.id, form); toast.success("Zone updated"); }
+      else if (editing) { await zonesApi.update(editing.zonal_code, { description: form.description }); toast.success("Zone updated"); }
       setModal(null); load();
     } catch (e: any) { toast.error(e.message); }
     finally { setSaving(false); }
@@ -42,7 +42,7 @@ export default function AdminZonesPage() {
 
   const handleDelete = async (z: ZonalOffice) => {
     if (!confirm(`Delete zone "${z.zonal_code}"?`)) return;
-    try { await zonesApi.delete(z.id); toast.success("Zone deleted"); load(); }
+    try { await zonesApi.delete(z.zonal_code); toast.success("Zone deleted"); load(); }
     catch (e: any) { toast.error(e.message); }
   };
 
@@ -71,7 +71,7 @@ export default function AdminZonesPage() {
               ) : zones.length === 0 ? (
                 <TableRow><TableCell colSpan={4} className="text-center py-10 text-slate-400">No zones yet</TableCell></TableRow>
               ) : zones.map(z => (
-                <TableRow key={z.id} className="hover:bg-[#f0fdf7] transition-colors">
+                <TableRow key={z.zonal_code} className="hover:bg-[#f0fdf7] transition-colors">
                   <TableCell><span className="font-mono text-xs font-bold text-[#145c3f]">{z.zonal_code}</span></TableCell>
                   <TableCell className="font-medium text-slate-800">{z.description}</TableCell>
                   <TableCell>
@@ -94,7 +94,7 @@ export default function AdminZonesPage() {
         <form onSubmit={handleSave} className="space-y-4">
           <div>
             <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">Zonal Code <span className="text-rose-500">*</span></label>
-            <input className={inputCls} placeholder="e.g. ZONE-1" value={form.zonal_code} onChange={e => setForm(f => ({ ...f, zonal_code: e.target.value }))} required />
+            <input className={inputCls} placeholder="e.g. NW" value={form.zonal_code} onChange={e => setForm(f => ({ ...f, zonal_code: e.target.value }))} required disabled={modal === "edit"} />
           </div>
           <div>
             <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">Description <span className="text-rose-500">*</span></label>

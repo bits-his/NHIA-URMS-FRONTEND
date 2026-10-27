@@ -10,7 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
-import { servicomApi, stockApi } from "@/lib/api";
+import { servicomApi } from "@/lib/api";
+import { zonesApi, statesApi } from "@/lib/adminApi";
 import { pickGeoLabel } from "./servicomConstants";
 import {
   COMMENT_CARD_QUESTIONS, computeCommentCardScore, commentCardScaleOptions, commentCardResponseLabel,
@@ -28,8 +29,8 @@ interface Props {
 }
 
 const emptyForm = (defaultZoneId?: string | null, defaultStateId?: string | null) => ({
-  zone_id: defaultZoneId ?? "",
-  state_id: defaultStateId ?? "",
+  zonal_code: defaultZoneId ?? "",
+  state_code: defaultStateId ?? "",
   respondent_name: "",
   organisation: "",
   card_date: new Date().toISOString().slice(0, 10),
@@ -37,7 +38,7 @@ const emptyForm = (defaultZoneId?: string | null, defaultStateId?: string | null
 });
 
 function parseStoredResponses(raw: unknown): Record<string, string> {
-  let rows: { question_id: string; response?: string }[] = [];
+  let rows: { question_id: string; response?: string; response_value?: number | string }[] = [];
   if (Array.isArray(raw)) rows = raw;
   else if (typeof raw === "string") {
     try {
@@ -45,7 +46,14 @@ function parseStoredResponses(raw: unknown): Record<string, string> {
       rows = Array.isArray(parsed) ? parsed : [];
     } catch { rows = []; }
   }
-  return Object.fromEntries(rows.map((r) => [r.question_id, r.response ?? ""]));
+  return Object.fromEntries(
+    rows.map((r) => [
+      r.question_id,
+      r.response != null && r.response !== ""
+        ? String(r.response)
+        : (r.response_value != null ? String(r.response_value) : ""),
+    ]),
+  );
 }
 
 function buildResponsesPayload(responses: Record<string, string>) {
@@ -105,8 +113,8 @@ export default function ServicomCommentCardPage({
     setLoading(true);
     try {
       const res = await servicomApi.listCommentCards({
-        state_id: geoLocked ? (defaultStateId ?? undefined) : (filterState !== "all" ? filterState : undefined),
-        zone_id: geoLocked ? (defaultZoneId ?? undefined) : (filterZone !== "all" ? filterZone : undefined),
+        state_code: geoLocked ? (defaultStateId ?? undefined) : (filterState !== "all" ? filterState : undefined),
+        zonal_code: geoLocked ? (defaultZoneId ?? undefined) : (filterZone !== "all" ? filterZone : undefined),
       });
       setCards(res.data);
     } catch (err: any) {
@@ -115,14 +123,14 @@ export default function ServicomCommentCardPage({
   }, [defaultStateId, defaultZoneId, filterState, filterZone, geoLocked, createOnly]);
 
   React.useEffect(() => { if (mode === "list" && !createOnly) load(); }, [load, mode, createOnly]);
-  React.useEffect(() => { stockApi.getZones().then((r) => setZones(r.data)).catch(() => {}); }, []);
+  React.useEffect(() => { zonesApi.list().then((r) => setZones(r.data)).catch(() => {}); }, []);
   React.useEffect(() => {
     if (geoLocked || filterZone === "all") { setFilterStates([]); return; }
-    stockApi.getStates(filterZone).then((r) => setFilterStates(r.data)).catch(() => {});
+    statesApi.list(filterZone).then((r) => setFilterStates(r.data)).catch(() => {});
   }, [filterZone, geoLocked]);
 
   React.useEffect(() => {
-    stockApi.getStates().then((r) => setFormStates(r.data)).catch(() => setFormStates([]));
+    statesApi.list().then((r) => setFormStates(r.data)).catch(() => setFormStates([]));
   }, []);
 
   const filteredCards = React.useMemo(() => {
@@ -170,7 +178,7 @@ export default function ServicomCommentCardPage({
 
   const openView = async (row: any) => {
     try {
-      const res = await servicomApi.getCommentCard(row.id);
+      const res = await servicomApi.getCommentCard(row.reference_id);
       setSelected(res.data);
       setMode("view");
     } catch (err: any) {
@@ -200,7 +208,7 @@ export default function ServicomCommentCardPage({
   };
 
   const handleSave = async () => {
-    if (!f.state_id) {
+    if (!f.state_code) {
       toast.error("Please select a State.");
       return;
     }
@@ -214,9 +222,9 @@ export default function ServicomCommentCardPage({
       return;
     }
     setShowErrors(false);
-    const selectedState = formStates.find((s) => String(s.id) === String(f.state_id));
-    const zoneId = f.zone_id || (selectedState?.zone_id != null ? String(selectedState.zone_id) : "");
-    if (!zoneId) {
+    const selectedState = formStates.find((s) => s.code === f.state_code);
+    const zonalCode = f.zonal_code || selectedState?.zonal_code || "";
+    if (!zonalCode) {
       toast.error("Could not resolve zone for the selected state.");
       return;
     }
@@ -226,11 +234,11 @@ export default function ServicomCommentCardPage({
         respondent_name: f.respondent_name || undefined,
         organisation: f.organisation || undefined,
         card_date: f.card_date,
-        zone_id: Number(zoneId),
-        state_id: Number(f.state_id),
+        zonal_code: zonalCode,
+        state_code: f.state_code,
         responses: buildResponsesPayload(f.responses),
       };
-      if (selected?.id) await servicomApi.updateCommentCard(selected.id, payload);
+      if (selected?.reference_id) await servicomApi.updateCommentCard(selected.reference_id, payload);
       else await servicomApi.createCommentCard(payload);
       toast.success("Record saved");
       if (createOnly) resetCreateForm();
@@ -399,26 +407,26 @@ export default function ServicomCommentCardPage({
             <div className="space-y-1.5">
               <Label className="text-xs text-slate-500">State *</Label>
               <Select
-                value={f.state_id}
+                value={f.state_code}
                 disabled={geoLocked}
                 onValueChange={(v) => {
-                  const st = formStates.find((s) => String(s.id) === v);
+                  const st = formStates.find((s) => s.code === v);
                   setF((p) => ({
                     ...p,
-                    state_id: v,
-                    zone_id: st?.zone_id != null ? String(st.zone_id) : p.zone_id,
+                    state_code: v,
+                    zonal_code: st?.zonal_code || p.zonal_code,
                   }));
                 }}
               >
                 <SelectTrigger
                   className={`w-full ${geoLocked ? "opacity-70 bg-slate-50" : ""}`}
-                  displayValue={pickGeoLabel(formStates, f.state_id, "Select State")}
+                  displayValue={pickGeoLabel(formStates, f.state_code, "Select State")}
                 >
                   <SelectValue placeholder="Select State" />
                 </SelectTrigger>
                 <SelectContent>
                   {formStates.map((s) => (
-                    <SelectItem key={s.id} value={String(s.id)}>{s.description}</SelectItem>
+                    <SelectItem key={s.code} value={s.code}>{s.description}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -665,7 +673,7 @@ export default function ServicomCommentCardPage({
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">All Zones</SelectItem>
-                        {zones.map((z) => <SelectItem key={z.id} value={String(z.id)}>{z.description}</SelectItem>)}
+                        {zones.map((z) => <SelectItem key={z.zonal_code} value={z.zonal_code}>{z.description}</SelectItem>)}
                       </SelectContent>
                     </Select>
                     <Select value={filterState} onValueChange={setFilterState}>
@@ -674,7 +682,7 @@ export default function ServicomCommentCardPage({
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">All States</SelectItem>
-                        {filterStates.map((s) => <SelectItem key={s.id} value={String(s.id)}>{s.description}</SelectItem>)}
+                        {filterStates.map((s) => <SelectItem key={s.code} value={s.code}>{s.description}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </>
@@ -711,7 +719,7 @@ export default function ServicomCommentCardPage({
                     </TableHeader>
                     <TableBody>
                       {filteredCards.map((c, i) => (
-                        <motion.tr key={c.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.02 }}
+                        <motion.tr key={c.reference_id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.02 }}
                           className="border-b border-slate-100">
                           <TableCell className="text-xs text-slate-500">{c.card_date}</TableCell>
                           <TableCell className="text-sm">{c.respondent_name || "—"}</TableCell>

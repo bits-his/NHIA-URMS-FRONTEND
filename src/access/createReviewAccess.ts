@@ -28,7 +28,10 @@ export function getCreateReviewAccess(role: string, user?: {
     ?? ["state-officer", "state-coordinator", "department-officer", "zonal-officer", "reporting-officer", "admin"].includes(role);
 
   const flaggedReview = user?.role_config?.can_review_monthly
-    ?? ["state-coordinator", "zonal-coordinator", "sdo", "admin"].includes(role);
+    ?? (
+      ["state-coordinator", "zonal-coordinator", "zc", "sdo", "admin"].includes(role)
+      || isDeptZonalCoordinator(role)
+    );
 
   const canReview = !!flaggedReview;
   // Match backend canSubmitForms: allow create unless review-only

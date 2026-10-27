@@ -89,10 +89,14 @@ export function NewStockIssueView() {
 
   const fromLocation = storeNameFromState(stateName);
 
-  const storeItems = useMemo(
-    () => fromLocation ? catalog.filter((i) => matchesStore(i.storeLocation, fromLocation)) : [],
-    [catalog, fromLocation]
-  );
+  const storeItems = useMemo(() => {
+    if (!stateId && !fromLocation) return [];
+    return catalog.filter((i) => {
+      if (stateId && String(i.state_code || i.stateCode || "") === String(stateId)) return true;
+      if (fromLocation && matchesStore(i.storeLocation, fromLocation)) return true;
+      return false;
+    });
+  }, [catalog, fromLocation, stateId]);
 
   const available = useMemo(
     () => storeItems.filter((i) => Number(i.quantityInStock || 0) > 0),
@@ -173,6 +177,7 @@ export function NewStockIssueView() {
       await stockApi.createStockIssue({
         issueNumber: form.issueNumber,
         department: form.department,
+        receiving_department_code: form.department,
         recipientName: form.recipientName,
         issueDate: form.issueDate,
         issuedBy: user?.name || "Store Officer",
@@ -180,10 +185,13 @@ export function NewStockIssueView() {
         toLocation: form.department,
         remarks: form.remarks,
         status: "APPROVED",
+        state_id: stateId || undefined,
+        zone_id: zoneId || undefined,
         lineItems: valid.map((l) => ({
-          inventoryItemId: Number(l.inventoryItemId),
-          itemCode: l.itemCode,
+          inventoryItemId: l.inventoryItemId,
+          itemCode: l.itemCode || l.inventoryItemId,
           name: l.name,
+          qty: Number(l.quantity),
           quantity: Number(l.quantity),
         })),
       });
@@ -298,12 +306,15 @@ export function NewStockIssueView() {
                   disabled={!stateId}
                   onValueChange={(val) => setForm((p) => ({ ...p, department: val }))}
                 >
-                  <SelectTrigger id="department" displayValue={form.department || undefined}>
+                  <SelectTrigger
+                    id="department"
+                    displayValue={departments.find((d) => String(d.id) === String(form.department))?.label || form.department || undefined}
+                  >
                     <SelectValue placeholder={stateId ? "Select department" : "Select state office first"} />
                   </SelectTrigger>
                   <SelectContent>
                     {departments.map((d) => (
-                      <SelectItem key={d.id} value={d.label}>{d.label}</SelectItem>
+                      <SelectItem key={d.id} value={String(d.id)}>{d.label}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>

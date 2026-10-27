@@ -46,7 +46,7 @@ export interface AppRole {
 
 export interface AdminUser {
   id: number; name: string; staff_id: string; email?: string;
-  role: Role; zone_id?: number; state_id?: number; department_id?: number; unit_id?: number;
+  role: Role; zonal_code?: string; zone_id?: string; state_code?: string; state_id?: string; department_id?: number | string; department_code?: string; unit_id?: number | string; unit_code?: string;
   role_label?: string;
   role_config?: { report_scope: ReportScope; can_create_monthly: boolean; can_review_monthly: boolean };
   /** Structured access — array of {access_to, functionalities[]} */
@@ -54,18 +54,17 @@ export interface AdminUser {
   is_active: boolean; zone?: ZonalOffice; state?: StateOffice; department?: Department; unit?: Unit;
   createdAt: string;
 }
-export interface ZonalOffice { id: number; zonal_code: string; description: string; states?: StateOffice[]; }
+export interface ZonalOffice { zonal_code: string; description: string; states?: StateOffice[]; }
 export interface StateOffice {
-  id: number;
   code: string;
   description: string;
-  zonal_id: number;
+  zonal_code: string;
   is_hq?: boolean;
   is_zonal_office?: boolean;
   zone?: ZonalOffice;
 }
-export interface Department { id: number; department_code: string; name: string; description?: string; units?: Unit[]; }
-export interface Unit { id: number; unit_code: string; name: string; description?: string; department_id: number; department?: Department; }
+export interface Department { department_code: string; name: string; description?: string; units?: Unit[]; }
+export interface Unit { unit_code: string; name: string; description?: string; department_code: string; department?: Department; }
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 export const authApi = {
@@ -87,7 +86,7 @@ const qs = (p?: Record<string, any>) => {
 
 // Users
 export const usersApi = {
-  list: (params?: { role?: string; zone_id?: number; state_id?: number; search?: string; page?: number; limit?: number }) =>
+  list: (params?: { role?: string; zonal_code?: string; zone_id?: string; state_code?: string; state_id?: string; search?: string; page?: number; limit?: number }) =>
     request<{ success: boolean; data: AdminUser[]; total: number; pages: number }>(`/admin/users${qs(params)}`),
   get: (id: number) => request<{ success: boolean; data: AdminUser }>(`/admin/users/${id}`),
   create: (body: Partial<AdminUser> & { password: string }) =>
@@ -107,47 +106,47 @@ export const usersApi = {
 // Zones
 export const zonesApi = {
   list: () => request<{ success: boolean; data: ZonalOffice[] }>("/admin/zones"),
-  create: (body: Omit<ZonalOffice, "id">) =>
+  create: (body: ZonalOffice) =>
     request<{ success: boolean; data: ZonalOffice }>("/admin/zones", { method: "POST", body: JSON.stringify(body) }),
-  update: (id: number, body: Partial<ZonalOffice>) =>
-    request<{ success: boolean; data: ZonalOffice }>(`/admin/zones/${id}`, { method: "PUT", body: JSON.stringify(body) }),
-  delete: (id: number) =>
-    request<{ success: boolean; message: string }>(`/admin/zones/${id}`, { method: "DELETE" }),
+  update: (zonal_code: string, body: Partial<ZonalOffice>) =>
+    request<{ success: boolean; data: ZonalOffice }>(`/admin/zones/${encodeURIComponent(zonal_code)}`, { method: "PUT", body: JSON.stringify(body) }),
+  delete: (zonal_code: string) =>
+    request<{ success: boolean; message: string }>(`/admin/zones/${encodeURIComponent(zonal_code)}`, { method: "DELETE" }),
 };
 
 // States
 export const statesApi = {
-  list: (zone_id?: number) =>
-    request<{ success: boolean; data: StateOffice[] }>(`/admin/states${qs({ zone_id })}`),
-  create: (body: Omit<StateOffice, "id">) =>
+  list: (zonal_code?: string) =>
+    request<{ success: boolean; data: StateOffice[] }>(`/admin/states${qs({ zonal_code })}`),
+  create: (body: StateOffice) =>
     request<{ success: boolean; data: StateOffice }>("/admin/states", { method: "POST", body: JSON.stringify(body) }),
-  update: (id: number, body: Partial<StateOffice>) =>
-    request<{ success: boolean; data: StateOffice }>(`/admin/states/${id}`, { method: "PUT", body: JSON.stringify(body) }),
-  delete: (id: number) =>
-    request<{ success: boolean; message: string }>(`/admin/states/${id}`, { method: "DELETE" }),
+  update: (code: string, body: Partial<StateOffice>) =>
+    request<{ success: boolean; data: StateOffice }>(`/admin/states/${encodeURIComponent(code)}`, { method: "PUT", body: JSON.stringify(body) }),
+  delete: (code: string) =>
+    request<{ success: boolean; message: string }>(`/admin/states/${encodeURIComponent(code)}`, { method: "DELETE" }),
 };
 
 // Departments
 export const departmentsApi = {
   list: () => request<{ success: boolean; data: Department[] }>("/admin/departments"),
-  create: (body: Omit<Department, "id">) =>
+  create: (body: Omit<Department, "department_code"> & { department_code?: string }) =>
     request<{ success: boolean; data: Department }>("/admin/departments", { method: "POST", body: JSON.stringify(body) }),
-  update: (id: number, body: Partial<Department>) =>
-    request<{ success: boolean; data: Department }>(`/admin/departments/${id}`, { method: "PUT", body: JSON.stringify(body) }),
-  delete: (id: number) =>
-    request<{ success: boolean; message: string }>(`/admin/departments/${id}`, { method: "DELETE" }),
+  update: (department_code: string, body: Partial<Department>) =>
+    request<{ success: boolean; data: Department }>(`/admin/departments/${encodeURIComponent(department_code)}`, { method: "PUT", body: JSON.stringify(body) }),
+  delete: (department_code: string) =>
+    request<{ success: boolean; message: string }>(`/admin/departments/${encodeURIComponent(department_code)}`, { method: "DELETE" }),
 };
 
 // Units
 export const unitsApi = {
-  list: (department_id?: number) =>
-    request<{ success: boolean; data: Unit[] }>(`/admin/units${qs({ department_id })}`),
-  create: (body: Omit<Unit, "id">) =>
+  list: (department_code?: number | string) =>
+    request<{ success: boolean; data: Unit[] }>(`/admin/units${qs({ department_code })}`),
+  create: (body: Omit<Unit, "unit_code"> & { unit_code?: string; department_id?: string }) =>
     request<{ success: boolean; data: Unit }>("/admin/units", { method: "POST", body: JSON.stringify(body) }),
-  update: (id: number, body: Partial<Unit>) =>
-    request<{ success: boolean; data: Unit }>(`/admin/units/${id}`, { method: "PUT", body: JSON.stringify(body) }),
-  delete: (id: number) =>
-    request<{ success: boolean; message: string }>(`/admin/units/${id}`, { method: "DELETE" }),
+  update: (unit_code: string, body: Partial<Unit>) =>
+    request<{ success: boolean; data: Unit }>(`/admin/units/${encodeURIComponent(unit_code)}`, { method: "PUT", body: JSON.stringify(body) }),
+  delete: (unit_code: string) =>
+    request<{ success: boolean; message: string }>(`/admin/units/${encodeURIComponent(unit_code)}`, { method: "DELETE" }),
 };
 
 // Roles

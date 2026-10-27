@@ -53,6 +53,7 @@ export default function ProviderManagementPage({ onBack, defaultZoneId, defaultS
   const { canCreate, canReview } = useStateOfficeAccess();
   const [mode, setMode] = React.useState<Mode>("list");
   const [selectedId, setSelectedId] = React.useState<number | null>(null);
+  const [selectedModule, setSelectedModule] = React.useState<ProviderFormKey>("accreditation");
   const [reports, setReports] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [filterYear, setFilterYear] = React.useState("all");
@@ -65,15 +66,21 @@ export default function ProviderManagementPage({ onBack, defaultZoneId, defaultS
   const load = React.useCallback(async () => {
     setLoading(true);
     try {
-      const res = await stateOfficeApi.accreditation.list({
+      const filters = {
         status: filterStatus !== "all" ? filterStatus : undefined,
         zone_id: defaultZoneId ?? undefined,
         state_id: apiStateId ?? undefined,
         year: filterYear !== "all" ? filterYear : undefined,
         month: filterMonth !== "all" ? filterMonth : undefined,
-        activity_module: filterModule !== "all" ? filterModule : undefined,
-      });
-      setReports(res.data ?? []);
+      };
+      const res = filterModule === "all"
+        ? await stateOfficeApi.listAllProviderReports(filters)
+        : await stateOfficeApi.providerByFormKey(filterModule).list(filters);
+      const rows = (res.data ?? []).map((r: any) => ({
+        ...r,
+        activity_module: r.activity_module || filterModule,
+      }));
+      setReports(rows);
     } catch (err: any) {
       toast.error("Failed to load reports", { description: err.message });
       setReports([]);
@@ -95,6 +102,7 @@ export default function ProviderManagementPage({ onBack, defaultZoneId, defaultS
   const backToList = () => {
     setMode("list");
     setSelectedId(null);
+    setSelectedModule("accreditation");
     load();
   };
 
@@ -102,6 +110,7 @@ export default function ProviderManagementPage({ onBack, defaultZoneId, defaultS
     return (
       <ProviderManagementForm
         reportId={mode === "edit" ? selectedId : null}
+        initialFormKey={selectedModule}
         onBack={backToList}
         onCancel={backToList}
         onSubmitted={backToList}
@@ -115,6 +124,7 @@ export default function ProviderManagementPage({ onBack, defaultZoneId, defaultS
     return (
       <ProviderReportDetail
         reportId={selectedId}
+        formKey={selectedModule}
         onBack={backToList}
         onEdit={canCreate ? () => setMode("edit") : undefined}
       />
@@ -309,7 +319,11 @@ export default function ProviderManagementPage({ onBack, defaultZoneId, defaultS
                                 variant="ghost"
                                 size="sm"
                                 className="h-8 gap-1.5 text-[#145c3f] hover:bg-[#eef6f1]"
-                                onClick={() => { setSelectedId(r.id); setMode("view"); }}
+                                onClick={() => {
+                                  setSelectedId(r.id);
+                                  setSelectedModule((r.activity_module || "accreditation") as ProviderFormKey);
+                                  setMode("view");
+                                }}
                               >
                                 <Eye className="w-3.5 h-3.5" /> View
                               </Button>

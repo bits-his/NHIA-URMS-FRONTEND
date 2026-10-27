@@ -10,7 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
-import { servicomApi, stockApi } from "@/lib/api";
+import { servicomApi } from "@/lib/api";
+import { zonesApi, statesApi } from "@/lib/adminApi";
 import { pickGeoLabel } from "./servicomConstants";
 import AccreditedProviderSelect from "@/src/components/stateOffice/AccreditedProviderSelect";
 import {
@@ -37,9 +38,8 @@ const emptyForm = (
   defaultZoneId?: string | null,
   defaultStateId?: string | null,
 ) => ({
-  reference_id: "",
-  zone_id: defaultZoneId ?? "",
-  state_id: defaultStateId ?? "",
+  zonal_code: defaultZoneId ?? "",
+  state_code: defaultStateId ?? "",
   provider_name: "",
   survey_date: new Date().toISOString().slice(0, 10),
   teamNames: [""] as string[],
@@ -69,7 +69,7 @@ function formatTeamNames(raw: unknown) {
 }
 
 function parseStoredResponses(raw: unknown): Record<string, string> {
-  let rows: { question_id: string; response?: string }[] = [];
+  let rows: { question_id: string; response?: string; response_value?: string }[] = [];
   if (Array.isArray(raw)) {
     rows = raw;
   } else if (typeof raw === "string") {
@@ -80,7 +80,9 @@ function parseStoredResponses(raw: unknown): Record<string, string> {
       rows = [];
     }
   }
-  return Object.fromEntries(rows.map((r) => [r.question_id, r.response ?? ""]));
+  return Object.fromEntries(
+    rows.map((r) => [r.question_id, r.response ?? r.response_value ?? ""]),
+  );
 }
 
 function buildResponsesPayload(responses: Record<string, string>) {
@@ -121,15 +123,15 @@ export default function ServicomSatisfactionSurveyPage({
   const [selectedProviderId, setSelectedProviderId] = React.useState("");
 
   const scoreSummary = React.useMemo(() => computeSatisfactionScore(f.responses), [f.responses]);
-  const activeStateId = defaultStateId ?? f.state_id;
+  const activeStateCode = defaultStateId ?? f.state_code;
 
   const load = React.useCallback(async () => {
     if (createOnly) return;
     setLoading(true);
     try {
       const res = await servicomApi.listSatisfactionSurveys({
-        state_id: geoLocked ? (defaultStateId ?? undefined) : (filterState !== "all" ? filterState : undefined),
-        zone_id: geoLocked ? (defaultZoneId ?? undefined) : (filterZone !== "all" ? filterZone : undefined),
+        state_code: geoLocked ? (defaultStateId ?? undefined) : (filterState !== "all" ? filterState : undefined),
+        zonal_code: geoLocked ? (defaultZoneId ?? undefined) : (filterZone !== "all" ? filterZone : undefined),
       });
       setSurveys(res.data);
     } catch (err: any) {
@@ -139,15 +141,15 @@ export default function ServicomSatisfactionSurveyPage({
 
   React.useEffect(() => { if (mode === "list" && !createOnly) load(); }, [load, mode, createOnly]);
   React.useEffect(() => {
-    stockApi.getZones().then((r) => setZones(r.data)).catch(() => {});
+    zonesApi.list().then((r) => setZones(r.data)).catch(() => {});
   }, []);
   React.useEffect(() => {
     if (geoLocked) return;
-    stockApi.getStates().then((r) => setStates(r.data)).catch(() => {});
+    statesApi.list().then((r) => setStates(r.data)).catch(() => {});
   }, [geoLocked]);
   React.useEffect(() => {
     if (geoLocked || filterZone === "all") { setFilterStates([]); return; }
-    stockApi.getStates(filterZone).then((r) => setFilterStates(r.data)).catch(() => {});
+    statesApi.list(filterZone).then((r) => setFilterStates(r.data)).catch(() => {});
   }, [filterZone, geoLocked]);
 
   const filteredSurveys = React.useMemo(() => {
@@ -173,7 +175,7 @@ export default function ServicomSatisfactionSurveyPage({
 
   const openView = async (row: any) => {
     try {
-      const res = await servicomApi.getSatisfactionSurvey(row.id);
+      const res = await servicomApi.getSatisfactionSurvey(row.reference_id);
       setSelected(res.data);
       setMode("view");
     } catch (err: any) {
@@ -204,7 +206,7 @@ export default function ServicomSatisfactionSurveyPage({
   };
 
   const validateDetails = () => {
-    if (!f.state_id || !f.provider_name || !f.survey_date) {
+    if (!f.state_code || !f.provider_name || !f.survey_date) {
       toast.error("State, provider name, and survey date are required.");
       return false;
     }
@@ -237,16 +239,22 @@ export default function ServicomSatisfactionSurveyPage({
     }
     setSaving(true);
     try {
-      const { teamNames, ...details } = f;
+      const selectedState = states.find((s) => s.code === f.state_code);
+      const zonalCode = f.zonal_code || selectedState?.zonal_code || "";
+      if (!zonalCode) {
+        toast.error("Could not resolve zone for the selected state.");
+        setSaving(false);
+        return;
+      }
       const payload = {
-        ...details,
-        reference_id: f.reference_id.trim() || undefined,
-        zone_id: f.zone_id ? Number(f.zone_id) : null,
-        state_id: f.state_id ? Number(f.state_id) : null,
-        team: parseTeamNames(teamNames),
+        provider_name: f.provider_name,
+        survey_date: f.survey_date,
+        zonal_code: zonalCode,
+        state_code: f.state_code,
+        team: parseTeamNames(f.teamNames),
         responses: buildResponsesPayload(f.responses),
       };
-      if (selected?.id) await servicomApi.updateSatisfactionSurvey(selected.id, payload);
+      if (selected?.reference_id) await servicomApi.updateSatisfactionSurvey(selected.reference_id, payload);
       else await servicomApi.createSatisfactionSurvey(payload);
       toast.success("Survey saved");
       closeSub();
@@ -287,24 +295,24 @@ export default function ServicomSatisfactionSurveyPage({
               <p className="text-sm">{row?.state?.description || "—"}</p>
             ) : geoLocked ? (
               <p className="text-sm font-medium">
-                {defaultStateName ?? pickGeoLabel(states, f.state_id, "State")}
+                {defaultStateName ?? pickGeoLabel(states, f.state_code, "State")}
               </p>
             ) : (
-              <Select value={f.state_id} onValueChange={(v) => {
-                const state = states.find((s) => String(s.id) === v);
+              <Select value={f.state_code} onValueChange={(v) => {
+                const state = states.find((s) => s.code === v);
                 setSelectedProviderId("");
                 setF((p) => ({
                   ...p,
-                  state_id: v,
-                  zone_id: state?.zonal_id ? String(state.zonal_id) : "",
+                  state_code: v,
+                  zonal_code: state?.zonal_code || "",
                   provider_name: "",
                 }));
               }}>
-                <SelectTrigger displayValue={pickGeoLabel(states, f.state_id, "Select state")}>
+                <SelectTrigger displayValue={pickGeoLabel(states, f.state_code, "Select state")}>
                   <SelectValue placeholder="Select state" />
                 </SelectTrigger>
                 <SelectContent>
-                  {states.map((s) => <SelectItem key={s.id} value={String(s.id)}>{s.description}</SelectItem>)}
+                  {states.map((s) => <SelectItem key={s.code} value={s.code}>{s.description}</SelectItem>)}
                 </SelectContent>
               </Select>
             )}
@@ -317,14 +325,14 @@ export default function ServicomSatisfactionSurveyPage({
             ) : (
               <AccreditedProviderSelect
                 type="hcp"
-                stateId={activeStateId || undefined}
+                stateId={activeStateCode || undefined}
                 value={selectedProviderId}
                 onChange={(p) => {
                   setSelectedProviderId(p?.id ?? "");
                   setF((prev) => ({ ...prev, provider_name: p?.name ?? "" }));
                 }}
-                placeholder={activeStateId ? "Select healthcare facility" : "Select a state first"}
-                disabled={!activeStateId}
+                placeholder={activeStateCode ? "Select healthcare facility" : "Select a state first"}
+                disabled={!activeStateCode}
               />
             )}
           </div>
@@ -639,7 +647,7 @@ export default function ServicomSatisfactionSurveyPage({
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">All Zones</SelectItem>
-                        {zones.map((z) => <SelectItem key={z.id} value={String(z.id)}>{z.description}</SelectItem>)}
+                        {zones.map((z) => <SelectItem key={z.zonal_code} value={z.zonal_code}>{z.description}</SelectItem>)}
                       </SelectContent>
                     </Select>
                     <Select value={filterState} onValueChange={setFilterState}>
@@ -648,7 +656,7 @@ export default function ServicomSatisfactionSurveyPage({
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">All States</SelectItem>
-                        {filterStates.map((s) => <SelectItem key={s.id} value={String(s.id)}>{s.description}</SelectItem>)}
+                        {filterStates.map((s) => <SelectItem key={s.code} value={s.code}>{s.description}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </>
@@ -685,7 +693,7 @@ export default function ServicomSatisfactionSurveyPage({
                     </TableHeader>
                     <TableBody>
                       {filteredSurveys.map((s, i) => (
-                        <motion.tr key={s.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.02 }}
+                        <motion.tr key={s.reference_id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.02 }}
                           className="border-b border-slate-100">
                           <TableCell className="text-xs text-slate-500">{s.survey_date}</TableCell>
                           <TableCell className="text-sm">{s.provider_name}</TableCell>

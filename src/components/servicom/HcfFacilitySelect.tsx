@@ -110,7 +110,7 @@ export default function HcfFacilitySelect({
         const hospitalCode = f.hospital_code || f.facility_code || f.accreditation_code || undefined;
         const name = String(f.name || "").trim();
         const o: CachedOption = {
-          value: String(f.id),
+          value: String(hospitalCode || f.id),
           name,
           label: includeCodeInLabel ? formatPartyLabel(name, hospitalCode) : (name || hospitalCode || ""),
           sub: [f.lga, f.state_name ?? f.state?.description].filter(Boolean).join(" · ") || undefined,

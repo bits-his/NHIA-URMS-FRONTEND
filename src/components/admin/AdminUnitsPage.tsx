@@ -16,12 +16,12 @@ export default function AdminUnitsPage() {
   const [loading, setLoading] = React.useState(true);
   const [modal, setModal] = React.useState<"create" | "edit" | null>(null);
   const [editing, setEditing] = React.useState<Unit | null>(null);
-  const [form, setForm] = React.useState({ name: "", description: "", department_id: "" });
+  const [form, setForm] = React.useState({ name: "", description: "", department_code: "" });
   const [saving, setSaving] = React.useState(false);
 
   const load = async () => {
     setLoading(true);
-    try { const r = await unitsApi.list(filterDept ? Number(filterDept) : undefined); setUnits(r.data); }
+    try { const r = await unitsApi.list(filterDept || undefined); setUnits(r.data); }
     catch (e: any) { toast.error(e.message); }
     finally { setLoading(false); }
   };
@@ -29,17 +29,21 @@ export default function AdminUnitsPage() {
   React.useEffect(() => { load(); }, [filterDept]);
   React.useEffect(() => { departmentsApi.list().then(r => setDepts(r.data)).catch(() => {}); }, []);
 
-  const openCreate = () => { setForm({ name: "", description: "", department_id: "" }); setEditing(null); setModal("create"); };
-  const openEdit = (u: Unit) => { setEditing(u); setForm({ name: u.name, description: u.description || "", department_id: String(u.department_id) }); setModal("edit"); };
+  const openCreate = () => { setForm({ name: "", description: "", department_code: "" }); setEditing(null); setModal("create"); };
+  const openEdit = (u: Unit) => {
+    setEditing(u);
+    setForm({ name: u.name, description: u.description || "", department_code: u.department_code });
+    setModal("edit");
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.department_id) { toast.error("Please select a department"); return; }
+    if (!form.department_code) { toast.error("Please select a department"); return; }
     setSaving(true);
     try {
-      const payload = { name: form.name, description: form.description, department_id: Number(form.department_id) };
-      if (modal === "create") { await unitsApi.create(payload as any); toast.success("Unit created"); }
-      else if (editing) { await unitsApi.update(editing.id, payload as any); toast.success("Unit updated"); }
+      const payload = { name: form.name, description: form.description, department_code: form.department_code };
+      if (modal === "create") { await unitsApi.create(payload); toast.success("Unit created"); }
+      else if (editing) { await unitsApi.update(editing.unit_code, payload); toast.success("Unit updated"); }
       setModal(null); load();
     } catch (e: any) { toast.error(e.message); }
     finally { setSaving(false); }
@@ -47,7 +51,7 @@ export default function AdminUnitsPage() {
 
   const handleDelete = async (u: Unit) => {
     if (!confirm(`Delete unit "${u.name}"?`)) return;
-    try { await unitsApi.delete(u.id); toast.success("Deleted"); load(); }
+    try { await unitsApi.delete(u.unit_code); toast.success("Deleted"); load(); }
     catch (e: any) { toast.error(e.message); }
   };
 
@@ -57,7 +61,7 @@ export default function AdminUnitsPage() {
         <select className="h-10 px-3 rounded-xl border border-[#d4e8dc] bg-white text-sm text-slate-700 focus:ring-2 focus:ring-[#25a872] outline-none"
           value={filterDept} onChange={e => setFilterDept(e.target.value)}>
           <option value="">All Departments</option>
-          {depts.map(d => <option key={d.id} value={d.id}>{d.department_code} – {d.name}</option>)}
+          {depts.map(d => <option key={d.department_code} value={d.department_code}>{d.department_code} – {d.name}</option>)}
         </select>
         <Button onClick={openCreate} className="bg-[#145c3f] hover:bg-[#0f3d2e] text-white rounded-xl h-10 gap-2 shadow-sm">
           <Plus className="w-4 h-4" /> Add Unit
@@ -82,7 +86,7 @@ export default function AdminUnitsPage() {
               ) : units.length === 0 ? (
                 <TableRow><TableCell colSpan={5} className="text-center py-10 text-slate-400">No units found</TableCell></TableRow>
               ) : units.map(u => (
-                <TableRow key={u.id} className="hover:bg-[#f0fdf7] transition-colors">
+                <TableRow key={u.unit_code} className="hover:bg-[#f0fdf7] transition-colors">
                   <TableCell><span className="font-mono text-xs font-bold text-[#145c3f]">{u.unit_code}</span></TableCell>
                   <TableCell className="font-medium text-slate-800">{u.name}</TableCell>
                   <TableCell className="text-slate-500 text-sm">{u.department?.name ?? "—"}</TableCell>
@@ -108,9 +112,9 @@ export default function AdminUnitsPage() {
           </div>
           <div>
             <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">Department <span className="text-rose-500">*</span></label>
-            <select className={inputCls} value={form.department_id} onChange={e => setForm(f => ({ ...f, department_id: e.target.value }))} required>
+            <select className={inputCls} value={form.department_code} onChange={e => setForm(f => ({ ...f, department_code: e.target.value }))} required>
               <option value="">— Select Department —</option>
-              {depts.map(d => <option key={d.id} value={d.id}>{d.department_code} – {d.name}</option>)}
+              {depts.map(d => <option key={d.department_code} value={d.department_code}>{d.department_code} – {d.name}</option>)}
             </select>
           </div>
           <div>

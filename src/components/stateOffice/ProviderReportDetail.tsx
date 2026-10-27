@@ -20,6 +20,7 @@ import { formMeta, type ProviderFormKey } from "./providerManagementTypes";
 
 interface Props {
   reportId: number;
+  formKey?: ProviderFormKey;
   onBack: () => void;
   onEdit?: () => void;
 }
@@ -208,7 +209,7 @@ function ActivityExpanded({ line }: { line: any }) {
   );
 }
 
-export default function ProviderReportDetail({ reportId, onBack, onEdit }: Props) {
+export default function ProviderReportDetail({ reportId, formKey = "accreditation", onBack, onEdit }: Props) {
   const { canCreate, canReview } = useStateOfficeAccess();
   const [report, setReport] = React.useState<any>(null);
   const [loading, setLoading] = React.useState(true);
@@ -217,10 +218,12 @@ export default function ProviderReportDetail({ reportId, onBack, onEdit }: Props
   const [reviewBusy, setReviewBusy] = React.useState(false);
   const [finalConfirmOpen, setFinalConfirmOpen] = React.useState(false);
 
+  const api = stateOfficeApi.providerByFormKey(formKey || "accreditation");
+
   const reload = React.useCallback(async () => {
     setLoading(true);
     try {
-      const res = await stateOfficeApi.accreditation.get(reportId);
+      const res = await api.get(reportId);
       const data = res.data;
       setReport(data);
       setOpenKey(null);
@@ -230,7 +233,7 @@ export default function ProviderReportDetail({ reportId, onBack, onEdit }: Props
     } finally {
       setLoading(false);
     }
-  }, [reportId]);
+  }, [api, reportId]);
 
   React.useEffect(() => { reload(); }, [reload]);
 
@@ -241,7 +244,7 @@ export default function ProviderReportDetail({ reportId, onBack, onEdit }: Props
     }
     setReviewBusy(true);
     try {
-      await stateOfficeApi.accreditation.updateStatus(reportId, status, reviewNote.trim() || undefined);
+      await api.updateStatus(reportId, status, reviewNote.trim() || undefined);
       toast.success(
         status === "endorsed"
           ? "Report endorsed — reporting officer can make the final submission"

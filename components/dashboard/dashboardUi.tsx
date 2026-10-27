@@ -85,12 +85,17 @@ export function DashKpi({
       type={Tag === "button" ? "button" : undefined}
       onClick={onClick}
       className={`h-full min-h-[108px] rounded-xl border border-[#d4e8dc] bg-white p-4 text-left flex flex-col ${
-        onClick ? "hover:shadow-md hover:-translate-y-0.5 transition-all" : ""
+        onClick ? "cursor-pointer hover:shadow-md hover:-translate-y-0.5 hover:border-[#1a7a52] transition-all group" : ""
       }`}
     >
       <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 leading-tight min-h-[28px]">{label}</p>
       <p className="mt-1 text-xl font-semibold tabular-nums text-slate-900 leading-tight break-words">{value}</p>
       <p className="mt-auto pt-2 text-xs text-slate-500 leading-snug min-h-[32px]">{detail || " "}</p>
+      {onClick ? (
+        <p className="text-[10px] font-semibold text-[#1a7a52] mt-1 flex items-center gap-0.5 opacity-80 group-hover:opacity-100">
+          View records <ChevronRight className="w-3 h-3" />
+        </p>
+      ) : null}
     </Tag>
   );
 }

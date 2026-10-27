@@ -6,12 +6,18 @@ export function isDeptStateCoordinator(role: string) {
   return role === "state-coordinator" || role.endsWith("-state-coordinator");
 }
 
+function normalizeRoleKey(role: string) {
+  return String(role || "").trim().toLowerCase().replace(/_/g, "-").replace(/\s+/g, "-");
+}
+
 export function isDeptZonalCoordinator(role: string) {
-  return role === "zonal-coordinator" || role.endsWith("-zonal-coordinator");
+  const r = normalizeRoleKey(role);
+  // "zc" is the short system key used for the generic "Zonal Coordinator" role
+  return r === "zonal-coordinator" || r === "zc" || r.endsWith("-zonal-coordinator");
 }
 
 export function isDeptComplaintOfficer(role: string) {
-  const r = String(role || "").toLowerCase().replace(/_/g, "-");
+  const r = normalizeRoleKey(role);
   return r === "complaint-officer"
     || r.endsWith("-complaint-officer")
     || r.includes("complaint-officer");

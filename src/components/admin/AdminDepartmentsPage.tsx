@@ -12,7 +12,7 @@ const inputCls = "w-full px-3 h-11 rounded-xl border border-[#d4e8dc] bg-[#f4f7f
 export default function AdminDepartmentsPage() {
   const [depts, setDepts] = React.useState<Department[]>([]);
   const [loading, setLoading] = React.useState(true);
-  const [expanded, setExpanded] = React.useState<Set<number>>(new Set());
+  const [expanded, setExpanded] = React.useState<Set<string>>(new Set());
   const [modal, setModal] = React.useState<"create" | "edit" | null>(null);
   const [editing, setEditing] = React.useState<Department | null>(null);
   const [form, setForm] = React.useState({ name: "", description: "" });
@@ -44,7 +44,7 @@ export default function AdminDepartmentsPage() {
     setSaving(true);
     try {
       if (modal === "create") { await departmentsApi.create(form as any); toast.success("Department created"); }
-      else if (editing) { await departmentsApi.update(editing.id, form); toast.success("Department updated"); }
+      else if (editing) { await departmentsApi.update(editing.department_code, form); toast.success("Department updated"); }
       setModal(null); load();
     } catch (e: any) { toast.error(e.message); }
     finally { setSaving(false); }
@@ -52,12 +52,12 @@ export default function AdminDepartmentsPage() {
 
   const handleDelete = async (d: Department) => {
     if (!confirm(`Delete department "${d.name}"?`)) return;
-    try { await departmentsApi.delete(d.id); toast.success("Deleted"); load(); }
+    try { await departmentsApi.delete(d.department_code); toast.success("Deleted"); load(); }
     catch (e: any) { toast.error(e.message); }
   };
 
-  const toggleExpand = (id: number) =>
-    setExpanded(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const toggleExpand = (code: string) =>
+    setExpanded(s => { const n = new Set(s); n.has(code) ? n.delete(code) : n.add(code); return n; });
 
   return (
     <div className="space-y-4">
@@ -86,12 +86,12 @@ export default function AdminDepartmentsPage() {
               ) : depts.length === 0 ? (
                 <TableRow><TableCell colSpan={6} className="text-center py-10 text-slate-400">No departments yet</TableCell></TableRow>
               ) : depts.map(d => (
-                <React.Fragment key={d.id}>
+                <React.Fragment key={d.department_code}>
                   <TableRow className="hover:bg-[#f0fdf7] transition-colors">
                     <TableCell>
                       {(d.units?.length ?? 0) > 0 && (
-                        <button onClick={() => toggleExpand(d.id)} className="p-0.5 text-slate-400 hover:text-slate-600">
-                          {expanded.has(d.id) ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                        <button onClick={() => toggleExpand(d.department_code)} className="p-0.5 text-slate-400 hover:text-slate-600">
+                          {expanded.has(d.department_code) ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                         </button>
                       )}
                     </TableCell>
@@ -106,8 +106,8 @@ export default function AdminDepartmentsPage() {
                       </div>
                     </TableCell>
                   </TableRow>
-                  {expanded.has(d.id) && d.units?.map(u => (
-                    <TableRow key={u.id} className="bg-blue-50/40">
+                  {expanded.has(d.department_code) && d.units?.map(u => (
+                    <TableRow key={u.unit_code} className="bg-blue-50/40">
                       <TableCell />
                       <TableCell className="pl-8 font-mono text-xs text-blue-700">{u.unit_code}</TableCell>
                       <TableCell className="text-xs text-slate-600" colSpan={4}>{u.name}</TableCell>
