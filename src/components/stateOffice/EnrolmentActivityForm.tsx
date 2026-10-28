@@ -155,6 +155,40 @@ function ReviewRow({ label, value }: { label: string; value?: React.ReactNode })
   );
 }
 
+function reviewValueForProgramField(f: EnrolmentProgramFieldDef, details: ProgramDetails): string {
+  if (f.type === "hmo" || f.type === "hcf") {
+    const name = String(details[f.key] ?? "").trim();
+    const code = String(details[`${f.key}_code`] ?? "").trim();
+    if (name && code) return `${name} (${code})`;
+    return name || code;
+  }
+  return String(details[f.key] ?? "").trim();
+}
+
+function ReviewSection({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  const items = React.Children.toArray(children).filter(Boolean);
+  if (!items.length) return null;
+  return (
+    <section className="space-y-3">
+      <div className="flex items-center gap-3">
+        <h3 className="shrink-0 text-[11px] font-bold uppercase tracking-[0.08em] text-[#145c3f]">
+          {title}
+        </h3>
+        <div className="h-px flex-1 bg-[#d4e8dc]" />
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-3">
+        {items}
+      </div>
+    </section>
+  );
+}
+
 function renderProgramField(
   f: EnrolmentProgramFieldDef,
   fields: EnrolmentProgramFieldDef[],
@@ -209,11 +243,13 @@ function renderProgramField(
   }
 
   if (f.type === "hmo") {
+    const selectedLabel = [values[f.key], values[`${f.key}_code`]].filter(Boolean).join(" - ");
     return (
       <Field key={f.key} label={f.label}>
         <AccreditedProviderSelect
           type="hmo"
           value={values[`${f.key}_id`] ?? ""}
+          displayName={selectedLabel || values[f.key] || undefined}
           placeholder="Select accredited HMO"
           onChange={(p) => onChangeMany({
             [f.key]: p?.name ?? "",
@@ -221,20 +257,19 @@ function renderProgramField(
             [`${f.key}_code`]: p?.code ?? "",
           })}
         />
-        {values[f.key] && !values[`${f.key}_id`] ? (
-          <p className="text-xs text-slate-500">{values[f.key]}</p>
-        ) : null}
       </Field>
     );
   }
 
   if (f.type === "hcf") {
+    const selectedLabel = [values[f.key], values[`${f.key}_code`]].filter(Boolean).join(" - ");
     return (
       <Field key={f.key} label={f.label}>
         <AccreditedProviderSelect
           type="hcp"
           stateId={reportStateId}
           value={values[`${f.key}_id`] ?? ""}
+          displayName={selectedLabel || values[f.key] || undefined}
           placeholder={reportStateId ? "Select accredited HCF" : "Select report state first"}
           onChange={(p) => onChangeMany({
             [f.key]: p?.name ?? "",
@@ -242,9 +277,6 @@ function renderProgramField(
             [`${f.key}_code`]: p?.code ?? "",
           })}
         />
-        {values[f.key] && !values[`${f.key}_id`] ? (
-          <p className="text-xs text-slate-500">{values[f.key]}</p>
-        ) : null}
       </Field>
     );
   }
@@ -744,7 +776,7 @@ export default function EnrolmentActivityForm({
 
         return (
         <div className="space-y-4 pb-2">
-          <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden">
+          <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-visible">
             <CardContent className={cn("p-4 md:p-5", entry.category && "space-y-5")}>
               <ReportBasicInfo
                 {...header}
@@ -1205,23 +1237,12 @@ export default function EnrolmentActivityForm({
                 <div className="space-y-5">
                   <div className="rounded-2xl border border-[#d4e8dc] bg-[#f8fbf9] p-4 space-y-3">
                     <p className="text-[11px] font-bold uppercase tracking-wide text-[#145c3f]">Ready to submit</p>
-                    <ul className="grid gap-1.5 text-sm text-slate-700 sm:grid-cols-2">
-                      {[
-                        "State and zone confirmed above",
-                        "Activity selected",
-                        isEnrolment ? "Programme and mode combination set" : "Activity details completed",
-                        "Required fields completed",
-                        "Funding / budget rules applied where needed",
-                      ].map((item) => (
-                        <li key={item} className="flex items-start gap-2">
-                          <Check className="w-4 h-4 text-[#145c3f] shrink-0 mt-0.5" />
-                          <span>{item}</span>
-                        </li>
-                      ))}
-                    </ul>
+                    <p className="text-sm text-slate-600">
+                      Confirm every section below before saving or submitting this activity.
+                    </p>
                   </div>
 
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-4">
+                  <ReviewSection title="Activity summary">
                     <ReviewRow label="Activity" value={activityLabel} />
                     <ReviewRow label="Date" value={entry.activity_date || entry.validation_date} />
                     <ReviewRow label="Channel" value={entry.enrolment_channel} />
@@ -1231,15 +1252,67 @@ export default function EnrolmentActivityForm({
                     <ReviewRow label="Beneficiary category" value={entry.beneficiary_category} />
                     <ReviewRow label="Beneficiary status" value={entry.beneficiary_status} />
                     <ReviewRow label="Funding" value={entry.funding_option} />
+                    <ReviewRow
+                      label="Activity budget (₦)"
+                      value={entry.activity_budget !== "" ? entry.activity_budget : ""}
+                    />
+                    <ReviewRow
+                      label="Approved budget (₦)"
+                      value={entry.approved_amount !== "" ? entry.approved_amount : ""}
+                    />
                     <ReviewRow label="Activity status" value={entry.activity_status || entry.validation_status || entry.id_card_status} />
+                    <ReviewRow label="Status reason" value={entry.status_reason} />
                     <ReviewRow label="Number enrolled" value={entry.enrolment_count} />
                     <ReviewRow label="Records validated" value={entry.enrollees_validated} />
-                    <ReviewRow label="Enrollee" value={entry.enrollee_name} />
-                    <ReviewRow label="NIN" value={entry.nin_number} />
-                    <ReviewRow label="NHIA number" value={entry.nhia_number} />
                     <ReviewRow label="Evidence" value={entry.supporting_evidence} />
                     <ReviewRow label="Remarks" value={entry.remarks} />
-                  </div>
+                  </ReviewSection>
+
+                  {(isNin || isIdCard || isValidation) && (
+                    <ReviewSection title={isNin ? "NIN validation" : isIdCard ? "ID card" : "Validation details"}>
+                      <ReviewRow label="Enrollee" value={entry.enrollee_name} />
+                      <ReviewRow label="Organization" value={entry.organization_name} />
+                      <ReviewRow label="NIN" value={entry.nin_number} />
+                      <ReviewRow label="Validation status" value={entry.validation_status} />
+                      <ReviewRow label="Not validated reason" value={entry.not_validated_reason} />
+                      <ReviewRow label="Request category" value={entry.request_category} />
+                      <ReviewRow label="NHIA number" value={entry.nhia_number} />
+                      <ReviewRow label="Payment reference" value={entry.payment_reference} />
+                      <ReviewRow label="ID card status" value={entry.id_card_status} />
+                      <ReviewRow label="Issue date" value={entry.issue_date} />
+                    </ReviewSection>
+                  )}
+
+                  {isEnrolment && programFields.length > 0 && (() => {
+                    const locationKeys = new Set(["state_of_origin", "lga_of_origin", "state_of_residence", "lga_of_residence"]);
+                    const providerKeys = new Set(["hmo", "hcf", "alternative_provider"]);
+                    const identityKeys = new Set([
+                      "surname", "first_name", "middle_name", "nin", "organization_mda", "entity_type",
+                      "blood_group", "marital_status", "phone_number", "program_type",
+                    ]);
+                    const groups = [
+                      { title: "Beneficiary identity", items: programFields.filter((f) => identityKeys.has(f.key)) },
+                      { title: "Location", items: programFields.filter((f) => locationKeys.has(f.key)) },
+                      { title: "Providers", items: programFields.filter((f) => providerKeys.has(f.key)) },
+                      {
+                        title: "Program details",
+                        items: programFields.filter(
+                          (f) => !identityKeys.has(f.key) && !locationKeys.has(f.key) && !providerKeys.has(f.key),
+                        ),
+                      },
+                    ];
+                    return groups.map((g) => (
+                      <ReviewSection key={g.title} title={g.title}>
+                        {g.items.map((f) => (
+                          <ReviewRow
+                            key={f.key}
+                            label={f.label}
+                            value={reviewValueForProgramField(f, entry.program_details)}
+                          />
+                        ))}
+                      </ReviewSection>
+                    ));
+                  })()}
                 </div>
               )}
 

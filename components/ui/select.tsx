@@ -137,16 +137,32 @@ function SelectContent({ children, className }: SelectContentProps) {
   const { open, setOpen, query, setQuery, triggerRef } = useCtx();
   const searchRef  = React.useRef<HTMLInputElement>(null);
   const dropRef    = React.useRef<HTMLDivElement>(null);
-  const [pos, setPos] = React.useState({ top: 0, left: 0, width: 0 });
+  const [pos, setPos] = React.useState({
+    top: 0,
+    bottom: 0,
+    left: 0,
+    width: 0,
+    maxHeight: 260,
+    openUp: false,
+  });
 
-  // Position dropdown below trigger
+  // Position dropdown; flip upward when there isn't enough space below
   React.useLayoutEffect(() => {
     if (!open || !triggerRef.current) return;
     const r = triggerRef.current.getBoundingClientRect();
+    const gap = 6;
+    const estimatedMenuHeight = Math.min(300, window.innerHeight * 0.45);
+    const spaceBelow = window.innerHeight - r.bottom - gap;
+    const spaceAbove = r.top - gap;
+    const openUp = spaceBelow < estimatedMenuHeight && spaceAbove > spaceBelow;
+    const maxHeight = Math.max(160, Math.floor(openUp ? spaceAbove - 8 : spaceBelow - 8));
     setPos({
-      top:   r.bottom + window.scrollY + 6,
-      left:  r.left   + window.scrollX,
-      width: r.width,
+      top: openUp ? 0 : r.bottom + gap,
+      left: Math.min(Math.max(8, r.left), window.innerWidth - Math.max(r.width, 220) - 8),
+      width: Math.max(r.width, 220),
+      maxHeight,
+      openUp,
+      bottom: openUp ? window.innerHeight - r.top + gap : 0,
     });
   }, [open, triggerRef]);
 
@@ -220,21 +236,23 @@ function SelectContent({ children, className }: SelectContentProps) {
     <div
       ref={dropRef}
       style={{
-        position: "absolute",
-        top:      pos.top,
-        left:     pos.left,
-        width:    Math.max(pos.width, 220),
-        zIndex:   9999,
+        position: "fixed",
+        top: pos.openUp ? undefined : pos.top,
+        bottom: pos.openUp ? pos.bottom : undefined,
+        left: pos.left,
+        width: Math.max(pos.width, 220),
+        maxHeight: pos.maxHeight,
+        zIndex: 9999,
       }}
       className={cn(
-        "bg-white rounded-2xl border border-[#d4e8dc]",
+        "flex flex-col bg-white rounded-2xl border border-[#d4e8dc]",
         "shadow-[0_8px_40px_rgba(20,92,63,0.18),0_2px_8px_rgba(20,92,63,0.1)]",
         "overflow-hidden",
         className,
       )}
     >
       {/* Search */}
-      <div className="p-2 border-b border-[#e8f5ee]">
+      <div className="shrink-0 p-2 border-b border-[#e8f5ee]">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#5a7a6a]" />
           <input
@@ -249,7 +267,7 @@ function SelectContent({ children, className }: SelectContentProps) {
       </div>
 
       {/* Options */}
-      <div className="overflow-y-auto p-1.5" style={{ maxHeight: 260 }}>
+      <div className="overflow-y-auto flex-1 min-h-0 p-1.5">
         {filtered.length === 0 ? (
           <div className="px-3 py-5 text-center text-sm text-slate-400">No results</div>
         ) : (

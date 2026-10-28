@@ -7,6 +7,8 @@ interface Props {
   type: "hmo" | "hcp";
   stateId?: string;
   value?: string;
+  /** Shown when the selected id is not yet in the loaded options list */
+  displayName?: string;
   onChange: (provider: {
     id: string;
     name: string;
@@ -33,7 +35,7 @@ function formatProviderLabel(name: string, code?: string | null) {
 }
 
 export default function AccreditedProviderSelect({
-  type, stateId, value, onChange, disabled, placeholder,
+  type, stateId, value, displayName, onChange, disabled, placeholder,
 }: Props) {
   const [options, setOptions] = React.useState<SearchSelectOption[]>([]);
   const [loading, setLoading] = React.useState(false);
@@ -133,6 +135,14 @@ export default function AccreditedProviderSelect({
         value={value}
         onChange={handleChange}
         disabled={blocked || loading}
+        displayLabel={
+          value
+            ? (cacheRef.current.get(value)?.label
+              || options.find((o) => o.value === value)?.label
+              || displayName
+              || undefined)
+            : (displayName || undefined)
+        }
         placeholder={
           needsState && !stateId
             ? "Select state first"

@@ -48,7 +48,7 @@ interface Props {
   showGeoIds?: boolean;
   /** Zone · State · Year · Month · Quarter header (ICT register) */
   showQuarter?: boolean;
-  afterPersist?: (saved: { id: number }) => Promise<void>;
+  afterPersist?: (saved: { id: number | string }) => Promise<void>;
   /** Fired after every successful create/update (e.g. draft resume for create-only officers). */
   onPersisted?: (saved: { id: number; status: string; reference_id?: string }) => void;
   /** Keep zone, state, and period when the report type changes before the first save. */

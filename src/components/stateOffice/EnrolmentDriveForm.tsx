@@ -1,4 +1,5 @@
 import * as React from "react";
+import { createPortal } from "react-dom";
 import { ChevronDown, Loader2, Pencil, Plus, Send, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { cn } from "@/lib/utils";
 import StateOfficeFormShell from "./StateOfficeFormShell";
 import { stateOfficeApi } from "@/lib/api";
 import {
@@ -87,106 +89,131 @@ function MultiSelectField({
   value,
   onChange,
   placeholder = "Select",
+  className,
 }: {
   label: string;
   options: string[];
   value: string[];
   onChange: (v: string[]) => void;
   placeholder?: string;
+  className?: string;
 }) {
   const [open, setOpen] = React.useState(false);
   const [query, setQuery] = React.useState("");
+  const [pos, setPos] = React.useState<{ top: number; left: number; width: number; maxHeight: number } | null>(null);
   const rootRef = React.useRef<HTMLDivElement>(null);
+  const btnRef = React.useRef<HTMLButtonElement>(null);
+  const menuRef = React.useRef<HTMLDivElement>(null);
+
+  const updatePos = React.useCallback(() => {
+    const el = btnRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - r.bottom - 12;
+    const spaceAbove = r.top - 12;
+    const openUp = spaceBelow < 220 && spaceAbove > spaceBelow;
+    const maxHeight = Math.min(280, Math.max(160, openUp ? spaceAbove : spaceBelow));
+    setPos({
+      top: openUp ? Math.max(8, r.top - maxHeight - 4) : r.bottom + 4,
+      left: r.left,
+      width: r.width,
+      maxHeight,
+    });
+  }, []);
 
   React.useEffect(() => {
     if (!open) return;
+    updatePos();
     const onDoc = (e: MouseEvent) => {
-      if (!rootRef.current?.contains(e.target as Node)) {
-        setOpen(false);
-        setQuery("");
-      }
+      const t = e.target as Node;
+      if (rootRef.current?.contains(t) || menuRef.current?.contains(t)) return;
+      setOpen(false);
+      setQuery("");
     };
+    const onReposition = () => updatePos();
     document.addEventListener("mousedown", onDoc);
-    return () => document.removeEventListener("mousedown", onDoc);
-  }, [open]);
+    window.addEventListener("resize", onReposition);
+    window.addEventListener("scroll", onReposition, true);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      window.removeEventListener("resize", onReposition);
+      window.removeEventListener("scroll", onReposition, true);
+    };
+  }, [open, updatePos]);
 
-  const filtered = React.useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return options;
-    return options.filter((o) => o.toLowerCase().includes(q));
-  }, [options, query]);
-
-  const toggle = (o: string) => {
-    onChange(value.includes(o) ? value.filter((x) => x !== o) : [...value, o]);
-  };
+  const filtered = options.filter(
+    (o) => !query.trim() || o.toLowerCase().includes(query.trim().toLowerCase()),
+  );
 
   return (
-    <div className="space-y-1 md:col-span-2" ref={rootRef}>
-      <Label>{label}</Label>
-      <div className="relative">
-        <button
-          type="button"
-          onClick={() => setOpen((o) => !o)}
-          className="w-full flex items-center justify-between gap-2 h-11 px-3.5 rounded-xl text-sm text-left bg-[#f4f7f5] border-2 border-[#1a7a52] hover:border-[#0f3d2e] hover:bg-white outline-none"
-        >
-          <span className={`flex-1 truncate ${value.length ? "text-slate-800" : "text-slate-400"}`}>
-            {value.length ? `${value.length} selected` : placeholder}
+    <div className={cn("space-y-1.5 md:col-span-2", className)} ref={rootRef}>
+      <Label className="text-[11px] font-semibold text-slate-600">{label}</Label>
+      <button
+        ref={btnRef}
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="w-full flex items-center justify-between gap-2 min-h-10 px-3 py-1.5 rounded-xl text-sm text-left bg-[#f4f7f5] border-2 border-[#1a7a52] hover:border-[#0f3d2e] hover:bg-white outline-none shadow-xs"
+      >
+        {value.length ? (
+          <span className="flex-1 flex flex-wrap gap-1 min-w-0">
+            {value.map((v) => (
+              <span
+                key={v}
+                className="inline-flex items-center max-w-full truncate rounded-md bg-[#e8f5ee] px-1.5 py-0.5 text-[11px] font-medium text-[#0f3d2e]"
+                title={v}
+              >
+                {v}
+              </span>
+            ))}
           </span>
-          <ChevronDown className={`w-4 h-4 text-[#1a7a52] shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
-        </button>
-        {open && (
-          <div className="absolute z-50 left-0 right-0 mt-1.5 rounded-xl border-2 border-[#1a7a52] bg-white shadow-lg overflow-hidden">
-            <div className="p-2 border-b border-[#e8f5ee]">
-              <Input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search…"
-                className="h-8 text-xs"
-                autoFocus
-              />
-            </div>
-            <div className="max-h-56 overflow-y-auto p-1">
-              {filtered.length === 0 ? (
-                <p className="px-3 py-4 text-center text-xs text-slate-400">No matches</p>
-              ) : (
-                filtered.map((o) => {
-                  const on = value.includes(o);
-                  return (
-                    <button
-                      key={o}
-                      type="button"
-                      onClick={() => toggle(o)}
-                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left text-sm ${
-                        on ? "bg-[#e8f5ee] text-[#145c3f] font-medium" : "text-slate-700 hover:bg-[#f0fdf7]"
-                      }`}
-                    >
-                      <span className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 text-[10px] ${
-                        on ? "border-[#145c3f] bg-[#145c3f] text-white" : "border-slate-300"
-                      }`}>
-                        {on ? "✓" : ""}
-                      </span>
-                      {o}
-                    </button>
-                  );
-                })
-              )}
-            </div>
-          </div>
+        ) : (
+          <span className="flex-1 truncate text-slate-400">{placeholder}</span>
         )}
-      </div>
-      {value.length > 0 && (
-        <div className="flex flex-wrap gap-1 pt-1">
-          {value.map((item) => (
-            <button
-              key={item}
-              type="button"
-              onClick={() => onChange(value.filter((x) => x !== item))}
-              className="rounded-full border border-[#016630] bg-[#016630] text-white px-2.5 py-0.5 text-xs"
-            >
-              {item} ×
-            </button>
-          ))}
-        </div>
+        <ChevronDown className={`w-4 h-4 text-slate-400 shrink-0 ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && pos && createPortal(
+        <div
+          ref={menuRef}
+          style={{ position: "fixed", top: pos.top, left: pos.left, width: pos.width, zIndex: 9999 }}
+          className="rounded-xl border-2 border-[#1a7a52] bg-white shadow-xl overflow-hidden"
+        >
+          <div className="p-2 border-b border-[#d4e8dc]">
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search…"
+              className="h-8 text-xs"
+              autoFocus
+            />
+          </div>
+          <div className="overflow-y-auto p-1" style={{ maxHeight: pos.maxHeight - 48 }}>
+            {filtered.length === 0 ? (
+              <p className="px-3 py-2 text-xs text-slate-400">No matches</p>
+            ) : filtered.map((o) => {
+              const checked = value.includes(o);
+              return (
+                <button
+                  key={o}
+                  type="button"
+                  className={cn(
+                    "w-full text-left px-3 py-2 rounded-md text-sm flex items-center gap-2",
+                    checked ? "bg-[#eef6f1] text-[#0f3d2e]" : "hover:bg-slate-50",
+                  )}
+                  onClick={() => onChange(checked ? value.filter((x) => x !== o) : [...value, o])}
+                >
+                  <span className={cn(
+                    "h-4 w-4 rounded border flex items-center justify-center text-[10px] shrink-0",
+                    checked ? "bg-[#145c3f] border-[#145c3f] text-white" : "border-slate-300",
+                  )}>
+                    {checked ? "✓" : ""}
+                  </span>
+                  {o}
+                </button>
+              );
+            })}
+          </div>
+        </div>,
+        document.body,
       )}
     </div>
   );
@@ -293,21 +320,21 @@ export default function EnrolmentDriveForm({ reportType, reportId, onBack, onCan
     setEditingKey(key);
   };
 
-  const afterPersist = async ({ id }: { id: number }) => {
+  const afterPersist = async ({ id }: { id: number | string }) => {
     const pending = linesRef.current.filter((l) => l.supportingFiles.length > 0);
     if (!pending.length) return;
     const res = await stateOfficeApi[activeReportType].get(id);
     const saved: any[] = res.data?.lines ?? [];
-    const used = new Set<number>();
+    const used = new Set<string>();
     for (const line of pending) {
       const match = saved.find((s) =>
-        !used.has(s.id) &&
+        !used.has(String(s.id)) &&
         s.activity_category === line.activity_category &&
         (s.activity_date ?? "").slice(0, 10) === line.activity_date &&
         (s.specific_activity ?? "") === line.specific_activity
       );
       if (!match) continue;
-      used.add(match.id);
+      used.add(String(match.id));
       await stateOfficeApi[activeReportType].uploadLineFiles(id, match.id, line.supportingFiles);
     }
     const cleared = linesRef.current.map((l) => ({ ...l, supportingFiles: [] as File[] }));
@@ -366,7 +393,7 @@ export default function EnrolmentDriveForm({ reportType, reportId, onBack, onCan
                     onValueChange={(v) => changeDriveType(v as EnrolmentDriveKey)}
                     disabled={typeLocked}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger displayValue={config.title}>
                       <SelectValue placeholder="Select drive type" />
                     </SelectTrigger>
                     <SelectContent>

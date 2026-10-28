@@ -61,12 +61,21 @@ export function SearchSelect({
   const updateMenuPosition = React.useCallback(() => {
     if (!containerRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
-    const maxWidth = Math.min(Math.max(rect.width, 360), window.innerWidth - 16);
+    const maxWidth = Math.min(Math.max(rect.width, 420), window.innerWidth - 16);
+    const gap = 6;
+    const estimatedMenuHeight = Math.min(320, window.innerHeight * 0.45);
+    const spaceBelow = window.innerHeight - rect.bottom - gap;
+    const spaceAbove = rect.top - gap;
+    const openUp = spaceBelow < estimatedMenuHeight && spaceAbove > spaceBelow;
+    const maxHeight = Math.max(160, Math.floor(openUp ? spaceAbove - 8 : spaceBelow - 8));
+
     setMenuStyle({
       position: "fixed",
-      top: rect.bottom + 6,
-      left: Math.min(rect.left, window.innerWidth - maxWidth - 8),
+      top: openUp ? undefined : rect.bottom + gap,
+      bottom: openUp ? window.innerHeight - rect.top + gap : undefined,
+      left: Math.min(Math.max(8, rect.left), window.innerWidth - maxWidth - 8),
       width: maxWidth,
+      maxHeight,
       zIndex: 9999,
     });
   }, []);
@@ -114,12 +123,12 @@ export function SearchSelect({
       ref={menuRef}
       style={menuStyle}
       className={cn(
-        "bg-white rounded-2xl border border-[#d4e8dc]",
+        "flex flex-col bg-white rounded-2xl border border-[#d4e8dc]",
         "shadow-[0_12px_40px_rgba(20,92,63,0.18),0_4px_12px_rgba(20,92,63,0.1)]",
         "overflow-hidden",
       )}
     >
-      <div className="p-2 border-b border-[#e8f5ee]">
+      <div className="shrink-0 p-2 border-b border-[#e8f5ee]">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#5a7a6a]" />
           <input
@@ -141,7 +150,7 @@ export function SearchSelect({
         </div>
       </div>
 
-      <div className="overflow-y-auto max-h-72 p-1.5">
+      <div className="overflow-y-auto flex-1 min-h-0 p-1.5">
         {filtered.length === 0 ? (
           <div className="px-3 py-6 text-center text-sm text-slate-400">
             No results for &ldquo;{query}&rdquo;
