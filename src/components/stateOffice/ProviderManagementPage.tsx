@@ -1,6 +1,7 @@
 import * as React from "react";
 import {
-  ArrowLeft, CheckCircle2, Clock, Eye, FileText, Loader2, Plus, RefreshCw, XCircle,
+  ArrowLeft, Award, CheckCircle2, ClipboardCheck, Clock, Eye, FileText,
+  Loader2, Plus, RefreshCw, Stethoscope, type LucideIcon, XCircle,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -17,9 +18,11 @@ import { ALL_STATES, useMonthlyStateFilter } from "../monthly/useMonthlyStateFil
 import {
   PROVIDER_MANAGEMENT_NAV_TITLE,
   PROVIDER_MANAGEMENT_PATH,
-  PROVIDER_PILLAR_CHILDREN,
 } from "./enrolmentPillarTypes";
-import { formMeta, type ProviderFormKey } from "./providerManagementTypes";
+import {
+  PROVIDER_FORM_TYPES,
+  type ProviderFormKey,
+} from "./providerManagementTypes";
 import { useStateOfficeAccess } from "@/src/access/createReviewAccess";
 import ProviderManagementForm from "./ProviderManagementForm";
 import ProviderReportDetail from "./ProviderReportDetail";
@@ -39,29 +42,38 @@ const STATUS_CONFIG: Record<string, { label: string; cls: string; icon: React.Re
   approved:         { label: "Approved",        cls: "bg-emerald-100 text-emerald-700 border-emerald-200", icon: <CheckCircle2 className="w-3.5 h-3.5" /> },
 };
 
-const MODULE_LABELS = Object.fromEntries(
-  PROVIDER_PILLAR_CHILDREN.map((c) => [c.key, c.navLabel]),
-);
+const TAB_ICONS: Record<ProviderFormKey, LucideIcon> = {
+  accreditation: Award,
+  reaccreditation: RefreshCw,
+  "qa-inspections": ClipboardCheck,
+  "medical-audits": Stethoscope,
+};
 
 type Mode = "list" | "create" | "edit" | "view";
 
+function reportModule(r: { activity_module?: string; form_type?: string }): ProviderFormKey | string {
+  return String(r.activity_module || r.form_type || "");
+}
+
 /**
- * Provider Management hub — same list/detail/review flow as Stakeholder Management.
- * Reporting officers see their own reports; coordinators endorse / return.
+ * Provider Management hub — tabbed by form type (accreditation, reaccreditation, QA, audits).
  */
 export default function ProviderManagementPage({ onBack, defaultZoneId, defaultStateId }: Props) {
   const { canCreate, canReview } = useStateOfficeAccess();
   const [mode, setMode] = React.useState<Mode>("list");
-  const [selectedId, setSelectedId] = React.useState<number | null>(null);
+  const [selectedId, setSelectedId] = React.useState<number | string | null>(null);
   const [selectedModule, setSelectedModule] = React.useState<ProviderFormKey>("accreditation");
+  const [activeTab, setActiveTab] = React.useState<ProviderFormKey>("accreditation");
+  const [formKey, setFormKey] = React.useState(0);
   const [reports, setReports] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [filterYear, setFilterYear] = React.useState("all");
   const [filterMonth, setFilterMonth] = React.useState("all");
   const [filterStatus, setFilterStatus] = React.useState("all");
-  const [filterModule, setFilterModule] = React.useState("all");
   const yearOptions = React.useMemo(() => buildReportingYearOptions(), []);
   const { showStateFilter, filterState, setFilterState, states, apiStateId } = useMonthlyStateFilter(defaultStateId);
+
+  const activeMeta = PROVIDER_FORM_TYPES.find((f) => f.key === activeTab) ?? PROVIDER_FORM_TYPES[0];
 
   const load = React.useCallback(async () => {
     setLoading(true);
@@ -73,12 +85,10 @@ export default function ProviderManagementPage({ onBack, defaultZoneId, defaultS
         year: filterYear !== "all" ? filterYear : undefined,
         month: filterMonth !== "all" ? filterMonth : undefined,
       };
-      const res = filterModule === "all"
-        ? await stateOfficeApi.listAllProviderReports(filters)
-        : await stateOfficeApi.providerByFormKey(filterModule).list(filters);
+      const res = await stateOfficeApi.listAllProviderReports(filters);
       const rows = (res.data ?? []).map((r: any) => ({
         ...r,
-        activity_module: r.activity_module || filterModule,
+        activity_module: r.activity_module || r.form_type,
       }));
       setReports(rows);
     } catch (err: any) {
@@ -87,28 +97,54 @@ export default function ProviderManagementPage({ onBack, defaultZoneId, defaultS
     } finally {
       setLoading(false);
     }
-  }, [filterStatus, defaultZoneId, apiStateId, filterYear, filterMonth, filterModule]);
+  }, [filterStatus, defaultZoneId, apiStateId, filterYear, filterMonth]);
 
-  React.useEffect(() => { load(); }, [load]);
+  React.useEffect(() => {
+    if (mode === "list") load();
+  }, [load, mode]);
+
+  const tabCounts = React.useMemo(() => {
+    const map = Object.fromEntries(
+      PROVIDER_FORM_TYPES.map((f) => [f.key, 0])
+    ) as Record<ProviderFormKey, number>;
+    for (const r of reports) {
+      const mod = reportModule(r);
+      if (mod in map) map[mod as ProviderFormKey] += 1;
+    }
+    return map;
+  }, [reports]);
+
+  const filtered = React.useMemo(
+    () => reports.filter((r) => reportModule(r) === activeTab),
+    [reports, activeTab]
+  );
 
   const counts = React.useMemo(() => ({
-    total: reports.length,
-    draft: reports.filter((r) => r.status === "draft" || r.status === "returned").length,
-    awaiting_review: reports.filter((r) => r.status === "awaiting_review").length,
-    endorsed: reports.filter((r) => r.status === "endorsed").length,
-    submitted: reports.filter((r) => r.status === "submitted" || r.status === "approved").length,
-  }), [reports]);
+    total: filtered.length,
+    draft: filtered.filter((r) => r.status === "draft" || r.status === "returned").length,
+    awaiting_review: filtered.filter((r) => r.status === "awaiting_review").length,
+    endorsed: filtered.filter((r) => r.status === "endorsed").length,
+    submitted: filtered.filter((r) => r.status === "submitted" || r.status === "approved").length,
+  }), [filtered]);
 
   const backToList = () => {
     setMode("list");
     setSelectedId(null);
-    setSelectedModule("accreditation");
+    setFormKey((k) => k + 1);
     load();
+  };
+
+  const openCreate = () => {
+    setSelectedId(null);
+    setSelectedModule(activeTab);
+    setFormKey((k) => k + 1);
+    setMode("create");
   };
 
   if (mode === "create" || mode === "edit") {
     return (
       <ProviderManagementForm
+        key={formKey}
         reportId={mode === "edit" ? selectedId : null}
         initialFormKey={selectedModule}
         onBack={backToList}
@@ -130,6 +166,9 @@ export default function ProviderManagementPage({ onBack, defaultZoneId, defaultS
       />
     );
   }
+
+  const hasFilters = filterYear !== "all" || filterMonth !== "all" || filterStatus !== "all"
+    || (showStateFilter && filterState !== ALL_STATES);
 
   return (
     <div className="flex flex-col h-full bg-[#f4f7f5]">
@@ -156,11 +195,54 @@ export default function ProviderManagementPage({ onBack, defaultZoneId, defaultS
           {canCreate && (
             <Button
               className="bg-orange-action hover:bg-orange-600 gap-2 shadow-md shadow-orange-500/15"
-              onClick={() => { setSelectedId(null); setMode("create"); }}
+              onClick={openCreate}
             >
-              <Plus className="w-4 h-4" /> New Report
+              <Plus className="w-4 h-4" /> {activeMeta.newLabel}
             </Button>
           )}
+        </div>
+      </div>
+
+      <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 sticky top-[57px] z-20">
+        <div
+          className="flex gap-0 overflow-x-auto -mb-px"
+          role="tablist"
+          aria-label="Provider activities"
+        >
+          {PROVIDER_FORM_TYPES.map((tab) => {
+            const active = activeTab === tab.key;
+            const Icon = TAB_ICONS[tab.key];
+            const count = tabCounts[tab.key] ?? 0;
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => setActiveTab(tab.key)}
+                className={`group relative shrink-0 inline-flex items-center gap-2 px-4 py-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors outline-none focus-visible:bg-[#f4f7f5] ${
+                  active
+                    ? "border-[#145c3f] text-[#145c3f]"
+                    : "border-transparent text-slate-500 hover:text-[#0f3d2e] hover:border-[#c5ddd0]"
+                }`}
+              >
+                <Icon
+                  className={`h-4 w-4 shrink-0 ${active ? "text-[#145c3f]" : "text-slate-400 group-hover:text-[#145c3f]"}`}
+                  strokeWidth={2}
+                />
+                <span>{tab.tabLabel}</span>
+                <span
+                  className={`inline-flex min-w-[1.25rem] h-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold tabular-nums ${
+                    active
+                      ? "bg-[#e8f6ee] text-[#145c3f]"
+                      : "bg-slate-100 text-slate-500 group-hover:bg-[#e8f6ee] group-hover:text-[#145c3f]"
+                  }`}
+                >
+                  {count}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -175,7 +257,7 @@ export default function ProviderManagementPage({ onBack, defaultZoneId, defaultS
               { label: "Submitted", value: counts.submitted, tone: "text-emerald-700 bg-emerald-50/80 border-emerald-100" },
             ].map((c) => (
               <div key={c.label} className={`rounded-xl border px-4 py-3 ${c.tone}`}>
-                <p className="text-2xl font-bold tabular-nums">{c.value}</p>
+                <p className="text-2xl font-bold tabular-nums">{loading ? "—" : c.value}</p>
                 <p className="text-[11px] font-semibold text-slate-500 mt-0.5">{c.label}</p>
               </div>
             ))}
@@ -183,8 +265,8 @@ export default function ProviderManagementPage({ onBack, defaultZoneId, defaultS
 
           <div className={`grid gap-3 w-full rounded-xl border border-[#d4e8dc] bg-white px-4 py-4 ${
             showStateFilter
-              ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-5"
-              : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4"
+              ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4"
+              : "grid-cols-1 sm:grid-cols-3"
           }`}>
             {showStateFilter && (
               <Select value={filterState} onValueChange={setFilterState}>
@@ -223,18 +305,6 @@ export default function ProviderManagementPage({ onBack, defaultZoneId, defaultS
                 ))}
               </SelectContent>
             </Select>
-            <Select value={filterModule} onValueChange={setFilterModule}>
-              <SelectTrigger className="w-full h-10 bg-[#f4f7f5] border-2 border-[#1a7a52]"
-                displayValue={filterModule === "all" ? "All form types" : (MODULE_LABELS[filterModule] || filterModule)}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All form types</SelectItem>
-                {PROVIDER_PILLAR_CHILDREN.map((m) => (
-                  <SelectItem key={m.key} value={m.key}>{m.navLabel}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
             <Select value={filterStatus} onValueChange={setFilterStatus}>
               <SelectTrigger className="w-full h-10 bg-[#f4f7f5] border-2 border-[#1a7a52]"
                 displayValue={filterStatus === "all" ? "All Statuses" : STATUS_CONFIG[filterStatus]?.label}>
@@ -247,6 +317,23 @@ export default function ProviderManagementPage({ onBack, defaultZoneId, defaultS
                 ))}
               </SelectContent>
             </Select>
+            {hasFilters && (
+              <div className="col-span-full flex justify-end">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-slate-500"
+                  onClick={() => {
+                    setFilterYear("all");
+                    setFilterMonth("all");
+                    setFilterStatus("all");
+                    if (showStateFilter) setFilterState(ALL_STATES);
+                  }}
+                >
+                  Clear
+                </Button>
+              </div>
+            )}
           </div>
 
           <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden">
@@ -256,15 +343,17 @@ export default function ProviderManagementPage({ onBack, defaultZoneId, defaultS
                   <Loader2 className="w-5 h-5 animate-spin" />
                   <span className="text-sm">Loading reports...</span>
                 </div>
-              ) : reports.length === 0 ? (
+              ) : filtered.length === 0 ? (
                 <div className="py-16 text-center space-y-3">
-                  <p className="text-sm text-slate-500">No provider reports yet for these filters.</p>
+                  <p className="text-sm text-slate-500">
+                    No {activeMeta.label.toLowerCase()} reports yet for these filters.
+                  </p>
                   {canCreate && (
                     <Button
                       className="bg-orange-action hover:bg-orange-600 gap-2"
-                      onClick={() => { setSelectedId(null); setMode("create"); }}
+                      onClick={openCreate}
                     >
-                      <Plus className="w-4 h-4" /> Create first report
+                      <Plus className="w-4 h-4" /> {activeMeta.newLabel}
                     </Button>
                   )}
                 </div>
@@ -275,7 +364,6 @@ export default function ProviderManagementPage({ onBack, defaultZoneId, defaultS
                       <TableRow className="bg-[#e8f5ee] hover:bg-[#e8f5ee] border-b border-[#d4e8dc]">
                         <TableHead className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e]">Period</TableHead>
                         <TableHead className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e]">State</TableHead>
-                        <TableHead className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e]">Form type</TableHead>
                         <TableHead className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e] text-right">Activities</TableHead>
                         <TableHead className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e]">Submitted</TableHead>
                         <TableHead className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e]">Status</TableHead>
@@ -283,14 +371,9 @@ export default function ProviderManagementPage({ onBack, defaultZoneId, defaultS
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {reports.map((r) => {
+                      {filtered.map((r) => {
                         const sc = STATUS_CONFIG[r.status] ?? STATUS_CONFIG.draft;
                         const activities = r.lines?.length ?? r.planned_activities ?? 0;
-                        const mod = String(r.activity_module || "");
-                        const typeLabel = MODULE_LABELS[mod]
-                          || formMeta(mod as ProviderFormKey).label
-                          || mod
-                          || "—";
                         return (
                           <TableRow key={r.id} className="hover:bg-[#f8fdfb] border-b border-[#e8f3ec] last:border-0">
                             <TableCell className="text-sm font-semibold text-[#0f3d2e] whitespace-nowrap">
@@ -302,7 +385,6 @@ export default function ProviderManagementPage({ onBack, defaultZoneId, defaultS
                             <TableCell className="text-sm text-slate-700 whitespace-nowrap">
                               {r.state?.description || "—"}
                             </TableCell>
-                            <TableCell className="text-sm text-slate-700 whitespace-nowrap">{typeLabel}</TableCell>
                             <TableCell className="text-sm font-semibold text-[#145c3f] text-right tabular-nums">
                               {formatCount(activities)}
                             </TableCell>
@@ -320,8 +402,8 @@ export default function ProviderManagementPage({ onBack, defaultZoneId, defaultS
                                 size="sm"
                                 className="h-8 gap-1.5 text-[#145c3f] hover:bg-[#eef6f1]"
                                 onClick={() => {
-                                  setSelectedId(r.id);
-                                  setSelectedModule((r.activity_module || "accreditation") as ProviderFormKey);
+                                  setSelectedId(r.reference_id || r.id);
+                                  setSelectedModule((r.activity_module || r.form_type || "accreditation") as ProviderFormKey);
                                   setMode("view");
                                 }}
                               >

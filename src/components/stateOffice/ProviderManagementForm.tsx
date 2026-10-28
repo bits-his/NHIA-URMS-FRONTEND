@@ -3,6 +3,7 @@ import {
   Award, ChevronRight, ClipboardCheck, Loader2, Pencil, Plus, RefreshCw,
   Save, Send, Stethoscope, Trash2, type LucideIcon,
 } from "lucide-react";
+import { useSelector } from "react-redux";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,8 +13,10 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import StateOfficeFormShell from "./StateOfficeFormShell";
-import { stateOfficeApi } from "@/lib/api";
-import { labelOf, monthLabel, parseSupportingDocuments, quarterFromMonth } from "./constants";
+import { stateOfficeApi, stockApi } from "@/lib/api";
+import { cn } from "@/lib/utils";
+import type { RootState } from "@/src/store/store";
+import { MONTHS, labelOf, monthLabel, parseSupportingDocuments, quarterFromMonth } from "./constants";
 import { PROVIDER_MANAGEMENT_NAV_TITLE } from "./enrolmentPillarTypes";
 import {
   PROVIDER_ACTIVITY_STATUSES,
@@ -29,6 +32,119 @@ import {
   providerManualMetrics,
   type ProviderFormKey,
 } from "./providerManagementTypes";
+
+/** State only in UI; Zone is set automatically from the selected state. */
+function ProviderReportInformation({ header }: { header: any }) {
+  const user = useSelector((s: RootState) => s.auth.user) as { name?: string } | null;
+  const periodText = header.reportMonth && header.reportYear
+    ? `${monthLabel(header.reportMonth)} ${header.reportYear}`
+    : "—";
+  const [allStates, setAllStates] = React.useState<{ id: string; label: string; zoneId: string }[]>([]);
+  const inputClass = "bg-[#f4f7f5] border-2 border-[#1a7a52] shadow-xs hover:border-[#0f3d2e] hover:bg-white";
+
+  React.useEffect(() => {
+    stockApi.getStates().then((r) => {
+      setAllStates(
+        (r.data ?? []).map((s: any) => ({
+          id: String(s.id ?? s.code ?? ""),
+          label: s.description || s.label || String(s.id),
+          zoneId: String(s.zonal_code ?? s.zonal_id ?? s.zone_id ?? s.zone?.id ?? s.zone?.zonal_code ?? ""),
+        })).filter((s: { id: string }) => s.id),
+      );
+    }).catch(() => setAllStates([]));
+  }, []);
+
+  const stateOptions = allStates.length
+    ? allStates
+    : (header.states ?? []).map((s: { id: string | number; label: string }) => ({
+      id: String(s.id),
+      label: s.label,
+      zoneId: header.zoneId || "",
+    }));
+
+  const stateLabel = labelOf(
+    stateOptions.map((s) => ({ value: s.id, label: s.label })),
+    header.stateId,
+    "Select when sending for review",
+  );
+
+  const onStateChange = (v: string) => {
+    const match = stateOptions.find((s) => s.id === v);
+    if (header.hydratingRef) header.hydratingRef.current = true;
+    if (match?.zoneId && !header.lockZone) header.setZoneId(match.zoneId);
+    header.setStateId(v);
+    queueMicrotask(() => {
+      if (header.hydratingRef) header.hydratingRef.current = false;
+    });
+  };
+
+  return (
+    <section className="rounded-xl border border-[#d4e8dc] overflow-hidden bg-white">
+      <div className="bg-[#e8f5ee] px-4 py-2.5 border-b border-[#d4e8dc]">
+        <h3 className="text-[12px] font-bold uppercase tracking-[0.06em] text-[#0f3d2e]">
+          Report Information
+        </h3>
+      </div>
+      <div className="p-4 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 bg-[#f4f7f5]">
+        <div className="space-y-1.5">
+          <Label className="text-[11px] font-semibold text-slate-600">Reporting period</Label>
+          <div className="grid grid-cols-2 gap-2">
+            <Select value={header.reportMonth} onValueChange={header.setReportMonth}>
+              <SelectTrigger className={inputClass} displayValue={monthLabel(header.reportMonth)}>
+                <SelectValue placeholder="Month" />
+              </SelectTrigger>
+              <SelectContent>
+                {MONTHS.map((m) => (
+                  <SelectItem key={m.value} value={String(m.value)}>{m.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={header.reportYear} onValueChange={header.setReportYear}>
+              <SelectTrigger className={inputClass} displayValue={header.reportYear || "Year"}>
+                <SelectValue placeholder="Year" />
+              </SelectTrigger>
+              <SelectContent>
+                {Array.from({ length: 8 }, (_, i) => {
+                  const y = String(new Date().getFullYear() - 2 + i);
+                  return <SelectItem key={y} value={y}>{y}</SelectItem>;
+                })}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <div className="space-y-1.5">
+          <Label className="text-[11px] font-semibold text-slate-600">
+            State <span className="text-slate-400 font-normal">(required to send for review)</span>
+          </Label>
+          <Select value={header.stateId} onValueChange={onStateChange} disabled={header.lockState}>
+            <SelectTrigger
+              className={cn(inputClass, header.lockState ? "opacity-70" : "")}
+              displayValue={stateLabel}
+            >
+              <SelectValue placeholder="Select when sending for review" />
+            </SelectTrigger>
+            <SelectContent>
+              {stateOptions.map((s) => (
+                <SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-1.5">
+          <Label className="text-[11px] font-semibold text-slate-600">Reporting officer</Label>
+          <Input readOnly value={user?.name || "Signed-in user"} className={cn(inputClass, "opacity-90")} />
+        </div>
+
+        <div className="space-y-1.5">
+          <Label className="text-[11px] font-semibold text-slate-600">Reporting month</Label>
+          <Input readOnly value={periodText} className={cn(inputClass, "opacity-90")} />
+        </div>
+      </div>
+    </section>
+  );
+}
 
 const PROVIDER_ACTIVITY_ICONS: Record<ProviderFormKey, LucideIcon> = {
   accreditation: Award,
@@ -97,32 +213,36 @@ const blank = (formKey: ProviderFormKey): Entry => {
 };
 
 interface Props {
-  reportId?: number | null;
+  reportId?: number | string | null;
   initialFormKey?: ProviderFormKey;
   onBack: () => void;
   onCancel?: () => void;
   onSubmitted?: () => void;
   defaultZoneId?: string | null;
   defaultStateId?: string | null;
-  onPersisted?: (saved: { id: number; status: string; reference_id?: string }) => void;
+  onPersisted?: (saved: { id: number | string; status: string; reference_id?: string }) => void;
 }
 
 export default function ProviderManagementForm({
   reportId, initialFormKey = "accreditation", onBack, onCancel, onSubmitted, defaultZoneId, defaultStateId, onPersisted,
 }: Props) {
+  const openedFromTab = !reportId && !!initialFormKey;
+  const leave = onCancel ?? onBack;
   const [formKey, setFormKey] = React.useState<ProviderFormKey>(initialFormKey);
-  const api = stateOfficeApi.providerByFormKey(formKey);
-  const [activityChosen, setActivityChosen] = React.useState(!!reportId);
-  const [view, setView] = React.useState<"register" | "activity">("register");
+  const api = stateOfficeApi.providerManagement;
+  const [activityChosen, setActivityChosen] = React.useState(!!reportId || openedFromTab);
+  const [view, setView] = React.useState<"register" | "activity">(
+    reportId ? "register" : openedFromTab ? "activity" : "register"
+  );
   const [reportStatus, setReportStatus] = React.useState<string>("draft");
   const [lines, setLines] = React.useState<(Entry & { _key: string })[]>([]);
   const linesRef = React.useRef(lines);
   linesRef.current = lines;
-  const [entry, setEntry] = React.useState<Entry>(() => blank("accreditation"));
+  const [entry, setEntry] = React.useState<Entry>(() => blank(initialFormKey));
   const [editingKey, setEditingKey] = React.useState<string | null>(null);
   const [pmSeq, setPmSeq] = React.useState(1);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
-  const typeLocked = !!reportId || lines.length > 0;
+  const typeLocked = !!reportId || lines.length > 0 || openedFromTab;
 
   const set = <K extends keyof Entry>(key: K, value: Entry[K]) => {
     setEntry((prev) => ({ ...prev, [key]: value }));
@@ -165,7 +285,7 @@ export default function ProviderManagementForm({
   const loadData = (v: any) => {
     const status = v.status || "draft";
     setReportStatus(status);
-    const mod = String(v.activity_module || "accreditation");
+    const mod = String(v.form_type || v.activity_module || "accreditation");
     const matched = PROVIDER_FORM_TYPES.find((f) => f.key === mod);
     const fk = (matched?.key || "accreditation") as ProviderFormKey;
     setFormKey(fk);
@@ -175,37 +295,47 @@ export default function ProviderManagementForm({
     const next = raw.map((row) => {
       const t = row.activity_template;
       const tpl = typeof t === "string" ? (() => { try { return JSON.parse(t); } catch { return {}; } })() : (t || {});
-      const id = String(tpl.provider_management_id || "");
-      const m = id.match(/PM-\d+-(\d+)/i);
+      // Prefer flat row fields (new API), fall back to activity_template
+      const merged = { ...tpl, ...row, ...(tpl.metrics ? {} : {}) };
+      if (tpl.metrics && !row.metrics) merged.metrics = tpl.metrics;
+      const id = String(
+        merged.provider_management_id || merged.reference_id || merged.id || row.id || "",
+      );
+      const m = id.match(/(?:PM|PACC|PREC|PQA|PMED)-\d+-(\d+)/i);
       if (m) maxSeq = Math.max(maxSeq, Number(m[1]) || 0);
-      return { row, tpl, id };
-    }).map(({ tpl, id: existingId }) => {
+      return { row, merged, id };
+    }).map(({ merged, id: existingId }) => {
       let id = existingId;
       if (!id) {
         maxSeq += 1;
         id = nextPmId(maxSeq);
       }
-      const metricsRaw = tpl.metrics && typeof tpl.metrics === "object" ? tpl.metrics : {};
+      const metricsRaw = merged.metrics && typeof merged.metrics === "object" ? merged.metrics : {};
+      const docs = parseSupportingDocuments(
+        merged.supporting_documents ?? [],
+      ).filter((d) => d.path) as SavedDoc[];
       return {
         ...blank(fk),
         _key: uid(),
         provider_management_id: id,
-        form_type: (tpl.form_type || fk) as ProviderFormKey,
-        engagement_category: tpl.engagement_category || formMeta(fk).activity,
-        engagement_code: tpl.engagement_code || formMeta(fk).code,
-        related_programme: tpl.related_programme || (Array.isArray(tpl.programs_supported) ? tpl.programs_supported[0] : "") || "",
-        bhcpf_activity_type: tpl.bhcpf_activity_type || "",
-        total_facilities_in_state: numStr(tpl.total_facilities_in_state),
-        facilities_planned: numStr(tpl.facilities_planned ?? tpl.planned_target_stakeholders),
-        activity_date: tpl.activity_date ? String(tpl.activity_date).slice(0, 10) : "",
-        facilities_covered: numStr(tpl.facilities_covered ?? tpl.stakeholders_engaged),
-        funding_option: tpl.funding_option || "",
-        activity_budget: numStr(tpl.activity_budget),
-        approved_amount: numStr(tpl.approved_amount),
-        activity_status: tpl.activity_status || "",
-        remarks: tpl.remarks || "",
+        form_type: (merged.form_type || fk) as ProviderFormKey,
+        engagement_category: merged.engagement_category || formMeta(fk).activity,
+        engagement_code: merged.engagement_code || formMeta(fk).code,
+        related_programme: merged.related_programme
+          || (Array.isArray(merged.programs_supported) ? merged.programs_supported[0] : "")
+          || "",
+        bhcpf_activity_type: merged.bhcpf_activity_type || "",
+        total_facilities_in_state: numStr(merged.total_facilities_in_state),
+        facilities_planned: numStr(merged.facilities_planned ?? merged.planned_target_stakeholders),
+        activity_date: merged.activity_date ? String(merged.activity_date).slice(0, 10) : "",
+        facilities_covered: numStr(merged.facilities_covered ?? merged.stakeholders_engaged),
+        funding_option: merged.funding_option || "",
+        activity_budget: numStr(merged.activity_budget),
+        approved_amount: numStr(merged.approved_amount),
+        activity_status: merged.activity_status || "",
+        remarks: merged.remarks || "",
         metrics: Object.fromEntries(Object.entries(metricsRaw).map(([k, val]) => [k, String(val ?? "")])),
-        supporting_documents: parseSupportingDocuments(tpl.supporting_documents).filter((d) => d.path) as SavedDoc[],
+        supporting_documents: docs,
         supportingFiles: [],
       };
     });
@@ -242,6 +372,10 @@ export default function ProviderManagementForm({
   const backToRegister = () => {
     resetEntry();
     if (linesRef.current.length === 0 && !reportId) {
+      if (openedFromTab) {
+        leave();
+        return;
+      }
       setActivityChosen(false);
       return;
     }
@@ -293,24 +427,26 @@ export default function ProviderManagementForm({
     backToRegister();
   };
 
-  const afterPersist = async ({ id }: { id: number }) => {
+  const afterPersist = async ({ id }: { id: number | string }) => {
     const pending = linesRef.current.filter((l) => l.supportingFiles.length > 0);
     if (!pending.length) return;
     const res = await api.get(id);
     const saved: any[] = res.data?.lines ?? [];
-    const used = new Set<number>();
+    const used = new Set<string>();
     for (const line of pending) {
       const match = saved.find((s) => {
-        if (used.has(s.id)) return false;
+        const sid = String(s.id ?? s.reference_id ?? "");
+        if (!sid || used.has(sid)) return false;
         const t = s.activity_template;
         const tpl = typeof t === "string" ? (() => { try { return JSON.parse(t); } catch { return {}; } })() : (t || {});
-        return tpl.provider_management_id === line.provider_management_id
-          || ((tpl.activity_date ?? "").slice(0, 10) === line.activity_date
-            && tpl.engagement_category === line.engagement_category);
+        return String(tpl.provider_management_id || sid) === line.provider_management_id
+          || ((String(tpl.activity_date ?? s.activity_date ?? "").slice(0, 10) === line.activity_date
+            && (tpl.engagement_category || s.engagement_category) === line.engagement_category));
       });
       if (!match) continue;
-      used.add(match.id);
-      await api.uploadLineFiles(id, match.id, line.supportingFiles);
+      const lineId = String(match.id ?? match.reference_id);
+      used.add(lineId);
+      await api.uploadLineFiles(id, lineId, line.supportingFiles);
     }
   };
 
@@ -322,7 +458,7 @@ export default function ProviderManagementForm({
 
   return (
     <StateOfficeFormShell
-      reportType="accreditation"
+      reportType="provider-management"
       reportId={reportId}
       onBack={onBack}
       onCancel={onCancel}
@@ -332,6 +468,9 @@ export default function ProviderManagementForm({
       pageTitle={PROVIDER_MANAGEMENT_NAV_TITLE}
       pageSubtitle={activityChosen ? formMeta(formKey).label : "Select an activity"}
       hideFooterActions
+      hideBasicInfo
+      showQuarter
+      deferStateUntilReview
       onLoaded={loadData}
       afterPersist={afterPersist}
       onPersisted={onPersisted}
@@ -344,10 +483,14 @@ export default function ProviderManagementForm({
       buildPayload={(base) => ({
         ...base,
         activity_module: formKey,
+        form_type: formKey,
         planned_activities: linesRef.current.length,
         lines: linesRef.current.map(({ _key, supportingFiles, ...l }) => ({
+          id: l.provider_management_id?.match(/^(PACC|PREC|PQA|PMED)-/i)
+            ? l.provider_management_id
+            : undefined,
           provider_management_id: l.provider_management_id,
-          form_type: l.form_type,
+          form_type: l.form_type || formKey,
           engagement_code: l.engagement_code,
           engagement_category: l.engagement_category,
           related_programme: l.related_programme,
@@ -363,7 +506,6 @@ export default function ProviderManagementForm({
           remarks: l.remarks || null,
           metrics: l.metrics,
           supporting_documents: l.supporting_documents,
-          // legacy mirrors for older list/detail code
           planned_target_stakeholders: numOrNull(l.facilities_planned),
           stakeholders_engaged: numOrNull(l.facilities_covered),
           programs_supported: l.related_programme ? [l.related_programme] : [],
@@ -384,6 +526,7 @@ export default function ProviderManagementForm({
 
         return (
         <div className="space-y-4">
+          <ProviderReportInformation header={header} />
           {!activityChosen ? (
             <div className="space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-3 px-1">

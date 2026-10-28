@@ -101,7 +101,7 @@ type Entry = ReturnType<typeof blankEntry>;
 type Line = Entry & { _key: string; engagement_code?: string | null };
 
 interface Props {
-  reportId?: number | null;
+  reportId?: number | string | null;
   onBack: () => void;
   onCancel?: () => void;
   onSubmitted?: () => void;
@@ -130,57 +130,50 @@ function FormSection({ title, children }: { title: string; children: React.React
   );
 }
 
-/** PPT Report Information — section header + plain inputs (not cards) */
+/** PPT Report Information — State only in UI; Zone is set automatically from the selected state. */
 function StakeholderReportInformation({ header }: { header: any }) {
   const user = useSelector((s: RootState) => s.auth.user) as { name?: string } | null;
   const periodText = header.reportMonth && header.reportYear
     ? `${monthLabel(header.reportMonth)} ${header.reportYear}`
     : "—";
-  const [allStates, setAllStates] = React.useState<{ id: number; label: string; zoneId: string }[]>([]);
+  const [allStates, setAllStates] = React.useState<{ id: string; label: string; zoneId: string }[]>([]);
 
   React.useEffect(() => {
     stockApi.getStates().then((r) => {
       setAllStates(
         (r.data ?? []).map((s: any) => ({
-          id: s.id,
-          label: s.description,
-          zoneId: String(s.zonal_id ?? s.zone_id ?? s.zone?.id ?? ""),
-        })),
+          id: String(s.id ?? s.code ?? ""),
+          label: s.description || s.label || String(s.id),
+          zoneId: String(s.zonal_code ?? s.zonal_id ?? s.zone_id ?? s.zone?.id ?? s.zone?.zonal_code ?? ""),
+        })).filter((s: { id: string }) => s.id),
       );
     }).catch(() => setAllStates([]));
   }, []);
 
   const stateOptions = allStates.length
     ? allStates
-    : (header.states ?? []).map((s: { id: number; label: string }) => ({
-      id: s.id,
+    : (header.states ?? []).map((s: { id: string | number; label: string }) => ({
+      id: String(s.id),
       label: s.label,
       zoneId: header.zoneId || "",
     }));
 
   const stateLabel = labelOf(
-    stateOptions.map((s) => ({ value: String(s.id), label: s.label })),
+    stateOptions.map((s) => ({ value: s.id, label: s.label })),
     header.stateId,
-    "Select…",
+    "Select when sending for review",
   );
   const inputClass = "bg-[#f4f7f5] border-2 border-[#1a7a52] shadow-xs hover:border-[#0f3d2e] hover:bg-white";
 
   const onStateChange = (v: string) => {
-    const match = stateOptions.find((s) => String(s.id) === v);
-    if (match?.zoneId && !header.lockZone && match.zoneId !== header.zoneId) {
-      // Avoid header effect clearing state when zone updates from this pick
-      if (header.hydratingRef) header.hydratingRef.current = true;
-      header.setZoneId(match.zoneId);
-      header.setStateId(v);
-      stockApi.getStates(match.zoneId).then((r) => {
-        // keep header states in sync for payload validation
-        if (header.hydratingRef) header.hydratingRef.current = false;
-      }).catch(() => {
-        if (header.hydratingRef) header.hydratingRef.current = false;
-      });
-      return;
-    }
+    const match = stateOptions.find((s) => s.id === v);
+    if (header.hydratingRef) header.hydratingRef.current = true;
+    if (match?.zoneId && !header.lockZone) header.setZoneId(match.zoneId);
     header.setStateId(v);
+    // Release hydrating on next tick so zone effect does not clear the new state
+    queueMicrotask(() => {
+      if (header.hydratingRef) header.hydratingRef.current = false;
+    });
   };
 
   return (
@@ -219,7 +212,9 @@ function StakeholderReportInformation({ header }: { header: any }) {
         </div>
 
         <div className="space-y-1.5">
-          <Label className="text-[11px] font-semibold text-slate-600">State</Label>
+          <Label className="text-[11px] font-semibold text-slate-600">
+            State <span className="text-slate-400 font-normal">(required to send for review)</span>
+          </Label>
           <Select
             value={header.stateId}
             onValueChange={onStateChange}
@@ -229,11 +224,11 @@ function StakeholderReportInformation({ header }: { header: any }) {
               className={cn(inputClass, header.lockState ? "opacity-70" : "")}
               displayValue={stateLabel}
             >
-              <SelectValue placeholder="Select…" />
+              <SelectValue placeholder="Select when sending for review" />
             </SelectTrigger>
             <SelectContent>
               {stateOptions.map((s) => (
-                <SelectItem key={s.id} value={String(s.id)}>{s.label}</SelectItem>
+                <SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -722,6 +717,7 @@ export default function StakeholderEngagementForm({
       hideFooterActions
       hideBasicInfo
       showQuarter
+      deferStateUntilReview
       onLoaded={loadData}
       afterPersist={afterPersist}
       validate={() => (linesRef.current.length === 0 ? "Add at least one activity to the register" : null)}

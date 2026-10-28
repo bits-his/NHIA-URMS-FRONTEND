@@ -2,6 +2,7 @@ import * as React from "react";
 import {
   Plus, Loader2, RefreshCw, Eye, ArrowLeft,
   FileText, Clock, CheckCircle2, XCircle,
+  type LucideIcon,
 } from "lucide-react";
 import { motion } from "motion/react";
 import { useSelector } from "react-redux";
@@ -64,6 +65,16 @@ interface FormRenderProps {
   defaultZoneId?: string | null;
   defaultStateId?: string | null;
   onPersisted?: (saved: { id: number; status: string; reference_id?: string }) => void;
+  /** Pre-select activity when creating from an activity tab (e.g. enrolment). */
+  initialCategory?: string | null;
+}
+
+interface ActivityTab {
+  value: string;
+  label: string;
+  newLabel: string;
+  description?: string;
+  icon?: LucideIcon;
 }
 
 interface Props {
@@ -84,6 +95,13 @@ interface Props {
     options: { value: string; label: string }[];
     summarize: (report: Report) => { key: string; activity: string; subject: string };
   };
+  /**
+   * When set, show activity tabs at the top; list + New button follow the selected tab.
+   * Replaces the activity dropdown filter.
+   */
+  activityTabs?: ActivityTab[];
+  /** Override the create button label (e.g. "New Enrolment Drive"). */
+  createButtonLabel?: string;
   renderForm?: (props: FormRenderProps) => React.ReactNode;
   /** Provider Management endorsement statuses on accreditation reports. */
   providerWorkflow?: boolean;
@@ -99,7 +117,7 @@ const STATUS_CONFIG: Record<string, { label: string; cls: string; icon: React.Re
 };
 
 export default function StateOfficeReportsList({
-  reportType, reportTypes, onBack, defaultZoneId, defaultStateId, activityModule, activityModuleColumn, activityModuleLabels, listTitle, activityRows, renderForm, providerWorkflow,
+  reportType, reportTypes, onBack, defaultZoneId, defaultStateId, activityModule, activityModuleColumn, activityModuleLabels, listTitle, activityRows, activityTabs, createButtonLabel, renderForm, providerWorkflow,
 }: Props) {
   const cfg = REPORT_CONFIG[reportType];
   const typesToLoad = React.useMemo(
@@ -112,10 +130,12 @@ export default function StateOfficeReportsList({
   // Match Stakeholder Management: officers with the endorsement workflow see their own list
   // (draft → awaiting review → endorsed → final submit), not a create-only form-first screen.
   const createOnly = providerWorkflow ? false : baseCreateOnly;
+  const hasActivityTabs = !!activityTabs?.length;
+  const defaultActivityTab = activityTabs?.[0]?.value ?? "all";
 
   const [mode, setMode] = React.useState<"list" | "create" | "view" | "edit">(createOnly ? "create" : "list");
   const [formKey, setFormKey] = React.useState(0);
-  const [selectedId, setSelectedId] = React.useState<number | null>(null);
+  const [selectedId, setSelectedId] = React.useState<number | string | null>(null);
   const [selectedReportType, setSelectedReportType] = React.useState<StateOfficeReportType>(reportType);
   const [reports, setReports] = React.useState<Report[]>([]);
   const [loading, setLoading] = React.useState(!createOnly);
@@ -134,7 +154,16 @@ export default function StateOfficeReportsList({
   const [filterYear,     setFilterYear]     = React.useState("all");
   const [filterMonth,    setFilterMonth]    = React.useState("all");
   const [filterStatus,   setFilterStatus]   = React.useState("all");
-  const [filterActivity, setFilterActivity] = React.useState("all");
+  const [filterActivity, setFilterActivity] = React.useState(defaultActivityTab);
+  const activeActivityTab = hasActivityTabs
+    ? (activityTabs!.find((t) => t.value === filterActivity) ?? activityTabs![0])
+    : null;
+  const newButtonLabel = activeActivityTab?.newLabel
+    ?? createButtonLabel
+    ?? (reportType === "enrollee-register" || reportType === "etmc-tmc-action-point" || reportType === "ict-support-register" || reportType === "adhoc-special-assignment"
+      ? "New Register"
+      : "New Report");
+  const createInitialCategory = hasActivityTabs ? (activeActivityTab?.value ?? null) : null;
 
   const isOwnDraft = React.useCallback((r: Report) => {
     if (!authUser) return true;
@@ -189,9 +218,9 @@ export default function StateOfficeReportsList({
     setMode(createOnly ? "create" : "list");
     setSelectedId(null);
     setSelectedReportType(reportType);
-    setFilterActivity("all");
+    setFilterActivity(defaultActivityTab);
     setFormKey((k) => k + 1);
-  }, [reportType, createOnly]);
+  }, [reportType, createOnly, defaultActivityTab]);
 
   // Create-only officers: reopen unfinished drafts instead of a blank form
   React.useEffect(() => {
@@ -297,9 +326,24 @@ export default function StateOfficeReportsList({
   const filteredReports = React.useMemo(() => {
     if (filterActivity === "all") return reports;
     if (activityRows) return reports.filter((r) => activityRows.summarize(r).key === filterActivity);
-    if (reportType !== "enrolment") return reports;
-    return reports.filter((r) => r.lines?.[0]?.category === filterActivity);
-  }, [reports, reportType, filterActivity, activityRows]);
+    if (reportType === "enrolment" || hasActivityTabs) {
+      return reports.filter((r) => r.lines?.[0]?.category === filterActivity);
+    }
+    return reports;
+  }, [reports, reportType, filterActivity, activityRows, hasActivityTabs]);
+
+  const activityTabCounts = React.useMemo(() => {
+    if (!hasActivityTabs) return {} as Record<string, number>;
+    const map: Record<string, number> = {};
+    for (const tab of activityTabs!) map[tab.value] = 0;
+    for (const r of reports) {
+      const key = activityRows
+        ? activityRows.summarize(r).key
+        : String(r.lines?.[0]?.category ?? "");
+      if (key in map) map[key] += 1;
+    }
+    return map;
+  }, [hasActivityTabs, activityTabs, reports, activityRows]);
 
   const counts = React.useMemo(() => ({
     total:     filteredReports.length,
@@ -319,14 +363,14 @@ export default function StateOfficeReportsList({
   const hasFilters = filterYear !== "all"
     || filterMonth !== "all"
     || filterStatus !== "all"
-    || ((reportType === "enrolment" || !!activityRows) && filterActivity !== "all")
+    || (!hasActivityTabs && (reportType === "enrolment" || !!activityRows) && filterActivity !== "all")
     || stateFilterActive;
 
   const clearFilters = () => {
     setFilterYear("all");
     setFilterMonth("all");
     setFilterStatus("all");
-    setFilterActivity("all");
+    if (!hasActivityTabs) setFilterActivity("all");
     if (showStateFilter) setFilterState(ALL_STATES);
   };
 
@@ -427,6 +471,7 @@ export default function StateOfficeReportsList({
           defaultZoneId,
           defaultStateId,
           onPersisted: handlePersisted,
+          initialCategory: mode === "create" ? createInitialCategory : null,
         })}
       </React.Fragment>
     ) : (
@@ -440,6 +485,7 @@ export default function StateOfficeReportsList({
         defaultZoneId={defaultZoneId}
         defaultStateId={defaultStateId}
         onPersisted={handlePersisted}
+        initialCategory={mode === "create" ? createInitialCategory : null}
       />
     );
 
@@ -509,13 +555,60 @@ export default function StateOfficeReportsList({
           {canCreate && (
           <Button
             className="bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20"
-            onClick={() => { setSelectedId(null); setSelectedReportType(reportType); setMode("create"); }}
+            onClick={() => { setSelectedId(null); setSelectedReportType(reportType); setMode("create"); setFormKey((k) => k + 1); }}
           >
-            <Plus className="w-4 h-4" /> {reportType === "enrollee-register" || reportType === "etmc-tmc-action-point" || reportType === "ict-support-register" || reportType === "adhoc-special-assignment" ? "New Register" : "New Report"}
+            <Plus className="w-4 h-4" /> {newButtonLabel}
           </Button>
           )}
         </div>
       </div>
+
+      {hasActivityTabs && (
+        <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 sticky top-[57px] z-20">
+          <div
+            className="flex gap-0 overflow-x-auto -mb-px"
+            role="tablist"
+            aria-label="Enrolment activities"
+          >
+            {activityTabs!.map((tab) => {
+              const active = filterActivity === tab.value;
+              const Icon = tab.icon;
+              const count = activityTabCounts[tab.value] ?? 0;
+              return (
+                <button
+                  key={tab.value}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => setFilterActivity(tab.value)}
+                  className={`group relative shrink-0 inline-flex items-center gap-2 px-4 py-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors outline-none focus-visible:bg-[#f4f7f5] ${
+                    active
+                      ? "border-[#145c3f] text-[#145c3f]"
+                      : "border-transparent text-slate-500 hover:text-[#0f3d2e] hover:border-[#c5ddd0]"
+                  }`}
+                >
+                  {Icon && (
+                    <Icon
+                      className={`h-4 w-4 shrink-0 ${active ? "text-[#145c3f]" : "text-slate-400 group-hover:text-[#145c3f]"}`}
+                      strokeWidth={2}
+                    />
+                  )}
+                  <span>{tab.label}</span>
+                  <span
+                    className={`inline-flex min-w-[1.25rem] h-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold tabular-nums ${
+                      active
+                        ? "bg-[#e8f6ee] text-[#145c3f]"
+                        : "bg-slate-100 text-slate-500 group-hover:bg-[#e8f6ee] group-hover:text-[#145c3f]"
+                    }`}
+                  >
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <ScrollArea className="flex-1">
         <div className="w-full px-4 md:px-6 py-4 space-y-4">
@@ -619,7 +712,7 @@ export default function StateOfficeReportsList({
               </Select>
             </div>
 
-            {(reportType === "enrolment" || activityRows) && (
+            {!hasActivityTabs && (reportType === "enrolment" || activityRows) && (
               <div className="flex-1 min-w-[160px]">
                 <Select value={filterActivity} onValueChange={setFilterActivity}>
                   <SelectTrigger className="w-full"
@@ -665,11 +758,17 @@ export default function StateOfficeReportsList({
               ) : filteredReports.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 gap-2 text-slate-400">
                   <FileText className="w-8 h-8 opacity-30" />
-                  <p className="text-sm font-medium">{hasFilters ? "No reports match your filters" : "No reports found"}</p>
+                  <p className="text-sm font-medium">
+                    {hasFilters
+                      ? "No reports match your filters"
+                      : hasActivityTabs && activeActivityTab
+                        ? `No ${activeActivityTab.label} reports yet`
+                        : "No reports found"}
+                  </p>
                   {!hasFilters && canCreate && (
                     <Button variant="outline" size="sm" className="mt-2 gap-2"
-                      onClick={() => { setSelectedId(null); setSelectedReportType(reportType); setMode("create"); }}>
-                      <Plus className="w-4 h-4" /> {reportType === "enrollee-register" || reportType === "etmc-tmc-action-point" || reportType === "ict-support-register" || reportType === "adhoc-special-assignment" ? "New Register" : "New Report"}
+                      onClick={() => { setSelectedId(null); setSelectedReportType(reportType); setMode("create"); setFormKey((k) => k + 1); }}>
+                      <Plus className="w-4 h-4" /> {newButtonLabel}
                     </Button>
                   )}
                 </div>
@@ -718,8 +817,13 @@ export default function StateOfficeReportsList({
                                 <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">State</TableHead>
                               </>
                             )}
-                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Activity</TableHead>
+                            {!hasActivityTabs && (
+                              <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Activity</TableHead>
+                            )}
                             <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Program</TableHead>
+                            {hasActivityTabs && (
+                              <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Detail</TableHead>
+                            )}
                             <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Outcome</TableHead>
                             <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Status</TableHead>
                             <TableHead className="text-right text-xs font-bold text-slate-600 whitespace-nowrap">View</TableHead>
@@ -850,8 +954,15 @@ export default function StateOfficeReportsList({
                                     <TableCell className="text-sm font-semibold text-slate-800 whitespace-nowrap">{r.state?.description || "—"}</TableCell>
                                   </>
                                 )}
-                                <TableCell className="text-sm font-semibold text-[#0f3d2e] whitespace-nowrap">{enrolmentSummary.activity}</TableCell>
+                                {!hasActivityTabs && (
+                                  <TableCell className="text-sm font-semibold text-[#0f3d2e] whitespace-nowrap">{enrolmentSummary.activity}</TableCell>
+                                )}
                                 <TableCell className="text-sm text-slate-700 whitespace-nowrap">{enrolmentSummary.program}</TableCell>
+                                {hasActivityTabs && (
+                                  <TableCell className="text-sm text-slate-600 whitespace-nowrap max-w-[220px] truncate" title={enrolmentSummary.detail}>
+                                    {enrolmentSummary.detail}
+                                  </TableCell>
+                                )}
                                 <TableCell className="text-sm font-medium text-slate-800 whitespace-nowrap">{enrolmentSummary.outcome}</TableCell>
                                 <TableCell>
                                   <Badge className={`text-[10px] px-2 py-0.5 flex items-center gap-1 w-fit border ${sc.cls}`}>

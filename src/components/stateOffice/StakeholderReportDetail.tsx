@@ -18,7 +18,7 @@ import {
 
 interface Props {
   reportType?: "stakeholder";
-  reportId: number;
+  reportId: number | string;
   onBack: () => void;
   onEdit?: () => void;
 }

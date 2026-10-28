@@ -74,12 +74,15 @@ type PrincipalOption = {
   name: string;
   nhia: string;
   stateId: string;
+  /** All known state identifiers (code / id) for geo matching. */
+  stateKeys: string[];
   program: string;
   enrolmentType: string;
   organization: string;
   identity: Record<string, string>;
   hcf: string;
   alternative_provider: string;
+  enrolment_reference_id: string;
 };
 
 function asRecord(raw: unknown): Record<string, string> {
@@ -93,48 +96,107 @@ function asRecord(raw: unknown): Record<string, string> {
   );
 }
 
-function principalsFromReports(reports: { state_id?: number | string; lines?: unknown[] }[]): PrincipalOption[] {
+function isDependantEntity(entity: string) {
+  const v = entity.trim().toLowerCase();
+  if (!v) return false;
+  if (/^principal\b/.test(v)) return false;
+  return /^(spouse|child|parent|dependant|dependent)\b/.test(v) || /^child[_\s]?\d/.test(v);
+}
+
+function reportStateKeys(report: {
+  state_id?: number | string;
+  state_code?: string;
+  state?: { id?: number | string; code?: string };
+}): string[] {
+  return [
+    report.state_code,
+    report.state_id,
+    report.state?.code,
+    report.state?.id,
+  ]
+    .filter((v) => v != null && String(v).trim() !== "")
+    .map((v) => String(v).trim());
+}
+
+/** Build principal pick-list from Enrolment Activity reports (category = enrolment). */
+function principalsFromReports(reports: {
+  state_id?: number | string;
+  state_code?: string;
+  state?: { id?: number | string; code?: string };
+  reference_id?: string;
+  id?: number | string;
+  category?: string;
+  program_details?: unknown;
+  program_name?: string | null;
+  enrolment_type?: string | null;
+  lines?: unknown[];
+}[]): PrincipalOption[] {
   const out: PrincipalOption[] = [];
   const seen = new Set<string>();
+
   for (const report of reports) {
-    for (const rawLine of report.lines ?? []) {
+    const enrolmentRef = String(report.reference_id || report.id || "");
+    const stateKeys = reportStateKeys(report);
+    const stateId = stateKeys[0] || "";
+
+    // New pack: one row = one activity; FE still receives synthetic lines[0].
+    const rawLines = Array.isArray(report.lines) && report.lines.length
+      ? report.lines
+      : [report];
+
+    for (const rawLine of rawLines) {
       const line = rawLine as {
-        id?: number;
+        id?: number | string;
+        category?: string | null;
         program_details?: unknown;
         program_name?: string | null;
         enrolment_type?: string | null;
       };
-      const d = asRecord(line.program_details);
-      const enrolmentType = String(line.enrolment_type || d.enrolment_type || "").trim();
-      const program = String(line.program_name || d.program_name || d.program || "").trim();
-      if (!enrolmentType) continue;
+      const category = String(line.category || report.category || "").trim().toLowerCase();
+      if (category && category !== "enrolment") continue;
+
+      const d = asRecord(line.program_details ?? report.program_details);
+      const enrolmentType = String(line.enrolment_type || report.enrolment_type || d.enrolment_type || "").trim();
+      const program = String(line.program_name || report.program_name || d.program_name || d.program || "").trim();
       const entity = String(d.entity_type || "").trim();
-      if (entity && !/^principal/i.test(entity)) continue;
+      if (isDependantEntity(entity)) continue;
+
       const name = [d.surname, d.first_name, d.middle_name].filter(Boolean).join(" ").trim()
-        || d.enrollee_name?.trim()
-        || "";
+        || String(d.enrollee_name || "").trim();
       if (!name) continue;
-      const nhia = (d.nhia_number || d.nhia || "").trim() || (d.nin ? `NIN ${d.nin}` : "") || (line.id ? `ENR-${line.id}` : "");
-      const value = `${name}|${nhia}`;
+
+      const nhia = String(d.nhia_number || d.nhia || "").trim()
+        || (d.nin ? `NIN ${d.nin}` : "")
+        || (enrolmentRef ? enrolmentRef : "")
+        || (line.id ? `ENR-${line.id}` : "—");
+      const value = `${name}|${nhia}|${enrolmentRef}`;
       if (seen.has(value)) continue;
       seen.add(value);
+
       const identity: Record<string, string> = {};
       for (const field of IDENTITY_FIELDS) identity[field.key] = d[field.key] || "";
-      if (!identity.surname && d.enrollee_name) identity.surname = d.enrollee_name;
+      if (!identity.surname && name) {
+        const parts = name.split(/\s+/);
+        identity.surname = parts[0] || "";
+        if (!identity.first_name && parts.length > 1) identity.first_name = parts.slice(1).join(" ");
+      }
       identity.hmo = d.hmo || "";
+
       out.push({
         value,
         label: name,
         sub: [nhia, program, enrolmentType].filter(Boolean).join(" · "),
         name,
         nhia,
-        stateId: report.state_id != null ? String(report.state_id) : "",
+        stateId,
+        stateKeys,
         program,
-        enrolmentType,
+        enrolmentType: enrolmentType || program,
         organization: d.organization_mda || d.organization_name || "",
         identity,
         hcf: d.hcf || "",
         alternative_provider: d.alternative_provider || "",
+        enrolment_reference_id: enrolmentRef,
       });
     }
   }
@@ -181,6 +243,7 @@ type DepEntry = {
   enrollee_name: string;
   principle_nhia_number: string;
   principal_key: string;
+  enrolment_reference_id: string;
   program_name: string;
   enrolment_type: string;
   identity: Record<string, string>;
@@ -201,6 +264,7 @@ type ProviderEntry = {
   enrollee_key: string;
   enrollee_name: string;
   nhia_number: string;
+  enrolment_reference_id: string;
   entity_type: "" | "hcp" | "hmo";
   program: string;
   mda: string;
@@ -244,6 +308,7 @@ const blankDep = (request: "additional" | "extra"): DepEntry => ({
   enrollee_name: "",
   principle_nhia_number: "",
   principal_key: "",
+  enrolment_reference_id: "",
   program_name: "",
   enrolment_type: "",
   identity: {},
@@ -264,6 +329,7 @@ const blankProvider = (): ProviderEntry => ({
   enrollee_key: "",
   enrollee_name: "",
   nhia_number: "",
+  enrolment_reference_id: "",
   entity_type: "",
   program: "",
   mda: "",
@@ -345,23 +411,43 @@ function Block({ title, hint, children }: { title: string; hint?: string; childr
 
 interface Props {
   reportType: string;
-  reportId?: number | null;
+  reportId?: number | string | null;
   onBack: () => void;
   onCancel?: () => void;
   onSubmitted?: () => void;
   defaultZoneId?: string | null;
   defaultStateId?: string | null;
+  /** When creating from an activity tab, skip the activity picker. */
+  initialActivity?: BeneficiaryActivityKey | null;
 }
 
 export default function BeneficiaryManagementForm({
-  reportType, reportId, onBack, onCancel, onSubmitted, defaultZoneId, defaultStateId,
+  reportType, reportId, onBack, onCancel, onSubmitted, defaultZoneId, defaultStateId, initialActivity,
 }: Props) {
-  const initial = reportId ? activityFromReportType(reportType) : null;
+  const seededActivity = !reportId && initialActivity
+    && BENEFICIARY_ACTIVITIES.some((a) => a.key === initialActivity)
+    ? initialActivity
+    : null;
+  const initial = reportId ? activityFromReportType(reportType) : seededActivity;
   const [activity, setActivity] = React.useState<BeneficiaryActivityKey | null>(initial);
-  const [view, setView] = React.useState<"register" | "activity">(reportId ? "register" : "activity");
+  // New from a hub tab → open the activity form immediately (not the empty register).
+  const [view, setView] = React.useState<"register" | "activity">(
+    reportId ? "register" : "activity",
+  );
   const [lines, setLines] = React.useState<Line[]>([]);
   const [entry, setEntry] = React.useState<Entry>(() => blankFor(initial ?? "extra"));
   const [editingKey, setEditingKey] = React.useState<string | null>(null);
+  const categoryLocked = Boolean(seededActivity);
+
+  React.useEffect(() => {
+    if (reportId) return;
+    if (!seededActivity) return;
+    setActivity(seededActivity);
+    setEntry(blankFor(seededActivity));
+    setView("activity");
+    setEditingKey(null);
+    setLines([]);
+  }, [reportId, seededActivity]);
   const fileRef = React.useRef<HTMLInputElement>(null);
   const linesRef = React.useRef(lines);
   linesRef.current = lines;
@@ -370,6 +456,7 @@ export default function BeneficiaryManagementForm({
   const savedIdRef = React.useRef<number | null>(null);
   const [principals, setPrincipals] = React.useState<PrincipalOption[]>([]);
   const [principalsError, setPrincipalsError] = React.useState("");
+  const [principalsLoading, setPrincipalsLoading] = React.useState(false);
   const [reportStatus, setReportStatus] = React.useState<"draft" | "submitted" | "approved">("draft");
   const [endorsed, setEndorsed] = React.useState(false);
   const [reviewNote, setReviewNote] = React.useState("");
@@ -378,7 +465,8 @@ export default function BeneficiaryManagementForm({
     if (activity !== "additional" && activity !== "extra" && activity !== "provider") return;
     let cancelled = false;
     setPrincipalsError("");
-    stateOfficeApi.enrolment.list()
+    setPrincipalsLoading(true);
+    stateOfficeApi.enrolment.list({ category: "enrolment" })
       .then((res) => {
         if (cancelled) return;
         setPrincipals(principalsFromReports(res.data ?? []));
@@ -387,6 +475,9 @@ export default function BeneficiaryManagementForm({
         if (cancelled) return;
         setPrincipals([]);
         setPrincipalsError(err?.message || "Failed to load enrolment");
+      })
+      .finally(() => {
+        if (!cancelled) setPrincipalsLoading(false);
       });
     return () => { cancelled = true; };
   }, [activity]);
@@ -402,6 +493,10 @@ export default function BeneficiaryManagementForm({
 
   const leave = onCancel ?? onBack;
   const goBack = () => {
+    if (categoryLocked) {
+      leave();
+      return;
+    }
     if (activityRef.current && !reportId && !savedIdRef.current) {
       setActivity(null);
       linesRef.current = [];
@@ -436,28 +531,29 @@ export default function BeneficiaryManagementForm({
     const editable = status === "draft";
     if (apiType === "extra-dependant" || (!activity && reportType === "extra-dependant")) {
       const next: Line[] = (v.lines ?? []).map((l: any) => {
-        const request = decodeDependantRequest(l.program, l.relationship);
+        const request = decodeDependantRequest(l.program || l.request_kind, l.relationship || l.dependant_entity);
         const saved = splitSavedDocs(l.supporting_documents);
         return {
           _key: uid(),
           kind: "dependant" as const,
-          request,
+          request: (l.request_kind as "additional" | "extra") || request,
           enrollee_name: l.enrollee_name ?? "",
-          principle_nhia_number: l.principle_nhia_number ?? "",
-          principal_key: `${l.enrollee_name ?? ""}|${l.principle_nhia_number ?? ""}`,
-          program_name: saved.fields.program_name || String(l.program || "FSSHIP").split("|")[0],
+          principle_nhia_number: l.principle_nhia_number ?? l.nhia_number ?? "",
+          principal_key: `${l.enrollee_name ?? ""}|${l.principle_nhia_number ?? l.nhia_number ?? ""}`,
+          enrolment_reference_id: l.enrolment_reference_id ?? v.enrolment_reference_id ?? "",
+          program_name: l.program_name || saved.fields.program_name || String(l.program || "FSSHIP").split("|")[0],
           enrolment_type: saved.fields.enrolment_type ?? "",
           identity: {
-            ...Object.fromEntries(IDENTITY_FIELDS.map((f) => [f.key, saved.fields[f.key] ?? ""])),
-            hmo: saved.fields.hmo ?? "",
+            ...Object.fromEntries(IDENTITY_FIELDS.map((f) => [f.key, l[f.key] ?? saved.fields[f.key] ?? ""])),
+            hmo: l.hmo_name ?? saved.fields.hmo ?? "",
           },
-          relationship_kind: inferRelationship(request, l.relationship ?? "", saved.fields.relationship),
-          entity_type: l.relationship ?? "",
-          hcf: saved.fields.hcf ?? "",
-          alternative_provider: saved.fields.alternative_provider ?? "",
+          relationship_kind: l.relationship_kind || inferRelationship(request, l.relationship ?? l.dependant_entity ?? "", saved.fields.relationship),
+          entity_type: l.dependant_entity ?? l.relationship ?? "",
+          hcf: l.hcf ?? saved.fields.hcf ?? "",
+          alternative_provider: l.alternative_provider ?? saved.fields.alternative_provider ?? "",
           request_date: l.request_date?.slice?.(0, 10) ?? "",
           process_end_date: l.process_end_date?.slice?.(0, 10) ?? "",
-          line_status: l.line_status ?? "pending",
+          line_status: l.line_status ?? l.activity_status ?? "pending",
           supporting_documents: saved.files,
           supportingFiles: [] as File[],
         };
@@ -473,7 +569,9 @@ export default function BeneficiaryManagementForm({
     }
     if (apiType === "hcf-change") {
       const next: Line[] = (v.lines ?? []).map((l: any) => {
-        const reason = unpackReason(l.reason_for_transfer);
+        const reason = l.reason_category
+          ? { category: l.reason_category, other: l.reason_other || "" }
+          : unpackReason(l.reason_for_transfer);
         const details = readDetails(l.details);
         return {
           _key: uid(),
@@ -482,15 +580,16 @@ export default function BeneficiaryManagementForm({
           enrollee_key: `${l.enrollee_name ?? ""}|${l.nhia_number ?? ""}`,
           enrollee_name: l.enrollee_name ?? "",
           nhia_number: l.nhia_number ?? "",
-          entity_type: l.entity_type === "hmo" || l.entity_type === "hcp" ? l.entity_type : "",
-          program: details.program ?? "",
-          mda: details.mda ?? "",
-          current_hcp_hmo: l.current_hcp_hmo ?? "",
-          new_hcp_hmo: l.new_hcp_hmo ?? "",
+          enrolment_reference_id: l.enrolment_reference_id ?? v.enrolment_reference_id ?? "",
+          entity_type: l.entity_type === "hmo" || l.entity_type === "hcp" ? l.entity_type : (l.change_entity_type || ""),
+          program: l.program_name || details.program || "",
+          mda: l.mda || details.mda || "",
+          current_hcp_hmo: l.current_provider || l.current_hcp_hmo || "",
+          new_hcp_hmo: l.new_provider || l.new_hcp_hmo || "",
           reason_category: reason.category,
           reason_other: reason.other,
           met_criteria: l.met_criteria ?? "",
-          line_status: l.line_status ?? "pending",
+          line_status: l.line_status ?? l.activity_status ?? "pending",
           supporting_documents: parseSupportingDocuments(l.supporting_documents).filter((d) => d.path) as SavedDoc[],
           supportingFiles: [] as File[],
         };
@@ -515,8 +614,8 @@ export default function BeneficiaryManagementForm({
         compliance_guideline: l.compliance_guideline ?? "",
         transparent_process: l.transparent_process ?? "",
         selected_hmo: l.selected_hmo ?? "",
-        line_status: details.status || "pending",
-        remarks: details.remarks ?? "",
+        line_status: l.line_status || l.activity_status || details.status || "pending",
+        remarks: l.remarks ?? details.remarks ?? "",
         evidenceFile: null,
         reportFile: null,
         evidence_path: l.evidence_path ?? "",
@@ -549,6 +648,10 @@ export default function BeneficiaryManagementForm({
   const backToRegister = () => {
     resetEntry();
     if (linesRef.current.length === 0 && !reportId && !savedIdRef.current) {
+      if (categoryLocked) {
+        leave();
+        return;
+      }
       setActivity(null);
       return;
     }
@@ -689,24 +792,26 @@ export default function BeneficiaryManagementForm({
           return {
             ...base,
             lines: linesRef.current.filter((l) => l.kind === "dependant").map((l) => ({
+              id: (l as Line & { id?: string }).id,
               enrollee_name: l.enrollee_name,
               principle_nhia_number: l.principle_nhia_number,
-              age: null,
+              nhia_number: l.principle_nhia_number,
+              enrolment_reference_id: l.enrolment_reference_id || null,
+              request_kind: l.request,
+              dependant_entity: l.entity_type,
               relationship: l.entity_type,
+              relationship_kind: l.relationship_kind,
               program: encodeDependantProgram(l.request, l.program_name),
+              program_name: l.program_name || null,
               request_date: l.request_date || null,
               process_end_date: l.process_end_date || null,
               line_status: l.line_status || "pending",
-              supporting_documents: [
-                ...l.supporting_documents,
-                { field: "relationship", value: l.relationship_kind },
-                { field: "program_name", value: l.program_name },
-                { field: "enrolment_type", value: l.enrolment_type },
-                { field: "hmo", value: l.identity.hmo || "" },
-                ...IDENTITY_FIELDS.map((f) => ({ field: f.key, value: l.identity[f.key] || "" })),
-                { field: "hcf", value: l.hcf },
-                { field: "alternative_provider", value: l.alternative_provider },
-              ],
+              hcf: l.hcf || null,
+              alternative_provider: l.alternative_provider || null,
+              hmo_name: l.identity.hmo || null,
+              ...Object.fromEntries(IDENTITY_FIELDS.map((f) => [f.key, l.identity[f.key] || null])),
+              identity: l.identity,
+              supporting_documents: l.supporting_documents,
             })),
           };
         }
@@ -717,17 +822,22 @@ export default function BeneficiaryManagementForm({
               record_date: l.record_date || null,
               enrollee_name: l.enrollee_name,
               nhia_number: l.nhia_number,
+              enrolment_reference_id: l.enrolment_reference_id || null,
               entity_type: l.entity_type,
+              change_entity_type: l.entity_type,
               current_hcp_hmo: l.current_hcp_hmo,
               new_hcp_hmo: l.new_hcp_hmo,
+              current_provider: l.current_hcp_hmo,
+              new_provider: l.new_hcp_hmo,
+              reason_category: l.reason_category || null,
+              reason_other: l.reason_other || null,
               reason_for_transfer: packReason(l.reason_category, l.reason_other),
               met_criteria: l.met_criteria || null,
-              request_channel: null,
               request_date: l.record_date || null,
-              process_end_date: null,
               line_status: l.line_status || "pending",
+              program_name: l.program || null,
+              mda: l.mda || null,
               supporting_documents: l.supporting_documents,
-              details: { program: l.program, mda: l.mda },
             })),
           };
         }
@@ -748,7 +858,8 @@ export default function BeneficiaryManagementForm({
             evidence_name: l.evidence_name || null,
             report_path: l.report_path || null,
             report_name: l.report_name || null,
-            details: { status: l.line_status, remarks: l.remarks },
+            activity_status: l.line_status,
+            remarks: l.remarks || null,
           })),
         };
       }}
@@ -758,8 +869,12 @@ export default function BeneficiaryManagementForm({
         const entityChoices = entry.kind === "dependant"
           ? (entry.request === "additional" ? ADDITIONAL_ENTITY_TYPES : EXTRA_ENTITY_TYPES)
           : [];
-        const visiblePrincipals = stateId
-          ? principals.filter((p) => !p.stateId || p.stateId === String(stateId))
+        const stateKey = String(stateId || "").trim();
+        const visiblePrincipals = stateKey
+          ? principals.filter((p) => {
+              const keys = p.stateKeys?.length ? p.stateKeys : (p.stateId ? [p.stateId] : []);
+              return keys.length === 0 || keys.includes(stateKey);
+            })
           : principals;
         const applyPrincipal = (value: string) => {
           const picked = principals.find((p) => p.value === value);
@@ -769,6 +884,7 @@ export default function BeneficiaryManagementForm({
             principal_key: picked.value,
             enrollee_name: picked.name,
             principle_nhia_number: picked.nhia,
+            enrolment_reference_id: picked.enrolment_reference_id || "",
             program_name: picked.program,
             enrolment_type: picked.enrolmentType,
             identity: picked.identity,
@@ -784,6 +900,7 @@ export default function BeneficiaryManagementForm({
             enrollee_key: picked.value,
             enrollee_name: picked.name,
             nhia_number: picked.nhia,
+            enrolment_reference_id: picked.enrolment_reference_id || "",
             program: [picked.program, picked.enrolmentType].filter(Boolean).join(" · "),
             mda: entry.mda || picked.organization,
           });
@@ -842,7 +959,7 @@ export default function BeneficiaryManagementForm({
                   <p className="text-sm font-semibold text-[#0f3d2e]">
                     Activity: <span className="text-slate-800">{meta?.label}</span>
                   </p>
-                  {canEdit && !reportId && !savedId && lines.length === 0 && (
+                  {canEdit && !reportId && !savedId && lines.length === 0 && !categoryLocked && (
                     <Button
                       type="button"
                       variant="ghost"
@@ -1010,15 +1127,25 @@ export default function BeneficiaryManagementForm({
                             value={entry.principal_key}
                             displayLabel={entry.enrollee_name ? `${entry.enrollee_name}${entry.principle_nhia_number ? ` · ${entry.principle_nhia_number}` : ""}` : undefined}
                             onChange={applyPrincipal}
-                            placeholder={principalsError ? "Enrolment could not be loaded" : "Select from enrolment"}
+                            placeholder={
+                              principalsError
+                                ? "Enrolment could not be loaded"
+                                : principalsLoading
+                                  ? "Loading enrolment…"
+                                  : "Select from enrolment"
+                            }
                             searchPlaceholder="Search name or number"
-                            disabled={!!principalsError}
+                            disabled={!!principalsError || principalsLoading}
                           />
                           {principalsError && (
                             <p className="text-xs text-red-600">{principalsError}</p>
                           )}
-                          {!principalsError && visiblePrincipals.length === 0 && (
-                            <p className="text-xs text-slate-500">No enrolment record for this state has a principal and an enrolment type yet.</p>
+                          {!principalsError && !principalsLoading && visiblePrincipals.length === 0 && (
+                            <p className="text-xs text-slate-500">
+                              No principal found in Enrolment Activity for this state. Submit an Enrolment
+                              record with surname, first name, and enrolment type first — then select it here
+                              to auto-fill enrolment type and identity fields.
+                            </p>
                           )}
                         </Field>
                         <Field label="Principal NHIA number">
@@ -1110,13 +1237,22 @@ export default function BeneficiaryManagementForm({
                             value={entry.enrollee_key}
                             displayLabel={entry.enrollee_name ? `${entry.enrollee_name}${entry.nhia_number ? ` · ${entry.nhia_number}` : ""}` : undefined}
                             onChange={applyEnrollee}
-                            placeholder={principalsError ? "Enrolment could not be loaded" : "Select from enrolment"}
+                            placeholder={
+                              principalsError
+                                ? "Enrolment could not be loaded"
+                                : principalsLoading
+                                  ? "Loading enrolment…"
+                                  : "Select from enrolment"
+                            }
                             searchPlaceholder="Search name or number"
-                            disabled={!!principalsError}
+                            disabled={!!principalsError || principalsLoading}
                           />
                           {principalsError && <p className="text-xs text-red-600">{principalsError}</p>}
-                          {!principalsError && visiblePrincipals.length === 0 && (
-                            <p className="text-xs text-slate-500">No enrolment record for this state has a principal and an enrolment type yet.</p>
+                          {!principalsError && !principalsLoading && visiblePrincipals.length === 0 && (
+                            <p className="text-xs text-slate-500">
+                              No enrollee found in Enrolment Activity for this state. Add Enrolment records
+                              with enrollee identity first.
+                            </p>
                           )}
                         </Field>
                         <Field label="NHIA number">

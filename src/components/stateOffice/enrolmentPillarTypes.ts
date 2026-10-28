@@ -121,27 +121,41 @@ export const ENROLMENT_ACTIVITIES = [
     code: "ENR-0001",
     value: "enrolment",
     label: "Enrolment",
+    tabLabel: "Enrolment",
+    newLabel: "New Enrolment",
     description: "Register new people and capture their details.",
   },
   {
     code: "ENR-0002",
     value: "nin_validation",
     label: "NIN Validation",
+    tabLabel: "NIN Validation",
+    newLabel: "New NIN Validation",
     description: "Check National Identification Numbers against records.",
   },
   {
     code: "ENR-0003",
     value: "id_card_issuance",
     label: "ID Card Issuance/Renewal",
+    tabLabel: "ID Card",
+    newLabel: "New ID Card",
     description: "Issue new cards or renew expired ones.",
   },
   {
     code: "ENR-0004",
     value: "validation_of_enrolees",
     label: "Validation of Enrollees",
+    tabLabel: "Enrollee Validation",
+    newLabel: "New Enrollee Validation",
     description: "Confirm enrolment records are complete and correct.",
   },
 ] as const;
+
+export type EnrolmentActivityValue = (typeof ENROLMENT_ACTIVITIES)[number]["value"];
+
+export function enrolmentActivityMeta(value: string | null | undefined) {
+  return ENROLMENT_ACTIVITIES.find((a) => a.value === value) ?? null;
+}
 
 export const ENROLMENT_CHANNELS = ["NHIA", "SSHIA"] as const;
 

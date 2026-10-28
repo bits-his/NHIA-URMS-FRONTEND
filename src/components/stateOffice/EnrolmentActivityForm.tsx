@@ -17,6 +17,7 @@ import { NIGERIAN_STATE_NAMES, lgasForState } from "./nigeriaGeo";
 import { labelOf, monthLabel, quarterFromMonth } from "./constants";
 import {
   ENROLMENT_ACTIVITIES,
+  enrolmentActivityMeta,
   ENROLMENT_ACTIVITY_STATUSES,
   ENROLMENT_BENEFICIARY_CATEGORIES,
   ENROLMENT_BENEFICIARY_STATUSES,
@@ -83,7 +84,7 @@ const blank = () => ({
   organization_name: "",
   nin_number: "",
   validation_status: "",
-  validation_date: "",
+  validation_date: todayIsoDate(),
   not_validated_reason: "",
   request_category: "",
   nhia_number: "",
@@ -98,12 +99,14 @@ type Entry = ReturnType<typeof blank>;
 type StepId = "activity" | "channel" | "details" | "beneficiary" | "review";
 
 interface Props {
-  reportId?: number | null;
+  reportId?: number | string | null;
   onBack: () => void;
   onCancel?: () => void;
   onSubmitted?: () => void;
   defaultZoneId?: string | null;
   defaultStateId?: string | null;
+  /** When creating from an activity tab, skip the activity picker. */
+  initialCategory?: string | null;
 }
 
 function FieldSection({ title, children }: { title: string; children: React.ReactNode }) {
@@ -406,14 +409,26 @@ function stepsForCategory(category: string): { id: StepId; label: string }[] {
 
 /** Activity Reporting Template — stepped flow from Enrolment.pptx */
 export default function EnrolmentActivityForm({
-  reportId, onBack, onCancel, onSubmitted, defaultZoneId, defaultStateId,
+  reportId, onBack, onCancel, onSubmitted, defaultZoneId, defaultStateId, initialCategory,
 }: Props) {
-  const fresh = (): Entry => ({ ...blank(), program_details: {} });
-  const [entry, setEntry] = React.useState<Entry>(fresh);
+  const fresh = (category = ""): Entry => ({ ...blank(), category, program_details: {} });
+  const seededCategory = !reportId && initialCategory
+    && ENROLMENT_ACTIVITIES.some((a) => a.value === initialCategory)
+    ? initialCategory
+    : "";
+  const [entry, setEntry] = React.useState<Entry>(() => fresh(seededCategory));
   const [fieldErrors, setFieldErrors] = React.useState<Record<string, string>>({});
   const [stepIndex, setStepIndex] = React.useState(0);
   const entryRef = React.useRef(entry);
   entryRef.current = entry;
+
+  React.useEffect(() => {
+    if (reportId) return;
+    if (!initialCategory || !ENROLMENT_ACTIVITIES.some((a) => a.value === initialCategory)) return;
+    setEntry(fresh(initialCategory));
+    setFieldErrors({});
+    setStepIndex(0);
+  }, [reportId, initialCategory]);
 
   const set = <K extends keyof Entry>(k: K, v: Entry[K]) => setEntry((p) => ({ ...p, [k]: v }));
   const setDetail = (key: string, value: string) =>
@@ -524,7 +539,7 @@ export default function EnrolmentActivityForm({
       organization_name: details.organization_name ?? "",
       nin_number: details.nin_number ?? details.nin ?? "",
       validation_status: details.validation_status ?? "",
-      validation_date: details.validation_date ?? "",
+      validation_date: (details.validation_date || l.activity_date?.slice?.(0, 10) || todayIsoDate()),
       not_validated_reason: details.not_validated_reason ?? "",
       request_category: details.request_category ?? "",
       nhia_number: details.nhia_number ?? "",
@@ -545,7 +560,7 @@ export default function EnrolmentActivityForm({
   };
 
   const selectActivity = (category: string) => {
-    setEntry({ ...fresh(), category });
+    setEntry(fresh(category));
     setFieldErrors({});
     setStepIndex(0);
   };
@@ -563,7 +578,7 @@ export default function EnrolmentActivityForm({
         organization_name: e.organization_name,
         nin_number: e.nin_number,
         validation_status: e.validation_status,
-        validation_date: e.validation_date,
+        validation_date: e.validation_date || e.activity_date || todayIsoDate(),
         not_validated_reason: e.not_validated_reason,
       };
     }
@@ -640,7 +655,9 @@ export default function EnrolmentActivityForm({
       if (!e.program_name) return fail("program_name", "Select program");
       if (!e.nin_number.trim()) return fail("nin_number", "Enter NIN");
       if (!e.validation_status) return fail("validation_status", "Select validation status");
-      if (!e.validation_date) return fail("validation_date", "Enter validation date");
+      if (!(e.validation_date || e.activity_date)) {
+        return fail("validation_date", "Enter validation date");
+      }
       if (e.validation_status === "Not validated" && !e.not_validated_reason.trim()) {
         return fail("not_validated_reason", "Enter reason for not validated");
       }
@@ -706,10 +723,13 @@ export default function EnrolmentActivityForm({
     const prog = ENROLMENT_PROGRAMS.find((p) => p.label === e.program_name);
     const budgeted = e.funding_option === ENROLMENT_BUDGETED;
     const details = buildProgramDetails(e);
+    const activityDate = e.category === "nin_validation"
+      ? (e.validation_date || e.activity_date || todayIsoDate())
+      : (e.activity_date || null);
     return {
       category: e.category,
       activity_code: act?.code ?? null,
-      activity_date: e.activity_date || null,
+      activity_date: activityDate,
       enrolment_channel: e.enrolment_channel || null,
       enrolment_type: e.enrolment_type || null,
       program_code: prog?.code ?? null,
@@ -744,8 +764,9 @@ export default function EnrolmentActivityForm({
 
   const goBack = () => setStepIndex((i) => Math.max(i - 1, 0));
 
-  const activityLabel = ENROLMENT_ACTIVITIES.find((a) => a.value === entry.category)?.label
-    ?? "Select activity";
+  const activityMeta = enrolmentActivityMeta(entry.category);
+  const activityLabel = activityMeta?.label ?? "Select activity";
+  const categoryLocked = Boolean(seededCategory);
 
   return (
     <StateOfficeFormShell
@@ -756,7 +777,7 @@ export default function EnrolmentActivityForm({
       onSubmitted={onSubmitted}
       defaultZoneId={defaultZoneId}
       defaultStateId={defaultStateId}
-      pageTitle="Enrolment Activity Reporting"
+      pageTitle={activityMeta?.label ?? "Enrolment Activity Reporting"}
       hideFooterActions
       hideBasicInfo
       showQuarter
@@ -1057,10 +1078,19 @@ export default function EnrolmentActivityForm({
               {currentStep?.id === "details" && isNin && (
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   <Field label="Validation Date" required error={fieldErrors.validation_date}>
-                    <Input type="date" value={entry.validation_date || entry.activity_date} onChange={(e) => {
-                      set("validation_date", e.target.value);
-                      set("activity_date", e.target.value);
-                    }} />
+                    <Input
+                      type="date"
+                      value={entry.validation_date || todayIsoDate()}
+                      max={todayIsoDate()}
+                      onChange={(e) => {
+                        const v = e.target.value || todayIsoDate();
+                        setEntry((p) => ({
+                          ...p,
+                          validation_date: v,
+                          activity_date: v,
+                        }));
+                      }}
+                    />
                   </Field>
                   <Field label="Enrollee Name" required error={fieldErrors.enrollee_name}>
                     <Input value={entry.enrollee_name} onChange={(e) => set("enrollee_name", e.target.value)} />
@@ -1326,6 +1356,10 @@ export default function EnrolmentActivityForm({
                     disabled={saving || submitting}
                     onClick={() => {
                       if (stepIndex === 0) {
+                        if (categoryLocked) {
+                          (onCancel ?? onBack)();
+                          return;
+                        }
                         // Return to activity picker
                         setEntry(fresh());
                         setStepIndex(0);

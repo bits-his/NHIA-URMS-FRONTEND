@@ -1,6 +1,9 @@
 import * as React from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowLeft, CheckCircle2, Clock, Eye, FileText, Loader2, Plus, RefreshCw } from "lucide-react";
+import {
+  ArrowLeft, ArrowRightLeft, Building2, CheckCircle2, Clock, Eye, FileText,
+  Loader2, Plus, RefreshCw, UserPlus, Users, type LucideIcon,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,13 +17,16 @@ import { buildReportingYearOptions } from "../monthly/reportingYears";
 import { ALL_STATES, useMonthlyStateFilter } from "../monthly/useMonthlyStateFilter";
 import { MONTHS, monthLabel, type StateOfficeReportType } from "./constants";
 import BeneficiaryManagementForm from "./BeneficiaryManagementForm";
-import BeneficiaryReportView from "./BeneficiaryReportView";
+import BeneficiaryManagementReportDetail from "./BeneficiaryManagementReportDetail";
 import {
-  BENEFICIARY_LIST_FILTERS,
+  BENEFICIARY_ACTIVITIES,
   BENEFICIARY_MANAGEMENT_NAV_TITLE,
   BENEFICIARY_MANAGEMENT_PATH,
   BENEFICIARY_REPORT_TYPES,
+  activityApiType,
   beneficiaryListSummary,
+  beneficiaryTabMatches,
+  type BeneficiaryActivityKey,
 } from "./beneficiaryManagementTypes";
 
 interface Props {
@@ -33,7 +39,8 @@ type ReportType = (typeof BENEFICIARY_REPORT_TYPES)[number];
 type Mode = "list" | "new" | "view" | "edit";
 
 interface Report {
-  id: number;
+  id: number | string;
+  reference_id?: string;
   reporting_year: number;
   reporting_month: number;
   status: "draft" | "submitted" | "approved";
@@ -47,6 +54,13 @@ interface Report {
 }
 
 const REPORT_TYPES = new Set<string>(BENEFICIARY_REPORT_TYPES);
+
+const ACTIVITY_ICONS: Record<BeneficiaryActivityKey, LucideIcon> = {
+  additional: UserPlus,
+  extra: Users,
+  provider: ArrowRightLeft,
+  mda: Building2,
+};
 
 const STATUS = {
   draft: { label: "Draft", cls: "bg-slate-100 text-slate-600 border-slate-200", icon: <FileText className="w-3.5 h-3.5" /> },
@@ -64,6 +78,10 @@ function isReportType(value: string | null): value is ReportType {
   return !!value && REPORT_TYPES.has(value);
 }
 
+function isActivityKey(value: string | null | undefined): value is BeneficiaryActivityKey {
+  return !!value && BENEFICIARY_ACTIVITIES.some((a) => a.key === value);
+}
+
 export default function BeneficiaryManagementPage({ onBack, defaultZoneId, defaultStateId }: Props) {
   const [searchParams, setSearchParams] = useSearchParams();
   const { canCreate, canReview } = useStateOfficeAccess();
@@ -72,9 +90,10 @@ export default function BeneficiaryManagementPage({ onBack, defaultZoneId, defau
     modeParam === "new" || modeParam === "view" || modeParam === "edit"
       ? modeParam
       : "list";
-  const queryId = Number(searchParams.get("id"));
+  const queryIdRaw = searchParams.get("id");
   const queryType = searchParams.get("type");
-  const reportId = Number.isFinite(queryId) && queryId > 0 ? queryId : null;
+  const queryActivity = searchParams.get("activity");
+  const reportId = queryIdRaw && String(queryIdRaw).trim() ? String(queryIdRaw).trim() : null;
   const reportType: ReportType = isReportType(queryType) ? queryType : "extra-dependant";
 
   const [reports, setReports] = React.useState<Report[]>([]);
@@ -83,7 +102,13 @@ export default function BeneficiaryManagementPage({ onBack, defaultZoneId, defau
   const [filterYear, setFilterYear] = React.useState("all");
   const [filterMonth, setFilterMonth] = React.useState("all");
   const [filterStatus, setFilterStatus] = React.useState("all");
-  const [filterActivity, setFilterActivity] = React.useState("all");
+  const [activeTab, setActiveTab] = React.useState<BeneficiaryActivityKey>(
+    BENEFICIARY_ACTIVITIES[0].key,
+  );
+
+  const activeActivity = BENEFICIARY_ACTIVITIES.find((a) => a.key === activeTab) ?? BENEFICIARY_ACTIVITIES[0];
+  const newButtonLabel = activeActivity.newLabel;
+  const createActivity: BeneficiaryActivityKey = isActivityKey(queryActivity) ? queryActivity : activeTab;
 
   const {
     showStateFilter,
@@ -96,7 +121,12 @@ export default function BeneficiaryManagementPage({ onBack, defaultZoneId, defau
   const showLocation = !defaultStateId || !defaultZoneId;
 
   const setQuery = React.useCallback((
-    next: { mode?: Mode; id?: number | null; type?: string | null },
+    next: {
+      mode?: Mode;
+      id?: number | string | null;
+      type?: string | null;
+      activity?: BeneficiaryActivityKey | null;
+    },
     opts?: { replace?: boolean },
   ) => {
     const params = new URLSearchParams();
@@ -105,6 +135,7 @@ export default function BeneficiaryManagementPage({ onBack, defaultZoneId, defau
       params.set("mode", nextMode);
       if (next.id != null) params.set("id", String(next.id));
       if (next.type) params.set("type", next.type);
+      if (next.activity) params.set("activity", next.activity);
     }
     setSearchParams(params, { replace: !!opts?.replace });
   }, [setSearchParams]);
@@ -151,13 +182,28 @@ export default function BeneficiaryManagementPage({ onBack, defaultZoneId, defau
     }
   }, [mode, reportId, queryType, setQuery]);
 
-  const filtered = React.useMemo(() => {
+  const statusFiltered = React.useMemo(() => {
     let rows = reports;
     if (filterStatus === "draft") rows = rows.filter((row) => row.status === "draft" && !row.endorsed);
     if (filterStatus === "endorsed") rows = rows.filter((row) => row.status === "draft" && !!row.endorsed);
-    if (filterActivity === "all") return rows;
-    return rows.filter((row) => beneficiaryListSummary(row).key === filterActivity);
-  }, [reports, filterActivity, filterStatus]);
+    return rows;
+  }, [reports, filterStatus]);
+
+  const activityTabCounts = React.useMemo(() => {
+    const map = Object.fromEntries(BENEFICIARY_ACTIVITIES.map((a) => [a.key, 0])) as Record<BeneficiaryActivityKey, number>;
+    for (const row of statusFiltered) {
+      const key = beneficiaryListSummary(row).key;
+      for (const activity of BENEFICIARY_ACTIVITIES) {
+        if (beneficiaryTabMatches(key, activity.key)) map[activity.key] += 1;
+      }
+    }
+    return map;
+  }, [statusFiltered]);
+
+  const filtered = React.useMemo(
+    () => statusFiltered.filter((row) => beneficiaryTabMatches(beneficiaryListSummary(row).key, activeTab)),
+    [statusFiltered, activeTab],
+  );
 
   const yearOptions = React.useMemo(
     () => buildReportingYearOptions(reports.map((row) => row.reporting_year)),
@@ -169,10 +215,19 @@ export default function BeneficiaryManagementPage({ onBack, defaultZoneId, defau
     setFormKey((key) => key + 1);
   }, [setQuery]);
 
+  const openCreate = React.useCallback(() => {
+    setFormKey((key) => key + 1);
+    setQuery({
+      mode: "new",
+      type: activityApiType(activeTab),
+      activity: activeTab,
+    });
+  }, [activeTab, setQuery]);
+
   if (mode === "view" && reportId) {
     return (
-      <BeneficiaryReportView
-        reportType={reportType as StateOfficeReportType}
+      <BeneficiaryManagementReportDetail
+        reportType={reportType}
         reportId={reportId}
         onBack={openList}
         onEdit={canCreate ? () => setQuery({ mode: "edit", id: reportId, type: reportType }) : undefined}
@@ -184,19 +239,20 @@ export default function BeneficiaryManagementPage({ onBack, defaultZoneId, defau
     return (
       <BeneficiaryManagementForm
         key={formKey}
-        reportType={(mode === "edit" ? reportType : "extra-dependant") as StateOfficeReportType}
+        reportType={(mode === "edit" ? reportType : activityApiType(createActivity)) as StateOfficeReportType}
         reportId={mode === "edit" ? reportId : null}
         onBack={openList}
         onCancel={openList}
         onSubmitted={openList}
         defaultZoneId={defaultZoneId}
         defaultStateId={defaultStateId}
+        initialActivity={mode === "new" ? createActivity : null}
       />
     );
   }
 
   const hasFilters = filterYear !== "all" || filterMonth !== "all" || filterStatus !== "all"
-    || filterActivity !== "all" || (showStateFilter && filterState !== ALL_STATES);
+    || (showStateFilter && filterState !== ALL_STATES);
   const counts = {
     total: filtered.length,
     draft: filtered.filter((row) => row.status === "draft" && !row.endorsed).length,
@@ -237,14 +293,54 @@ export default function BeneficiaryManagementPage({ onBack, defaultZoneId, defau
           {canCreate && (
             <Button
               className="bg-orange-action hover:bg-orange-600 gap-2 shadow-md shadow-orange-500/15"
-              onClick={() => {
-                setFormKey((key) => key + 1);
-                setQuery({ mode: "new" });
-              }}
+              onClick={openCreate}
             >
-              <Plus className="w-4 h-4" /> New Report
+              <Plus className="w-4 h-4" /> {newButtonLabel}
             </Button>
           )}
+        </div>
+      </div>
+
+      <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 sticky top-[57px] z-20">
+        <div
+          className="flex gap-0 overflow-x-auto -mb-px"
+          role="tablist"
+          aria-label="Beneficiary activities"
+        >
+          {BENEFICIARY_ACTIVITIES.map((tab) => {
+            const active = activeTab === tab.key;
+            const Icon = ACTIVITY_ICONS[tab.key];
+            const count = activityTabCounts[tab.key] ?? 0;
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => setActiveTab(tab.key)}
+                className={`group relative shrink-0 inline-flex items-center gap-2 px-4 py-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors outline-none focus-visible:bg-[#f4f7f5] ${
+                  active
+                    ? "border-[#145c3f] text-[#145c3f]"
+                    : "border-transparent text-slate-500 hover:text-[#0f3d2e] hover:border-[#c5ddd0]"
+                }`}
+              >
+                <Icon
+                  className={`h-4 w-4 shrink-0 ${active ? "text-[#145c3f]" : "text-slate-400 group-hover:text-[#145c3f]"}`}
+                  strokeWidth={2}
+                />
+                <span>{tab.tabLabel}</span>
+                <span
+                  className={`inline-flex min-w-[1.25rem] h-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold tabular-nums ${
+                    active
+                      ? "bg-[#e8f6ee] text-[#145c3f]"
+                      : "bg-slate-100 text-slate-500 group-hover:bg-[#e8f6ee] group-hover:text-[#145c3f]"
+                  }`}
+                >
+                  {count}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -260,7 +356,7 @@ export default function BeneficiaryManagementPage({ onBack, defaultZoneId, defau
           </div>
 
           <div className={`grid gap-3 w-full rounded-xl border border-[#d4e8dc] bg-white px-4 py-4 ${
-            showStateFilter ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-5" : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4"
+            showStateFilter ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4" : "grid-cols-1 sm:grid-cols-3"
           }`}>
             {showStateFilter && (
               <Select value={filterState} onValueChange={setFilterState}>
@@ -303,15 +399,6 @@ export default function BeneficiaryManagementPage({ onBack, defaultZoneId, defau
                 <SelectItem value="approved">Approved</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={filterActivity} onValueChange={setFilterActivity}>
-              <SelectTrigger className="w-full h-10 bg-[#f4f7f5] border-2 border-[#1a7a52]" displayValue={filterActivity === "all" ? "All Activities" : (BENEFICIARY_LIST_FILTERS.find((item) => item.value === filterActivity)?.label ?? "Activity")}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Activities</SelectItem>
-                {BENEFICIARY_LIST_FILTERS.map((item) => <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>)}
-              </SelectContent>
-            </Select>
             {hasFilters && (
               <div className="col-span-full flex justify-end">
                 <Button
@@ -322,7 +409,6 @@ export default function BeneficiaryManagementPage({ onBack, defaultZoneId, defau
                     setFilterYear("all");
                     setFilterMonth("all");
                     setFilterStatus("all");
-                    setFilterActivity("all");
                     if (showStateFilter) setFilterState(ALL_STATES);
                   }}
                 >
@@ -341,16 +427,17 @@ export default function BeneficiaryManagementPage({ onBack, defaultZoneId, defau
                 </div>
               ) : filtered.length === 0 ? (
                 <div className="py-16 text-center space-y-3">
-                  <p className="text-sm text-slate-500">No beneficiary reports yet for these filters.</p>
+                  <p className="text-sm text-slate-500">
+                    {hasFilters
+                      ? "No reports match your filters."
+                      : `No ${activeActivity.tabLabel} reports yet.`}
+                  </p>
                   {canCreate && (
                     <Button
                       className="bg-orange-action hover:bg-orange-600 gap-2"
-                      onClick={() => {
-                        setFormKey((key) => key + 1);
-                        setQuery({ mode: "new" });
-                      }}
+                      onClick={openCreate}
                     >
-                      <Plus className="w-4 h-4" /> Create first report
+                      <Plus className="w-4 h-4" /> {newButtonLabel}
                     </Button>
                   )}
                 </div>
@@ -364,8 +451,10 @@ export default function BeneficiaryManagementPage({ onBack, defaultZoneId, defau
                           <TableHead className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e]">Zone</TableHead>
                         )}
                         <TableHead className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e]">State</TableHead>
-                        <TableHead className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e]">Activity</TableHead>
                         <TableHead className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e]">Subject</TableHead>
+                        {activeTab === "provider" && (
+                          <TableHead className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e]">Type</TableHead>
+                        )}
                         <TableHead className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e]">Status</TableHead>
                         <TableHead className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e] text-right">Action</TableHead>
                       </TableRow>
@@ -387,12 +476,14 @@ export default function BeneficiaryManagementPage({ onBack, defaultZoneId, defau
                             <TableCell className="text-sm text-slate-700 whitespace-nowrap">
                               {row.state?.description || "—"}
                             </TableCell>
-                            <TableCell className="text-sm font-semibold text-[#145c3f] whitespace-nowrap">
-                              {summary.activity}
-                            </TableCell>
                             <TableCell className="text-sm text-slate-700 max-w-[16rem] truncate" title={summary.subject}>
                               {summary.subject}
                             </TableCell>
+                            {activeTab === "provider" && (
+                              <TableCell className="text-sm font-semibold text-[#145c3f] whitespace-nowrap">
+                                {summary.activity}
+                              </TableCell>
+                            )}
                             <TableCell>
                               <Badge className={`text-[10px] px-2 py-0.5 flex items-center gap-1 w-fit border ${status.cls}`}>
                                 {status.icon} {status.label}
@@ -403,7 +494,7 @@ export default function BeneficiaryManagementPage({ onBack, defaultZoneId, defau
                                 variant="ghost"
                                 size="sm"
                                 className="h-8 gap-1.5 text-[#145c3f] hover:bg-[#eef6f1]"
-                                onClick={() => setQuery({ mode: "view", id: row.id, type: row.__reportType })}
+                                onClick={() => setQuery({ mode: "view", id: row.reference_id || row.id, type: row.__reportType })}
                               >
                                 <Eye className="w-3.5 h-3.5" /> View
                               </Button>

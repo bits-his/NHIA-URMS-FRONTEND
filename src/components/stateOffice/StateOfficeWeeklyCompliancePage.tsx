@@ -71,8 +71,8 @@ const emptyForm = (
 });
 
 const rowToForm = (row: any): FormState => ({
-  zone_id: row.zone_id != null ? String(row.zone_id) : "",
-  state_id: row.state_id != null ? String(row.state_id) : "",
+  zone_id: String(row.zonal_code ?? row.zone_id ?? ""),
+  state_id: String(row.state_code ?? row.state_id ?? ""),
   facility_id: row.facility_id ?? "",
   facility_name: row.facility_name ?? "",
   nhia_code: row.nhia_code ?? "",
@@ -86,9 +86,9 @@ const rowToForm = (row: any): FormState => ({
   indicators: row.indicators ?? {},
 });
 
-function pickGeoLabel(options: { id: number; description?: string }[], value: string, fallback: string) {
+function pickGeoLabel(options: { id?: number | string; code?: string; zonal_code?: string; description?: string }[], value: string, fallback: string) {
   if (!value) return fallback;
-  return options.find((o) => String(o.id) === value)?.description ?? fallback;
+  return options.find((o) => String(o.zonal_code ?? o.code ?? o.id ?? "") === value)?.description ?? fallback;
 }
 
 function matchFacilityType(raw?: string | null) {
@@ -152,7 +152,7 @@ export default function StateOfficeWeeklyCompliancePage({ onBack, defaultStateId
   }), [user]);
 
   const [mode, setMode] = React.useState<"list" | "form" | "view">(createOnly ? "form" : "list");
-  const [editingId, setEditingId] = React.useState<number | null>(null);
+  const [editingId, setEditingId] = React.useState<number | string | null>(null);
   const [selected, setSelected] = React.useState<any | null>(null);
   const [rows, setRows] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(!createOnly);
@@ -212,7 +212,7 @@ export default function StateOfficeWeeklyCompliancePage({ onBack, defaultStateId
     setMode("form");
   };
 
-  const openView = async (id: number) => {
+  const openView = async (id: number | string) => {
     setMode("view");
     setSelected(null);
     try {
@@ -225,14 +225,17 @@ export default function StateOfficeWeeklyCompliancePage({ onBack, defaultStateId
   };
 
   const openEdit = (row: any) => {
-    setEditingId(row.id);
+    setEditingId(row.reference_id || row.id);
     setF(rowToForm(row));
     setMode("form");
   };
 
   const leaveForm = () => {
     if (createOnly) { onBack(); return; }
-    if (editingId && selected?.id === editingId) { setMode("view"); return; }
+    if (editingId && String(selected?.reference_id || selected?.id) === String(editingId)) {
+      setMode("view");
+      return;
+    }
     setMode("list");
   };
 
@@ -250,8 +253,10 @@ export default function StateOfficeWeeklyCompliancePage({ onBack, defaultStateId
     try {
       const payload = {
         ...f,
-        zone_id: Number(f.zone_id),
-        state_id: Number(f.state_id),
+        zone_id: f.zone_id,
+        state_id: f.state_id,
+        zonal_code: f.zone_id,
+        state_code: f.state_id,
         facility_type_other: f.facility_type === "Other" ? f.facility_type_other : null,
         status: "submitted",
       };
@@ -296,14 +301,24 @@ export default function StateOfficeWeeklyCompliancePage({ onBack, defaultStateId
                   <Label>Zone *</Label>
                   <Select value={f.zone_id} disabled={zoneLocked} onValueChange={(v) => setF((p) => ({ ...p, zone_id: v, state_id: stateLocked ? p.state_id : "" }))}>
                     <SelectTrigger displayValue={pickGeoLabel(zones, f.zone_id, "Zone")}><SelectValue /></SelectTrigger>
-                    <SelectContent>{zones.map((z) => <SelectItem key={z.id} value={String(z.id)}>{z.description}</SelectItem>)}</SelectContent>
+                    <SelectContent>
+                      {zones.map((z) => {
+                        const id = String(z.zonal_code ?? z.id ?? "");
+                        return <SelectItem key={id} value={id}>{z.description}</SelectItem>;
+                      })}
+                    </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
                   <Label>State *</Label>
                   <Select value={f.state_id} disabled={stateLocked} onValueChange={(v) => set("state_id", v)}>
                     <SelectTrigger displayValue={pickGeoLabel(states, f.state_id, "State")}><SelectValue /></SelectTrigger>
-                    <SelectContent>{states.map((s) => <SelectItem key={s.id} value={String(s.id)}>{s.description}</SelectItem>)}</SelectContent>
+                    <SelectContent>
+                      {states.map((s) => {
+                        const id = String(s.code ?? s.id ?? "");
+                        return <SelectItem key={id} value={id}>{s.description}</SelectItem>;
+                      })}
+                    </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2 md:col-span-2">
@@ -621,9 +636,9 @@ export default function StateOfficeWeeklyCompliancePage({ onBack, defaultStateId
                       {rows.map((r, i) => {
                         const breaches = weeklyBreaches(r.indicators).length;
                         return (
-                          <motion.tr key={r.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.02 }}
+                          <motion.tr key={r.reference_id || r.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.02 }}
                             className="border-b border-slate-100">
-                            <TableCell className="font-mono text-xs font-bold text-primary">{r.reference_id}</TableCell>
+                            <TableCell className="font-mono text-xs font-bold text-primary">{r.reference_id || r.id}</TableCell>
                             <TableCell className="text-sm font-medium">{r.facility_name}</TableCell>
                             <TableCell className="text-xs">{r.nhia_code || "—"}</TableCell>
                             <TableCell className="text-xs">{r.facility_type === "Other" ? (r.facility_type_other || "Other") : (r.facility_type || "—")}</TableCell>
@@ -637,7 +652,7 @@ export default function StateOfficeWeeklyCompliancePage({ onBack, defaultStateId
                             </TableCell>
                             <TableCell className="text-xs">{r.state?.description ?? "—"}</TableCell>
                             <TableCell>
-                              <Button variant="ghost" size="sm" className="gap-1.5 h-8" onClick={() => openView(r.id)}>
+                              <Button variant="ghost" size="sm" className="gap-1.5 h-8" onClick={() => openView(r.reference_id || r.id)}>
                                 <Eye className="w-3.5 h-3.5" /> View
                               </Button>
                             </TableCell>

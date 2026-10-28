@@ -46,7 +46,7 @@ type Mode = "list" | "create" | "edit" | "view";
 export default function StakeholderManagementPage({ onBack, defaultZoneId, defaultStateId }: Props) {
   const { canCreate, canReview } = useStateOfficeAccess();
   const [mode, setMode] = React.useState<Mode>("list");
-  const [selectedId, setSelectedId] = React.useState<number | null>(null);
+  const [selectedId, setSelectedId] = React.useState<number | string | null>(null);
   const [reports, setReports] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [filterYear, setFilterYear] = React.useState("all");
@@ -142,7 +142,7 @@ export default function StakeholderManagementPage({ onBack, defaultZoneId, defau
               className="bg-orange-action hover:bg-orange-600 gap-2 shadow-md shadow-orange-500/15"
               onClick={() => { setSelectedId(null); setMode("create"); }}
             >
-              <Plus className="w-4 h-4" /> New Report
+              <Plus className="w-4 h-4" /> New Stakeholder Engagement Report
             </Button>
           )}
         </div>
@@ -234,7 +234,7 @@ export default function StakeholderManagementPage({ onBack, defaultZoneId, defau
                       className="bg-orange-action hover:bg-orange-600 gap-2"
                       onClick={() => { setSelectedId(null); setMode("create"); }}
                     >
-                      <Plus className="w-4 h-4" /> Create first report
+                      <Plus className="w-4 h-4" /> New Stakeholder Engagement Report
                     </Button>
                   )}
                 </div>
@@ -283,7 +283,7 @@ export default function StakeholderManagementPage({ onBack, defaultZoneId, defau
                                 variant="ghost"
                                 size="sm"
                                 className="h-8 gap-1.5 text-[#145c3f] hover:bg-[#eef6f1]"
-                                onClick={() => { setSelectedId(r.id); setMode("view"); }}
+                                onClick={() => { setSelectedId(r.reference_id || r.id); setMode("view"); }}
                               >
                                 <Eye className="w-3.5 h-3.5" /> View
                               </Button>

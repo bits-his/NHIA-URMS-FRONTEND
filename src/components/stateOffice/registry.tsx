@@ -19,7 +19,10 @@ import ExtraDependantForm from "./ExtraDependantForm";
 import EnrolmentDriveForm from "./EnrolmentDriveForm";
 import EnrolmentActivityForm from "./EnrolmentActivityForm";
 import EnrolmentReportDetail from "./EnrolmentReportDetail";
-import { ENROLMENT_DRIVE_REPORT_TYPES } from "./enrolmentDriveTypes";
+import EnrolmentDriveReportDetail from "./EnrolmentDriveReportDetail";
+import BeneficiaryManagementReportDetail from "./BeneficiaryManagementReportDetail";
+import { ENROLMENT_DRIVE_REPORT_TYPES, isEnrolmentDriveType } from "./enrolmentDriveTypes";
+import { BENEFICIARY_REPORT_TYPES } from "./beneficiaryManagementTypes";
 import HcpChangeForm from "./HcpChangeForm";
 import EtmcTmcActionPointForm from "./EtmcTmcActionPointForm";
 import EtmcTmcActionPointDetail from "./EtmcTmcActionPointDetail";
@@ -29,9 +32,10 @@ import AdhocSpecialAssignmentForm from "./AdhocSpecialAssignmentForm";
 import AdhocSpecialAssignmentDetail from "./AdhocSpecialAssignmentDetail";
 
 const EXTENDED_DETAIL = new Set<StateOfficeReportType>([
-  "complaints", "accreditation", "hmo-selection", "challenges",
-  "extra-dependant", "hcf-change", ...ENROLMENT_DRIVE_REPORT_TYPES,
+  "complaints", "accreditation", "challenges",
 ]);
+
+const BENEFICIARY_DETAIL = new Set<string>(BENEFICIARY_REPORT_TYPES);
 
 const FORM_COMPONENTS: Partial<Record<StateOfficeReportType, React.ComponentType<any>>> = {
   enrolment: EnrolmentActivityForm,
@@ -55,13 +59,14 @@ const FORM_COMPONENTS: Partial<Record<StateOfficeReportType, React.ComponentType
 
 export function StateOfficeFormRouter(props: {
   reportType: StateOfficeReportType;
-  reportId?: number | null;
+  reportId?: number | string | null;
   onBack: () => void;
   onCancel?: () => void;
   onSubmitted?: () => void;
   defaultZoneId?: string | null;
   defaultStateId?: string | null;
   onPersisted?: (saved: { id: number; status: string; reference_id?: string }) => void;
+  initialCategory?: string | null;
 }) {
   const Form = FORM_COMPONENTS[props.reportType] ?? StateOfficeReportPage;
   return <Form {...props} />;
@@ -69,12 +74,18 @@ export function StateOfficeFormRouter(props: {
 
 export function StateOfficeDetailRouter(props: {
   reportType: StateOfficeReportType;
-  reportId: number;
+  reportId: number | string;
   onBack: () => void;
   onEdit?: () => void;
 }) {
   if (props.reportType === "enrolment") {
     return <EnrolmentReportDetail {...props} reportType="enrolment" />;
+  }
+  if (isEnrolmentDriveType(props.reportType)) {
+    return <EnrolmentDriveReportDetail {...props} reportType={props.reportType} />;
+  }
+  if (BENEFICIARY_DETAIL.has(props.reportType)) {
+    return <BeneficiaryManagementReportDetail {...props} reportType={props.reportType} />;
   }
   if (props.reportType === "stakeholder") {
     return <StakeholderReportDetail {...props} reportType="stakeholder" />;

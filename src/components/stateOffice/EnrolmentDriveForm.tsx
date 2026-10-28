@@ -69,7 +69,7 @@ type Entry = ReturnType<typeof blank>;
 
 interface Props {
   reportType: EnrolmentDriveReportType;
-  reportId?: number | null;
+  reportId?: number | string | null;
   onBack: () => void;
   onCancel?: () => void;
   onSubmitted?: () => void;

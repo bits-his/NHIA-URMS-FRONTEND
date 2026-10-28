@@ -1,7 +1,7 @@
 import * as React from "react";
 import { stockApi } from "@/lib/api";
 
-interface DropdownOption { id: number; label: string; }
+interface DropdownOption { id: string | number; label: string; }
 
 export function useStateOfficeHeader(defaultZoneId?: string | null, defaultStateId?: string | null) {
   const hydratingRef = React.useRef(false);
@@ -42,8 +42,8 @@ export function useStateOfficeHeader(defaultZoneId?: string | null, defaultState
 
   const applyHeader = (data: any) => {
     hydratingRef.current = true;
-    const zoneIdStr = String(data.zone_id);
-    const stateIdStr = String(data.state_id);
+    const zoneIdStr = String(data.zonal_code || data.zone_id || "");
+    const stateIdStr = String(data.state_code || data.state_id || "");
     setZoneId(zoneIdStr);
     setStateId(stateIdStr);
     setReportYear(String(data.reporting_year));
@@ -73,10 +73,14 @@ export function useStateOfficeHeader(defaultZoneId?: string | null, defaultState
     status,
   });
 
-  const validateHeader = () => {
-    if (!zoneId) return "Please select a Zone";
-    if (!stateId) return "Please select a State";
+  const validateHeader = (opts?: { requireState?: boolean; requireZone?: boolean }) => {
     if (!reportYear || !reportMonth) return "Please select reporting period";
+    if (opts?.requireState !== false && !stateId) return "Please select a State";
+    // Zone is normally derived from State; still required when State is required.
+    if (opts?.requireZone !== false && opts?.requireState !== false && !zoneId) {
+      return "Please select a State";
+    }
+    if (opts?.requireZone === true && !zoneId) return "Please select a State";
     return null;
   };
 

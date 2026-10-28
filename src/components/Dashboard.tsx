@@ -32,6 +32,7 @@ import StockVerificationsList from "./StockVerificationsList";
 import StockAssetManager from "./StockAssetManager";
 import StateOfficeReportsList from "./stateOffice/StateOfficeReportsList";
 import { ENROLMENT_DRIVE_TYPES, enrolmentDrivePath } from "./stateOffice/enrolmentDriveTypes";
+import EnrolmentActivityPage from "./stateOffice/EnrolmentActivityPage";
 import EnrolmentDrivesPage, { EnrolmentDriveLegacyRedirect } from "./stateOffice/EnrolmentDrivesPage";
 import BeneficiaryManagementPage, { BeneficiaryManagementLegacyRedirect } from "./stateOffice/BeneficiaryManagementPage";
 import { BENEFICIARY_MANAGEMENT_PATH } from "./stateOffice/beneficiaryManagementTypes";
@@ -722,7 +723,7 @@ export default function Dashboard({ role, user, access = [], functionalities = "
             <Route path="/others/expenditure-profile" element={<Navigate to="/zonal/expenditure-profile" replace />} />
 
             {/* ── Zonal (state office reports under SOC) ── */}
-            <Route path="/zonal/enrolment" element={<StateOfficeReportsList key="state-enrolment" reportType="enrolment" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
+            <Route path="/zonal/enrolment" element={<EnrolmentActivityPage key="state-enrolment" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
             <Route
               path={STAKEHOLDER_MANAGEMENT_PATH}
               element={
@@ -813,8 +814,16 @@ export default function Dashboard({ role, user, access = [], functionalities = "
                 <BeneficiaryManagementPage
                   key="state-beneficiary-management"
                   onBack={() => setView("home")}
-                  defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId}
-                  defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId}
+                  defaultZoneId={
+                    user?.zonal_code
+                      ? String(user.zonal_code)
+                      : (user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId)
+                  }
+                  defaultStateId={
+                    user?.state_code
+                      ? String(user.state_code)
+                      : (user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId)
+                  }
                 />
               }
             />

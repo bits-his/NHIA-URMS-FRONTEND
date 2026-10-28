@@ -659,6 +659,7 @@ export const servicomApi = {
 export type StateOfficeReportType =
   | "enrolment" | "migration" | "cemonc"
   | "complaints" | "accreditation" | "stakeholder" | "hmo-selection" | "challenges"
+  | "provider-management"
   | "provider-accreditation" | "provider-reaccreditation"
   | "provider-medical-audits" | "provider-qa-inspections"
   | "igr" | "sshia-financial" | "expenditure-profile"
@@ -669,7 +670,15 @@ export type StateOfficeReportType =
   | "vehicle-maintenance" | "conflict-infraction" | "enrollee-feedback";
 
 const makeStateOfficeApi = (type: StateOfficeReportType) => ({
-  list: (filters?: { state_id?: string; zone_id?: string; year?: string; month?: string; status?: string; activity_module?: string }) => {
+  list: (filters?: {
+    state_id?: string;
+    zone_id?: string;
+    year?: string;
+    month?: string;
+    status?: string;
+    activity_module?: string;
+    category?: string;
+  }) => {
     const p = new URLSearchParams(Object.entries(filters || {}).filter(([, v]) => !!v) as [string, string][]).toString();
     return request<{ success: boolean; data: any[] }>(
       `/state-office/${type}/reports${p ? `?${p}` : ""}`
@@ -725,12 +734,14 @@ export const stateOfficeApi = {
   migration: makeStateOfficeApi("migration"),
   cemonc:    makeStateOfficeApi("cemonc"),
   complaints: makeStateOfficeApi("complaints"),
-  /** Dedicated Provider Management tables (one API segment per form). */
+  /** Flat Provider Management pack (one table; form_type discriminates). */
+  "provider-management": withLineFileUpload("provider-management"),
+  providerManagement: withLineFileUpload("provider-management"),
   providerAccreditation: withLineFileUpload("provider-accreditation"),
   providerReaccreditation: withLineFileUpload("provider-reaccreditation"),
   providerMedicalAudits: withLineFileUpload("provider-medical-audits"),
   providerQaInspections: withLineFileUpload("provider-qa-inspections"),
-  /** Resolve API for a provider form key (dedicated table, no shared filter). */
+  /** Prefer form-type alias when filtering a single activity type. */
   providerByFormKey(formKey: string) {
     switch (formKey) {
       case "reaccreditation":
@@ -740,20 +751,21 @@ export const stateOfficeApi = {
       case "qa-inspections":
         return this.providerQaInspections;
       case "accreditation":
-      default:
         return this.providerAccreditation;
+      default:
+        return this.providerManagement;
     }
   },
   async listAllProviderReports(filters?: Record<string, string | number | undefined | null>) {
-    const keys = ["accreditation", "reaccreditation", "medical-audits", "qa-inspections"] as const;
-    const results = await Promise.all(
-      keys.map(async (key) => {
-        const res = await this.providerByFormKey(key).list(filters);
-        const rows = Array.isArray(res?.data) ? res.data : [];
-        return rows.map((r: any) => ({ ...r, activity_module: key }));
-      }),
-    );
-    return { success: true, data: results.flat() };
+    const res = await this.providerManagement.list(filters as any);
+    const rows = Array.isArray(res?.data) ? res.data : [];
+    return {
+      success: true,
+      data: rows.map((r: any) => ({
+        ...r,
+        activity_module: r.activity_module || r.form_type,
+      })),
+    };
   },
   accreditation: {
     ...makeStateOfficeApi("provider-accreditation"),

@@ -27,6 +27,7 @@ export default function EnrolmentDrivesPage({ onBack, defaultZoneId, defaultStat
       reportType={DEFAULT_REPORT_TYPE}
       reportTypes={[...ENROLMENT_DRIVE_REPORT_TYPES]}
       listTitle={ENROLMENT_DRIVES_NAV_TITLE}
+      createButtonLabel="New Enrolment Drive"
       onBack={onBack}
       defaultZoneId={defaultZoneId}
       defaultStateId={defaultStateId}

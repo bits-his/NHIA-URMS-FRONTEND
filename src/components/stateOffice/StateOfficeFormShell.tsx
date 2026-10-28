@@ -13,7 +13,7 @@ import {
 } from "@/src/components/SubmitConfirmModal";
 
 interface Props {
-  reportId?: number | null;
+  reportId?: number | string | null;
   onBack: () => void;
   /** Leave the form without saving (create-only → home). Defaults to onBack. */
   onCancel?: () => void;
@@ -31,7 +31,7 @@ interface Props {
   children: (ctx: {
     saving: boolean;
     submitting: boolean;
-    savedId: number | null;
+    savedId: number | string | null;
     stateId: string;
     persist: (status: string) => Promise<void>;
     requestSubmit: (action: () => void | Promise<void>, options?: SubmitConfirmOptions) => void;
@@ -50,11 +50,13 @@ interface Props {
   showQuarter?: boolean;
   afterPersist?: (saved: { id: number | string }) => Promise<void>;
   /** Fired after every successful create/update (e.g. draft resume for create-only officers). */
-  onPersisted?: (saved: { id: number; status: string; reference_id?: string }) => void;
+  onPersisted?: (saved: { id: number | string; status: string; reference_id?: string }) => void;
   /** Keep zone, state, and period when the report type changes before the first save. */
   preserveHeader?: boolean;
   /** Match the compact register chrome (smaller header, tighter page). */
   compact?: boolean;
+  /** Zone + period always; State only required when sending for review / final submit. */
+  deferStateUntilReview?: boolean;
 }
 
 export default function StateOfficeFormShell({
@@ -71,6 +73,7 @@ export default function StateOfficeFormShell({
   onPersisted,
   preserveHeader = false,
   compact = false,
+  deferStateUntilReview = false,
 }: Props) {
   const preserveHeaderRef = React.useRef(preserveHeader);
   preserveHeaderRef.current = preserveHeader;
@@ -83,7 +86,7 @@ export default function StateOfficeFormShell({
   const [loadingRecord, setLoadingRecord] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const [submitting, setSubmitting] = React.useState(false);
-  const [savedId, setSavedId] = React.useState<number | null>(null);
+  const [savedId, setSavedId] = React.useState<number | string | null>(null);
   const [refId, setRefId] = React.useState<string | null>(null);
 
   React.useEffect(() => {
@@ -127,13 +130,18 @@ export default function StateOfficeFormShell({
   }, [reportId, api, reportType]);
 
   const persist = async (status: string) => {
-    const headerErr = header.validateHeader();
+    const isDraftSave = status === "draft" || status === "returned";
+    const requireState = !deferStateUntilReview || !isDraftSave;
+    // When State is deferred, Zone is also not required on draft (it is set from State later).
+    const headerErr = header.validateHeader({
+      requireState,
+      requireZone: deferStateUntilReview ? requireState : true,
+    });
     if (headerErr) { toast.error(headerErr); return; }
     if (setReportWeek && !reportWeek) { toast.error("Please select a Reporting Week"); return; }
     const extraErr = validate?.(status);
     if (extraErr) { toast.error(extraErr); return; }
 
-    const isDraftSave = status === "draft" || status === "returned";
     const setter = isDraftSave ? setSaving : setSubmitting;
     setter(true);
     try {

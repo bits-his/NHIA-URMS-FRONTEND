@@ -19,7 +19,7 @@ import { PROVIDER_MANAGEMENT_NAV_TITLE } from "./enrolmentPillarTypes";
 import { formMeta, type ProviderFormKey } from "./providerManagementTypes";
 
 interface Props {
-  reportId: number;
+  reportId: number | string;
   formKey?: ProviderFormKey;
   onBack: () => void;
   onEdit?: () => void;
@@ -218,7 +218,7 @@ export default function ProviderReportDetail({ reportId, formKey = "accreditatio
   const [reviewBusy, setReviewBusy] = React.useState(false);
   const [finalConfirmOpen, setFinalConfirmOpen] = React.useState(false);
 
-  const api = stateOfficeApi.providerByFormKey(formKey || "accreditation");
+  const api = stateOfficeApi.providerManagement;
 
   const reload = React.useCallback(async () => {
     setLoading(true);

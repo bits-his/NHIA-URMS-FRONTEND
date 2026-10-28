@@ -6,6 +6,8 @@ export const PROVIDER_FORM_TYPES = [
   {
     key: "accreditation",
     label: "Accreditation",
+    tabLabel: "Accreditation",
+    newLabel: "New Accreditation",
     code: "PM-0001",
     activity: "Accreditation",
     description: "Assess and accredit healthcare facilities for NHIA participation.",
@@ -13,6 +15,8 @@ export const PROVIDER_FORM_TYPES = [
   {
     key: "reaccreditation",
     label: "Reaccreditation",
+    tabLabel: "Reaccreditation",
+    newLabel: "New Reaccreditation",
     code: "PM-0002",
     activity: "Re-accreditation",
     description: "Review and renew accreditation for existing facilities.",
@@ -20,6 +24,8 @@ export const PROVIDER_FORM_TYPES = [
   {
     key: "qa-inspections",
     label: "Quality Assurance",
+    tabLabel: "QA Inspections",
+    newLabel: "New QA Inspection",
     code: "PM-0003",
     activity: "Quality Assurance",
     description: "Inspect facilities and record quality assurance findings.",
@@ -27,6 +33,8 @@ export const PROVIDER_FORM_TYPES = [
   {
     key: "medical-audits",
     label: "Medical Audit",
+    tabLabel: "Medical Audits",
+    newLabel: "New Medical Audit",
     code: "PM-0004",
     activity: "Medical Audit",
     description: "Conduct medical audits and document compliance outcomes.",

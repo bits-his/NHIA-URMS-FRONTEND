@@ -23,34 +23,50 @@ export type BeneficiaryActivityKey = "additional" | "extra" | "provider" | "mda"
 export const BENEFICIARY_ACTIVITIES: {
   key: BeneficiaryActivityKey;
   label: string;
+  tabLabel: string;
+  newLabel: string;
   hint: string;
   description: string;
 }[] = [
   {
     key: "additional",
     label: "Additional Dependant",
+    tabLabel: "Additional Dependant",
+    newLabel: "New Additional Dependant",
     hint: "Spouse or child · FSSHIP",
     description: "Register a spouse or child as an additional dependant under FSSHIP.",
   },
   {
     key: "extra",
     label: "Extra Dependant",
+    tabLabel: "Extra Dependant",
+    newLabel: "New Extra Dependant",
     hint: "Child, spouse, or parent · FSSHIP",
     description: "Add an extra dependant (child, spouse, or parent) to an enrollee record.",
   },
   {
     key: "provider",
     label: "Change of HCP / HMO",
+    tabLabel: "HCP / HMO Change",
+    newLabel: "New HCP / HMO Change",
     hint: "Provider change for an enrollee",
     description: "Process an enrollee request to change their HCP or HMO.",
   },
   {
     key: "mda",
     label: "MDA HMO Selection",
+    tabLabel: "MDA HMO Selection",
+    newLabel: "New MDA HMO Selection",
     hint: "Formal-sector HMO selection",
     description: "Record formal-sector MDA HMO selection and supporting evidence.",
   },
 ];
+
+/** List-summary keys that belong to a hub activity tab. */
+export function beneficiaryTabMatches(summaryKey: string, tab: BeneficiaryActivityKey) {
+  if (tab === "provider") return summaryKey === "hcp-change" || summaryKey === "hmo-change";
+  return summaryKey === tab;
+}
 
 export const BENEFICIARY_LIST_FILTERS = [
   { value: "additional", label: "Additional Dependant" },

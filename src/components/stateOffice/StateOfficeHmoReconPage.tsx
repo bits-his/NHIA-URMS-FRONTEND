@@ -100,7 +100,7 @@ export default function StateOfficeHmoReconPage({
   const [rows, setRows] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(!createOnly);
   const [saving, setSaving] = React.useState(false);
-  const [editingId, setEditingId] = React.useState<number | null>(null);
+  const [editingId, setEditingId] = React.useState<number | string | null>(null);
   const [refId, setRefId] = React.useState<string | null>(null);
   const [zones, setZones] = React.useState<Geo[]>([]);
   const [states, setStates] = React.useState<Geo[]>([]);
@@ -293,10 +293,10 @@ export default function StateOfficeHmoReconPage({
   }, [stateId, zoneId, periodYear, periodMonth, stream]);
 
   const applyRow = (row: any) => {
-    setEditingId(row.id);
+    setEditingId(row.reference_id || row.id);
     setRefId(row.reference_id);
-    setZoneId(String(row.zone_id));
-    setStateId(String(row.state_id));
+    setZoneId(String(row.zonal_code ?? row.zone_id ?? ""));
+    setStateId(String(row.state_code ?? row.state_id ?? ""));
     setPeriodYear(String(row.reporting_year));
     setPeriodMonth(String(row.reporting_month));
     setHmoName(row.hmo_name ?? "");
@@ -379,8 +379,10 @@ export default function StateOfficeHmoReconPage({
     try {
       const payload = {
         stream_type: stream,
-        zone_id: Number(zoneId),
-        state_id: Number(stateId),
+        zone_id: zoneId,
+        state_id: stateId,
+        zonal_code: zoneId,
+        state_code: stateId,
         reporting_year: Number(periodYear),
         reporting_month: Number(periodMonth),
         hmo_name: hmoName.trim(),
@@ -423,14 +425,14 @@ export default function StateOfficeHmoReconPage({
           <Label>Zone *</Label>
           <Select value={zoneId} disabled={zoneLocked} onValueChange={(v) => { setZoneId(v); if (!stateLocked) setStateId(""); }}>
             <SelectTrigger displayValue={pickGeoLabel(zones, zoneId, "Zone")}><SelectValue /></SelectTrigger>
-            <SelectContent>{zones.map((z) => <SelectItem key={z.id} value={String(z.id)}>{z.description}</SelectItem>)}</SelectContent>
+            <SelectContent>{zones.map((z) => { const id = String(z.zonal_code ?? z.id ?? ""); return <SelectItem key={id} value={id}>{z.description}</SelectItem>; })}</SelectContent>
           </Select>
         </div>
         <div className="space-y-2">
           <Label>State *</Label>
           <Select value={stateId} disabled={stateLocked || !zoneId} onValueChange={setStateId}>
             <SelectTrigger displayValue={pickGeoLabel(states, stateId, zoneId ? "State" : "Select zone first")}><SelectValue /></SelectTrigger>
-            <SelectContent>{states.map((s) => <SelectItem key={s.id} value={String(s.id)}>{s.description}</SelectItem>)}</SelectContent>
+            <SelectContent>{states.map((s) => { const id = String(s.code ?? s.id ?? ""); return <SelectItem key={id} value={id}>{s.description}</SelectItem>; })}</SelectContent>
           </Select>
         </div>
         <div className="space-y-2">
