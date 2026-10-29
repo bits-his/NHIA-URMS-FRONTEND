@@ -1,10 +1,11 @@
 import * as React from "react";
 import {
-  AlertTriangle, Building2, CheckCircle2, Flag, Loader2,
-  MapPin, RefreshCw, ShieldAlert, TrendingDown, TrendingUp,
+  AlertTriangle, BarChart3, Building2, CheckCircle2, Columns2, Flag,
+  LayoutGrid, LineChart as LineChartIcon, Loader2, MapPin, RefreshCw,
+  Rows3, ShieldAlert, Table2, TrendingDown, TrendingUp,
 } from "lucide-react";
 import {
-  Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Legend,
+  Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart,
   Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
 import { toast } from "sonner";
@@ -27,6 +28,79 @@ import type { AuthUser } from "@/src/store/authSlice";
 interface Props {
   user?: AuthUser;
   onNavigate?: (path: string) => void;
+}
+
+const DESIGN_KEY = "urms.sdo.dashboard.design";
+const CHART_KEY = "urms.sdo.dashboard.chart";
+
+const DESIGNS = [
+  { id: "focus", label: "Focus", icon: Rows3 },
+  { id: "compare", label: "Compare", icon: Columns2 },
+  { id: "cards", label: "Cards", icon: LayoutGrid },
+  { id: "ledger", label: "Table", icon: Table2 },
+] as const;
+
+const CHARTS = [
+  { id: "bar", label: "Bars", icon: BarChart3 },
+  { id: "line", label: "Lines", icon: LineChartIcon },
+  { id: "area", label: "Area", icon: AreaChartIcon },
+] as const;
+
+type DesignId = (typeof DESIGNS)[number]["id"];
+type ChartId = (typeof CHARTS)[number]["id"];
+
+function AreaChartIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M3 17l6-6 4 3 8-8" />
+      <path d="M3 17h18" opacity="0.4" />
+      <path d="M3 17l6-6 4 3 8-8v11H3z" fill="currentColor" opacity="0.15" stroke="none" />
+    </svg>
+  );
+}
+
+function storedChoice<T extends string>(key: string, allowed: readonly T[], fallback: T): T {
+  try {
+    const value = localStorage.getItem(key);
+    if (value && (allowed as readonly string[]).includes(value)) return value as T;
+  } catch { /* */ }
+  return fallback;
+}
+
+function remember(key: string, value: string) {
+  try { localStorage.setItem(key, value); } catch { /* */ }
+}
+
+function Segmented<T extends string>({
+  value, options, onChange, ariaLabel,
+}: {
+  value: T;
+  options: readonly { id: T; label: string; icon?: React.ComponentType<{ className?: string }> }[];
+  onChange: (id: T) => void;
+  ariaLabel: string;
+}) {
+  return (
+    <div role="group" aria-label={ariaLabel} className="inline-flex flex-wrap items-center gap-0.5 rounded-xl border border-slate-200 bg-slate-50 p-1">
+      {options.map((opt) => {
+        const Icon = opt.icon;
+        const on = value === opt.id;
+        return (
+          <button
+            key={opt.id}
+            type="button"
+            aria-pressed={on}
+            onClick={() => onChange(opt.id)}
+            className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors ${
+              on ? "bg-white text-teal-800 shadow-sm" : "text-slate-500 hover:text-slate-800"
+            }`}
+          >
+            {Icon ? <Icon className="h-3.5 w-3.5" /> : null}
+            {opt.label}
+          </button>
+        );
+      })}
+    </div>
+  );
 }
 
 function tierBadge(tier: string) {
@@ -57,12 +131,24 @@ export default function SDONationalDashboard({ user, onNavigate }: Props) {
     reference?: string | null;
   } | null>(null);
   const [completionOpen, setCompletionOpen] = React.useState(false);
+  const [design, setDesign] = React.useState<DesignId>(() => storedChoice(DESIGN_KEY, DESIGNS.map((d) => d.id), "focus"));
+  const [chart, setChart] = React.useState<ChartId>(() => storedChoice(CHART_KEY, CHARTS.map((c) => c.id), "bar"));
+  const [openCard, setOpenCard] = React.useState<"zones" | "trend" | "escalations" | "areas">("zones");
 
   const filters = useRoleDashboardFilters({
     showZone: true,
     showState: true,
     showBand: true,
   });
+
+  const chooseDesign = (id: DesignId) => {
+    setDesign(id);
+    remember(DESIGN_KEY, id);
+  };
+  const chooseChart = (id: ChartId) => {
+    setChart(id);
+    remember(CHART_KEY, id);
+  };
 
   const openReportFromDrill = React.useCallback((row: DrillRow) => {
     const parsed = parseDrillReportRecord(row);
@@ -205,16 +291,29 @@ export default function SDONationalDashboard({ user, onNavigate }: Props) {
 
   const implAreas = React.useMemo(() =>
     reportTypes.slice(0, 8).map((r: any) => {
-      const approved = (r.by_status || []).find((s: any) => s.status === "approved")?.count || 0;
-      const submitted = (r.by_status || [])
-        .filter((s: any) => s.status === "submitted" || s.status === "reviewed")
-        .reduce((a: number, s: any) => a + (Number(s.count) || 0), 0);
-      const drafts = (r.by_status || []).find((s: any) => s.status === "draft")?.count || 0;
-      const rate = r.total > 0 ? Math.round((approved / r.total) * 100) : 0;
+      const total = Number(r.total ?? r.reports ?? 0);
+      const approved = Number(
+        r.approved
+        ?? (r.by_status || []).find((s: any) => s.status === "approved" || s.status === "endorsed")?.count
+        ?? 0,
+      );
+      const submitted = Number(
+        r.submitted
+        ?? (r.by_status || [])
+          .filter((s: any) => ["submitted", "reviewed", "awaiting_review"].includes(String(s.status)))
+          .reduce((a: number, s: any) => a + (Number(s.count) || 0), 0)
+        ?? 0,
+      );
+      const drafts = Number(
+        r.drafts
+        ?? (r.by_status || []).find((s: any) => s.status === "draft")?.count
+        ?? 0,
+      );
+      const rate = total > 0 ? Math.round((approved / total) * 100) : 0;
       return {
         key: r.key,
         label: r.label,
-        total: r.total,
+        total,
         approved,
         submitted,
         drafts,
@@ -236,466 +335,578 @@ export default function SDONationalDashboard({ user, onNavigate }: Props) {
     return list;
   }, [cmp?.bottom_states, filters.band]);
 
+  const tip = { borderRadius: 12, border: "1px solid #d4e8dc", fontSize: 12 };
+  const trendData = op?.period_trend ?? [];
+
+  const onZoneChartClick = (e: any) => {
+    const row = e?.activePayload?.[0]?.payload;
+    if (row?.zone_id) drillZone(row.zone_id, row.full);
+  };
+  const onTrendClick = (e: any) => {
+    const m = e?.activePayload?.[0]?.payload?.month;
+    if (m) drillReports(`Reports — ${m}`, { month: m });
+  };
+
+  const zoneComparisonChart = zoneChart.length === 0 ? (
+    <div className="h-full flex items-center justify-center text-xs text-slate-400">No zone data</div>
+  ) : chart === "line" ? (
+    <ResponsiveContainer width="100%" height="100%">
+      <LineChart data={zoneChart} className="cursor-pointer" onClick={onZoneChartClick}>
+        <CartesianGrid strokeDasharray="3 3" stroke="#e8f5ee" vertical={false} />
+        <XAxis dataKey="name" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+        <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+        <Tooltip contentStyle={tip} labelFormatter={(_, p) => p?.[0]?.payload?.full ?? ""} />
+        <Legend wrapperStyle={{ fontSize: 12 }} />
+        <Line type="monotone" dataKey="completion" name="Completion %" stroke="#25a872" strokeWidth={2.2} dot={{ r: 3 }} />
+        <Line type="monotone" dataKey="implementation" name="Implementation %" stroke="#3b82f6" strokeWidth={2} dot={{ r: 3 }} />
+        <Line type="monotone" dataKey="compliance" name="Compliance %" stroke="#f59e0b" strokeWidth={2} dot={{ r: 3 }} />
+      </LineChart>
+    </ResponsiveContainer>
+  ) : chart === "area" ? (
+    <ResponsiveContainer width="100%" height="100%">
+      <AreaChart data={zoneChart} className="cursor-pointer" onClick={onZoneChartClick}>
+        <CartesianGrid strokeDasharray="3 3" stroke="#e8f5ee" vertical={false} />
+        <XAxis dataKey="name" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+        <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+        <Tooltip contentStyle={tip} labelFormatter={(_, p) => p?.[0]?.payload?.full ?? ""} />
+        <Legend wrapperStyle={{ fontSize: 12 }} />
+        <Area type="monotone" dataKey="completion" name="Completion %" stroke="#25a872" fill="#25a87233" strokeWidth={2} />
+        <Area type="monotone" dataKey="implementation" name="Implementation %" stroke="#3b82f6" fill="transparent" strokeWidth={2} />
+        <Area type="monotone" dataKey="compliance" name="Compliance %" stroke="#f59e0b" fill="transparent" strokeWidth={2} />
+      </AreaChart>
+    </ResponsiveContainer>
+  ) : (
+    <ResponsiveContainer width="100%" height="100%">
+      <BarChart data={zoneChart} barGap={3} barSize={12} className="cursor-pointer" onClick={onZoneChartClick}>
+        <CartesianGrid strokeDasharray="3 3" stroke="#e8f5ee" vertical={false} />
+        <XAxis dataKey="name" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+        <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+        <Tooltip contentStyle={tip} labelFormatter={(_, p) => p?.[0]?.payload?.full ?? ""} />
+        <Legend wrapperStyle={{ fontSize: 12 }} />
+        <Bar dataKey="completion" name="Completion %" fill="#25a872" radius={[3, 3, 0, 0]} />
+        <Bar dataKey="implementation" name="Implementation %" fill="#3b82f6" radius={[3, 3, 0, 0]} />
+        <Bar dataKey="compliance" name="Compliance %" fill="#f59e0b" radius={[3, 3, 0, 0]} />
+      </BarChart>
+    </ResponsiveContainer>
+  );
+
+  const trendChart = (
+    <ResponsiveContainer width="100%" height="100%">
+      {chart === "bar" ? (
+        <BarChart data={trendData} className="cursor-pointer" onClick={onTrendClick}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#e8f5ee" vertical={false} />
+          <XAxis dataKey="label" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+          <YAxis tick={{ fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
+          <Tooltip contentStyle={tip} />
+          <Legend wrapperStyle={{ fontSize: 12 }} />
+          <Bar dataKey="reports" name="Reports" fill="#25a872" radius={[4, 4, 0, 0]} maxBarSize={20} />
+          <Bar dataKey="submitted" name="Submitted" fill="#3b82f6" radius={[4, 4, 0, 0]} maxBarSize={20} />
+          <Bar dataKey="approved" name="Approved" fill="#f59e0b" radius={[4, 4, 0, 0]} maxBarSize={20} />
+        </BarChart>
+      ) : chart === "line" ? (
+        <LineChart data={trendData} className="cursor-pointer" onClick={onTrendClick}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#e8f5ee" vertical={false} />
+          <XAxis dataKey="label" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+          <YAxis tick={{ fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
+          <Tooltip contentStyle={tip} />
+          <Legend wrapperStyle={{ fontSize: 12 }} />
+          <Line type="monotone" dataKey="reports" name="Reports" stroke="#25a872" strokeWidth={2.2} dot={{ r: 3 }} />
+          <Line type="monotone" dataKey="submitted" name="Submitted" stroke="#3b82f6" strokeWidth={2} dot={{ r: 3 }} />
+          <Line type="monotone" dataKey="approved" name="Approved" stroke="#f59e0b" strokeWidth={2} dot={{ r: 3 }} />
+        </LineChart>
+      ) : (
+        <AreaChart data={trendData} className="cursor-pointer" onClick={onTrendClick}>
+          <defs>
+            <linearGradient id="sdoReports" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#25a872" stopOpacity={0.3} />
+              <stop offset="100%" stopColor="#25a872" stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid strokeDasharray="3 3" stroke="#e8f5ee" vertical={false} />
+          <XAxis dataKey="label" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+          <YAxis tick={{ fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
+          <Tooltip contentStyle={tip} />
+          <Legend wrapperStyle={{ fontSize: 12 }} />
+          <Area type="monotone" dataKey="reports" name="Reports" stroke="#25a872" fill="url(#sdoReports)" strokeWidth={2} />
+          <Area type="monotone" dataKey="submitted" name="Submitted" stroke="#3b82f6" fill="transparent" strokeWidth={2} />
+          <Area type="monotone" dataKey="approved" name="Approved" stroke="#f59e0b" fill="transparent" strokeWidth={2} />
+        </AreaChart>
+      )}
+    </ResponsiveContainer>
+  );
+
+  const kpiRow = summary ? (
+    <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+      <ClickableKpi
+        label="States covered"
+        value={summary.states_total ?? summary.states_in_scope ?? 0}
+        detail={`${summary.zones_total ?? zones.length} zones`}
+        icon={<MapPin className="w-5 h-5 text-[#145c3f]" />}
+        onClick={() => {
+          setOpenCard("zones");
+          drill.openDrill(
+            { segment: "zone_breakdown", record_segment: "all_reports" },
+            { title: "National coverage — by Zone", subtitle: drillCtx.subtitle, breadcrumbs: ["SDO", "By Zone"] },
+            { resetStack: true },
+          );
+        }}
+      />
+      <ClickableKpi
+        label="National completion"
+        value={`${summary.national_avg_completion ?? summary.zone_avg_completion ?? 0}%`}
+        detail={`Impl. avg ${summary.national_avg_implementation ?? summary.zone_avg_implementation ?? 0}%`}
+        icon={<TrendingUp className="w-5 h-5 text-emerald-600" />}
+        hint="How %"
+        onClick={() => setCompletionOpen(true)}
+      />
+      <ClickableKpi
+        label="Performing states"
+        value={summary.performing}
+        detail={`${summary.lagging} lagging`}
+        icon={<CheckCircle2 className="w-5 h-5 text-emerald-600" />}
+        onClick={() => drillStateRows(
+          (cmp.states ?? []).filter((s: any) => s.band === "performing"),
+          "Performing states",
+        )}
+      />
+      <ClickableKpi
+        label="Need intervention"
+        value={summary.needs_intervention}
+        detail="States requiring support"
+        icon={<AlertTriangle className="w-5 h-5 text-rose-600" />}
+        onClick={() => {
+          setOpenCard("escalations");
+          drillStateRows(cmp.intervention_states ?? cmp.needs_intervention ?? [], "Need intervention");
+        }}
+      />
+      <ClickableKpi
+        label="Escalation queue"
+        value={summary.escalations_total ?? 0}
+        detail={`${summary.escalated_actionables ?? 0} escalated items`}
+        icon={<Flag className="w-5 h-5 text-amber-600" />}
+        onClick={() => {
+          setOpenCard("escalations");
+          drillStateRows(cmp.escalations ?? [], "Escalation queue");
+        }}
+      />
+      <ClickableKpi
+        label="Reports (period)"
+        value={op?.current?.reports ?? data?.total_reports ?? 0}
+        detail={`${op?.current?.submitted ?? 0} pending review`}
+        icon={<Building2 className="w-5 h-5 text-blue-600" />}
+        onClick={() => {
+          setOpenCard("trend");
+          drillReports("Period reports");
+        }}
+      />
+    </div>
+  ) : null;
+
+  const zoneBandBlock = (
+    <div className="grid lg:grid-cols-3 gap-4">
+      <Card className="rounded-2xl border-[#d4e8dc] lg:col-span-2">
+        <CardHeader className="pb-1 flex flex-row items-center justify-between">
+          <div>
+            <CardTitle className="text-base">Zone comparison</CardTitle>
+            <CardDescription>Completion, implementation & compliance by zone</CardDescription>
+          </div>
+          <DrillHint label="All reports" onClick={() => drillReports("All national reports")} />
+        </CardHeader>
+        <CardContent className="h-[300px]">{zoneComparisonChart}</CardContent>
+      </Card>
+      <Card className="rounded-2xl border-[#d4e8dc]">
+        <CardHeader className="pb-1">
+          <CardTitle className="text-base">National band mix</CardTitle>
+          <CardDescription>Share of states by performance band</CardDescription>
+        </CardHeader>
+        <CardContent className="h-[300px]">
+          {bandPie.length === 0 ? (
+            <div className="h-full flex items-center justify-center text-xs text-slate-400">No data</div>
+          ) : (
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={bandPie}
+                  dataKey="value"
+                  nameKey="name"
+                  innerRadius={55}
+                  outerRadius={88}
+                  paddingAngle={3}
+                  className="cursor-pointer"
+                  onClick={(_: any, idx: number) => {
+                    const slice = bandPie[idx];
+                    if (slice) filters.setBand(slice.band);
+                  }}
+                >
+                  {bandPie.map((e) => <Cell key={e.name} fill={e.color} />)}
+                </Pie>
+                <Tooltip contentStyle={tip} />
+                <Legend wrapperStyle={{ fontSize: 12 }} />
+              </PieChart>
+            </ResponsiveContainer>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+
+  const trendEscalationBlock = (
+    <div className="grid lg:grid-cols-3 gap-4">
+      <Card className="rounded-2xl border-[#d4e8dc] lg:col-span-2">
+        <CardHeader className="pb-1">
+          <CardTitle className="text-base">6-month national trend</CardTitle>
+          <CardDescription>Reports submitted and approved over time</CardDescription>
+        </CardHeader>
+        <CardContent className="h-[260px]">{trendChart}</CardContent>
+      </Card>
+      <Card className="rounded-2xl border-[#d4e8dc]">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <ShieldAlert className="w-4 h-4 text-rose-600" /> Escalation & support
+          </CardTitle>
+          <CardDescription>States needing coordination</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-2 max-h-[260px] overflow-y-auto">
+          {(cmp?.escalations ?? []).length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-10 gap-1">
+              <CheckCircle2 className="w-7 h-7 text-emerald-500" />
+              <p className="text-xs text-slate-500">No escalations queued</p>
+            </div>
+          ) : (cmp.escalations as any[]).slice(0, 12).map((e) => (
+            <button
+              key={String(e.state_id)}
+              type="button"
+              onClick={() => { if (e.state_id) drillState(e.state_id, e.state_name, e.zone_name); }}
+              className="w-full text-left rounded-xl border border-slate-100 bg-white px-3 py-2.5 hover:border-[#1a7a52]/40"
+            >
+              <div className="flex items-center gap-2 mb-1">
+                <Badge variant="outline" className={`text-[10px] ${tierBadge(e.tier)}`}>{tierLabel(e.tier)}</Badge>
+                <span className="text-[11px] text-slate-400 truncate">{e.zone_name}</span>
+              </div>
+              <p className="text-sm font-semibold text-slate-800">{e.state_name}</p>
+              <p className="text-[11px] text-slate-500 mt-0.5">{e.label} · {e.reason}</p>
+            </button>
+          ))}
+        </CardContent>
+      </Card>
+    </div>
+  );
+
+  const areasBlock = (
+    <div className="grid lg:grid-cols-2 gap-4">
+      <Card className="rounded-2xl border-[#d4e8dc]">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <TrendingUp className="w-4 h-4 text-emerald-600" /> High-performing areas
+          </CardTitle>
+          <CardDescription>Report types with strong approval rates</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {highAreas.length === 0 ? (
+            <p className="text-xs text-slate-400 text-center py-8">No high-performing areas yet</p>
+          ) : highAreas.map((a: any) => (
+            <button
+              key={a.key}
+              type="button"
+              onClick={() => drill.openRecordDrill("reports", a.label, drillCtx, { report_type: a.key })}
+              className="w-full flex items-center gap-3 rounded-xl border border-emerald-100 bg-emerald-50/40 px-3 py-2 text-left hover:border-emerald-300"
+            >
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-slate-800 truncate">{a.label}</p>
+                <p className="text-[11px] text-slate-500">{a.approved}/{a.total} approved</p>
+              </div>
+              <span className="text-sm font-bold text-emerald-700 tabular-nums">{a.completion_rate}%</span>
+            </button>
+          ))}
+        </CardContent>
+      </Card>
+      <Card className="rounded-2xl border-[#d4e8dc]">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <TrendingDown className="w-4 h-4 text-rose-600" /> Low-performing areas
+          </CardTitle>
+          <CardDescription>Report types with weak approval rates</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {lowAreas.length === 0 ? (
+            <p className="text-xs text-slate-400 text-center py-8">No low-performing areas flagged</p>
+          ) : lowAreas.map((a: any) => (
+            <button
+              key={a.key}
+              type="button"
+              onClick={() => drill.openRecordDrill("reports", a.label, drillCtx, { report_type: a.key })}
+              className="w-full flex items-center gap-3 rounded-xl border border-rose-100 bg-rose-50/40 px-3 py-2 text-left hover:border-rose-300"
+            >
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-slate-800 truncate">{a.label}</p>
+                <p className="text-[11px] text-slate-500">{a.drafts} drafts · {a.submitted} submitted</p>
+              </div>
+              <span className="text-sm font-bold text-rose-700 tabular-nums">{a.completion_rate}%</span>
+            </button>
+          ))}
+        </CardContent>
+      </Card>
+    </div>
+  );
+
+  const problemsBlock = (
+    <div className="grid lg:grid-cols-3 gap-4">
+      <Card className="rounded-2xl border-[#d4e8dc]">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Cross-cutting problems</CardTitle>
+          <CardDescription>Recurring across states</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-2 max-h-64 overflow-y-auto">
+          {(cmp?.recurring_problems ?? []).length === 0 ? (
+            <p className="text-xs text-slate-400 text-center py-8">No recurring problems</p>
+          ) : (cmp.recurring_problems as any[]).map((p, i) => (
+            <button
+              key={p.key || p.label}
+              type="button"
+              onClick={() => drillRecurringProblem(p)}
+              className="w-full flex items-center gap-2 rounded-xl border border-[#e8f5ee] bg-[#f8fdfb] px-3 py-2 text-left hover:border-[#1a7a52]/40 transition-colors"
+            >
+              <span className="w-5 h-5 rounded-full bg-white border text-[10px] font-bold flex items-center justify-center">{i + 1}</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-slate-800">{p.label}</p>
+              </div>
+              <Badge variant="outline" className="text-[10px]">{p.states_affected} states</Badge>
+            </button>
+          ))}
+        </CardContent>
+      </Card>
+      <Card className="rounded-2xl border-[#d4e8dc]">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Support requirements</CardTitle>
+          <CardDescription>Most requested support types</CardDescription>
+        </CardHeader>
+        <CardContent className="h-[240px]">
+          {(cmp?.support_requirements ?? []).length === 0 ? (
+            <div className="h-full flex items-center justify-center text-xs text-slate-400">No support requests logged</div>
+          ) : (
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={(cmp.support_requirements as any[]).slice(0, 6)} layout="vertical" margin={{ left: 4, right: 12 }}>
+                <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+                <YAxis type="category" dataKey="label" width={110} tick={{ fontSize: 9 }} axisLine={false} tickLine={false} />
+                <Tooltip contentStyle={tip} />
+                <Bar dataKey="count" radius={[0, 6, 6, 0]} barSize={12}>
+                  {(cmp.support_requirements as any[]).slice(0, 6).map((_: any, i: number) => (
+                    <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </CardContent>
+      </Card>
+      <Card className="rounded-2xl border-[#d4e8dc]">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Departmental load</CardTitle>
+          <CardDescription>Challenges routed to departments</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-2 max-h-64 overflow-y-auto">
+          {(cmp?.department_load ?? []).length === 0 ? (
+            <p className="text-xs text-slate-400 text-center py-8">No departmental assignments</p>
+          ) : (cmp.department_load as any[]).map((d) => (
+            <button
+              key={d.label}
+              type="button"
+              onClick={() => drill.openRecordDrill("reports", "Challenges", drillCtx, { report_type: "challenges" })}
+              className="w-full flex items-center justify-between rounded-xl border border-violet-100 bg-violet-50/40 px-3 py-2 text-left hover:border-violet-300"
+            >
+              <p className="text-sm font-medium text-slate-800 truncate">{d.label}</p>
+              <span className="text-sm font-bold tabular-nums text-violet-700">{d.count}</span>
+            </button>
+          ))}
+        </CardContent>
+      </Card>
+    </div>
+  );
+
+  const tablesBlock = (
+    <>
+      <div className="grid lg:grid-cols-2 gap-4">
+        <Card className="rounded-2xl border-[#d4e8dc]">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Top performing states</CardTitle>
+            <CardDescription>Highest completion this period</CardDescription>
+          </CardHeader>
+          <CardContent className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-[#f0fdf7] hover:bg-[#f0fdf7]">
+                  {["State", "Zone", "Band", "Completion", "Reports"].map((h) => (
+                    <TableHead key={h} className="text-xs font-bold">{h}</TableHead>
+                  ))}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredTop.map((s: any) => (
+                  <TableRow key={s.state_id} className="cursor-pointer hover:bg-[#f8fdfb]" onClick={() => drillState(s.state_id, s.state_name, s.zone_name)}>
+                    <TableCell className="text-sm font-semibold text-[#145c3f]">{s.state_name}</TableCell>
+                    <TableCell className="text-xs text-slate-500">{s.zone_name || "—"}</TableCell>
+                    <TableCell><Badge variant="outline" className={`text-[10px] ${bandCls(s.band)}`}>{s.band.replace("_", " ")}</Badge></TableCell>
+                    <TableCell className="tabular-nums font-semibold">{s.completion_rate}%</TableCell>
+                    <TableCell className="tabular-nums">{s.reports}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+        <Card className="rounded-2xl border-[#d4e8dc]">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Lowest performing states</CardTitle>
+            <CardDescription>Priority coordination this period</CardDescription>
+          </CardHeader>
+          <CardContent className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-[#f0fdf7] hover:bg-[#f0fdf7]">
+                  {["State", "Zone", "Band", "Completion", "Escalated"].map((h) => (
+                    <TableHead key={h} className="text-xs font-bold">{h}</TableHead>
+                  ))}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredBottom.map((s: any) => (
+                  <TableRow key={s.state_id} className="cursor-pointer hover:bg-[#f8fdfb]" onClick={() => drillState(s.state_id, s.state_name, s.zone_name)}>
+                    <TableCell className="text-sm font-semibold text-[#145c3f]">{s.state_name}</TableCell>
+                    <TableCell className="text-xs text-slate-500">{s.zone_name || "—"}</TableCell>
+                    <TableCell><Badge variant="outline" className={`text-[10px] ${bandCls(s.band)}`}>{s.band.replace("_", " ")}</Badge></TableCell>
+                    <TableCell className="tabular-nums font-semibold">{s.completion_rate}%</TableCell>
+                    <TableCell className="tabular-nums">{s.escalated_actionables || 0}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      </div>
+      <Card className="rounded-2xl border-[#d4e8dc]">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Zone compliance scorecard</CardTitle>
+          <CardDescription>Zone summary for this period</CardDescription>
+        </CardHeader>
+        <CardContent className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-[#f0fdf7] hover:bg-[#f0fdf7]">
+                {["Zone", "States", "Reports", "Approved", "Compliance", "Impl. %", "Performing", "Lagging", "Intervention", "Escalated"].map((h) => (
+                  <TableHead key={h} className="text-xs font-bold whitespace-nowrap">{h}</TableHead>
+                ))}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {zones.map((z) => (
+                <TableRow
+                  key={z.zone_id ?? z.zone_name}
+                  className="hover:bg-[#f8fdfb] cursor-pointer"
+                  onClick={() => z.zone_id && drillZone(z.zone_id, z.zone_name)}
+                >
+                  <TableCell className="text-sm font-semibold text-[#145c3f]">{z.zone_name}</TableCell>
+                  <TableCell className="tabular-nums text-sm">{z.states}</TableCell>
+                  <TableCell className="tabular-nums text-sm">{z.reports}</TableCell>
+                  <TableCell className="tabular-nums text-sm">{z.approved}</TableCell>
+                  <TableCell className="tabular-nums text-sm font-semibold">{z.compliance_rate}%</TableCell>
+                  <TableCell className="tabular-nums text-sm">{z.implementation_rate}%</TableCell>
+                  <TableCell className="tabular-nums text-sm text-emerald-700">{z.performing}</TableCell>
+                  <TableCell className="tabular-nums text-sm text-amber-700">{z.lagging}</TableCell>
+                  <TableCell className="tabular-nums text-sm text-rose-700">{z.needs_intervention}</TableCell>
+                  <TableCell className="tabular-nums text-sm">{z.escalated_actionables}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </>
+  );
+
   return (
     <div className="space-y-5">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight">SDO Dashboard</h1>
-          {cmp?.period?.label && (
-            <p className="text-sm text-slate-500 mt-0.5">{cmp.period.label}</p>
-          )}
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+          <div>
+            <h1 className="text-xl font-bold text-slate-900 tracking-tight">SDO Dashboard</h1>
+            {(cmp?.period?.label || op?.current_period?.label) && (
+              <p className="text-sm text-slate-500 mt-0.5">{cmp?.period?.label || op?.current_period?.label}</p>
+            )}
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <RoleDashboardFilters filters={filters} compact />
+            <Button variant="outline" size="sm" onClick={() => void load()} disabled={loading} className="h-8 w-8 p-0 shrink-0" title="Refresh" aria-label="Refresh">
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+            </Button>
+          </div>
         </div>
-        <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">
-          <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
-        </Button>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <Segmented value={design} options={DESIGNS} onChange={chooseDesign} ariaLabel="Dashboard design" />
+          {(design === "focus" || design === "compare" || design === "cards") ? (
+            <Segmented value={chart} options={CHARTS} onChange={chooseChart} ariaLabel="Chart style" />
+          ) : null}
+        </div>
       </div>
-
-      <RoleDashboardFilters filters={filters} />
 
       {loading ? (
         <div className="flex items-center justify-center py-28 gap-3 text-slate-400">
           <Loader2 className="w-6 h-6 animate-spin" />
           <span className="text-sm">Loading national oversight…</span>
         </div>
-      ) : !cmp ? (
+      ) : !data || !cmp || !summary ? (
         <Card className="rounded-2xl border-dashed border-slate-300">
           <CardContent className="py-16 text-center text-slate-500 text-sm">
-            No national operational data available yet.
+            No national operational data available yet. Approved packs from states will appear here as they report.
           </CardContent>
         </Card>
+      ) : design === "cards" ? (
+        <div className="space-y-4">
+          {kpiRow}
+          {openCard === "zones" ? zoneBandBlock
+            : openCard === "trend" ? trendEscalationBlock
+              : openCard === "areas" ? areasBlock
+                : trendEscalationBlock}
+          <div className="flex flex-wrap gap-2">
+            {([
+              { id: "zones" as const, label: "Zones & bands" },
+              { id: "trend" as const, label: "Trend & escalations" },
+              { id: "areas" as const, label: "Pack performance" },
+              { id: "escalations" as const, label: "Support queue" },
+            ]).map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setOpenCard(t.id)}
+                className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                  openCard === t.id ? "border-teal-300 bg-teal-50 text-teal-800" : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : design === "ledger" ? (
+        <div className="space-y-4">
+          {kpiRow}
+          {tablesBlock}
+        </div>
+      ) : design === "compare" ? (
+        <div className="space-y-4">
+          {kpiRow}
+          {zoneBandBlock}
+          {trendEscalationBlock}
+          {areasBlock}
+          {tablesBlock}
+        </div>
       ) : (
-        <>
-          <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-4">
-            <ClickableKpi
-              label="States covered"
-              value={summary.states_total}
-              detail={`${summary.zones_total} zones`}
-              icon={<MapPin className="w-5 h-5 text-[#145c3f]" />}
-              onClick={() => drill.openDrill(
-                { segment: "zone_breakdown", record_segment: "all_reports" },
-                { title: "National coverage — by Zone", subtitle: drillCtx.subtitle, breadcrumbs: ["SDO", "By Zone"] },
-                { resetStack: true },
-              )}
-            />
-            <ClickableKpi
-              label="National completion"
-              value={`${summary.national_avg_completion}%`}
-              detail={`Impl. avg ${summary.national_avg_implementation}%`}
-              icon={<TrendingUp className="w-5 h-5 text-emerald-600" />}
-              hint="How %"
-              onClick={() => setCompletionOpen(true)}
-            />
-            <ClickableKpi
-              label="Performing states"
-              value={summary.performing}
-              detail={`${summary.lagging} lagging`}
-              icon={<CheckCircle2 className="w-5 h-5 text-emerald-600" />}
-              onClick={() => drillStateRows(
-                (cmp.states ?? []).filter((s: any) => s.band === "performing"),
-                "Performing states",
-              )}
-            />
-            <ClickableKpi
-              label="Need intervention"
-              value={summary.needs_intervention}
-              detail="States requiring support"
-              icon={<AlertTriangle className="w-5 h-5 text-rose-600" />}
-              onClick={() => drillStateRows(
-                cmp.intervention_states ?? cmp.needs_intervention ?? [],
-                "Need intervention",
-              )}
-            />
-            <ClickableKpi
-              label="Escalation queue"
-              value={summary.escalations_total}
-              detail={`${summary.escalated_actionables} escalated items`}
-              icon={<Flag className="w-5 h-5 text-amber-600" />}
-              onClick={() => drillStateRows(cmp.escalations ?? [], "Escalation queue")}
-            />
-            <ClickableKpi
-              label="Reports (period)"
-              value={op?.current?.reports ?? data.total_reports ?? 0}
-              detail={`${op?.current?.submitted ?? 0} pending review`}
-              icon={<Building2 className="w-5 h-5 text-blue-600" />}
-              onClick={() => drillReports("Period reports")}
-            />
-          </div>
-
-          <div className="grid lg:grid-cols-3 gap-4">
-            <Card className="rounded-2xl border-[#d4e8dc] lg:col-span-2">
-              <CardHeader className="pb-1 flex flex-row items-center justify-between">
-                <div>
-                  <CardTitle className="text-base">Zone comparison</CardTitle>
-                  <CardDescription>Completion, implementation & compliance by zone</CardDescription>
-                </div>
-                <DrillHint label="All reports" onClick={() => drillReports("All national reports")} />
-              </CardHeader>
-              <CardContent className="h-[300px]">
-                {zoneChart.length === 0 ? (
-                  <div className="h-full flex items-center justify-center text-xs text-slate-400">No zone data</div>
-                ) : (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                      data={zoneChart}
-                      barGap={3}
-                      barSize={12}
-                      className="cursor-pointer"
-                      onClick={(e: any) => {
-                        const row = e?.activePayload?.[0]?.payload;
-                        if (row?.zone_id) drillZone(row.zone_id, row.full);
-                      }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e8f5ee" vertical={false} />
-                      <XAxis dataKey="name" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
-                      <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
-                      <Tooltip
-                        contentStyle={{ borderRadius: 12, border: "1px solid #d4e8dc", fontSize: 12 }}
-                        labelFormatter={(_, p) => p?.[0]?.payload?.full ?? ""}
-                      />
-                      <Legend wrapperStyle={{ fontSize: 12 }} />
-                      <Bar dataKey="completion" name="Completion %" fill="#25a872" radius={[3, 3, 0, 0]} />
-                      <Bar dataKey="implementation" name="Implementation %" fill="#3b82f6" radius={[3, 3, 0, 0]} />
-                      <Bar dataKey="compliance" name="Compliance %" fill="#f59e0b" radius={[3, 3, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card className="rounded-2xl border-[#d4e8dc]">
-              <CardHeader className="pb-1">
-                <CardTitle className="text-base">National band mix</CardTitle>
-                <CardDescription>Share of states by performance band</CardDescription>
-              </CardHeader>
-              <CardContent className="h-[300px]">
-                {bandPie.length === 0 ? (
-                  <div className="h-full flex items-center justify-center text-xs text-slate-400">No data</div>
-                ) : (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={bandPie}
-                        dataKey="value"
-                        nameKey="name"
-                        innerRadius={55}
-                        outerRadius={88}
-                        paddingAngle={3}
-                        className="cursor-pointer"
-                        onClick={(_: any, idx: number) => {
-                          const slice = bandPie[idx];
-                          if (slice) filters.setBand(slice.band);
-                        }}
-                      >
-                        {bandPie.map((e) => <Cell key={e.name} fill={e.color} />)}
-                      </Pie>
-                      <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid #d4e8dc", fontSize: 12 }} />
-                      <Legend wrapperStyle={{ fontSize: 12 }} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="grid lg:grid-cols-3 gap-4">
-            <Card className="rounded-2xl border-[#d4e8dc] lg:col-span-2">
-              <CardHeader className="pb-1">
-                <CardTitle className="text-base">6-month national trend</CardTitle>
-                <CardDescription>Reports submitted and approved over time</CardDescription>
-              </CardHeader>
-              <CardContent className="h-[260px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart
-                    data={op?.period_trend ?? []}
-                    className="cursor-pointer"
-                    onClick={(e: any) => {
-                      const m = e?.activePayload?.[0]?.payload?.month;
-                      if (m) drillReports(`Reports — ${m}`, { month: m });
-                    }}
-                  >
-                    <defs>
-                      <linearGradient id="sdoReports" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#25a872" stopOpacity={0.3} />
-                        <stop offset="100%" stopColor="#25a872" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e8f5ee" vertical={false} />
-                    <XAxis dataKey="label" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
-                    <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid #d4e8dc", fontSize: 12 }} />
-                    <Legend wrapperStyle={{ fontSize: 12 }} />
-                    <Area type="monotone" dataKey="reports" name="Reports" stroke="#25a872" fill="url(#sdoReports)" strokeWidth={2} />
-                    <Area type="monotone" dataKey="submitted" name="Submitted" stroke="#3b82f6" fill="transparent" strokeWidth={2} />
-                    <Area type="monotone" dataKey="approved" name="Approved" stroke="#f59e0b" fill="transparent" strokeWidth={2} />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-
-            <Card className="rounded-2xl border-[#d4e8dc]">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <ShieldAlert className="w-4 h-4 text-rose-600" /> Escalation & support
-                </CardTitle>
-                <CardDescription>States needing coordination</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-2 max-h-[260px] overflow-y-auto">
-                {(cmp.escalations ?? []).length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-10 gap-1">
-                    <CheckCircle2 className="w-7 h-7 text-emerald-500" />
-                    <p className="text-xs text-slate-500">No escalations queued</p>
-                  </div>
-                ) : (cmp.escalations as any[]).slice(0, 12).map((e) => (
-                  <button
-                    key={String(e.state_id)}
-                    type="button"
-                    onClick={() => {
-                      if (e.state_id) drillState(e.state_id, e.state_name, e.zone_name);
-                    }}
-                    className="w-full text-left rounded-xl border border-slate-100 bg-white px-3 py-2.5 hover:border-[#1a7a52]/40"
-                  >
-                    <div className="flex items-center gap-2 mb-1">
-                      <Badge variant="outline" className={`text-[10px] ${tierBadge(e.tier)}`}>
-                        {tierLabel(e.tier)}
-                      </Badge>
-                      <span className="text-[11px] text-slate-400 truncate">{e.zone_name}</span>
-                    </div>
-                    <p className="text-sm font-semibold text-slate-800">{e.state_name}</p>
-                    <p className="text-[11px] text-slate-500 mt-0.5">{e.label} · {e.reason}</p>
-                  </button>
-                ))}
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="grid lg:grid-cols-2 gap-4">
-            <Card className="rounded-2xl border-[#d4e8dc]">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <TrendingUp className="w-4 h-4 text-emerald-600" /> High-performing areas
-                </CardTitle>
-                <CardDescription>Report types with strong approval rates</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {highAreas.length === 0 ? (
-                  <p className="text-xs text-slate-400 text-center py-8">No high-performing areas yet</p>
-                ) : highAreas.map((a: any) => (
-                  <button
-                    key={a.key}
-                    type="button"
-                    onClick={() => drill.openRecordDrill("reports", a.label, drillCtx, { report_type: a.key })}
-                    className="w-full flex items-center gap-3 rounded-xl border border-emerald-100 bg-emerald-50/40 px-3 py-2 text-left hover:border-emerald-300"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-slate-800 truncate">{a.label}</p>
-                      <p className="text-[11px] text-slate-500">{a.approved}/{a.total} approved</p>
-                    </div>
-                    <span className="text-sm font-bold text-emerald-700 tabular-nums">{a.completion_rate}%</span>
-                  </button>
-                ))}
-              </CardContent>
-            </Card>
-
-            <Card className="rounded-2xl border-[#d4e8dc]">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <TrendingDown className="w-4 h-4 text-rose-600" /> Low-performing areas
-                </CardTitle>
-                <CardDescription>Report types with weak approval rates</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {lowAreas.length === 0 ? (
-                  <p className="text-xs text-slate-400 text-center py-8">No low-performing areas flagged</p>
-                ) : lowAreas.map((a: any) => (
-                  <button
-                    key={a.key}
-                    type="button"
-                    onClick={() => drill.openRecordDrill("reports", a.label, drillCtx, { report_type: a.key })}
-                    className="w-full flex items-center gap-3 rounded-xl border border-rose-100 bg-rose-50/40 px-3 py-2 text-left hover:border-rose-300"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-slate-800 truncate">{a.label}</p>
-                      <p className="text-[11px] text-slate-500">{a.drafts} drafts · {a.submitted} submitted</p>
-                    </div>
-                    <span className="text-sm font-bold text-rose-700 tabular-nums">{a.completion_rate}%</span>
-                  </button>
-                ))}
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="grid lg:grid-cols-3 gap-4">
-            <Card className="rounded-2xl border-[#d4e8dc]">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">Cross-cutting problems</CardTitle>
-                <CardDescription>Recurring across states</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-2 max-h-64 overflow-y-auto">
-                {(cmp.recurring_problems ?? []).length === 0 ? (
-                  <p className="text-xs text-slate-400 text-center py-8">No recurring problems</p>
-                ) : (cmp.recurring_problems as any[]).map((p, i) => (
-                  <button
-                    key={p.key || p.label}
-                    type="button"
-                    onClick={() => drillRecurringProblem(p)}
-                    className="w-full flex items-center gap-2 rounded-xl border border-[#e8f5ee] bg-[#f8fdfb] px-3 py-2 text-left hover:border-[#1a7a52]/40 transition-colors"
-                  >
-                    <span className="w-5 h-5 rounded-full bg-white border text-[10px] font-bold flex items-center justify-center">{i + 1}</span>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-slate-800">{p.label}</p>
-                    </div>
-                    <Badge variant="outline" className="text-[10px]">{p.states_affected} states</Badge>
-                  </button>
-                ))}
-              </CardContent>
-            </Card>
-
-            <Card className="rounded-2xl border-[#d4e8dc]">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">Support requirements</CardTitle>
-                <CardDescription>Most requested support types</CardDescription>
-              </CardHeader>
-              <CardContent className="h-[240px]">
-                {(cmp.support_requirements ?? []).length === 0 ? (
-                  <div className="h-full flex items-center justify-center text-xs text-slate-400">No support requests logged</div>
-                ) : (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={(cmp.support_requirements as any[]).slice(0, 6)} layout="vertical" margin={{ left: 4, right: 12 }}>
-                      <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
-                      <YAxis type="category" dataKey="label" width={110} tick={{ fontSize: 9 }} axisLine={false} tickLine={false} />
-                      <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid #d4e8dc", fontSize: 12 }} />
-                      <Bar dataKey="count" radius={[0, 6, 6, 0]} barSize={12}>
-                        {(cmp.support_requirements as any[]).slice(0, 6).map((_: any, i: number) => (
-                          <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card className="rounded-2xl border-[#d4e8dc]">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">Departmental load</CardTitle>
-                <CardDescription>Challenges routed to departments</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-2 max-h-64 overflow-y-auto">
-                {(cmp.department_load ?? []).length === 0 ? (
-                  <p className="text-xs text-slate-400 text-center py-8">No departmental assignments</p>
-                ) : (cmp.department_load as any[]).map((d) => (
-                  <button
-                    key={d.label}
-                    type="button"
-                    onClick={() => drill.openRecordDrill("reports", "Challenges", drillCtx, { report_type: "challenges" })}
-                    className="w-full flex items-center justify-between rounded-xl border border-violet-100 bg-violet-50/40 px-3 py-2 text-left hover:border-violet-300"
-                  >
-                    <p className="text-sm font-medium text-slate-800 truncate">{d.label}</p>
-                    <span className="text-sm font-bold tabular-nums text-violet-700">{d.count}</span>
-                  </button>
-                ))}
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="grid lg:grid-cols-2 gap-4">
-            <Card className="rounded-2xl border-[#d4e8dc]">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">Top performing states</CardTitle>
-                <CardDescription>Highest completion this period</CardDescription>
-              </CardHeader>
-              <CardContent className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-[#f0fdf7] hover:bg-[#f0fdf7]">
-                      {["State", "Zone", "Band", "Completion", "Reports"].map((h) => (
-                        <TableHead key={h} className="text-xs font-bold">{h}</TableHead>
-                      ))}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredTop.map((s: any) => (
-                      <TableRow key={s.state_id} className="cursor-pointer hover:bg-[#f8fdfb]" onClick={() => drillState(s.state_id, s.state_name, s.zone_name)}>
-                        <TableCell className="text-sm font-semibold text-[#145c3f]">{s.state_name}</TableCell>
-                        <TableCell className="text-xs text-slate-500">{s.zone_name || "—"}</TableCell>
-                        <TableCell><Badge variant="outline" className={`text-[10px] ${bandCls(s.band)}`}>{s.band.replace("_", " ")}</Badge></TableCell>
-                        <TableCell className="tabular-nums font-semibold">{s.completion_rate}%</TableCell>
-                        <TableCell className="tabular-nums">{s.reports}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-
-            <Card className="rounded-2xl border-[#d4e8dc]">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">Lowest performing states</CardTitle>
-                <CardDescription>Priority coordination this period</CardDescription>
-              </CardHeader>
-              <CardContent className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-[#f0fdf7] hover:bg-[#f0fdf7]">
-                      {["State", "Zone", "Band", "Completion", "Escalated"].map((h) => (
-                        <TableHead key={h} className="text-xs font-bold">{h}</TableHead>
-                      ))}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredBottom.map((s: any) => (
-                      <TableRow key={s.state_id} className="cursor-pointer hover:bg-[#f8fdfb]" onClick={() => drillState(s.state_id, s.state_name, s.zone_name)}>
-                        <TableCell className="text-sm font-semibold text-[#145c3f]">{s.state_name}</TableCell>
-                        <TableCell className="text-xs text-slate-500">{s.zone_name || "—"}</TableCell>
-                        <TableCell><Badge variant="outline" className={`text-[10px] ${bandCls(s.band)}`}>{s.band.replace("_", " ")}</Badge></TableCell>
-                        <TableCell className="tabular-nums font-semibold">{s.completion_rate}%</TableCell>
-                        <TableCell className="tabular-nums">{s.escalated_actionables || 0}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          </div>
-
-          <Card className="rounded-2xl border-[#d4e8dc]">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base">Zone compliance scorecard</CardTitle>
-              <CardDescription>Zone summary for this period</CardDescription>
-            </CardHeader>
-            <CardContent className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-[#f0fdf7] hover:bg-[#f0fdf7]">
-                    {["Zone", "States", "Reports", "Approved", "Compliance", "Impl. %", "Performing", "Lagging", "Intervention", "Escalated"].map((h) => (
-                      <TableHead key={h} className="text-xs font-bold whitespace-nowrap">{h}</TableHead>
-                    ))}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {zones.map((z) => (
-                    <TableRow
-                      key={z.zone_id ?? z.zone_name}
-                      className="hover:bg-[#f8fdfb] cursor-pointer"
-                      onClick={() => z.zone_id && drillZone(z.zone_id, z.zone_name)}
-                    >
-                      <TableCell className="text-sm font-semibold text-[#145c3f]">{z.zone_name}</TableCell>
-                      <TableCell className="tabular-nums text-sm">{z.states}</TableCell>
-                      <TableCell className="tabular-nums text-sm">{z.reports}</TableCell>
-                      <TableCell className="tabular-nums text-sm">{z.approved}</TableCell>
-                      <TableCell className="tabular-nums text-sm font-semibold">{z.compliance_rate}%</TableCell>
-                      <TableCell className="tabular-nums text-sm">{z.implementation_rate}%</TableCell>
-                      <TableCell className="tabular-nums text-sm text-emerald-700">{z.performing}</TableCell>
-                      <TableCell className="tabular-nums text-sm text-amber-700">{z.lagging}</TableCell>
-                      <TableCell className="tabular-nums text-sm text-rose-700">{z.needs_intervention}</TableCell>
-                      <TableCell className="tabular-nums text-sm">{z.escalated_actionables}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </>
+        <div className="space-y-4">
+          {kpiRow}
+          {trendEscalationBlock}
+          {problemsBlock}
+          {zoneBandBlock}
+          {areasBlock}
+        </div>
       )}
 
       <CompletionBreakdownModal

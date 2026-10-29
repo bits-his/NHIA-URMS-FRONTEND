@@ -122,7 +122,14 @@ export function useRoleDashboardFilters(opts: RoleDashboardFiltersOptions = {}) 
 type FilterState = ReturnType<typeof useRoleDashboardFilters>;
 
 /** Shared period / geo / band filter bar for role home dashboards */
-export function RoleDashboardFilters({ filters }: { filters: FilterState }) {
+export function RoleDashboardFilters({
+  filters,
+  compact = false,
+}: {
+  filters: FilterState;
+  /** Inline toolbar (no outer card / stacked labels) — for dense headers */
+  compact?: boolean;
+}) {
   const {
     year, setYear, month, setMonth,
     zoneId, setZoneId, stateId, setStateId,
@@ -140,6 +147,75 @@ export function RoleDashboardFilters({ filters }: { filters: FilterState }) {
     : band === "performing" ? "Performing"
       : band === "lagging" ? "Lagging"
         : "Needs intervention";
+
+  if (compact) {
+    return (
+      <div className="flex flex-nowrap items-center gap-1.5 shrink-0">
+        <Select value={year} onValueChange={setYear}>
+          <SelectTrigger size="sm" className="h-8 w-[5.5rem] shrink-0 !px-2.5 gap-1 text-xs" displayValue={year}>
+            <SelectValue placeholder="Year" />
+          </SelectTrigger>
+          <SelectContent>
+            {years.map((y) => <SelectItem key={y} value={y}>{y}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={month} onValueChange={setMonth}>
+          <SelectTrigger size="sm" className="h-8 w-[7.25rem] shrink-0 !px-2.5 gap-1 text-xs" displayValue={monthLabel(month)}>
+            <SelectValue placeholder="Month" />
+          </SelectTrigger>
+          <SelectContent>
+            {MONTHS.map((m) => (
+              <SelectItem key={m.value} value={String(m.value)}>{m.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {showZone && (
+          <Select value={zoneId} onValueChange={(v) => { setZoneId(v); setStateId("all"); }}>
+            <SelectTrigger size="sm" className="h-8 w-[8.5rem] shrink-0 !px-2.5 gap-1 text-xs" displayValue={zoneLabel}>
+              <SelectValue placeholder="Zone" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Zones</SelectItem>
+              {zones.map((z) => (
+                <SelectItem key={z.id} value={String(z.id)}>{z.description}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+        {showState && (
+          <Select value={stateId} onValueChange={setStateId}>
+            <SelectTrigger size="sm" className="h-8 w-[8.5rem] shrink-0 !px-2.5 gap-1 text-xs" displayValue={stateLabel}>
+              <SelectValue placeholder="State" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All States</SelectItem>
+              {states.map((s) => (
+                <SelectItem key={s.id} value={String(s.id)}>{s.description}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+        {showBand && (
+          <Select value={band} onValueChange={setBand}>
+            <SelectTrigger size="sm" className="h-8 w-[8.5rem] shrink-0 !px-2.5 gap-1 text-xs" displayValue={bandLabel}>
+              <SelectValue placeholder="Band" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All bands</SelectItem>
+              <SelectItem value="performing">Performing</SelectItem>
+              <SelectItem value="lagging">Lagging</SelectItem>
+              <SelectItem value="needs_intervention">Needs intervention</SelectItem>
+            </SelectContent>
+          </Select>
+        )}
+        {isDirty && (
+          <Button variant="ghost" size="sm" className="h-8 px-2 text-slate-500 gap-1 shrink-0" onClick={clear}>
+            <X className="w-3.5 h-3.5" /> Clear
+          </Button>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="rounded-2xl border border-[#d4e8dc] bg-white p-3 md:p-4">

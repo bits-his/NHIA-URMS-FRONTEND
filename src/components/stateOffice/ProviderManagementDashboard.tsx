@@ -1,24 +1,20 @@
 import * as React from "react";
 import { useSelector } from "react-redux";
 import {
-  ArrowLeft, Loader2, RefreshCw, AlertTriangle,
+  ArrowLeft, Loader2, RefreshCw,
 } from "lucide-react";
-import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  Legend, LineChart, Line, PieChart, Pie, Cell,
-} from "recharts";
 import { motion } from "motion/react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { stateOfficeApi, stockApi } from "@/lib/api";
 import type { RootState } from "@/src/store/store";
 import { isDeptStateCoordinator, isDeptZonalCoordinator } from "@/src/access/departmentRoles";
-import { DashKpi, DashChartCard } from "@/components/dashboard/dashboardUi";
 import { PROVIDER_FORM_TYPES, PROVIDER_RELATED_PROGRAMMES } from "./providerManagementTypes";
+import ActivityAnalysisPanel from "./ProviderManagementActivityAnalysis";
+import ProviderManagementOverview from "./ProviderManagementOverview";
 
 interface Props {
   onBack: () => void;
@@ -26,13 +22,6 @@ interface Props {
   defaultStateId?: string | null;
 }
 
-const COLORS = ["#0ea5e9", "#14b8a6", "#f59e0b", "#8b5cf6", "#ef4444", "#64748b"];
-const ANALYSIS_COLORS: Record<string, string> = {
-  accreditation: "#0ea5e9",
-  reaccreditation: "#14b8a6",
-  "qa-inspections": "#f59e0b",
-  "medical-audits": "#8b5cf6",
-};
 const currentYear = new Date().getFullYear();
 const YEARS = Array.from({ length: 5 }, (_, i) => String(currentYear - i));
 const MONTHS = [
@@ -61,33 +50,6 @@ function levelMeta(level: 1 | 2 | 3 | 4) {
     3: "National monitoring across zones, programmes and activity types.",
     4: "Executive overview with distinct programme and activity outputs, trends and priority decisions.",
   } as const)[level];
-}
-
-function fmtPct(v: number | null | undefined) {
-  if (v == null || Number.isNaN(Number(v))) return "—";
-  return `${Number(v).toFixed(Number(v) % 1 ? 1 : 0)}%`;
-}
-
-function fmtNum(v: number | null | undefined) {
-  if (v == null || Number.isNaN(Number(v))) return "—";
-  return Number(v).toLocaleString();
-}
-
-function ChartEmpty({ message }: { message: string }) {
-  return (
-    <div className="flex h-full min-h-[220px] items-center justify-center px-4 text-center">
-      <p className="text-xs text-slate-500">{message}</p>
-    </div>
-  );
-}
-
-function tooltipStyle() {
-  return {
-    borderRadius: 12,
-    border: "1px solid #d4e8dc",
-    boxShadow: "0 8px 24px rgba(15,61,46,0.08)",
-    fontSize: 12,
-  };
 }
 
 export default function ProviderManagementDashboard({
@@ -133,10 +95,9 @@ export default function ProviderManagementDashboard({
   }, []);
 
   React.useEffect(() => {
-    if (lockState) return;
     const zoneArg = lockZone ? (defaultZoneId ?? undefined) : (filterZone === "all" ? undefined : filterZone);
     stockApi.getStates(zoneArg).then((r) => setStates(r.data || [])).catch(() => setStates([]));
-  }, [filterZone, lockZone, lockState, defaultZoneId]);
+  }, [filterZone, lockZone, defaultZoneId]);
 
   const scope = React.useMemo(() => {
     // Pipeline view keeps Acc + Re-acc KPIs together (mockup 2); do not narrow to one activity.
@@ -208,9 +169,18 @@ export default function ProviderManagementDashboard({
   const showPipelineDrill = level === 1 && (activity === "accreditation" || activity === "reaccreditation");
   const isReacc = activity === "reaccreditation";
   const sdoPipeline = level === 3 && sdoView === "pipeline";
+  const lockedStateLabel = React.useMemo(() => {
+    if (!lockState || !defaultStateId) return null;
+    const fromList = states.find((s) => String(s.id) === String(defaultStateId) || String(s.code) === String(defaultStateId));
+    if (fromList?.description) return String(fromList.description);
+    if (user?.state?.description) return String(user.state.description);
+    return String(defaultStateId);
+  }, [lockState, defaultStateId, states, user?.state?.description]);
   const displayBlurb = sdoPipeline
     ? "National monitoring by zone, programme and activity type, with distinct pipelines."
-    : blurb;
+    : level === 1 && lockedStateLabel
+      ? `Operational view for ${lockedStateLabel}: plan, execute and follow up. Other states appear at zonal and national levels as they report.`
+      : blurb;
 
   const monthlyTrend = React.useMemo(() => {
     return ((byMonth as any[]) || []).map((r) => ({
@@ -567,448 +537,50 @@ export default function ProviderManagementDashboard({
               No dashboard data for this scope.
             </div>
           ) : mainTab === "analysis" ? (
-            <ActivityAnalysisPanel items={activityAnalysis} />
+            <ActivityAnalysisPanel
+              items={activityAnalysis}
+              scope={{
+                level,
+                scopeLabel: lockedStateLabel
+                  || (filterState !== "all"
+                    ? (states.find((s) => String(s.id) === String(filterState))?.description || filterState)
+                    : null),
+                statesInScope: Number(data?.states_in_scope || 0),
+                actionQueue: actionQueue,
+              }}
+            />
           ) : (
-            <>
-              {/* ── Level KPI rows ── */}
-              {level === 1 && !showPipelineDrill && (
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                  <DashKpi label="Activities planned" value={fmtNum(kpis.activities_planned)} detail="Selected reporting period" />
-                  <DashKpi label="Completed activities" value={fmtNum(kpis.activities_completed)} detail={`${fmtPct(kpis.activity_completion_rate)} of planned activities`} />
-                  <DashKpi label="Plan achievement" value={fmtPct(kpis.plan_achievement_rate)} detail="Facilities covered ÷ planned" />
-                  <DashKpi label="Facility coverage" value={fmtPct(kpis.facility_coverage_rate)} detail="Facilities covered ÷ state total" />
-                </div>
-              )}
-
-              {level === 1 && showPipelineDrill && (
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                  <AccentKpi accent="blue" label="Facilities awaiting" value={fmtNum(isReacc ? kpis.awaiting_reaccreditation : kpis.awaiting_accreditation)} detail={`${programme === "all" ? "All programmes" : programme} · selected period`} />
-                  <AccentKpi accent="teal" label={isReacc ? "Facilities re-accredited" : "Facilities accredited"} value={fmtNum(isReacc ? kpis.reaccredited : kpis.accredited)} detail="Selected period" />
-                  <AccentKpi accent="amber" label="Facilities planned" value={fmtNum(kpis.facilities_planned)} detail="Activity plan" />
-                  <AccentKpi accent="green" label="Facilities covered" value={fmtNum(kpis.facilities_covered)} detail="From this plan’s period" />
-                </div>
-              )}
-
-              {level === 2 && (
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                  <DashKpi label="States in zone" value={fmtNum(data.states_in_scope)} detail="States with activity in scope" />
-                  <DashKpi label="Activities completed" value={fmtNum(kpis.activities_completed)} detail="Across states in selected period" />
-                  <DashKpi label="Plan achievement" value={fmtPct(kpis.plan_achievement_rate)} detail="Aggregate numerator ÷ denominator" />
-                  <DashKpi label="Facilities covered" value={fmtNum(kpis.facilities_covered)} detail="Activity-level reported count" />
-                </div>
-              )}
-
-              {level === 3 && !sdoPipeline && (
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                  <AccentKpi accent="blue" label="Activities planned" value={fmtNum(kpis.activities_planned)} detail="Across reporting states" />
-                  <AccentKpi accent="teal" label="Activities completed" value={fmtNum(kpis.activities_completed)} detail={`${fmtPct(kpis.activity_completion_rate)} completion rate`} />
-                  <AccentKpi accent="amber" label="Plan achievement" value={fmtPct(kpis.plan_achievement_rate)} detail="National aggregate rate" />
-                  <AccentKpi accent="green" label="Facilities covered" value={fmtNum(kpis.facilities_covered)} detail="Sum of valid reported coverage" />
-                </div>
-              )}
-
-              {level === 3 && sdoPipeline && (
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                  <AccentKpi accent="teal" label="Awaiting accreditation" value={fmtNum(kpis.awaiting_accreditation)} detail="Selected programme / activity" />
-                  <AccentKpi accent="teal" label="Accredited this period" value={fmtNum(kpis.accredited)} detail="Selected programme / activity" />
-                  <AccentKpi accent="amber" label="Awaiting reaccreditation" value={fmtNum(kpis.awaiting_reaccreditation)} detail="Separate reaccreditation queue" />
-                  <AccentKpi accent="purple" label="Reaccredited this period" value={fmtNum(kpis.reaccredited)} detail="Separate reaccreditation output" />
-                </div>
-              )}
-
-              {level === 4 && (
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                  <AccentKpi accent="blue" label="FSSHIP facilities accredited" value={fmtNum(kpis.fsship_accredited)} detail={deltaDetail(kpis.fsship_accredited_delta, "Selected period")} />
-                  <AccentKpi accent="teal" label="FSSHIP facilities re-accredited" value={fmtNum(kpis.fsship_reaccredited)} detail={deltaDetail(kpis.fsship_reaccredited_delta, "Separate output")} />
-                  <AccentKpi accent="amber" label="BHCPF PHCs accredited" value={fmtNum(kpis.bhcpf_phcs_accredited)} detail={deltaDetail(kpis.bhcpf_phcs_accredited_delta, "BHCPF only")} />
-                  <AccentKpi accent="purple" label="BHCPF PHCs re-accredited" value={fmtNum(kpis.bhcpf_phcs_reaccredited)} detail={deltaDetail(kpis.bhcpf_phcs_reaccredited_delta, "BHCPF only")} />
-                </div>
-              )}
-
-              {/* ── Charts by level ── */}
-              {level === 1 && !showPipelineDrill && (
-                <div className="grid lg:grid-cols-2 gap-4">
-                  <DashChartCard title="Planned facilities vs facilities covered">
-                    {byActivity.length === 0 ? <ChartEmpty message="No activity mix for this filter set" /> : (
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={[...byActivity].reverse()} layout="vertical" margin={{ top: 8, right: 16, left: 8, bottom: 0 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                          <XAxis type="number" tick={{ fontSize: 11 }} />
-                          <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 11 }} />
-                          <Tooltip contentStyle={tooltipStyle()} />
-                          <Legend />
-                          <Bar dataKey="covered" name="Covered" fill="#14b8a6" radius={[0, 4, 4, 0]} />
-                          <Bar dataKey="planned" name="Planned" fill="#0ea5e9" radius={[0, 4, 4, 0]} />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    )}
-                  </DashChartCard>
-                  <DashChartCard title="Activity status">
-                    {byStatus.length === 0 ? <ChartEmpty message="No status breakdown" /> : (
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie data={byStatus} dataKey="count" nameKey="name" innerRadius={58} outerRadius={92} paddingAngle={2}>
-                            {byStatus.map((_: any, i: number) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-                          </Pie>
-                          <Tooltip contentStyle={tooltipStyle()} />
-                          <Legend />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    )}
-                  </DashChartCard>
-                </div>
-              )}
-
-              {level === 1 && showPipelineDrill && (
-                <div className="grid lg:grid-cols-2 gap-4">
-                  <DashChartCard title={`Accreditation pipeline${programme !== "all" ? ` — ${programme}` : ""}`}>
-                    {pipelineBars.every((b: any) => !b.value) ? <ChartEmpty message="No pipeline counts" /> : (
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={[...pipelineBars].reverse()} layout="vertical" margin={{ top: 8, right: 16, left: 8, bottom: 0 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                          <XAxis type="number" tick={{ fontSize: 11 }} />
-                          <YAxis type="category" dataKey="name" width={90} tick={{ fontSize: 11 }} />
-                          <Tooltip contentStyle={tooltipStyle()} />
-                          <Bar dataKey="value" name="Count" fill="#0ea5e9" radius={[0, 4, 4, 0]} />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    )}
-                  </DashChartCard>
-                  <DashChartCard title="Period outputs by programme and activity">
-                    {programmeOutputs.every((b: any) => !b.value) ? <ChartEmpty message="No programme outputs" /> : (
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={[...programmeOutputs].reverse()} layout="vertical" margin={{ top: 8, right: 16, left: 8, bottom: 0 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                          <XAxis type="number" tick={{ fontSize: 11 }} />
-                          <YAxis type="category" dataKey="name" width={100} tick={{ fontSize: 11 }} />
-                          <Tooltip contentStyle={tooltipStyle()} />
-                          <Bar dataKey="value" name="Output" fill="#14b8a6" radius={[0, 4, 4, 0]} />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    )}
-                  </DashChartCard>
-                </div>
-              )}
-
-              {level === 2 && (
-                <div className="grid lg:grid-cols-2 gap-4">
-                  <DashChartCard title="State comparison — plan achievement">
-                    {byState.length === 0 ? <ChartEmpty message="No state comparison yet" /> : (
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={[...byState].slice(0, 10).reverse()} layout="vertical" margin={{ top: 8, right: 16, left: 8, bottom: 0 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                          <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 11 }} />
-                          <YAxis type="category" dataKey="name" width={110} tick={{ fontSize: 10 }} />
-                          <Tooltip contentStyle={tooltipStyle()} formatter={(v: any) => fmtPct(Number(v))} />
-                          <Bar dataKey="plan_achievement" name="Plan achievement %" fill="#0ea5e9" radius={[0, 4, 4, 0]} />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    )}
-                  </DashChartCard>
-                  <DashChartCard title="Activity mix by type">
-                    {byActivity.length === 0 ? <ChartEmpty message="No activity mix" /> : (
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie data={byActivity} dataKey="count" nameKey="name" innerRadius={58} outerRadius={92} paddingAngle={2}>
-                            {byActivity.map((_: any, i: number) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-                          </Pie>
-                          <Tooltip contentStyle={tooltipStyle()} />
-                          <Legend />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    )}
-                  </DashChartCard>
-                </div>
-              )}
-
-              {level === 3 && (
-                <div className="grid lg:grid-cols-2 gap-4">
-                  <DashChartCard title={sdoPipeline ? "Outputs by zone — selected programme / activity" : "Performance by zone"}>
-                    {zoneChartData.length === 0 ? <ChartEmpty message="No zone comparison" /> : (
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={[...zoneChartData].slice(0, 10).reverse()} layout="vertical" margin={{ top: 8, right: 16, left: 8, bottom: 0 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                          <XAxis type="number" tick={{ fontSize: 11 }} domain={sdoPipeline ? [0, "auto"] : [0, 100]} />
-                          <YAxis type="category" dataKey="name" width={110} tick={{ fontSize: 10 }} />
-                          <Tooltip
-                            contentStyle={tooltipStyle()}
-                            formatter={(v: any) => (sdoPipeline ? fmtNum(Number(v)) : fmtPct(Number(v)))}
-                          />
-                          <Bar
-                            dataKey={sdoPipeline ? sdoZoneBarKey : "plan_achievement"}
-                            name={sdoPipeline ? sdoZoneBarLabel : "Plan achievement %"}
-                            fill="#14b8a6"
-                            radius={[0, 4, 4, 0]}
-                          />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    )}
-                  </DashChartCard>
-                  <DashChartCard title={sdoPipeline ? "Accreditation vs reaccreditation trend" : "Monthly activity trend"}>
-                    {(sdoPipeline
-                      ? !monthlyTrend.some((r) => Number(r.accredited) > 0 || Number(r.reaccredited) > 0)
-                      : !hasMonthlyTrend
-                    ) ? (
-                      <ChartEmpty message="No monthly trend data for this period. Seed Provider Management activities or widen filters." />
-                    ) : (
-                      <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={monthlyTrend} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                          <XAxis dataKey="label" tick={{ fontSize: 11 }} />
-                          <YAxis tick={{ fontSize: 11 }} allowDecimals={false} width={40} />
-                          <Tooltip contentStyle={tooltipStyle()} />
-                          <Legend />
-                          {sdoPipeline ? (
-                            <>
-                              <Line type="monotone" dataKey="accredited" name="Accredited" stroke="#0ea5e9" strokeWidth={2} dot={{ r: 3 }} />
-                              <Line type="monotone" dataKey="reaccredited" name="Re-accredited" stroke="#ef4444" strokeWidth={2} dot={{ r: 3 }} />
-                            </>
-                          ) : (
-                            <>
-                              <Line type="monotone" dataKey="planned" name="Planned" stroke="#0ea5e9" strokeWidth={2} dot={{ r: 3 }} />
-                              <Line type="monotone" dataKey="completed" name="Completed" stroke="#ef4444" strokeWidth={2} dot={{ r: 3 }} />
-                            </>
-                          )}
-                        </LineChart>
-                      </ResponsiveContainer>
-                    )}
-                  </DashChartCard>
-                </div>
-              )}
-
-              {level === 4 && (
-                <div className="grid lg:grid-cols-2 gap-4">
-                  <DashChartCard title="Programme and activity output trend">
-                    <div className="flex flex-wrap gap-2 mb-2 px-1">
-                      {([
-                        ["fsship_accreditation", "FSSHIP accreditation", "#0ea5e9"],
-                        ["fsship_reaccreditation", "FSSHIP reaccreditation", "#ef4444"],
-                        ["bhcpf_accreditation", "BHCPF PHC accreditation", "#14b8a6"],
-                        ["bhcpf_reaccreditation", "BHCPF PHC reaccreditation", "#8b5cf6"],
-                      ] as const).map(([key, label, color]) => (
-                        <button
-                          key={key}
-                          type="button"
-                          onClick={() => setTrendSeries((s) => ({ ...s, [key]: !s[key] }))}
-                          className={`text-[10px] px-2 py-1 rounded-full border ${
-                            trendSeries[key] ? "bg-white border-slate-300 text-slate-700" : "bg-slate-100 border-slate-200 text-slate-400 line-through"
-                          }`}
-                        >
-                          <span className="inline-block w-2 h-2 rounded-full mr-1.5" style={{ background: color }} />
-                          {label}
-                        </button>
-                      ))}
-                    </div>
-                    {execTrend.length === 0 ? <ChartEmpty message="No executive trend" /> : (
-                      <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={execTrend}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                          <XAxis dataKey="label" tick={{ fontSize: 11 }} />
-                          <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
-                          <Tooltip contentStyle={tooltipStyle()} />
-                          <Legend />
-                          {trendSeries.bhcpf_accreditation && <Line type="monotone" dataKey="bhcpf_accreditation" name="BHCPF PHC accreditation" stroke="#14b8a6" strokeWidth={2} dot={{ r: 3 }} />}
-                          {trendSeries.bhcpf_reaccreditation && <Line type="monotone" dataKey="bhcpf_reaccreditation" name="BHCPF PHC reaccreditation" stroke="#8b5cf6" strokeWidth={2} dot={{ r: 3 }} />}
-                          {trendSeries.fsship_reaccreditation && <Line type="monotone" dataKey="fsship_reaccreditation" name="FSSHIP reaccreditation" stroke="#ef4444" strokeWidth={2} dot={{ r: 3 }} />}
-                          {trendSeries.fsship_accreditation && <Line type="monotone" dataKey="fsship_accreditation" name="FSSHIP accreditation" stroke="#0ea5e9" strokeWidth={2} dot={{ r: 3 }} />}
-                        </LineChart>
-                      </ResponsiveContainer>
-                    )}
-                  </DashChartCard>
-                  <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
-                    <div className="px-4 py-3 border-b border-slate-100">
-                      <p className="text-sm font-semibold text-slate-800">Priority areas for attention</p>
-                      <p className="text-xs text-slate-500 mt-0.5">Operational signals from the activity register</p>
-                    </div>
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="bg-slate-50">
-                          <TableHead className="text-xs">Area</TableHead>
-                          <TableHead className="text-xs">Signal</TableHead>
-                          <TableHead className="text-xs">Management focus</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {priorities.length === 0 ? (
-                          <TableRow><TableCell colSpan={3} className="text-sm text-slate-400 text-center py-8">No priority signals</TableCell></TableRow>
-                        ) : priorities.slice(0, 6).map((p: any) => (
-                          <TableRow key={p.area}>
-                            <TableCell className="text-sm font-medium">{p.area}</TableCell>
-                            <TableCell className="text-sm">{p.signal}</TableCell>
-                            <TableCell className="text-sm text-slate-600">{p.focus}</TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </div>
-              )}
-
-              {/* ── Action / exceptions panel ── */}
-              {level === 4 ? (
-                <div className="rounded-xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
-                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500 mb-2">Executive decisions</p>
-                  <p className="text-sm text-slate-700 leading-relaxed">
-                    {actionQueue[0]
-                      || "Direct follow-up by programme and activity; request time-bound improvement plans from zones; monitor accreditation and re-accreditation separately."}
-                  </p>
-                </div>
-              ) : (
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
-                  <div className="flex items-center gap-2 mb-3">
-                    <AlertTriangle className="w-4 h-4 text-amber-600" />
-                    <p className="text-sm font-bold uppercase tracking-wide text-slate-800">
-                      {level === 1 ? "State action queue" : level === 2 ? "Zonal follow-up" : "National exceptions"}
-                    </p>
-                  </div>
-                  {level === 1 && showPipelineDrill ? (
-                    <p className="text-sm text-slate-600 leading-relaxed">
-                      Review initial accreditation and reaccreditation pipelines separately. Drill down by facility, programme and activity record.
-                    </p>
-                  ) : level === 3 && sdoPipeline ? (
-                    <p className="text-sm text-slate-600 leading-relaxed">
-                      Highlight zones with high pending workloads or low outputs for the selected programme/activity. Use BHCPF PHC-specific fields when BHCPF is selected.
-                    </p>
-                  ) : level === 3 && !sdoPipeline ? (
-                    <ul className="space-y-2">
-                      {[
-                        "Identify zones with sustained low plan achievement",
-                        "Separate accreditation and reaccreditation outputs",
-                        "Review programme-specific BHCPF PHC counts",
-                        "Escalate recurring operational barriers",
-                      ].map((item) => (
-                        <li key={item} className="text-sm text-slate-700 flex gap-2 leading-snug">
-                          <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-teal-600 shrink-0" />
-                          {item}
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <ul className="space-y-2">
-                      {actionQueue.map((item: string) => (
-                        <li key={item} className="text-sm text-slate-700 flex gap-2 leading-snug">
-                          <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-teal-600 shrink-0" />
-                          {item}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              )}
-
-              <p className="text-[11px] text-slate-400 text-center">
-                Rates use summed numerators ÷ summed denominators (not averages of percentages). Forms sold / returned are excluded from performance ranking.
-              </p>
-            </>
+            <ProviderManagementOverview
+              level={level}
+              scopeLabel={lockedStateLabel
+                || (filterState !== "all"
+                  ? (states.find((s) => String(s.id) === String(filterState))?.description || filterState)
+                  : null)}
+              showPipelineDrill={showPipelineDrill}
+              isReacc={isReacc}
+              sdoPipeline={sdoPipeline}
+              programme={programme}
+              kpis={kpis}
+              byActivity={byActivity}
+              byStatus={byStatus}
+              byState={byState}
+              zoneChartData={zoneChartData}
+              monthlyTrend={monthlyTrend}
+              hasMonthlyTrend={hasMonthlyTrend}
+              pipelineBars={pipelineBars}
+              programmeOutputs={programmeOutputs}
+              execTrend={execTrend}
+              priorities={priorities}
+              actionQueue={actionQueue}
+              sdoZoneBarKey={sdoZoneBarKey}
+              sdoZoneBarLabel={sdoZoneBarLabel}
+              statesInScope={Number(data?.states_in_scope || 0)}
+              trendSeries={trendSeries}
+              onTrendSeriesChange={setTrendSeries}
+            />
           )}
         </div>
       </ScrollArea>
-    </div>
-  );
-}
-
-function deltaDetail(delta: number | null | undefined, fallback: string) {
-  if (delta == null || Number.isNaN(Number(delta))) return fallback;
-  const n = Number(delta);
-  const sign = n > 0 ? "+" : "";
-  return `${fallback} · vs previous ${sign}${n.toLocaleString()}`;
-}
-
-function parseBullet(b: string): { label: string; value: string } {
-  const idx = b.lastIndexOf(":");
-  if (idx > 0) {
-    return { label: b.slice(0, idx).trim(), value: b.slice(idx + 1).trim() };
-  }
-  return { label: b, value: "" };
-}
-
-function ActivityAnalysisPanel({ items }: { items: any[] }) {
-  return (
-    <div className="space-y-5">
-      <div className="flex items-end justify-between gap-3">
-        <h3 className="text-lg md:text-xl font-bold tracking-tight text-slate-900">Activity analysis</h3>
-        <p className="text-xs text-slate-400 hidden sm:block">Accreditation · Reaccreditation · QA · Medical audit</p>
-      </div>
-      <div className="grid md:grid-cols-2 gap-4">
-        {items.map((item) => {
-          const color = ANALYSIS_COLORS[item.key] || "#64748b";
-          const rate = Math.min(100, Math.max(0, Number(item.plan_achievement) || 0));
-          const byState = item.by_state || [];
-          const byStatus = item.by_status || [];
-          const metrics = (item.bullets || []).map(parseBullet);
-          return (
-            <motion.div
-              key={item.key}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_8px_30px_rgba(15,23,42,0.04)]"
-            >
-              <div className="absolute inset-x-0 top-0 h-1" style={{ background: `linear-gradient(90deg, ${color}, ${color}66)` }} />
-              <div className="p-5 space-y-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em]" style={{ color }}>{item.title}</p>
-                    <p className="text-2xl font-semibold tabular-nums text-slate-900 mt-1">{fmtPct(item.plan_achievement)}</p>
-                    <p className="text-xs text-slate-500">Plan achievement</p>
-                  </div>
-                  <div className="h-12 w-12 rounded-2xl flex items-center justify-center text-white text-sm font-bold shadow-sm" style={{ background: color }}>
-                    {Math.round(rate)}%
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 gap-2">
-                  {metrics.map((m: { label: string; value: string }) => (
-                    <div key={m.label} className="flex items-center justify-between gap-3 rounded-xl bg-slate-50/90 px-3 py-2.5">
-                      <span className="text-xs text-slate-500 leading-snug">{m.label}</span>
-                      <span className="text-sm font-semibold tabular-nums text-slate-900 shrink-0">{m.value || "—"}</span>
-                    </div>
-                  ))}
-                </div>
-
-                <div>
-                  <div className="flex items-center justify-between text-[10px] uppercase tracking-wide text-slate-400 mb-1.5">
-                    <span>Progress</span>
-                    <span>{fmtPct(item.plan_achievement)}</span>
-                  </div>
-                  <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
-                    <div className="h-full rounded-full transition-all duration-500" style={{ width: `${rate}%`, background: color }} />
-                  </div>
-                </div>
-
-                {(byState.length > 0 || byStatus.length > 0) && (
-                  <div className="grid grid-cols-2 gap-3 pt-1 border-t border-slate-100">
-                    {byState.length > 0 && (
-                      <div className="h-[130px] pt-2">
-                        <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 mb-1">By state</p>
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={byState.slice(0, 5)} layout="vertical" margin={{ top: 0, right: 4, left: 0, bottom: 0 }}>
-                            <XAxis type="number" hide />
-                            <YAxis type="category" dataKey="name" width={58} tick={{ fontSize: 9, fill: "#64748b" }} />
-                            <Bar dataKey="covered" fill={color} radius={[0, 4, 4, 0]} />
-                          </BarChart>
-                        </ResponsiveContainer>
-                      </div>
-                    )}
-                    {byStatus.length > 0 && (
-                      <div className="h-[130px] pt-2">
-                        <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 mb-1">Status mix</p>
-                        <ResponsiveContainer width="100%" height="100%">
-                          <PieChart>
-                            <Pie data={byStatus} dataKey="count" nameKey="name" innerRadius={26} outerRadius={44} paddingAngle={2}>
-                              {byStatus.map((_: any, i: number) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-                            </Pie>
-                            <Tooltip contentStyle={tooltipStyle()} />
-                          </PieChart>
-                        </ResponsiveContainer>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </motion.div>
-          );
-        })}
-      </div>
     </div>
   );
 }
@@ -1018,30 +590,6 @@ function FilterField({ label, children }: { label: string; children: React.React
     <div className="space-y-1">
       <Label className="text-[10px] uppercase tracking-wide text-slate-400">{label}</Label>
       {children}
-    </div>
-  );
-}
-
-function AccentKpi({
-  label, value, detail, accent,
-}: {
-  label: string;
-  value: string;
-  detail?: string;
-  accent: "blue" | "teal" | "amber" | "green" | "purple";
-}) {
-  const border = {
-    blue: "border-l-sky-500",
-    teal: "border-l-teal-500",
-    amber: "border-l-amber-500",
-    green: "border-l-emerald-500",
-    purple: "border-l-violet-500",
-  }[accent];
-  return (
-    <div className={`h-full min-h-[108px] rounded-xl border border-slate-200 border-l-4 ${border} bg-white p-4 flex flex-col`}>
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 leading-tight min-h-[28px]">{label}</p>
-      <p className="mt-1 text-2xl font-semibold tabular-nums text-slate-900 leading-tight">{value}</p>
-      <p className="mt-auto pt-2 text-xs text-slate-500 leading-snug">{detail || " "}</p>
     </div>
   );
 }

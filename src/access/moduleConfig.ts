@@ -19,7 +19,11 @@ import {
   STAKEHOLDER_MANAGEMENT_VIEW,
   STAKEHOLDER_MANAGEMENT_PATH,
 } from "@/src/components/stateOffice/enrolmentPillarTypes";
-import { HMO_INDEBTEDNESS_CHILDREN } from "@/src/components/stateOffice/hmoIndebtednessTypes";
+import {
+  HMO_INDEBTEDNESS_NAV_TITLE,
+  HMO_INDEBTEDNESS_PATH,
+  HMO_INDEBTEDNESS_VIEW,
+} from "@/src/components/stateOffice/hmoIndebtednessTypes";
 
 export type UserRole =
   | "admin" | "state-officer" | "zonal-coordinator"
@@ -293,9 +297,12 @@ export const MODULE_CONFIG: ParentModule[] = [
       { type: "group", label: "Complaint / Compliance", children: [
         { title: "State Complaints Register", view: "zonal-complaints-register", path: "/zonal/complaints-register", navLabel: "Complaints Register" },
         { title: "Weekly Compliance Report", view: "state-weekly-compliance", path: "/zonal/weekly-compliance", navLabel: "Weekly Compliance" },
-        { type: "group", label: "HMO Indebtedness", children: HMO_INDEBTEDNESS_CHILDREN.map((c) => ({
-          title: c.title, navLabel: c.navLabel, view: c.view, path: c.path,
-        })) },
+        {
+          title: HMO_INDEBTEDNESS_NAV_TITLE,
+          navLabel: HMO_INDEBTEDNESS_NAV_TITLE,
+          view: HMO_INDEBTEDNESS_VIEW,
+          path: HMO_INDEBTEDNESS_PATH,
+        },
         { title: "Mystery Shopping", view: "state-mystery-shopping", path: "/zonal/mystery-shopping" },
       ]},
       { type: "group", label: "Internal Management", children: [

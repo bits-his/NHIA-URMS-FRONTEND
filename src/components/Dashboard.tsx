@@ -53,9 +53,9 @@ import StateOfficeComplaintsPage from "./stateOffice/StateOfficeComplaintsPage";
 import StateOfficeComplianceVisitsPage from "./stateOffice/StateOfficeComplianceVisitsPage";
 import StateOfficeWeeklyCompliancePage from "./stateOffice/StateOfficeWeeklyCompliancePage";
 import StateOfficeMysteryShoppingPage from "./stateOffice/StateOfficeMysteryShoppingPage";
-import StateOfficeHmoIndebtednessPage from "./stateOffice/StateOfficeHmoIndebtednessPage";
-import StateOfficeHmoReconPage from "./stateOffice/StateOfficeHmoReconPage";
-import StateOfficeHmoMasterPage from "./stateOffice/StateOfficeHmoMasterPage";
+import StateOfficeHmoIndebtednessHubPage, {
+  HmoIndebtednessLegacyRedirect,
+} from "./stateOffice/StateOfficeHmoIndebtednessHubPage";
 import StateOfficeReconciliationPage from "./stateOffice/StateOfficeReconciliationPage";
 import ServicomDashboard from "./servicom/ServicomDashboard";
 import ServicomVisitsPage from "./servicom/ServicomVisitsPage";
@@ -784,12 +784,12 @@ export default function Dashboard({ role, user, access = [], functionalities = "
             <Route path="/zonal/cemonc" element={<StateOfficeReportsList key="state-cemonc" reportType="cemonc" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
             <Route path="/zonal/weekly-compliance" element={<StateOfficeWeeklyCompliancePage key="state-weekly-compliance" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
             <Route path="/zonal/monitoring-visits" element={<StateOfficeComplianceVisitsPage key="state-compliance-monitoring" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
-            <Route path="/zonal/hmo-indebtedness" element={<StateOfficeHmoIndebtednessPage key="state-hmo-indebtedness" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
-            <Route path="/zonal/hmo-indebtedness/phi" element={<StateOfficeHmoReconPage key="state-hmo-recon-phi" stream="phi" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
-            <Route path="/zonal/hmo-indebtedness/ffs" element={<StateOfficeHmoReconPage key="state-hmo-recon-ffs" stream="ffs" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
-            <Route path="/zonal/hmo-indebtedness/cap" element={<StateOfficeHmoReconPage key="state-hmo-recon-cap" stream="cap" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
-            <Route path="/zonal/hmo-indebtedness/master" element={<StateOfficeHmoMasterPage key="state-hmo-master" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
-            <Route path="/zonal/mystery-shopping" element={<StateOfficeMysteryShoppingPage key="state-mystery-shopping" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
+            <Route path="/zonal/hmo-indebtedness" element={<StateOfficeHmoIndebtednessHubPage key="state-hmo-indebtedness" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
+            <Route path="/zonal/hmo-indebtedness/phi" element={<HmoIndebtednessLegacyRedirect tab="phi" />} />
+            <Route path="/zonal/hmo-indebtedness/ffs" element={<HmoIndebtednessLegacyRedirect tab="ffs" />} />
+            <Route path="/zonal/hmo-indebtedness/cap" element={<HmoIndebtednessLegacyRedirect tab="cap" />} />
+            <Route path="/zonal/hmo-indebtedness/master" element={<HmoIndebtednessLegacyRedirect tab="master" />} />
+            <Route path="/zonal/mystery-shopping" element={<StateOfficeMysteryShoppingPage key="state-mystery-shopping" onBack={() => setView("home")} defaultZoneId={user?.zonal_code ? String(user.zonal_code) : (user?.zone?.zonal_code ? String(user.zone.zonal_code) : monthlyCtx.defaultZoneId)} defaultStateId={user?.state_code ? String(user.state_code) : (user?.state?.code ? String(user.state.code) : monthlyCtx.defaultStateId)} />} />
             <Route
               path="/zonal/enrolment-drives"
               element={

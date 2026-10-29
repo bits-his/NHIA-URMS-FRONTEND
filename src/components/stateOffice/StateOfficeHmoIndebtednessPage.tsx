@@ -23,6 +23,8 @@ interface Props {
   onBack: () => void;
   defaultStateId?: string | null;
   defaultZoneId?: string | null;
+  /** When true, hide page chrome (hub provides header/tabs). */
+  embedded?: boolean;
 }
 
 type Geo = { id: number; description: string };
@@ -65,7 +67,7 @@ function pickGeoLabel(options: Geo[], value: string, fallback: string) {
   return options.find((o) => String(o.id) === value)?.description ?? fallback;
 }
 
-export default function StateOfficeHmoIndebtednessPage({ onBack, defaultStateId, defaultZoneId }: Props) {
+export default function StateOfficeHmoIndebtednessPage({ onBack, defaultStateId, defaultZoneId, embedded = false }: Props) {
   const { canCreate, createOnly } = useStateOfficeAccess();
   const [mode, setMode] = React.useState<Mode>(createOnly ? "create" : "list");
   const [formKey, setFormKey] = React.useState(0);
@@ -771,8 +773,12 @@ export default function StateOfficeHmoIndebtednessPage({ onBack, defaultStateId,
 
   return (
     <div className="flex flex-col h-full bg-slate-50/30">
-      <div className="bg-white border-b border-border/50 px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30">
-        <h2 className="text-xl font-bold tracking-tight">HMO Indebtedness Collation</h2>
+      <div className={`bg-white border-b border-border/50 px-4 md:px-6 py-3 flex items-center justify-between ${embedded ? "" : "sticky top-0 z-30"}`}>
+        {!embedded ? (
+          <h2 className="text-xl font-bold tracking-tight">HMO Indebtedness Collation</h2>
+        ) : (
+          <div />
+        )}
         <div className="flex items-center gap-3">
           <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh

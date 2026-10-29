@@ -37,10 +37,20 @@ import {
   STAKEHOLDER_MANAGEMENT_NAV_TITLE,
   STAKEHOLDER_PILLAR_CHILDREN,
 } from "@/src/components/stateOffice/enrolmentPillarTypes";
-import { HMO_INDEBTEDNESS_CHILDREN } from "@/src/components/stateOffice/hmoIndebtednessTypes";
+import {
+  HMO_INDEBTEDNESS_CHILDREN,
+  HMO_INDEBTEDNESS_NAV_TITLE,
+} from "@/src/components/stateOffice/hmoIndebtednessTypes";
 
-const HMO_INDEBTEDNESS_TITLES = HMO_INDEBTEDNESS_CHILDREN.map((c) => c.title);
-const HMO_INDEBTEDNESS_COLLATION = "HMO Indebtedness Collation";
+/** Legacy per-sheet privilege titles → single HMO Indebtedness leaf */
+const LEGACY_HMO_INDEBTEDNESS_TITLES = new Set([
+  ...HMO_INDEBTEDNESS_CHILDREN.flatMap((c) => [c.title, c.navLabel]),
+  "HMO Indebtedness Collation",
+  "PHI Reconciliation",
+  "Private Health Insurance Reconciliation",
+  "FFS Reconciliation",
+  "Fee For Service Reconciliation",
+]);
 
 /** Legacy per-activity privilege titles → single Enrolment Drives leaf */
 const LEGACY_ENROLMENT_DRIVE_TITLES = new Set<string>(
@@ -160,6 +170,8 @@ export function normalizeFunctionalityTitle(title: string, moduleTitle?: string)
 
     if (LEGACY_BENEFICIARY_TITLE_SET.has(title)) return BENEFICIARY_MANAGEMENT_NAV_TITLE;
 
+    if (LEGACY_HMO_INDEBTEDNESS_TITLES.has(title)) return HMO_INDEBTEDNESS_NAV_TITLE;
+
   }
 
   if (title === "Accreditation / Reaccreditation"
@@ -207,6 +219,8 @@ export function normalizeFunctionalityTitle(title: string, moduleTitle?: string)
     if (LEGACY_PROVIDER_TITLES.has(title)) return PROVIDER_MANAGEMENT_NAV_TITLE;
 
     if (LEGACY_BENEFICIARY_TITLE_SET.has(title)) return BENEFICIARY_MANAGEMENT_NAV_TITLE;
+
+    if (LEGACY_HMO_INDEBTEDNESS_TITLES.has(title)) return HMO_INDEBTEDNESS_NAV_TITLE;
 
   }
 
@@ -339,16 +353,16 @@ export function expandAccessEntries(access: AccessEntry[]): AccessEntry[] {
       );
       funcs.push(BENEFICIARY_MANAGEMENT_NAV_TITLE);
     }
-    // Legacy collation privilege unlocks all HMO Indebtedness submenu items
-    const hasHmoCollation = funcs.some(
-      f => normalizeFunctionalityTitle(f, ZONAL_MODULE) === HMO_INDEBTEDNESS_COLLATION,
+    // Legacy per-sheet privileges → single HMO Indebtedness leaf
+    const hasHmo = funcs.some(
+      f => normalizeFunctionalityTitle(f, ZONAL_MODULE) === HMO_INDEBTEDNESS_NAV_TITLE
+        || LEGACY_HMO_INDEBTEDNESS_TITLES.has(f),
     );
-    if (hasHmoCollation) {
-      for (const title of HMO_INDEBTEDNESS_TITLES) {
-        if (!funcs.some(f => normalizeFunctionalityTitle(f, ZONAL_MODULE) === title)) {
-          funcs.push(title);
-        }
-      }
+    if (hasHmo) {
+      funcs = funcs.filter(
+        f => !LEGACY_HMO_INDEBTEDNESS_TITLES.has(f) && f !== HMO_INDEBTEDNESS_NAV_TITLE,
+      );
+      funcs.push(HMO_INDEBTEDNESS_NAV_TITLE);
     }
     out[zonalIdx] = { ...out[zonalIdx], functionalities: funcs };
   }
