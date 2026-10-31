@@ -1,6 +1,6 @@
 import * as React from "react";
 import { createPortal } from "react-dom";
-import { ChevronDown, Loader2, Pencil, Plus, Send, Trash2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, ChevronDown, Loader2, Pencil, Plus, Save, Send, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -36,6 +36,81 @@ function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
       {...props}
       className="w-full min-h-[4.5rem] rounded-xl px-3.5 py-2 text-sm bg-[#f4f7f5] border-2 border-[#1a7a52] text-slate-800 shadow-xs outline-none hover:border-[#0f3d2e] hover:bg-white focus-visible:border-[#0f3d2e] focus-visible:bg-white focus-visible:ring-3 focus-visible:ring-[#1a7a52]/25"
     />
+  );
+}
+
+export function FieldSection({
+  title,
+  children,
+  gridClassName = "grid gap-3 sm:grid-cols-2 lg:grid-cols-3",
+}: {
+  title: string;
+  children: React.ReactNode;
+  gridClassName?: string;
+}) {
+  return (
+    <section className="space-y-3">
+      <div className="flex items-center gap-3">
+        <h3 className="shrink-0 text-[11px] font-bold uppercase tracking-[0.08em] text-[#145c3f]">
+          {title}
+        </h3>
+        <div className="h-px flex-1 bg-[#d4e8dc]" />
+      </div>
+      <div className={gridClassName}>{children}</div>
+    </section>
+  );
+}
+
+export function Field({
+  label,
+  required,
+  error,
+  children,
+  className,
+}: {
+  label: string;
+  required?: boolean;
+  error?: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={cn("space-y-1.5", className)}>
+      <Label className="text-xs font-semibold text-slate-600">
+        {label.replace(/\s*\*$/, "")}
+        {required ? <span className="text-rose-500 ml-0.5">*</span> : null}
+      </Label>
+      {children}
+      {error ? <p className="text-[11px] font-medium text-rose-600">{error}</p> : null}
+    </div>
+  );
+}
+
+function ReviewRow({ label, value }: { label: string; value?: React.ReactNode }) {
+  if (value == null || value === "" || value === "—") return null;
+  return (
+    <div className="space-y-0.5 min-w-0">
+      <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{label}</p>
+      <p className="text-sm font-medium text-slate-800 break-words">{value}</p>
+    </div>
+  );
+}
+
+function ReviewSection({ title, children }: { title: string; children: React.ReactNode }) {
+  const items = React.Children.toArray(children).filter(Boolean);
+  if (!items.length) return null;
+  return (
+    <section className="space-y-3">
+      <div className="flex items-center gap-3">
+        <h3 className="shrink-0 text-[11px] font-bold uppercase tracking-[0.08em] text-[#145c3f]">
+          {title}
+        </h3>
+        <div className="h-px flex-1 bg-[#d4e8dc]" />
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-3">
+        {items}
+      </div>
+    </section>
   );
 }
 
@@ -239,11 +314,22 @@ export default function EnrolmentDriveForm({ reportType, reportId, onBack, onCan
   const [lines, setLines] = React.useState<(Entry & { _key: string })[]>([]);
   const [entry, setEntry] = React.useState<Entry>(freshEntry);
   const [editingKey, setEditingKey] = React.useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = React.useState<Record<string, string>>({});
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const activityFormRef = React.useRef<HTMLDivElement>(null);
   const linesRef = React.useRef(lines);
   linesRef.current = lines;
 
-  const set = <K extends keyof Entry>(k: K, v: Entry[K]) => setEntry((p) => ({ ...p, [k]: v }));
+  const set = <K extends keyof Entry>(k: K, v: Entry[K]) => {
+    setEntry((p) => ({ ...p, [k]: v }));
+    if (fieldErrors[k as string]) {
+      setFieldErrors((prev) => {
+        const next = { ...prev };
+        delete next[k as string];
+        return next;
+      });
+    }
+  };
 
   const changeDriveType = (key: EnrolmentDriveKey) => {
     if (key === driveKey) return;
@@ -293,31 +379,69 @@ export default function EnrolmentDriveForm({ reportType, reportId, onBack, onCan
   const resetEntry = () => {
     setEntry(freshEntry());
     setEditingKey(null);
+    setFieldErrors({});
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
+  const validateLine = (): boolean => {
+    const errs: Record<string, string> = {};
+    if (!driveKey) errs.drive_type = "Drive type is required";
+    if (!entry.activity_category) errs.activity_category = "Activity category is required";
+    if (!entry.activity_date) errs.activity_date = "Activity date is required";
+    if (!entry.activity_status) errs.activity_status = "Activity status is required";
+    if (isBudgeted) {
+      if (!entry.activity_budget) errs.activity_budget = "Activity budget is required";
+      if (!entry.approved_amount) errs.approved_amount = "Approved amount is required";
+    }
+    setFieldErrors(errs);
+    if (Object.keys(errs).length > 0) {
+      const firstError = Object.values(errs)[0];
+      toast.error(firstError);
+      return false;
+    }
+    return true;
+  };
+
   const saveLine = (): boolean => {
-    if (!entry.activity_category) { toast.error("Select an activity category"); return false; }
-    if (!entry.activity_date) { toast.error("Enter the activity date"); return false; }
-    if (!entry.activity_status) { toast.error("Select the activity status"); return false; }
+    if (!validateLine()) return false;
     const clean: Entry = isBudgeted ? entry : { ...entry, activity_budget: "", approved_amount: "" };
     const next = editingKey
       ? linesRef.current.map((l) => (l._key === editingKey ? { ...clean, _key: editingKey } : l))
       : [...linesRef.current, { ...clean, _key: uid() }];
     linesRef.current = next;
     setLines(next);
+    toast.success(editingKey ? "Activity updated in list" : "Activity added to list");
     resetEntry();
+    if (activityFormRef.current) {
+      activityFormRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
     return true;
   };
 
-  const entryInProgress = !!(entry.activity_date || entry.activity_status || entry.specific_activity || entry.funding_option);
+  const startNewActivity = () => {
+    resetEntry();
+    if (activityFormRef.current) {
+      activityFormRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  };
 
-  const editLine = (key: string) => {
+  const startEdit = (key: string) => {
     const l = lines.find((x) => x._key === key);
     if (!l) return;
     const { _key, ...rest } = l;
     setEntry(rest);
     setEditingKey(key);
+    setFieldErrors({});
+    if (activityFormRef.current) {
+      activityFormRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  };
+
+  const deleteLine = (key: string) => {
+    const next = linesRef.current.filter((x) => x._key !== key);
+    linesRef.current = next;
+    setLines(next);
+    toast.success("Activity removed");
   };
 
   const afterPersist = async ({ id }: { id: number | string }) => {
@@ -376,236 +500,283 @@ export default function EnrolmentDriveForm({ reportType, reportId, onBack, onCan
         })),
       })}
     >
-      {({ submitting, persist, requestSubmit, savedId }) => {
+      {({ submitting, saving, persist, requestSubmit, savedId }) => {
         const typeLocked = !!reportId || !!savedId;
+
         return (
-        <div className="space-y-4">
-          <Card className="rounded-2xl border-[#d4e8dc]">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base">{config.title} Activities</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid md:grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label>Enrolment Drive Type *</Label>
-                  <Select
-                    value={driveKey}
-                    onValueChange={(v) => changeDriveType(v as EnrolmentDriveKey)}
-                    disabled={typeLocked}
-                  >
-                    <SelectTrigger displayValue={config.title}>
-                      <SelectValue placeholder="Select drive type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {ENROLMENT_DRIVE_TYPES.map((t) => (
-                        <SelectItem key={t.key} value={t.key}>{t.title}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1">
-                  <Label>Activity Category *</Label>
-                  <Select value={entry.activity_category} onValueChange={(v) => set("activity_category", v)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select activity" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {categories.map((a) => (
-                        <SelectItem key={a.label} value={a.label}>{a.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1">
-                  <Label>Activity Date *</Label>
-                  <Input type="date" value={entry.activity_date} onChange={(e) => set("activity_date", e.target.value)} />
-                </div>
-                <div className="space-y-1">
-                  <Label>Funding Option</Label>
-                  <Select value={entry.funding_option} onValueChange={(v) => set("funding_option", v)}>
-                    <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                    <SelectContent>
-                      {ENROLMENT_DRIVE_FUNDING_OPTIONS.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1 md:col-span-2">
-                  <Label>Specific Activity Carried Out</Label>
-                  <Input value={entry.specific_activity} onChange={(e) => set("specific_activity", e.target.value)} />
-                </div>
-                {isBudgeted && (
-                  <>
-                    <div className="space-y-1">
-                      <Label>Activity Budget (₦)</Label>
-                      <Input type="number" min={0} value={entry.activity_budget} onChange={(e) => set("activity_budget", e.target.value)} />
-                    </div>
-                    <div className="space-y-1">
-                      <Label>Approved Amount (₦)</Label>
-                      <Input type="number" min={0} value={entry.approved_amount} onChange={(e) => set("approved_amount", e.target.value)} />
-                    </div>
-                  </>
-                )}
-                <MultiSelectField
-                  label="Target Audience"
-                  options={ENROLMENT_DRIVE_TARGET_AUDIENCES}
-                  value={entry.target_audience}
-                  onChange={(v) => set("target_audience", v)}
-                  placeholder="Select target audience"
-                />
-                <div className="space-y-1">
-                  <Label>Location Category</Label>
-                  <Select
-                    value={entry.location_category}
-                    onValueChange={(v) => setEntry((p) => ({ ...p, location_category: v, location_name: "" }))}
-                  >
-                    <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                    <SelectContent>
-                      {Object.keys(ENROLMENT_DRIVE_LOCATIONS).map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1">
-                  <Label>Location Name</Label>
-                  <Select value={entry.location_name} onValueChange={(v) => set("location_name", v)} disabled={!locationNames.length}>
-                    <SelectTrigger><SelectValue placeholder={locationNames.length ? "Select" : "Choose a category first"} /></SelectTrigger>
-                    <SelectContent>
-                      {locationNames.map((n) => <SelectItem key={n} value={n}>{n}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <MultiSelectField
-                  label="Program Supported"
-                  options={ENROLMENT_DRIVE_PROGRAMS.map((p) => p.label)}
-                  value={entry.programs_supported}
-                  onChange={(v) => set("programs_supported", v)}
-                  placeholder="Select programs"
-                />
-                <div className="space-y-1 md:col-span-2">
-                  <Label>Activity Details</Label>
-                  <Textarea rows={2} value={entry.activity_details} onChange={(e) => set("activity_details", e.target.value)} />
-                </div>
-                <div className="space-y-1">
-                  <Label>Planned Target Audience</Label>
-                  <Input type="number" min={0} value={entry.planned_target_audience} onChange={(e) => set("planned_target_audience", e.target.value)} />
-                </div>
-                <div className="space-y-1">
-                  <Label>Target Audience Reached</Label>
-                  <Input type="number" min={0} value={entry.target_audience_reached} onChange={(e) => set("target_audience_reached", e.target.value)} />
-                </div>
-                <div className="space-y-1">
-                  <Label>Number of Leads Generated</Label>
-                  <Input type="number" min={0} value={entry.leads_generated} onChange={(e) => set("leads_generated", e.target.value)} />
-                </div>
-                <div className="space-y-1">
-                  <Label>Number of New Enrolments</Label>
-                  <Input type="number" min={0} value={entry.new_enrolments} onChange={(e) => set("new_enrolments", e.target.value)} />
-                </div>
-                <div className="space-y-1">
-                  <Label>Activity Status *</Label>
-                  <Select value={entry.activity_status} onValueChange={(v) => set("activity_status", v)}>
-                    <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                    <SelectContent>
-                      {ENROLMENT_DRIVE_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1">
-                  <Label>Supporting Evidence</Label>
-                  <Input
-                    ref={fileInputRef}
-                    type="file"
-                    multiple
-                    onChange={(e) => set("supportingFiles", Array.from(e.target.files ?? []))}
-                  />
-                  {entry.supporting_documents.length > 0 && (
-                    <p className="text-xs text-slate-500">Saved: {entry.supporting_documents.map((d) => d.name).join(", ")}</p>
+          <div className="space-y-6">
+            <div ref={activityFormRef} className="space-y-4">
+              <div className="flex items-center justify-between gap-2 px-1">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-sm font-bold text-[#0f3d2e]">
+                    {editingKey ? "Edit Enrolment Drive Activity" : "New Enrolment Drive Activity"}
+                  </h2>
+                  {editingKey && (
+                    <span className="text-[11px] font-mono bg-white px-2 py-0.5 rounded border border-[#d4e8dc] text-[#145c3f]">
+                      Editing
+                    </span>
                   )}
                 </div>
-                <div className="space-y-1 md:col-span-2">
-                  <Label>Remarks / Observations</Label>
-                  <Textarea rows={2} value={entry.remarks} onChange={(e) => set("remarks", e.target.value)} />
-                </div>
+                {editingKey && (
+                  <Button variant="ghost" size="sm" onClick={resetEntry}>
+                    Cancel edit
+                  </Button>
+                )}
               </div>
 
-              {lines.length > 0 && (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-[#f0fdf7]">
-                        {["Date", "Activity", "Funding", "Approved (₦)", "Location", "Programs", "Reached", "Leads", "New Enrolments", "Status", "Evidence", ""].map((h) => (
-                          <TableHead key={h} className="text-xs font-bold whitespace-nowrap">{h}</TableHead>
-                        ))}
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {lines.map((l) => (
-                        <TableRow key={l._key} className={editingKey === l._key ? "bg-amber-50" : undefined}>
-                          <TableCell className="text-sm whitespace-nowrap">{l.activity_date || "—"}</TableCell>
-                          <TableCell className="text-sm font-medium">
-                            {l.activity_category || "—"}
-                            {l.specific_activity && <div className="text-xs text-slate-500">{l.specific_activity}</div>}
-                          </TableCell>
-                          <TableCell className="text-xs">{l.funding_option || "—"}</TableCell>
-                          <TableCell className="text-sm">{l.approved_amount ? formatAmount(l.approved_amount) : "—"}</TableCell>
-                          <TableCell className="text-xs">{l.location_name || l.location_category || "—"}</TableCell>
-                          <TableCell className="text-xs">{l.programs_supported.join(", ") || "—"}</TableCell>
-                          <TableCell className="text-sm">{l.target_audience_reached || "—"}</TableCell>
-                          <TableCell className="text-sm">{l.leads_generated || "—"}</TableCell>
-                          <TableCell className="text-sm">{l.new_enrolments || "—"}</TableCell>
-                          <TableCell className="text-xs">{l.activity_status || "—"}</TableCell>
-                          <TableCell className="text-xs">
-                            {[...l.supporting_documents.map((d) => d.name), ...l.supportingFiles.map((f) => f.name)].join(", ") || "—"}
-                          </TableCell>
-                          <TableCell className="whitespace-nowrap">
-                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-slate-400 hover:text-[#016630]" onClick={() => editLine(l._key)}>
-                              <Pencil className="w-3.5 h-3.5" />
-                            </Button>
-                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-slate-300 hover:text-rose-500" onClick={() => {
-                              const next = linesRef.current.filter((x) => x._key !== l._key);
-                              linesRef.current = next;
-                              setLines(next);
-                            }}>
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
+                <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden">
+                  <CardContent className="p-4 md:p-5 space-y-6">
+                    {/* 1. Drive & Activity Details */}
+                    <FieldSection title="Drive & Activity Details">
+                      <Field label="Enrolment Drive Type" required error={fieldErrors.drive_type} className="sm:col-span-2 lg:col-span-3">
+                        <Select
+                          value={driveKey}
+                          onValueChange={(v) => changeDriveType(v as EnrolmentDriveKey)}
+                          disabled={typeLocked}
+                        >
+                          <SelectTrigger displayValue={config.title}>
+                            <SelectValue placeholder="Select drive type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {ENROLMENT_DRIVE_TYPES.map((t) => (
+                              <SelectItem key={t.key} value={t.key}>{t.title}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </Field>
+                      <Field label="Activity Category" required error={fieldErrors.activity_category}>
+                        <Select value={entry.activity_category} onValueChange={(v) => set("activity_category", v)}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select activity" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {categories.map((a) => (
+                              <SelectItem key={a.label} value={a.label}>{a.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </Field>
+                      <Field label="Activity Date" required error={fieldErrors.activity_date}>
+                        <Input type="date" value={entry.activity_date} onChange={(e) => set("activity_date", e.target.value)} />
+                      </Field>
+                      <Field label="Specific Activity Carried Out" className="sm:col-span-2 lg:col-span-1">
+                        <Input value={entry.specific_activity} placeholder="Describe specific activity" onChange={(e) => set("specific_activity", e.target.value)} />
+                      </Field>
+                      <MultiSelectField
+                        label="Program Supported"
+                        options={ENROLMENT_DRIVE_PROGRAMS.map((p) => p.label)}
+                        value={entry.programs_supported}
+                        onChange={(v) => set("programs_supported", v)}
+                        placeholder="Select programs"
+                        className="sm:col-span-2 lg:col-span-3"
+                      />
+                    </FieldSection>
 
-              <div className="flex items-center justify-end gap-2 pt-1">
-                {editingKey && (
-                  <Button variant="outline" onClick={resetEntry}>Cancel edit</Button>
-                )}
-                {editingKey || (entryInProgress && lines.length > 0) ? (
-                  <Button
-                    variant="outline"
-                    onClick={() => { if (saveLine()) toast.success(editingKey ? "Activity updated" : "Activity added"); }}
-                    className="gap-2"
-                  >
-                    <Plus className="w-4 h-4" /> {editingKey ? "Update activity" : "Add activity"}
-                  </Button>
-                ) : null}
+                    {/* 2. Audience & Location Reach */}
+                    <FieldSection title="Target Audience & Location Reach">
+                      <Field label="Location Category">
+                        <Select
+                          value={entry.location_category}
+                          onValueChange={(v) => setEntry((p) => ({ ...p, location_category: v, location_name: "" }))}
+                        >
+                          <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
+                          <SelectContent>
+                            {Object.keys(ENROLMENT_DRIVE_LOCATIONS).map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </Field>
+                      <Field label="Location Name">
+                        <Select value={entry.location_name} onValueChange={(v) => set("location_name", v)} disabled={!locationNames.length}>
+                          <SelectTrigger><SelectValue placeholder={locationNames.length ? "Select location" : "Choose a category first"} /></SelectTrigger>
+                          <SelectContent>
+                            {locationNames.map((n) => <SelectItem key={n} value={n}>{n}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </Field>
+                      <MultiSelectField
+                        label="Target Audience"
+                        options={ENROLMENT_DRIVE_TARGET_AUDIENCES}
+                        value={entry.target_audience}
+                        onChange={(v) => set("target_audience", v)}
+                        placeholder="Select target audience"
+                        className="sm:col-span-2 lg:col-span-1"
+                      />
+                      <Field label="Planned Target Audience">
+                        <Input type="number" min={0} value={entry.planned_target_audience} onChange={(e) => set("planned_target_audience", e.target.value)} placeholder="0" />
+                      </Field>
+                      <Field label="Target Audience Reached">
+                        <Input type="number" min={0} value={entry.target_audience_reached} onChange={(e) => set("target_audience_reached", e.target.value)} placeholder="0" />
+                      </Field>
+                      <Field label="Number of Leads Generated">
+                        <Input type="number" min={0} value={entry.leads_generated} onChange={(e) => set("leads_generated", e.target.value)} placeholder="0" />
+                      </Field>
+                      <Field label="Number of New Enrolments">
+                        <Input type="number" min={0} value={entry.new_enrolments} onChange={(e) => set("new_enrolments", e.target.value)} placeholder="0" />
+                      </Field>
+                    </FieldSection>
+
+                    {/* 3. Funding & Evidence */}
+                    <FieldSection title="Funding, Status & Supporting Evidence">
+                      <Field label="Funding Option" required error={fieldErrors.funding_option}>
+                        <Select value={entry.funding_option} onValueChange={(v) => set("funding_option", v)}>
+                          <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                          <SelectContent>
+                            {ENROLMENT_DRIVE_FUNDING_OPTIONS.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </Field>
+                      {isBudgeted && (
+                        <>
+                          <Field label="Activity Budget (₦)" required error={fieldErrors.activity_budget}>
+                            <Input type="number" min={0} value={entry.activity_budget} onChange={(e) => set("activity_budget", e.target.value)} placeholder="0.00" />
+                          </Field>
+                          <Field label="Approved Amount (₦)" required error={fieldErrors.approved_amount}>
+                            <Input type="number" min={0} value={entry.approved_amount} onChange={(e) => set("approved_amount", e.target.value)} placeholder="0.00" />
+                          </Field>
+                        </>
+                      )}
+                      <Field label="Activity Status" required error={fieldErrors.activity_status}>
+                        <Select value={entry.activity_status} onValueChange={(v) => set("activity_status", v)}>
+                          <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                          <SelectContent>
+                            {ENROLMENT_DRIVE_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </Field>
+                      <Field label="Activity Details" className="sm:col-span-2 lg:col-span-3">
+                        <Textarea rows={2} value={entry.activity_details} placeholder="Describe details of the activity..." onChange={(e) => set("activity_details", e.target.value)} />
+                      </Field>
+                      <Field label="Supporting Evidence" className="sm:col-span-2 lg:col-span-3">
+                        <Input
+                          ref={fileInputRef}
+                          type="file"
+                          multiple
+                          onChange={(e) => set("supportingFiles", Array.from(e.target.files ?? []))}
+                        />
+                        {entry.supporting_documents.length > 0 && (
+                          <p className="text-xs text-slate-500 mt-1">Saved: {entry.supporting_documents.map((d) => d.name).join(", ")}</p>
+                        )}
+                      </Field>
+                      <Field label="Remarks / Observations" className="sm:col-span-2 lg:col-span-3">
+                        <Textarea rows={2} value={entry.remarks} placeholder="Any additional notes or observations..." onChange={(e) => set("remarks", e.target.value)} />
+                      </Field>
+                    </FieldSection>
+
+                    {/* Add to List actions */}
+                    <div className="flex flex-wrap items-center justify-between gap-2 pt-4 border-t border-[#e8f3ec]">
+                      {editingKey ? (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="gap-2 text-slate-600"
+                          onClick={resetEntry}
+                        >
+                          <ArrowLeft className="w-4 h-4" /> Cancel edit
+                        </Button>
+                      ) : <div />}
+
+                      <Button
+                        type="button"
+                        className="bg-[#145c3f] hover:bg-[#0f3d2e] text-white gap-2 text-xs font-semibold shadow-xs"
+                        onClick={saveLine}
+                      >
+                        <Plus className="w-4 h-4" /> {editingKey ? "Update list" : "Add to list"}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* 2. Table UNDER THE FORM: Activity Register */}
+              <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden bg-white">
+                <div className="bg-[#e8f5ee] px-4 py-2.5 border-b border-[#d4e8dc] flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="text-[12px] font-bold uppercase tracking-[0.06em] text-[#0f3d2e]">
+                    Activity Register
+                  </h3>
+                  <p className="text-[11px] text-[#145c3f]">
+                    {lines.length} activit{lines.length === 1 ? "y" : "ies"} recorded
+                  </p>
+                </div>
+                <CardContent className="p-0 bg-white">
+                  {lines.length === 0 ? (
+                    <div className="py-12 text-center text-sm text-slate-400">
+                      No activities added to the list yet. Complete the form above and click &ldquo;Add to list&rdquo;.
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="bg-[#f0fdf7] hover:bg-[#f0fdf7]">
+                            {["Date", "Activity", "Funding", "Approved (₦)", "Location", "Programs", "Reached", "Leads", "Enrolments", "Status", "Evidence", "Action"].map((h) => (
+                              <TableHead key={h} className={`text-[11px] font-bold text-[#0f3d2e] whitespace-nowrap ${h === "Action" ? "text-right" : ""}`}>{h}</TableHead>
+                            ))}
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {lines.map((l) => (
+                            <TableRow key={l._key} className="hover:bg-[#f4f7f5]">
+                              <TableCell className="text-sm whitespace-nowrap">{l.activity_date || "—"}</TableCell>
+                              <TableCell className="text-sm font-medium">
+                                {l.activity_category || "—"}
+                                {l.specific_activity && <div className="text-xs text-slate-500">{l.specific_activity}</div>}
+                              </TableCell>
+                              <TableCell className="text-xs">{l.funding_option || "—"}</TableCell>
+                              <TableCell className="text-sm">{l.approved_amount ? formatAmount(l.approved_amount) : "—"}</TableCell>
+                              <TableCell className="text-xs">{l.location_name || l.location_category || "—"}</TableCell>
+                              <TableCell className="text-xs">{l.programs_supported.join(", ") || "—"}</TableCell>
+                              <TableCell className="text-sm tabular-nums">{l.target_audience_reached || "—"}</TableCell>
+                              <TableCell className="text-sm tabular-nums">{l.leads_generated || "—"}</TableCell>
+                              <TableCell className="text-sm tabular-nums">{l.new_enrolments || "—"}</TableCell>
+                              <TableCell className="text-xs">
+                                <span className={cn(
+                                  "inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border",
+                                  l.activity_status === "Completed" ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-slate-50 text-slate-600 border-slate-200",
+                                )}>
+                                  {l.activity_status || "—"}
+                                </span>
+                              </TableCell>
+                              <TableCell className="text-xs max-w-[140px] truncate" title={[...l.supporting_documents.map((d) => d.name), ...l.supportingFiles.map((f) => f.name)].join(", ")}>
+                                {[...l.supporting_documents.map((d) => d.name), ...l.supportingFiles.map((f) => f.name)].join(", ") || "—"}
+                              </TableCell>
+                              <TableCell className="text-right whitespace-nowrap">
+                                <Button variant="ghost" size="sm" className="h-7 gap-1 px-2 text-[#145c3f]" onClick={() => startEdit(l._key)}>
+                                  <Pencil className="w-3.5 h-3.5" /> View / Edit
+                                </Button>
+                                <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-slate-300 hover:text-rose-500" onClick={() => deleteLine(l._key)}>
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* 3. Action Buttons */}
+              <div className="flex flex-wrap items-center justify-end gap-2 pt-2 px-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gap-2"
+                  disabled={saving || submitting}
+                  onClick={() => persist("draft")}
+                >
+                  {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Save draft
+                </Button>
                 <Button
                   className="bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20"
-                  disabled={submitting}
-                  onClick={() => {
-                    if (editingKey || entryInProgress || lines.length === 0) {
-                      if (!saveLine()) return;
-                    }
-                    requestSubmit(() => persist("submitted"));
-                  }}
+                  disabled={submitting || lines.length === 0}
+                  onClick={() => requestSubmit(() => persist("submitted"))}
                 >
                   {submitting
                     ? <><Loader2 className="w-4 h-4 animate-spin" /> Submitting...</>
                     : <><Send className="w-4 h-4" /> Submit</>}
                 </Button>
               </div>
-            </CardContent>
-          </Card>
-        </div>
+            </div>
         );
       }}
     </StateOfficeFormShell>

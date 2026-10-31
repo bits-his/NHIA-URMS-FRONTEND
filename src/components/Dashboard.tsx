@@ -34,6 +34,7 @@ import StateOfficeReportsList from "./stateOffice/StateOfficeReportsList";
 import { ENROLMENT_DRIVE_TYPES, enrolmentDrivePath } from "./stateOffice/enrolmentDriveTypes";
 import EnrolmentActivityPage from "./stateOffice/EnrolmentActivityPage";
 import EnrolmentDrivesPage, { EnrolmentDriveLegacyRedirect } from "./stateOffice/EnrolmentDrivesPage";
+import EnrolmentDriveDashboard from "./stateOffice/EnrolmentDriveDashboard";
 import BeneficiaryManagementPage, { BeneficiaryManagementLegacyRedirect } from "./stateOffice/BeneficiaryManagementPage";
 import { BENEFICIARY_MANAGEMENT_PATH } from "./stateOffice/beneficiaryManagementTypes";
 import {
@@ -67,6 +68,7 @@ import StockVerificationDashboard from "./stock/StockVerificationDashboard";
 import SocZonesDashboard from "./stateOffice/SocZonesDashboard";
 import StateZonalOfficeProfilePage from "./stateOffice/StateZonalOfficeProfilePage";
 import StateZonalFocalPersonsPage from "./stateOffice/StateZonalFocalPersonsPage";
+import OfficeProfileWorkspace from "./stateOffice/officeProfile/OfficeProfileWorkspace";
 import SocPlaceholderPage from "./stateOffice/SocPlaceholderPage";
 import FinanceMonthlyForm from "./monthly/FinanceMonthlyForm";
 import AdminMonthlyForm from "./monthly/AdminMonthlyForm";
@@ -683,10 +685,8 @@ export default function Dashboard({ role, user, access = [], functionalities = "
                   : <Navigate to={getFirstAccessiblePath(access, role, user)} replace />
               }
             />
-            <Route path="/soc/office-profile" element={<StateZonalOfficeProfilePage defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
-            <Route path="/soc/office-profile/new" element={<StateZonalOfficeProfilePage defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
-            <Route path="/soc/office-profile/:id" element={<StateZonalOfficeProfilePage defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
-            <Route path="/soc/office-profile/:id/edit" element={<StateZonalOfficeProfilePage defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
+            <Route path="/soc/office-profile/*" element={<OfficeProfileWorkspace onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} userRole={role} />} />
+            <Route path="/soc/office-profile" element={<OfficeProfileWorkspace onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} userRole={role} />} />
             <Route path="/soc/focal-persons" element={<StateZonalFocalPersonsPage onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
             <Route path="/soc/weekly-actionable" element={<StateOfficeReportsList key="state-weekly-actionable" reportType="weekly-actionable" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
             <Route path="/soc/contracted-services" element={<StateOfficeReportsList key="state-contracted-services" reportType="contracted-services" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
@@ -799,6 +799,17 @@ export default function Dashboard({ role, user, access = [], functionalities = "
               element={
                 <EnrolmentDrivesPage
                   key="state-enrolment-drives"
+                  onBack={() => setView("home")}
+                  defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId}
+                  defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId}
+                />
+              }
+            />
+            <Route
+              path="/zonal/enrolment-drives/dashboard"
+              element={
+                <EnrolmentDriveDashboard
+                  key="state-enrolment-drives-dashboard"
                   onBack={() => setView("home")}
                   defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId}
                   defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId}

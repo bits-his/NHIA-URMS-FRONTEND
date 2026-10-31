@@ -929,9 +929,11 @@ export const stateOfficeApi = {
   },
 };
 
-const stateOfficeFilters = (filters?: Record<string, string | undefined>) => {
+const stateOfficeFilters = (filters?: Record<string, string | number | undefined | null>) => {
   const p = new URLSearchParams(
-    Object.entries(filters || {}).filter(([, v]) => !!v) as [string, string][]
+    Object.entries(filters || {})
+      .filter(([, v]) => v !== undefined && v !== null && v !== "")
+      .map(([k, v]) => [k, String(v)])
   ).toString();
   return p ? `?${p}` : "";
 };
@@ -973,7 +975,7 @@ export const stateOfficeEnrolleeComplaintsApi = {
 };
 
 export const stateZonalOfficeProfileApi = {
-  list: (filters?: { state_id?: string; zone_id?: string; year?: string; q?: string }) =>
+  list: (filters?: { state_id?: string; zone_id?: string; year?: string; q?: string; status?: string }) =>
     request<{ success: boolean; data: any[] }>(
       `/state-office/office-profiles${stateOfficeFilters(filters)}`,
     ),
@@ -995,6 +997,97 @@ export const stateZonalOfficeProfileApi = {
     }
     return requestForm<{ success: boolean; data: any }>("/state-office/office-profiles", "POST", form);
   },
+  updateStatus: (id: number | string, status: string, coordinator_review_note?: string) =>
+    request<{ success: boolean; data: any }>(`/state-office/office-profiles/${id}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ status, coordinator_review_note }),
+    }),
+  delete: (id: number | string) =>
+    request<{ success: boolean; message: string }>(`/state-office/office-profiles/${id}`, {
+      method: "DELETE",
+    }),
+};
+
+export const officeAccommodationApi = {
+  list: (filters?: { state_id?: string; zone_id?: string; year?: string; profile_id?: string | number }) =>
+    request<{ success: boolean; data: any[] }>(
+      `/state-office/office-accommodations${stateOfficeFilters(filters)}`,
+    ),
+  get: (id: number | string) =>
+    request<{ success: boolean; data: any }>(`/state-office/office-accommodations/${id}`),
+  create: (payload: any) =>
+    request<{ success: boolean; data: any }>("/state-office/office-accommodations", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  update: (id: number | string, payload: any) =>
+    request<{ success: boolean; data: any }>(`/state-office/office-accommodations/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    }),
+  delete: (id: number | string) =>
+    request<{ success: boolean; message: string }>(`/state-office/office-accommodations/${id}`, {
+      method: "DELETE",
+    }),
+};
+
+export const utilityServiceReportApi = {
+  list: (filters?: {
+    state_id?: string;
+    zone_id?: string;
+    year?: string;
+    month?: string;
+    service_category?: string;
+    frequency?: string;
+    status?: string;
+    consolidated_batch_id?: string;
+    q?: string;
+  }) =>
+    request<{ success: boolean; data: any[] }>(
+      `/state-office/utility-services/reports${stateOfficeFilters(filters)}`,
+    ),
+  get: (id: number | string) =>
+    request<{ success: boolean; data: any }>(`/state-office/utility-services/reports/${id}`),
+  save: (
+    payload: Record<string, any>,
+    files?: {
+      job_completion_cert?: File | null;
+      invoice?: File | null;
+      contractor_letter?: File | null;
+    },
+    id?: number | string | null,
+  ) => {
+    const form = new FormData();
+    Object.entries(payload).forEach(([k, v]) => {
+      if (v === undefined || v === null) return;
+      form.append(k, typeof v === "object" ? JSON.stringify(v) : String(v));
+    });
+    if (files?.job_completion_cert) form.append("job_completion_cert", files.job_completion_cert);
+    if (files?.invoice) form.append("invoice", files.invoice);
+    if (files?.contractor_letter) form.append("contractor_letter", files.contractor_letter);
+
+    if (id) {
+      return requestForm<{ success: boolean; data: any }>(`/state-office/utility-services/reports/${id}`, "PUT", form);
+    }
+    return requestForm<{ success: boolean; data: any }>("/state-office/utility-services/reports", "POST", form);
+  },
+  updateStatus: (id: number | string, status: string, coordinator_review_note?: string) =>
+    request<{ success: boolean; data: any }>(`/state-office/utility-services/reports/${id}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ status, coordinator_review_note }),
+    }),
+  consolidate: (report_ids: (number | string)[], zonal_code?: string) =>
+    request<{ success: boolean; batch_id: string; message: string; data: any[] }>(
+      "/state-office/utility-services/consolidate",
+      {
+        method: "POST",
+        body: JSON.stringify({ report_ids, zonal_code }),
+      },
+    ),
+  delete: (id: number | string) =>
+    request<{ success: boolean; message: string }>(`/state-office/utility-services/reports/${id}`, {
+      method: "DELETE",
+    }),
 };
 
 export const stateZonalFocalPersonApi = {
@@ -1011,6 +1104,15 @@ export const stateZonalFocalPersonApi = {
   update: (id: number | string, payload: any) =>
     request<{ success: boolean; data: any }>(`/state-office/focal-persons/${id}`, {
       method: "PUT", body: JSON.stringify(payload),
+    }),
+  saveRoster: (payload: { state_id?: string; zone_id?: string; reporting_year: number; roster: any[] }) =>
+    request<{ success: boolean; data: any[] }>("/state-office/focal-persons/roster", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  delete: (id: number | string) =>
+    request<{ success: boolean; message: string }>(`/state-office/focal-persons/${id}`, {
+      method: "DELETE",
     }),
 };
 

@@ -1,5 +1,5 @@
 import * as React from "react";
-import { ArrowLeft, ArrowRight, Plus, RefreshCw, Save, Send, Download, Users, Pencil, Eye, FileText, Clock, CheckCircle2, ClipboardList, LayoutDashboard, History, Loader2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, ChevronDown, Plus, RefreshCw, Save, Send, Download, Users, Pencil, Trash2, Eye, FileText, Clock, CheckCircle2, ClipboardList, LayoutDashboard, History, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,14 +9,55 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from "@/components/ui/table";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { enrolmentDrivesApi as api } from "@/lib/api";
+import { cn } from "@/lib/utils";
 import EnrolmentActivityForm, { Field, FieldSection } from "./EnrolmentActivityForm";
 import { MultiSelectField } from "./EnrolmentDriveForm";
+import EnrolmentDriveDashboard from "./EnrolmentDriveDashboard";
 import StateOfficeFormSteps from "./StateOfficeFormSteps";
 import { AddRowButton } from "./adminHr/ui";
 import { driveReportingMonth, driveReportingPeriod, hasPendingDriveActivity, shouldOpenDriveActivityForm } from "./enrolmentDriveTypes";
 import { useListSearch } from "./useListSearch";
 import { buildReportingYearOptions } from "../monthly/reportingYears";
-import { monthLabel, quarterFromMonth } from "./constants";
+import { monthLabel, quarterFromMonth, formatAmount, formatCount, formatDate } from "./constants";
+
+function ReviewRow({ label, value }: { label: string; value?: React.ReactNode }) {
+  if (value == null || value === "") return null;
+  return (
+    <div className="space-y-0.5 min-w-0">
+      <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{label}</p>
+      <p className="text-sm font-medium text-slate-800 break-words">{value}</p>
+    </div>
+  );
+}
+
+function ReviewSection({ title, children }: { title: string; children: React.ReactNode }) {
+  const items = React.Children.toArray(children).filter(Boolean);
+  if (!items.length) return null;
+  return (
+    <section className="space-y-3">
+      <div className="flex items-center gap-3">
+        <h3 className="shrink-0 text-[11px] font-bold uppercase tracking-[0.08em] text-[#145c3f]">
+          {title}
+        </h3>
+        <div className="h-px flex-1 bg-[#d4e8dc]" />
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-3">
+        {items}
+      </div>
+    </section>
+  );
+}
+
+function SectionBand({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section className="rounded-2xl border border-[#d4e8dc] bg-white overflow-hidden shadow-sm">
+      <div className="bg-[#e8f5ee] px-4 py-2.5 border-b border-[#d4e8dc]">
+        <h3 className="text-[12px] font-bold uppercase tracking-[0.06em] text-[#0f3d2e]">{title}</h3>
+      </div>
+      <div className="p-4 bg-[#f4f7f5]">{children}</div>
+    </section>
+  );
+}
 
 type Permissions = { create: boolean; review: boolean; manage: boolean };
 type Evidence = { reference_id: string; original_name: string; evidence_type: string };
@@ -87,7 +128,7 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
   const [catalogue, setCatalogue] = React.useState<Catalogue | null>(null);
   const [batches, setBatches] = React.useState<Batch[]>([]);
   const [batch, setBatch] = React.useState<Batch | null>(null);
-  const [mode, setMode] = React.useState<"register" | "batch" | "activity" | "enrolment" | "dashboard" | "actions" | "legacy">("register");
+  const [mode, setMode] = React.useState<"register" | "batch" | "view" | "activity" | "enrolment" | "dashboard" | "actions" | "legacy">("register");
   const [busy, setBusy] = React.useState(false);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState("");
@@ -116,8 +157,54 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
   const [actionFiles, setActionFiles] = React.useState<File[]>([]);
   const [actionEvidenceType, setActionEvidenceType] = React.useState("Field Report");
   const [historical, setHistorical] = React.useState<any[]>([]);
+  const [activityErrors, setActivityErrors] = React.useState<Record<string, string>>({});
+  const [expandedActivityId, setExpandedActivityId] = React.useState<string | null>(null);
+  const activityFormRef = React.useRef<HTMLDivElement>(null);
   const permissions = catalogue?.permissions || { create: false, review: false, manage: false };
   const canEdit = editable(batch) && permissions.create;
+
+  const validateActivity = (): boolean => {
+    const errs: Record<string, string> = {};
+    if (!draft.drive_type) errs.drive_type = "Drive type is required";
+    if (!draft.activity_date) errs.activity_date = "Activity date is required";
+    if (!draft.activity_category) errs.activity_category = "Activity category is required";
+    if (!draft.specific_activity.trim()) errs.specific_activity = "Specify activity is required";
+    if (!draft.programs_supported || draft.programs_supported.length === 0) {
+      errs.programs_supported = "Select at least one programme supported";
+    }
+
+    if (!draft.location_category) errs.location_category = "Location category is required";
+    if (!draft.location_name) errs.location_name = "Location name is required";
+    if (!draft.exact_location.trim()) errs.exact_location = "Specific exact location is required";
+    if (!draft.target_audience || draft.target_audience.length === 0) {
+      errs.target_audience = "Select at least one target audience";
+    }
+    if (draft.target_audience?.includes("Others (specify)") && !draft.other_audience.trim()) {
+      errs.other_audience = "Please specify other audience";
+    }
+
+    if (!draft.funding_option) errs.funding_option = "Funding option is required";
+    if (draft.funding_option === catalogue?.funding?.[1]) {
+      if (!draft.activity_budget) errs.activity_budget = "Activity budget is required";
+      if (!draft.approved_amount) errs.approved_amount = "Approved amount is required";
+    }
+    if (!draft.activity_status) errs.activity_status = "Activity status is required";
+    if (["Not Conducted", "Deferred", "Cancelled"].includes(draft.activity_status) && !draft.status_reason.trim()) {
+      errs.status_reason = "Reason is required for this status";
+    }
+    if (!draft.activity_details.trim()) errs.activity_details = "Activity details are required";
+    if (!draft.evidence_type) errs.evidence_type = "Supporting evidence type is required";
+    if (draft.activity_status === "Completed" && !files.length && !draft.evidence?.length) {
+      errs.evidence = "Supporting evidence is required for completed activities";
+    }
+
+    setActivityErrors(errs);
+    if (Object.keys(errs).length > 0) {
+      toast.error(Object.values(errs)[0]);
+      return false;
+    }
+    return true;
+  };
 
   const run = async <T,>(operation: () => Promise<T>): Promise<T | undefined> => {
     setBusy(true); setError("");
@@ -141,8 +228,12 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
     const response = await api.batch(id);
     const step = preferredStep ?? (["awaiting_review", "endorsed", "submitted"].includes(response.data.status) ? 3 : 1);
     setBatch(response.data); setPlanned(String(response.data.planned_activities ?? "")); setReportingDeadline(response.data.reporting_deadline || ""); setBatchStep(step); setReviewNote("");
-    if (catalogue?.permissions.create && shouldOpenDriveActivityForm(response.data, step)) startActivity();
-    else setMode("batch");
+    setDraft(emptyActivity()); setFiles([]); setActivityErrors({});
+    if (preferredStep !== undefined) {
+      setMode("batch");
+    } else {
+      setMode("view");
+    }
   };
   const navigate = (next: typeof mode) => run(async () => {
     setSearch(""); setShowCreate(false);
@@ -154,6 +245,7 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
   });
   const addActivityToList = () => run(async () => {
     if (!batch) return;
+    if (!validateActivity()) return;
     if (!catalogue?.drive_types.some((type) => type.key === draft.drive_type)) throw new Error("Select a drive type before adding the activity");
     if (draft.activity_status === "Completed" && !files.length && !draft.evidence?.length) throw new Error("Select supporting evidence for the completed activity");
     const response = await api.saveActivity(batch.reference_id, draft.reference_id, { ...draft, complete: true });
@@ -166,9 +258,17 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
       await api.evidence("activities", id, draft.evidence_type, files);
       setFiles([]);
     }
-    setBatch((await api.batch(batch.reference_id)).data);
+    const finalBatch = (await api.batch(batch.reference_id)).data;
+    setBatch(finalBatch);
     toast.success(draft.reference_id ? "Activity updated in the list" : "Activity added to the list");
-    startActivity();
+    setDraft(emptyActivity());
+    setFiles([]);
+    setActivityErrors({});
+    setBatchStep(1);
+    setMode("batch");
+    if (activityFormRef.current) {
+      activityFormRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
   });
   const requireActivityListed = () => {
     if (canEdit && (hasPendingDriveActivity(draft) || files.length)) throw new Error("Add the current activity to the list before continuing, or cancel the entry.");
@@ -195,10 +295,29 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
       setBatch((await api.updateBatch(batch.reference_id, { planned_activities: planned, revision: batch.revision })).data);
     }
     setBatchStep(next);
-    if (batch && canEdit && shouldOpenDriveActivityForm(batch, next)) startActivity();
+    setMode("batch");
   });
-  const set = <K extends keyof Activity>(key: K, value: Activity[K]) => setDraft((current) => ({ ...current, [key]: value }));
-  const startActivity = (activity?: Activity) => { setDraft(activity ? toDraft(activity) : emptyActivity()); setFiles([]); setActivityFormKey((value) => value + 1); setMode("activity"); };
+  const set = <K extends keyof Activity>(key: K, value: Activity[K]) => {
+    setDraft((current) => ({ ...current, [key]: value }));
+    if (activityErrors[key as string]) {
+      setActivityErrors((prev) => {
+        const next = { ...prev };
+        delete next[key as string];
+        return next;
+      });
+    }
+  };
+  const startActivity = (activity?: Activity) => {
+    setDraft(activity ? toDraft(activity) : emptyActivity());
+    setFiles([]);
+    setActivityFormKey((value) => value + 1);
+    setActivityErrors({});
+    setBatchStep(1);
+    setMode("batch");
+    if (activityFormRef.current) {
+      activityFormRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  };
   const stateOptions = catalogue?.states.map((state) => ({ value: state.code, label: state.description })) || [];
   const stateName = (code: string) => catalogue?.states.find((state) => state.code === code)?.description || code;
   const monthOptions = Array.from({ length: 12 }, (_, index) => ({ value: String(index + 1), label: monthLabel(index + 1) }));
@@ -207,12 +326,16 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
   const listMode = ["register", "dashboard", "actions", "legacy"].includes(mode) && !showCreate && !actionDraft;
   const handleBack = () => {
     if (showCreate) setShowCreate(false);
-    else if (mode === "activity") { setBatchStep(0); setMode("batch"); }
+    else if (mode === "view") setMode("register");
+    else if (mode === "batch" && batchStep > 0) {
+      setBatchStep(batchStep - 1);
+    }
+    else if (mode === "batch") setMode("register");
     else if (actionDraft) setActionDraft(null);
     else if (mode === "register") onBack();
     else void navigate("register");
   };
-  const pageTitle = showCreate ? "New Enrolment Drive Report" : mode === "activity" ? "Enrolment Drive Activity" : mode === "actions" && actionDraft ? "Management Follow-up" : "Enrolment Drives";
+  const pageTitle = showCreate ? "New Enrolment Drive Report" : mode === "actions" && actionDraft ? "Management Follow-up" : "Enrolment Drives";
   const geoInfo = (current?: Batch) => {
     const stateCode = current?.state_code || period.state_code;
     const zoneCode = current?.zonal_code || catalogue?.states.find((state) => state.code === stateCode)?.zonal_code || "";
@@ -229,17 +352,207 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
     if (!batch) return null;
     const registration = !inline && batchStep === 2;
     const review = !inline && batchStep === 3;
-    const table = <Table>
-      <TableHeader><TableRow className="bg-[#f0fdf7] hover:bg-[#f0fdf7]">{["Date", "Activity", "Audience reached", "Leads", "Enrolments", "Status", "Action"].map((label) => <TableHead key={label} className={`text-xs font-bold text-slate-600 whitespace-nowrap ${label === "Action" ? "text-right" : ""}`}>{label}</TableHead>)}</TableRow></TableHeader>
-      <TableBody>{batch.activities?.map((activity) => <React.Fragment key={activity.reference_id}><TableRow className="hover:bg-[#f8fdfb] border-b border-[#e8f3ec]">
-        <TableCell className="text-sm whitespace-nowrap">{activity.activity_date || "—"}</TableCell><TableCell className="min-w-[180px]"><p className="text-sm font-semibold text-[#0f3d2e]">{activity.activity_category || "Draft activity"}</p><p className="text-xs text-slate-500">{activity.specific_activity}</p><p className="text-[10px] font-mono text-slate-400 mt-0.5">{activity.reference_id}</p></TableCell>
-        <TableCell className="text-sm tabular-nums">{activity.target_audience_reached || 0}</TableCell><TableCell className="text-sm tabular-nums">{activity.leads_generated || 0}</TableCell><TableCell className="text-sm font-semibold text-[#145c3f] tabular-nums">{activity.enrolment_count || 0}</TableCell><TableCell><Badge className={`text-[10px] px-2 py-0.5 border ${activity.activity_status === "Completed" ? STATUS_TONES.submitted : STATUS_TONES.draft}`}>{activity.activity_status || "Draft"}</Badge></TableCell>
-        <TableCell className="text-right"><div className="flex items-center justify-end gap-2"><Button size="sm" variant="ghost" className="h-8 gap-1.5 text-[#145c3f] hover:bg-[#eef6f1]" disabled={busy} onClick={() => startActivity(activity)}>{canEdit ? <Pencil className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}{canEdit ? "Edit" : "View"}</Button>{registration && canEdit && activity.programs_supported.length > 0 && <Button size="sm" variant="outline" className="gap-1.5 border-[#d4e8dc] text-[#145c3f]" disabled={busy} onClick={() => { setLink(activity); setLinkedReportId(null); setMode("enrolment"); }}><Users className="w-3.5 h-3.5" />Register beneficiaries</Button>}</div></TableCell>
-      </TableRow>{review && !!activity.evidence?.length && <TableRow><TableCell colSpan={7} className="bg-[#f8fdfb]"><EvidenceFiles files={activity.evidence} /></TableCell></TableRow>}
-      {registration && activity.enrolment_records?.map((record) => <TableRow key={record.reference_id} className="bg-[#f8fdfb] text-xs text-slate-500"><TableCell colSpan={2}><span className="font-mono">{record.reference_id}</span></TableCell><TableCell colSpan={2}>{monthLabel(record.reporting_month)} {record.reporting_year}</TableCell><TableCell>{record.enrolment_count} beneficiaries</TableCell><TableCell>{record.status}</TableCell><TableCell className="text-right">{canEdit && record.status === "draft" && <Button size="sm" variant="ghost" className="h-8 text-[#145c3f]" onClick={() => { setLink(activity); setLinkedReportId(record.reference_id); setMode("enrolment"); }}>Resume draft</Button>}</TableCell></TableRow>)}</React.Fragment>)}</TableBody>
-    </Table>;
+    const activitiesCount = batch.activities?.length || 0;
+
+    const table = (
+      <Table>
+        <TableHeader>
+          <TableRow className="bg-[#eef6f1] hover:bg-[#eef6f1]">
+            {["Date", "Activity Category", "Specific Activity", "Audience reached", "Leads", "Enrolments", "Status", "Action"].map((label) => (
+              <TableHead key={label} className={`text-[11px] font-bold text-[#0f3d2e] whitespace-nowrap ${label === "Action" ? "text-right" : ""}`}>
+                {label}
+              </TableHead>
+            ))}
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {batch.activities?.map((activity) => {
+            const isExpanded = expandedActivityId === activity.reference_id;
+            return (
+              <React.Fragment key={activity.reference_id}>
+                <TableRow
+                  className={cn(
+                    "cursor-pointer hover:bg-[#f4f7f5] border-b border-[#e8f3ec] transition-colors",
+                    isExpanded && "bg-[#f0faf4]"
+                  )}
+                  onClick={() => setExpandedActivityId(isExpanded ? null : activity.reference_id)}
+                >
+                  <TableCell className="text-sm whitespace-nowrap">{activity.activity_date || "—"}</TableCell>
+                  <TableCell className="min-w-[150px]">
+                    <p className="text-sm font-semibold text-[#0f3d2e]">{activity.activity_category || "Draft activity"}</p>
+                    <p className="text-[10px] font-mono text-slate-400 mt-0.5">{activity.reference_id}</p>
+                  </TableCell>
+                  <TableCell className="text-xs text-slate-600 max-w-[200px] truncate" title={activity.specific_activity}>
+                    {activity.specific_activity || "—"}
+                  </TableCell>
+                  <TableCell className="text-sm tabular-nums">{activity.target_audience_reached != null ? formatCount(activity.target_audience_reached) : 0}</TableCell>
+                  <TableCell className="text-sm tabular-nums">{activity.leads_generated != null ? formatCount(activity.leads_generated) : 0}</TableCell>
+                  <TableCell className="text-sm font-semibold text-[#145c3f] tabular-nums">{activity.enrolment_count != null ? formatCount(activity.enrolment_count) : 0}</TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className={`text-[10px] px-2 py-0.5 border ${activity.activity_status === "Completed" ? STATUS_TONES.submitted : STATUS_TONES.draft}`}>
+                      {activity.activity_status || "Draft"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right whitespace-nowrap">
+                    <div className="flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
+                      {canEdit && mode === "batch" && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 gap-1 px-2 text-[#145c3f]"
+                          disabled={busy}
+                          onClick={() => startActivity(activity)}
+                        >
+                          <Pencil className="w-3.5 h-3.5" /> View / Edit
+                        </Button>
+                      )}
+                      {registration && canEdit && (activity.programs_supported?.length || 0) > 0 && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 gap-1.5 border-[#d4e8dc] text-[#145c3f] text-xs"
+                          disabled={busy}
+                          onClick={() => { setLink(activity); setLinkedReportId(null); setMode("enrolment"); }}
+                        >
+                          <Users className="w-3.5 h-3.5" />
+                          Register beneficiaries
+                        </Button>
+                      )}
+                      <ChevronDown className={cn(
+                        "w-4 h-4 text-[#145c3f] transition-transform inline-block",
+                        isExpanded && "rotate-180"
+                      )} />
+                    </div>
+                  </TableCell>
+                </TableRow>
+                {isExpanded && (
+                  <TableRow className="hover:bg-transparent">
+                    <TableCell colSpan={8} className="p-0">
+                      <div className="space-y-4 p-4 bg-[#f8fbf9] border-t border-[#e8f3ec]">
+                        <div>
+                          <p className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e] mb-2">Activity details</p>
+                          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                            <ReviewRow label="Drive Type" value={catalogue?.drive_types.find((t) => t.key === activity.drive_type)?.title || activity.drive_type} />
+                            <ReviewRow label="Category" value={activity.activity_category} />
+                            <ReviewRow label="Date" value={activity.activity_date} />
+                            <ReviewRow label="Specific activity" value={activity.specific_activity} />
+                            <ReviewRow label="Programmes" value={activity.programs_supported?.join(", ")} />
+                            <ReviewRow label="Status" value={activity.activity_status} />
+                            {activity.status_reason && <ReviewRow label="Reason" value={activity.status_reason} />}
+                          </div>
+                        </div>
+                        <div>
+                          <p className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e] mb-2">Audience & location reach</p>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            <ReviewRow label="Location category" value={activity.location_category} />
+                            <ReviewRow label="Location name" value={activity.location_name} />
+                            <ReviewRow label="Exact location" value={activity.exact_location} />
+                            <ReviewRow label="Target audience" value={activity.target_audience?.join(", ")} />
+                            <ReviewRow label="Planned audience" value={activity.planned_target_audience != null ? formatCount(activity.planned_target_audience) : null} />
+                            <ReviewRow label="Audience reached" value={activity.target_audience_reached != null ? formatCount(activity.target_audience_reached) : null} />
+                            <ReviewRow label="Leads generated" value={activity.leads_generated != null ? formatCount(activity.leads_generated) : null} />
+                            <ReviewRow label="New enrolments" value={activity.enrolment_count != null ? formatCount(activity.enrolment_count) : null} />
+                          </div>
+                        </div>
+                        <div>
+                          <p className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e] mb-2">Funding & evidence</p>
+                          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                            <ReviewRow label="Funding option" value={activity.funding_option} />
+                            {activity.activity_budget && <ReviewRow label="Budget" value={`₦${formatAmount(activity.activity_budget)}`} />}
+                            {activity.approved_amount && <ReviewRow label="Approved amount" value={`₦${formatAmount(activity.approved_amount)}`} />}
+                            <ReviewRow label="Evidence type" value={activity.evidence_type} />
+                          </div>
+                        </div>
+                        {activity.activity_details && (
+                          <div>
+                            <p className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e] mb-1">Activity details</p>
+                            <p className="text-sm text-slate-700 whitespace-pre-wrap">{activity.activity_details}</p>
+                          </div>
+                        )}
+                        {!!activity.evidence?.length && (
+                          <div>
+                            <p className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e] mb-1">Supporting evidence files</p>
+                            <EvidenceFiles files={activity.evidence} />
+                          </div>
+                        )}
+                        {activity.remarks && (
+                          <div>
+                            <p className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e] mb-1">Remarks</p>
+                            <p className="text-sm text-slate-700 whitespace-pre-wrap">{activity.remarks}</p>
+                          </div>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )}
+                {review && !!activity.evidence?.length && !isExpanded && (
+                  <TableRow>
+                    <TableCell colSpan={8} className="bg-[#f8fdfb]">
+                      <EvidenceFiles files={activity.evidence} />
+                    </TableCell>
+                  </TableRow>
+                )}
+                {registration && activity.enrolment_records?.map((record) => (
+                  <TableRow key={record.reference_id} className="bg-[#f8fdfb] text-xs text-slate-500">
+                    <TableCell colSpan={2}><span className="font-mono">{record.reference_id}</span></TableCell>
+                    <TableCell colSpan={2}>{monthLabel(record.reporting_month)} {record.reporting_year}</TableCell>
+                    <TableCell>{record.enrolment_count} beneficiaries</TableCell>
+                    <TableCell>{record.status}</TableCell>
+                    <TableCell className="text-right" colSpan={2}>
+                      {canEdit && record.status === "draft" && (
+                        <Button size="sm" variant="ghost" className="h-7 text-[#145c3f]" onClick={() => { setLink(activity); setLinkedReportId(record.reference_id); setMode("enrolment"); }}>
+                          Resume draft
+                        </Button>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </React.Fragment>
+            );
+          })}
+        </TableBody>
+      </Table>
+    );
+
     if (inline) return <div className="overflow-x-auto rounded-xl border border-[#d4e8dc]">{table}</div>;
-    return <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden"><CardHeader className="pb-3 border-b border-[#d4e8dc]"><CardTitle className="text-sm font-bold">{registration ? "Beneficiary registration" : "Drive activities"} ({batch.activities?.length || 0})</CardTitle></CardHeader><CardContent className="p-0"><div className="overflow-x-auto">{table}</div>{!batch.activities?.length && <div className="flex flex-col items-center justify-center py-16 gap-2 text-slate-400"><FileText className="w-8 h-8 opacity-30" /><p className="text-sm font-medium">No activities recorded for this report.</p>{canEdit && <Button variant="outline" size="sm" className="mt-2 gap-2" onClick={() => startActivity()}><Plus className="w-4 h-4" />Add activity</Button>}</div>}</CardContent></Card>;
+
+    return (
+      <Card className="rounded-xl border border-[#d4e8dc] shadow-sm overflow-hidden">
+        <div className="bg-[#e8f5ee] px-4 py-2.5 border-b border-[#d4e8dc] flex flex-wrap items-center justify-between gap-2">
+          <h3 className="text-[12px] font-bold uppercase tracking-[0.06em] text-[#0f3d2e]">
+            {registration ? "Beneficiary Registration" : "Activity Register"}
+          </h3>
+          <p className="text-[11px] text-[#145c3f]">
+            {activitiesCount} activit{activitiesCount === 1 ? "y" : "ies"} recorded
+          </p>
+        </div>
+        <CardContent className="p-0 bg-white">
+          {activitiesCount === 0 ? (
+            <div className="py-12 text-center text-sm text-slate-400">
+              {canEdit && batchStep === 1
+                ? "No activities added to the list yet. Complete the form above and click 'Add to list'."
+                : "No activities recorded for this report."}
+            </div>
+          ) : (
+            <div className="overflow-x-auto">{table}</div>
+          )}
+          {canEdit && !registration && !review && batchStep !== 1 && (
+            <div className="px-4 py-3 border-t border-[#d4e8dc] flex flex-wrap items-center justify-between gap-2 bg-[#f4f7f5]">
+              <Button
+                variant="outline"
+                className="gap-2 border-[#1a7a52] text-[#0f3d2e] hover:bg-[#eef6f1]"
+                onClick={() => startActivity()}
+              >
+                <Plus className="w-4 h-4" /> Add Activity
+              </Button>
+              <p className="text-[11px] text-slate-500">
+                Activity count is calculated from saved records.
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    );
   };
 
   if (mode === "enrolment" && link?.reference_id && batch) return <EnrolmentActivityForm
@@ -254,10 +567,44 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
     <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3.5 flex items-center justify-between sticky top-0 z-30 gap-3">
       <div className="flex items-center gap-3 min-w-0">
         <Button variant="ghost" size="icon" onClick={handleBack} className="rounded-full shrink-0" aria-label="Back"><ArrowLeft className="w-5 h-5" /></Button>
-        <div className="min-w-0"><h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">{pageTitle}</h2><p className="text-xs text-slate-500 truncate">{batch && ["batch", "activity"].includes(mode) ? `${stateName(batch.state_code)} · ${monthLabel(batch.reporting_month)} ${batch.reporting_year} · ${statusLabel(batch.status)}` : permissions.review ? "Review and endorse enrolment drive reports" : "Record activities, register beneficiaries and submit reports"}</p></div>
+        <div className="min-w-0"><h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">{pageTitle}</h2><p className="text-xs text-slate-500 truncate">{batch && ["batch", "activity", "view"].includes(mode) ? `${stateName(batch.state_code)} · ${monthLabel(batch.reporting_month)} ${batch.reporting_year} · ${statusLabel(batch.status)}` : permissions.review ? "Review and endorse enrolment drive reports" : "Record activities, register beneficiaries and submit reports"}</p></div>
       </div>
       <div className="flex items-center gap-2 shrink-0">
-        {(listMode || mode === "batch") && <Button variant="outline" size="sm" disabled={busy || loading} className="gap-2 border-[#d4e8dc]" onClick={() => void run(async () => { if (mode === "batch" && batch) await openBatch(batch.reference_id, batchStep); else { await refresh(); if (mode === "dashboard") setAnalytics((await api.analytics(reportFilter)).data); if (mode === "actions") setActions((await api.actions()).data); if (mode === "legacy") setHistorical((await api.legacy()).data); } })}><RefreshCw className={`w-4 h-4 ${busy ? "animate-spin" : ""}`} />Refresh</Button>}
+        {mode === "view" && batch && (
+          <>
+            <StatusBadge status={batch.status} />
+            {canEdit && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2 border-[#1a7a52] text-[#0f3d2e] hover:bg-[#eef6f1]"
+                onClick={() => { setBatchStep(1); setMode("batch"); }}
+              >
+                <Pencil className="w-4 h-4" /> {batch.status === "returned" ? "Edit & Resubmit" : "Edit Report"}
+              </Button>
+            )}
+          </>
+        )}
+        {(listMode || mode === "batch" || mode === "view") && (
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={busy || loading}
+            className="gap-2 border-[#d4e8dc]"
+            onClick={() => void run(async () => {
+              if (mode === "view" && batch) await openBatch(batch.reference_id);
+              else if (mode === "batch" && batch) await openBatch(batch.reference_id, batchStep);
+              else {
+                await refresh();
+                if (mode === "dashboard") setAnalytics((await api.analytics(reportFilter)).data);
+                if (mode === "actions") setActions((await api.actions()).data);
+                if (mode === "legacy") setHistorical((await api.legacy()).data);
+              }
+            })}
+          >
+            <RefreshCw className={`w-4 h-4 ${busy ? "animate-spin" : ""}`} />Refresh
+          </Button>
+        )}
         {mode === "register" && !showCreate && permissions.create && <Button disabled={busy} className={ACTION} onClick={() => setShowCreate(true)}><Plus className="w-4 h-4" />New Enrolment Drive Report</Button>}
         {mode === "batch" && canEdit && batchStep === 1 && <Button disabled={busy} className={ACTION} onClick={() => startActivity()}><Plus className="w-4 h-4" />Add activity</Button>}
         {mode === "actions" && !actionDraft && permissions.manage && <Button className={ACTION} disabled={busy} onClick={() => { setActionDraft(blankAction()); setActionFiles([]); }}><Plus className="w-4 h-4" />Record Action</Button>}
@@ -294,6 +641,120 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
           </CardContent></Card>
         </>}
       </>}
+      {mode === "view" && batch && (
+        <div className="space-y-4">
+          <SectionBand title="Report Information">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <ReviewRow label="Reporting period" value={`${monthLabel(batch.reporting_month)} ${batch.reporting_year} (Q${quarterFromMonth(batch.reporting_month)})`} />
+              <ReviewRow label="State / Zone" value={`${stateName(batch.state_code)} · ${catalogue?.zones?.find((z) => z.zonal_code === batch.zonal_code)?.description || batch.zonal_code || "—"}`} />
+              <ReviewRow label="Planned activities" value={batch.planned_activities != null ? formatCount(batch.planned_activities) : "—"} />
+              <ReviewRow label="Activities recorded" value={formatCount(batch.activities?.length || 0)} />
+              <ReviewRow label="Reporting officer" value={batch.creator_name || "—"} />
+              <ReviewRow label="Submission date" value={batch.submitted_at ? formatDate(batch.submitted_at) : "—"} />
+              <ReviewRow label="Reporting deadline" value={batch.reporting_deadline || "—"} />
+              <ReviewRow label="Status" value={statusLabel(batch.status)} />
+            </div>
+          </SectionBand>
+
+          <SectionBand title="Activity Register">
+            <div className="-m-4">
+              <div className="px-4 py-2 border-b border-[#d4e8dc] flex items-center justify-between bg-white">
+                <p className="text-xs text-slate-500">
+                  Click any activity row to view full details, reach, and evidence.
+                </p>
+                <p className="text-[11px] text-[#145c3f] font-semibold">
+                  {formatCount(batch.activities?.length || 0)} activit{(batch.activities?.length || 0) === 1 ? "y" : "ies"} recorded
+                </p>
+              </div>
+              {activityTable(true)}
+            </div>
+          </SectionBand>
+
+          <SectionBand title="Beneficiary Registration">
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-3.5 rounded-xl border border-[#d4e8dc]">
+                <div>
+                  <p className="text-xs font-semibold text-slate-500">Total Linked Enrolments</p>
+                  <p className="text-2xl font-bold text-[#145c3f] tabular-nums mt-0.5">
+                    {formatCount(batch.activities?.reduce((acc, a) => acc + Number(a.enrolment_count || 0), 0) || 0)}
+                  </p>
+                </div>
+                {canEdit && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2 border-[#1a7a52] text-[#0f3d2e] hover:bg-[#eef6f1]"
+                    onClick={() => { setBatchStep(2); setMode("batch"); }}
+                  >
+                    <Users className="w-4 h-4" /> Manage Beneficiaries
+                  </Button>
+                )}
+              </div>
+            </div>
+          </SectionBand>
+
+          <SectionBand title="Review and Sign-off">
+            <div className="space-y-4">
+              {permissions.review && batch.status === "awaiting_review" && (
+                <Field label="Review comment" required className="sm:col-span-2">
+                  <textarea
+                    className={inputClass}
+                    rows={3}
+                    value={reviewNote}
+                    onChange={(event) => setReviewNote(event.target.value)}
+                    placeholder="Enter your review comment"
+                  />
+                </Field>
+              )}
+              <div className="flex flex-wrap justify-end gap-2">
+                {canEdit && (
+                  <Button
+                    variant="outline"
+                    className="gap-2 border-[#1a7a52] text-[#0f3d2e]"
+                    onClick={() => { setBatchStep(1); setMode("batch"); }}
+                  >
+                    <Pencil className="w-4 h-4" /> {batch.status === "returned" ? "Edit & Resubmit" : "Edit Report"}
+                  </Button>
+                )}
+                {canEdit && batch.status === "draft" && (
+                  <Button
+                    className={ACTION}
+                    disabled={busy || !batch.activities?.length}
+                    onClick={() => void transition("send_for_review")}
+                  >
+                    <Send className="mr-2 h-4 w-4" /> Send for review
+                  </Button>
+                )}
+                {permissions.review && batch.status === "awaiting_review" && (
+                  <>
+                    <Button variant="outline" disabled={busy || !reviewNote.trim()} onClick={() => void transition("return")}>
+                      Return for correction
+                    </Button>
+                    <Button className={ACTION} disabled={busy || !reviewNote.trim()} onClick={() => void transition("endorse")}>
+                      Endorse report
+                    </Button>
+                  </>
+                )}
+                {permissions.create && batch.status === "endorsed" && (
+                  <Button className={ACTION} disabled={busy} onClick={() => void transition("final_submit")}>
+                    Final submit
+                  </Button>
+                )}
+              </div>
+              {!!batch.reviews?.length && (
+                <div className="space-y-2">
+                  {batch.reviews.map((review) => (
+                    <div key={review.reference_id} className="rounded-lg bg-white border border-[#d4e8dc] p-3 text-sm">
+                      <strong>{statusLabel(review.action)}</strong> · {review.actor_name} · Revision {review.revision}
+                      <p className="text-slate-600 mt-1">{review.note}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </SectionBand>
+        </div>
+      )}
       {mode === "batch" && batch && <>
         <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-visible"><CardContent className="p-4 md:p-5 space-y-4">
           {geoInfo(batch)}
@@ -302,6 +763,191 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
         </CardContent></Card>
         {permissions.manage && batchStep === 3 && <div className="flex flex-wrap items-end gap-3 rounded-xl border border-[#d4e8dc] bg-white p-4"><Field label="Reporting deadline"><Input type="date" value={reportingDeadline} onChange={(event) => setReportingDeadline(event.target.value)} /></Field><Button variant="outline" disabled={busy || !reportingDeadline} onClick={() => void run(async () => { const response = await api.deadline(batch.reference_id, { reporting_deadline: reportingDeadline, revision: batch.revision }); setBatch(response.data); toast.success("Reporting deadline saved"); })}>Save deadline</Button></div>}
         {batchStep === 3 && <Metrics values={batch.summary || {}} />}
+        {batchStep === 1 && canEdit && (
+          <div ref={activityFormRef} className="space-y-4">
+            <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-visible">
+              <div className="bg-[#e8f5ee] px-4 py-3 border-b border-[#d4e8dc] flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-bold text-[#0f3d2e]">
+                    {draft.reference_id ? "Edit Activity" : "New Activity"}
+                  </h3>
+                  {draft.reference_id && (
+                    <span className="text-[11px] font-mono bg-white px-2 py-0.5 rounded border border-[#d4e8dc] text-[#145c3f]">
+                      {draft.reference_id}
+                    </span>
+                  )}
+                </div>
+                {draft.reference_id ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs text-slate-500 hover:text-slate-800"
+                    onClick={() => startActivity()}
+                  >
+                    Cancel edit
+                  </Button>
+                ) : hasPendingDriveActivity(draft) ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs text-slate-500 hover:text-slate-800"
+                    onClick={() => startActivity()}
+                  >
+                    Clear form
+                  </Button>
+                ) : null}
+              </div>
+              <CardContent className="p-4 md:p-5 space-y-6">
+                <fieldset disabled={busy || !canEdit} className="space-y-6">
+                  {/* Drive & Activity Details */}
+                  <FieldSection title="Drive & Activity Details">
+                    <Field label="Drive type" required error={activityErrors.drive_type} className="sm:col-span-2 lg:col-span-3">
+                      <Dropdown
+                        value={draft.drive_type}
+                        options={catalogue?.drive_types.map((type) => ({ value: type.key, label: type.title })) || []}
+                        onChange={(value) => setDraft((current) => ({ ...current, drive_type: value, activity_category: "" }))}
+                        placeholder="Select drive type"
+                      />
+                    </Field>
+                    <Field label="Activity date" required error={activityErrors.activity_date}>
+                      <Input type="date" value={draft.activity_date} onChange={(event) => set("activity_date", event.target.value)} />
+                    </Field>
+                    <Field label="Activity category" required error={activityErrors.activity_category}>
+                      <Dropdown
+                        value={draft.activity_category}
+                        options={catalogue?.drive_types.find((type) => type.key === draft.drive_type)?.categories.map((category) => category.label) || []}
+                        onChange={(value) => set("activity_category", value)}
+                        disabled={!draft.drive_type}
+                        placeholder="Select activity category"
+                      />
+                    </Field>
+                    <Field label="Specify activity" required error={activityErrors.specific_activity}>
+                      <Input value={draft.specific_activity} maxLength={255} placeholder="Enter the activity conducted" onChange={(event) => set("specific_activity", event.target.value)} />
+                    </Field>
+                    <Field label="Programmes supported" required error={activityErrors.programs_supported} className="sm:col-span-2 lg:col-span-3">
+                      <MultiPicker value={draft.programs_supported} options={catalogue?.programmes || []} onChange={(value) => set("programs_supported", value)} label="programmes" />
+                    </Field>
+                  </FieldSection>
+
+                  {/* Audience & Location Reach */}
+                  <FieldSection title="Audience & Location Reach">
+                    <Field label="Location category" required error={activityErrors.location_category}>
+                      <Dropdown
+                        value={draft.location_category}
+                        options={Object.keys(catalogue?.locations || {})}
+                        onChange={(value) => setDraft((current) => ({ ...current, location_category: value, location_name: "" }))}
+                        placeholder="Select location category"
+                      />
+                    </Field>
+                    <Field label="Location name" required error={activityErrors.location_name}>
+                      <Dropdown
+                        value={draft.location_name}
+                        options={catalogue?.locations[draft.location_category] || []}
+                        onChange={(value) => set("location_name", value)}
+                        disabled={!draft.location_category}
+                        placeholder="Select location"
+                      />
+                    </Field>
+                    <Field label="Specify exact location" required error={activityErrors.exact_location}>
+                      <Input value={draft.exact_location} maxLength={500} onChange={(event) => set("exact_location", event.target.value)} placeholder="Enter the venue or address" />
+                    </Field>
+                    <Field label="Target audience" required error={activityErrors.target_audience} className="sm:col-span-2 lg:col-span-3">
+                      <MultiPicker value={draft.target_audience} options={catalogue?.audiences || []} onChange={(value) => set("target_audience", value)} label="audiences" />
+                    </Field>
+                    {draft.target_audience.includes("Others (specify)") && (
+                      <Field label="Specify audience" required error={activityErrors.other_audience} className="sm:col-span-2 lg:col-span-3">
+                        <Input value={draft.other_audience} maxLength={255} onChange={(event) => set("other_audience", event.target.value)} placeholder="Enter the target audience" />
+                      </Field>
+                    )}
+                    <Field label="Planned audience">
+                      <Input type="number" min={0} step={1} value={draft.planned_target_audience} onChange={(event) => set("planned_target_audience", event.target.value)} />
+                    </Field>
+                    <Field label="Audience reached">
+                      <Input type="number" min={0} step={1} value={draft.target_audience_reached} onChange={(event) => set("target_audience_reached", event.target.value)} />
+                    </Field>
+                    <Field label="Leads generated">
+                      <Input type="number" min={0} step={1} value={draft.leads_generated} onChange={(event) => set("leads_generated", event.target.value)} />
+                    </Field>
+                  </FieldSection>
+
+                  {/* Funding, Status & Evidence */}
+                  <FieldSection title="Funding, Status & Evidence">
+                    <Field label="Funding option" required error={activityErrors.funding_option} className={draft.funding_option === catalogue?.funding[1] ? "" : "sm:col-span-2 lg:col-span-3"}>
+                      <Dropdown
+                        value={draft.funding_option}
+                        options={catalogue?.funding || []}
+                        onChange={(value) => setDraft((current) => ({ ...current, funding_option: value, ...(value === catalogue?.funding[1] ? {} : { activity_budget: "", approved_amount: "" }) }))}
+                        placeholder="Select funding option"
+                      />
+                    </Field>
+                    {draft.funding_option === catalogue?.funding[1] && (
+                      <>
+                        <Field label="Activity budget (₦)" required error={activityErrors.activity_budget}>
+                          <Input type="number" min={0} step="0.01" value={draft.activity_budget} onChange={(event) => set("activity_budget", event.target.value)} />
+                        </Field>
+                        <Field label="Approved amount (₦)" required error={activityErrors.approved_amount}>
+                          <Input type="number" min={0} step="0.01" value={draft.approved_amount} onChange={(event) => set("approved_amount", event.target.value)} />
+                        </Field>
+                      </>
+                    )}
+                    <Field label="Activity status" required error={activityErrors.activity_status}>
+                      <Dropdown value={draft.activity_status} options={catalogue?.statuses || []} onChange={(value) => set("activity_status", value)} placeholder="Select activity status" />
+                    </Field>
+                    {["Not Conducted", "Deferred", "Cancelled"].includes(draft.activity_status) && (
+                      <Field label="Reason" required error={activityErrors.status_reason} className="sm:col-span-2 lg:col-span-3">
+                        <textarea className={inputClass} value={draft.status_reason} onChange={(event) => set("status_reason", event.target.value)} placeholder="Explain the activity status" />
+                      </Field>
+                    )}
+                    <Field label="Activity details" required error={activityErrors.activity_details} className="sm:col-span-2 lg:col-span-3">
+                      <textarea className={inputClass} rows={3} value={draft.activity_details} onChange={(event) => set("activity_details", event.target.value)} placeholder="Describe the activity" />
+                    </Field>
+                    <Field label="Supporting evidence type" required error={activityErrors.evidence_type}>
+                      <Dropdown value={draft.evidence_type} options={catalogue?.evidence_types || []} onChange={(value) => set("evidence_type", value)} placeholder="Select evidence type" />
+                    </Field>
+                    <Field label="Supporting evidence" required={draft.activity_status === "Completed"} error={activityErrors.evidence}>
+                      <Input key={activityFormKey} type="file" multiple onChange={(event) => setFiles(Array.from(event.target.files || []))} />
+                      <p className="text-xs text-slate-500">Up to 10 files, 15 MB each.</p>
+                    </Field>
+                    <Field label="Remarks" className="sm:col-span-2 lg:col-span-3">
+                      <textarea className={inputClass} rows={2} value={draft.remarks} onChange={(event) => set("remarks", event.target.value)} placeholder="Enter any additional remarks" />
+                    </Field>
+                    <div className="rounded-lg bg-[#eef6f1] p-3 text-sm text-[#145c3f] sm:col-span-2 lg:col-span-3">Linked enrolments: <strong>{draft.enrolment_count || 0}</strong></div>
+                    {!!draft.evidence?.length && (
+                      <div className="sm:col-span-2 lg:col-span-3">
+                        <p className="text-xs font-semibold text-slate-600 mb-2">Existing evidence files</p>
+                        <EvidenceFiles files={draft.evidence} />
+                      </div>
+                    )}
+                  </FieldSection>
+                </fieldset>
+
+                {/* Form Action Footer */}
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-4 border-t border-[#e8f3ec]">
+                  {draft.reference_id ? (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="gap-2 text-slate-600"
+                      disabled={busy}
+                      onClick={() => startActivity()}
+                    >
+                      <ArrowLeft className="w-4 h-4" /> Cancel edit
+                    </Button>
+                  ) : <div />}
+
+                  <Button
+                    type="button"
+                    className="bg-[#145c3f] hover:bg-[#0f3d2e] text-white gap-2 text-xs font-semibold shadow-xs"
+                    disabled={busy || !canEdit}
+                    onClick={() => void addActivityToList()}
+                  >
+                    <Plus className="w-4 h-4" /> {draft.reference_id ? "Update in list" : "Add to list"}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
         {batchStep > 0 && activityTable()}
         {batchStep === 3 && <Card className="rounded-2xl border-[#d4e8dc] shadow-sm"><CardContent className="p-4 md:p-5"><Section title="Review and sign-off">
           {permissions.review && batch.status === "awaiting_review" && <Field label="Review comment" required className="sm:col-span-2"><textarea className={inputClass} rows={3} value={reviewNote} onChange={(event) => setReviewNote(event.target.value)} placeholder="Enter your review comment" /></Field>}
@@ -313,53 +959,25 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
           {batchStep < 3 && <Button className={ACTION} disabled={busy || (batchStep === 1 && !batch.activities?.length)} onClick={() => void goToBatchStep(batchStep + 1)}>{batchStep === 1 ? "Register beneficiaries" : batchStep === 2 ? "Review" : "Continue"}<ArrowRight className="w-4 h-4" /></Button>}
         </div>
       </>}
-      {mode === "activity" && batch && <div className="space-y-4">
-        <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-visible"><CardContent className="p-4 md:p-5 space-y-5">
-        <fieldset disabled>{geoInfo(batch)}</fieldset>
-        {draft.reference_id && <p className="text-xs font-mono text-[#145c3f]">{draft.reference_id}</p>}
-        <div className="border-t border-[#e8f3ec] pt-4"><StateOfficeFormSteps steps={WORKFLOW_STEPS} activeIndex={1} onStepChange={(step) => void leaveActivityForm(step)} /></div>
-        <fieldset disabled={busy || !canEdit} className="space-y-5 border-t border-[#e8f3ec] pt-4">
-          <FieldSection title="Activity details">
-            <Field label="Drive type" required className="sm:col-span-2 lg:col-span-3"><Dropdown value={draft.drive_type} options={catalogue.drive_types.map((type) => ({ value: type.key, label: type.title }))} onChange={(value) => setDraft((current) => ({ ...current, drive_type: value, activity_category: "" }))} placeholder="Select drive type" /></Field>
-            <Field label="Activity date" required><Input type="date" value={draft.activity_date} onChange={(event) => set("activity_date", event.target.value)} /></Field>
-            <Field label="Activity category" required><Dropdown value={draft.activity_category} options={catalogue.drive_types.find((type) => type.key === draft.drive_type)?.categories.map((category) => category.label) || []} onChange={(value) => set("activity_category", value)} disabled={!draft.drive_type} placeholder="Select activity category" /></Field>
-            <Field label="Specify activity" required><Input value={draft.specific_activity} maxLength={255} placeholder="Enter the activity conducted" onChange={(event) => set("specific_activity", event.target.value)} /></Field>
-            <Field label="Location category" required><Dropdown value={draft.location_category} options={Object.keys(catalogue.locations)} onChange={(value) => setDraft((current) => ({ ...current, location_category: value, location_name: "" }))} placeholder="Select location category" /></Field>
-            <Field label="Location name" required><Dropdown value={draft.location_name} options={catalogue.locations[draft.location_category] || []} onChange={(value) => set("location_name", value)} disabled={!draft.location_category} placeholder="Select location" /></Field>
-            <Field label="Specify exact location" required><Input value={draft.exact_location} maxLength={500} onChange={(event) => set("exact_location", event.target.value)} placeholder="Enter the venue or address" /></Field>
-            <Field label="Programmes supported" required><MultiPicker value={draft.programs_supported} options={catalogue.programmes} onChange={(value) => set("programs_supported", value)} label="programmes" /></Field>
-            <Field label="Target audience" required><MultiPicker value={draft.target_audience} options={catalogue.audiences} onChange={(value) => set("target_audience", value)} label="audiences" /></Field>
-            <Field label="Planned audience" required><Input type="number" min={0} step={1} value={draft.planned_target_audience} onChange={(event) => set("planned_target_audience", event.target.value)} /></Field>
-            {draft.target_audience.includes("Others (specify)") && <Field label="Specify audience" required className="sm:col-span-2 lg:col-span-3"><Input value={draft.other_audience} maxLength={255} onChange={(event) => set("other_audience", event.target.value)} placeholder="Enter the target audience" /></Field>}
-            <Field label="Audience reached" required><Input type="number" min={0} step={1} value={draft.target_audience_reached} onChange={(event) => set("target_audience_reached", event.target.value)} /></Field>
-            <Field label="Leads generated" required><Input type="number" min={0} step={1} value={draft.leads_generated} onChange={(event) => set("leads_generated", event.target.value)} /></Field>
-            <Field label="Activity status" required><Dropdown value={draft.activity_status} options={catalogue.statuses} onChange={(value) => set("activity_status", value)} placeholder="Select activity status" /></Field>
-            {["Not Conducted", "Deferred", "Cancelled"].includes(draft.activity_status) && <Field label="Reason" required className="sm:col-span-2 lg:col-span-3"><textarea className={inputClass} value={draft.status_reason} onChange={(event) => set("status_reason", event.target.value)} placeholder="Explain the activity status" /></Field>}
-            <Field label="Funding option" required className={draft.funding_option === catalogue.funding[1] ? "" : "sm:col-span-2 lg:col-span-3"}><Dropdown value={draft.funding_option} options={catalogue.funding} onChange={(value) => setDraft((current) => ({ ...current, funding_option: value, ...(value === catalogue.funding[1] ? {} : { activity_budget: "", approved_amount: "" }) }))} placeholder="Select funding option" /></Field>
-            {draft.funding_option === catalogue.funding[1] && <><Field label="Activity budget (₦)" required><Input type="number" min={0} step="0.01" value={draft.activity_budget} onChange={(event) => set("activity_budget", event.target.value)} /></Field><Field label="Approved amount (₦)" required><Input type="number" min={0} step="0.01" value={draft.approved_amount} onChange={(event) => set("approved_amount", event.target.value)} /></Field></>}
-            <Field label="Activity details" required><textarea className={inputClass} rows={3} value={draft.activity_details} onChange={(event) => set("activity_details", event.target.value)} placeholder="Describe the activity" /></Field>
-            <Field label="Supporting evidence type" required><Dropdown value={draft.evidence_type} options={catalogue.evidence_types} onChange={(value) => set("evidence_type", value)} placeholder="Select evidence type" /></Field>
-            <Field label="Supporting evidence" required={draft.activity_status === "Completed"}><Input key={activityFormKey} type="file" multiple onChange={(event) => setFiles(Array.from(event.target.files || []))} /><p className="text-xs text-slate-500">Up to 10 files, 15 MB each.</p></Field>
-            <Field label="Remarks" className="sm:col-span-2 lg:col-span-3"><textarea className={inputClass} rows={2} value={draft.remarks} onChange={(event) => set("remarks", event.target.value)} placeholder="Enter any additional remarks" /></Field>
-            <div className="rounded-lg bg-[#eef6f1] p-3 text-sm text-[#145c3f] sm:col-span-2 lg:col-span-3">Linked enrolments: <strong>{draft.enrolment_count || 0}</strong></div>
-          </FieldSection>
-          {canEdit && <AddRowButton label={draft.reference_id ? "Update list" : "Add to list"} onClick={() => void addActivityToList()} />}
-        </fieldset>
-        <EvidenceFiles files={draft.evidence || []} />
-        {!!batch.activities?.length && activityTable(true)}
-        </CardContent></Card>
-        <div className="flex flex-wrap items-center justify-between gap-3"><Button variant="ghost" disabled={busy} onClick={() => { startActivity(); setBatchStep(0); setMode("batch"); }}><ArrowLeft className="w-4 h-4 mr-2" />Back to reporting period</Button>{canEdit && <div className="flex flex-wrap justify-end gap-2"><Button variant="ghost" disabled={busy} onClick={() => void saveReportDraft()}><Save className="mr-2 h-4 w-4" />Save Draft</Button><Button className={ACTION} disabled={busy || !batch.activities?.length} onClick={() => void leaveActivityForm(2)}>Register beneficiaries<ArrowRight className="w-4 h-4" /></Button></div>}</div>
-      </div>}
-      {mode === "dashboard" && <>
-        <div className="flex flex-wrap items-end gap-3 rounded-xl border border-[#d4e8dc] bg-white px-4 py-4"><div className="flex-1 min-w-[130px]"><Dropdown value={reportFilter.year} options={yearOptions} onChange={(value) => setReportFilter({ ...reportFilter, year: value })} /></div><div className="flex-1 min-w-[130px]"><Dropdown value={reportFilter.month} options={monthOptions} onChange={(value) => setReportFilter({ ...reportFilter, month: value })} /></div><Button variant="outline" className="gap-2" disabled={busy} onClick={() => void run(async () => setAnalytics((await api.analytics(reportFilter)).data))}><RefreshCw className="w-4 h-4" />Apply period</Button></div>
-        {searchInput}
-        {analytics && <><Metrics values={analytics.summary} />
-          <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden"><CardHeader className="pb-3 border-b border-[#d4e8dc]"><CardTitle className="text-sm font-bold">State performance</CardTitle></CardHeader><CardContent className="p-0"><div className="overflow-x-auto"><Table><TableHeader><TableRow className="bg-[#f0fdf7] hover:bg-[#f0fdf7]">{["State", "Reports", "Planned", "Completed", "Not conducted", "Reached", "Leads", "Enrolled", "Conversion", "Late reports", "Action"].map((label) => <TableHead className={`text-xs font-bold text-slate-600 whitespace-nowrap ${label === "Action" ? "text-right" : ""}`} key={label}>{label}</TableHead>)}</TableRow></TableHeader><TableBody>
-            {analytics.states.filter((state: any) => matchesSearch(state)).map((state: any) => <TableRow key={state.code} className="hover:bg-[#f8fdfb] border-b border-[#e8f3ec] last:border-0"><TableCell className="text-sm font-semibold text-[#0f3d2e] whitespace-nowrap">{state.description}</TableCell><TableCell className="text-xs whitespace-nowrap">{state.reports ? `${state.finalised}/${state.reports} submitted` : "Not received"}</TableCell><TableCell className="text-sm tabular-nums">{state.planned}</TableCell><TableCell className="text-sm tabular-nums">{state.conducted}</TableCell><TableCell className="text-sm tabular-nums">{state.pending_activities}</TableCell><TableCell className="text-sm tabular-nums">{state.reached}</TableCell><TableCell className="text-sm tabular-nums">{state.leads}</TableCell><TableCell className="text-sm font-semibold text-[#145c3f] tabular-nums">{state.enrolled}</TableCell><TableCell className="text-sm tabular-nums">{state.conversion_rate == null ? "—" : `${state.conversion_rate}%`}</TableCell><TableCell className="text-sm tabular-nums">{state.late_reports}</TableCell><TableCell className="text-right">{permissions.manage && <Button size="sm" variant="ghost" className="h-8 gap-1.5 text-[#145c3f] hover:bg-[#eef6f1]" onClick={() => { setActionDraft({ ...blankAction(), state_code: state.code, reporting_year: reportFilter.year, reporting_month: reportFilter.month, issue: state.reports ? "Review activity performance and enrolment conversion" : "No report received for the reporting period" }); setMode("actions"); void run(async () => setActions((await api.actions()).data)); }}><Plus className="w-3.5 h-3.5" />Record action</Button>}</TableCell></TableRow>)}
-          </TableBody></Table></div></CardContent></Card>
-          <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden"><CardHeader className="pb-3 border-b border-[#d4e8dc]"><CardTitle className="text-sm font-bold">Enrolment by reporting period</CardTitle></CardHeader><CardContent className="p-0"><Table><TableHeader><TableRow className="bg-[#f0fdf7] hover:bg-[#f0fdf7]"><TableHead className="text-xs font-bold text-slate-600">Period</TableHead><TableHead className="text-xs font-bold text-slate-600 text-right">Linked enrolments</TableHead></TableRow></TableHeader><TableBody>{analytics.enrolment_trend.slice(-12).map((row: any) => <TableRow key={`${row.reporting_year}-${row.reporting_month}`} className="hover:bg-[#f8fdfb]"><TableCell className="text-sm">{monthLabel(row.reporting_month)} {row.reporting_year}</TableCell><TableCell className="text-sm font-semibold text-[#145c3f] text-right tabular-nums">{Number(row.enrolled || 0).toLocaleString()}</TableCell></TableRow>)}</TableBody></Table><p className="px-4 py-3 text-xs text-slate-500">Totals include saved enrolments, including drafts, in their enrolment reporting month.</p></CardContent></Card>
-        </>}
-      </>}
+      {mode === "dashboard" && (
+        <EnrolmentDriveDashboard
+          embedded
+          defaultStateId={defaultStateId}
+          defaultZoneId={defaultZoneId}
+          onRecordAction={(stateCode, issue) => {
+            setActionDraft({
+              ...blankAction(),
+              state_code: stateCode || "",
+              reporting_year: reportFilter.year,
+              reporting_month: reportFilter.month,
+              issue: issue || "Review activity performance and enrolment conversion",
+            });
+            setMode("actions");
+            void run(async () => setActions((await api.actions()).data));
+          }}
+          onViewReport={(id) => void run(() => openBatch(id))}
+        />
+      )}
       {mode === "actions" && <>
         {actionDraft && <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-visible"><CardContent className="p-4 md:p-5"><Section title={actionDraft.reference_id || "New management action"}>
           <Field label="State" required><Dropdown value={actionDraft.state_code} options={stateOptions} disabled={!!actionDraft.reference_id} onChange={(value) => setActionDraft({ ...actionDraft, state_code: value })} /></Field>

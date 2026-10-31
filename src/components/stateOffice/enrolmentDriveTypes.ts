@@ -82,6 +82,10 @@ export const enrolmentDriveReportType = (key: EnrolmentDriveKey): EnrolmentDrive
 export const enrolmentDriveView = (key: EnrolmentDriveKey) => `state-enrolment-drive-${key}`;
 export const enrolmentDrivePath = (key: EnrolmentDriveKey) => `/zonal/enrolment-drives/${key}`;
 
+export const ENROLMENT_DRIVE_DASHBOARD_NAV_TITLE = "Enrolment Drives Dashboard";
+export const ENROLMENT_DRIVE_DASHBOARD_VIEW = "state-enrolment-drives-dashboard";
+export const ENROLMENT_DRIVE_DASHBOARD_PATH = "/zonal/enrolment-drives/dashboard";
+
 export const ENROLMENT_DRIVE_REPORT_TYPES = ENROLMENT_DRIVE_TYPES.map((t) => enrolmentDriveReportType(t.key));
 
 export function isEnrolmentDriveType(reportType: string): reportType is EnrolmentDriveReportType {
