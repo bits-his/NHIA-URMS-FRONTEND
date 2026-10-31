@@ -53,6 +53,7 @@ import StateOfficeComplaintsPage from "./stateOffice/StateOfficeComplaintsPage";
 import StateOfficeComplianceVisitsPage from "./stateOffice/StateOfficeComplianceVisitsPage";
 import StateOfficeWeeklyCompliancePage from "./stateOffice/StateOfficeWeeklyCompliancePage";
 import StateOfficeMysteryShoppingPage from "./stateOffice/StateOfficeMysteryShoppingPage";
+import ComplianceHubPage, { ComplianceHubLegacyRedirect } from "./stateOffice/ComplianceHubPage";
 import StateOfficeHmoIndebtednessHubPage, {
   HmoIndebtednessLegacyRedirect,
 } from "./stateOffice/StateOfficeHmoIndebtednessHubPage";
@@ -129,7 +130,7 @@ import AppSidebar from "./AppSidebar";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 
 type Role = string;
-type View = "home" | "report-entry" | "report-preview" | "zonal-review" | "zonal-compose" | "annual-report" | "annual-reports-list" | "annual-report-detail" | "settings" | "stock-verifications-list" | "stock-assets" | "servicom-dashboard" | "servicom-visits" | "servicom-complaints" | "zonal-complaints-register" | "servicom-satisfaction" | "servicom-comment-card" | "finance-monthly" | "admin-monthly" | "programmes-monthly" | "outreach-monthly" | "sqa-monthly" | "sqa-compliance" | "complaints-monthly" | "monthly-reports-list" | "report-review" | "notifications" | "soc-zones-dashboard" | "soc-office-profile" | "soc-focal-persons" | "soc-operation-monitoring-visit" | "soc-spot-check-visit" | "state-enrolment" | "state-enrolment-nin-validation" | "state-enrolment-id-cards" | `state-enrolment-drive-${string}` | "state-migration" | "state-cemonc" | "state-complaints" | "state-compliance-monitoring" | "state-weekly-compliance" | "state-hmo-indebtedness" | "state-mystery-shopping" | "state-reconciliation" | "state-accreditation" | "state-stakeholder" | "state-stakeholder-sshia-meetings" | "state-stakeholder-forum" | "state-stakeholder-others" | "state-provider-medical-audits" | "state-provider-reaccreditation" | "state-provider-qa-inspections" | "state-hmo-selection" | "state-extra-dependant" | "state-hcf-change" | "state-challenges" | "state-igr" | "state-sshia-financial" | "state-expenditure-profile" | "state-ict-support" | "state-admin-meetings" | "state-etmc-cascading" | "state-accommodation" | "state-utilities" | "state-vehicles" | "state-staff-feedback" | "state-infractions" | "state-weekly-actionable" | "state-contracted-services" | "state-enrollee-register" | "state-etmc-tmc-action-point" | "state-ict-support-register" | "state-adhoc-special-assignment" | "store-assets-list" | "store-assets-register" | "store-inventory-catalog" | "store-goods-receipt" | "store-stock-issues" | "store-directory" | "store-stock-returns" | "store-asset-transfers" | "store-supply-verification" | "store-asset-maintenance" | "store-asset-disposal" | "store-asset-reports";
+type View = "home" | "report-entry" | "report-preview" | "zonal-review" | "zonal-compose" | "annual-report" | "annual-reports-list" | "annual-report-detail" | "settings" | "stock-verifications-list" | "stock-assets" | "servicom-dashboard" | "servicom-visits" | "servicom-complaints" | "zonal-complaints-register" | "servicom-satisfaction" | "servicom-comment-card" | "finance-monthly" | "admin-monthly" | "programmes-monthly" | "outreach-monthly" | "sqa-monthly" | "sqa-compliance" | "complaints-monthly" | "monthly-reports-list" | "report-review" | "notifications" | "soc-zones-dashboard" | "soc-office-profile" | "soc-focal-persons" | "soc-operation-monitoring-visit" | "soc-spot-check-visit" | "state-enrolment" | "state-enrolment-nin-validation" | "state-enrolment-id-cards" | `state-enrolment-drive-${string}` | "state-migration" | "state-cemonc" | "state-complaints" | "state-compliance-monitoring" | "state-weekly-compliance" | "state-hmo-indebtedness" | "state-mystery-shopping" | "state-reconciliation" | "state-accreditation" | "state-stakeholder" | "state-stakeholder-sshia-meetings" | "state-stakeholder-forum" | "state-stakeholder-others" | "state-provider-medical-audits" | "state-provider-reaccreditation" | "state-provider-qa-inspections" | "state-hmo-selection" | "state-extra-dependant" | "state-hcf-change" | "state-challenges" | "state-igr" | "state-sshia-financial" | "state-expenditure-profile" | "state-ict-support" | "state-admin-meetings" | "state-etmc-cascading" | "state-accommodation" | "state-utilities" | "state-vehicles" | "state-staff-feedback" | "state-infractions" | "state-weekly-actionable" | "state-contracted-services" | "state-enrollee-register" | "state-etmc-tmc-action-point" | "state-ict-support-register" | "state-adhoc-special-assignment" | "state-compliance-hub" | "store-assets-list" | "store-assets-register" | "store-inventory-catalog" | "store-goods-receipt" | "store-stock-issues" | "store-directory" | "store-stock-returns" | "store-asset-transfers" | "store-supply-verification" | "store-asset-maintenance" | "store-asset-disposal" | "store-asset-reports";
 interface DashboardProps { role: Role; user?: import("@/src/store/authSlice").AuthUser; access?: import("@/src/access/types").AccessEntry[]; functionalities?: string; onLogout: () => void; }
 
 // ─── Mock data ────────────────────────────────────────────────────────────────
@@ -463,7 +464,8 @@ export default function Dashboard({ role, user, access = [], functionalities = "
       viewAccess.module,
       viewAccess.functionality,
       { role, access: expanded },
-    );
+    ) || (["servicom-comment-card", "servicom-satisfaction"].includes(view)
+      && canAccessFunctionality("SDO", viewAccess.functionality, { role, access: expanded }));
     if (!allowed) {
       navigate(getFirstAccessiblePath(expanded, role, user), { replace: true });
     }
@@ -533,7 +535,7 @@ export default function Dashboard({ role, user, access = [], functionalities = "
                 ) : isDeptZonalCoordinator(role) ? (
                   <ZonalComparativeDashboard
                     user={user}
-                    zoneName={user?.zone?.description ?? "Zone"}
+                    zoneName={user?.role_config?.report_scope === "national" ? "National" : user?.zone?.description ?? "Zone"}
                     onReviewReports={() => setView("zonal-review")}
                     onNavigate={(path) => {
                       navigate(path);
@@ -546,8 +548,8 @@ export default function Dashboard({ role, user, access = [], functionalities = "
                 ) : isDeptStateCoordinator(role) ? (
                   <StateCoordinatorDashboard
                     user={user}
-                    stateName={user?.state?.description ?? "State"}
-                    zoneName={user?.zone?.description ?? "Zone"}
+                    stateName={user?.role_config?.report_scope === "national" ? "All States" : user?.state?.description ?? "State"}
+                    zoneName={user?.role_config?.report_scope === "national" ? "National" : user?.zone?.description ?? "Zone"}
                     onNavigate={(path) => {
                       navigate(path);
                       if (path.includes("report-review")) setView("report-review");
@@ -782,14 +784,16 @@ export default function Dashboard({ role, user, access = [], functionalities = "
             ))}
             <Route path="/zonal/migration" element={<StateOfficeReportsList key="state-migration" reportType="migration" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
             <Route path="/zonal/cemonc" element={<StateOfficeReportsList key="state-cemonc" reportType="cemonc" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
-            <Route path="/zonal/weekly-compliance" element={<StateOfficeWeeklyCompliancePage key="state-weekly-compliance" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
             <Route path="/zonal/monitoring-visits" element={<StateOfficeComplianceVisitsPage key="state-compliance-monitoring" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
+            <Route path="/zonal/compliance-hub" element={<ComplianceHubPage key="state-compliance-hub" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
             <Route path="/zonal/hmo-indebtedness" element={<StateOfficeHmoIndebtednessHubPage key="state-hmo-indebtedness" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
             <Route path="/zonal/hmo-indebtedness/phi" element={<HmoIndebtednessLegacyRedirect tab="phi" />} />
             <Route path="/zonal/hmo-indebtedness/ffs" element={<HmoIndebtednessLegacyRedirect tab="ffs" />} />
             <Route path="/zonal/hmo-indebtedness/cap" element={<HmoIndebtednessLegacyRedirect tab="cap" />} />
             <Route path="/zonal/hmo-indebtedness/master" element={<HmoIndebtednessLegacyRedirect tab="master" />} />
-            <Route path="/zonal/mystery-shopping" element={<StateOfficeMysteryShoppingPage key="state-mystery-shopping" onBack={() => setView("home")} defaultZoneId={user?.zonal_code ? String(user.zonal_code) : (user?.zone?.zonal_code ? String(user.zone.zonal_code) : monthlyCtx.defaultZoneId)} defaultStateId={user?.state_code ? String(user.state_code) : (user?.state?.code ? String(user.state.code) : monthlyCtx.defaultStateId)} />} />
+            <Route path="/zonal/complaints-register" element={<ComplianceHubLegacyRedirect tab="complaints" />} />
+            <Route path="/zonal/weekly-compliance" element={<ComplianceHubLegacyRedirect tab="weekly-compliance" />} />
+            <Route path="/zonal/mystery-shopping" element={<ComplianceHubLegacyRedirect tab="mystery-shopping" />} />
             <Route
               path="/zonal/enrolment-drives"
               element={

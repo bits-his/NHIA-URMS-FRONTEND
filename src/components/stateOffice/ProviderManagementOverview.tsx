@@ -516,7 +516,7 @@ export default function ProviderManagementOverview(props: OverviewProps) {
         </p>
       ) : level === 3 && sdoPipeline ? (
         <p className="text-sm text-slate-600 leading-relaxed">
-          Highlight zones with high pending workloads or low outputs for the selected programme/activity. Use BHCPF PHC-specific fields when BHCPF is selected.
+          Review zones with high pending workloads or low activity completion for the selected programme.
         </p>
       ) : level === 3 && !sdoPipeline ? (
         <ul className="space-y-2">

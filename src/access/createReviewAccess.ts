@@ -35,7 +35,7 @@ export function getCreateReviewAccess(role: string, user?: {
 
   const canReview = !!flaggedReview;
   // Match backend canSubmitForms: allow create unless review-only
-  const canCreate = !!flaggedCreate || !canReview;
+  const canCreate = role === "admin" || (user?.role_config?.can_create_monthly !== undefined ? !!flaggedCreate : !!flaggedCreate || !canReview);
 
   return {
     canCreate,
@@ -61,5 +61,5 @@ export function useStateOfficeAccess(): CreateReviewAccess {
   const role = user?.role ?? "";
   const base = getCreateReviewAccess(role, user);
   if (!isCoordinatorRole(role)) return base;
-  return { canCreate: false, canReview: true, createOnly: false, reviewOnly: true };
+  return { canCreate: false, canReview: base.canReview, createOnly: false, reviewOnly: base.canReview };
 }

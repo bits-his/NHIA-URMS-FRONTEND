@@ -262,6 +262,7 @@ export default function ProviderManagementForm({
   };
 
   const isFunded = PROVIDER_FUNDED_OPTIONS.has(entry.funding_option);
+  const showBhcpfActivityType = entry.related_programme === "BHCPF" && (formKey === "accreditation" || formKey === "reaccreditation");
   const manualMetrics = providerManualMetrics({
     formKey: entry.form_type,
     programme: entry.related_programme,
@@ -774,8 +775,8 @@ export default function ProviderManagementForm({
                         </SelectContent>
                       </Select>
                     </div>
-                    {entry.related_programme === "BHCPF" && (formKey === "accreditation" || formKey === "reaccreditation") && (
-                      <div className="space-y-1 md:col-span-2">
+                    {showBhcpfActivityType && (
+                      <div className="space-y-1">
                         <Label>BHCPF Activity Type <span className="text-red-500">*</span></Label>
                         <Select
                           value={entry.bhcpf_activity_type}
@@ -832,7 +833,7 @@ export default function ProviderManagementForm({
                         </div>
                       </>
                     )}
-                    <div className="space-y-1">
+                    <div className={showBhcpfActivityType ? "space-y-1" : "space-y-1 md:col-span-2"}>
                       <Label>Activity Status <span className="text-red-500">*</span></Label>
                       <Select value={entry.activity_status} onValueChange={(v) => set("activity_status", v)} disabled={!canEdit}>
                         <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
@@ -872,7 +873,7 @@ export default function ProviderManagementForm({
                   {(manualMetrics.length > 0 || linkedLabel) && (
                     <div className="rounded-xl border border-[#d4e8dc] bg-white p-3 space-y-3">
                       <p className="text-xs font-semibold text-[#145c3f]">
-                        {formMeta(formKey).label}-specific fields
+                        {formMeta(formKey).label} details
                         {entry.related_programme ? ` · ${entry.related_programme}` : ""}
                       </p>
                       <div className="grid md:grid-cols-2 gap-3">
@@ -895,18 +896,12 @@ export default function ProviderManagementForm({
                           <div className="space-y-1">
                             <Label className="text-[11px] leading-tight">{linkedLabel}</Label>
                             <Input value={String(covered)} readOnly className="bg-slate-50" />
-                            <p className="text-[10px] text-slate-500">Linked to facilities covered — no separate entry</p>
                           </div>
                         )}
                       </div>
                     </div>
                   )}
 
-                  {(formKey === "qa-inspections" || formKey === "medical-audits") && (
-                    <p className="text-xs text-slate-500">
-                      This form uses common fields only. There are no activity-specific metrics.
-                    </p>
-                  )}
                 </CardContent>
               </Card>
 

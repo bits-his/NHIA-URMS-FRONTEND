@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useListSearch } from "./useListSearch";
 import { useNavigate, useParams, useLocation, Navigate } from "react-router-dom";
 import {
   Plus, RefreshCw, Loader2, Pencil, Eye, Save, Paperclip, Building2, Mail, MapPin, Trash2,
@@ -172,7 +173,9 @@ export default function StateZonalOfficeProfilePage({ defaultStateId, defaultZon
   const mode = resolveMode(location.pathname, routeId);
 
   const [formKey, setFormKey] = React.useState(0);
-  const [rows, setRows] = React.useState<Profile[]>([]);
+  const [allRows, setRows] = React.useState<Profile[]>([]);
+  const { matchesSearch, searchInput } = useListSearch();
+  const rows = React.useMemo(() => allRows.filter(matchesSearch), [allRows, matchesSearch]);
   const [loading, setLoading] = React.useState(mode === "list" && !createOnly);
   const [detailLoading, setDetailLoading] = React.useState(mode === "view" || mode === "edit");
   const [saving, setSaving] = React.useState(false);
@@ -575,6 +578,7 @@ export default function StateZonalOfficeProfilePage({ defaultStateId, defaultZon
           )}
         </div>
 
+        {searchInput}
         <div className="rounded-lg border border-[#d4e8dc] bg-white overflow-hidden">
           {loading ? (
             <div className="flex items-center justify-center py-12 gap-2 text-slate-400">

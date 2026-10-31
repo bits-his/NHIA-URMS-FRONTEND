@@ -226,3 +226,48 @@ export function activityFromReportType(reportType: string): BeneficiaryActivityK
   if (reportType === "hmo-selection") return "mda";
   return "extra";
 }
+
+type DependantPrincipal = {
+  enrolment_reference_id?: string | null;
+  principle_nhia_number?: string | null;
+  nhia_number?: string | null;
+};
+
+type ExtraDependantRecord = DependantPrincipal & {
+  id?: string | number;
+  _key?: string;
+  dependent?: string | null;
+  dependant_entity?: string | null;
+  request?: string;
+  request_kind?: string;
+};
+
+export function sameDependantPrincipal(a: DependantPrincipal, b: DependantPrincipal): boolean {
+  const ref = String(a.enrolment_reference_id || "").trim();
+  if (ref && ref === String(b.enrolment_reference_id || "").trim()) return true;
+  const nhia = String(a.principle_nhia_number || a.nhia_number || "").trim().toLowerCase();
+  return !!nhia && nhia === String(b.principle_nhia_number || b.nhia_number || "").trim().toLowerCase();
+}
+
+export function extraDependantProgress(principal: DependantPrincipal, records: ExtraDependantRecord[]) {
+  const seen = new Set<string>();
+  const slots = new Set<string>();
+  let count = 0;
+  let highest = 0;
+  for (const record of records) {
+    if ((record.request || record.request_kind || "extra") !== "extra" || !sameDependantPrincipal(principal, record)) continue;
+    const id = String(record.id || record._key || "");
+    if (id && seen.has(id)) continue;
+    if (id) seen.add(id);
+    const slot = record.dependent || record.dependant_entity || "";
+    if (slot === "principal") continue;
+    count += 1;
+    const match = /^dependent_(\d+)$/.exec(slot);
+    if (match) {
+      slots.add(slot);
+      highest = Math.max(highest, Number(match[1]));
+    }
+  }
+  const nextNumber = Math.max(count, highest) + 1;
+  return { count, slots, next: nextNumber <= 3 ? `dependent_${nextNumber}` : null };
+}

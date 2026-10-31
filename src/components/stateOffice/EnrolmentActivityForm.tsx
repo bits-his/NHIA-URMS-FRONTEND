@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { cn } from "@/lib/utils";
 import StateOfficeFormShell from "./StateOfficeFormShell";
 import ReportBasicInfo from "./shared/ReportBasicInfo";
+import StateOfficeFormSteps from "./StateOfficeFormSteps";
 import AccreditedProviderSelect from "./AccreditedProviderSelect";
 import { NIGERIAN_STATE_NAMES, lgasForState } from "./nigeriaGeo";
 import { labelOf, monthLabel, quarterFromMonth } from "./constants";
@@ -19,8 +20,6 @@ import {
   ENROLMENT_ACTIVITIES,
   enrolmentActivityMeta,
   ENROLMENT_ACTIVITY_STATUSES,
-  ENROLMENT_BENEFICIARY_CATEGORIES,
-  ENROLMENT_BENEFICIARY_STATUSES,
   ENROLMENT_BUDGETED,
   ENROLMENT_CHANNELS,
   ENROLMENT_TYPES,
@@ -107,9 +106,10 @@ interface Props {
   defaultStateId?: string | null;
   /** When creating from an activity tab, skip the activity picker. */
   initialCategory?: string | null;
+  driveContext?: { reference_id: string; programs_supported: string[] };
 }
 
-function FieldSection({ title, children }: { title: string; children: React.ReactNode }) {
+export function FieldSection({ title, children, gridClassName = "grid gap-3 sm:grid-cols-2 lg:grid-cols-3" }: { title: string; children: React.ReactNode; gridClassName?: string }) {
   return (
     <section className="space-y-3">
       <div className="flex items-center gap-3">
@@ -118,12 +118,12 @@ function FieldSection({ title, children }: { title: string; children: React.Reac
         </h3>
         <div className="h-px flex-1 bg-[#d4e8dc]" />
       </div>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{children}</div>
+      <div className={gridClassName}>{children}</div>
     </section>
   );
 }
 
-function Field({
+export function Field({
   label,
   required,
   error,
@@ -377,12 +377,18 @@ function ProgramFieldsGrid({
 }
 
 /** Content steps after an activity is chosen (picker is separate). */
-function stepsForCategory(category: string): { id: StepId; label: string }[] {
+function stepsForCategory(category: string, channel = ""): { id: StepId; label: string }[] {
   if (category === "enrolment") {
+    if (channel === "SSHIA") {
+      return [
+        { id: "channel", label: "Enrolment Details" },
+        { id: "review", label: "Review" },
+      ];
+    }
     return [
       { id: "channel", label: "Channel" },
-      { id: "details", label: "Details" },
       { id: "beneficiary", label: "Beneficiary" },
+      { id: "details", label: "Details" },
       { id: "review", label: "Review" },
     ];
   }
@@ -409,8 +415,10 @@ function stepsForCategory(category: string): { id: StepId; label: string }[] {
 
 /** Activity Reporting Template — stepped flow from Enrolment.pptx */
 export default function EnrolmentActivityForm({
-  reportId, onBack, onCancel, onSubmitted, defaultZoneId, defaultStateId, initialCategory,
+  reportId, onBack, onCancel, onSubmitted, defaultZoneId, defaultStateId, initialCategory, driveContext: suppliedDriveContext,
 }: Props) {
+  const [savedDriveContext, setSavedDriveContext] = React.useState<Props["driveContext"]>();
+  const driveContext = suppliedDriveContext || savedDriveContext;
   const fresh = (category = ""): Entry => ({ ...blank(), category, program_details: {} });
   const seededCategory = !reportId && initialCategory
     && ENROLMENT_ACTIVITIES.some((a) => a.value === initialCategory)
@@ -442,7 +450,10 @@ export default function EnrolmentActivityForm({
   const isIdCard = entry.category === "id_card_issuance";
   const isValidation = entry.category === "validation_of_enrolees";
 
-  const steps = React.useMemo(() => stepsForCategory(entry.category), [entry.category]);
+  const steps = React.useMemo(
+    () => stepsForCategory(entry.category, entry.enrolment_channel),
+    [entry.category, entry.enrolment_channel],
+  );
   const currentStep = steps.length
     ? steps[Math.min(stepIndex, steps.length - 1)]
     : null;
@@ -468,12 +479,17 @@ export default function EnrolmentActivityForm({
     }
     if (entry.enrolment_type === "Fresh Enrolment") return nhia;
     return [];
-  }, [entry.enrolment_channel, entry.enrolment_type, isEnrolment, isNin, isIdCard, isValidation]);
+  }, [entry.enrolment_channel, entry.enrolment_type, isEnrolment, isNin, isIdCard, isValidation, driveContext]);
 
   const modeOptions = React.useMemo(
-    () => modesOfRegistrationForProgram(entry.program_name),
-    [entry.program_name],
+    () => driveContext ? ["Field Registration"] : modesOfRegistrationForProgram(entry.program_name),
+    [entry.program_name, driveContext],
   );
+
+  React.useEffect(() => {
+    if (!driveContext || entry.enrolment_channel === "SSHIA" || !entry.program_name) return;
+    setEntry((current) => current.enrolment_category === "Field Registration" ? current : { ...current, enrolment_category: "Field Registration" });
+  }, [driveContext, entry.enrolment_channel, entry.program_name]);
 
   const programFields = React.useMemo(
     () => (isEnrolment
@@ -551,6 +567,7 @@ export default function EnrolmentActivityForm({
   };
 
   const loadData = (v: any) => {
+    setSavedDriveContext(v.drive_reference_id ? { reference_id: v.drive_reference_id, programs_supported: [] } : undefined);
     const first = (v.lines ?? [])[0];
     if (first) {
       setEntry(lineToEntry(first));
@@ -623,21 +640,16 @@ export default function EnrolmentActivityForm({
         return fail("enrolment_type", "Select enrolment type");
       }
       if (!e.program_name) return fail("program_name", "Select program");
-      if (modes.length > 0 && !e.enrolment_category) {
+      if (e.enrolment_channel !== "SSHIA" && modes.length > 0 && !e.enrolment_category) {
         return fail("enrolment_category", "Select enrolment mode");
       }
       if (e.enrolment_type === "Renewal" && !ENROLMENT_RENEWABLE_PROGRAM_LABELS.has(e.program_name)) {
         return fail("program_name", "Renewal is only allowed for GIFSHIP-G, GIFSHIP-C or GIFSHIP-R");
       }
-      return null;
+      if (e.enrolment_channel !== "SSHIA") return null;
     }
 
-    if (stepId === "details" && e.category === "enrolment") {
-      if (!e.enrolment_type && e.enrolment_channel === "NHIA") {
-        return fail("enrolment_type", "Select enrolment type");
-      }
-      if (!e.beneficiary_category) return fail("beneficiary_category", "Select beneficiary category");
-      if (!e.beneficiary_status) return fail("beneficiary_status", "Select beneficiary status");
+    if (e.category === "enrolment" && (stepId === "details" || (stepId === "channel" && e.enrolment_channel === "SSHIA"))) {
       if (!e.activity_status) return fail("activity_status", "Select the activity status");
       if (ENROLMENT_STATUS_NEEDS_REASON.has(e.activity_status) && !e.status_reason.trim()) {
         return fail("status_reason", "Enter a reason for Not Conducted / Cancelled");
@@ -710,7 +722,7 @@ export default function EnrolmentActivityForm({
 
   const validateEntry = (e: Entry = entryRef.current): string | null => {
     if (!e.category) return fail("category", "Select an enrolment activity");
-    for (const step of stepsForCategory(e.category)) {
+    for (const step of stepsForCategory(e.category, e.enrolment_channel)) {
       if (step.id === "review") continue;
       const err = validateStep(step.id, e);
       if (err) return err;
@@ -766,7 +778,7 @@ export default function EnrolmentActivityForm({
 
   const activityMeta = enrolmentActivityMeta(entry.category);
   const activityLabel = activityMeta?.label ?? "Select activity";
-  const categoryLocked = Boolean(seededCategory);
+  const categoryLocked = Boolean(seededCategory) || Boolean(driveContext);
 
   return (
     <StateOfficeFormShell
@@ -782,9 +794,10 @@ export default function EnrolmentActivityForm({
       hideBasicInfo
       showQuarter
       onLoaded={loadData}
-      validate={() => validateEntry(entryRef.current)}
+      validate={() => driveContext && (!Number.isSafeInteger(Number(entryRef.current.enrolment_count)) || Number(entryRef.current.enrolment_count) < 1) ? "Enter a whole number of at least one beneficiary" : validateEntry(entryRef.current)}
       buildPayload={(base) => ({
         ...base,
+        ...(driveContext ? { drive_reference_id: driveContext.reference_id } : {}),
         lines: [toLinePayload(entryRef.current)],
       })}
     >
@@ -801,52 +814,15 @@ export default function EnrolmentActivityForm({
             <CardContent className={cn("p-4 md:p-5", entry.category && "space-y-5")}>
               <ReportBasicInfo
                 {...header}
-                lockZone={header.lockZone}
-                lockState={header.lockState}
+                lockZone={Boolean(driveContext) || header.lockZone}
+                lockState={Boolean(driveContext) || header.lockState}
                 showQuarter
                 embedded
               />
 
               {entry.category ? (
                 <div className="border-t border-[#e8f3ec] pt-4">
-                  <ol className="flex items-center gap-1 sm:gap-2 overflow-x-auto">
-                    {steps.map((s, i) => {
-                      const done = i < stepIndex;
-                      const active = i === stepIndex;
-                      return (
-                        <React.Fragment key={s.id}>
-                          {i > 0 && (
-                            <div className={cn(
-                              "h-px w-4 sm:w-8 shrink-0",
-                              done ? "bg-[#1a7a52]" : "bg-[#d4e8dc]",
-                            )} />
-                          )}
-                          <li className="flex items-center gap-1.5 shrink-0">
-                            <button
-                              type="button"
-                              onClick={() => { if (i <= stepIndex) setStepIndex(i); }}
-                              className={cn(
-                                "flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold border transition-colors",
-                                done && "bg-[#145c3f] text-white border-[#145c3f]",
-                                active && !done && "bg-[#145c3f] text-white border-[#145c3f]",
-                                !done && !active && "bg-white text-slate-400 border-[#d4e8dc]",
-                              )}
-                              aria-current={active ? "step" : undefined}
-                              aria-label={s.label}
-                            >
-                              {done ? <Check className="w-3.5 h-3.5" /> : i + 1}
-                            </button>
-                            <span className={cn(
-                              "text-xs font-semibold whitespace-nowrap",
-                              active ? "text-[#0f3d2e]" : "text-slate-400",
-                            )}>
-                              {s.label}
-                            </span>
-                          </li>
-                        </React.Fragment>
-                      );
-                    })}
-                  </ol>
+                  <StateOfficeFormSteps steps={steps} activeIndex={stepIndex} onStepChange={setStepIndex} />
                 </div>
               ) : null}
 
@@ -934,6 +910,7 @@ export default function EnrolmentActivityForm({
                       </SelectContent>
                     </Select>
                   </Field>
+                  {entry.enrolment_channel !== "SSHIA" && (
                   <Field
                     label="Enrolment Mode"
                     required={modeOptions.length > 0}
@@ -942,7 +919,7 @@ export default function EnrolmentActivityForm({
                     <Select
                       value={entry.enrolment_category}
                       onValueChange={(v) => set("enrolment_category", v)}
-                      disabled={!entry.program_name || modeOptions.length === 0}
+                      disabled={Boolean(driveContext) || !entry.program_name || modeOptions.length === 0}
                     >
                       <SelectTrigger>
                         <SelectValue
@@ -962,60 +939,14 @@ export default function EnrolmentActivityForm({
                       </SelectContent>
                     </Select>
                   </Field>
+                  )}
                 </div>
               )}
 
               {/* STEP: Details & Funding (Enrolment) */}
-              {currentStep?.id === "details" && isEnrolment && (
+              {isEnrolment && (currentStep?.id === "details" || (currentStep?.id === "channel" && entry.enrolment_channel === "SSHIA" && !!entry.program_name)) && (
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  {entry.enrolment_channel !== "SSHIA" && (
-                    <Field label="Enrolment Type" required error={fieldErrors.enrolment_type}>
-                      <Select
-                        value={entry.enrolment_type}
-                        onValueChange={(v) => set("enrolment_type", v)}
-                      >
-                        <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                        <SelectContent>
-                          {ENROLMENT_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </Field>
-                  )}
-                  <Field label="Beneficiary Category" required error={fieldErrors.beneficiary_category}>
-                    <Select value={entry.beneficiary_category} onValueChange={(v) => set("beneficiary_category", v)}>
-                      <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                      <SelectContent>
-                        {ENROLMENT_BENEFICIARY_STATUSES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </Field>
-                  <Field label="Beneficiary Status" required error={fieldErrors.beneficiary_status}>
-                    <Select value={entry.beneficiary_status} onValueChange={(v) => set("beneficiary_status", v)}>
-                      <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                      <SelectContent>
-                        {ENROLMENT_BENEFICIARY_CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </Field>
-                  <Field label="Funding Option">
-                    <Select value={entry.funding_option} onValueChange={(v) => set("funding_option", v)}>
-                      <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                      <SelectContent>
-                        {ENROLMENT_FUNDING_OPTIONS.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </Field>
-                  {isBudgeted && (
-                    <>
-                      <Field label="Activity Budget (₦)" required error={fieldErrors.activity_budget}>
-                        <Input type="number" min={0} value={entry.activity_budget} onChange={(e) => set("activity_budget", e.target.value)} />
-                      </Field>
-                      <Field label="Approved Amount (₦)" required error={fieldErrors.approved_amount}>
-                        <Input type="number" min={0} value={entry.approved_amount} onChange={(e) => set("approved_amount", e.target.value)} />
-                      </Field>
-                    </>
-                  )}
-                  <Field label="Number Enrolled / Beneficiaries" error={fieldErrors.enrolment_count}>
+                  <Field label="Number Enrolled / Beneficiaries" required={Boolean(driveContext)} error={fieldErrors.enrolment_count}>
                     <Input type="number" min={0} value={entry.enrolment_count} onChange={(e) => set("enrolment_count", e.target.value)} />
                   </Field>
                   <Field label="Activity Status" required error={fieldErrors.activity_status}>
@@ -1051,6 +982,24 @@ export default function EnrolmentActivityForm({
                       </SelectContent>
                     </Select>
                   </Field>
+                  <Field label="Funding Option">
+                    <Select value={entry.funding_option} onValueChange={(v) => set("funding_option", v)}>
+                      <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                      <SelectContent>
+                        {ENROLMENT_FUNDING_OPTIONS.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  {isBudgeted && (
+                    <>
+                      <Field label="Activity Budget (₦)" required error={fieldErrors.activity_budget}>
+                        <Input type="number" min={0} value={entry.activity_budget} onChange={(e) => set("activity_budget", e.target.value)} />
+                      </Field>
+                      <Field label="Approved Amount (₦)" required error={fieldErrors.approved_amount}>
+                        <Input type="number" min={0} value={entry.approved_amount} onChange={(e) => set("approved_amount", e.target.value)} />
+                      </Field>
+                    </>
+                  )}
                   <Field label="Remarks" className="sm:col-span-2 lg:col-span-3">
                     <Textarea rows={2} value={entry.remarks} onChange={(e) => set("remarks", e.target.value)} />
                   </Field>

@@ -98,6 +98,10 @@ import {
   PROVIDER_MANAGEMENT_DASHBOARD_PATH,
   PROVIDER_MANAGEMENT_DASHBOARD_NAV_TITLE,
 } from "@/src/components/stateOffice/enrolmentPillarTypes";
+import {
+  COMPLIANCE_HUB_VIEW,
+  COMPLIANCE_HUB_PATH,
+} from "@/src/components/stateOffice/complianceHubTypes";
 import type { AccessEntry } from "@/src/access/types";
 import {
   MODULE_CONFIG,
@@ -194,7 +198,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
   "Accreditation / Reaccreditation": Stethoscope,
   Reaccreditation: Stethoscope,
   "Quality Assurance inspections": ClipboardCheck,
-  "Complaint / Compliance": Scale,
+  "Complaint/Compliance management": Scale,
   "Internal Management": Landmark,
   Finance: Landmark,
   ICT: Monitor,
@@ -289,10 +293,10 @@ const VIEW_TO_PATH: Record<string, string> = {
   "state-contracted-services": "/soc/contracted-services",
   "state-etmc-tmc-action-point": "/soc/etmc-tmc-action-point",
   "state-ict-support-register": "/zonal/ict/support",
+  "state-compliance-hub": COMPLIANCE_HUB_PATH,
   "state-adhoc-special-assignment": "/sdo/projects",
   "state-extra-dependant": BENEFICIARY_MANAGEMENT_PATH,
   [BENEFICIARY_MANAGEMENT_VIEW]: BENEFICIARY_MANAGEMENT_PATH,
-  "state-weekly-compliance": "/zonal/weekly-compliance",
   [ENROLMENT_DRIVES_VIEW]: ENROLMENT_DRIVES_PATH,
   [STAKEHOLDER_MANAGEMENT_VIEW]: STAKEHOLDER_MANAGEMENT_PATH,
   [PROVIDER_MANAGEMENT_VIEW]: PROVIDER_MANAGEMENT_PATH,
@@ -340,7 +344,9 @@ type TreeNode =
  * Keep empty so a lone granted page (e.g. only Complaints) shows standalone
  * without its group label (SERVICOM, Stock Verification, etc.).
  */
-const PRESERVE_FOLDER_TITLES = new Set<string>([]);
+const PRESERVE_FOLDER_TITLES = new Set<string>([
+  "Special Project",
+]);
 
 /** If a folder has only one child, promote that child (no redundant dropdown). */
 function collapseSingleChildFolders(nodes: TreeNode[]): TreeNode[] {
@@ -373,18 +379,27 @@ function filterModuleTree(
         const hasZonal = zonalAllowed && zonalAllowed.size > 0;
         nested = [];
 
+        // Add SOC items first to ensure they appear before State Offices
         if (hasSoc) {
           const socMod = MODULE_CONFIG.find((m) => m.title === SOC_ZONES_MODULE);
-          nested.push(
-            ...filterModuleTree(
+          const socKids = collapseSingleChildFolders(
+            filterModuleTree(
               socMod?.children ?? [],
               socAllowed!,
               socAllowed,
               zonalAllowed,
             ),
           );
+          if (socKids.length > 0) {
+            nodes.push({
+              kind: "folder",
+              title: "SOC/Zones",
+              children: socKids,
+            });
+          }
         }
 
+        // Then add Zonal (State Offices) items
         if (hasZonal) {
           const zonalMod = MODULE_CONFIG.find((m) => m.title === ZONAL_MODULE);
           const zonalKids = collapseSingleChildFolders(

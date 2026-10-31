@@ -24,8 +24,8 @@ const YEARS = Array.from({ length: 8 }, (_, i) => {
 });
 
 interface Props {
-  zones: { id: number; label: string }[];
-  states: { id: number; label: string }[];
+  zones: { id: number | string; label: string }[];
+  states: { id: number | string; label: string }[];
   zoneId: string; setZoneId: (v: string) => void;
   stateId: string; setStateId: (v: string) => void;
   reportYear: string; setReportYear: (v: string) => void;

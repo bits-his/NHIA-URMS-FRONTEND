@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useListSearch } from "./useListSearch";
 import {
   ArrowLeft, Award, CheckCircle2, ClipboardCheck, Clock, Eye, FileText,
   Loader2, Plus, RefreshCw, Stethoscope, type LucideIcon, XCircle,
@@ -114,9 +115,10 @@ export default function ProviderManagementPage({ onBack, defaultZoneId, defaultS
     return map;
   }, [reports]);
 
+  const { matchesSearch, searchInput } = useListSearch();
   const filtered = React.useMemo(
-    () => reports.filter((r) => reportModule(r) === activeTab),
-    [reports, activeTab]
+    () => reports.filter((r) => reportModule(r) === activeTab && matchesSearch([r, monthLabel(r.reporting_month)])),
+    [reports, activeTab, matchesSearch]
   );
 
   const counts = React.useMemo(() => ({
@@ -336,6 +338,7 @@ export default function ProviderManagementPage({ onBack, defaultZoneId, defaultS
             )}
           </div>
 
+          {searchInput}
           <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden">
             <CardContent className="p-0">
               {loading ? (

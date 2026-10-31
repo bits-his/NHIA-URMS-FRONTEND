@@ -294,7 +294,7 @@ export const MODULE_CONFIG: ParentModule[] = [
           path: PROVIDER_MANAGEMENT_PATH,
         },
       ]},
-      { type: "group", label: "Complaint / Compliance", children: [
+      { type: "group", label: "Complaint/Compliance management", children: [
         { title: "State Complaints Register", view: "zonal-complaints-register", path: "/zonal/complaints-register", navLabel: "Complaints Register" },
         { title: "Weekly Compliance Report", view: "state-weekly-compliance", path: "/zonal/weekly-compliance", navLabel: "Weekly Compliance" },
         {

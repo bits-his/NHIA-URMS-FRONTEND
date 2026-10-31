@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useListSearch } from "./useListSearch";
 import {
   Plus, RefreshCw, Loader2, Pencil, Eye, Save, Users, ArrowLeft, Mail, Phone, MapPin, BadgeCheck,
 } from "lucide-react";
@@ -99,7 +100,9 @@ export default function StateZonalFocalPersonsPage({ onBack, defaultStateId, def
 
   const [mode, setMode] = React.useState<Mode>(createOnly ? "create" : "list");
   const [formKey, setFormKey] = React.useState(0);
-  const [rows, setRows] = React.useState<RecordRow[]>([]);
+  const [allRows, setRows] = React.useState<RecordRow[]>([]);
+  const { matchesSearch, searchInput } = useListSearch();
+  const rows = React.useMemo(() => allRows.filter(matchesSearch), [allRows, matchesSearch]);
   const [loading, setLoading] = React.useState(!createOnly);
   const [saving, setSaving] = React.useState(false);
   const [editingId, setEditingId] = React.useState<number | null>(null);
@@ -539,6 +542,7 @@ export default function StateZonalFocalPersonsPage({ onBack, defaultStateId, def
             )}
           </div>
 
+          {searchInput}
           <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden">
             <CardHeader className="pb-3 border-b border-[#d4e8dc]">
               <CardTitle className="text-sm font-bold">

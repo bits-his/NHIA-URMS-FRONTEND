@@ -49,6 +49,36 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   return json;
 }
 
+const DRIVE_ROOT = "/state-office/enrolment-drives";
+const driveRequest = (path: string, method = "GET", payload?: unknown) => request<{ success: boolean; data: any }>(`${DRIVE_ROOT}${path}`, { method, ...(payload === undefined ? {} : { body: JSON.stringify(payload) }) });
+export const enrolmentDrivesApi = {
+  catalogue: () => driveRequest("/catalogue"),
+  batches: (filters: Record<string, string> = {}) => driveRequest(`/batches?${new URLSearchParams(filters)}`),
+  createBatch: (payload: unknown) => driveRequest("/batches", "POST", payload),
+  batch: (id: string) => driveRequest(`/batches/${encodeURIComponent(id)}`),
+  updateBatch: (id: string, payload: unknown) => driveRequest(`/batches/${encodeURIComponent(id)}`, "PUT", payload),
+  transition: (id: string, payload: unknown) => driveRequest(`/batches/${encodeURIComponent(id)}/transition`, "POST", payload),
+  deadline: (id: string, payload: unknown) => driveRequest(`/batches/${encodeURIComponent(id)}/deadline`, "POST", payload),
+  saveActivity: (batchId: string, id: string | undefined, payload: unknown) => driveRequest(id ? `/activities/${encodeURIComponent(id)}` : `/batches/${encodeURIComponent(batchId)}/activities`, id ? "PUT" : "POST", payload),
+  evidence: (kind: "activities" | "actions", id: string, type: string, files: File[]) => {
+    const form = new FormData();
+    form.append("evidence_type", type);
+    files.forEach((file) => form.append("files", file));
+    return requestForm(`${DRIVE_ROOT}/${kind}/${encodeURIComponent(id)}/evidence`, "POST", form);
+  },
+  download: async (id: string) => {
+    const token = tokenStore.get();
+    const response = await fetch(`${BASE_URL}${DRIVE_ROOT}/evidence/${encodeURIComponent(id)}`, { headers: token ? { Authorization: `Bearer ${token}` } : {}, cache: "no-store" });
+    if (!response.ok) throw new Error("Could not download this evidence file");
+    return response.blob();
+  },
+  analytics: (filters: Record<string, string> = {}) => driveRequest(`/analytics?${new URLSearchParams(filters)}`),
+  actions: () => driveRequest("/actions"),
+  saveAction: (id: string | undefined, payload: unknown) => driveRequest(id ? `/actions/${encodeURIComponent(id)}` : "/actions", id ? "PUT" : "POST", payload),
+  legacy: () => driveRequest("/legacy"),
+  attachLegacy: (batchId: string, id: string) => driveRequest(`/batches/${encodeURIComponent(batchId)}/legacy/${encodeURIComponent(id)}`, "POST"),
+};
+
 const API_ORIGIN = BASE_URL.replace(/\/api\/?$/, "");
 
 export function apiFileUrl(rel?: string | null) {

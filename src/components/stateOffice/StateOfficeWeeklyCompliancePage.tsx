@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useListSearch } from "./useListSearch";
 import { useSelector } from "react-redux";
 import {
   ArrowLeft, Plus, Eye, RefreshCw, Loader2, ClipboardCheck, Pencil,
@@ -154,7 +155,9 @@ export default function StateOfficeWeeklyCompliancePage({ onBack, defaultStateId
   const [mode, setMode] = React.useState<"list" | "form" | "view">(createOnly ? "form" : "list");
   const [editingId, setEditingId] = React.useState<number | string | null>(null);
   const [selected, setSelected] = React.useState<any | null>(null);
-  const [rows, setRows] = React.useState<any[]>([]);
+  const [allRows, setRows] = React.useState<any[]>([]);
+  const { matchesSearch, searchInput } = useListSearch();
+  const rows = React.useMemo(() => allRows.filter(matchesSearch), [allRows, matchesSearch]);
   const [loading, setLoading] = React.useState(!createOnly);
   const [saving, setSaving] = React.useState(false);
   const [zones, setZones] = React.useState<any[]>([]);
@@ -610,6 +613,7 @@ export default function StateOfficeWeeklyCompliancePage({ onBack, defaultStateId
             </CardContent>
           </Card>
 
+          {searchInput}
           <Card className="rounded-2xl border-[#d4e8dc] overflow-hidden">
             <CardHeader className="pb-3 border-b">
               <CardTitle className="text-sm font-bold flex items-center gap-2">

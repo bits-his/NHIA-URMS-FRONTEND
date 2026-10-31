@@ -239,23 +239,45 @@ export const STAKEHOLDER_OUTCOME_MAPPING: StakeholderOutcomeMapRow[] = [
   },
 ];
 
+export const STAKEHOLDER_OTHER_OUTCOME_CATEGORY = "Other (Specify)";
+export const STAKEHOLDER_OTHER_SPECIFIC_OUTCOME = "Others (Specify)";
+
 export function outcomeCategoriesForEngagement(engagementCategory: string): string[] {
+  if (!STAKEHOLDER_ENGAGEMENT_CATEGORIES.some((category) => category.label === engagementCategory)) return [];
   const set = new Set<string>();
   STAKEHOLDER_OUTCOME_MAPPING.forEach((row) => {
     if (row.engagementCategories.includes(engagementCategory)) {
       row.outcomeCategories.forEach((c) => set.add(c));
     }
   });
-  return [...set].sort();
+  set.delete("Other (Specify)");
+  return [...set].sort().concat("Other (Specify)");
 }
 
 export function specificOutcomesFor(engagementCategory: string, outcomeCategory: string): string[] {
-  return STAKEHOLDER_OUTCOME_MAPPING
+  if (!outcomeCategoriesForEngagement(engagementCategory).includes(outcomeCategory)) return [];
+  const outcomes = new Set(STAKEHOLDER_OUTCOME_MAPPING
     .filter((row) =>
       row.engagementCategories.includes(engagementCategory)
       && row.outcomeCategories.includes(outcomeCategory),
     )
-    .map((row) => row.specificOutcome);
+    .map((row) => row.specificOutcome));
+  outcomes.delete("Others (Specify)");
+  return [...outcomes, "Others (Specify)"];
+}
+
+export function isValidStakeholderOutcome(engagement: string, category: string, outcome: string): boolean {
+  if (category.length > 160 || outcome.length > 200) return false;
+  const categoryPrefix = `${STAKEHOLDER_OTHER_OUTCOME_CATEGORY}: `;
+  const outcomePrefix = `${STAKEHOLDER_OTHER_SPECIFIC_OUTCOME}: `;
+  const selectedCategory = category.startsWith(categoryPrefix)
+    ? STAKEHOLDER_OTHER_OUTCOME_CATEGORY
+    : category;
+  if (category.startsWith(categoryPrefix) && !category.slice(categoryPrefix.length).trim()) return false;
+  const allowed = specificOutcomesFor(engagement, selectedCategory);
+  return allowed.includes(outcome)
+    || (allowed.includes(STAKEHOLDER_OTHER_SPECIFIC_OUTCOME)
+      && outcome.startsWith(outcomePrefix) && !!outcome.slice(outcomePrefix.length).trim());
 }
 
 /** Flat lists kept for older template configs / filters */

@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useListSearch } from "./useListSearch";
 import {
   ArrowLeft, Plus, RefreshCw, Loader2, Scale,
 } from "lucide-react";
@@ -49,7 +50,9 @@ export default function StateOfficeReconciliationPage({ onBack, defaultStateId, 
   const { canCreate, createOnly } = useStateOfficeAccess();
   const [mode, setMode] = React.useState<"list" | "form">(createOnly ? "form" : "list");
   const [formKey, setFormKey] = React.useState(0);
-  const [rows, setRows] = React.useState<any[]>([]);
+  const [allRows, setRows] = React.useState<any[]>([]);
+  const { matchesSearch, searchInput } = useListSearch();
+  const rows = React.useMemo(() => allRows.filter(matchesSearch), [allRows, matchesSearch]);
   const [loading, setLoading] = React.useState(!createOnly);
   const [saving, setSaving] = React.useState(false);
   const [zones, setZones] = React.useState<any[]>([]);
@@ -270,6 +273,7 @@ export default function StateOfficeReconciliationPage({ onBack, defaultStateId, 
             </CardContent>
           </Card>
 
+          {searchInput}
           <Card className="rounded-2xl border-[#d4e8dc] overflow-hidden">
             <CardHeader className="pb-3 border-b">
               <CardTitle className="text-sm font-bold flex items-center gap-2">

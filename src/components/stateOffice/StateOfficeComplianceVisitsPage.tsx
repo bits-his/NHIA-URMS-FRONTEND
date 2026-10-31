@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useListSearch } from "./useListSearch";
 import {
   ArrowLeft, Plus, Eye, RefreshCw, Loader2, ClipboardList,
 } from "lucide-react";
@@ -52,7 +53,9 @@ export default function StateOfficeComplianceVisitsPage({ onBack, defaultStateId
   const { canCreate, createOnly } = useStateOfficeAccess();
   const [mode, setMode] = React.useState<"list" | "form">(createOnly ? "form" : "list");
   const [formKey, setFormKey] = React.useState(0);
-  const [visits, setVisits] = React.useState<any[]>([]);
+  const [allVisits, setVisits] = React.useState<any[]>([]);
+  const { matchesSearch, searchInput } = useListSearch();
+  const visits = React.useMemo(() => allVisits.filter(matchesSearch), [allVisits, matchesSearch]);
   const [loading, setLoading] = React.useState(!createOnly);
   const [saving, setSaving] = React.useState(false);
   const [zones, setZones] = React.useState<any[]>([]);
@@ -258,6 +261,7 @@ export default function StateOfficeComplianceVisitsPage({ onBack, defaultStateId
             </CardContent>
           </Card>
 
+          {searchInput}
           <Card className="rounded-2xl border-[#d4e8dc] overflow-hidden">
             <CardHeader className="pb-3 border-b">
               <CardTitle className="text-sm font-bold flex items-center gap-2">

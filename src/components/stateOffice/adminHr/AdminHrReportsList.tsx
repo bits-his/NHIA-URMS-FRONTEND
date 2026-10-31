@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useListSearch } from "../useListSearch";
 import {
   Plus, Loader2, RefreshCw, Eye, FileText, Clock, CheckCircle2, XCircle,
 } from "lucide-react";
@@ -55,6 +56,8 @@ export default function AdminHrReportsList({
   const [formKey, setFormKey] = React.useState(0);
   const [selectedId, setSelectedId] = React.useState<number | null>(null);
   const [reports, setReports] = React.useState<Report[]>([]);
+  const { matchesSearch, searchInput } = useListSearch();
+  const filteredReports = reports.filter((r) => matchesSearch([r, monthLabel(r.reporting_month)]));
   const [loading, setLoading] = React.useState(!createOnly);
 
   const {
@@ -249,10 +252,11 @@ export default function AdminHrReportsList({
             )}
           </div>
 
+          {searchInput}
           <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden">
             <CardHeader className="pb-3 border-b border-[#d4e8dc]">
               <CardTitle className="text-sm font-bold">
-                {loading ? "Loading…" : `${reports.length} record${reports.length !== 1 ? "s" : ""}`}
+                {loading ? "Loading…" : `${filteredReports.length} record${filteredReports.length !== 1 ? "s" : ""}`}
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
@@ -260,7 +264,7 @@ export default function AdminHrReportsList({
                 <div className="flex items-center justify-center py-16 gap-3 text-slate-400">
                   <Loader2 className="w-5 h-5 animate-spin" /><span className="text-sm">Loading…</span>
                 </div>
-              ) : reports.length === 0 ? (
+              ) : filteredReports.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 gap-2 text-slate-400">
                   <FileText className="w-8 h-8 opacity-30" />
                   <p className="text-sm font-medium">{hasFilters ? "No records match your filters" : "No records yet"}</p>
@@ -286,7 +290,7 @@ export default function AdminHrReportsList({
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {reports.map((r) => {
+                      {filteredReports.map((r) => {
                         const sc = STATUS_CONFIG[r.status];
                         const summary =
                           r.title ||

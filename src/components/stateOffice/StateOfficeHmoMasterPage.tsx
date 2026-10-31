@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useListSearch } from "./useListSearch";
 import * as XLSX from "xlsx";
 import { ArrowLeft, Download, Loader2, RefreshCw, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -146,6 +147,7 @@ export default function StateOfficeHmoMasterPage({ onBack, defaultStateId, defau
     }
   }, [hmoOptions, filterHmo]);
 
+  const { matchesSearch, searchInput } = useListSearch();
   const flatRows = React.useMemo(() => {
     const rows: FlatRow[] = [];
     const hmoNeedle = filterHmo === "all" ? "" : filterHmo.trim().toLowerCase();
@@ -155,7 +157,7 @@ export default function StateOfficeHmoMasterPage({ onBack, defaultStateId, defau
       for (const hmo of group.hmos) {
         const hmoName = hmo.hmo_name || "";
         if (hmoNeedle && hmoName.trim().toLowerCase() !== hmoNeedle) continue;
-        const lines = [...hmo.lines].sort((a, b) =>
+        const lines = hmo.lines.filter((line) => matchesSearch([line, hmoName, stateName, period])).sort((a, b) =>
           String(a.facility_name || "").localeCompare(String(b.facility_name || "")),
         );
         lines.forEach((line, idx) => {
@@ -172,7 +174,7 @@ export default function StateOfficeHmoMasterPage({ onBack, defaultStateId, defau
       }
     }
     return rows;
-  }, [groups, filterHmo]);
+  }, [groups, filterHmo, matchesSearch]);
 
   const displayState = stateLocked || filterState !== "all"
     ? pickGeoLabel(dashboardStates, filterState === "all" ? (defaultStateId || "") : filterState, groups[0]?.state_name || "—")
@@ -313,6 +315,7 @@ export default function StateOfficeHmoMasterPage({ onBack, defaultStateId, defau
 
       <ScrollArea className="flex-1">
         <div className="w-full px-4 md:px-6 py-4 space-y-4 pb-16">
+          {searchInput}
           <Card className="rounded-2xl border-[#d4e8dc]">
             <CardContent className="pt-4 pb-4 space-y-3">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">

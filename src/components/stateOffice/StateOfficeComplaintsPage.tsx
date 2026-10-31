@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useListSearch } from "./useListSearch";
 import {
   ArrowLeft, Plus, RefreshCw, Loader2, Eye,
 } from "lucide-react";
@@ -60,7 +61,9 @@ export default function StateOfficeComplaintsPage({ onBack, defaultStateId, defa
   const [statusCounts, setStatusCounts] = React.useState<{ status: string; count: number }[]>([]);
   const [totalComplaints, setTotalComplaints] = React.useState(0);
   const [drilldownTitle, setDrilldownTitle] = React.useState("");
-  const [drilldownRows, setDrilldownRows] = React.useState<any[]>([]);
+  const [allDrilldownRows, setDrilldownRows] = React.useState<any[]>([]);
+  const { matchesSearch, searchInput } = useListSearch();
+  const drilldownRows = React.useMemo(() => allDrilldownRows.filter(matchesSearch), [allDrilldownRows, matchesSearch]);
   const [drilldownLoading, setDrilldownLoading] = React.useState(false);
 
   const [zones, setZones] = React.useState<any[]>([]);
@@ -176,7 +179,8 @@ export default function StateOfficeComplaintsPage({ onBack, defaultStateId, defa
           </Button>
         </div>
         <ScrollArea className="flex-1">
-          <div className="w-full px-4 md:px-6 py-4">
+          <div className="w-full px-4 md:px-6 py-4 space-y-4">
+            {searchInput}
             {drilldownLoading ? (
               <div className="flex justify-center py-16"><Loader2 className="w-5 h-5 animate-spin" /></div>
             ) : (

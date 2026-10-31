@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useListSearch } from "./useListSearch";
 import {
   Plus, Loader2, RefreshCw, Eye, ArrowLeft,
   FileText, Clock, CheckCircle2, XCircle,
@@ -323,14 +324,20 @@ export default function StateOfficeReportsList({
     }
   }, [createOnly, refreshMyDrafts]);
 
+  const { search, setSearch, matchesSearch, searchInput } = useListSearch();
   const filteredReports = React.useMemo(() => {
-    if (filterActivity === "all") return reports;
-    if (activityRows) return reports.filter((r) => activityRows.summarize(r).key === filterActivity);
+    const matching = reports.filter((r) => matchesSearch([
+      r, monthLabel(r.reporting_month),
+      activityRows?.summarize(r),
+      reportType === "enrolment" ? enrolmentLineListSummary(r.lines?.[0] ?? {}) : null,
+    ]));
+    if (filterActivity === "all") return matching;
+    if (activityRows) return matching.filter((r) => activityRows.summarize(r).key === filterActivity);
     if (reportType === "enrolment" || hasActivityTabs) {
-      return reports.filter((r) => r.lines?.[0]?.category === filterActivity);
+      return matching.filter((r) => r.lines?.[0]?.category === filterActivity);
     }
-    return reports;
-  }, [reports, reportType, filterActivity, activityRows, hasActivityTabs]);
+    return matching;
+  }, [reports, reportType, filterActivity, activityRows, hasActivityTabs, matchesSearch]);
 
   const activityTabCounts = React.useMemo(() => {
     if (!hasActivityTabs) return {} as Record<string, number>;
@@ -360,13 +367,14 @@ export default function StateOfficeReportsList({
     [reports],
   );
 
-  const hasFilters = filterYear !== "all"
+  const hasFilters = !!search.trim() || filterYear !== "all"
     || filterMonth !== "all"
     || filterStatus !== "all"
     || (!hasActivityTabs && (reportType === "enrolment" || !!activityRows) && filterActivity !== "all")
     || stateFilterActive;
 
   const clearFilters = () => {
+    setSearch("");
     setFilterYear("all");
     setFilterMonth("all");
     setFilterStatus("all");
@@ -740,6 +748,7 @@ export default function StateOfficeReportsList({
             )}
           </div>
 
+          {searchInput}
           <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden">
             <CardHeader className="pb-3 border-b border-[#d4e8dc]">
               <CardTitle className="text-sm font-bold">

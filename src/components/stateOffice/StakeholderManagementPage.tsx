@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useListSearch } from "./useListSearch";
 import {
   ArrowLeft, CheckCircle2, Clock, Eye, FileText, Loader2, Plus, RefreshCw, XCircle,
 } from "lucide-react";
@@ -48,6 +49,8 @@ export default function StakeholderManagementPage({ onBack, defaultZoneId, defau
   const [mode, setMode] = React.useState<Mode>("list");
   const [selectedId, setSelectedId] = React.useState<number | string | null>(null);
   const [reports, setReports] = React.useState<any[]>([]);
+  const { matchesSearch, searchInput } = useListSearch();
+  const filteredReports = reports.filter((r) => matchesSearch([r, monthLabel(r.reporting_month)]));
   const [loading, setLoading] = React.useState(true);
   const [filterYear, setFilterYear] = React.useState("all");
   const [filterMonth, setFilterMonth] = React.useState("all");
@@ -219,6 +222,7 @@ export default function StakeholderManagementPage({ onBack, defaultZoneId, defau
             </Select>
           </div>
 
+          {searchInput}
           <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden">
             <CardContent className="p-0">
               {loading ? (
@@ -226,7 +230,7 @@ export default function StakeholderManagementPage({ onBack, defaultZoneId, defau
                   <Loader2 className="w-5 h-5 animate-spin" />
                   <span className="text-sm">Loading reports...</span>
                 </div>
-              ) : reports.length === 0 ? (
+              ) : filteredReports.length === 0 ? (
                 <div className="py-16 text-center space-y-3">
                   <p className="text-sm text-slate-500">No stakeholder reports yet for these filters.</p>
                   {canCreate && (
@@ -253,7 +257,7 @@ export default function StakeholderManagementPage({ onBack, defaultZoneId, defau
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {reports.map((r) => {
+                      {filteredReports.map((r) => {
                         const sc = STATUS_CONFIG[r.status] ?? STATUS_CONFIG.draft;
                         const activities = r.lines?.length ?? r.planned_activities ?? 0;
                         return (

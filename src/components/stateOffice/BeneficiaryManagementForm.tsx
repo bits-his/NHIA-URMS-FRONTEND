@@ -38,6 +38,8 @@ import {
   decodeDependantRequest,
   encodeDependantProgram,
   entityLabel,
+  extraDependantProgress,
+  sameDependantPrincipal,
   packReason,
   unpackReason,
   type BeneficiaryActivityKey,
@@ -249,6 +251,7 @@ type DepEntry = {
   identity: Record<string, string>;
   relationship_kind: string;
   entity_type: string;
+  dependent: string;
   hcf: string;
   alternative_provider: string;
   request_date: string;
@@ -300,7 +303,7 @@ type MdaEntry = {
 };
 
 type Entry = DepEntry | ProviderEntry | MdaEntry;
-type Line = Entry & { _key: string };
+type Line = Entry & { _key: string; id?: string | number };
 
 const blankDep = (request: "additional" | "extra"): DepEntry => ({
   kind: "dependant",
@@ -314,6 +317,7 @@ const blankDep = (request: "additional" | "extra"): DepEntry => ({
   identity: {},
   relationship_kind: "",
   entity_type: "",
+  dependent: "",
   hcf: "",
   alternative_provider: "",
   request_date: "",
@@ -453,10 +457,13 @@ export default function BeneficiaryManagementForm({
   linesRef.current = lines;
   const activityRef = React.useRef(activity);
   activityRef.current = activity;
-  const savedIdRef = React.useRef<number | null>(null);
+  const savedIdRef = React.useRef<number | string | null>(null);
   const [principals, setPrincipals] = React.useState<PrincipalOption[]>([]);
   const [principalsError, setPrincipalsError] = React.useState("");
   const [principalsLoading, setPrincipalsLoading] = React.useState(false);
+  const [extraHistory, setExtraHistory] = React.useState<any[]>([]);
+  const [extraHistoryLoading, setExtraHistoryLoading] = React.useState(true);
+  const [extraHistoryError, setExtraHistoryError] = React.useState("");
   const [reportStatus, setReportStatus] = React.useState<"draft" | "submitted" | "approved">("draft");
   const [endorsed, setEndorsed] = React.useState(false);
   const [reviewNote, setReviewNote] = React.useState("");
@@ -481,6 +488,42 @@ export default function BeneficiaryManagementForm({
       });
     return () => { cancelled = true; };
   }, [activity]);
+
+  React.useEffect(() => {
+    if (activity !== "extra") return;
+    let cancelled = false;
+    setExtraHistoryLoading(true);
+    setExtraHistoryError("");
+    stateOfficeApi["extra-dependant"].list()
+      .then((res) => {
+        if (cancelled) return;
+        setExtraHistory((res.data ?? []).flatMap((report) =>
+          (report.lines?.length ? report.lines : [report]).map((line: any) => ({
+            ...line,
+            id: line.id || report.reference_id || report.id,
+            enrolment_reference_id: line.enrolment_reference_id || report.enrolment_reference_id,
+            nhia_number: line.nhia_number || line.principle_nhia_number || report.nhia_number,
+            dependent: line.dependent || report.dependant_entity,
+            request_kind: line.request_kind || report.request_kind || decodeDependantRequest(line.program, line.relationship),
+          })),
+        ));
+      })
+      .catch((err: { message?: string }) => {
+        if (cancelled) return;
+        setExtraHistory([]);
+        setExtraHistoryError(err?.message || "Could not load existing extra dependants. Reopen the form to retry.");
+      })
+      .finally(() => { if (!cancelled) setExtraHistoryLoading(false); });
+    return () => { cancelled = true; };
+  }, [activity]);
+
+  const currentLineIds = new Set(lines.filter((line) => line.id).map((line) => String(line.id)));
+  const extraProgress = entry.kind === "dependant" && entry.request === "extra"
+    ? extraDependantProgress(entry, [
+        ...extraHistory.filter((row) => !currentLineIds.has(String(row.id))),
+        ...lines.filter((line) => line.kind === "dependant"),
+      ])
+    : null;
 
   const apiType = activityApiType(activity ?? "extra");
   const meta = BENEFICIARY_ACTIVITIES.find((a) => a.key === activity);
@@ -535,6 +578,7 @@ export default function BeneficiaryManagementForm({
         const saved = splitSavedDocs(l.supporting_documents);
         return {
           _key: uid(),
+          id: l.id || l.reference_id || v.reference_id || v.id,
           kind: "dependant" as const,
           request: (l.request_kind as "additional" | "extra") || request,
           enrollee_name: l.enrollee_name ?? "",
@@ -548,7 +592,8 @@ export default function BeneficiaryManagementForm({
             hmo: l.hmo_name ?? saved.fields.hmo ?? "",
           },
           relationship_kind: l.relationship_kind || inferRelationship(request, l.relationship ?? l.dependant_entity ?? "", saved.fields.relationship),
-          entity_type: l.dependant_entity ?? l.relationship ?? "",
+          entity_type: l.relationship ?? l.dependant_entity ?? "",
+          dependent: l.dependent ?? "",
           hcf: l.hcf ?? saved.fields.hcf ?? "",
           alternative_provider: l.alternative_provider ?? saved.fields.alternative_provider ?? "",
           request_date: l.request_date?.slice?.(0, 10) ?? "",
@@ -665,7 +710,11 @@ export default function BeneficiaryManagementForm({
         return;
       }
       if (!entry.entity_type) {
-        toast.error("Select the dependant");
+        toast.error(entry.request === "extra" ? "Select the relationship" : "Select the dependant");
+        return;
+      }
+      if (entry.request === "extra" && !entry.dependent) {
+        toast.error("Select the dependent");
         return;
       }
     } else if (entry.kind === "provider") {
@@ -686,7 +735,7 @@ export default function BeneficiaryManagementForm({
       return;
     }
     const next = editingKey
-      ? linesRef.current.map((l) => (l._key === editingKey ? { ...entry, _key: editingKey } : l))
+      ? linesRef.current.map((l) => (l._key === editingKey ? { ...entry, id: l.id, _key: editingKey } : l))
       : [...linesRef.current, { ...entry, _key: uid() }];
     linesRef.current = next;
     setLines(next);
@@ -695,7 +744,25 @@ export default function BeneficiaryManagementForm({
     setView("register");
   };
 
-  const afterPersist = async ({ id }: { id: number }) => {
+  const afterPersist = async ({ id }: { id: number | string }) => {
+    if (apiType === "extra-dependant" && activity === "extra") {
+      const res = await stateOfficeApi["extra-dependant"].list();
+      const persisted = (res.data ?? []).flatMap((report) => report.lines?.length ? report.lines : [report]);
+      const used = new Set<string>();
+      const synced = linesRef.current.map((line) => {
+        if (line.kind !== "dependant" || line.request !== "extra") return line;
+        const match = persisted.find((row: any) =>
+          !used.has(String(row.id))
+          && (line.id ? String(row.id) === String(line.id)
+            : sameDependantPrincipal(line, row) && row.dependent === line.dependent),
+        );
+        if (!match) return line;
+        used.add(String(match.id));
+        return { ...line, id: match.id };
+      });
+      linesRef.current = synced;
+      setLines(synced);
+    }
     if (apiType === "extra-dependant") {
       const pending = linesRef.current.filter((l) => l.kind === "dependant" && l.supportingFiles.length);
       if (pending.length) {
@@ -798,9 +865,9 @@ export default function BeneficiaryManagementForm({
               nhia_number: l.principle_nhia_number,
               enrolment_reference_id: l.enrolment_reference_id || null,
               request_kind: l.request,
-              dependant_entity: l.entity_type,
+              dependant_entity: l.request === "extra" ? l.dependent : l.entity_type,
               relationship: l.entity_type,
-              relationship_kind: l.relationship_kind,
+              relationship_kind: l.request === "extra" ? l.entity_type : l.relationship_kind,
               program: encodeDependantProgram(l.request, l.program_name),
               program_name: l.program_name || null,
               request_date: l.request_date || null,
@@ -1114,13 +1181,6 @@ export default function BeneficiaryManagementForm({
                   <Card className="rounded-lg border border-[#d4e8dc] gap-0 py-0 shadow-none ring-0">
                     <CardContent className="p-4 md:p-5 space-y-1">
                       <Block title="Principal enrollee">
-                        <Field label="Enrolment type">
-                          <Input
-                            value={[entry.program_name, entry.enrolment_type].filter(Boolean).join(" · ")}
-                            readOnly
-                            placeholder="From the enrollee record"
-                          />
-                        </Field>
                         <Field label="Principal enrollee" required className="sm:col-span-2">
                           <SearchSelect
                             options={visiblePrincipals.map((p) => ({ value: p.value, label: p.label, sub: p.sub }))}
@@ -1151,21 +1211,51 @@ export default function BeneficiaryManagementForm({
                         <Field label="Principal NHIA number">
                           <Input value={entry.principle_nhia_number} readOnly placeholder="From enrolment record" />
                         </Field>
-                        <Field label="Dependant" required>
-                          <Select
-                            value={entry.entity_type || undefined}
-                            onValueChange={(v) => setEntry({
-                              ...entry,
-                              entity_type: v,
-                              relationship_kind: v.startsWith("child") ? "child" : v,
-                            })}
-                          >
-                            <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                            <SelectContent>
-                              {entityChoices.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-                            </SelectContent>
-                          </Select>
-                        </Field>
+                        <div className={entry.request === "extra" ? "sm:col-span-2 lg:col-span-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 items-end" : "contents"}>
+                          <Field label={entry.request === "extra" ? "Relationship" : "Dependant"} required>
+                            <Select
+                              value={entry.entity_type || undefined}
+                              onValueChange={(v) => setEntry({
+                                ...entry,
+                                entity_type: v,
+                                relationship_kind: v.startsWith("child") ? "child" : v,
+                              })}
+                            >
+                              <SelectTrigger displayValue={entityChoices.find((o) => o.value === entry.entity_type)?.label}>
+                                <SelectValue placeholder="Select" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {entityChoices.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                              </SelectContent>
+                            </Select>
+                          </Field>
+                          {entry.request === "extra" && (
+                            <>
+                              <Field label="Dependent" required>
+                                <Select value={entry.dependent || undefined} onValueChange={(v) => setEntry({ ...entry, dependent: v })}>
+                                  <SelectTrigger displayValue={entry.dependent ? (entry.dependent === "principal" ? "Principal" : entry.dependent.replace("dependent_", "Dependent ")) : undefined}>
+                                    <SelectValue placeholder="Select" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="principal">Principal</SelectItem>
+                                    <SelectItem value="dependent_1">Dependent 1</SelectItem>
+                                    <SelectItem value="dependent_2">Dependent 2</SelectItem>
+                                    <SelectItem value="dependent_3">Dependent 3</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </Field>
+                              {entry.enrollee_name && (
+                                <div className="sm:col-span-2 lg:col-span-1 rounded-lg border border-[#d4e8dc] bg-[#f4f7f5] px-3 py-2 text-xs leading-5 text-[#0f3d2e]" role="status">
+                                  {extraHistoryLoading ? "Loading existing extra dependants…" : extraHistoryError ? (
+                                    <span className="text-amber-700">{extraHistoryError}</span>
+                                  ) : (
+                                    <span className="font-semibold">Number of dependants: {extraProgress?.count ?? 0}</span>
+                                  )}
+                                </div>
+                              )}
+                            </>
+                          )}
+                        </div>
                       </Block>
 
                       <Block title="Identity from the enrolment record" hint="Organisation is Unemployed. HMO is inherited from the principal and cannot be edited.">

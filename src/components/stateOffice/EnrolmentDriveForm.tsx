@@ -83,7 +83,7 @@ const codeIn = (categories: readonly EnrolmentDriveCategory[], label: string) =>
 const numStr = (v: unknown) => (v != null && v !== "" ? String(Number(v)) : "");
 const numOrNull = (v: string) => (v === "" ? null : Number(v));
 
-function MultiSelectField({
+export function MultiSelectField({
   label,
   options,
   value,
@@ -147,7 +147,7 @@ function MultiSelectField({
 
   return (
     <div className={cn("space-y-1.5 md:col-span-2", className)} ref={rootRef}>
-      <Label className="text-[11px] font-semibold text-slate-600">{label}</Label>
+      {label ? <Label className="text-[11px] font-semibold text-slate-600">{label}</Label> : null}
       <button
         ref={btnRef}
         type="button"

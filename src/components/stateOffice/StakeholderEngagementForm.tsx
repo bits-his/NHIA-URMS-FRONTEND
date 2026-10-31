@@ -32,6 +32,9 @@ import {
   STAKEHOLDER_YES_NO,
   outcomeCategoriesForEngagement,
   specificOutcomesFor,
+  isValidStakeholderOutcome,
+  STAKEHOLDER_OTHER_OUTCOME_CATEGORY,
+  STAKEHOLDER_OTHER_SPECIFIC_OUTCOME,
 } from "./stakeholderTypes";
 
 function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
@@ -224,7 +227,7 @@ function StakeholderReportInformation({ header }: { header: any }) {
               className={cn(inputClass, header.lockState ? "opacity-70" : "")}
               displayValue={stateLabel}
             >
-              <SelectValue placeholder="Select when sending for review" />
+              <SelectValue placeholder="Select a state" />
             </SelectTrigger>
             <SelectContent>
               {stateOptions.map((s) => (
@@ -426,6 +429,8 @@ export default function StakeholderEngagementForm({
   const [view, setView] = React.useState<"register" | "activity">(reportId ? "register" : "activity");
   const [entry, setEntry] = React.useState<Entry>(blankEntry);
   const [draftOutcome, setDraftOutcome] = React.useState<OutcomeRow>({ outcome_category: "", specific_outcome: "" });
+  const [otherOutcomeCategory, setOtherOutcomeCategory] = React.useState("");
+  const [otherSpecificOutcome, setOtherSpecificOutcome] = React.useState("");
   const [editingKey, setEditingKey] = React.useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = React.useState<Record<string, string>>({});
   const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -434,7 +439,11 @@ export default function StakeholderEngagementForm({
   const set = <K extends keyof Entry>(k: K, v: Entry[K]) => setEntry((p) => ({ ...p, [k]: v }));
   const setFollow = <K extends keyof FollowUpDetails>(k: K, v: FollowUpDetails[K]) =>
     setEntry((p) => ({ ...p, follow_up_details: { ...p.follow_up_details, [k]: v } }));
-  const resetDraftOutcome = () => setDraftOutcome({ outcome_category: "", specific_outcome: "" });
+  const resetDraftOutcome = () => {
+    setDraftOutcome({ outcome_category: "", specific_outcome: "" });
+    setOtherOutcomeCategory("");
+    setOtherSpecificOutcome("");
+  };
 
   const isFunded = entry.funding_option === STAKEHOLDER_FUNDED;
   const needsFollowUp = entry.follow_up_required === "Yes";
@@ -453,21 +462,36 @@ export default function StakeholderEngagementForm({
       toast.error("Select outcome category and specific outcome");
       return;
     }
-    const allowed = specificOutcomesFor(entry.engagement_category, draftOutcome.outcome_category);
-    if (!allowed.includes(draftOutcome.specific_outcome)) {
+    if (draftOutcome.outcome_category === STAKEHOLDER_OTHER_OUTCOME_CATEGORY && !otherOutcomeCategory.trim()) {
+      toast.error("Please specify the outcome category");
+      return;
+    }
+    if (draftOutcome.specific_outcome === STAKEHOLDER_OTHER_SPECIFIC_OUTCOME && !otherSpecificOutcome.trim()) {
+      toast.error("Please specify the activity outcome");
+      return;
+    }
+    const outcome = {
+      outcome_category: draftOutcome.outcome_category === STAKEHOLDER_OTHER_OUTCOME_CATEGORY
+        ? `${STAKEHOLDER_OTHER_OUTCOME_CATEGORY}: ${otherOutcomeCategory.trim()}`
+        : draftOutcome.outcome_category,
+      specific_outcome: draftOutcome.specific_outcome === STAKEHOLDER_OTHER_SPECIFIC_OUTCOME
+        ? `${STAKEHOLDER_OTHER_SPECIFIC_OUTCOME}: ${otherSpecificOutcome.trim()}`
+        : draftOutcome.specific_outcome,
+    };
+    if (!isValidStakeholderOutcome(entry.engagement_category, outcome.outcome_category, outcome.specific_outcome)) {
       toast.error("Outcome combination is not valid for this engagement category");
       return;
     }
     const dup = entry.outcomes.some(
       (o) =>
-        o.outcome_category === draftOutcome.outcome_category
-        && o.specific_outcome === draftOutcome.specific_outcome,
+        o.outcome_category === outcome.outcome_category
+        && o.specific_outcome === outcome.specific_outcome,
     );
     if (dup) {
       toast.error("This outcome is already in the table");
       return;
     }
-    setEntry((p) => ({ ...p, outcomes: [...p.outcomes, { ...draftOutcome }] }));
+    setEntry((p) => ({ ...p, outcomes: [...p.outcomes, outcome] }));
     resetDraftOutcome();
     setFieldErrors((e) => {
       const { outcomes: _, ...rest } = e;
@@ -528,8 +552,7 @@ export default function StakeholderEngagementForm({
 
     if (!e.outcomes.length) return fail("outcomes", "Add at least one outcome to the table");
     for (const o of e.outcomes) {
-      const allowed = specificOutcomesFor(e.engagement_category, o.outcome_category);
-      if (!allowed.includes(o.specific_outcome)) {
+      if (!isValidStakeholderOutcome(e.engagement_category, o.outcome_category, o.specific_outcome)) {
         return fail("outcomes", "Outcome combination is not valid for this engagement category");
       }
     }
@@ -912,7 +935,7 @@ export default function StakeholderEngagementForm({
                   options={STAKEHOLDER_CATEGORIES}
                   value={entry.stakeholder_categories}
                   onChange={(v) => set("stakeholder_categories", v)}
-                  placeholder="Allow selection of multiple stakeholders"
+                  placeholder="Select stakeholders"
                 />
                 {fieldErrors.stakeholder_categories && (
                   <p className="text-[11px] font-medium text-rose-600 sm:col-span-3 -mt-1">{fieldErrors.stakeholder_categories}</p>
@@ -934,14 +957,14 @@ export default function StakeholderEngagementForm({
                   options={STAKEHOLDER_TARGET_AUDIENCES}
                   value={entry.target_audience_reached}
                   onChange={(v) => set("target_audience_reached", v)}
-                  placeholder="Select multiple audiences"
+                  placeholder="Select audiences reached"
                 />
                 <MultiSelectField
                   label="Programme supported"
                   options={STAKEHOLDER_PROGRAMS.map((p) => p.label)}
                   value={entry.programs_supported}
                   onChange={(v) => set("programs_supported", v)}
-                  placeholder="Select multiple programmes"
+                  placeholder="Select programmes supported"
                 />
                 <Field label="Location category">
                   <Select
@@ -965,7 +988,7 @@ export default function StakeholderEngagementForm({
                     disabled={!entry.location_category || locationNames.length === 0}
                   >
                     <SelectTrigger className={inputClass}>
-                      <SelectValue placeholder={!entry.location_category ? "Depends on category" : "Select"} />
+                      <SelectValue placeholder={!entry.location_category ? "Select a location category first" : "Select a location"} />
                     </SelectTrigger>
                     <SelectContent>
                       {locationNames.map((n) => (
@@ -981,47 +1004,91 @@ export default function StakeholderEngagementForm({
 
               {/* Outcome mapping: one pair of inputs → Add to table → clear & fill again */}
               <FormSection title="Outcome and Evidence">
-                <Field label="Outcome category" required>
-                  <Select
-                    value={draftOutcome.outcome_category}
-                    onValueChange={(v) => setDraftOutcome({ outcome_category: v, specific_outcome: "" })}
-                    disabled={!entry.engagement_category}
-                  >
-                    <SelectTrigger className={inputClass}>
-                      <SelectValue placeholder={!entry.engagement_category ? "Select engagement category first" : "Select"} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {outcomeCats.map((c) => (
-                        <SelectItem key={c} value={c}>{c}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Field>
-                <Field label="Specific activity outcome" required>
-                  <Select
-                    value={draftOutcome.specific_outcome}
-                    onValueChange={(v) => setDraftOutcome((d) => ({ ...d, specific_outcome: v }))}
-                    disabled={!draftOutcome.outcome_category}
-                  >
-                    <SelectTrigger className={inputClass}>
-                      <SelectValue placeholder={!draftOutcome.outcome_category ? "Filtered by outcome category" : "Select"} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {draftSpecifics.map((s) => (
-                        <SelectItem key={s} value={s}>{s}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Field>
-                <div className="flex items-end">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full gap-2 border-[#1a7a52] text-[#0f3d2e] hover:bg-[#eef6f1]"
-                    onClick={addOutcomeToTable}
-                  >
-                    <Plus className="w-4 h-4" /> Add Outcome
-                  </Button>
+                <div className="sm:col-span-2 lg:col-span-3 space-y-4">
+                  <div className="grid gap-4 md:grid-cols-2 items-start">
+                    <Field
+                      label="Outcome category"
+                      required
+                      className={draftOutcome.specific_outcome === STAKEHOLDER_OTHER_SPECIFIC_OUTCOME && draftOutcome.outcome_category !== STAKEHOLDER_OTHER_OUTCOME_CATEGORY ? "md:col-span-2" : undefined}
+                    >
+                      <Select
+                        value={draftOutcome.outcome_category}
+                        onValueChange={(v) => {
+                          setDraftOutcome({ outcome_category: v, specific_outcome: "" });
+                          setOtherOutcomeCategory("");
+                          setOtherSpecificOutcome("");
+                        }}
+                        disabled={!entry.engagement_category}
+                      >
+                        <SelectTrigger className={inputClass}>
+                          <SelectValue placeholder={!entry.engagement_category ? "Select an engagement category first" : "Select an outcome category"} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {outcomeCats.map((c) => (
+                            <SelectItem key={c} value={c}>{c}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </Field>
+                    {draftOutcome.outcome_category === STAKEHOLDER_OTHER_OUTCOME_CATEGORY && (
+                      <Field label="Specify outcome category" required>
+                        <Input
+                          className={inputClass}
+                          aria-label="Specify outcome category"
+                          placeholder="Please specify outcome category"
+                          value={otherOutcomeCategory}
+                          maxLength={160 - `${STAKEHOLDER_OTHER_OUTCOME_CATEGORY}: `.length}
+                          onChange={(e) => setOtherOutcomeCategory(e.target.value)}
+                          required
+                        />
+                      </Field>
+                    )}
+                    <Field
+                      label="Specific activity outcome"
+                      required
+                      className={draftOutcome.outcome_category === STAKEHOLDER_OTHER_OUTCOME_CATEGORY && draftOutcome.specific_outcome !== STAKEHOLDER_OTHER_SPECIFIC_OUTCOME ? "md:col-span-2" : undefined}
+                    >
+                      <Select
+                        value={draftOutcome.specific_outcome}
+                        onValueChange={(v) => {
+                          setDraftOutcome((d) => ({ ...d, specific_outcome: v }));
+                          setOtherSpecificOutcome("");
+                        }}
+                        disabled={!draftOutcome.outcome_category}
+                      >
+                        <SelectTrigger className={inputClass}>
+                          <SelectValue placeholder={!draftOutcome.outcome_category ? "Select an outcome category first" : "Select an outcome"} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {draftSpecifics.map((s) => (
+                            <SelectItem key={s} value={s}>{s}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </Field>
+                    {draftOutcome.specific_outcome === STAKEHOLDER_OTHER_SPECIFIC_OUTCOME && (
+                      <Field label="Specify activity outcome" required>
+                        <Input
+                          className={inputClass}
+                          aria-label="Specify activity outcome"
+                          placeholder="Please specify activity outcome"
+                          value={otherSpecificOutcome}
+                          maxLength={200 - `${STAKEHOLDER_OTHER_SPECIFIC_OUTCOME}: `.length}
+                          onChange={(e) => setOtherSpecificOutcome(e.target.value)}
+                          required
+                        />
+                      </Field>
+                    )}
+                  </div>
+                  <div className="flex justify-end border-t border-[#d4e8dc] pt-3">
+                    <Button
+                      type="button"
+                      className="w-full sm:w-auto gap-2 bg-[#145c3f] text-white hover:bg-[#0f3d2e] px-5"
+                      onClick={addOutcomeToTable}
+                    >
+                      <Plus className="w-4 h-4" /> Add Outcome
+                    </Button>
+                  </div>
                 </div>
 
                 {entry.outcomes.length > 0 && (
@@ -1156,7 +1223,7 @@ export default function StakeholderEngagementForm({
                     </Field>
                     <Field label="Follow-up status" required error={fieldErrors.follow_up_status}>
                       <Select value={entry.follow_up_details.status} onValueChange={(v) => setFollow("status", v)}>
-                        <SelectTrigger className={inputClass}><SelectValue placeholder="Not started" /></SelectTrigger>
+                        <SelectTrigger className={inputClass}><SelectValue placeholder="Select follow-up status" /></SelectTrigger>
                         <SelectContent>
                           {STAKEHOLDER_FOLLOW_UP_STATUSES.map((o) => (
                             <SelectItem key={o} value={o}>{o}</SelectItem>

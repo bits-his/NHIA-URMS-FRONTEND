@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useListSearch } from "./useListSearch";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft, ArrowRightLeft, Building2, CheckCircle2, Clock, Eye, FileText,
@@ -200,9 +201,11 @@ export default function BeneficiaryManagementPage({ onBack, defaultZoneId, defau
     return map;
   }, [statusFiltered]);
 
+  const { matchesSearch, searchInput } = useListSearch();
   const filtered = React.useMemo(
-    () => statusFiltered.filter((row) => beneficiaryTabMatches(beneficiaryListSummary(row).key, activeTab)),
-    [statusFiltered, activeTab],
+    () => statusFiltered.filter((row) => beneficiaryTabMatches(beneficiaryListSummary(row).key, activeTab)
+      && matchesSearch([row, beneficiaryListSummary(row), monthLabel(row.reporting_month)])),
+    [statusFiltered, activeTab, matchesSearch],
   );
 
   const yearOptions = React.useMemo(
@@ -418,6 +421,7 @@ export default function BeneficiaryManagementPage({ onBack, defaultZoneId, defau
             )}
           </div>
 
+          {searchInput}
           <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden">
             <CardContent className="p-0">
               {loading ? (

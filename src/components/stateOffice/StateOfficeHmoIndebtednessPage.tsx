@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useListSearch } from "./useListSearch";
 import {
   ArrowLeft, Plus, Eye, Pencil, RefreshCw, Loader2, Save, Trash2, Wallet,
   ChevronDown, ChevronRight,
@@ -132,6 +133,7 @@ export default function StateOfficeHmoIndebtednessPage({ onBack, defaultStateId,
     stockApi.getStates(zoneId).then((r) => setStates(r.data)).catch(() => setStates([]));
   }, [zoneId]);
 
+  const { matchesSearch, searchInput } = useListSearch();
   const hmoRows = React.useMemo(() => {
     const map = new Map<string, {
       key: string;
@@ -180,10 +182,10 @@ export default function StateOfficeHmoIndebtednessPage({ onBack, defaultStateId,
         }
       }
     }
-    return Array.from(map.values()).sort((a, b) =>
+    return Array.from(map.values()).filter(matchesSearch).sort((a, b) =>
       a.stateName.localeCompare(b.stateName) || a.name.localeCompare(b.name),
     );
-  }, [rows]);
+  }, [rows, matchesSearch]);
 
   const sheetTotal = lines.reduce((s, l) => s + lineTotal(l), 0);
 
@@ -837,6 +839,7 @@ export default function StateOfficeHmoIndebtednessPage({ onBack, defaultStateId,
             </CardContent>
           </Card>
 
+          {searchInput}
           <Card className="rounded-2xl border-[#d4e8dc] overflow-hidden">
             <CardHeader className="pb-3 border-b">
               <CardTitle className="text-sm font-bold flex items-center gap-2">

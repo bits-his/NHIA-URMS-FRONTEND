@@ -8,6 +8,25 @@ export const ENROLMENT_DRIVES_NAV_TITLE = "Enrolment Drives";
 export const ENROLMENT_DRIVES_VIEW = "state-enrolment-drives";
 export const ENROLMENT_DRIVES_PATH = "/zonal/enrolment-drives";
 
+export function hasPendingDriveActivity(activity: Record<string, unknown>) {
+  const metadata = ["revision", "enrolment_count", "new_enrolments", "evidence", "enrolment_records"];
+  return Object.entries(activity).some(([key, value]) => !metadata.includes(key) && (Array.isArray(value) ? value.length > 0 : typeof value === "string" ? value.trim() !== "" : value != null));
+}
+
+export function shouldOpenDriveActivityForm(batch: { status: string; activities?: readonly unknown[] }, step = 1) {
+  return step === 1 && ["draft", "returned"].includes(batch.status);
+}
+
+export function driveReportingMonth(year: string | number, month: string | number) {
+  return /^\d{4}$/.test(String(year)) && Number.isInteger(Number(month)) && Number(month) >= 1 && Number(month) <= 12
+    ? `${year}-${String(Number(month)).padStart(2, "0")}` : "";
+}
+
+export function driveReportingPeriod(value: string) {
+  const [year, month] = /^\d{4}-(0[1-9]|1[0-2])$/.test(value) ? value.split("-") : ["", ""];
+  return { reporting_year: year, reporting_month: month ? String(Number(month)) : "" };
+}
+
 export type EnrolmentDriveCategory = { code: string; label: string };
 
 /** Enrolment Drive IDs from the "Enrolment Drive drop-down List" sheet */

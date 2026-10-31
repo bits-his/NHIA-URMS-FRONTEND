@@ -168,15 +168,11 @@ export const ENROLMENT_SSHIA_CHANNELS = [
 
 export const ENROLMENT_PROGRAMS = [
   { code: "PRG-0001", label: "FSSHIP" },
-  { code: "PRG-0002", label: "BHCPF" },
   { code: "PRG-0003", label: "OPS" },
-  { code: "PRG-0004", label: "TISHIP" },
   { code: "PRG-0005", label: "GIFSHIP-G", renewable: true },
-  { code: "PRG-0006", label: "GIFSHIP-N" },
   { code: "PRG-0007", label: "GIFSHIP-C", renewable: true },
   { code: "PRG-0008", label: "GIFSHIP-R", renewable: true },
   { code: "PRG-0009", label: "CBSHIP" },
-  { code: "PRG-0010", label: "Equity Programs" },
 ] as const;
 
 export const ENROLMENT_RENEWABLE_PROGRAM_LABELS = new Set<string>(
@@ -235,7 +231,7 @@ export const ENROLMENT_EVIDENCE_TYPES = [
 export const ENROLMENT_STATUS_NEEDS_REASON = new Set(["Not Conducted", "Cancelled"]);
 
 export const ENROLMENT_ENTITY_TYPES = [
-  "Principal", "Spouse", "Child 1", "Child 2", "Child 3", "Child 4",
+  "Spouse", "Child 1", "Child 2", "Child 3", "Child 4",
 ] as const;
 
 export const ENROLMENT_BLOOD_GROUPS = [
