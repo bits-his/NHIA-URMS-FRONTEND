@@ -1,32 +1,31 @@
 import * as React from "react";
+import { useSearchParams } from "react-router-dom";
+import { ColumnDef } from "@tanstack/react-table";
 import {
   ArrowLeft,
   Building2,
   Home,
   Wrench,
   Users,
-  Save,
-  Send,
   Plus,
   Eye,
   Pencil,
   Trash2,
   RefreshCw,
-  Search,
-  Loader2,
-  CheckCircle2,
-  Clock,
-  FileText,
+  MoreHorizontal,
   type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   stateZonalOfficeProfileApi,
   stockApi,
@@ -40,6 +39,13 @@ import OfficeAccommodationTab from "./OfficeAccommodationTab";
 import UtilityServicesTab from "./UtilityServicesTab";
 import FocalPersonsTab from "./FocalPersonsTab";
 import OfficeProfileDetailView from "./OfficeProfileDetailView";
+import { ShadcnDataTable } from "@/components/common/ShadcnDataTable";
+import {
+  SolvixStatCards,
+  SolvixStatusPill,
+  type SolvixStatItem,
+} from "@/components/common/SolvixStatCards";
+import { SolvixFilterBar } from "@/components/common/SolvixFilterBar";
 
 interface Props {
   onBack?: () => void;
@@ -52,20 +58,52 @@ type TabKey = "general" | "accommodation" | "utilities" | "focal_persons";
 type Mode = "list" | "view" | "edit" | "new";
 type Geo = { id: number; description: string; code?: string; zonal_id?: number };
 
-const TAB_CONFIG: { key: TabKey; label: string; icon: LucideIcon; newLabel: string }[] = [
-  { key: "general", label: "General Information", icon: Building2, newLabel: "New Profile" },
-  { key: "accommodation", label: "Office Accommodation", icon: Home, newLabel: "New Accommodation" },
-  { key: "utilities", label: "Utility Services", icon: Wrench, newLabel: "New Utility Claim" },
-  { key: "focal_persons", label: "Focal Persons Register", icon: Users, newLabel: "Appoint Officer" },
+const TAB_CONFIG: {
+  key: TabKey;
+  label: string;
+  icon: LucideIcon;
+  newLabel: string;
+  formTitle: string;
+  tableTitle: string;
+  infoTooltip: string;
+}[] = [
+  {
+    key: "general",
+    label: "General Information",
+    icon: Building2,
+    newLabel: "New Profile",
+    formTitle: "General Information",
+    tableTitle: "OFFICE PROFILES REGISTER",
+    infoTooltip: "Official NHIA State & Zonal office profiles, coordinators, and statutory budgets.",
+  },
+  {
+    key: "accommodation",
+    label: "Office Accommodation",
+    icon: Home,
+    newLabel: "New Accommodation",
+    formTitle: "Office Accommodation",
+    tableTitle: "ACCOMMODATION PORTFOLIO",
+    infoTooltip: "Nationwide state and zonal office accommodation registry, leases, and facility conditions.",
+  },
+  {
+    key: "utilities",
+    label: "Utility Services",
+    icon: Wrench,
+    newLabel: "New Utility Claim",
+    formTitle: "Utility Services",
+    tableTitle: "UTILITY SERVICE CLAIMS",
+    infoTooltip: "Recurrent utilities, service contractors, billed liabilities, and finance clearances.",
+  },
+  {
+    key: "focal_persons",
+    label: "Focal Persons Register",
+    icon: Users,
+    newLabel: "Appoint Officer",
+    formTitle: "Focal Persons Register",
+    tableTitle: "FOCAL PERSONS REGISTER",
+    infoTooltip: "Designated state officers managing operational domains and institutional communications.",
+  },
 ];
-
-const STATUS_CONFIG: Record<string, { label: string; cls: string; icon: React.ReactNode }> = {
-  draft: { label: "Draft", cls: "bg-slate-100 text-slate-700 border-slate-200", icon: <FileText className="w-3.5 h-3.5" /> },
-  submitted: { label: "In Review", cls: "bg-amber-100 text-amber-800 border-amber-200", icon: <Clock className="w-3.5 h-3.5" /> },
-  endorsed: { label: "Endorsed", cls: "bg-teal-100 text-teal-800 border-teal-200", icon: <CheckCircle2 className="w-3.5 h-3.5" /> },
-  approved: { label: "Approved", cls: "bg-emerald-100 text-emerald-800 border-emerald-200", icon: <CheckCircle2 className="w-3.5 h-3.5" /> },
-  returned: { label: "Returned", cls: "bg-rose-100 text-rose-800 border-rose-200", icon: <FileText className="w-3.5 h-3.5" /> },
-};
 
 export default function OfficeProfileWorkspace({
   onBack,
@@ -73,20 +111,42 @@ export default function OfficeProfileWorkspace({
   defaultZoneId,
   userRole = "",
 }: Props) {
-  const [activeTab, setActiveTab] = React.useState<TabKey>("general");
-  const [mode, setMode] = React.useState<Mode>("list");
-  const [selectedItem, setSelectedItem] = React.useState<any | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  const [year, setYear] = React.useState<string>("all");
+  // URL query parameter synchronization
+  const activeTab = (searchParams.get("tab") as TabKey) || "general";
+  const mode = (searchParams.get("mode") as Mode) || "list";
+  const recordIdParam = searchParams.get("id");
+  const year = searchParams.get("year") || "all";
+  const selectedZoneId = searchParams.get("zone") || defaultZoneId || "all";
+  const selectedStateId = searchParams.get("state") || defaultStateId || "all";
+  const searchQuery = searchParams.get("q") || "";
+  const [currentSort, setCurrentSort] = React.useState<string>("newest");
+
+  // Helper to update query parameters cleanly
+  const updateQueryParams = React.useCallback(
+    (updates: Record<string, string | number | null | undefined>) => {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        Object.entries(updates).forEach(([k, v]) => {
+          if (v === null || v === undefined || v === "" || v === "all") {
+            next.delete(k);
+          } else {
+            next.set(k, String(v));
+          }
+        });
+        return next;
+      });
+    },
+    [setSearchParams]
+  );
+
   const [loading, setLoading] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
-  const [searchQuery, setSearchQuery] = React.useState("");
 
   // Geo options
   const [zones, setZones] = React.useState<Geo[]>([]);
   const [states, setStates] = React.useState<Geo[]>([]);
-  const [selectedZoneId, setSelectedZoneId] = React.useState<string>(defaultZoneId || "all");
-  const [selectedStateId, setSelectedStateId] = React.useState<string>(defaultStateId || "all");
 
   // Tab Data Lists
   const [profiles, setProfiles] = React.useState<any[]>([]);
@@ -97,9 +157,6 @@ export default function OfficeProfileWorkspace({
   // Profile Form state when creating/editing
   const [profileForm, setProfileForm] = React.useState<any>(null);
   const [selectedFile, setSelectedFile] = React.useState<File | null>(null);
-
-  const isZonalCoordinator =
-    userRole.includes("zonal") || userRole.includes("zc") || userRole === "admin";
 
   // Load Geo options
   React.useEffect(() => {
@@ -158,14 +215,11 @@ export default function OfficeProfileWorkspace({
 
   // Handle Tab Switch
   const handleTabChange = (key: TabKey) => {
-    setActiveTab(key);
-    setMode("list");
-    setSelectedItem(null);
+    updateQueryParams({ tab: key, mode: "list", id: null, q: null });
   };
 
   // Open Form for New Entry
   const handleOpenCreate = () => {
-    setSelectedItem(null);
     if (activeTab === "general") {
       setProfileForm({
         reporting_year: year !== "all" ? Number(year) : new Date().getFullYear(),
@@ -183,30 +237,51 @@ export default function OfficeProfileWorkspace({
         status: "draft",
       });
     }
-    setMode("new");
+    updateQueryParams({ mode: "new", id: null });
   };
 
   // Open View Mode
   const handleViewItem = (item: any) => {
-    setSelectedItem(item);
-    setMode("view");
+    updateQueryParams({ mode: "view", id: String(item.id || item.reference_id) });
   };
 
   // Open Edit Mode
   const handleEditItem = (item?: any) => {
     const target = item || selectedItem;
-    setSelectedItem(target);
-    if (activeTab === "general") {
+    if (activeTab === "general" && target) {
       setProfileForm(target);
     }
-    setMode("edit");
+    updateQueryParams({
+      mode: "edit",
+      id: target ? String(target.id || target.reference_id) : null,
+    });
   };
 
   // Return to List View
   const handleBackToList = () => {
-    setMode("list");
-    setSelectedItem(null);
+    updateQueryParams({ mode: "list", id: null });
     setSelectedFile(null);
+  };
+
+  // Delete item from list view
+  const handleDeleteItem = async (row: any, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm("Are you sure you want to delete this record?")) return;
+    try {
+      if (activeTab === "accommodation") {
+        await officeAccommodationApi.delete(row.id);
+      } else if (activeTab === "focal_persons") {
+        await stateZonalFocalPersonApi.delete(row.id);
+      } else if (activeTab === "utilities") {
+        await utilityServiceReportApi.delete(row.id);
+      } else if (activeTab === "general") {
+        await stateZonalOfficeProfileApi.delete(row.id);
+      }
+      toast.success("Record deleted");
+      await loadData();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to delete record");
+    }
   };
 
   // Save General Profile
@@ -251,41 +326,10 @@ export default function OfficeProfileWorkspace({
     return isNaN(n) ? "—" : `₦${n.toLocaleString("en-NG", { minimumFractionDigits: 2 })}`;
   };
 
-  // Filtered rows per active tab
-  const getFilteredData = () => {
-    let rows: any[] = [];
-    if (activeTab === "general") rows = profiles;
-    else if (activeTab === "accommodation") rows = accommodations;
-    else if (activeTab === "utilities") rows = utilities;
-    else if (activeTab === "focal_persons") rows = focalPersons;
-
-    if (!searchQuery.trim()) return rows;
-    const q = searchQuery.toLowerCase();
-    return rows.filter((r) => {
-      const stateName = r.state?.description?.toLowerCase() || "";
-      const zoneName = r.zone?.description?.toLowerCase() || "";
-      const coord = r.coordinator_name?.toLowerCase() || "";
-      const officer = r.officer_name?.toLowerCase() || "";
-      const contractor = r.contractor_name?.toLowerCase() || "";
-      const domain = r.domain?.toLowerCase() || "";
-      const refId = r.reference_id?.toLowerCase() || "";
-      return (
-        stateName.includes(q) ||
-        zoneName.includes(q) ||
-        coord.includes(q) ||
-        officer.includes(q) ||
-        contractor.includes(q) ||
-        domain.includes(q) ||
-        refId.includes(q)
-      );
-    });
-  };
-
-  const filteredData = getFilteredData();
   const currentTabCfg = TAB_CONFIG.find((t) => t.key === activeTab)!;
   const yearOptions = buildReportingYearOptions();
 
-  // Exactly 3 clean, compact stat cards matching Beneficiary Management
+  // Active dataset
   const currentList =
     activeTab === "general"
       ? profiles
@@ -295,73 +339,597 @@ export default function OfficeProfileWorkspace({
       ? utilities
       : focalPersons;
 
-  const totalCount = currentList.length;
-  const pendingCount = currentList.filter(
-    (r) => r.status === "draft" || r.status === "submitted" || !r.status
-  ).length;
-  const approvedCount = currentList.filter(
-    (r) => r.status === "approved" || r.status === "endorsed"
-  ).length;
+  // Selected item resolved from URL id param
+  const selectedItem = React.useMemo(() => {
+    if (!recordIdParam) return null;
+    return (
+      currentList.find(
+        (r) => String(r.id || r.reference_id) === String(recordIdParam)
+      ) || null
+    );
+  }, [recordIdParam, currentList]);
 
-  const statCards = [
-    { label: "Total Registered", value: totalCount, tone: "text-[#0f3d2e] bg-white border-[#d4e8dc]" },
-    { label: "Draft / In Review", value: pendingCount, tone: "text-amber-800 bg-amber-50/80 border-amber-200" },
-    { label: "Approved / Active", value: approvedCount, tone: "text-emerald-700 bg-emerald-50/80 border-emerald-200" },
+  // Filtered rows for ShadcnDataTable
+  const filteredData = React.useMemo(() => {
+    let list = currentList;
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      list = list.filter((r) => {
+        const stateName = r.state?.description?.toLowerCase() || "";
+        const zoneName = r.zone?.description?.toLowerCase() || "";
+        const coord = r.coordinator_name?.toLowerCase() || "";
+        const officer = r.officer_name?.toLowerCase() || "";
+        const contractor = r.contractor_name?.toLowerCase() || "";
+        const domain = r.domain?.toLowerCase() || "";
+        const refId = r.reference_id?.toLowerCase() || "";
+        return (
+          stateName.includes(q) ||
+          zoneName.includes(q) ||
+          coord.includes(q) ||
+          officer.includes(q) ||
+          contractor.includes(q) ||
+          domain.includes(q) ||
+          refId.includes(q)
+        );
+      });
+    }
+
+    // Sort order
+    if (currentSort === "oldest") {
+      return [...list].reverse();
+    }
+    if (currentSort === "state_asc") {
+      return [...list].sort((a, b) => {
+        const aName = a.state?.description || a.state_code || "";
+        const bName = b.state?.description || b.state_code || "";
+        return aName.localeCompare(bName);
+      });
+    }
+    if (currentSort === "amount_desc") {
+      return [...list].sort((a, b) => {
+        const aVal = Number(a.annual_budget || a.rent_amount || a.amount_claimed || 0);
+        const bVal = Number(b.annual_budget || b.rent_amount || b.amount_claimed || 0);
+        return bVal - aVal;
+      });
+    }
+    return list;
+  }, [currentList, searchQuery, currentSort]);
+
+  // 4 Solvix KPI summary metrics matching media_1793556856351_c64fb296.jpg
+  const solvixStatItems = React.useMemo<SolvixStatItem[]>(() => {
+    if (activeTab === "general") {
+      const totalBudget = profiles.reduce(
+        (sum, p) => sum + (Number(p.annual_budget) || 0),
+        0
+      );
+      const totalStaff = profiles.reduce(
+        (sum, p) => sum + (p.staff_members?.length || Number(p.staff_strength) || 0),
+        0
+      );
+      const endorsedCount = profiles.filter(
+        (p) => p.status === "approved" || p.status === "endorsed"
+      ).length;
+      const complianceRate =
+        profiles.length > 0 ? Math.round((endorsedCount / profiles.length) * 100) : 0;
+
+      return [
+        {
+          label: "TOTAL STATE PROFILES",
+          value: profiles.length,
+          trendValue: `${profiles.length} registered`,
+          trendLabel: "active state records",
+          trendColor: "emerald",
+          sparklineVariant: "teal",
+        },
+        {
+          label: "TOTAL ANNUAL BUDGET",
+          value: totalBudget > 0 ? formatCurrency(totalBudget) : "₦0.00",
+          trendValue: "+12.4%",
+          trendLabel: "statutory state funding",
+          trendColor: "emerald",
+          sparklineVariant: "emerald",
+        },
+        {
+          label: "TOTAL WORKFORCE",
+          value: totalStaff,
+          trendValue: `${totalStaff} personnel`,
+          trendLabel: "verified NHIA officers",
+          trendColor: "sky",
+          sparklineVariant: "sky",
+        },
+        {
+          label: "COMPLIANCE RATE",
+          value: `${complianceRate}%`,
+          trendValue: `${endorsedCount} endorsed`,
+          trendLabel: "zonal directorate verified",
+          trendColor: complianceRate >= 80 ? "emerald" : "amber",
+          sparklineVariant: "indigo",
+        },
+      ];
+    }
+
+    if (activeTab === "accommodation") {
+      const totalRent = accommodations.reduce(
+        (sum, a) => sum + (Number(a.rent_amount) || 0),
+        0
+      );
+      const goodCount = accommodations.filter(
+        (a) => a.current_condition === "Good"
+      ).length;
+      const goodPct =
+        accommodations.length > 0
+          ? Math.round((goodCount / accommodations.length) * 100)
+          : 0;
+      const rentedCount = accommodations.filter(
+        (a) => (a.ownership_status || "").toLowerCase() === "rented"
+      ).length;
+
+      return [
+        {
+          label: "ACCOMMODATION PORTFOLIO",
+          value: accommodations.length,
+          trendValue: `${accommodations.length} offices`,
+          trendLabel: "facilities mapped nationwide",
+          trendColor: "emerald",
+          sparklineVariant: "teal",
+        },
+        {
+          label: "ANNUAL LEASE EXPENDITURE",
+          value: totalRent > 0 ? formatCurrency(totalRent) : "₦0.00",
+          trendValue: "₦ commitment",
+          trendLabel: "annual rent liability",
+          trendColor: "emerald",
+          sparklineVariant: "emerald",
+        },
+        {
+          label: "FACILITY CONDITION",
+          value: `${goodPct}%`,
+          trendValue: `${goodCount} Good`,
+          trendLabel: "verified operational status",
+          trendColor: goodPct >= 70 ? "emerald" : "amber",
+          sparklineVariant: "sky",
+        },
+        {
+          label: "COMMERCIAL LEASES",
+          value: rentedCount,
+          trendValue: `${rentedCount} rented`,
+          trendLabel: "active lease agreements",
+          trendColor: "indigo",
+          sparklineVariant: "indigo",
+        },
+      ];
+    }
+
+    if (activeTab === "utilities") {
+      const totalClaimed = utilities.reduce(
+        (sum, u) => sum + (Number(u.amount_claimed) || 0),
+        0
+      );
+      const approvedCount = utilities.filter(
+        (u) => u.status === "approved" || u.status === "endorsed"
+      ).length;
+      const approvedPct =
+        utilities.length > 0
+          ? Math.round((approvedCount / utilities.length) * 100)
+          : 0;
+      const pendingCount = utilities.filter(
+        (u) => u.status === "submitted" || u.status === "draft" || !u.status
+      ).length;
+
+      return [
+        {
+          label: "UTILITY SERVICE CLAIMS",
+          value: utilities.length,
+          trendValue: `${utilities.length} claims`,
+          trendLabel: "routine utility submissions",
+          trendColor: "emerald",
+          sparklineVariant: "teal",
+        },
+        {
+          label: "TOTAL CLAIMED AMOUNT",
+          value: totalClaimed > 0 ? formatCurrency(totalClaimed) : "₦0.00",
+          trendValue: "₦ liability",
+          trendLabel: "operational service costs",
+          trendColor: "emerald",
+          sparklineVariant: "emerald",
+        },
+        {
+          label: "SETTLED / APPROVED",
+          value: `${approvedPct}%`,
+          trendValue: `${approvedCount} approved`,
+          trendLabel: "cleared by finance",
+          trendColor: approvedPct >= 75 ? "emerald" : "sky",
+          sparklineVariant: "sky",
+        },
+        {
+          label: "CLAIMS IN REVIEW",
+          value: pendingCount,
+          trendValue: `${pendingCount} pending`,
+          trendLabel: "awaiting audit clearance",
+          trendColor: pendingCount > 0 ? "amber" : "emerald",
+          sparklineVariant: "indigo",
+        },
+      ];
+    }
+
+    return [];
+  }, [activeTab, profiles, accommodations, utilities]);
+
+  // Accommodation Columns matching Solvix Table (media_1793556834379_9ddcebf0.jpg)
+  const accommodationColumns: ColumnDef<any>[] = [
+    {
+      id: "code",
+      header: "Record ID",
+      cell: ({ row }) => (
+        <span className="font-mono text-slate-400 font-medium text-xs">
+          #{row.original.reference_id || `ACC-${String(row.original.id || row.index + 1).padStart(4, "0")}`}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "state.description",
+      header: "State Office",
+      cell: ({ row }) => {
+        const stateName =
+          row.original.state?.description ||
+          states.find((s) => String(s.id) === String(row.original.state_id))?.description ||
+          row.original.state_code ||
+          "State Office";
+        return (
+          <div className="flex items-center gap-2">
+            <div className="size-6 rounded-full bg-[#007a8c]/10 text-[#007a8c] flex items-center justify-center text-[10px] font-bold shrink-0">
+              {stateName.slice(0, 2).toUpperCase()}
+            </div>
+            <span className="font-semibold text-slate-900">{stateName}</span>
+          </div>
+        );
+      },
+    },
+    {
+      accessorKey: "ownership_status",
+      header: "Office Type",
+      cell: ({ row }) => (
+        <span className="text-slate-600 font-medium capitalize">
+          {row.original.ownership_status || "—"}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "current_condition",
+      header: "Status",
+      cell: ({ row }) => (
+        <SolvixStatusPill status={row.original.current_condition || "Good"} />
+      ),
+    },
+    {
+      accessorKey: "rent_expiry_date",
+      header: "Expiry Date",
+      cell: ({ row }) => (
+        <span className="text-slate-500 font-normal text-xs">
+          {row.original.rent_expiry_date || "—"}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "rent_amount",
+      header: "Annual Rent (₦)",
+      cell: ({ row }) => (
+        <span className="font-bold text-slate-900 text-xs tabular-nums">
+          {formatCurrency(row.original.rent_amount)}
+        </span>
+      ),
+    },
+    {
+      id: "actions",
+      header: "Action",
+      cell: ({ row }) => (
+        <div
+          className="flex items-center justify-end"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => handleViewItem(row.original)}
+            className="h-7 px-2.5 text-xs font-semibold text-[#007a8c] hover:text-[#005a66] hover:bg-[#007a8c]/10 rounded-md gap-1"
+          >
+            <Eye className="size-3.5" />
+            <span>View</span>
+          </Button>
+        </div>
+      ),
+    },
   ];
 
+  // General Profile Columns matching Solvix Table
+  const generalColumns: ColumnDef<any>[] = [
+    {
+      id: "code",
+      header: "Profile ID",
+      cell: ({ row }) => (
+        <span className="font-mono text-slate-400 font-medium text-xs">
+          #{row.original.reference_id || `PROF-${String(row.original.id || row.index + 1).padStart(4, "0")}`}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "state.description",
+      header: "State Office",
+      cell: ({ row }) => {
+        const stateName =
+          row.original.state?.description ||
+          states.find((s) => String(s.id) === String(row.original.state_id))?.description ||
+          row.original.state_code ||
+          "State Office";
+        return (
+          <div className="flex items-center gap-2">
+            <div className="size-6 rounded-full bg-[#007a8c]/10 text-[#007a8c] flex items-center justify-center text-[10px] font-bold shrink-0">
+              {stateName.slice(0, 2).toUpperCase()}
+            </div>
+            <div>
+              <p className="font-semibold text-slate-900">{stateName}</p>
+              <p className="text-[10px] text-slate-400">
+                {row.original.zone?.description || row.original.zonal_code || ""}
+              </p>
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      accessorKey: "coordinator_name",
+      header: "State Coordinator",
+      cell: ({ row }) => (
+        <span className="text-slate-700 font-medium">
+          {row.original.coordinator_name || "—"}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "status",
+      header: "Status",
+      cell: ({ row }) => (
+        <SolvixStatusPill status={row.original.status || "draft"} />
+      ),
+    },
+    {
+      accessorKey: "reporting_year",
+      header: "Cycle",
+      cell: ({ row }) => (
+        <span className="text-slate-500 font-normal text-xs">
+          {row.original.reporting_year}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "annual_budget",
+      header: "Approved Budget (₦)",
+      cell: ({ row }) => (
+        <span className="font-bold text-slate-900 text-xs tabular-nums">
+          {formatCurrency(row.original.annual_budget)}
+        </span>
+      ),
+    },
+    {
+      id: "actions",
+      header: "Action",
+      cell: ({ row }) => (
+        <div
+          className="flex items-center justify-end"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => handleViewItem(row.original)}
+            className="h-7 px-2.5 text-xs font-semibold text-[#007a8c] hover:text-[#005a66] hover:bg-[#007a8c]/10 rounded-md gap-1"
+          >
+            <Eye className="size-3.5" />
+            <span>View</span>
+          </Button>
+        </div>
+      ),
+    },
+  ];
+
+  // Utility Columns matching Solvix Table
+  const utilityColumns: ColumnDef<any>[] = [
+    {
+      id: "code",
+      header: "Claim Ref",
+      cell: ({ row }) => (
+        <span className="font-mono text-slate-400 font-medium text-xs">
+          #{row.original.invoice_number || row.original.payment_request_ref || `CLM-${String(row.original.id || row.index + 1).padStart(4, "0")}`}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "contractor_name",
+      header: "Service Contractor",
+      cell: ({ row }) => (
+        <div>
+          <p className="font-semibold text-slate-900">{row.original.contractor_name || "Official Vendor"}</p>
+          <p className="text-[10px] text-slate-400 capitalize">
+            {row.original.service_category || "General Utilities"}
+          </p>
+        </div>
+      ),
+    },
+    {
+      accessorKey: "service_location",
+      header: "Location",
+      cell: ({ row }) => (
+        <span className="text-slate-600 font-medium capitalize">
+          {row.original.service_location ? row.original.service_location.replace("_", " ") : "State Office"}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "status",
+      header: "Status",
+      cell: ({ row }) => (
+        <SolvixStatusPill status={row.original.status || "draft"} />
+      ),
+    },
+    {
+      id: "cycle",
+      header: "Period",
+      cell: ({ row }) => (
+        <span className="text-slate-500 font-normal text-xs">
+          {row.original.reporting_year}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "amount_claimed",
+      header: "Amount Due (₦)",
+      cell: ({ row }) => (
+        <span className="font-bold text-slate-900 text-xs tabular-nums">
+          {formatCurrency(row.original.amount_claimed)}
+        </span>
+      ),
+    },
+    {
+      id: "actions",
+      header: "Action",
+      cell: ({ row }) => (
+        <div
+          className="flex items-center justify-end"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => handleViewItem(row.original)}
+            className="h-7 px-2.5 text-xs font-semibold text-[#007a8c] hover:text-[#005a66] hover:bg-[#007a8c]/10 rounded-md gap-1"
+          >
+            <Eye className="size-3.5" />
+            <span>View</span>
+          </Button>
+        </div>
+      ),
+    },
+  ];
+
+  // Active columns
+  const activeColumns =
+    activeTab === "general"
+      ? generalColumns
+      : activeTab === "accommodation"
+      ? accommodationColumns
+      : utilityColumns;
+
+  // Active filter count
+  const activeFilterCount =
+    (year !== "all" ? 1 : 0) +
+    (selectedZoneId !== "all" ? 1 : 0) +
+    (selectedStateId !== "all" ? 1 : 0);
+
+  // Clear all filters helper
+  const handleClearAllFilters = () => {
+    updateQueryParams({ year: "all", zone: "all", state: "all", q: null });
+  };
+
+  const getHeaderTitle = () => {
+    if (activeTab === "focal_persons") {
+      if (mode === "new") return "Appoint New Focal Person";
+      if (mode === "edit") return "Edit Focal Person Profile";
+      if (mode === "view") return "Focal Person Details";
+      return currentTabCfg.formTitle;
+    }
+    if (mode === "new") {
+      if (activeTab === "general") return "Create General Information";
+      if (activeTab === "accommodation") return "Register Office Accommodation";
+      if (activeTab === "utilities") return "New Utility Service Claim";
+      return currentTabCfg.newLabel;
+    }
+    if (mode === "edit") {
+      if (activeTab === "general") return "Edit General Information";
+      if (activeTab === "accommodation") return "Edit Office Accommodation";
+      if (activeTab === "utilities") return "Edit Utility Service Claim";
+      return `Edit ${currentTabCfg.label}`;
+    }
+    if (mode === "view") {
+      return `${currentTabCfg.label} Details`;
+    }
+    return currentTabCfg.formTitle;
+  };
+
+  const getHeaderSubtitle = () => {
+    if (activeTab === "focal_persons") {
+      if (mode === "new" || mode === "edit") {
+        return "Designate state focal officer responsibilities and verified official communication channels.";
+      }
+      return currentTabCfg.infoTooltip;
+    }
+    if (activeTab === "general" && (mode === "new" || mode === "edit")) {
+      return "Configure jurisdiction, operational leadership, contact credentials, and annual targets.";
+    }
+    if (activeTab === "accommodation" && (mode === "new" || mode === "edit")) {
+      return "Specify ownership type, tenancy terms, physical condition, and facility remarks.";
+    }
+    if (activeTab === "utilities" && (mode === "new" || mode === "edit")) {
+      return "Submit verified contractor claims for generator maintenance, security, cleaning, and facility operations.";
+    }
+    return currentTabCfg.infoTooltip;
+  };
+
   return (
-    <div className="flex flex-col h-full bg-[#f4f7f5]">
-      {/* 1. Sticky Header Bar (Identical to Beneficiary Management) */}
-      <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3.5 flex items-center justify-between sticky top-0 z-30 gap-3">
+    <div className="flex flex-col h-full bg-[#f8faf9]">
+      {/* 1. Sticky Navigation Header */}
+      <div className="bg-white border-b border-slate-200/80 px-4 md:px-6 py-3.5 flex items-center justify-between sticky top-0 z-30 gap-3">
         <div className="flex items-center gap-3 min-w-0">
           <Button
             variant="ghost"
             size="icon"
             onClick={mode === "list" ? (onBack || (() => window.history.back())) : handleBackToList}
-            className="rounded-full shrink-0"
+            className="rounded-full shrink-0 size-8 text-slate-600 hover:bg-slate-100"
             aria-label="Back"
           >
-            <ArrowLeft className="w-5 h-5" />
+            <ArrowLeft className="size-4" />
           </Button>
           <div className="min-w-0">
-            <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">
-              Office Profile Hub
-            </h2>
-            <p className="text-xs text-slate-500 truncate">
-              {mode === "list"
-                ? `Manage ${currentTabCfg.label}: view records, inspect details, and update office profile`
-                : mode === "view"
-                ? `Viewing ${currentTabCfg.label} details`
-                : `Edit and update ${currentTabCfg.label}`}
+            <h1 className="text-lg font-bold tracking-tight text-slate-900 truncate">
+              {getHeaderTitle()}
+            </h1>
+            <p className="text-xs text-slate-500 truncate mt-0.5">
+              {getHeaderSubtitle()}
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
-          {mode === "list" ? (
-            <>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={loadData}
-                disabled={loading}
-                className="gap-2 border-[#d4e8dc]"
-              >
-                <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
-              </Button>
-              <Button
-                className="bg-orange-action hover:bg-orange-600 gap-2 shadow-md shadow-orange-500/15"
-                onClick={handleOpenCreate}
-              >
-                <Plus className="w-4 h-4" /> {currentTabCfg.newLabel}
-              </Button>
-            </>
-          ) : (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={loadData}
+            disabled={loading}
+            className="h-8 gap-1.5 border-slate-200 text-xs text-slate-700 hover:bg-slate-50"
+          >
+            <RefreshCw className={`size-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh
+          </Button>
+
+          {mode === "list" && (
+            <Button
+              className="h-8 bg-[#0f2d42] hover:bg-[#1a3d54] text-white text-xs gap-1.5 font-medium shadow-xs rounded-md"
+              onClick={() => {
+                if (activeTab === "focal_persons") {
+                  updateQueryParams({ mode: "new", id: null });
+                } else {
+                  handleOpenCreate();
+                }
+              }}
+            >
+              <Plus className="size-3.5" /> {currentTabCfg.newLabel}
+            </Button>
+          )}
+
+          {mode !== "list" && (
             <Button
               variant="outline"
               size="sm"
               onClick={handleBackToList}
-              className="gap-2 border-[#d4e8dc]"
+              className="h-8 gap-1.5 border-slate-200 text-xs text-slate-700"
             >
               Back to Table
             </Button>
@@ -369,9 +937,9 @@ export default function OfficeProfileWorkspace({
         </div>
       </div>
 
-      {/* 2. Sticky Tab Bar (Identical to Beneficiary Management) */}
-      <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 sticky top-[57px] z-20">
-        <div className="flex gap-0 overflow-x-auto -mb-px" role="tablist">
+      {/* 2. Solvix-style Clean Tab Underline Navigation Bar */}
+      <div className="bg-white border-b border-slate-200/80 px-4 md:px-6 sticky top-[57px] z-20">
+        <div className="flex gap-2 overflow-x-auto -mb-px" role="tablist">
           {TAB_CONFIG.map((tab) => {
             const active = activeTab === tab.key;
             const Icon = tab.icon;
@@ -391,22 +959,21 @@ export default function OfficeProfileWorkspace({
                 role="tab"
                 aria-selected={active}
                 onClick={() => handleTabChange(tab.key)}
-                className={`group relative shrink-0 inline-flex items-center gap-2 px-4 py-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors outline-none focus-visible:bg-[#f4f7f5] ${
+                className={`group relative shrink-0 inline-flex items-center gap-2 px-3.5 py-3 text-xs font-semibold whitespace-nowrap border-b-2 transition-all outline-none ${
                   active
-                    ? "border-[#145c3f] text-[#145c3f]"
-                    : "border-transparent text-slate-500 hover:text-[#0f3d2e] hover:border-[#c5ddd0]"
+                    ? "border-[#007a8c] text-[#007a8c]"
+                    : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300"
                 }`}
               >
                 <Icon
-                  className={`h-4 w-4 shrink-0 ${active ? "text-[#145c3f]" : "text-slate-400 group-hover:text-[#145c3f]"}`}
-                  strokeWidth={2}
+                  className={`size-4 shrink-0 ${active ? "text-[#007a8c]" : "text-slate-400 group-hover:text-slate-600"}`}
                 />
                 <span>{tab.label}</span>
                 <span
-                  className={`inline-flex min-w-[1.25rem] h-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold tabular-nums ${
+                  className={`inline-flex min-w-[1.25rem] h-4.5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold tabular-nums ${
                     active
-                      ? "bg-[#e8f6ee] text-[#145c3f]"
-                      : "bg-slate-100 text-slate-500 group-hover:bg-[#e8f6ee] group-hover:text-[#145c3f]"
+                      ? "bg-[#e6f4f6] text-[#007a8c]"
+                      : "bg-slate-100 text-slate-500 group-hover:bg-slate-200"
                   }`}
                 >
                   {count}
@@ -417,345 +984,159 @@ export default function OfficeProfileWorkspace({
         </div>
       </div>
 
-      {/* 3. Main Content Area */}
+      {/* 3. Main Content View Area */}
       <ScrollArea className="flex-1">
-        <div className="w-full px-4 md:px-6 py-5 space-y-4">
-          {/* VIEW MODE: Read details with Edit button */}
-          {mode === "view" && selectedItem && (
-            <OfficeProfileDetailView
-              tab={activeTab}
-              data={selectedItem}
+        <div className="w-full px-4 md:px-6 py-5 space-y-5">
+          {/* FOCAL PERSONS TAB DELEGATION */}
+          {activeTab === "focal_persons" ? (
+            <FocalPersonsTab
+              stateId={selectedStateId !== "all" ? selectedStateId : ""}
+              zoneId={selectedZoneId !== "all" ? selectedZoneId : ""}
+              year={year !== "all" ? Number(year) : new Date().getFullYear()}
+              initialEditingId={recordIdParam ? Number(recordIdParam) : null}
+              isStandaloneForm={mode === "new" || mode === "edit"}
               onBack={handleBackToList}
-              onEdit={() => handleEditItem(selectedItem)}
-              canEdit={true}
+              onSaved={loadData}
+              onModeChange={(m, id) => updateQueryParams({ mode: m, id: id ? String(id) : null })}
             />
-          )}
-
-          {/* EDIT / NEW MODE: Render Form */}
-          {(mode === "edit" || mode === "new") && (
-            <div className="space-y-4">
-              <div className="bg-white rounded-2xl border border-[#d4e8dc] px-4 py-3 flex items-center justify-between shadow-xs">
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleBackToList}
-                    className="gap-1.5 text-xs border-[#d4e8dc] text-[#0f3d2e] hover:bg-[#e8f5ee]"
-                  >
-                    <ArrowLeft className="w-3.5 h-3.5" /> Back to Table
-                  </Button>
-                  <span className="text-xs text-slate-300">|</span>
-                  <span className="text-xs font-semibold text-[#0f3d2e]">
-                    {mode === "new" ? `Create ${currentTabCfg.label}` : `Editing ${currentTabCfg.label}`}
-                  </span>
-                </div>
-              </div>
-
-              {activeTab === "general" && (
-                <OfficeProfileGeneralTab
-                  profile={profileForm}
-                  onChange={(fields) => setProfileForm((prev: any) => ({ ...prev, ...fields }))}
-                  onSaveDraft={() => handleSaveGeneralProfile("draft")}
-                  onSubmit={() => handleSaveGeneralProfile("submitted")}
-                  onFileSelect={setSelectedFile}
-                  selectedFile={selectedFile}
-                  states={states}
-                  zones={zones}
-                  previousProfiles={profiles}
-                  isSaving={saving}
-                />
-              )}
-
-              {activeTab === "accommodation" && (
-                <OfficeAccommodationTab
-                  stateId={
-                    selectedItem?.state_id ||
-                    (selectedStateId !== "all"
-                      ? selectedStateId
-                      : String(states[0]?.id || ""))
-                  }
-                  zoneId={
-                    selectedItem?.zone_id ||
-                    (selectedZoneId !== "all"
-                      ? selectedZoneId
-                      : String(zones[0]?.id || ""))
-                  }
-                  year={
-                    selectedItem?.reporting_year ||
-                    (year !== "all" ? Number(year) : new Date().getFullYear())
-                  }
-                  profileId={selectedItem?.profile_id}
-                />
-              )}
-
-              {activeTab === "utilities" && (
-                <UtilityServicesTab
-                  stateId={
-                    selectedItem?.state_id ||
-                    (selectedStateId !== "all"
-                      ? selectedStateId
-                      : String(states[0]?.id || ""))
-                  }
-                  zoneId={
-                    selectedItem?.zone_id ||
-                    (selectedZoneId !== "all"
-                      ? selectedZoneId
-                      : String(zones[0]?.id || ""))
-                  }
-                  year={
-                    selectedItem?.reporting_year ||
-                    (year !== "all" ? Number(year) : new Date().getFullYear())
-                  }
-                  profileId={selectedItem?.profile_id}
-                  userRole={userRole}
-                />
-              )}
-
-              {activeTab === "focal_persons" && (
-                <FocalPersonsTab
-                  stateId={
-                    selectedItem?.state_id ||
-                    (selectedStateId !== "all"
-                      ? selectedStateId
-                      : String(states[0]?.id || ""))
-                  }
-                  zoneId={
-                    selectedItem?.zone_id ||
-                    (selectedZoneId !== "all"
-                      ? selectedZoneId
-                      : String(zones[0]?.id || ""))
-                  }
-                  year={
-                    selectedItem?.reporting_year ||
-                    (year !== "all" ? Number(year) : new Date().getFullYear())
-                  }
-                />
-              )}
-            </div>
-          )}
-
-          {/* LIST MODE: Tables like Beneficiary Management */}
-          {mode === "list" && (
+          ) : (
             <>
-              {/* Exactly 3 Clean Stat Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                {statCards.map((card) => (
-                  <div key={card.label} className={`rounded-xl border px-4 py-3.5 ${card.tone}`}>
-                    <p className="text-2xl font-bold tabular-nums">{loading ? "—" : card.value}</p>
-                    <p className="text-[11px] font-semibold text-slate-500 mt-0.5">{card.label}</p>
-                  </div>
-                ))}
-              </div>
-
-              {/* Filter Ribbon */}
-              <div className="grid gap-3 w-full rounded-xl border border-[#d4e8dc] bg-white px-4 py-4 grid-cols-1 sm:grid-cols-3">
-                <div>
-                  <Select value={year} onValueChange={setYear}>
-                    <SelectTrigger className="w-full h-10 bg-[#f4f7f5] border-2 border-[#1a7a52]" displayValue={year === "all" ? "All Years" : year}>
-                      <SelectValue placeholder="All Years" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Years</SelectItem>
-                      {yearOptions.map((opt) => (
-                        <SelectItem key={opt} value={opt}>
-                          {opt}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <Select value={selectedZoneId} onValueChange={setSelectedZoneId}>
-                    <SelectTrigger
-                      className="w-full h-10 bg-[#f4f7f5] border-2 border-[#1a7a52]"
-                      displayValue={selectedZoneId === "all" ? "All Zones" : (zones.find((z) => String(z.id) === selectedZoneId)?.description ?? selectedZoneId)}
-                    >
-                      <SelectValue placeholder="All Zones" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Zones</SelectItem>
-                      {zones.map((z) => (
-                        <SelectItem key={z.id} value={String(z.id)}>
-                          {z.description}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <Select value={selectedStateId} onValueChange={setSelectedStateId}>
-                    <SelectTrigger
-                      className="w-full h-10 bg-[#f4f7f5] border-2 border-[#1a7a52]"
-                      displayValue={selectedStateId === "all" ? "All States" : (states.find((s) => String(s.id) === selectedStateId)?.description ?? selectedStateId)}
-                    >
-                      <SelectValue placeholder="All States" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All States</SelectItem>
-                      {states.map((s) => (
-                        <SelectItem key={s.id} value={String(s.id)}>
-                          {s.description}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              {/* Search Box */}
-              <div className="relative w-full">
-                <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
-                <Input
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder={`Search ${currentTabCfg.label} records...`}
-                  className="pl-9 h-10 bg-white border-[#d4e8dc] text-xs"
+              {/* VIEW MODE: Read details on-page (NO modal, NO sheet) */}
+              {mode === "view" && selectedItem && (
+                <OfficeProfileDetailView
+                  tab={activeTab}
+                  data={selectedItem}
+                  onBack={handleBackToList}
+                  onEdit={() => handleEditItem(selectedItem)}
+                  canEdit={true}
                 />
-              </div>
+              )}
 
-              {/* Main Table Card (Beneficiary Management Style) */}
-              <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden">
-                <CardContent className="p-0">
-                  {loading ? (
-                    <div className="flex items-center justify-center py-20 gap-3 text-slate-400">
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      <span className="text-sm">Loading records...</span>
-                    </div>
-                  ) : filteredData.length === 0 ? (
-                    <div className="py-16 text-center space-y-3">
-                      <p className="text-sm text-slate-500">No {currentTabCfg.label} records match your filters.</p>
-                      <Button
-                        className="bg-orange-action hover:bg-orange-600 gap-2"
-                        onClick={handleOpenCreate}
-                      >
-                        <Plus className="w-4 h-4" /> {currentTabCfg.newLabel}
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="overflow-x-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow className="bg-[#e8f5ee] hover:bg-[#e8f5ee] border-b border-[#d4e8dc]">
-                            <TableHead className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e]">Period / Year</TableHead>
-                            <TableHead className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e]">Zone</TableHead>
-                            <TableHead className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e]">State</TableHead>
-                            <TableHead className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e]">
-                              {activeTab === "general" && "Coordinator"}
-                              {activeTab === "accommodation" && "Ownership / Condition"}
-                              {activeTab === "utilities" && "Category / Contractor"}
-                              {activeTab === "focal_persons" && "Functional Domain / Officer"}
-                            </TableHead>
-                            <TableHead className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e]">
-                              {activeTab === "general" && "Staff / Target / Budget"}
-                              {activeTab === "accommodation" && "Annual Rent"}
-                              {activeTab === "utilities" && "Amount Claimed"}
-                              {activeTab === "focal_persons" && "Official Designation"}
-                            </TableHead>
-                            <TableHead className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e]">Status</TableHead>
-                            <TableHead className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e] text-right">Actions</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {filteredData.map((row) => {
-                            const statusKey = row.status || "draft";
-                            const st = STATUS_CONFIG[statusKey] || STATUS_CONFIG.draft;
-
-                            return (
-                              <TableRow
-                                key={row.id || row.reference_id}
-                                className="hover:bg-[#f8fdfb] border-b border-[#e8f3ec] last:border-0 cursor-pointer"
-                                onClick={() => handleViewItem(row)}
-                              >
-                                <TableCell className="text-sm font-semibold text-[#0f3d2e] whitespace-nowrap">
-                                  {row.reporting_year}
-                                  {row.reporting_month ? ` (M${row.reporting_month})` : ""}
-                                </TableCell>
-                                <TableCell className="text-sm text-slate-700 whitespace-nowrap">
-                                  {row.zone?.description || row.zonal_code || "—"}
-                                </TableCell>
-                                <TableCell className="text-sm text-slate-700 whitespace-nowrap">
-                                  {row.state?.description || row.state_code || "—"}
-                                </TableCell>
-
-                                {/* Column 4: Dynamic Subject */}
-                                <TableCell className="text-sm text-slate-800">
-                                  {activeTab === "general" && (row.coordinator_name || "—")}
-                                  {activeTab === "accommodation" && (
-                                    <span>
-                                      <strong>{row.ownership_status}</strong> • Condition: {row.current_condition}
-                                    </span>
-                                  )}
-                                  {activeTab === "utilities" && (
-                                    <span>
-                                      <Badge variant="outline" className="mr-1.5 text-[10px] capitalize">
-                                        {row.service_category}
-                                      </Badge>
-                                      {row.contractor_name}
-                                    </span>
-                                  )}
-                                  {activeTab === "focal_persons" && (
-                                    <span>
-                                      <strong>{row.officer_name}</strong>
-                                      <span className="block text-[11px] text-slate-500">{row.domain}</span>
-                                    </span>
-                                  )}
-                                </TableCell>
-
-                                {/* Column 5: Dynamic Metric */}
-                                <TableCell className="text-sm text-slate-700">
-                                  {activeTab === "general" && (
-                                    <span>
-                                      {row.staff_members?.length || row.staff_strength || 0} staff • {formatCurrency(row.annual_budget)}
-                                    </span>
-                                  )}
-                                  {activeTab === "accommodation" && formatCurrency(row.rent_amount)}
-                                  {activeTab === "utilities" && (
-                                    <span className="font-semibold text-[#0f3d2e]">
-                                      {formatCurrency(row.amount_claimed)}
-                                    </span>
-                                  )}
-                                  {activeTab === "focal_persons" && (row.designation || "—")}
-                                </TableCell>
-
-                                {/* Column 6: Status */}
-                                <TableCell>
-                                  <Badge className={`text-[10px] px-2 py-0.5 inline-flex items-center gap-1 w-fit border ${st.cls}`}>
-                                    {st.icon} {st.label}
-                                  </Badge>
-                                </TableCell>
-
-                                {/* Column 7: Actions */}
-                                <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                                  <div className="flex items-center justify-end gap-1">
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      className="h-8 gap-1.5 text-[#145c3f] hover:bg-[#eef6f1]"
-                                      onClick={() => handleViewItem(row)}
-                                    >
-                                      <Eye className="w-3.5 h-3.5" /> View
-                                    </Button>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      className="h-8 w-8 p-0 text-slate-500 hover:text-[#0f3d2e] hover:bg-[#eef6f1]"
-                                      onClick={() => handleEditItem(row)}
-                                    >
-                                      <Pencil className="w-3.5 h-3.5" />
-                                    </Button>
-                                  </div>
-                                </TableCell>
-                              </TableRow>
-                            );
-                          })}
-                        </TableBody>
-                      </Table>
-                    </div>
+              {/* EDIT / NEW MODE: Render Form on-page in 1 single Card (NO modal, NO sheet) */}
+              {(mode === "edit" || mode === "new") && (
+                <div className="w-full animate-in fade-in-50 duration-200">
+                  {activeTab === "general" && (
+                    <OfficeProfileGeneralTab
+                      profile={profileForm}
+                      onChange={(fields) => setProfileForm((prev: any) => ({ ...prev, ...fields }))}
+                      onSaveDraft={() => handleSaveGeneralProfile("draft")}
+                      onSubmit={() => handleSaveGeneralProfile("submitted")}
+                      onFileSelect={setSelectedFile}
+                      selectedFile={selectedFile}
+                      states={states}
+                      zones={zones}
+                      previousProfiles={profiles}
+                      isSaving={saving}
+                      onBack={handleBackToList}
+                    />
                   )}
-                </CardContent>
-              </Card>
+
+                  {activeTab === "accommodation" && (
+                    <OfficeAccommodationTab
+                      stateId={
+                        selectedItem?.state_id ||
+                        (selectedStateId !== "all" ? selectedStateId : String(states[0]?.id || ""))
+                      }
+                      zoneId={
+                        selectedItem?.zone_id ||
+                        (selectedZoneId !== "all" ? selectedZoneId : String(zones[0]?.id || ""))
+                      }
+                      year={
+                        selectedItem?.reporting_year ||
+                        (year !== "all" ? Number(year) : new Date().getFullYear())
+                      }
+                      profileId={selectedItem?.profile_id}
+                      initialItem={mode === "edit" ? selectedItem : null}
+                      onSaved={() => {
+                        loadData();
+                        handleBackToList();
+                      }}
+                      onCancel={handleBackToList}
+                    />
+                  )}
+
+                  {activeTab === "utilities" && (
+                    <UtilityServicesTab
+                      stateId={
+                        selectedItem?.state_id ||
+                        (selectedStateId !== "all" ? selectedStateId : String(states[0]?.id || ""))
+                      }
+                      zoneId={
+                        selectedItem?.zone_id ||
+                        (selectedZoneId !== "all" ? selectedZoneId : String(zones[0]?.id || ""))
+                      }
+                      year={
+                        selectedItem?.reporting_year ||
+                        (year !== "all" ? Number(year) : new Date().getFullYear())
+                      }
+                      profileId={selectedItem?.profile_id}
+                      userRole={userRole}
+                      onCancel={handleBackToList}
+                      onSaved={() => {
+                        loadData();
+                        handleBackToList();
+                      }}
+                    />
+                  )}
+                </div>
+              )}
+
+              {/* LIST MODE: Solvix 4 Stat Cards + Filter Bar + Unified Table Card */}
+              {mode === "list" && (
+                <div className="space-y-4">
+                  {/* 1. Solvix 4-Card Metric Grid with Sparklines matching media_1793556856351_c64fb296.jpg */}
+                  <SolvixStatCards items={solvixStatItems} loading={loading} />
+
+                  {/* 2. Solvix Filter Bar matching media_1793555167591_0eae438b.png */}
+                  <SolvixFilterBar
+                    filters={[
+                      {
+                        id: "zone",
+                        label: "Zone",
+                        value: selectedZoneId,
+                        onChange: (val) => updateQueryParams({ zone: val, state: "all" }),
+                        options: zones.map((z) => ({ label: z.description, value: String(z.id) })),
+                        allLabel: "All Zones",
+                      },
+                      {
+                        id: "state",
+                        label: "State",
+                        value: selectedStateId,
+                        onChange: (val) => updateQueryParams({ state: val }),
+                        options: states.map((s) => ({ label: s.description, value: String(s.id) })),
+                        allLabel: "All States",
+                      },
+                      {
+                        id: "year",
+                        label: "Year",
+                        value: year,
+                        onChange: (val) => updateQueryParams({ year: val }),
+                        options: yearOptions.map((opt) => ({ label: opt, value: opt })),
+                        allLabel: "All Years",
+                      },
+                    ]}
+                    activeFilterCount={activeFilterCount}
+                    onClearFilters={handleClearAllFilters}
+                  />
+
+                  {/* 3. Solvix Unified Table Card matching media_1793556834379_9ddcebf0.jpg */}
+                  <ShadcnDataTable
+                    title={currentTabCfg.tableTitle}
+                    infoTooltip={currentTabCfg.infoTooltip}
+                    columns={activeColumns}
+                    data={filteredData}
+                    loading={loading}
+                    searchPlaceholder={`Search ${currentTabCfg.label.toLowerCase()}...`}
+                    searchValue={searchQuery}
+                    onSearchChange={(val) => updateQueryParams({ q: val })}
+                    onRowClick={handleViewItem}
+                    emptyMessage={`No ${currentTabCfg.label.toLowerCase()} records found.`}
+                    pageSize={50}
+                    enableSelection={false}
+                    showTableOptions={false}
+                  />
+                </div>
+              )}
             </>
           )}
         </div>

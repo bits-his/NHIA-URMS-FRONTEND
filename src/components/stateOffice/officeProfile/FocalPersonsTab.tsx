@@ -1,18 +1,38 @@
 import * as React from "react";
+import { ColumnDef } from "@tanstack/react-table";
 import {
   Users,
   Plus,
   Save,
   Trash2,
   Pencil,
-  RotateCcw,
+  ArrowLeft,
   CheckCircle2,
-  AlertCircle,
+  Mail,
+  Phone,
+  Building2,
+  Briefcase,
+  MoreHorizontal,
+  Eye,
   Loader2,
+  MapPin,
+  Calendar,
+  ShieldCheck,
+  TrendingUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  CardFooter,
+} from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -21,16 +41,22 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { stateZonalFocalPersonApi, stockApi } from "@/lib/api";
 import { buildReportingYearOptions } from "../../monthly/reportingYears";
+import { ShadcnDataTable } from "@/components/common/ShadcnDataTable";
+import {
+  SolvixStatCards,
+  SolvixStatusPill,
+  type SolvixStatItem,
+} from "@/components/common/SolvixStatCards";
+import { SolvixFilterBar } from "@/components/common/SolvixFilterBar";
 
 export const FOCAL_DOMAINS = [
   "ICT",
@@ -49,13 +75,18 @@ export const FOCAL_DOMAINS = [
   "Planning Cell / M&E",
   "Complaints Desk",
   "Finance & Accounts",
-];
+] as const;
 
 interface Props {
   stateId: string;
   zoneId: string;
   year: number;
   readOnly?: boolean;
+  initialEditingId?: number | null;
+  onBack?: () => void;
+  onSaved?: () => void;
+  isStandaloneForm?: boolean;
+  onModeChange?: (mode: "list" | "view" | "edit" | "new", id?: number | null) => void;
 }
 
 export type FocalPersonRow = {
@@ -66,8 +97,12 @@ export type FocalPersonRow = {
   domain: string;
   officer_name: string;
   designation: string;
-  email: string;
-  phone: string;
+  email: string | null;
+  phone: string | null;
+  state?: { id: number; description: string; code?: string };
+  zone?: { id: number; description: string; zonal_code?: string };
+  created_at?: string;
+  updated_at?: string;
 };
 
 export default function FocalPersonsTab({
@@ -75,22 +110,40 @@ export default function FocalPersonsTab({
   zoneId: initialPropZoneId,
   year: initialPropYear,
   readOnly = false,
+  initialEditingId = null,
+  onBack,
+  onSaved,
+  isStandaloneForm = false,
+  onModeChange,
 }: Props) {
   const [loading, setLoading] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const [records, setRecords] = React.useState<FocalPersonRow[]>([]);
-  const [editingId, setEditingId] = React.useState<number | null>(null);
+
+  // Sub-view mode inside component: "table" | "form" | "view"
+  const [viewMode, setViewMode] = React.useState<"table" | "form" | "view">(
+    isStandaloneForm ? "form" : "table"
+  );
+  const [editingId, setEditingId] = React.useState<number | null>(initialEditingId);
+  const [viewingRecord, setViewingRecord] = React.useState<FocalPersonRow | null>(null);
+
+  // Search & filter state
+  const [searchQuery, setSearchQuery] = React.useState("");
+  const [domainFilter, setDomainFilter] = React.useState<string>("all");
+  const [currentSort, setCurrentSort] = React.useState<string>("newest");
 
   // Geo options
   const [states, setStates] = React.useState<any[]>([]);
   const [zones, setZones] = React.useState<any[]>([]);
 
-  // Top control fields matching Form 4
-  const [currentYear, setCurrentYear] = React.useState<number>(initialPropYear || new Date().getFullYear());
+  // Top control fields
+  const [currentYear, setCurrentYear] = React.useState<number>(
+    initialPropYear || new Date().getFullYear()
+  );
   const [currentStateId, setCurrentStateId] = React.useState<string>(initialPropStateId || "");
   const [currentZoneId, setCurrentZoneId] = React.useState<string>(initialPropZoneId || "");
 
-  // Input Row 1 & 2 fields matching Form 4
+  // Form input fields
   const [domain, setDomain] = React.useState<string>("ICT");
   const [officerName, setOfficerName] = React.useState<string>("");
   const [designation, setDesignation] = React.useState<string>("");
@@ -131,32 +184,57 @@ export default function FocalPersonsTab({
     return null;
   }, [selectedState, currentZoneId, zones]);
 
-  // Handle state change
-  const handleStateChange = (newStId: string) => {
-    setCurrentStateId(newStId);
-    const st = states.find((s) => String(s.id) === newStId || s.code === newStId);
-    const zn = st?.zonal_id
-      ? zones.find((z) => z.id === st.zonal_id || z.zonal_code === st.zonal_id)
-      : null;
-    if (zn) {
-      setCurrentZoneId(zn.id ? String(zn.id) : zn.zonal_code);
+  // Filter states by selected zone
+  const availableStates = React.useMemo(() => {
+    if (!currentZoneId || currentZoneId === "all") return states;
+    return states.filter(
+      (s) => String(s.zonal_id) === String(currentZoneId) || s.zonal_code === currentZoneId
+    );
+  }, [states, currentZoneId]);
+
+  // Handle Zone selection: filter states and auto-align selected state
+  const handleZoneChange = (zoneVal: string) => {
+    const nextZoneId = zoneVal === "all" ? "" : zoneVal;
+    setCurrentZoneId(nextZoneId);
+
+    if (nextZoneId) {
+      const statesInZone = states.filter(
+        (s) => String(s.zonal_id) === String(nextZoneId) || s.zonal_code === nextZoneId
+      );
+      const isCurrentStateInZone = statesInZone.some(
+        (s) => String(s.id) === String(currentStateId) || s.code === currentStateId
+      );
+      if (!isCurrentStateInZone) {
+        setCurrentStateId(statesInZone[0] ? String(statesInZone[0].id) : "");
+      }
     }
   };
 
-  // Load records for active state & year
+  // Handle State selection
+  const handleStateChange = (stateVal: string) => {
+    const nextState = stateVal === "all" ? "" : stateVal;
+    setCurrentStateId(nextState);
+    if (nextState) {
+      const st = states.find((s) => String(s.id) === String(nextState) || s.code === nextState);
+      if (st?.zonal_id) {
+        setCurrentZoneId(String(st.zonal_id));
+      }
+    }
+  };
+
+  // Load existing records
   const loadRecords = React.useCallback(async () => {
-    if (!currentStateId) return;
     setLoading(true);
     try {
       const res = await stateZonalFocalPersonApi.list({
-        state_id: currentStateId,
-        year: String(currentYear),
+        state_id: currentStateId || undefined,
+        year: currentYear ? String(currentYear) : undefined,
       });
       if (res.success && res.data) {
         setRecords(res.data);
       }
     } catch (err: any) {
-      console.error(err);
+      console.error("Failed to load focal persons", err);
     } finally {
       setLoading(false);
     }
@@ -166,7 +244,63 @@ export default function FocalPersonsTab({
     loadRecords();
   }, [loadRecords]);
 
-  // Start Edit
+  // Sync viewMode and editing data when parent changes isStandaloneForm or initialEditingId
+  React.useEffect(() => {
+    if (isStandaloneForm) {
+      setViewMode("form");
+      if (initialEditingId && records.length > 0) {
+        const found = records.find((r) => r.id === initialEditingId);
+        if (found) {
+          setEditingId(found.id || null);
+          setDomain(found.domain || "ICT");
+          setOfficerName(found.officer_name || "");
+          setDesignation(found.designation || "");
+          setEmail(found.email || "");
+          setPhoneNumber(found.phone || "");
+          if (found.state_id) setCurrentStateId(String(found.state_id));
+          if (found.reporting_year) setCurrentYear(Number(found.reporting_year));
+        }
+      } else if (!initialEditingId) {
+        setEditingId(null);
+        setDomain("ICT");
+        setOfficerName("");
+        setDesignation("");
+        setEmail("");
+        setPhoneNumber("");
+      }
+    } else {
+      if (viewMode === "form") {
+        setViewMode("table");
+      }
+    }
+  }, [isStandaloneForm, initialEditingId, records]);
+
+  // Keep stateId and year in sync with props
+  React.useEffect(() => {
+    if (initialPropStateId) setCurrentStateId(initialPropStateId);
+  }, [initialPropStateId]);
+
+  React.useEffect(() => {
+    if (initialPropZoneId) setCurrentZoneId(initialPropZoneId);
+  }, [initialPropZoneId]);
+
+  React.useEffect(() => {
+    if (initialPropYear) setCurrentYear(initialPropYear);
+  }, [initialPropYear]);
+
+  // Start Create (On-page form, NO modal, NO sheet)
+  const handleStartCreate = () => {
+    setEditingId(null);
+    setDomain("ICT");
+    setOfficerName("");
+    setDesignation("");
+    setEmail("");
+    setPhoneNumber("");
+    setViewMode("form");
+    onModeChange?.("new", null);
+  };
+
+  // Start Edit (On-page form, NO modal, NO sheet)
   const handleStartEdit = (row: FocalPersonRow) => {
     setEditingId(row.id || null);
     setDomain(row.domain || "ICT");
@@ -174,20 +308,34 @@ export default function FocalPersonsTab({
     setDesignation(row.designation || "");
     setEmail(row.email || "");
     setPhoneNumber(row.phone || "");
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    if (row.state_id) setCurrentStateId(String(row.state_id));
+    if (row.reporting_year) setCurrentYear(Number(row.reporting_year));
+    setViewMode("form");
+    onModeChange?.("edit", row.id || null);
   };
 
-  const handleCancelEdit = () => {
+  // Start View (On-page detail view)
+  const handleStartView = (row: FocalPersonRow) => {
+    setViewingRecord(row);
+    setViewMode("view");
+    onModeChange?.("view", row.id || null);
+  };
+
+  // Cancel back to table
+  const handleCancelForm = () => {
+    if (isStandaloneForm && onBack) {
+      onBack();
+      return;
+    }
     setEditingId(null);
-    setDomain("ICT");
-    setOfficerName("");
-    setDesignation("");
-    setEmail("");
-    setPhoneNumber("");
+    setViewMode("table");
+    onModeChange?.("list", null);
   };
 
   // Save / Add Officer to Register
-  const handleSaveOfficer = async () => {
+  const handleSaveOfficer = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+
     if (!currentStateId) {
       toast.error("Please select a State Office");
       return;
@@ -216,14 +364,21 @@ export default function FocalPersonsTab({
 
       if (editingId) {
         await stateZonalFocalPersonApi.update(editingId, payload);
-        toast.success("Officer record updated");
+        toast.success("Officer record updated successfully");
       } else {
         await stateZonalFocalPersonApi.create(payload);
-        toast.success("Officer added to register");
+        toast.success("Officer appointed to register successfully");
       }
 
-      handleCancelEdit();
       await loadRecords();
+      if (onSaved) onSaved();
+
+      if (isStandaloneForm && onBack) {
+        onBack();
+      } else {
+        setViewMode("table");
+        onModeChange?.("list", null);
+      }
     } catch (err: any) {
       toast.error(err.message || "Failed to save officer record");
     } finally {
@@ -237,274 +392,631 @@ export default function FocalPersonsTab({
     if (!confirm("Are you sure you want to remove this focal person from the register?")) return;
     try {
       await stateZonalFocalPersonApi.delete(id);
-      toast.success("Officer removed");
+      toast.success("Officer removed from register");
       await loadRecords();
-      if (editingId === id) handleCancelEdit();
+      if (viewMode === "view") {
+        setViewMode("table");
+        onModeChange?.("list", null);
+      }
     } catch (err: any) {
       toast.error(err.message || "Failed to remove officer");
     }
   };
 
-  return (
-    <div className="bg-white rounded-2xl border border-[#d4e8dc] p-6 md:p-8 shadow-xs space-y-7">
-      {/* Title Header matching Slide 4 */}
-      <div>
-        <h1 className="text-2xl md:text-3xl font-extrabold text-[#0f2d42] tracking-tight">
-          Form 4 — Focal Persons
-        </h1>
-        <p className="text-sm text-slate-500 mt-1">
-          Register of designated officers by domain • fields copied from the Excel sheet.
-        </p>
-        <div className="w-16 h-1 bg-[#007a8c] mt-2.5 rounded-full" />
-      </div>
+  // Filtered dataset
+  const filteredRecords = React.useMemo(() => {
+    return records.filter((r) => {
+      // Domain filter
+      if (domainFilter !== "all" && r.domain !== domainFilter) return false;
 
-      {/* TOP ROW: State, Zone, Year */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="space-y-1.5">
-          <Label className="text-xs font-bold text-[#102a43]">State</Label>
-          <Select
-            value={currentStateId ? String(currentStateId) : ""}
-            onValueChange={handleStateChange}
-            disabled={readOnly}
+      // Text search
+      if (!searchQuery.trim()) return true;
+      const q = searchQuery.toLowerCase();
+      const name = r.officer_name?.toLowerCase() || "";
+      const dom = r.domain?.toLowerCase() || "";
+      const des = r.designation?.toLowerCase() || "";
+      const em = r.email?.toLowerCase() || "";
+      const ph = r.phone?.toLowerCase() || "";
+      const st = r.state?.description?.toLowerCase() || "";
+
+      return (
+        name.includes(q) ||
+        dom.includes(q) ||
+        des.includes(q) ||
+        em.includes(q) ||
+        ph.includes(q) ||
+        st.includes(q)
+      );
+    });
+  }, [records, domainFilter, searchQuery]);
+
+  // Statistics calculation for Solvix Stat Cards
+  const emailCount = records.filter((r) => r.email && r.email.includes("@")).length;
+  const phoneCount = records.filter((r) => r.phone && r.phone.length > 5).length;
+
+  // TanStack Column Definitions matching Solvix Table
+  const columns: ColumnDef<FocalPersonRow>[] = [
+    {
+      id: "code",
+      header: "Officer ID",
+      cell: ({ row }) => (
+        <span className="font-mono text-slate-400 text-[11px] font-medium">
+          #{String(row.original.id || row.index + 1).padStart(4, "0")}
+        </span>
+      ),
+      size: 80,
+    },
+    {
+      accessorKey: "officer_name",
+      header: "Officer Name",
+      cell: ({ row }) => {
+        const name = row.original.officer_name;
+        const initials = name
+          .split(" ")
+          .map((n) => n[0])
+          .slice(0, 2)
+          .join("")
+          .toUpperCase();
+
+        return (
+          <div className="flex items-center gap-2.5">
+            <div className="size-6 rounded-full bg-slate-100 border border-slate-200 text-slate-700 flex items-center justify-center text-[10px] font-bold shrink-0">
+              {initials}
+            </div>
+            <span className="font-semibold text-slate-900 hover:text-[#007a8c] transition-colors">
+              {name}
+            </span>
+          </div>
+        );
+      },
+    },
+    {
+      accessorKey: "domain",
+      header: "Domain",
+      cell: ({ row }) => (
+        <span className="text-slate-600 font-medium">
+          {row.original.domain}
+        </span>
+      ),
+    },
+    {
+      id: "status",
+      header: "Status",
+      cell: ({ row }) => {
+        const hasEmail = !!row.original.email;
+        const hasPhone = !!row.original.phone;
+
+        if (hasEmail && hasPhone) {
+          return (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+              <span className="size-1.5 rounded-full bg-emerald-500" />
+              Verified
+            </span>
+          );
+        }
+        if (hasEmail || hasPhone) {
+          return (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-sky-50 text-sky-700 border border-sky-200">
+              <span className="size-1.5 rounded-full bg-sky-500" />
+              Active
+            </span>
+          );
+        }
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+            <span className="size-1.5 rounded-full bg-amber-500" />
+            Pending Info
+          </span>
+        );
+      },
+    },
+    {
+      accessorKey: "reporting_year",
+      header: "Date / Cycle",
+      cell: ({ row }) => (
+        <span className="text-slate-500 font-medium text-[11px]">
+          {row.original.reporting_year}
+        </span>
+      ),
+    },
+    {
+      id: "contact",
+      header: "Official Contact",
+      cell: ({ row }) => (
+        <span className="font-bold text-slate-900 text-xs">
+          {row.original.email || row.original.phone || "—"}
+        </span>
+      ),
+    },
+    {
+      id: "actions",
+      header: "Action",
+      cell: ({ row }) => (
+        <div
+          className="flex items-center justify-end"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => handleStartView(row.original)}
+            className="h-7 px-2.5 text-xs font-semibold text-[#007a8c] hover:text-[#005a66] hover:bg-[#007a8c]/10 rounded-md gap-1"
           >
-            <SelectTrigger
-              className="h-10 bg-white border-[#c8dcd0] focus:border-[#007a8c]"
-              displayValue={selectedState?.description || "Select state"}
-            >
-              <SelectValue placeholder="Select state" />
-            </SelectTrigger>
-            <SelectContent>
-              {states.map((st) => (
-                <SelectItem key={st.id} value={String(st.id)}>
-                  {st.description}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            <Eye className="size-3.5" />
+            <span>View</span>
+          </Button>
         </div>
+      ),
+    },
+  ];
 
-        <div className="space-y-1.5">
-          <Label className="text-xs font-bold text-[#102a43]">Zone</Label>
-          <Input
-            value={selectedZone?.description || (currentZoneId ? `Zone ${currentZoneId}` : "Auto-populated")}
-            readOnly
-            placeholder="Auto-populated"
-            className="h-10 bg-slate-50 border-[#c8dcd0] text-slate-700 cursor-not-allowed font-medium"
-          />
-        </div>
+  // 4 Solvix Stat Items (Unconditionally declared at top before any early return)
+  const focalStatItems: SolvixStatItem[] = React.useMemo(() => [
+    {
+      label: "APPOINTED OFFICERS",
+      value: records.length,
+      trendValue: `${Math.round((records.length / 16) * 100)}%`,
+      trendLabel: "of 16 domains designated",
+      trendColor: "emerald",
+      sparklineVariant: "teal",
+    },
+    {
+      label: "VERIFIED EMAILS",
+      value: emailCount,
+      trendValue: `${records.length > 0 ? Math.round((emailCount / records.length) * 100) : 0}%`,
+      trendLabel: "official email addresses",
+      trendColor: "emerald",
+      sparklineVariant: "emerald",
+    },
+    {
+      label: "PHONE REACHABILITY",
+      value: phoneCount,
+      trendValue: `${records.length > 0 ? Math.round((phoneCount / records.length) * 100) : 0}%`,
+      trendLabel: "active phone lines",
+      trendColor: "sky",
+      sparklineVariant: "sky",
+    },
+    {
+      label: "REPORTING CYCLE",
+      value: currentYear,
+      trendValue: selectedState?.description || "All States",
+      trendLabel: selectedZone?.description || "Nationwide",
+      trendColor: "indigo",
+      sparklineVariant: "indigo",
+    },
+  ], [records, emailCount, phoneCount, currentYear, selectedState, selectedZone]);
 
-        <div className="space-y-1.5">
-          <Label className="text-xs font-bold text-[#102a43]">Year</Label>
-          <Select
-            value={currentYear ? String(currentYear) : ""}
-            onValueChange={(val) => setCurrentYear(Number(val))}
-            disabled={readOnly}
-          >
-            <SelectTrigger
-              className="h-10 bg-white border-[#c8dcd0] focus:border-[#007a8c]"
-              displayValue={currentYear ? String(currentYear) : "Select reporting year"}
-            >
-              <SelectValue placeholder="Select reporting year" />
-            </SelectTrigger>
-            <SelectContent>
-              {yearOptions.map((opt) => (
-                <SelectItem key={opt} value={opt}>
-                  {opt}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+  /* =========================================================================
+     VIEW MODE 1: ON-PAGE FORM (1 CARD, ZONE FIRST AS SELECT, STATE FILTERED)
+     ========================================================================= */
+  if (viewMode === "form") {
+    const previewInitials = officerName
+      ? officerName
+          .split(" ")
+          .map((n) => n[0])
+          .filter(Boolean)
+          .slice(0, 2)
+          .join("")
+          .toUpperCase()
+      : "?";
+
+    const hasEmail = Boolean(email && email.includes("@"));
+    const hasPhone = Boolean(phoneNumber && phoneNumber.trim().length >= 6);
+
+    return (
+      <div className="w-full space-y-4 animate-in fade-in-50 duration-200">
+        {/* ONE SINGLE CARD FOR FOCAL PERSON FORM */}
+        <Card className="rounded-sm border-slate-200/80 shadow-2xs bg-white">
+          <CardContent className="space-y-5 pt-6">
+            {/* 1. JURISDICTION & SCOPE: ZONE FIRST (SELECT), THEN STATE (SELECT FROM ZONE), YEAR, DOMAIN */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* ZONE SELECT FIRST */}
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-slate-700">
+                  Zonal Office <span className="text-rose-500">*</span>
+                </Label>
+                <Select
+                  value={currentZoneId ? String(currentZoneId) : ""}
+                  onValueChange={handleZoneChange}
+                  disabled={readOnly}
+                >
+                  <SelectTrigger
+                    displayValue={selectedZone?.description || (currentZoneId ? `Zone ${currentZoneId}` : undefined)}
+                  >
+                    <SelectValue placeholder="Select Zone" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {zones.map((z) => (
+                      <SelectItem key={z.id} value={String(z.id)}>
+                        {z.description}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* STATE SELECT SECOND (FILTERED BY ZONE) */}
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-slate-700">
+                  State Office <span className="text-rose-500">*</span>
+                </Label>
+                <Select
+                  value={currentStateId ? String(currentStateId) : ""}
+                  onValueChange={handleStateChange}
+                  disabled={readOnly}
+                >
+                  <SelectTrigger
+                    displayValue={selectedState?.description || (currentStateId ? `State Office` : undefined)}
+                  >
+                    <SelectValue placeholder={currentZoneId ? "Select state in zone" : "Select zone first or state"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableStates.map((st) => (
+                      <SelectItem key={st.id} value={String(st.id)}>
+                        {st.description} {st.code ? `(${st.code})` : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* REPORTING YEAR */}
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-slate-700">
+                  Reporting Year <span className="text-rose-500">*</span>
+                </Label>
+                <Select
+                  value={currentYear ? String(currentYear) : ""}
+                  onValueChange={(val) => setCurrentYear(Number(val))}
+                  disabled={readOnly}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select reporting year" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {yearOptions.map((opt) => (
+                      <SelectItem key={opt} value={opt}>
+                        {opt} Cycle
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* FUNCTIONAL DOMAIN */}
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-slate-700">
+                  Functional Domain <span className="text-rose-500">*</span>
+                </Label>
+                <Select value={domain} onValueChange={setDomain} disabled={readOnly}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select domain" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {FOCAL_DOMAINS.map((d) => (
+                      <SelectItem key={d} value={d}>
+                        {d}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* 2. LIVE OFFICER PROFILE PREVIEW BANNER */}
+            <div className="p-3.5 rounded-sm bg-gradient-to-r from-slate-50 to-slate-100/80 border border-slate-200/80 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="size-11 rounded-full bg-[#007a8c] text-white flex items-center justify-center text-sm font-bold shadow-xs">
+                  {previewInitials}
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-bold text-slate-900 leading-tight">
+                      {officerName.trim() || "Officer Full Name"}
+                    </p>
+                    <span className="px-2 py-0.5 rounded-sm text-[10px] font-semibold bg-white border border-slate-200 text-[#007a8c]">
+                      {domain}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    {designation.trim() || "Official Designation / Role"} • {selectedState?.description || "State Office"} {selectedZone ? `(${selectedZone.description})` : ""}
+                  </p>
+                </div>
+              </div>
+              <div>
+                {hasEmail && hasPhone ? (
+                  <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-sm text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    <CheckCircle2 className="size-3 text-emerald-600" /> Fully Verified
+                  </span>
+                ) : hasEmail || hasPhone ? (
+                  <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-sm text-[10px] font-semibold bg-sky-50 text-sky-700 border border-sky-200">
+                    Active Reach
+                  </span>
+                ) : (
+                  <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-sm text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                    Pending Contact
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* 3. OFFICER DETAILS & OFFICIAL CONTACT */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-slate-700">
+                  Full Name of Officer <span className="text-rose-500">*</span>
+                </Label>
+                <Input
+                  value={officerName}
+                  onChange={(e) => setOfficerName(e.target.value)}
+                  placeholder="e.g. Dr. Aminu Bello"
+                  disabled={readOnly}
+                  className="h-9 bg-white border-slate-200 text-xs rounded-sm focus-visible:ring-1 focus-visible:ring-[#007a8c]"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-slate-700">
+                  Official Designation / Title <span className="text-rose-500">*</span>
+                </Label>
+                <Input
+                  value={designation}
+                  onChange={(e) => setDesignation(e.target.value)}
+                  placeholder="e.g. Senior ICT Officer / Focal Officer"
+                  disabled={readOnly}
+                  className="h-9 bg-white border-slate-200 text-xs rounded-sm focus-visible:ring-1 focus-visible:ring-[#007a8c]"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-slate-700">Official Email</Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
+                  <Input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="officer@nhia.gov.ng"
+                    disabled={readOnly}
+                    className="pl-9 h-9 bg-white border-slate-200 text-xs rounded-sm focus-visible:ring-1 focus-visible:ring-[#007a8c]"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-slate-700">Official Phone Number</Label>
+                <div className="relative">
+                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
+                  <Input
+                    type="tel"
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value)}
+                    placeholder="0803 000 0000"
+                    disabled={readOnly}
+                    className="pl-9 h-9 bg-white border-slate-200 text-xs rounded-sm focus-visible:ring-1 focus-visible:ring-[#007a8c]"
+                  />
+                </div>
+              </div>
+            </div>
+          </CardContent>
+
+          <CardFooter className="bg-slate-50/50 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3 py-3 px-5 rounded-b-sm">
+            <span className="text-[11px] text-slate-400 text-center sm:text-left">
+              Fields marked with (<span className="text-rose-500">*</span>) are mandatory for directory registration.
+            </span>
+            <div className="flex items-center gap-2 self-end sm:self-auto">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleCancelForm}
+                className="h-8 text-xs border-slate-200 text-slate-700 rounded-sm"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => handleSaveOfficer()}
+                disabled={saving || readOnly}
+                className="h-8 text-xs bg-[#0f2d42] hover:bg-[#1a3d54] text-white font-medium rounded-sm gap-1.5 shadow-2xs"
+              >
+                {saving ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : editingId ? (
+                  <Save className="size-3.5" />
+                ) : (
+                  <Plus className="size-3.5" />
+                )}
+                {editingId ? "Update Officer" : "Appoint Officer"}
+              </Button>
+            </div>
+          </CardFooter>
+        </Card>
       </div>
+    );
+  }
 
-      {/* INPUT ROW 1: Domain, Name of Officer, Designation, Email matching Slide 4 */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="space-y-1.5">
-          <Label className="text-xs font-bold text-[#102a43]">Domain</Label>
-          <Select
-            value={domain}
-            onValueChange={setDomain}
-            disabled={readOnly}
-          >
-            <SelectTrigger
-              className="h-10 bg-white border-[#c8dcd0] focus:border-[#007a8c]"
-              displayValue={domain || "Select domain"}
-            >
-              <SelectValue placeholder="Select domain" />
-            </SelectTrigger>
-            <SelectContent>
-              {FOCAL_DOMAINS.map((d) => (
-                <SelectItem key={d} value={d}>
-                  {d}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+  /* =========================================================================
+     VIEW MODE 2: ON-PAGE DETAIL VIEW (NO MODALS, NO SHEETS)
+     ========================================================================= */
+  if (viewMode === "view" && viewingRecord) {
+    const name = viewingRecord.officer_name;
+    const initials = name
+      .split(" ")
+      .map((n) => n[0])
+      .slice(0, 2)
+      .join("")
+      .toUpperCase();
 
-        <div className="space-y-1.5">
-          <Label className="text-xs font-bold text-[#102a43]">Name of Officer</Label>
-          <Input
-            value={officerName}
-            onChange={(e) => setOfficerName(e.target.value)}
-            placeholder="Enter full name"
-            disabled={readOnly}
-            className="h-10 bg-white border-[#c8dcd0] focus-visible:border-[#007a8c]"
-          />
-        </div>
-
-        <div className="space-y-1.5">
-          <Label className="text-xs font-bold text-[#102a43]">Designation</Label>
-          <Input
-            value={designation}
-            onChange={(e) => setDesignation(e.target.value)}
-            placeholder="Enter designation"
-            disabled={readOnly}
-            className="h-10 bg-white border-[#c8dcd0] focus-visible:border-[#007a8c]"
-          />
-        </div>
-
-        <div className="space-y-1.5">
-          <Label className="text-xs font-bold text-[#102a43]">Email</Label>
-          <Input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="Enter email"
-            disabled={readOnly}
-            className="h-10 bg-white border-[#c8dcd0] focus-visible:border-[#007a8c]"
-          />
-        </div>
-      </div>
-
-      {/* INPUT ROW 2: Phone Number & Action Button matching Slide 4 */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-        <div className="space-y-1.5 md:col-span-1">
-          <Label className="text-xs font-bold text-[#102a43]">Phone Number</Label>
-          <Input
-            type="tel"
-            value={phoneNumber}
-            onChange={(e) => setPhoneNumber(e.target.value)}
-            placeholder="Enter phone number"
-            disabled={readOnly}
-            className="h-10 bg-white border-[#c8dcd0] focus-visible:border-[#007a8c]"
-          />
-        </div>
-
-        <div className="flex items-center gap-2 md:col-span-1">
+    return (
+      <div className="w-full space-y-4 animate-in fade-in-50 duration-200">
+        {/* Navigation Bar */}
+        <div className="flex items-center justify-between bg-white px-5 py-3 rounded-sm border border-slate-200/80 shadow-2xs">
           <Button
             type="button"
-            onClick={handleSaveOfficer}
-            disabled={saving || readOnly}
-            className="w-full h-10 bg-[#007a8c] hover:bg-[#006877] text-white font-medium shadow-sm"
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              if (isStandaloneForm && onBack) onBack();
+              else setViewMode("table");
+            }}
+            className="gap-1.5 h-8 text-xs border-slate-200 text-slate-700 hover:bg-slate-50 rounded-sm font-medium"
           >
-            {saving ? (
-              <Loader2 className="w-4 h-4 animate-spin mr-1" />
-            ) : editingId ? (
-              <Save className="w-4 h-4 mr-1" />
-            ) : (
-              <Plus className="w-4 h-4 mr-1" />
-            )}
-            {editingId ? "Update Officer" : "Add to Register"}
+            <ArrowLeft className="size-3.5" /> Back to Register
           </Button>
 
-          {editingId && (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleCancelEdit}
-              className="h-10 text-xs border-slate-300"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-            </Button>
+          {!readOnly && (
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => handleStartEdit(viewingRecord)}
+                className="gap-1.5 h-8 text-xs border-slate-200 text-slate-700 hover:bg-slate-50 rounded-sm font-medium"
+              >
+                <Pencil className="size-3.5 text-slate-500" /> Edit Officer
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => handleDeleteOfficer(viewingRecord.id)}
+                className="gap-1.5 h-8 text-xs text-rose-600 hover:bg-rose-50 rounded-sm"
+              >
+                <Trash2 className="size-3.5" /> Remove
+              </Button>
+            </div>
           )}
         </div>
-      </div>
 
-      {/* ILLUSTRATIVE FOCAL-PERSON REGISTER TABLE matching Slide 4 */}
-      <div className="space-y-2 pt-2">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-bold text-[#102a43]">Illustrative focal-person register</h3>
-          <span className="text-xs text-slate-400">
-            {records.length} {records.length === 1 ? "officer" : "officers"} registered
-          </span>
-        </div>
-
-        <div className="rounded-xl border border-[#c8dcd0] overflow-hidden shadow-xs">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-[#102a43] hover:bg-[#102a43] border-none">
-                <TableHead className="w-12 text-[11px] font-bold text-white text-center">S/N</TableHead>
-                <TableHead className="text-[11px] font-bold text-white">Domain</TableHead>
-                <TableHead className="text-[11px] font-bold text-white">Name</TableHead>
-                <TableHead className="text-[11px] font-bold text-white">Designation</TableHead>
-                <TableHead className="text-[11px] font-bold text-white">Email</TableHead>
-                <TableHead className="text-[11px] font-bold text-white">Phone Number</TableHead>
-                <TableHead className="text-[11px] font-bold text-white text-center">Year</TableHead>
-                <TableHead className="w-24 text-[11px] font-bold text-white text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
-                <TableRow>
-                  <TableCell colSpan={8} className="py-8 text-center text-slate-400 text-xs">
-                    <Loader2 className="w-4 h-4 animate-spin inline-block mr-2" />
-                    Loading register...
-                  </TableCell>
-                </TableRow>
-              ) : records.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={8} className="py-8 text-center text-slate-400 text-xs">
-                    No focal persons appointed for this state office and year yet. Add an officer above.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                records.map((r, idx) => (
-                  <TableRow
-                    key={r.id || idx}
-                    className="border-b border-[#e5f0ea] hover:bg-[#f6faf8] text-xs transition-colors"
+        {/* Executive Profile Card */}
+        <Card className="rounded-sm border-slate-200/80 shadow-2xs overflow-hidden bg-white">
+          <div className="bg-gradient-to-r from-[#0f2d42] to-[#102a43] p-6 text-white flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="size-14 rounded-full bg-white/10 border-2 border-white/20 flex items-center justify-center text-lg font-bold">
+                {initials}
+              </div>
+              <div>
+                <div className="flex items-center gap-2.5">
+                  <h1 className="text-lg font-bold">{name}</h1>
+                  <Badge
+                    variant="outline"
+                    className="text-xs border-white/30 text-white bg-white/10 rounded-sm font-semibold"
                   >
-                    <TableCell className="font-semibold text-slate-700 text-center">{idx + 1}</TableCell>
-                    <TableCell className="font-bold text-[#102a43]">{r.domain}</TableCell>
-                    <TableCell className="font-semibold text-slate-800">{r.officer_name}</TableCell>
-                    <TableCell className="text-slate-600">{r.designation}</TableCell>
-                    <TableCell className="text-slate-600">{r.email || "—"}</TableCell>
-                    <TableCell className="text-slate-600">{r.phone || "—"}</TableCell>
-                    <TableCell className="text-slate-700 text-center">{r.reporting_year}</TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleStartEdit(r)}
-                          className="h-7 w-7 p-0 text-[#007a8c] hover:bg-[#eef7fa]"
-                          title="Edit officer"
-                        >
-                          <Pencil className="w-3.5 h-3.5" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDeleteOfficer(r.id)}
-                          className="h-7 w-7 p-0 text-rose-600 hover:bg-rose-50"
-                          title="Remove officer"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      </div>
+                    {viewingRecord.domain}
+                  </Badge>
+                </div>
+                <p className="text-xs text-slate-300 mt-1">
+                  {viewingRecord.designation} • {viewingRecord.state?.description || "State Office"}
+                </p>
+              </div>
+            </div>
+            <div className="text-right hidden sm:block">
+              <p className="text-[10px] text-slate-300 uppercase tracking-wider font-semibold">Reporting Cycle</p>
+              <p className="text-base font-bold tabular-nums">{viewingRecord.reporting_year}</p>
+            </div>
+          </div>
 
-      {/* Footer Note matching Slide 4 */}
-      <p className="text-xs text-slate-500 italic">
-        Users can add multiple focal-person records for different domains. State, zone and year filters support historical lookup and national SQA visibility.
-      </p>
+          <CardContent className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="space-y-1">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                Official Email
+              </p>
+              <p className="text-sm font-medium text-slate-800">
+                {viewingRecord.email || "Not specified"}
+              </p>
+            </div>
+
+            <div className="space-y-1">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                Official Phone
+              </p>
+              <p className="text-sm font-medium text-slate-800">
+                {viewingRecord.phone || "Not specified"}
+              </p>
+            </div>
+
+            <div className="space-y-1">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                State / Zonal Allocation
+              </p>
+              <p className="text-sm font-medium text-slate-800">
+                {viewingRecord.state?.description || "—"} ({viewingRecord.zone?.description || "Zone"})
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  /* =========================================================================
+     VIEW MODE 3: SOLVIX DASHBOARD VIEW (STAT CARDS + INLINE FILTERS + TABLE)
+     ========================================================================= */
+
+  const activeFilterCount =
+    (currentStateId ? 1 : 0) + (domainFilter !== "all" ? 1 : 0);
+
+  return (
+    <div className="w-full space-y-3.5 animate-in fade-in-50 duration-200">
+      {/* 1. Compact Solvix Stat Cards */}
+      <SolvixStatCards items={focalStatItems} loading={loading} />
+
+      {/* 2. Solvix Filter Bar matching media_1793555167591_0eae438b.png (No duplicate button) */}
+      <SolvixFilterBar
+        filters={[
+          {
+            id: "state",
+            label: "State",
+            value: currentStateId ? String(currentStateId) : "all",
+            onChange: handleStateChange,
+            options: states.map((st) => ({ label: st.description, value: String(st.id) })),
+            allLabel: "All States",
+          },
+          {
+            id: "domain",
+            label: "Domain",
+            value: domainFilter,
+            onChange: setDomainFilter,
+            options: FOCAL_DOMAINS.map((d) => ({
+              label: `${d} ${records.filter((r) => r.domain === d).length > 0 ? `(${records.filter((r) => r.domain === d).length})` : ""}`,
+              value: d,
+            })),
+            allLabel: `All Domains (${records.length})`,
+          },
+          {
+            id: "year",
+            label: "Year",
+            value: currentYear ? String(currentYear) : "",
+            onChange: (v) => setCurrentYear(Number(v)),
+            options: yearOptions.map((y) => ({ label: y, value: y })),
+            allLabel: "All Years",
+          },
+        ]}
+        activeFilterCount={activeFilterCount}
+        onClearFilters={() => {
+          setCurrentStateId("");
+          setDomainFilter("all");
+        }}
+      />
+
+      {/* 3. Solvix Unified Table Card (Less rounded, no duplicate button) */}
+      <ShadcnDataTable
+        title="FOCAL PERSONS REGISTER"
+        infoTooltip="State-level designated officers aligned to official NHIA reporting domains."
+        columns={columns}
+        data={filteredRecords}
+        loading={loading}
+        searchPlaceholder="Search officers, domains..."
+        searchValue={searchQuery}
+        onSearchChange={setSearchQuery}
+        onRowClick={handleStartView}
+        emptyMessage="No focal persons appointed matching your filters."
+        pageSize={50}
+        enableSelection={false}
+        showTableOptions={false}
+      />
     </div>
   );
 }

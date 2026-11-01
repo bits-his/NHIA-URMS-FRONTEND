@@ -16,6 +16,8 @@ interface SelectCtx {
   setQuery: (q: string) => void;
   triggerRef: React.RefObject<HTMLButtonElement | null>;
   disabled?: boolean;
+  itemLabels: Map<string, string>;
+  registerLabel: (val: string, label: string) => void;
 }
 
 const Ctx = React.createContext<SelectCtx | null>(null);
@@ -40,8 +42,57 @@ function Select({ value: ctrl, defaultValue = "", onValueChange, children, disab
   const [open, setOpen]         = React.useState(false);
   const [query, setQuery]       = React.useState("");
   const triggerRef              = React.useRef<HTMLButtonElement>(null);
+  const [itemLabels, setItemLabels] = React.useState<Map<string, string>>(() => new Map());
 
   const value = ctrl !== undefined ? ctrl : internal;
+
+  const registerLabel = React.useCallback((val: string, label: string) => {
+    setItemLabels(prev => {
+      if (prev.get(val) === label) return prev;
+      const next = new Map(prev);
+      next.set(val, label);
+      return next;
+    });
+  }, []);
+
+  // Pre-collect static children mappings
+  React.useEffect(() => {
+    const map = new Map<string, string>();
+    const collect = (nodes: React.ReactNode) => {
+      React.Children.forEach(nodes, child => {
+        if (!React.isValidElement(child)) return;
+        if (child.type === SelectItem) {
+          const v = String((child.props as any).value ?? "");
+          const raw = (child.props as any).children;
+          let label = "";
+          if (typeof raw === "string" || typeof raw === "number") {
+            label = String(raw);
+          } else if (Array.isArray(raw)) {
+            label = raw.map(c => (typeof c === "string" || typeof c === "number" ? String(c) : "")).join("").trim();
+          }
+          if (v && label) {
+            map.set(v, label);
+          }
+        } else if ((child.props as any)?.children) {
+          collect((child.props as any).children);
+        }
+      });
+    };
+    collect(children);
+    if (map.size > 0) {
+      setItemLabels(prev => {
+        let changed = false;
+        const next = new Map(prev);
+        map.forEach((lbl, val) => {
+          if (next.get(val) !== lbl) {
+            next.set(val, lbl);
+            changed = true;
+          }
+        });
+        return changed ? next : prev;
+      });
+    }
+  }, [children]);
 
   const handleChange = (v: string) => {
     if (ctrl === undefined) setInternal(v);
@@ -51,7 +102,7 @@ function Select({ value: ctrl, defaultValue = "", onValueChange, children, disab
   };
 
   return (
-    <Ctx.Provider value={{ value, onValueChange: handleChange, open, setOpen, query, setQuery, triggerRef, disabled }}>
+    <Ctx.Provider value={{ value, onValueChange: handleChange, open, setOpen, query, setQuery, triggerRef, disabled, itemLabels, registerLabel }}>
       <div className="relative w-full" data-disabled={disabled || undefined}>
         {children}
       </div>
@@ -77,7 +128,7 @@ interface SelectTriggerProps {
 }
 
 function SelectTrigger({ children, className, size = "default", id, displayValue, disabled: propDisabled }: SelectTriggerProps) {
-  const { value, open, setOpen, triggerRef, disabled: ctxDisabled } = useCtx();
+  const { value, open, setOpen, triggerRef, disabled: ctxDisabled, itemLabels } = useCtx();
   const isDisabled = propDisabled ?? ctxDisabled ?? false;
 
   // Extract placeholder from SelectValue child
@@ -88,8 +139,9 @@ function SelectTrigger({ children, className, size = "default", id, displayValue
     }
   });
 
-  // Use displayValue if provided, otherwise fall back to raw value
-  const shown = displayValue ?? (value ? value : placeholder);
+  // Use displayValue if provided, otherwise resolve label from registered itemLabels, otherwise fall back to raw value or placeholder
+  const mappedLabel = value ? itemLabels?.get(String(value)) : undefined;
+  const shown = displayValue ?? mappedLabel ?? (value ? value : placeholder);
 
   return (
     <button
@@ -100,12 +152,12 @@ function SelectTrigger({ children, className, size = "default", id, displayValue
       onClick={() => !isDisabled && setOpen(!open)}
       className={cn(
         "w-full flex items-center justify-between gap-2 text-left",
-        "bg-[#f4f7f5] border-2 border-[#1a7a52] rounded-xl px-3.5",
-        "transition-all duration-200 outline-none",
+        "bg-[#f4f7f5] border-2 border-[#1a7a52] rounded-sm px-3.5",
+        "transition-all duration-150 outline-none",
         "hover:border-[#0f3d2e] hover:bg-white",
-        "focus-visible:border-[#0f3d2e] focus-visible:ring-3 focus-visible:ring-[#1a7a52]/25",
+        "focus-visible:border-[#0f3d2e] focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-[#1a7a52]/20",
         open && "border-[#0f3d2e] bg-white",
-        size === "default" ? "h-11 text-sm" : "h-9 text-xs rounded-lg",
+        size === "default" ? "h-11 text-sm font-medium" : "h-9 text-xs",
         isDisabled && "opacity-50 cursor-not-allowed hover:border-[#1a7a52] hover:bg-[#f4f7f5] pointer-events-none",
         className,
       )}
@@ -114,7 +166,7 @@ function SelectTrigger({ children, className, size = "default", id, displayValue
         {shown}
       </span>
       <ChevronDown className={cn(
-        "w-4 h-4 text-[#1a7a52] shrink-0 transition-transform duration-200",
+        "size-4 text-[#1a7a52] shrink-0 transition-transform duration-200",
         open && "rotate-180"
       )} />
     </button>
@@ -142,29 +194,54 @@ function SelectContent({ children, className }: SelectContentProps) {
     bottom: 0,
     left: 0,
     width: 0,
-    maxHeight: 260,
+    maxHeight: 280,
     openUp: false,
   });
 
-  // Position dropdown; flip upward when there isn't enough space below
-  React.useLayoutEffect(() => {
+  // Calculate and update position on open and continuously on ANY scroll or resize event
+  React.useEffect(() => {
     if (!open || !triggerRef.current) return;
-    const r = triggerRef.current.getBoundingClientRect();
-    const gap = 6;
-    const estimatedMenuHeight = Math.min(300, window.innerHeight * 0.45);
-    const spaceBelow = window.innerHeight - r.bottom - gap;
-    const spaceAbove = r.top - gap;
-    const openUp = spaceBelow < estimatedMenuHeight && spaceAbove > spaceBelow;
-    const maxHeight = Math.max(160, Math.floor(openUp ? spaceAbove - 8 : spaceBelow - 8));
-    setPos({
-      top: openUp ? 0 : r.bottom + gap,
-      left: Math.min(Math.max(8, r.left), window.innerWidth - Math.max(r.width, 220) - 8),
-      width: Math.max(r.width, 220),
-      maxHeight,
-      openUp,
-      bottom: openUp ? window.innerHeight - r.top + gap : 0,
-    });
-  }, [open, triggerRef]);
+
+    const updatePosition = () => {
+      if (!triggerRef.current) return;
+      const r = triggerRef.current.getBoundingClientRect();
+
+      // Trigger is unmounted or zero-sized
+      if (r.width === 0 && r.height === 0) return;
+
+      // If scrolled entirely off screen, close gracefully
+      if (r.bottom < 0 || r.top > window.innerHeight) {
+        setOpen(false);
+        return;
+      }
+
+      const gap = 4;
+      const spaceBelow = window.innerHeight - r.bottom - gap;
+      const spaceAbove = r.top - gap;
+      const openUp = spaceBelow < 220 && spaceAbove > spaceBelow;
+      const maxHeight = Math.min(320, Math.max(140, Math.floor(openUp ? spaceAbove - 8 : spaceBelow - 8)));
+
+      setPos({
+        top: openUp ? r.top - gap : r.bottom + gap,
+        bottom: openUp ? window.innerHeight - r.top + gap : 0,
+        left: Math.min(Math.max(8, r.left), window.innerWidth - Math.max(r.width, 220) - 8),
+        width: r.width,
+        maxHeight,
+        openUp,
+      });
+    };
+
+    updatePosition();
+
+    // Listen on scroll with capture: true to track window, document, and ANY scrollable parent (like ScrollArea)
+    window.addEventListener("scroll", updatePosition, { capture: true, passive: true });
+    window.addEventListener("resize", updatePosition, { passive: true });
+
+    return () => {
+      window.removeEventListener("scroll", updatePosition, { capture: true } as any);
+      window.removeEventListener("resize", updatePosition);
+    };
+  }, [open, triggerRef, setOpen]);
 
   // Close on outside click
   React.useEffect(() => {
@@ -181,14 +258,6 @@ function SelectContent({ children, className }: SelectContentProps) {
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, [open, setOpen, setQuery, triggerRef]);
-
-  // Close on scroll / resize
-  React.useEffect(() => {
-    if (!open) return;
-    const close = () => { setOpen(false); setQuery(""); };
-    window.addEventListener("resize", close);
-    return () => window.removeEventListener("resize", close);
-  }, [open, setOpen, setQuery]);
 
   // Focus search on open
   React.useEffect(() => {
@@ -245,29 +314,28 @@ function SelectContent({ children, className }: SelectContentProps) {
         zIndex: 9999,
       }}
       className={cn(
-        "flex flex-col bg-white rounded-2xl border border-[#d4e8dc]",
-        "shadow-[0_8px_40px_rgba(20,92,63,0.18),0_2px_8px_rgba(20,92,63,0.1)]",
-        "overflow-hidden",
+        "flex flex-col bg-white rounded-sm border-2 border-[#1a7a52]",
+        "shadow-2xl overflow-hidden text-sm",
         className,
       )}
     >
       {/* Search */}
-      <div className="shrink-0 p-2 border-b border-[#e8f5ee]">
+      <div className="shrink-0 p-2 border-b border-[#e8f5ee] bg-white">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#5a7a6a]" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-[#1a7a52]" />
           <input
             ref={searchRef}
             type="text"
             value={query}
             onChange={e => setQuery(e.target.value)}
             placeholder="Search…"
-            className="w-full pl-9 pr-3 h-9 rounded-xl text-sm bg-[#f4f7f5] border border-[#c8e6d8] text-slate-800 placeholder:text-slate-400 outline-none focus:border-[#1a7a52] focus:ring-2 focus:ring-[#1a7a52]/20 transition-all"
+            className="w-full pl-9 pr-3 h-10 rounded-sm text-sm bg-[#f4f7f5] border border-[#c8e6d8] text-slate-800 placeholder:text-slate-400 outline-none focus:border-[#1a7a52] focus:bg-white transition-colors"
           />
         </div>
       </div>
 
       {/* Options */}
-      <div className="overflow-y-auto flex-1 min-h-0 p-1.5">
+      <div className="overflow-y-auto flex-1 min-h-0 p-1.5 space-y-0.5">
         {filtered.length === 0 ? (
           <div className="px-3 py-5 text-center text-sm text-slate-400">No results</div>
         ) : (
@@ -276,7 +344,7 @@ function SelectContent({ children, className }: SelectContentProps) {
       </div>
 
       {query && (
-        <div className="px-3 py-1.5 border-t border-[#e8f5ee] text-[10px] text-[#5a7a6a] font-medium">
+        <div className="px-3 py-1.5 border-t border-[#e8f5ee] text-xs text-[#1a7a52] font-medium">
           {filtered.length} of {allItems.length} results
         </div>
       )}
@@ -296,8 +364,25 @@ interface SelectItemProps {
 }
 
 function SelectItem({ value: itemValue, children, className, disabled }: SelectItemProps) {
-  const { value, onValueChange } = useCtx();
+  const { value, onValueChange, registerLabel } = useCtx();
   const isSelected = value === itemValue;
+
+  React.useEffect(() => {
+    if (itemValue && registerLabel) {
+      let label = "";
+      if (typeof children === "string" || typeof children === "number") {
+        label = String(children);
+      } else if (Array.isArray(children)) {
+        label = children
+          .map(c => (typeof c === "string" || typeof c === "number" ? String(c) : ""))
+          .join("")
+          .trim();
+      }
+      if (label) {
+        registerLabel(String(itemValue), label);
+      }
+    }
+  }, [itemValue, children, registerLabel]);
 
   return (
     <button
@@ -305,18 +390,18 @@ function SelectItem({ value: itemValue, children, className, disabled }: SelectI
       disabled={disabled}
       onClick={() => !disabled && onValueChange(itemValue)}
       className={cn(
-        "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left",
-        "transition-all duration-150",
-        "whitespace-normal break-words",
+        "w-full flex items-center justify-between gap-2 px-3.5 py-2.5 rounded-sm text-left text-sm cursor-pointer",
+        "transition-colors duration-150",
+        "whitespace-normal break-words select-none",
         isSelected
-          ? "bg-[#e8f5ee] text-[#145c3f]"
-          : "text-slate-700 hover:bg-[#f0fdf7] hover:text-[#145c3f]",
-        disabled && "opacity-40 pointer-events-none",
+          ? "bg-[#e8f5ee] text-[#0f3d2e] font-semibold"
+          : "text-slate-700 hover:bg-[#e8f5ee] hover:text-[#0f3d2e]",
+        disabled && "opacity-40 pointer-events-none cursor-not-allowed",
         className,
       )}
     >
       <span className="flex-1 text-sm font-medium leading-snug">{children}</span>
-      {isSelected && <Check className="w-4 h-4 text-[#145c3f] shrink-0" />}
+      {isSelected && <Check className="size-4 text-[#1a7a52] shrink-0" />}
     </button>
   );
 }
@@ -324,19 +409,19 @@ function SelectItem({ value: itemValue, children, className, disabled }: SelectI
 // ─── Stub components ──────────────────────────────────────────────────────────
 
 function SelectGroup({ children, className }: { children?: React.ReactNode; className?: string }) {
-  return <div className={cn("p-1", className)}>{children}</div>;
+  return <div className={cn("p-0.5", className)}>{children}</div>;
 }
 
 function SelectLabel({ children, className }: { children?: React.ReactNode; className?: string }) {
   return (
-    <div className={cn("px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-widest text-[#5a7a6a]", className)}>
+    <div className={cn("px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400 select-none", className)}>
       {children}
     </div>
   );
 }
 
 function SelectSeparator({ className }: { className?: string }) {
-  return <div className={cn("my-1.5 h-px bg-[#e8f5ee] -mx-1", className)} />;
+  return <div className={cn("my-1 h-px bg-slate-100 -mx-1", className)} />;
 }
 
 function SelectScrollUpButton()   { return null; }

@@ -9,19 +9,16 @@ import {
 } from "@/lib/formatNumberInput"
 
 const inputClassName = cn(
-  "h-11 w-full min-w-0 rounded-xl px-3.5 py-2 text-sm",
-  "bg-[#f4f7f5]",
-  "border-2 border-[#1a7a52]",
+  "h-9 w-full min-w-0 rounded-sm px-3 py-1.5 text-xs",
+  "bg-white border border-slate-200",
   "text-slate-800 placeholder:text-slate-400",
-  "transition-all duration-200 outline-none",
-  "hover:border-[#0f3d2e] hover:bg-white",
-  "focus-visible:border-[#0f3d2e] focus-visible:bg-white",
-  "focus-visible:ring-3 focus-visible:ring-[#1a7a52]/25",
-  "shadow-[0_1px_3px_rgba(20,92,63,0.06)]",
-  "focus-visible:shadow-[0_2px_8px_rgba(20,92,63,0.12)]",
-  "file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-slate-700",
-  "disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-slate-100",
-  "aria-invalid:border-rose-500 aria-invalid:ring-3 aria-invalid:ring-rose-400/20",
+  "transition-colors duration-150 outline-none",
+  "hover:border-slate-300 focus:bg-white",
+  "focus-visible:border-slate-400 focus-visible:ring-1 focus-visible:ring-slate-200",
+  "shadow-2xs",
+  "file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-xs file:font-medium file:text-slate-700",
+  "disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-slate-50",
+  "aria-invalid:border-rose-500 aria-invalid:ring-1 aria-invalid:ring-rose-400/20",
 )
 
 type InputProps = React.ComponentProps<"input"> & {
