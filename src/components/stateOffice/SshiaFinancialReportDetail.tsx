@@ -1,5 +1,5 @@
 import * as React from "react";
-import { ArrowLeft, Loader2, FileText, Clock, CheckCircle2, Pencil } from "lucide-react";
+import { ArrowLeft, Loader2, FileText, Clock, CheckCircle2, Pencil, XCircle, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -8,6 +8,12 @@ import { stateOfficeApi } from "@/lib/api";
 import {
   SSHIA_SUB_HEADS, monthLabel, formatNaira, calcSshiaLine,
 } from "./constants";
+import FinanceReviewPanel from "./shared/FinanceReviewPanel";
+import { useStateOfficeAccess } from "@/src/access/createReviewAccess";
+import {
+  SubmitConfirmModal,
+  useReportingOfficerSubmitConfirm,
+} from "@/src/components/SubmitConfirmModal";
 
 interface Props {
   reportId: number | string;
@@ -16,9 +22,12 @@ interface Props {
 }
 
 const STATUS_CONFIG = {
-  draft:     { label: "Draft",     cls: "bg-slate-100 text-slate-600 border-slate-200", icon: <FileText className="w-3 h-3" /> },
-  submitted: { label: "Submitted", cls: "bg-blue-100 text-blue-700 border-blue-200", icon: <Clock className="w-3 h-3" /> },
-  approved:  { label: "Approved",  cls: "bg-emerald-100 text-emerald-700 border-emerald-200", icon: <CheckCircle2 className="w-3 h-3" /> },
+  draft:            { label: "Draft",            cls: "bg-slate-100 text-slate-600 border-slate-200", icon: <FileText className="w-3 h-3" /> },
+  awaiting_review:  { label: "Awaiting review",  cls: "bg-amber-100 text-amber-800 border-amber-200", icon: <Clock className="w-3 h-3" /> },
+  returned:         { label: "Returned",         cls: "bg-rose-100 text-rose-700 border-rose-200", icon: <XCircle className="w-3 h-3" /> },
+  endorsed:         { label: "Endorsed",         cls: "bg-teal-100 text-teal-800 border-teal-200", icon: <CheckCircle2 className="w-3 h-3" /> },
+  submitted:        { label: "Submitted",        cls: "bg-blue-100 text-blue-700 border-blue-200", icon: <Clock className="w-3 h-3" /> },
+  approved:         { label: "Approved",         cls: "bg-emerald-100 text-emerald-700 border-emerald-200", icon: <CheckCircle2 className="w-3 h-3" /> },
 };
 
 function InfoField({ label, value }: { label: string; value: string }) {
@@ -33,8 +42,11 @@ function InfoField({ label, value }: { label: string; value: string }) {
 const api = stateOfficeApi["sshia-financial"];
 
 export default function SshiaFinancialReportDetail({ reportId, onBack, onEdit }: Props) {
+  const { canCreate } = useStateOfficeAccess();
+  const submitConfirm = useReportingOfficerSubmitConfirm();
   const [report, setReport] = React.useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = React.useState(true);
+  const [finalBusy, setFinalBusy] = React.useState(false);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -52,10 +64,22 @@ export default function SshiaFinancialReportDetail({ reportId, onBack, onEdit }:
     return () => { cancelled = true; };
   }, [reportId]);
 
-  const statusCfg = report ? STATUS_CONFIG[report.status as keyof typeof STATUS_CONFIG] : null;
-  const canUpdate = !!onEdit && report?.status === "draft";
+  const reload = React.useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await api.get(reportId);
+      setReport(res.data);
+    } catch (err: unknown) {
+      toast.error("Failed to load report", { description: (err as Error).message });
+    } finally {
+      setLoading(false);
+    }
+  }, [reportId]);
 
-  /** Only sub-heads that were actually filled (each is entered on its own). */
+  const statusCfg = report ? STATUS_CONFIG[report.status as keyof typeof STATUS_CONFIG] : null;
+  const canUpdate = !!onEdit && ["draft", "returned"].includes(String(report?.status || ""));
+  const canFinalSubmit = canCreate && report?.status === "endorsed";
+
   const filled = React.useMemo(() => {
     if (!report) return [];
     return SSHIA_SUB_HEADS.flatMap((h) => {
@@ -76,6 +100,21 @@ export default function SshiaFinancialReportDetail({ reportId, onBack, onEdit }:
       }];
     });
   }, [report]);
+
+  const finalSubmit = async () => {
+    setFinalBusy(true);
+    try {
+      await api.updateStatus(reportId, "submitted");
+      toast.success("Final submission complete");
+      await reload();
+      return true;
+    } catch (err: unknown) {
+      toast.error((err as Error).message || "Final submission failed");
+      return false;
+    } finally {
+      setFinalBusy(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -122,6 +161,23 @@ export default function SshiaFinancialReportDetail({ reportId, onBack, onEdit }:
               <Pencil className="w-3.5 h-3.5" /> Update
             </Button>
           )}
+          {canFinalSubmit && (
+            <Button
+              size="sm"
+              className="gap-1.5 bg-[#145c3f] hover:bg-[#0f3d2e]"
+              disabled={finalBusy}
+              onClick={() => submitConfirm.requestSubmit(() => finalSubmit(), {
+                force: true,
+                title: "Confirm final submission",
+                description:
+                  "This completes the report after State Coordinator endorsement. You will not be able to edit it afterwards.",
+                confirmLabel: "Yes, final submit",
+              })}
+            >
+              {finalBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+              Final Submit
+            </Button>
+          )}
         </div>
       </div>
 
@@ -139,7 +195,7 @@ export default function SshiaFinancialReportDetail({ reportId, onBack, onEdit }:
         {filled.length === 0 ? (
           <Card>
             <CardContent className="py-8 text-center text-sm text-slate-500">
-              No sub-head filled yet. Use Update to add one.
+              No sub-head filled yet. Use Update to add figures.
             </CardContent>
           </Card>
         ) : filled.map((row) => (
@@ -162,14 +218,26 @@ export default function SshiaFinancialReportDetail({ reportId, onBack, onEdit }:
           </Card>
         ))}
 
-        {canUpdate && (
-          <div className="flex justify-end">
-            <Button className="gap-1.5 bg-orange-action hover:bg-orange-600" onClick={onEdit}>
-              <Pencil className="w-4 h-4" /> Update & Submit
-            </Button>
-          </div>
-        )}
+        <FinanceReviewPanel
+          status={String(report.status)}
+          reviewNoteExisting={report.coordinator_review_note as string | null}
+          reviewedBy={report.coordinator_reviewed_by as string | null}
+          reviewedAt={report.coordinator_reviewed_at as string | null}
+          updateStatus={(status, note) => api.updateStatus(reportId, status, note).then(() => undefined)}
+          onChanged={() => void reload()}
+          hideFinalSubmit
+        />
       </div>
+
+      <SubmitConfirmModal
+        open={submitConfirm.open}
+        busy={submitConfirm.busy || finalBusy}
+        title={submitConfirm.title}
+        description={submitConfirm.description}
+        confirmLabel={submitConfirm.confirmLabel}
+        onConfirm={submitConfirm.confirm}
+        onCancel={submitConfirm.cancel}
+      />
     </div>
   );
 }

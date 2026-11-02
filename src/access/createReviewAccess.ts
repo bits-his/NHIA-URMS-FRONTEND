@@ -30,6 +30,7 @@ export function getCreateReviewAccess(role: string, user?: {
   const flaggedReview = user?.role_config?.can_review_monthly
     ?? (
       ["state-coordinator", "zonal-coordinator", "zc", "sdo", "admin"].includes(role)
+      || isDeptStateCoordinator(role)
       || isDeptZonalCoordinator(role)
     );
 
@@ -55,11 +56,11 @@ export function isCoordinatorRole(role: string) {
   return isDeptStateCoordinator(role) || isDeptZonalCoordinator(role);
 }
 
-/** State-office pages: state & zonal coordinators are view-only. */
+/** State-office pages: state & zonal coordinators review / endorse, not create. */
 export function useStateOfficeAccess(): CreateReviewAccess {
   const user = useSelector((s: RootState) => s.auth.user);
   const role = user?.role ?? "";
   const base = getCreateReviewAccess(role, user);
   if (!isCoordinatorRole(role)) return base;
-  return { canCreate: false, canReview: base.canReview, createOnly: false, reviewOnly: base.canReview };
+  return { canCreate: false, canReview: true, createOnly: false, reviewOnly: true };
 }
