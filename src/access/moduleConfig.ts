@@ -307,6 +307,7 @@ export const MODULE_CONFIG: ParentModule[] = [
       ]},
       { type: "group", label: "Internal Management", children: [
         { type: "group", label: "Finance", children: [
+          { title: "Finance Dashboard", view: "state-finance-dashboard", path: "/zonal/finance/dashboard", navLabel: "Dashboard" },
           { title: "IGR", view: "state-igr", path: "/zonal/igr" },
           { title: "SSHIA Financial Report", view: "state-sshia-financial", path: "/zonal/sshia-financial", navLabel: "SSHIA Report" },
           { title: "Expenditure Profile", view: "state-expenditure-profile", path: "/zonal/expenditure-profile", navLabel: "Expenditure" },

@@ -73,8 +73,9 @@ export function useStateOfficeHeader(defaultZoneId?: string | null, defaultState
     status,
   });
 
-  const validateHeader = (opts?: { requireState?: boolean; requireZone?: boolean }) => {
-    if (!reportYear || !reportMonth) return "Please select reporting period";
+  const validateHeader = (opts?: { requireState?: boolean; requireZone?: boolean; requireMonth?: boolean }) => {
+    if (!reportYear) return "Please select reporting year";
+    if (opts?.requireMonth !== false && !reportMonth) return "Please select reporting period";
     if (opts?.requireState !== false && !stateId) return "Please select a State";
     // Zone is normally derived from State; still required when State is required.
     if (opts?.requireZone !== false && opts?.requireState !== false && !zoneId) {
