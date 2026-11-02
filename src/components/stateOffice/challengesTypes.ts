@@ -127,3 +127,51 @@ export const CHALLENGE_DEPARTMENTS = [
   "Finance & Account", "HRMD", "Enforcement", "ISD", "FSD", "CMD", "ICT",
   "Strategic & Purchasing", "Risk & Regulatory", "SDO",
 ] as const;
+
+/* ── Support Requests (Challenges and Support .xlsx · Support sheet) ── */
+
+export const SUPPORT_ACTION_OWNERS = [
+  "State Office", "Zonal Office", "SDO", "Other NHIA Departments",
+  "Management", "External Stakeholder", "Other (Specify)",
+] as const;
+
+export const SUPPORT_CATEGORY_SPECIFICS: Record<string, string[]> = {
+  "Policy, Legal and Regulatory": [
+    "HQ approval", "Legal/regulatory clarification", "Policy direction from Management",
+  ],
+  "Funding and Procurement": ["Additional funding", "Procurement support"],
+  "Human Resources and Capacity Building": ["Additional staff", "Training and capacity building"],
+  "ICT and Infrastructure": ["ICT support", "Vehicle/logistics support", "Security support for field activities"],
+  "Programme Implementation, Monitoring and Coordination": [
+    "Zonal Office support", "Programme support", "Monitoring and supervision support", "Inter-departmental coordination",
+  ],
+  "Stakeholder Engagement and Public Awareness": [
+    "Public awareness/IEC materials", "Engagement with State Government",
+    "Engagement with Health Maintenance Organizations (HMOs)", "Engagement with Healthcare Providers",
+  ],
+  "Others": ["Specify"],
+};
+
+export const SUPPORT_CATEGORIES = Object.keys(SUPPORT_CATEGORY_SPECIFICS);
+
+export const SUPPORT_STATUSES = [
+  "Submitted", "Under Review", "Assigned", "In Progress",
+  "Resolved", "Closed", "Returned for Clarification",
+] as const;
+
+export const SUPPORT_PRIORITIES = ["Critical", "High", "Medium", "Low"] as const;
+
+export const OTHER_OPTION = "Other (Specify)";
+
+/** severity (challenge) → default priority (support) */
+export const severityToPriority = (severity: string) =>
+  ["Critical", "High", "Medium", "Low"].includes(severity) ? severity : "Medium";
+
+export function specificSupportFor(category: string): string[] {
+  return [...(SUPPORT_CATEGORY_SPECIFICS[category] ?? []), OTHER_OPTION];
+}
+
+export function specificChallengesFor(categoryLabel: string): string[] {
+  const cat = CHALLENGE_CATEGORIES.find((c) => c.label === categoryLabel);
+  return [...(cat ? CHALLENGE_SPECIFICS[cat.key] ?? [] : []), OTHER_OPTION];
+}
