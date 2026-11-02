@@ -11,13 +11,6 @@ export const WEEKS_OF_MONTH = [
   { value: "4", label: "Week 4  (22nd – 31st)" },
 ];
 
-const QUARTERS = [
-  { value: "1", label: "Q1" },
-  { value: "2", label: "Q2" },
-  { value: "3", label: "Q3" },
-  { value: "4", label: "Q4" },
-];
-
 const YEARS = Array.from({ length: 8 }, (_, i) => {
   const y = new Date().getFullYear() - 2 + i;
   return { value: String(y), label: String(y) };
@@ -38,10 +31,14 @@ interface Props {
   showGeoIds?: boolean;
   /** Zone · State · Year · Month · Quarter (hides submission date) */
   showQuarter?: boolean;
+  /** With showQuarter: only Zone · State · Year (for year matrices like Expenditure). */
+  yearOnly?: boolean;
   /** Render fields without an outer card (for embedding in a parent card) */
   embedded?: boolean;
   /** Tighter labels and gaps for compact forms. */
   dense?: boolean;
+  /** Override label for the header submission date field. */
+  submitDateLabel?: string;
 }
 
 export default function ReportBasicInfo({
@@ -51,18 +48,16 @@ export default function ReportBasicInfo({
   reportWeek, setReportWeek,
   showGeoIds,
   showQuarter,
+  yearOnly,
   embedded,
   dense = false,
+  submitDateLabel = "Date of Submission",
 }: Props) {
   const zoneLabel  = labelOf(zones.map(z => ({ value: String(z.id), label: z.label })), zoneId, "—");
   const stateLabel = labelOf(states.map(s => ({ value: String(s.id), label: s.label })), stateId, "—");
   const showWeek = reportWeek !== undefined && setReportWeek !== undefined;
   const weekLabel = WEEKS_OF_MONTH.find(w => w.value === reportWeek)?.label ?? "Select Week";
   const quarter = String(quarterFromMonth(reportMonth || 1));
-
-  const setQuarter = (q: string) => {
-    setReportMonth(String((Number(q) - 1) * 3 + 1));
-  };
   const stack = dense ? "space-y-1" : "space-y-2";
   const labelCls = dense ? "text-xs font-semibold text-slate-600" : undefined;
   const trigger = (extra = "") => `w-full ${dense ? "h-8 text-xs" : ""} ${extra}`.trim();
@@ -111,33 +106,35 @@ export default function ReportBasicInfo({
                   </SelectContent>
                 </Select>
               </div>
-              <div className={stack}>
-                <Label className={labelCls}>Month <span className="text-red-500">*</span></Label>
-                <Select value={reportMonth} onValueChange={setReportMonth}>
-                  <SelectTrigger className={trigger()} displayValue={monthLabel(reportMonth)}>
-                    <SelectValue placeholder="Select Month" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {MONTHS.map(m => <SelectItem key={m.value} value={String(m.value)}>{m.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className={stack}>
-                <Label className={labelCls}>Quarter</Label>
-                <Select value={quarter} onValueChange={setQuarter}>
-                  <SelectTrigger className={trigger()} displayValue={`Q${quarter}`}>
-                    <SelectValue placeholder="Select Quarter" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {QUARTERS.map(q => <SelectItem key={q.value} value={q.value}>{q.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
+              {!yearOnly && (
+                <>
+                  <div className={stack}>
+                    <Label className={labelCls}>Month <span className="text-red-500">*</span></Label>
+                    <Select value={reportMonth} onValueChange={setReportMonth}>
+                      <SelectTrigger className={trigger()} displayValue={monthLabel(reportMonth)}>
+                        <SelectValue placeholder="Select Month" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {MONTHS.map(m => <SelectItem key={m.value} value={String(m.value)}>{m.label}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className={stack}>
+                    <Label className={labelCls}>Quarter</Label>
+                    <Input
+                      readOnly
+                      value={reportMonth ? `Q${quarter}` : "—"}
+                      className={`${dense ? "h-8 text-xs" : ""} opacity-70 bg-slate-50`}
+                      tabIndex={-1}
+                    />
+                  </div>
+                </>
+              )}
             </>
           ) : (
             <>
               <div className={stack}>
-                <Label className={labelCls}>Date of Submission</Label>
+                <Label className={labelCls}>{submitDateLabel}</Label>
                 <Input type="date" value={submitDate} onChange={e => setSubmitDate(e.target.value)} />
               </div>
               <div className={stack}>

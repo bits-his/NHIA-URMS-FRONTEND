@@ -943,6 +943,40 @@ export const stateOfficeApi = {
   },
 };
 
+export const financeDashboardApi = {
+  overview: (filters?: {
+    year?: string; zone_id?: string; state_id?: string;
+    month?: string; quarter?: string; service_type?: string; sub_head?: string;
+  }) => {
+    const p = new URLSearchParams(
+      Object.entries(filters || {}).filter(([, v]) => !!v) as [string, string][],
+    ).toString();
+    return request<{ success: boolean; data: any }>(
+      `/state-office/finance/dashboard${p ? `?${p}` : ""}`,
+    );
+  },
+  igr: (filters?: {
+    year?: string; zone_id?: string; state_id?: string; month?: string; service_type?: string;
+  }) => {
+    const p = new URLSearchParams(
+      Object.entries(filters || {}).filter(([, v]) => !!v) as [string, string][],
+    ).toString();
+    return request<{ success: boolean; data: any }>(
+      `/state-office/finance/dashboard/igr${p ? `?${p}` : ""}`,
+    );
+  },
+  sshia: (filters?: {
+    year?: string; zone_id?: string; state_id?: string; quarter?: string; sub_head?: string;
+  }) => {
+    const p = new URLSearchParams(
+      Object.entries(filters || {}).filter(([, v]) => !!v) as [string, string][],
+    ).toString();
+    return request<{ success: boolean; data: any }>(
+      `/state-office/finance/dashboard/sshia${p ? `?${p}` : ""}`,
+    );
+  },
+};
+
 const stateOfficeFilters = (filters?: Record<string, string | number | undefined | null>) => {
   const p = new URLSearchParams(
     Object.entries(filters || {})

@@ -48,6 +48,8 @@ interface Props {
   showGeoIds?: boolean;
   /** Zone · State · Year · Month · Quarter header (ICT register) */
   showQuarter?: boolean;
+  /** With showQuarter: Zone · State · Year only (Expenditure year matrix). */
+  yearOnly?: boolean;
   afterPersist?: (saved: { id: number | string }) => Promise<void>;
   /** Fired after every successful create/update (e.g. draft resume for create-only officers). */
   onPersisted?: (saved: { id: number | string; status: string; reference_id?: string }) => void;
@@ -57,6 +59,10 @@ interface Props {
   compact?: boolean;
   /** Zone + period always; State only required when sending for review / final submit. */
   deferStateUntilReview?: boolean;
+  /** Label for the header submission-date field (ReportBasicInfo). */
+  submitDateLabel?: string;
+  /** After Save Draft, leave the form (same as submit success). */
+  returnOnDraft?: boolean;
 }
 
 export default function StateOfficeFormShell({
@@ -65,6 +71,7 @@ export default function StateOfficeFormShell({
   reportWeek, setReportWeek,
   showGeoIds,
   showQuarter,
+  yearOnly = false,
   pageTitle,
   pageSubtitle,
   hideFooterActions = false,
@@ -74,6 +81,8 @@ export default function StateOfficeFormShell({
   preserveHeader = false,
   compact = false,
   deferStateUntilReview = false,
+  submitDateLabel,
+  returnOnDraft = false,
 }: Props) {
   const preserveHeaderRef = React.useRef(preserveHeader);
   preserveHeaderRef.current = preserveHeader;
@@ -136,6 +145,7 @@ export default function StateOfficeFormShell({
     const headerErr = header.validateHeader({
       requireState,
       requireZone: deferStateUntilReview ? requireState : true,
+      requireMonth: !yearOnly,
     });
     if (headerErr) { toast.error(headerErr); return; }
     if (setReportWeek && !reportWeek) { toast.error("Please select a Reporting Week"); return; }
@@ -176,7 +186,14 @@ export default function StateOfficeFormShell({
       toast.success(messages[status] || "Saved", {
         description: `Ref: ${res.data.reference_id}`,
       });
-      if (status === "submitted" || status === "awaiting_review" || status === "approved") handleSubmitted();
+      if (
+        status === "submitted"
+        || status === "awaiting_review"
+        || status === "approved"
+        || (returnOnDraft && isDraftSave)
+      ) {
+        handleSubmitted();
+      }
     } catch (err: any) {
       toast.error(isDraftSave ? "Save failed" : "Action failed", { description: err.message });
     } finally { setter(false); }
@@ -231,6 +248,8 @@ export default function StateOfficeFormShell({
                   setReportWeek={setReportWeek}
                   showGeoIds={showGeoIds}
                   showQuarter={showQuarter}
+                  yearOnly={yearOnly}
+                  submitDateLabel={submitDateLabel}
                 />
               )}
               {children({
