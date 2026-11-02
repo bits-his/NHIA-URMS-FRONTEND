@@ -69,6 +69,7 @@ import SocZonesDashboard from "./stateOffice/SocZonesDashboard";
 import StateZonalOfficeProfilePage from "./stateOffice/StateZonalOfficeProfilePage";
 import StateZonalFocalPersonsPage from "./stateOffice/StateZonalFocalPersonsPage";
 import OfficeProfileWorkspace from "./stateOffice/officeProfile/OfficeProfileWorkspace";
+import AdhocAssignmentWorkspace from "./stateOffice/adhoc/AdhocAssignmentWorkspace";
 import SocPlaceholderPage from "./stateOffice/SocPlaceholderPage";
 import FinanceMonthlyForm from "./monthly/FinanceMonthlyForm";
 import AdminMonthlyForm from "./monthly/AdminMonthlyForm";
@@ -664,7 +665,8 @@ export default function Dashboard({ role, user, access = [], functionalities = "
             <Route path="/zonal/complaints-register" element={<ServicomComplaintsPage key="zonal-complaints-register" stateScope onBack={() => setView("home")} defaultStateId={null} defaultZoneId={user?.zonal_code ? String(user.zonal_code) : (user?.zone?.zonal_code ? String(user.zone.zonal_code) : monthlyCtx.defaultZoneId)} userName={user?.name} userStaffId={user?.staff_id} userRole={user?.role} userDepartment={user?.department ?? null} canCreate={monthlyCtx.canCreateMonthly} canReview={monthlyCtx.canReviewMonthly} />} />
             <Route path="/sdo/servicom/satisfaction" element={<ServicomSatisfactionSurveyPage onBack={() => setView("home")} defaultStateId={user?.state_code ? String(user.state_code) : monthlyCtx.defaultStateId} defaultZoneId={user?.zonal_code ? String(user.zonal_code) : monthlyCtx.defaultZoneId} defaultStateName={user?.state?.description} defaultZoneName={user?.zone?.description} canCreate={monthlyCtx.canCreateMonthly && !isCoordinator} canReview={monthlyCtx.canReviewMonthly} />} />
             <Route path="/sdo/servicom/comment-card" element={<ServicomCommentCardPage onBack={() => setView("home")} defaultStateId={user?.state_code ? String(user.state_code) : monthlyCtx.defaultStateId} defaultZoneId={user?.zonal_code ? String(user.zonal_code) : monthlyCtx.defaultZoneId} defaultStateName={user?.state?.description} defaultZoneName={user?.zone?.description} canCreate={monthlyCtx.canCreateMonthly && !isCoordinator} canReview={monthlyCtx.canReviewMonthly} />} />
-            <Route path="/sdo/projects" element={<StateOfficeReportsList key="state-adhoc-special-assignment" reportType="adhoc-special-assignment" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
+            <Route path="/sdo/projects/*" element={<AdhocAssignmentWorkspace onBack={() => setView("home")} user={user} userRole={role} />} />
+            <Route path="/sdo/projects" element={<AdhocAssignmentWorkspace onBack={() => setView("home")} user={user} userRole={role} />} />
 
             {/* ── Monthly Reports ── */}
             <Route path="/monthly/finance" element={<DeptMonthlyPage dept="finance" title="Finance Monthly Reports" section="finance" onBack={() => setView("home")} defaultZoneId={monthlyCtx.defaultZoneId} defaultStateId={monthlyCtx.defaultStateId} canCreate={monthlyCtx.canCreateMonthly} canReview={monthlyCtx.canReviewMonthly} FormComponent={FinanceMonthlyForm} />} />

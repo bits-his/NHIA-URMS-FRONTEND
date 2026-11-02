@@ -929,6 +929,108 @@ export const stateOfficeApi = {
   },
 };
 
+export const adhocAssignmentApi = {
+  getDepartments: () =>
+    request<{ success: boolean; data: { department_code: string; name: string }[] }>(
+      "/state-office/adhoc-special-assignment/lookups/departments"
+    ),
+  getStates: () =>
+    request<{ success: boolean; data: { code: string; description: string; zonal_code: string; zone?: { zonal_code: string; description: string } }[] }>(
+      "/state-office/adhoc-special-assignment/lookups/states"
+    ),
+  listMasters: (params?: Record<string, any>) => {
+    const q = new URLSearchParams(
+      Object.entries(params || {})
+        .filter(([, v]) => v !== undefined && v !== null && v !== "")
+        .map(([k, v]) => [k, String(v)])
+    ).toString();
+    return request<{ success: boolean; data: any[] }>(
+      `/state-office/adhoc-special-assignment/master${q ? `?${q}` : ""}`
+    );
+  },
+  getMaster: (id: string) =>
+    request<{ success: boolean; data: any }>(
+      `/state-office/adhoc-special-assignment/master/${id}`
+    ),
+  createMaster: (formData: FormData) => {
+    const token = tokenStore.get();
+    return fetch(`${BASE_URL}/state-office/adhoc-special-assignment/master`, {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData,
+    }).then(async (res) => {
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Failed to create master assignment");
+      return data;
+    });
+  },
+  updateMaster: (id: string, formData: FormData) => {
+    const token = tokenStore.get();
+    return fetch(`${BASE_URL}/state-office/adhoc-special-assignment/master/${id}`, {
+      method: "PUT",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData,
+    }).then(async (res) => {
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Failed to update master assignment");
+      return data;
+    });
+  },
+  dispatchToStates: (masterId: string, payload: any) =>
+    request<{ success: boolean; message: string; data: any }>(
+      `/state-office/adhoc-special-assignment/master/${masterId}/dispatch`,
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }
+    ),
+  listStateAssignments: (params?: Record<string, any>) => {
+    const q = new URLSearchParams(
+      Object.entries(params || {})
+        .filter(([, v]) => v !== undefined && v !== null && v !== "")
+        .map(([k, v]) => [k, String(v)])
+    ).toString();
+    return request<{ success: boolean; data: any[] }>(
+      `/state-office/adhoc-special-assignment/state-assignments${q ? `?${q}` : ""}`
+    );
+  },
+  getStateAssignment: (id: string) =>
+    request<{ success: boolean; data: any }>(
+      `/state-office/adhoc-special-assignment/state-assignments/${id}`
+    ),
+  submitStateReport: (stateAssignmentId: string, formData: FormData) => {
+    const token = tokenStore.get();
+    return fetch(
+      `${BASE_URL}/state-office/adhoc-special-assignment/state-assignments/${stateAssignmentId}/report`,
+      {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: formData,
+      }
+    ).then(async (res) => {
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Failed to submit state report");
+      return data;
+    });
+  },
+  reviewStateReport: (reportId: number | string, payload: { action: string; clarification_note?: string }) =>
+    request<{ success: boolean; data: any }>(
+      `/state-office/adhoc-special-assignment/reports/${reportId}/review`,
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }
+    ),
+  closeStateAssignment: (stateAssignmentId: string, payload?: { closure_remarks?: string }) =>
+    request<{ success: boolean; data: any }>(
+      `/state-office/adhoc-special-assignment/state-assignments/${stateAssignmentId}/close`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(payload || {}),
+      }
+    ),
+};
+
 const stateOfficeFilters = (filters?: Record<string, string | number | undefined | null>) => {
   const p = new URLSearchParams(
     Object.entries(filters || {})
