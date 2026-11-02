@@ -79,6 +79,20 @@ export const enrolmentDrivesApi = {
   attachLegacy: (batchId: string, id: string) => driveRequest(`/batches/${encodeURIComponent(batchId)}/legacy/${encodeURIComponent(id)}`, "POST"),
 };
 
+const CH_ROOT = "/state-office/challenges";
+export const challengesSupportApi = {
+  catalogue: () => request<{ success: boolean; data: any }>(`${CH_ROOT}/catalogue`),
+  challenges: (filters: Record<string, string> = {}) => request<{ success: boolean; data: any[] }>(`${CH_ROOT}/records?${new URLSearchParams(filters)}`),
+  createChallenge: (payload: unknown) => request<{ success: boolean; data: any }>(`${CH_ROOT}/records`, { method: "POST", body: JSON.stringify(payload) }),
+  challenge: (id: string) => request<{ success: boolean; data: any }>(`${CH_ROOT}/records/${encodeURIComponent(id)}`),
+  updateChallenge: (id: string, payload: unknown) => request<{ success: boolean; data: any }>(`${CH_ROOT}/records/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(payload) }),
+  challengeActivity: (id: string, payload: unknown) => request<{ success: boolean; data: any }>(`${CH_ROOT}/records/${encodeURIComponent(id)}/activity`, { method: "POST", body: JSON.stringify(payload) }),
+  support: (filters: Record<string, string> = {}) => request<{ success: boolean; data: any[] }>(`${CH_ROOT}/support-requests?${new URLSearchParams(filters)}`),
+  createSupport: (payload: unknown) => request<{ success: boolean; data: any }>(`${CH_ROOT}/support-requests`, { method: "POST", body: JSON.stringify(payload) }),
+  supportDetail: (id: string) => request<{ success: boolean; data: any }>(`${CH_ROOT}/support-requests/${encodeURIComponent(id)}`),
+  supportActivity: (id: string, payload: unknown) => request<{ success: boolean; data: any }>(`${CH_ROOT}/support-requests/${encodeURIComponent(id)}/activity`, { method: "POST", body: JSON.stringify(payload) }),
+};
+
 const API_ORIGIN = BASE_URL.replace(/\/api\/?$/, "");
 
 export function apiFileUrl(rel?: string | null) {

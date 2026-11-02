@@ -322,14 +322,14 @@ export const MODULE_CONFIG: ParentModule[] = [
           { title: "Enrollee Feedback Survey", view: "state-enrollee-feedback", path: "/zonal/admin-hr/enrollee-feedback" },
         ]},
         { type: "group", label: "ICT", children: [
-          { title: "ICT Support Register", view: "state-ict-support", path: "/zonal/ict/support", navLabel: "Support" },
+          { title: "ICT Support Register", view: "state-ict-support", path: "/zonal/ict/support", navLabel: "ICT Support Register" },
         ]},
         { type: "group", label: "SERVICOM", children: [
           { title: "Charter Performance", view: "servicom-comment-card", path: "/zonal/servicom/comment-card", navLabel: "Citizens' Comment Card" },
           { title: "HCF Customer Satisfaction Survey", view: "servicom-satisfaction", path: "/zonal/servicom/satisfaction", navLabel: "Satisfaction Survey" },
         ]},
       ]},
-      { title: "Challenges & Recommendations", view: "state-challenges", path: "/zonal/challenges", navLabel: "Challenges" },
+      { title: "Challenges & Recommendations", view: "state-challenges", path: "/zonal/challenges", navLabel: "Challenges & Support" },
     ],
   },
 
