@@ -160,8 +160,8 @@ export default function ServicomSatisfactionSurveyPage({
     setLoading(true);
     try {
       const res = await servicomApi.listSatisfactionSurveys({
-        state_code: geoLocked ? (defaultStateId ?? undefined) : (filterState !== "all" ? filterState : undefined),
-        zonal_code: geoLocked ? (defaultZoneId ?? undefined) : (filterZone !== "all" ? filterZone : undefined),
+        state_code: defaultStateId ? defaultStateId : (filterState !== "all" ? filterState : undefined),
+        zonal_code: defaultZoneId ? defaultZoneId : (filterZone !== "all" ? filterZone : undefined),
       });
       setSurveys(res.data);
     } catch (err: any) {
@@ -169,7 +169,7 @@ export default function ServicomSatisfactionSurveyPage({
     } finally {
       setLoading(false);
     }
-  }, [defaultStateId, defaultZoneId, filterState, filterZone, geoLocked, createOnly]);
+  }, [defaultStateId, defaultZoneId, filterState, filterZone, createOnly]);
 
   React.useEffect(() => {
     if (mode === "list" && !createOnly) load();
