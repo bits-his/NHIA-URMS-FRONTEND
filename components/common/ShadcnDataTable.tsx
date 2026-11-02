@@ -76,6 +76,7 @@ export interface ShadcnDataTableProps<TData, TValue> {
   enableSelection?: boolean;
   onSelectionChange?: (selectedRows: TData[]) => void;
   showTableOptions?: boolean;
+  searchClassName?: string;
 }
 
 export function ShadcnDataTable<TData, TValue>({
@@ -97,6 +98,7 @@ export function ShadcnDataTable<TData, TValue>({
   enableSelection = false,
   onSelectionChange,
   showTableOptions = false,
+  searchClassName,
 }: ShadcnDataTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
@@ -184,13 +186,16 @@ export function ShadcnDataTable<TData, TValue>({
 
         {/* Right Section: Compact Search + Action Button + More Menu */}
         <div className="flex items-center gap-2 self-end sm:self-center">
-          <div className="relative w-48 sm:w-60">
+          <div className={cn("relative w-48 sm:w-60", searchClassName && "w-56 sm:w-72")}>
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-slate-400" />
             <Input
               value={currentSearch}
               onChange={(e) => handleSearch(e.target.value)}
               placeholder={searchPlaceholder}
-              className="pl-8 pr-7 h-8 text-xs bg-slate-50/70 border-slate-200 focus:bg-white focus:border-slate-400 rounded-md transition-colors placeholder:text-slate-400"
+              className={cn(
+                "pl-8 pr-7 h-8 text-xs bg-slate-50/70 border-slate-200 focus:bg-white focus:border-slate-400 rounded-md transition-colors placeholder:text-slate-400",
+                searchClassName
+              )}
             />
             {currentSearch && (
               <button
