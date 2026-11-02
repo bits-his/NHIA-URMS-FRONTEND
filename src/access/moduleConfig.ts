@@ -307,6 +307,7 @@ export const MODULE_CONFIG: ParentModule[] = [
       ]},
       { type: "group", label: "Internal Management", children: [
         { type: "group", label: "Finance", children: [
+          { title: "Finance Dashboard", view: "state-finance-dashboard", path: "/zonal/finance/dashboard", navLabel: "Dashboard" },
           { title: "IGR", view: "state-igr", path: "/zonal/igr" },
           { title: "SSHIA Financial Report", view: "state-sshia-financial", path: "/zonal/sshia-financial", navLabel: "SSHIA Report" },
           { title: "Expenditure Profile", view: "state-expenditure-profile", path: "/zonal/expenditure-profile", navLabel: "Expenditure" },
@@ -321,14 +322,14 @@ export const MODULE_CONFIG: ParentModule[] = [
           { title: "Enrollee Feedback Survey", view: "state-enrollee-feedback", path: "/zonal/admin-hr/enrollee-feedback" },
         ]},
         { type: "group", label: "ICT", children: [
-          { title: "ICT Support Register", view: "state-ict-support", path: "/zonal/ict/support", navLabel: "Support" },
+          { title: "ICT Support Register", view: "state-ict-support", path: "/zonal/ict/support", navLabel: "ICT Support Register" },
         ]},
         { type: "group", label: "SERVICOM", children: [
           { title: "Charter Performance", view: "servicom-comment-card", path: "/zonal/servicom/comment-card", navLabel: "Citizens' Comment Card" },
           { title: "HCF Customer Satisfaction Survey", view: "servicom-satisfaction", path: "/zonal/servicom/satisfaction", navLabel: "Satisfaction Survey" },
         ]},
       ]},
-      { title: "Challenges & Recommendations", view: "state-challenges", path: "/zonal/challenges", navLabel: "Challenges" },
+      { title: "Challenges & Recommendations", view: "state-challenges", path: "/zonal/challenges", navLabel: "Challenges & Support" },
     ],
   },
 

@@ -281,33 +281,34 @@ export function expandAccreditationLines(lines: any[]) {
   return rows;
 }
 
+/** PPT service dropdown — one receipt = one IGR submission. */
 export const IGR_SERVICE_TYPES = [
-  { value: "enrollee_update",    label: "Enrollee Update" },
-  { value: "application",       label: "Application" },
-  { value: "accreditation",     label: "Accreditation" },
-  { value: "change_of_provider", label: "Change of Provider" },
-  { value: "reaccreditation",   label: "Reaccreditation" },
-  { value: "extra_dependant",   label: "Extra Dependant" },
-  { value: "gifship",           label: "GIFSHIP" },
-  { value: "ops",               label: "OPS" },
+  { value: "gifship",                    label: "GIFSHIP" },
+  { value: "nin_charge",                 label: "NIN Charge" },
+  { value: "enrollee_update",            label: "Enrollee Update" },
+  { value: "application_accreditation",  label: "Application Forms (Accreditation / Re-accreditation)" },
+  { value: "extra_dependent",            label: "Extra Dependent" },
+  { value: "additional_dependent",       label: "Additional Dependent" },
+  { value: "change_of_hcf",              label: "Change of HCF" },
 ];
 
+/** SSHIA sub-head dropdown values (one entry at a time; same quarter merges). */
 export const SSHIA_SUB_HEADS = [
-  { value: "capitation",      label: "Capitation" },
-  { value: "fee_for_service", label: "Fee-For-Service" },
-  { value: "reserve_funds",   label: "Reserve Funds" },
-  { value: "admin_charge",    label: "Admin. Charge" },
-  { value: "operations",      label: "Operations" },
-];
+  { value: "capitation",      label: "Capitation",      prefix: "cap" },
+  { value: "fee_for_service", label: "Fee-for-Service", prefix: "ffs" },
+  { value: "reserve_funds",   label: "Reserve Funds",   prefix: "reserve" },
+  { value: "admin_charge",    label: "Admin. Charges",  prefix: "admin" },
+] as const;
 
-/** Column definitions for SSHIA financial tables (form + view). */
+/** PPT Form 2 column definitions (SSHIA Progress Report). */
 export const SSHIA_COLUMNS = [
-  { key: "opening_balance",    label: "Opening Bal",         code: "A", hint: "",       unit: "₦" },
-  { key: "receipts",           label: "Receipts",            code: "B", hint: "",       unit: "₦" },
-  { key: "total_budget",       label: "Total Budget",          code: "C", hint: "A+B",    unit: "₦" },
-  { key: "actual_expenditure", label: "Actual Expenditure",    code: "D", hint: "",       unit: "₦" },
-  { key: "balance",            label: "Balance",               code: "E", hint: "C−D",    unit: "₦" },
-  { key: "variance_pct",       label: "Variance %",            code: "F", hint: "C÷D×100", unit: "%" },
+  { key: "opening_balance",    label: "Opening Balance (A)",              code: "A", hint: "",         unit: "₦" },
+  { key: "receipts",           label: "Allotted Budget / Receipts (B)",   code: "B", hint: "",         unit: "₦" },
+  { key: "total_budget",       label: "Total Budget Available (C = A + B)", code: "C", hint: "A+B",    unit: "₦" },
+  { key: "actual_expenditure", label: "Actual Expenditure (D)",           code: "D", hint: "",         unit: "₦" },
+  { key: "balance",            label: "Balance (E = C − D)",              code: "E", hint: "C−D",      unit: "₦" },
+  { key: "variance_pct",       label: "% Variance (F = D ÷ C × 100)",     code: "F", hint: "D÷C×100",  unit: "%" },
+  { key: "bhcpf_lives",        label: "Covered BHCPF Lives",              code: "",  hint: "",         unit: "" },
 ] as const;
 
 // ─── Weekly Actionable ────────────────────────────────────────────────────────
@@ -352,18 +353,18 @@ export const CONTRACTED_SERVICES = [
   { value: "generator",    label: "Generator Services"            },
 ];
 
+/** Fixed 9 expense categories — allocation % is config-only (not stored per row). */
 export const EXPENDITURE_SUB_HEADS = [
-  { value: "fuel_lub",               label: "FUEL & LUB" },
-  { value: "newspapers_periodicals", label: "NEWSPAPERS & PERIODICALS" },
-  { value: "ent_hosp",               label: "ENT & HOSP." },
-  { value: "tel_postages",           label: "TEL & POSTAGES" },
-  { value: "printing_stationery",    label: "PRINTING & STATIONERY" },
-  { value: "transport_travel",       label: "TRANSPORT & TRAVEL" },
-  { value: "maint_veh",              label: "MAINT. OF VEH" },
-  { value: "maint_equip",            label: "MAINT. OF EQUIP" },
-  { value: "utilities",              label: "UTILITIES" },
-  { value: "bank_charges",           label: "BANK CHARGES" },
-];
+  { value: "fuel_lubricants",            label: "Fuel & Lubricants",            allocation: 0.31 },
+  { value: "newspapers_periodicals",     label: "Newspapers & Periodicals",     allocation: 0.0117 },
+  { value: "entertainment_hospitality",  label: "Entertainment & Hospitality",  allocation: 0.0161 },
+  { value: "telephone_postages",         label: "Telephone & Postages",         allocation: 0.0453 },
+  { value: "printing_stationery",        label: "Printing & Stationery",        allocation: 0.0497 },
+  { value: "transport_travel",           label: "Transport & Travel",           allocation: 0.2091 },
+  { value: "maintenance_vehicles",       label: "Maintenance of Vehicles",      allocation: 0.2136 },
+  { value: "maintenance_equipment",      label: "Maintenance of Equipment",     allocation: 0.0708 },
+  { value: "utilities_bank_charges",     label: "Utilities / Bank Charges",     allocation: 0.0737 },
+] as const;
 
 export const REPORT_CONFIG: Record<StateOfficeReportType, {
   title: string;
@@ -435,18 +436,18 @@ export const REPORT_CONFIG: Record<StateOfficeReportType, {
     totalLabel: "Total IGR (₦)",
   },
   "sshia-financial": {
-    title: "SSHIA Financial Report",
-    subtitle: "FORM 07 — Financial Management Report (Quarterly)",
+    title: "SSHIA Progress Report",
+    subtitle: "Form 2 — SSHIA Progress Report (Quarterly)",
     refLabel: "Sub-head",
     countLabel: "Balance (₦)",
     totalLabel: "Total Balance (₦)",
   },
   "expenditure-profile": {
     title: "Expenditure Profile",
-    subtitle: "Expenditure Profile — Budget Allocation",
-    refLabel: "Sub-head",
+    subtitle: "Form 3 — Quarterly Expenditure Profile",
+    refLabel: "Category",
     countLabel: "Amount (₦)",
-    totalLabel: "Total Allocated (₦)",
+    totalLabel: "Total (₦)",
   },
   "weekly-actionable": {
     title: "Weekly Actionable",
@@ -630,18 +631,38 @@ export function formatNaira(value: number | string | null | undefined) {
   return `₦${formatAmount(value)}`;
 }
 
-export function calcSshiaLine(opening: number, receipts: number, expenditure: number) {
-  const A = Number(opening) || 0;
-  const B = Number(receipts) || 0;
-  const D = Number(expenditure) || 0;
-  const C = A + B;
-  const E = C - D;
-  const F = D !== 0 ? (C / D) * 100 : 0;
-  return { opening_balance: A, receipts: B, total_budget: C, actual_expenditure: D, balance: E, variance_pct: F };
+/** Blank-aware SSHIA math: missing inputs stay null; never invent zeros for display. */
+export function calcSshiaLine(
+  opening: number | string | null | undefined,
+  receipts: number | string | null | undefined,
+  expenditure: number | string | null | undefined,
+) {
+  const hasA = opening !== "" && opening != null;
+  const hasB = receipts !== "" && receipts != null;
+  const hasD = expenditure !== "" && expenditure != null;
+  const A = hasA ? Number(opening) : null;
+  const B = hasB ? Number(receipts) : null;
+  const D = hasD ? Number(expenditure) : null;
+  const C = hasA || hasB ? Number(A || 0) + Number(B || 0) : null;
+  const E = C != null && D != null ? C - D : C != null ? C : null;
+  // Variance = actual expenditure as % of total available (D÷C×100)
+  const F = C != null && D != null && C !== 0 ? (D / C) * 100 : null;
+  return {
+    opening_balance: A,
+    receipts: B,
+    total_budget: C,
+    actual_expenditure: D,
+    balance: E,
+    variance_pct: F,
+  };
 }
 
 export function calcExpenditurePct(amount: number, total: number) {
   return total !== 0 ? (Number(amount) / total) * 100 : 0;
+}
+
+export function formatAllocationPct(allocation: number) {
+  return `${(allocation * 100).toFixed(2)}%`;
 }
 
 export function formatDate(value: string | null | undefined) {
@@ -650,6 +671,19 @@ export function formatDate(value: string | null | undefined) {
   return isNaN(d.getTime())
     ? "—"
     : d.toLocaleDateString("en-NG", { day: "2-digit", month: "long", year: "numeric" });
+}
+
+/** Compact numeric date for dense tables (dd/mm/yyyy). */
+export function formatDateShort(value: string | null | undefined) {
+  if (!value) return "—";
+  const raw = String(value).slice(0, 10);
+  const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
+  if (iso) return `${iso[3]}/${iso[2]}/${iso[1]}`;
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return "—";
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  return `${dd}/${mm}/${d.getFullYear()}`;
 }
 
 export function reportLineCount(reportType: StateOfficeReportType, report: any) {

@@ -364,6 +364,13 @@ export function expandAccessEntries(access: AccessEntry[]): AccessEntry[] {
       );
       funcs.push(HMO_INDEBTEDNESS_NAV_TITLE);
     }
+    // Any finance form privilege unlocks the Finance Dashboard leaf
+    const hasFinanceForm = funcs.some(
+      f => f === "IGR" || f === "SSHIA Financial Report" || f === "Expenditure Profile" || f === "Finance Dashboard",
+    );
+    if (hasFinanceForm && !funcs.includes("Finance Dashboard")) {
+      funcs.push("Finance Dashboard");
+    }
     out[zonalIdx] = { ...out[zonalIdx], functionalities: funcs };
   }
 

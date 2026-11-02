@@ -26,7 +26,8 @@ import SshiaFinancialReportDetail from "./SshiaFinancialReportDetail";
 import ExpenditureProfileReportPage from "./ExpenditureProfileReportPage";
 import ExpenditureProfileReportDetail from "./ExpenditureProfileReportDetail";
 import {
-  REPORT_CONFIG, MONTHS, monthLabel, quarterFromMonth, formatCount, formatDate,
+  REPORT_CONFIG, MONTHS, monthLabel, quarterFromMonth, formatCount, formatDate, formatDateShort, formatAmount, formatNaira,
+  labelOf, IGR_SERVICE_TYPES, SSHIA_SUB_HEADS, calcSshiaLine,
   reportLineTotal, reportLineCount, ENROLLEE_REGISTER_SCHEMES, type StateOfficeReportType,
 } from "./constants";
 import { ENROLMENT_ACTIVITIES, enrolmentLineListSummary } from "./enrolmentPillarTypes";
@@ -338,6 +339,76 @@ export default function StateOfficeReportsList({
     }
     return matching;
   }, [reports, reportType, filterActivity, activityRows, hasActivityTabs, matchesSearch]);
+
+  /** SSHIA list: one row per filled sub-head (PPT Form 2 columns). */
+  const sshiaListRows = React.useMemo(() => {
+    if (reportType !== "sshia-financial") return [] as Array<{
+      report: Report;
+      sub_head: string;
+      label: string;
+      opening_balance: number | null;
+      receipts: number | null;
+      total_budget: number | null;
+      actual_expenditure: number | null;
+      balance: number | null;
+      variance_pct: number | null;
+      bhcpf_lives: number | null;
+    }>;
+    const rows: Array<{
+      report: Report;
+      sub_head: string;
+      label: string;
+      opening_balance: number | null;
+      receipts: number | null;
+      total_budget: number | null;
+      actual_expenditure: number | null;
+      balance: number | null;
+      variance_pct: number | null;
+      bhcpf_lives: number | null;
+    }> = [];
+    for (const r of filteredReports) {
+      const lines = Array.isArray((r as any).lines) ? (r as any).lines as any[] : [];
+      if (lines.length) {
+        for (const line of lines) {
+          rows.push({
+            report: r,
+            sub_head: String(line.sub_head || ""),
+            label: labelOf(SSHIA_SUB_HEADS as any, String(line.sub_head || ""), String(line.sub_head || "—")),
+            opening_balance: line.opening_balance ?? null,
+            receipts: line.receipts ?? null,
+            total_budget: line.total_budget ?? null,
+            actual_expenditure: line.actual_expenditure ?? null,
+            balance: line.balance ?? null,
+            variance_pct: line.variance_pct ?? null,
+            bhcpf_lives: line.bhcpf_lives ?? null,
+          });
+        }
+        continue;
+      }
+      for (const h of SSHIA_SUB_HEADS) {
+        const p = h.prefix;
+        const opening = (r as any)[`${p}_opening_balance`] ?? null;
+        const receipts = (r as any)[`${p}_receipts`] ?? null;
+        const actual = (r as any)[`${p}_actual_expenditure`] ?? null;
+        const lives = (r as any)[`${p}_bhcpf_lives`] ?? null;
+        if (opening == null && receipts == null && actual == null && lives == null) continue;
+        const derived = calcSshiaLine(opening, receipts, actual);
+        rows.push({
+          report: r,
+          sub_head: h.value,
+          label: h.label,
+          opening_balance: derived.opening_balance,
+          receipts: derived.receipts,
+          total_budget: derived.total_budget,
+          actual_expenditure: derived.actual_expenditure,
+          balance: derived.balance,
+          variance_pct: derived.variance_pct,
+          bhcpf_lives: lives,
+        });
+      }
+    }
+    return rows;
+  }, [filteredReports, reportType]);
 
   const activityTabCounts = React.useMemo(() => {
     if (!hasActivityTabs) return {} as Record<string, number>;
@@ -754,9 +825,11 @@ export default function StateOfficeReportsList({
               <CardTitle className="text-sm font-bold">
                 {loading
                   ? "Loading..."
-                  : reportType === "enrollee-register" || reportType === "etmc-tmc-action-point" || reportType === "ict-support-register" || reportType === "adhoc-special-assignment"
-                    ? `${filteredReports.length} register${filteredReports.length !== 1 ? "s" : ""}`
-                    : `${filteredReports.length} report${filteredReports.length !== 1 ? "s" : ""}`}
+                  : reportType === "igr" || reportType === "sshia-financial" || reportType === "expenditure-profile"
+                    ? cfg.title
+                    : reportType === "enrollee-register" || reportType === "etmc-tmc-action-point" || reportType === "ict-support-register" || reportType === "adhoc-special-assignment"
+                      ? `${filteredReports.length} register${filteredReports.length !== 1 ? "s" : ""}`
+                      : `${filteredReports.length} report${filteredReports.length !== 1 ? "s" : ""}`}
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
@@ -764,7 +837,7 @@ export default function StateOfficeReportsList({
                 <div className="flex items-center justify-center py-16 gap-3 text-slate-400">
                   <Loader2 className="w-5 h-5 animate-spin" /><span className="text-sm">Loading...</span>
                 </div>
-              ) : filteredReports.length === 0 ? (
+              ) : filteredReports.length === 0 || (reportType === "sshia-financial" && sshiaListRows.length === 0) ? (
                 <div className="flex flex-col items-center justify-center py-16 gap-2 text-slate-400">
                   <FileText className="w-8 h-8 opacity-30" />
                   <p className="text-sm font-medium">
@@ -772,7 +845,9 @@ export default function StateOfficeReportsList({
                       ? "No reports match your filters"
                       : hasActivityTabs && activeActivityTab
                         ? `No ${activeActivityTab.label} reports yet`
-                        : "No reports found"}
+                        : reportType === "sshia-financial" && filteredReports.length > 0
+                          ? "No sub-heads filled yet"
+                          : "No reports found"}
                   </p>
                   {!hasFilters && canCreate && (
                     <Button variant="outline" size="sm" className="mt-2 gap-2"
@@ -786,7 +861,45 @@ export default function StateOfficeReportsList({
                   <Table>
                     <TableHeader>
                       <TableRow className="bg-[#f0fdf7] hover:bg-[#f0fdf7]">
-                        {reportType === "enrollee-register" ? (
+                        {reportType === "igr" ? (
+                          <>
+                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">State</TableHead>
+                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Date</TableHead>
+                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Service Type</TableHead>
+                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Principal</TableHead>
+                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Receipt No.</TableHead>
+                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Bill / RRR</TableHead>
+                            <TableHead className="text-xs font-bold text-slate-600 text-right whitespace-nowrap">Amount (₦)</TableHead>
+                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Payment Date</TableHead>
+                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Status</TableHead>
+                            <TableHead className="text-right text-xs font-bold text-slate-600 whitespace-nowrap">Actions</TableHead>
+                          </>
+                        ) : reportType === "sshia-financial" ? (
+                          <>
+                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">State</TableHead>
+                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Month</TableHead>
+                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Quarter</TableHead>
+                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Sub-head</TableHead>
+                            <TableHead className="text-xs font-bold text-slate-600 text-right whitespace-nowrap">Opening (A)</TableHead>
+                            <TableHead className="text-xs font-bold text-slate-600 text-right whitespace-nowrap">Receipts (B)</TableHead>
+                            <TableHead className="text-xs font-bold text-slate-600 text-right whitespace-nowrap">Available (C)</TableHead>
+                            <TableHead className="text-xs font-bold text-slate-600 text-right whitespace-nowrap">Actual (D)</TableHead>
+                            <TableHead className="text-xs font-bold text-slate-600 text-right whitespace-nowrap">Balance (E)</TableHead>
+                            <TableHead className="text-xs font-bold text-slate-600 text-right whitespace-nowrap">Lives</TableHead>
+                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Status</TableHead>
+                            <TableHead className="text-right text-xs font-bold text-slate-600 whitespace-nowrap">Actions</TableHead>
+                          </>
+                        ) : reportType === "expenditure-profile" ? (
+                          <>
+                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">State</TableHead>
+                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Year</TableHead>
+                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Month</TableHead>
+                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Quarter</TableHead>
+                            <TableHead className="text-xs font-bold text-slate-600 text-right whitespace-nowrap">Total (₦)</TableHead>
+                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Status</TableHead>
+                            <TableHead className="text-right text-xs font-bold text-slate-600 whitespace-nowrap">Actions</TableHead>
+                          </>
+                        ) : reportType === "enrollee-register" ? (
                           <>
                             <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Year</TableHead>
                             <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Month</TableHead>
@@ -885,7 +998,60 @@ export default function StateOfficeReportsList({
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                    {filteredReports.map((r, i) => {
+                    {reportType === "sshia-financial" ? sshiaListRows.map((row, i) => {
+                      const r = row.report;
+                      const sc = STATUS_CONFIG[r.status] || STATUS_CONFIG.draft;
+                      const money = (v: number | null) => (v == null ? "—" : formatNaira(v));
+                      return (
+                        <motion.tr
+                          key={`${r.id}-${row.sub_head}`}
+                          initial={{ opacity: 0, y: 4 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: i * 0.02 }}
+                          className="hover:bg-[#f8fdfb] transition-colors border-b border-slate-100 last:border-0"
+                        >
+                          <TableCell className="text-sm font-semibold text-slate-800 whitespace-nowrap">
+                            {r.state?.description || "—"}
+                          </TableCell>
+                          <TableCell className="text-sm text-slate-600 whitespace-nowrap">
+                            {monthLabel(r.reporting_month)}
+                          </TableCell>
+                          <TableCell className="text-sm text-slate-500 whitespace-nowrap">
+                            Q{(r as any).reporting_quarter || quarterFromMonth(r.reporting_month)}
+                          </TableCell>
+                          <TableCell className="text-sm font-semibold text-slate-800 whitespace-nowrap">{row.label}</TableCell>
+                          <TableCell className="text-sm text-right tabular-nums text-slate-700 whitespace-nowrap">{money(row.opening_balance)}</TableCell>
+                          <TableCell className="text-sm text-right tabular-nums text-slate-700 whitespace-nowrap">{money(row.receipts)}</TableCell>
+                          <TableCell className="text-sm text-right tabular-nums font-semibold text-[#145c3f] whitespace-nowrap">{money(row.total_budget)}</TableCell>
+                          <TableCell className="text-sm text-right tabular-nums text-slate-700 whitespace-nowrap">{money(row.actual_expenditure)}</TableCell>
+                          <TableCell className="text-sm text-right tabular-nums font-semibold text-[#145c3f] whitespace-nowrap">{money(row.balance)}</TableCell>
+                          <TableCell className="text-sm text-right tabular-nums text-slate-700 whitespace-nowrap">
+                            {row.bhcpf_lives == null ? "—" : String(row.bhcpf_lives)}
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={`text-[10px] px-2 py-0.5 flex items-center gap-1 w-fit border ${sc.cls}`}>
+                              {sc.icon} {sc.label}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="inline-flex items-center justify-end gap-1">
+                              <Button variant="ghost" size="sm"
+                                className="h-7 gap-1 px-2 text-slate-500 hover:text-primary hover:bg-primary/10"
+                                onClick={() => openReport(r, "view")}>
+                                <Eye className="w-3.5 h-3.5" /> View
+                              </Button>
+                              {canCreate && r.status === "draft" && (
+                                <Button variant="ghost" size="sm"
+                                  className="h-7 gap-1 px-2 text-[#145c3f] hover:text-[#145c3f] hover:bg-[#145c3f]/10"
+                                  onClick={() => openReport(r, "edit")}>
+                                  Update
+                                </Button>
+                              )}
+                            </div>
+                          </TableCell>
+                        </motion.tr>
+                      );
+                    }) : filteredReports.map((r, i) => {
                       const sc = STATUS_CONFIG[r.status] || STATUS_CONFIG.draft;
                       const rowType = r.__reportType ?? reportType;
                       const typeLabel = REPORT_CONFIG[rowType]?.title ?? rowType;
@@ -897,7 +1063,95 @@ export default function StateOfficeReportsList({
                           <motion.tr key={`${rowType}-${r.id}`} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: i * 0.02 }}
                             className="hover:bg-[#f8fdfb] transition-colors border-b border-slate-100 last:border-0">
-                            {reportType === "enrollee-register" ? (
+                            {reportType === "expenditure-profile" ? (
+                              <>
+                                <TableCell className="text-sm font-semibold text-slate-800 whitespace-nowrap">
+                                  {r.state?.description || "—"}
+                                </TableCell>
+                                <TableCell className="text-sm font-semibold text-slate-800 whitespace-nowrap">
+                                  {r.reporting_year}
+                                </TableCell>
+                                <TableCell className="text-sm text-slate-600 whitespace-nowrap">
+                                  {monthLabel(r.reporting_month)}
+                                </TableCell>
+                                <TableCell className="text-sm text-slate-500 whitespace-nowrap">
+                                  Q{(r as any).reporting_quarter || quarterFromMonth(r.reporting_month)}
+                                </TableCell>
+                                <TableCell className="text-sm font-semibold text-[#145c3f] text-right tabular-nums whitespace-nowrap">
+                                  {formatNaira(reportLineTotal("expenditure-profile", r))}
+                                </TableCell>
+                                <TableCell>
+                                  <Badge className={`text-[10px] px-2 py-0.5 flex items-center gap-1 w-fit border ${sc.cls}`}>
+                                    {sc.icon} {sc.label}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <div className="inline-flex items-center justify-end gap-1">
+                                    <Button variant="ghost" size="sm"
+                                      className="h-7 gap-1 px-2 text-slate-500 hover:text-primary hover:bg-primary/10"
+                                      onClick={() => openReport(r, "view")}>
+                                      <Eye className="w-3.5 h-3.5" /> View
+                                    </Button>
+                                    {canCreate && r.status === "draft" && (
+                                      <Button variant="ghost" size="sm"
+                                        className="h-7 gap-1 px-2 text-[#145c3f] hover:text-[#145c3f] hover:bg-[#145c3f]/10"
+                                        onClick={() => openReport(r, "edit")}>
+                                        Update
+                                      </Button>
+                                    )}
+                                  </div>
+                                </TableCell>
+                              </>
+                            ) : reportType === "igr" ? (
+                              <>
+                                <TableCell className="text-sm font-semibold text-slate-800 whitespace-nowrap">
+                                  {r.state?.description || "—"}
+                                </TableCell>
+                                <TableCell className="text-sm text-slate-700 whitespace-nowrap tabular-nums">
+                                  {formatDateShort((r as any).entry_date || r.submission_date)}
+                                </TableCell>
+                                <TableCell className="text-sm text-slate-800 whitespace-nowrap">
+                                  {labelOf(IGR_SERVICE_TYPES, String((r as any).service_type || r.lines?.[0]?.service_type || ""))}
+                                </TableCell>
+                                <TableCell className="text-sm font-medium text-slate-800 whitespace-nowrap max-w-[160px] truncate"
+                                  title={String((r as any).principal_name || r.lines?.[0]?.principal_name || "")}>
+                                  {String((r as any).principal_name || r.lines?.[0]?.principal_name || "—")}
+                                </TableCell>
+                                <TableCell className="text-sm font-mono text-slate-700 whitespace-nowrap">
+                                  {String((r as any).receipt_no || r.lines?.[0]?.receipt_no || "—")}
+                                </TableCell>
+                                <TableCell className="text-sm font-mono text-slate-600 whitespace-nowrap">
+                                  {String((r as any).bill_rrr_no || r.lines?.[0]?.bill_rrr_no || "—")}
+                                </TableCell>
+                                <TableCell className="text-sm font-semibold text-[#145c3f] text-right tabular-nums whitespace-nowrap">
+                                  {formatAmount((r as any).amount ?? r.lines?.[0]?.amount ?? 0)}
+                                </TableCell>
+                                <TableCell className="text-sm text-slate-600 whitespace-nowrap tabular-nums">
+                                  {formatDateShort((r as any).payment_date || r.lines?.[0]?.payment_date)}
+                                </TableCell>
+                                <TableCell>
+                                  <Badge className={`text-[10px] px-2 py-0.5 flex items-center gap-1 w-fit border ${sc.cls}`}>
+                                    {sc.icon} {sc.label}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <div className="inline-flex items-center justify-end gap-1">
+                                    <Button variant="ghost" size="sm"
+                                      className="h-7 gap-1 px-2 text-slate-500 hover:text-primary hover:bg-primary/10"
+                                      onClick={() => openReport(r, "view")}>
+                                      <Eye className="w-3.5 h-3.5" /> View
+                                    </Button>
+                                    {canCreate && r.status === "draft" && (
+                                      <Button variant="ghost" size="sm"
+                                        className="h-7 gap-1 px-2 text-[#145c3f] hover:text-[#145c3f] hover:bg-[#145c3f]/10"
+                                        onClick={() => openReport(r, "edit")}>
+                                        Update
+                                      </Button>
+                                    )}
+                                  </div>
+                                </TableCell>
+                              </>
+                            ) : reportType === "enrollee-register" ? (
                               <>
                                 <TableCell className="text-sm font-semibold text-slate-800 whitespace-nowrap">{r.reporting_year}</TableCell>
                                 <TableCell className="text-sm text-slate-600 whitespace-nowrap">{monthLabel(r.reporting_month)}</TableCell>
