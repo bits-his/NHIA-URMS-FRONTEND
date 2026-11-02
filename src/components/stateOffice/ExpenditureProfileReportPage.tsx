@@ -23,6 +23,9 @@ export default function ExpenditureProfileReportPage({
   reportId, onBack, onSubmitted, defaultZoneId, defaultStateId,
 }: Props) {
   const [amounts, setAmounts] = React.useState(blank);
+  const [reportStatus, setReportStatus] = React.useState("draft");
+  const canEdit = ["draft", "returned"].includes(reportStatus);
+  const canFinalSubmit = reportStatus === "endorsed";
 
   const total = React.useMemo(
     () => EXPENDITURE_SUB_HEADS.reduce((s, h) => {
@@ -45,6 +48,7 @@ export default function ExpenditureProfileReportPage({
       hideFooterActions
       returnOnDraft
       onLoaded={(data) => {
+        setReportStatus(String(data.status || "draft"));
         const next = blank();
         for (const h of EXPENDITURE_SUB_HEADS) {
           next[h.value] = data[h.value] != null && data[h.value] !== "" ? String(data[h.value]) : "";
@@ -117,19 +121,58 @@ export default function ExpenditureProfileReportPage({
           </div>
 
           <div className="flex flex-wrap items-center justify-end gap-3 px-4 md:px-5 py-3 border-t border-[#e6f0ea]">
-            <Button variant="outline" onClick={() => persist("draft")} disabled={saving || submitting} className="gap-2">
-              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-              Save Draft
-            </Button>
-            <Button
-              className="bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20"
-              onClick={() => requestSubmit(() => persist("submitted"))}
-              disabled={saving || submitting}
-            >
-              {submitting
-                ? <><Loader2 className="w-4 h-4 animate-spin" /> Submitting...</>
-                : <><Send className="w-4 h-4" /> Submit</>}
-            </Button>
+            {canEdit && (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => void persist(reportStatus === "returned" ? "returned" : "draft")}
+                  disabled={saving || submitting}
+                  className="gap-2"
+                >
+                  {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                  Save Draft
+                </Button>
+                <Button
+                  className="bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20"
+                  onClick={() => requestSubmit(
+                    () => void persist("awaiting_review").then(() => setReportStatus("awaiting_review")),
+                    {
+                      force: true,
+                      title: "Send for coordinator review?",
+                      description: "This locks editing and sends the report to the State Coordinator for endorsement.",
+                      confirmLabel: "Yes, send for review",
+                    },
+                  )}
+                  disabled={saving || submitting}
+                >
+                  {submitting
+                    ? <><Loader2 className="w-4 h-4 animate-spin" /> Sending...</>
+                    : <><Send className="w-4 h-4" /> Send for Review</>}
+                </Button>
+              </>
+            )}
+            {canFinalSubmit && (
+              <Button
+                className="bg-[#0f3d2e] hover:bg-[#145c3f] gap-2"
+                onClick={() => requestSubmit(
+                  () => void persist("submitted").then(() => setReportStatus("submitted")),
+                  {
+                    force: true,
+                    title: "Confirm final submission",
+                    description: "This completes the report after State Coordinator endorsement.",
+                    confirmLabel: "Yes, final submit",
+                  },
+                )}
+                disabled={saving || submitting}
+              >
+                {submitting
+                  ? <><Loader2 className="w-4 h-4 animate-spin" /> Submitting...</>
+                  : <><Send className="w-4 h-4" /> Final Submit</>}
+              </Button>
+            )}
+            {!canEdit && !canFinalSubmit && (
+              <p className="text-xs text-slate-500">This report is {reportStatus.replace(/_/g, " ")}. Editing is locked.</p>
+            )}
           </div>
         </div>
       )}

@@ -1,7 +1,7 @@
 import * as React from "react";
 import { useListSearch } from "./useListSearch";
 import {
-  Plus, Loader2, RefreshCw, Eye, ArrowLeft,
+  Plus, Loader2, RefreshCw, Eye, ArrowLeft, Send,
   FileText, Clock, CheckCircle2, XCircle,
   type LucideIcon,
 } from "lucide-react";
@@ -27,11 +27,15 @@ import ExpenditureProfileReportPage from "./ExpenditureProfileReportPage";
 import ExpenditureProfileReportDetail from "./ExpenditureProfileReportDetail";
 import {
   REPORT_CONFIG, MONTHS, monthLabel, quarterFromMonth, formatCount, formatDate, formatDateShort, formatAmount, formatNaira,
-  labelOf, IGR_SERVICE_TYPES, SSHIA_SUB_HEADS, calcSshiaLine,
+  labelOf, IGR_SERVICE_TYPES, SSHIA_SUB_HEADS,
   reportLineTotal, reportLineCount, ENROLLEE_REGISTER_SCHEMES, type StateOfficeReportType,
 } from "./constants";
 import { ENROLMENT_ACTIVITIES, enrolmentLineListSummary } from "./enrolmentPillarTypes";
 import { useStateOfficeAccess } from "@/src/access/createReviewAccess";
+import {
+  SubmitConfirmModal,
+  useReportingOfficerSubmitConfirm,
+} from "@/src/components/SubmitConfirmModal";
 
 interface Report {
   id: number;
@@ -128,10 +132,16 @@ export default function StateOfficeReportsList({
   );
   const multiType = typesToLoad.length > 1;
   const { canCreate, canReview, createOnly: baseCreateOnly } = useStateOfficeAccess();
+  const submitConfirm = useReportingOfficerSubmitConfirm();
+  const [finalBusy, setFinalBusy] = React.useState(false);
   const authUser = useSelector((s: RootState) => s.auth.user);
   // Match Stakeholder Management: officers with the endorsement workflow see their own list
   // (draft → awaiting review → endorsed → final submit), not a create-only form-first screen.
   const createOnly = providerWorkflow ? false : baseCreateOnly;
+  const isFinanceList =
+    reportType === "igr"
+    || reportType === "sshia-financial"
+    || reportType === "expenditure-profile";
   const hasActivityTabs = !!activityTabs?.length;
   const defaultActivityTab = activityTabs?.[0]?.value ?? "all";
 
@@ -254,6 +264,30 @@ export default function StateOfficeReportsList({
     setMode(nextMode);
   };
 
+  const requestFinalSubmit = (r: Report) => {
+    const type = (r.__reportType ?? reportType) as StateOfficeReportType;
+    submitConfirm.requestSubmit(async () => {
+      setFinalBusy(true);
+      try {
+        await stateOfficeApi[type].updateStatus(r.id, "submitted");
+        toast.success("Final submission complete");
+        await load();
+        return true;
+      } catch (err: unknown) {
+        toast.error((err as Error).message || "Final submission failed");
+        return false;
+      } finally {
+        setFinalBusy(false);
+      }
+    }, {
+      force: true,
+      title: "Confirm final submission",
+      description:
+        "This completes the report after State Coordinator endorsement. You will not be able to edit it afterwards.",
+      confirmLabel: "Yes, final submit",
+    });
+  };
+
   const load = React.useCallback(async () => {
     if (createOnly) return;
     setLoading(true);
@@ -340,74 +374,41 @@ export default function StateOfficeReportsList({
     return matching;
   }, [reports, reportType, filterActivity, activityRows, hasActivityTabs, matchesSearch]);
 
-  /** SSHIA list: one row per filled sub-head (PPT Form 2 columns). */
+  /** SSHIA list: one unified row per office + quarter. */
   const sshiaListRows = React.useMemo(() => {
     if (reportType !== "sshia-financial") return [] as Array<{
       report: Report;
-      sub_head: string;
-      label: string;
-      opening_balance: number | null;
-      receipts: number | null;
-      total_budget: number | null;
-      actual_expenditure: number | null;
-      balance: number | null;
-      variance_pct: number | null;
-      bhcpf_lives: number | null;
+      filledLabels: string[];
+      filledCount: number;
     }>;
-    const rows: Array<{
-      report: Report;
-      sub_head: string;
-      label: string;
-      opening_balance: number | null;
-      receipts: number | null;
-      total_budget: number | null;
-      actual_expenditure: number | null;
-      balance: number | null;
-      variance_pct: number | null;
-      bhcpf_lives: number | null;
-    }> = [];
-    for (const r of filteredReports) {
+    return filteredReports.map((r) => {
       const lines = Array.isArray((r as any).lines) ? (r as any).lines as any[] : [];
+      const filledLabels: string[] = [];
+
       if (lines.length) {
         for (const line of lines) {
-          rows.push({
-            report: r,
-            sub_head: String(line.sub_head || ""),
-            label: labelOf(SSHIA_SUB_HEADS as any, String(line.sub_head || ""), String(line.sub_head || "—")),
-            opening_balance: line.opening_balance ?? null,
-            receipts: line.receipts ?? null,
-            total_budget: line.total_budget ?? null,
-            actual_expenditure: line.actual_expenditure ?? null,
-            balance: line.balance ?? null,
-            variance_pct: line.variance_pct ?? null,
-            bhcpf_lives: line.bhcpf_lives ?? null,
-          });
+          filledLabels.push(
+            labelOf(SSHIA_SUB_HEADS as any, String(line.sub_head || ""), String(line.sub_head || "—")),
+          );
         }
-        continue;
+      } else {
+        for (const h of SSHIA_SUB_HEADS) {
+          const p = h.prefix;
+          const opening = (r as any)[`${p}_opening_balance`] ?? null;
+          const receipts = (r as any)[`${p}_receipts`] ?? null;
+          const actual = (r as any)[`${p}_actual_expenditure`] ?? null;
+          const lives = (r as any)[`${p}_bhcpf_lives`] ?? null;
+          if (opening == null && receipts == null && actual == null && lives == null) continue;
+          filledLabels.push(h.label);
+        }
       }
-      for (const h of SSHIA_SUB_HEADS) {
-        const p = h.prefix;
-        const opening = (r as any)[`${p}_opening_balance`] ?? null;
-        const receipts = (r as any)[`${p}_receipts`] ?? null;
-        const actual = (r as any)[`${p}_actual_expenditure`] ?? null;
-        const lives = (r as any)[`${p}_bhcpf_lives`] ?? null;
-        if (opening == null && receipts == null && actual == null && lives == null) continue;
-        const derived = calcSshiaLine(opening, receipts, actual);
-        rows.push({
-          report: r,
-          sub_head: h.value,
-          label: h.label,
-          opening_balance: derived.opening_balance,
-          receipts: derived.receipts,
-          total_budget: derived.total_budget,
-          actual_expenditure: derived.actual_expenditure,
-          balance: derived.balance,
-          variance_pct: derived.variance_pct,
-          bhcpf_lives: lives,
-        });
-      }
-    }
-    return rows;
+
+      return {
+        report: r,
+        filledLabels,
+        filledCount: filledLabels.length,
+      };
+    });
   }, [filteredReports, reportType]);
 
   const activityTabCounts = React.useMemo(() => {
@@ -837,7 +838,7 @@ export default function StateOfficeReportsList({
                 <div className="flex items-center justify-center py-16 gap-3 text-slate-400">
                   <Loader2 className="w-5 h-5 animate-spin" /><span className="text-sm">Loading...</span>
                 </div>
-              ) : filteredReports.length === 0 || (reportType === "sshia-financial" && sshiaListRows.length === 0) ? (
+              ) : filteredReports.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 gap-2 text-slate-400">
                   <FileText className="w-8 h-8 opacity-30" />
                   <p className="text-sm font-medium">
@@ -845,9 +846,7 @@ export default function StateOfficeReportsList({
                       ? "No reports match your filters"
                       : hasActivityTabs && activeActivityTab
                         ? `No ${activeActivityTab.label} reports yet`
-                        : reportType === "sshia-financial" && filteredReports.length > 0
-                          ? "No sub-heads filled yet"
-                          : "No reports found"}
+                        : "No reports found"}
                   </p>
                   {!hasFilters && canCreate && (
                     <Button variant="outline" size="sm" className="mt-2 gap-2"
@@ -877,15 +876,9 @@ export default function StateOfficeReportsList({
                         ) : reportType === "sshia-financial" ? (
                           <>
                             <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">State</TableHead>
-                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Month</TableHead>
-                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Quarter</TableHead>
-                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Sub-head</TableHead>
-                            <TableHead className="text-xs font-bold text-slate-600 text-right whitespace-nowrap">Opening (A)</TableHead>
-                            <TableHead className="text-xs font-bold text-slate-600 text-right whitespace-nowrap">Receipts (B)</TableHead>
-                            <TableHead className="text-xs font-bold text-slate-600 text-right whitespace-nowrap">Available (C)</TableHead>
-                            <TableHead className="text-xs font-bold text-slate-600 text-right whitespace-nowrap">Actual (D)</TableHead>
-                            <TableHead className="text-xs font-bold text-slate-600 text-right whitespace-nowrap">Balance (E)</TableHead>
-                            <TableHead className="text-xs font-bold text-slate-600 text-right whitespace-nowrap">Lives</TableHead>
+                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Period</TableHead>
+                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Sub-heads filled</TableHead>
+                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Submitted by</TableHead>
                             <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Status</TableHead>
                             <TableHead className="text-right text-xs font-bold text-slate-600 whitespace-nowrap">Actions</TableHead>
                           </>
@@ -1001,10 +994,10 @@ export default function StateOfficeReportsList({
                     {reportType === "sshia-financial" ? sshiaListRows.map((row, i) => {
                       const r = row.report;
                       const sc = STATUS_CONFIG[r.status] || STATUS_CONFIG.draft;
-                      const money = (v: number | null) => (v == null ? "—" : formatNaira(v));
+                      const quarter = (r as any).reporting_quarter || quarterFromMonth(r.reporting_month);
                       return (
                         <motion.tr
-                          key={`${r.id}-${row.sub_head}`}
+                          key={String(r.id)}
                           initial={{ opacity: 0, y: 4 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ delay: i * 0.02 }}
@@ -1013,20 +1006,31 @@ export default function StateOfficeReportsList({
                           <TableCell className="text-sm font-semibold text-slate-800 whitespace-nowrap">
                             {r.state?.description || "—"}
                           </TableCell>
+                          <TableCell className="text-sm text-slate-700 whitespace-nowrap">
+                            <span className="font-medium">{monthLabel(r.reporting_month)} {r.reporting_year}</span>
+                            <span className="text-slate-400"> · Q{quarter}</span>
+                          </TableCell>
+                          <TableCell className="py-2.5">
+                            {row.filledCount === 0 ? (
+                              <span className="text-sm text-slate-400">None yet</span>
+                            ) : (
+                              <div className="flex flex-wrap gap-1.5 max-w-[22rem]">
+                                {row.filledLabels.map((label) => (
+                                  <span
+                                    key={label}
+                                    className="inline-flex items-center rounded-md border border-[#d4e8dc] bg-[#f4faf7] px-2 py-0.5 text-[11px] font-medium text-[#145c3f]"
+                                  >
+                                    {label}
+                                  </span>
+                                ))}
+                                <span className="inline-flex items-center text-[11px] text-slate-400 px-0.5">
+                                  {row.filledCount} of 4
+                                </span>
+                              </div>
+                            )}
+                          </TableCell>
                           <TableCell className="text-sm text-slate-600 whitespace-nowrap">
-                            {monthLabel(r.reporting_month)}
-                          </TableCell>
-                          <TableCell className="text-sm text-slate-500 whitespace-nowrap">
-                            Q{(r as any).reporting_quarter || quarterFromMonth(r.reporting_month)}
-                          </TableCell>
-                          <TableCell className="text-sm font-semibold text-slate-800 whitespace-nowrap">{row.label}</TableCell>
-                          <TableCell className="text-sm text-right tabular-nums text-slate-700 whitespace-nowrap">{money(row.opening_balance)}</TableCell>
-                          <TableCell className="text-sm text-right tabular-nums text-slate-700 whitespace-nowrap">{money(row.receipts)}</TableCell>
-                          <TableCell className="text-sm text-right tabular-nums font-semibold text-[#145c3f] whitespace-nowrap">{money(row.total_budget)}</TableCell>
-                          <TableCell className="text-sm text-right tabular-nums text-slate-700 whitespace-nowrap">{money(row.actual_expenditure)}</TableCell>
-                          <TableCell className="text-sm text-right tabular-nums font-semibold text-[#145c3f] whitespace-nowrap">{money(row.balance)}</TableCell>
-                          <TableCell className="text-sm text-right tabular-nums text-slate-700 whitespace-nowrap">
-                            {row.bhcpf_lives == null ? "—" : String(row.bhcpf_lives)}
+                            {r.submitted_by || "—"}
                           </TableCell>
                           <TableCell>
                             <Badge className={`text-[10px] px-2 py-0.5 flex items-center gap-1 w-fit border ${sc.cls}`}>
@@ -1040,11 +1044,19 @@ export default function StateOfficeReportsList({
                                 onClick={() => openReport(r, "view")}>
                                 <Eye className="w-3.5 h-3.5" /> View
                               </Button>
-                              {canCreate && r.status === "draft" && (
+                              {canCreate && (r.status === "draft" || r.status === "returned") && (
                                 <Button variant="ghost" size="sm"
                                   className="h-7 gap-1 px-2 text-[#145c3f] hover:text-[#145c3f] hover:bg-[#145c3f]/10"
                                   onClick={() => openReport(r, "edit")}>
                                   Update
+                                </Button>
+                              )}
+                              {canCreate && r.status === "endorsed" && (
+                                <Button variant="ghost" size="sm"
+                                  className="h-7 gap-1 px-2 text-[#145c3f] hover:text-[#0f3d2e] hover:bg-[#145c3f]/10"
+                                  disabled={finalBusy}
+                                  onClick={() => requestFinalSubmit(r)}>
+                                  <Send className="w-3.5 h-3.5" /> Final Submit
                                 </Button>
                               )}
                             </div>
@@ -1092,11 +1104,19 @@ export default function StateOfficeReportsList({
                                       onClick={() => openReport(r, "view")}>
                                       <Eye className="w-3.5 h-3.5" /> View
                                     </Button>
-                                    {canCreate && r.status === "draft" && (
+                                    {canCreate && (r.status === "draft" || r.status === "returned") && (
                                       <Button variant="ghost" size="sm"
                                         className="h-7 gap-1 px-2 text-[#145c3f] hover:text-[#145c3f] hover:bg-[#145c3f]/10"
                                         onClick={() => openReport(r, "edit")}>
                                         Update
+                                      </Button>
+                                    )}
+                                    {canCreate && r.status === "endorsed" && (
+                                      <Button variant="ghost" size="sm"
+                                        className="h-7 gap-1 px-2 text-[#145c3f] hover:text-[#0f3d2e] hover:bg-[#145c3f]/10"
+                                        disabled={finalBusy}
+                                        onClick={() => requestFinalSubmit(r)}>
+                                        <Send className="w-3.5 h-3.5" /> Final Submit
                                       </Button>
                                     )}
                                   </div>
@@ -1141,11 +1161,19 @@ export default function StateOfficeReportsList({
                                       onClick={() => openReport(r, "view")}>
                                       <Eye className="w-3.5 h-3.5" /> View
                                     </Button>
-                                    {canCreate && r.status === "draft" && (
+                                    {canCreate && (r.status === "draft" || r.status === "returned") && (
                                       <Button variant="ghost" size="sm"
                                         className="h-7 gap-1 px-2 text-[#145c3f] hover:text-[#145c3f] hover:bg-[#145c3f]/10"
                                         onClick={() => openReport(r, "edit")}>
                                         Update
+                                      </Button>
+                                    )}
+                                    {canCreate && r.status === "endorsed" && (
+                                      <Button variant="ghost" size="sm"
+                                        className="h-7 gap-1 px-2 text-[#145c3f] hover:text-[#0f3d2e] hover:bg-[#145c3f]/10"
+                                        disabled={finalBusy}
+                                        onClick={() => requestFinalSubmit(r)}>
+                                        <Send className="w-3.5 h-3.5" /> Final Submit
                                       </Button>
                                     )}
                                   </div>
@@ -1333,6 +1361,18 @@ export default function StateOfficeReportsList({
           </Card>
         </div>
       </ScrollArea>
+
+      {isFinanceList && (
+        <SubmitConfirmModal
+          open={submitConfirm.open}
+          busy={submitConfirm.busy || finalBusy}
+          title={submitConfirm.title}
+          description={submitConfirm.description}
+          confirmLabel={submitConfirm.confirmLabel}
+          onConfirm={submitConfirm.confirm}
+          onCancel={submitConfirm.cancel}
+        />
+      )}
     </div>
   );
 }
