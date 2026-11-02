@@ -174,7 +174,6 @@ export default function FinanceDashboard({
           </Button>
           <div className="min-w-0">
             <h2 className="text-xl font-bold tracking-tight truncate">Finance Dashboard</h2>
-            <p className="text-xs text-slate-500">IGR Performance · SSHIA Progress · Expenditure excluded</p>
           </div>
         </div>
         <Button variant="outline" size="sm" className="gap-1.5" onClick={load} disabled={loading}>

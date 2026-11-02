@@ -619,7 +619,7 @@ export default function StateOfficeReportsList({
           </Button>
           <div className="min-w-0">
             <h2 className="text-xl font-bold tracking-tight truncate">{listTitle ?? cfg.title}</h2>
-            {providerWorkflow && (
+            {providerWorkflow && !isFinanceList && (
               <p className="text-xs text-slate-500 truncate">
                 {canReview
                   ? "Review and endorse reports awaiting your action"
@@ -822,17 +822,17 @@ export default function StateOfficeReportsList({
 
           {searchInput}
           <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden">
-            <CardHeader className="pb-3 border-b border-[#d4e8dc]">
-              <CardTitle className="text-sm font-bold">
-                {loading
-                  ? "Loading..."
-                  : reportType === "igr" || reportType === "sshia-financial" || reportType === "expenditure-profile"
-                    ? cfg.title
+            {!isFinanceList && (
+              <CardHeader className="pb-3 border-b border-[#d4e8dc]">
+                <CardTitle className="text-sm font-bold">
+                  {loading
+                    ? "Loading..."
                     : reportType === "enrollee-register" || reportType === "etmc-tmc-action-point" || reportType === "ict-support-register" || reportType === "adhoc-special-assignment"
                       ? `${filteredReports.length} register${filteredReports.length !== 1 ? "s" : ""}`
                       : `${filteredReports.length} report${filteredReports.length !== 1 ? "s" : ""}`}
-              </CardTitle>
-            </CardHeader>
+                </CardTitle>
+              </CardHeader>
+            )}
             <CardContent className="p-0">
               {loading ? (
                 <div className="flex items-center justify-center py-16 gap-3 text-slate-400">
