@@ -1,5 +1,20 @@
 import * as React from "react";
-import { ArrowLeft, Plus, RefreshCw, Loader2, ClipboardCheck, Eye, Search, CheckCircle2, Trash2 } from "lucide-react";
+import { ColumnDef } from "@tanstack/react-table";
+import {
+  ArrowLeft,
+  Plus,
+  RefreshCw,
+  Loader2,
+  ClipboardCheck,
+  Eye,
+  Search,
+  CheckCircle2,
+  Trash2,
+  BarChart3,
+  Building2,
+  MapPin,
+  Calendar,
+} from "lucide-react";
 import { motion } from "motion/react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,7 +22,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import { servicomApi } from "@/lib/api";
@@ -23,6 +37,8 @@ import {
   satisfactionCategoryLabel,
 } from "./servicomSurveyConstants";
 import { SubmitConfirmModal, useReportingOfficerSubmitConfirm } from "@/src/components/SubmitConfirmModal";
+import { ShadcnDataTable } from "@/components/common/ShadcnDataTable";
+import SatisfactionDashboardTab from "./SatisfactionDashboardTab";
 
 interface Props {
   onBack: () => void;
@@ -33,6 +49,10 @@ interface Props {
   canCreate?: boolean;
   canReview?: boolean;
 }
+
+// Consistent NHIA input styling matching the Select component
+const inputStyling =
+  "h-11 w-full rounded-sm border-2 border-[#1a7a52] bg-[#f4f7f5] px-3.5 text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-[#1a7a52] transition-colors";
 
 const emptyForm = (
   defaultZoneId?: string | null,
@@ -93,6 +113,8 @@ function buildResponsesPayload(responses: Record<string, string>) {
   });
 }
 
+type TabKey = "dashboard" | "register";
+
 export default function ServicomSatisfactionSurveyPage({
   onBack,
   defaultStateId,
@@ -105,8 +127,13 @@ export default function ServicomSatisfactionSurveyPage({
   const createOnly = canCreate && !canReview;
   const geoLocked = !!(defaultZoneId && defaultStateId);
   const submitConfirm = useReportingOfficerSubmitConfirm();
+
+  // Navigation & Tabs
+  const [activeTab, setActiveTab] = React.useState<TabKey>("dashboard");
   const [mode, setMode] = React.useState<"list" | "form" | "view">(createOnly ? "form" : "list");
   const [formKey, setFormKey] = React.useState(0);
+
+  // Data
   const [surveys, setSurveys] = React.useState<any[]>([]);
   const [selected, setSelected] = React.useState<any | null>(null);
   const [loading, setLoading] = React.useState(!createOnly);
@@ -114,13 +141,16 @@ export default function ServicomSatisfactionSurveyPage({
   const [zones, setZones] = React.useState<any[]>([]);
   const [states, setStates] = React.useState<any[]>([]);
   const [filterStates, setFilterStates] = React.useState<any[]>([]);
-  const [f, setF] = React.useState(emptyForm(defaultZoneId, defaultStateId));
 
+  // Form State
+  const [f, setF] = React.useState(emptyForm(defaultZoneId, defaultStateId));
+  const [selectedProviderId, setSelectedProviderId] = React.useState("");
+
+  // Filters
   const [filterZone, setFilterZone] = React.useState(defaultZoneId ?? "all");
   const [filterState, setFilterState] = React.useState(defaultStateId ?? "all");
   const [filterSearch, setFilterSearch] = React.useState("");
   const [filterDate, setFilterDate] = React.useState("");
-  const [selectedProviderId, setSelectedProviderId] = React.useState("");
 
   const scoreSummary = React.useMemo(() => computeSatisfactionScore(f.responses), [f.responses]);
   const activeStateCode = defaultStateId ?? f.state_code;
@@ -136,19 +166,29 @@ export default function ServicomSatisfactionSurveyPage({
       setSurveys(res.data);
     } catch (err: any) {
       toast.error("Failed to load surveys", { description: err.message });
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   }, [defaultStateId, defaultZoneId, filterState, filterZone, geoLocked, createOnly]);
 
-  React.useEffect(() => { if (mode === "list" && !createOnly) load(); }, [load, mode, createOnly]);
+  React.useEffect(() => {
+    if (mode === "list" && !createOnly) load();
+  }, [load, mode, createOnly]);
+
   React.useEffect(() => {
     zonesApi.list().then((r) => setZones(r.data)).catch(() => {});
   }, []);
+
   React.useEffect(() => {
     if (geoLocked) return;
     statesApi.list().then((r) => setStates(r.data)).catch(() => {});
   }, [geoLocked]);
+
   React.useEffect(() => {
-    if (geoLocked || filterZone === "all") { setFilterStates([]); return; }
+    if (geoLocked || filterZone === "all") {
+      setFilterStates([]);
+      return;
+    }
     statesApi.list(filterZone).then((r) => setFilterStates(r.data)).catch(() => {});
   }, [filterZone, geoLocked]);
 
@@ -157,7 +197,9 @@ export default function ServicomSatisfactionSurveyPage({
     return surveys.filter((s) => {
       if (q) {
         const hay = [s.reference_id, s.provider_name, formatTeamNames(s.team)]
-          .filter(Boolean).join(" ").toLowerCase();
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
         if (!hay.includes(q)) return false;
       }
       if (filterDate && s.survey_date !== filterDate) return false;
@@ -254,72 +296,177 @@ export default function ServicomSatisfactionSurveyPage({
         team: parseTeamNames(f.teamNames),
         responses: buildResponsesPayload(f.responses),
       };
-      if (selected?.reference_id) await servicomApi.updateSatisfactionSurvey(selected.reference_id, payload);
-      else await servicomApi.createSatisfactionSurvey(payload);
-      toast.success("Survey saved");
+      if (selected?.reference_id) {
+        await servicomApi.updateSatisfactionSurvey(selected.reference_id, payload);
+      } else {
+        await servicomApi.createSatisfactionSurvey(payload);
+      }
+      toast.success("Survey saved successfully");
       closeSub();
     } catch (err: any) {
       toast.error("Failed to save survey", { description: err.message });
-    } finally { setSaving(false); }
+    } finally {
+      setSaving(false);
+    }
   };
 
+  // Columns for ShadcnDataTable
+  const tableColumns: ColumnDef<any>[] = [
+    {
+      accessorKey: "reference_id",
+      header: "Survey ID",
+      cell: ({ row }) => (
+        <span className="font-mono text-xs font-bold text-[#1a7a52]">
+          #{row.original.reference_id}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "survey_date",
+      header: "Survey Date",
+      cell: ({ row }) => (
+        <span className="text-xs text-slate-700 font-medium whitespace-nowrap">
+          {row.original.survey_date}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "provider_name",
+      header: "Healthcare Provider / Facility",
+      cell: ({ row }) => (
+        <div className="min-w-[190px]">
+          <p className="text-xs font-bold text-slate-900">{row.original.provider_name}</p>
+          <span className="text-[11px] text-slate-500 font-normal">
+            {row.original.state?.description || row.original.state_code || "State Office"}
+          </span>
+        </div>
+      ),
+    },
+    {
+      id: "geo",
+      header: "Zone & State",
+      cell: ({ row }) => (
+        <span className="text-xs text-slate-700 font-semibold">
+          {row.original.state?.description || row.original.state_code}
+          {row.original.zonal_code && (
+            <span className="text-slate-400 font-normal ml-1">({row.original.zonal_code})</span>
+          )}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "percentage_score",
+      header: "Score & Performance",
+      cell: ({ row }) => {
+        const score = Number(row.original.percentage_score) || 0;
+        const isGood = score >= 70;
+        return (
+          <Badge
+            variant="outline"
+            className={`font-black text-xs px-2 py-0.5 rounded-sm tabular-nums ${
+              isGood
+                ? "border-emerald-600 text-emerald-700 bg-emerald-50"
+                : "border-amber-600 text-amber-700 bg-amber-50"
+            }`}
+          >
+            {row.original.total_score}/{row.original.max_score} ({row.original.percentage_score}%)
+          </Badge>
+        );
+      },
+    },
+    {
+      id: "team",
+      header: "Survey Team",
+      cell: ({ row }) => (
+        <span className="text-xs text-slate-600 line-clamp-1 max-w-[180px]">
+          {formatTeamNames(row.original.team) || "—"}
+        </span>
+      ),
+    },
+    {
+      id: "actions",
+      header: "Action",
+      cell: ({ row }) => (
+        <div className="flex items-center justify-end" onClick={(e) => e.stopPropagation()}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => openView(row.original)}
+            className="h-7 px-2.5 text-xs font-bold text-[#1a7a52] hover:bg-[#e8f5ee] rounded-sm gap-1"
+          >
+            <Eye className="size-3.5" />
+            <span>View</span>
+          </Button>
+        </div>
+      ),
+    },
+  ];
+
   const renderDetailsCard = (readOnly: boolean, row?: any, footer?: React.ReactNode) => (
-    <Card className="rounded-2xl border-[#d4e8dc] shadow-sm">
-      <CardHeader className="pb-3 border-b bg-[#f8fbf9]">
-        <CardTitle className="text-sm font-bold text-[#145c3f]">Survey Details</CardTitle>
+    <Card className="rounded-sm border border-slate-200/80 shadow-xs bg-white overflow-hidden p-0 gap-0">
+      <CardHeader className="border-b border-slate-200 bg-[#f4f7f5] py-2.5 px-4 rounded-none m-0">
+        <CardTitle className="text-sm font-bold text-slate-800">Survey Details</CardTitle>
       </CardHeader>
-      <CardContent className="pt-5 pb-5">
+      <CardContent className="pt-5 pb-5 px-4">
         {readOnly && row?.reference_id && (
           <div className="mb-5 pb-4 border-b border-slate-100">
-            <p className="text-[10px] uppercase tracking-wide text-slate-400 font-medium">Survey ID</p>
-            <p className="text-sm font-mono font-bold text-primary mt-0.5">{row.reference_id}</p>
+            <p className="text-[10px] uppercase tracking-wide text-slate-400 font-bold">Survey Reference</p>
+            <p className="text-base font-mono font-bold text-[#1a7a52] mt-0.5">#{row.reference_id}</p>
           </div>
         )}
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
           <div className="space-y-1.5">
-            <Label className="text-xs text-slate-500">Survey Date *</Label>
+            <Label className="text-xs font-bold text-slate-700">Survey Date *</Label>
             {readOnly ? (
-              <p className="text-sm">{row?.survey_date}</p>
+              <p className="text-sm font-medium">{row?.survey_date}</p>
             ) : (
-              <Input
+              <input
                 type="date"
                 value={f.survey_date}
                 onChange={(e) => setF((p) => ({ ...p, survey_date: e.target.value }))}
+                className={inputStyling}
               />
             )}
           </div>
 
           <div className="space-y-1.5">
-            <Label className="text-xs text-slate-500">State *</Label>
+            <Label className="text-xs font-bold text-slate-700">State *</Label>
             {readOnly ? (
-              <p className="text-sm">{row?.state?.description || "—"}</p>
+              <p className="text-sm font-medium">{row?.state?.description || "—"}</p>
             ) : geoLocked ? (
-              <p className="text-sm font-medium">
+              <p className="text-sm font-medium text-slate-900">
                 {defaultStateName ?? pickGeoLabel(states, f.state_code, "State")}
               </p>
             ) : (
-              <Select value={f.state_code} onValueChange={(v) => {
-                const state = states.find((s) => s.code === v);
-                setSelectedProviderId("");
-                setF((p) => ({
-                  ...p,
-                  state_code: v,
-                  zonal_code: state?.zonal_code || "",
-                  provider_name: "",
-                }));
-              }}>
+              <Select
+                value={f.state_code}
+                onValueChange={(v) => {
+                  const state = states.find((s) => s.code === v);
+                  setSelectedProviderId("");
+                  setF((p) => ({
+                    ...p,
+                    state_code: v,
+                    zonal_code: state?.zonal_code || "",
+                    provider_name: "",
+                  }));
+                }}
+              >
                 <SelectTrigger displayValue={pickGeoLabel(states, f.state_code, "Select state")}>
                   <SelectValue placeholder="Select state" />
                 </SelectTrigger>
                 <SelectContent>
-                  {states.map((s) => <SelectItem key={s.code} value={s.code}>{s.description}</SelectItem>)}
+                  {states.map((s) => (
+                    <SelectItem key={s.code} value={s.code}>
+                      {s.description}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             )}
           </div>
 
           <div className="space-y-1.5">
-            <Label className="text-xs text-slate-500">Provider Name *</Label>
+            <Label className="text-xs font-bold text-slate-700">Provider Name *</Label>
             {readOnly ? (
               <p className="text-sm font-medium">{row?.provider_name}</p>
             ) : (
@@ -338,31 +485,38 @@ export default function ServicomSatisfactionSurveyPage({
           </div>
 
           <div className="space-y-2 md:col-span-2 xl:col-span-3">
-            <Label className="text-xs text-slate-500">Team</Label>
+            <Label className="text-xs font-bold text-slate-700">Team</Label>
             {readOnly ? (
               <p className="text-sm">{formatTeamNames(row?.team) || "—"}</p>
             ) : (
               <div className="space-y-2">
                 {f.teamNames.map((name, index) => (
                   <div key={index} className="flex items-center gap-2">
-                    <Input
-                      placeholder={`Name ${index + 1}`}
+                    <input
+                      placeholder={`Team member name ${index + 1}`}
                       value={name}
-                      onChange={(e) => setF((p) => ({
-                        ...p,
-                        teamNames: p.teamNames.map((entry, i) => (i === index ? e.target.value : entry)),
-                      }))}
+                      onChange={(e) =>
+                        setF((p) => ({
+                          ...p,
+                          teamNames: p.teamNames.map((entry, i) =>
+                            i === index ? e.target.value : entry
+                          ),
+                        }))
+                      }
+                      className={inputStyling}
                     />
                     {f.teamNames.length > 1 && (
                       <Button
                         type="button"
                         variant="ghost"
                         size="icon"
-                        className="shrink-0 text-slate-400 hover:text-rose-600"
-                        onClick={() => setF((p) => ({
-                          ...p,
-                          teamNames: p.teamNames.filter((_, i) => i !== index),
-                        }))}
+                        className="shrink-0 text-slate-400 hover:text-rose-600 rounded-sm"
+                        onClick={() =>
+                          setF((p) => ({
+                            ...p,
+                            teamNames: p.teamNames.filter((_, i) => i !== index),
+                          }))
+                        }
                         aria-label={`Remove name ${index + 1}`}
                       >
                         <Trash2 className="w-4 h-4" />
@@ -374,10 +528,10 @@ export default function ServicomSatisfactionSurveyPage({
                   type="button"
                   variant="outline"
                   size="sm"
-                  className="gap-2"
+                  className="gap-2 border-[#1a7a52] text-[#1a7a52] hover:bg-[#e8f5ee] rounded-sm"
                   onClick={() => setF((p) => ({ ...p, teamNames: [...p.teamNames, ""] }))}
                 >
-                  <Plus className="w-4 h-4" /> Add name
+                  <Plus className="w-4 h-4" /> Add team member
                 </Button>
               </div>
             )}
@@ -399,7 +553,7 @@ export default function ServicomSatisfactionSurveyPage({
     readOnly = false,
     startNumber = 1,
   ) => (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {questions.map((q, i) => {
         const n = startNumber + i;
         const val = responses[q.id] ?? "";
@@ -408,34 +562,44 @@ export default function ServicomSatisfactionSurveyPage({
         return (
           <div
             key={q.id}
-            className={`rounded-xl border p-4 md:p-5 transition-colors ${
-              val ? "border-[#d4e8dc] bg-white" : "border-slate-200 bg-slate-50/50"
+            className={`rounded-sm border p-4 transition-colors ${
+              val
+                ? "border-slate-300 bg-white shadow-xs"
+                : "border-slate-200 bg-[#f4f7f5]"
             }`}
           >
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between md:gap-6">
               <div className="flex items-start gap-3 flex-1 min-w-0">
-                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#e8f5ee] text-xs font-bold text-[#145c3f]">
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-sm bg-[#e8f5ee] text-xs font-bold text-[#1a7a52]">
                   {n}
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold text-slate-800 leading-snug">{q.question}</p>
                 </div>
                 {val && !readOnly && (
-                  <CheckCircle2 className="w-5 h-5 text-[#25a872] shrink-0 md:hidden" />
+                  <CheckCircle2 className="w-5 h-5 text-[#1a7a52] shrink-0 md:hidden" />
                 )}
               </div>
 
               {readOnly ? (
                 <div className="flex items-center gap-3 shrink-0 md:pl-0 pl-10">
                   {val ? (
-                    <Badge className={val === "yes" ? "bg-emerald-100 text-emerald-700 border-emerald-200" : "bg-rose-100 text-rose-700 border-rose-200"}>
+                    <Badge
+                      className={
+                        val === "yes"
+                          ? "bg-emerald-100 text-emerald-800 border-emerald-300 font-bold"
+                          : "bg-rose-100 text-rose-800 border-rose-300 font-bold"
+                      }
+                    >
                       {val === "yes" ? "Yes" : "No"}
                     </Badge>
                   ) : (
                     <span className="text-sm text-slate-400">—</span>
                   )}
                   {score !== null && (
-                    <span className="text-xs text-slate-500">Score: <strong>{score}</strong></span>
+                    <span className="text-xs text-slate-500 font-medium">
+                      Score: <strong>{score}</strong>
+                    </span>
                   )}
                 </div>
               ) : (
@@ -447,10 +611,10 @@ export default function ServicomSatisfactionSurveyPage({
                       return (
                         <label
                           key={o.value}
-                          className={`inline-flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-all ${
+                          className={`inline-flex cursor-pointer items-center gap-2 rounded-sm border-2 px-3 py-1.5 text-xs font-bold transition-all ${
                             checked
-                              ? "border-[#25a872] bg-[#e8f5ee] text-[#145c3f] shadow-sm"
-                              : "border-slate-200 bg-white text-slate-600 hover:border-[#d4e8dc] hover:bg-[#f8fbf9]"
+                              ? "border-[#1a7a52] bg-[#e8f5ee] text-[#1a7a52] shadow-xs"
+                              : "border-slate-200 bg-white text-slate-600 hover:border-[#1a7a52] hover:bg-[#f4f7f5]"
                           }`}
                         >
                           <input
@@ -462,11 +626,11 @@ export default function ServicomSatisfactionSurveyPage({
                             className="sr-only"
                           />
                           <span
-                            className={`h-4 w-4 shrink-0 rounded-full border-2 flex items-center justify-center ${
-                              checked ? "border-[#25a872]" : "border-slate-300"
+                            className={`h-3.5 w-3.5 shrink-0 rounded-full border-2 flex items-center justify-center ${
+                              checked ? "border-[#1a7a52]" : "border-slate-300"
                             }`}
                           >
-                            {checked && <span className="h-2 w-2 rounded-full bg-[#25a872]" />}
+                            {checked && <span className="h-1.5 w-1.5 rounded-full bg-[#1a7a52]" />}
                           </span>
                           {o.label}
                         </label>
@@ -491,15 +655,15 @@ export default function ServicomSatisfactionSurveyPage({
           const start = questionNumber;
           questionNumber += questions.length;
           return (
-            <Card key={category} className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden">
-              <CardHeader className="pb-3 border-b bg-[#f8fbf9]">
+            <Card key={category} className="rounded-sm border border-slate-200/80 shadow-xs overflow-hidden bg-white p-0 gap-0">
+              <CardHeader className="border-b border-slate-200 bg-[#f4f7f5] py-2.5 px-4 rounded-none m-0">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <CardTitle className="text-sm font-bold text-[#145c3f]">
+                  <CardTitle className="text-sm font-bold text-slate-800 uppercase tracking-wide">
                     {satisfactionCategoryLabel(category)}
                   </CardTitle>
                   {!readOnly && (
-                    <Badge variant="outline" className="text-[10px] font-semibold bg-white">
-                      {questions.filter((q) => responses[q.id]).length} / {questions.length}
+                    <Badge variant="outline" className="text-[10px] font-bold border-[#1a7a52] text-[#1a7a52] bg-white">
+                      {questions.filter((q) => responses[q.id]).length} / {questions.length} Answered
                     </Badge>
                   )}
                 </div>
@@ -514,14 +678,17 @@ export default function ServicomSatisfactionSurveyPage({
     );
   };
 
+  // FORM VIEW
   if (mode === "form") {
     const formActions = (
       <>
-        <Button variant="outline" onClick={leaveForm}>Cancel</Button>
+        <Button variant="outline" onClick={leaveForm} className="rounded-sm border-slate-300">
+          Cancel
+        </Button>
         <Button
           onClick={() => submitConfirm.requestSubmit(handleSave)}
           disabled={saving}
-          className="bg-orange-action hover:bg-orange-600 gap-2"
+          className="bg-[#1a7a52] hover:bg-[#145c3f] text-white font-bold gap-2 rounded-sm"
         >
           {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
           Save Survey
@@ -530,31 +697,32 @@ export default function ServicomSatisfactionSurveyPage({
     );
 
     return (
-      <div key={formKey} className="flex flex-col h-full bg-slate-50/30">
-        <div className="bg-white border-b px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30">
+      <div key={formKey} className="flex flex-col h-full bg-[#f4f7f5]">
+        <div className="bg-white border-b-2 border-[#1a7a52] px-4 md:px-6 py-3.5 flex items-center justify-between sticky top-0 z-30">
           <div className="flex items-center gap-3 min-w-0">
             <Button
               variant="ghost"
               size="icon"
               onClick={leaveForm}
-              className="rounded-full shrink-0"
+              className="rounded-sm shrink-0 hover:bg-[#e8f5ee] text-slate-700"
               aria-label="Back"
             >
               <ArrowLeft className="w-5 h-5" />
             </Button>
             <div className="min-w-0">
-              <h2 className="text-xl font-bold tracking-tight truncate">
-                HCF Customer Satisfaction Survey
+              <h2 className="text-lg font-black tracking-tight text-slate-900 truncate">
+                New HCF Customer Satisfaction Survey
               </h2>
+              <p className="text-xs text-slate-500">Record enrollee feedback across core healthcare service dimensions</p>
             </div>
           </div>
-          <Badge variant="outline" className="text-[10px] font-semibold shrink-0">
+          <Badge variant="outline" className="text-xs font-bold border border-[#1a7a52] text-[#1a7a52] shrink-0 bg-[#f4f7f5] rounded-sm">
             {scoreSummary.answered} / {SATISFACTION_QUESTIONS.length} answered
           </Badge>
         </div>
 
         <ScrollArea className="flex-1">
-          <div className="w-full px-4 md:px-6 py-4 pb-8 space-y-4">
+          <div className="w-full px-4 md:px-6 py-4 pb-8 space-y-4 max-w-5xl mx-auto">
             {renderDetailsCard(false)}
             {renderAllQuestions(f.responses, false)}
             <div className="flex flex-wrap items-center justify-end gap-3 pt-2">
@@ -572,32 +740,46 @@ export default function ServicomSatisfactionSurveyPage({
     );
   }
 
+  // SINGLE SURVEY VIEW MODE
   if (mode === "view") {
     const row = selected;
     const responses = parseStoredResponses(row?.responses);
 
     return (
-      <div className="flex flex-col h-full bg-slate-50/30">
-        <div className="bg-white border-b px-4 md:px-6 py-3 flex items-center gap-4 sticky top-0 z-30">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={closeSub}
-            className="rounded-full hover:bg-[#e8f5ee] shrink-0"
-            aria-label="Back to list"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-          <div className="min-w-0">
-            <h2 className="text-xl font-bold tracking-tight">HCF Customer Satisfaction Survey</h2>
-            {row?.provider_name && (
-              <p className="text-xs text-slate-500 truncate">{row.provider_name}</p>
-            )}
+      <div className="flex flex-col h-full bg-[#f4f7f5]">
+        <div className="bg-white border-b-2 border-[#1a7a52] px-4 md:px-6 py-3.5 flex items-center justify-between sticky top-0 z-30">
+          <div className="flex items-center gap-3 min-w-0">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={closeSub}
+              className="rounded-sm hover:bg-[#e8f5ee] shrink-0 text-slate-700"
+              aria-label="Back to table"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+            <div className="min-w-0">
+              <h2 className="text-lg font-black tracking-tight text-slate-900">
+                HCF Customer Satisfaction Survey Detail
+              </h2>
+              {row?.provider_name && (
+                <p className="text-xs text-[#1a7a52] font-semibold truncate">{row.provider_name}</p>
+              )}
+            </div>
           </div>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={closeSub}
+            className="rounded-sm border-[#1a7a52] text-[#1a7a52] font-bold text-xs"
+          >
+            Back to Register
+          </Button>
         </div>
 
         <ScrollArea className="flex-1">
-          <div className="w-full px-4 md:px-6 py-4 pb-8 space-y-4">
+          <div className="w-full px-4 md:px-6 py-4 pb-8 space-y-4 max-w-5xl mx-auto">
             {renderDetailsCard(true, row ?? undefined)}
             {renderAllQuestions(responses, true)}
           </div>
@@ -606,113 +788,218 @@ export default function ServicomSatisfactionSurveyPage({
     );
   }
 
+  // MAIN WORKSPACE VIEW (Dashboard & Register Tabs)
   return (
-    <div className="flex flex-col h-full bg-slate-50/30">
-      <div className="bg-white border-b px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={onBack} className="rounded-full"><ArrowLeft className="w-5 h-5" /></Button>
-        <h2 className="text-xl font-bold tracking-tight">HCF Customer Satisfaction Survey</h2>
-      </div>
+    <div className="flex flex-col h-full bg-[#f4f7f5]">
+      {/* 1. Master Workspace Header */}
+      <div className="bg-white border-b px-4 md:px-6 py-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sticky top-0 z-30">
         <div className="flex items-center gap-3">
-          <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onBack}
+            className="rounded-sm hover:bg-[#e8f5ee] text-slate-700"
+            aria-label="Back"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </Button>
+          <div>
+            <h2 className="text-xl font-black tracking-tight text-slate-900">
+              HCF Customer Satisfaction Survey
+            </h2>
+            <p className="text-xs text-slate-500">
+              Enrollee Feedback & Healthcare Provider Satisfaction Analytics
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2.5 self-end sm:self-center">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={load}
+            disabled={loading}
+            className="h-9 gap-1.5 border-slate-300 text-xs font-bold text-slate-700 rounded-sm hover:bg-slate-50"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh
           </Button>
           {canCreate && (
-          <Button className="bg-orange-action hover:bg-orange-600 gap-2" onClick={openForm}>
-            <Plus className="w-4 h-4" /> New Survey
-          </Button>
+            <Button
+              className="h-9 bg-[#1a7a52] hover:bg-[#145c3f] text-white text-xs font-bold gap-1.5 rounded-sm shadow-xs"
+              onClick={openForm}
+            >
+              <Plus className="w-4 h-4" /> New Survey
+            </Button>
           )}
         </div>
       </div>
 
-      <ScrollArea className="flex-1">
-        <div className="w-full px-4 md:px-6 py-4 space-y-4">
-          <Card className="rounded-2xl border-[#d4e8dc]">
-            <CardContent className="pt-4 pb-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
-                <div className="relative lg:col-span-2">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                  <Input
-                    className="pl-9"
-                    placeholder="Search provider, ID, team..."
-                    value={filterSearch}
-                    onChange={(e) => setFilterSearch(e.target.value)}
-                  />
-                </div>
-                {!geoLocked && (
-                  <>
-                    <Select value={filterZone} onValueChange={(v) => { setFilterZone(v); setFilterState("all"); }}>
-                      <SelectTrigger displayValue={filterZone === "all" ? "All Zones" : pickGeoLabel(zones, filterZone, "Zone")}>
-                        <SelectValue placeholder="All Zones" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Zones</SelectItem>
-                        {zones.map((z) => <SelectItem key={z.zonal_code} value={z.zonal_code}>{z.description}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                    <Select value={filterState} onValueChange={setFilterState}>
-                      <SelectTrigger displayValue={filterState === "all" ? "All States" : pickGeoLabel(filterStates, filterState, "State")}>
-                        <SelectValue placeholder="All States" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All States</SelectItem>
-                        {filterStates.map((s) => <SelectItem key={s.code} value={s.code}>{s.description}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </>
-                )}
-                <Input type="date" value={filterDate} onChange={(e) => setFilterDate(e.target.value)} />
-              </div>
-            </CardContent>
-          </Card>
+      {/* 2. Clean Tab Navigation Bar (Underline style matching State Office Profile) */}
+      <div className="bg-white border-b border-slate-200/80 px-4 md:px-6 sticky top-[65px] z-20">
+        <div className="flex gap-4 overflow-x-auto -mb-px" role="tablist">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "dashboard"}
+            onClick={() => setActiveTab("dashboard")}
+            className={`group relative shrink-0 inline-flex items-center gap-2 px-3.5 py-3 text-xs font-bold whitespace-nowrap border-b-2 transition-all outline-none ${
+              activeTab === "dashboard"
+                ? "border-[#1a7a52] text-[#1a7a52]"
+                : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300"
+            }`}
+          >
+            <BarChart3
+              className={`size-4 shrink-0 ${activeTab === "dashboard" ? "text-[#1a7a52]" : "text-slate-400 group-hover:text-slate-600"}`}
+            />
+            <span>Satisfaction Dashboard</span>
+          </button>
 
-          <Card className="rounded-2xl border-[#d4e8dc] overflow-hidden">
-            <CardHeader className="pb-3 border-b">
-              <CardTitle className="text-sm font-bold flex items-center gap-2">
-                <ClipboardCheck className="w-4 h-4" />
-                {loading ? "Loading..." : `${filteredSurveys.length} survey(s)`}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              {loading ? (
-                <div className="flex justify-center py-16"><Loader2 className="w-5 h-5 animate-spin text-slate-400" /></div>
-              ) : filteredSurveys.length === 0 ? (
-                <div className="flex justify-center py-16 text-sm text-slate-400">No surveys found</div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-[#f0fdf7]">
-                        <TableHead className="text-xs font-bold">Date</TableHead>
-                        <TableHead className="text-xs font-bold">Provider</TableHead>
-                        <TableHead className="text-xs font-bold">State</TableHead>
-                        <TableHead className="text-xs font-bold">Score</TableHead>
-                        <TableHead className="text-xs font-bold">Team</TableHead>
-                        <TableHead className="text-xs font-bold w-16"></TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredSurveys.map((s, i) => (
-                        <motion.tr key={s.reference_id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.02 }}
-                          className="border-b border-slate-100">
-                          <TableCell className="text-xs text-slate-500">{s.survey_date}</TableCell>
-                          <TableCell className="text-sm">{s.provider_name}</TableCell>
-                          <TableCell className="text-xs">{s.state?.description ?? "—"}</TableCell>
-                          <TableCell className="text-sm font-semibold">{s.total_score}/{s.max_score} ({s.percentage_score}%)</TableCell>
-                          <TableCell className="text-xs">{formatTeamNames(s.team) || "—"}</TableCell>
-                          <TableCell>
-                            <Button variant="ghost" size="sm" className="h-8 gap-1.5 px-2" onClick={() => openView(s)}>
-                              <Eye className="w-4 h-4" /> View
-                            </Button>
-                          </TableCell>
-                        </motion.tr>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "register"}
+            onClick={() => setActiveTab("register")}
+            className={`group relative shrink-0 inline-flex items-center gap-2 px-3.5 py-3 text-xs font-bold whitespace-nowrap border-b-2 transition-all outline-none ${
+              activeTab === "register"
+                ? "border-[#1a7a52] text-[#1a7a52]"
+                : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300"
+            }`}
+          >
+            <ClipboardCheck
+              className={`size-4 shrink-0 ${activeTab === "register" ? "text-[#1a7a52]" : "text-slate-400 group-hover:text-slate-600"}`}
+            />
+            <span>Survey Register</span>
+            <span
+              className={`inline-flex min-w-[1.25rem] h-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold tabular-nums ${
+                activeTab === "register"
+                  ? "bg-[#e8f5ee] text-[#1a7a52]"
+                  : "bg-slate-100 text-slate-500 group-hover:bg-slate-200"
+              }`}
+            >
+              {surveys.length}
+            </span>
+          </button>
+        </div>
+      </div>
+
+      {/* 3. Main Body Content */}
+      <ScrollArea className="flex-1">
+        <div className="w-full px-4 md:px-6 py-5 max-w-7xl mx-auto space-y-6">
+          {/* TAB 1: SATISFACTION DASHBOARD */}
+          {activeTab === "dashboard" && (
+            <SatisfactionDashboardTab
+              surveys={surveys}
+              zones={zones}
+              states={states}
+              loading={loading}
+              defaultZoneId={defaultZoneId}
+              defaultStateId={defaultStateId}
+              onDrillDownState={(stCode) => {
+                setFilterState(stCode);
+                setActiveTab("register");
+              }}
+            />
+          )}
+
+          {/* TAB 2: SURVEY REGISTER (ShadcnDataTable with custom inputs) */}
+          {activeTab === "register" && (
+            <div className="space-y-4">
+              {/* Filter Bar with Zone, State, Date matching Select styling */}
+              <Card className="rounded-sm border border-slate-200/80 bg-white shadow-xs">
+                <CardContent className="p-3.5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+                    {/* Search Input */}
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                      <input
+                        type="text"
+                        placeholder="Search provider, ID, team..."
+                        value={filterSearch}
+                        onChange={(e) => setFilterSearch(e.target.value)}
+                        className={`${inputStyling} pl-9`}
+                      />
+                    </div>
+
+                    {/* Zone Select */}
+                    {!geoLocked ? (
+                      <Select
+                        value={filterZone}
+                        onValueChange={(v) => {
+                          setFilterZone(v);
+                          setFilterState("all");
+                        }}
+                      >
+                        <SelectTrigger displayValue={filterZone === "all" ? "All Zones" : pickGeoLabel(zones, filterZone, "Zone")}>
+                          <SelectValue placeholder="All Zones" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Zones</SelectItem>
+                          {zones.map((z) => (
+                            <SelectItem key={z.zonal_code} value={z.zonal_code}>
+                              {z.description || z.name || z.zonal_code}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <div className="flex items-center px-3 h-11 bg-[#f4f7f5] border-2 border-[#1a7a52] rounded-sm text-xs font-bold text-slate-800">
+                        Zone: {defaultZoneName || defaultZoneId}
+                      </div>
+                    )}
+
+                    {/* State Select */}
+                    {!geoLocked ? (
+                      <Select value={filterState} onValueChange={setFilterState}>
+                        <SelectTrigger displayValue={filterState === "all" ? "All States" : pickGeoLabel(filterStates.length ? filterStates : states, filterState, "State")}>
+                          <SelectValue placeholder="All States" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All States</SelectItem>
+                          {(filterStates.length ? filterStates : states).map((s) => (
+                            <SelectItem key={s.code} value={s.code}>
+                              {s.description || s.name || s.code}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <div className="flex items-center px-3 h-11 bg-[#f4f7f5] border-2 border-[#1a7a52] rounded-sm text-xs font-bold text-slate-800">
+                        State: {defaultStateName || defaultStateId}
+                      </div>
+                    )}
+
+                    {/* Date Input matching select styling */}
+                    <div>
+                      <input
+                        type="date"
+                        value={filterDate}
+                        onChange={(e) => setFilterDate(e.target.value)}
+                        className={inputStyling}
+                      />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* ShadcnDataTable */}
+              <ShadcnDataTable
+                title="SURVEY SUBMISSIONS REGISTER"
+                infoTooltip="Comprehensive register of accredited healthcare facility customer satisfaction survey assessments."
+                columns={tableColumns}
+                data={filteredSurveys}
+                loading={loading}
+                searchPlaceholder="Filter register records..."
+                searchValue={filterSearch}
+                onSearchChange={setFilterSearch}
+                searchClassName="h-11 rounded-sm border-2 border-[#1a7a52] bg-[#f4f7f5] pl-9 pr-7 text-sm font-medium text-slate-800 placeholder:text-slate-400"
+                onRowClick={openView}
+                emptyMessage="No customer satisfaction surveys found for the selected criteria."
+                pageSize={50}
+                enableSelection={false}
+                showTableOptions={false}
+              />
+            </div>
+          )}
         </div>
       </ScrollArea>
     </div>
