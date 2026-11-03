@@ -5,6 +5,8 @@ import { defineConfig, loadEnv } from 'vite';
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '.', '');
+  const backendTarget = env.VITE_API_URL ? env.VITE_API_URL.replace(/\/api\/?$/, '') : 'http://localhost:3001';
+
   return {
     plugins: [react(), tailwindcss()],
     define: {
@@ -20,6 +22,12 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       hmr: process.env.DISABLE_HMR !== 'true',
+      proxy: {
+        '/uploads': {
+          target: backendTarget,
+          changeOrigin: true,
+        },
+      },
     },
   };
 });

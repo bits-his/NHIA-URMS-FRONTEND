@@ -208,7 +208,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
   "Accreditation / Reaccreditation": Stethoscope,
   Reaccreditation: Stethoscope,
   "Quality Assurance inspections": ClipboardCheck,
-  "Complaint/Compliance management": Scale,
+  "Complaint/Compliance Management": Scale,
   "Internal Management": Landmark,
   Finance: Landmark,
   ICT: Monitor,

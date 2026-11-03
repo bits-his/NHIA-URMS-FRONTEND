@@ -303,8 +303,8 @@ export const MODULE_CONFIG: ParentModule[] = [
           path: PROVIDER_MANAGEMENT_PATH,
         },
       ]},
-      { type: "group", label: "Complaint/Compliance management", children: [
-        { title: "State Complaints Register", view: "zonal-complaints-register", path: "/zonal/complaints-register", navLabel: "State Complaints Register" },
+      { type: "group", label: "Complaint/Compliance Management", children: [
+        { title: "State Complaints Register", view: "zonal-complaints-register", path: "/zonal/complaints-register", navLabel: "Complaints Register" },
         { title: "Weekly Compliance Report", view: "state-weekly-compliance", path: "/zonal/weekly-compliance", navLabel: "Weekly Compliance" },
         {
           title: HMO_INDEBTEDNESS_NAV_TITLE,

@@ -220,17 +220,9 @@ export default function SdoAssignmentRegisterPage({
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-100/70 px-2.5 py-0.5 rounded-full">
-                SDO Form 1
-              </span>
-              <h1 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">
-                {initialData ? "Edit Master Assignment Register" : "SDO Assignment Register"}
-              </h1>
-            </div>
-            <p className="text-xs text-slate-500 truncate mt-0.5">
-              Record official departmental instruction received outside system and attach source memo.
-            </p>
+            <h1 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">
+              {initialData ? "Edit Master Assignment Register" : "SDO Assignment Register"}
+            </h1>
           </div>
         </div>
 
@@ -517,18 +509,6 @@ export default function SdoAssignmentRegisterPage({
               </FieldSection>
             </CardContent>
           </Card>
-
-          {/* System Behaviour Notice */}
-          <div className="flex items-start gap-3 p-4 rounded-2xl bg-emerald-50/60 border border-emerald-200/80 text-emerald-950 text-xs w-full">
-            <Info className="w-5 h-5 text-emerald-700 shrink-0 mt-0.5" />
-            <div className="space-y-1">
-              <p className="font-bold">System Behaviour on Save:</p>
-              <p className="text-slate-600 leading-relaxed">
-                The system generates the <strong>Master Assignment ID</strong> (e.g. <code>ASG-2026-0049</code>).
-                You can then immediately proceed to the <strong>State Distribution step (Form 2)</strong> to select recipient States and dispatch unique State Assignment IDs.
-              </p>
-            </div>
-          </div>
 
           {/* Bottom Action Bar */}
           <div className="flex items-center justify-between pt-4 pb-8 border-t border-slate-200 w-full">
