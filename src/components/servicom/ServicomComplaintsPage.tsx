@@ -4221,16 +4221,7 @@ export default function ServicomComplaintsPage({
                 </SelectContent>
               </Select>
             </div>
-            {isServicomOnly ? (
-              <div className="min-w-0 flex items-center">
-                <Badge
-                  variant="outline"
-                  className="h-8 w-full justify-center px-2 text-xs font-bold border-[#1a7a52]/40 text-[#1a7a52] bg-[#e8f5ee] rounded-sm truncate"
-                >
-                  SERVICOM Channel
-                </Badge>
-              </div>
-            ) : (
+            {!isServicomOnly && (
               <div className="min-w-0">
                 <Select value={filterTransmission} onValueChange={setFilterTransmission}>
                   <SelectTrigger className="h-8 w-full text-xs" displayValue={filterTransmission === "all" ? "Channel" : filterTransmission}>

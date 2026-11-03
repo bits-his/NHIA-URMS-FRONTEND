@@ -19,6 +19,7 @@ import ProviderManagementDashboard from "./ProviderManagementDashboard";
 import ChallengesSupportDashboard from "./ChallengesSupportDashboard";
 import ComplaintRegisterDashboard from "../servicom/ComplaintRegisterDashboard";
 import { STAKEHOLDER_MANAGEMENT_PATH } from "./enrolmentPillarTypes";
+import { isDeptStateCoordinator } from "@/src/access/departmentRoles";
 
 export type StateOfficeDashTab =
   | "enrolment"
@@ -44,6 +45,7 @@ interface Props {
   defaultZoneId?: string | null;
   defaultStateId?: string | null;
   userRole?: string;
+  user?: any;
 }
 
 function UnavailablePanel({
@@ -81,12 +83,30 @@ export default function StateOfficeDashboardHub({
   onBack,
   defaultZoneId,
   defaultStateId,
+  userRole,
+  user,
 }: Props) {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const tabParam = searchParams.get("tab") as StateOfficeDashTab | null;
   const initialTab: StateOfficeDashTab =
     tabParam && TAB_KEYS.has(tabParam) ? tabParam : "enrolment-drives";
+
+  const isStateCoordinator =
+    userRole === "state-coordinator" ||
+    isDeptStateCoordinator(userRole || "") ||
+    userRole === "state-officer" ||
+    user?.role_config?.report_scope === "state";
+
+  const isAdminOrNational =
+    userRole === "admin" ||
+    userRole === "sdo" ||
+    userRole === "dg-ceo" ||
+    userRole === "hq-department" ||
+    user?.role_config?.report_scope === "national";
+
+  // State coordinator sees his own state locked. Admin can select any state.
+  const isStateLocked = isStateCoordinator && !isAdminOrNational && !!defaultStateId;
 
   const [activeTab, setActiveTab] = React.useState<StateOfficeDashTab>(initialTab);
   const [refreshKey, setRefreshKey] = React.useState(0);
@@ -207,12 +227,20 @@ export default function StateOfficeDashboardHub({
             <ComplaintRegisterDashboard
               key={`state-comp-dash-${refreshKey}`}
               embedded
-              defaultStateId={defaultStateId}
-              defaultZoneId={defaultZoneId}
-              lockLocation={!!defaultStateId}
+              defaultStateId={isStateLocked ? defaultStateId : undefined}
+              defaultZoneId={isStateLocked ? defaultZoneId : undefined}
+              lockLocation={isStateLocked}
               excludeServicom
-              title="State Office Complaints Analytics"
-              subtitle="State-level complaint resolution, SLA performance, and trends (excluding SERVICOM)"
+              title={
+                isStateLocked
+                  ? `State Complaints Dashboard (${defaultStateId || "State Office"})`
+                  : "State Office Complaints Analytics"
+              }
+              subtitle={
+                isStateLocked
+                  ? `Complaint resolution, SLA tracking, and trends for ${defaultStateId || "your state"} (excluding SERVICOM)`
+                  : "State-level complaint resolution, SLA performance, and trends across states (excluding SERVICOM)"
+              }
             />
           </div>
         </ScrollArea>

@@ -3,7 +3,7 @@
  * Spec: volume, sources, issue patterns, resolution performance, SLA, escalation.
  */
 import * as React from "react";
-import { RefreshCw, Loader2, Filter as FilterIcon, X, Calendar, Tag } from "lucide-react";
+import { RefreshCw, Loader2, Filter as FilterIcon, X, Calendar, Tag, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -61,6 +61,47 @@ function volumeLabel(row: { name?: string; count?: number } | null | undefined) 
   return `${row.name} (${row.count})`;
 }
 
+function CompactKpiCard({
+  label,
+  value,
+  detail,
+  onClick,
+  accent = "border-l-slate-300",
+}: {
+  label: string;
+  value: string | number;
+  detail?: string;
+  onClick?: () => void;
+  accent?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`group relative text-left rounded-sm border border-slate-200/90 bg-white p-2.5 transition-all hover:shadow-xs hover:border-[#1a7a52] hover:bg-emerald-50/20 border-l-[3px] ${accent} flex flex-col justify-between min-h-[66px] w-full`}
+    >
+      <div className="flex items-center justify-between gap-1 w-full">
+        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 truncate leading-none">
+          {label}
+        </span>
+        {onClick && (
+          <ChevronRight className="w-3 h-3 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 -mr-0.5" />
+        )}
+      </div>
+      <div className="mt-1 w-full">
+        <p className="text-base sm:text-lg font-black text-slate-900 tabular-nums leading-tight truncate">
+          {value}
+        </p>
+        {detail && (
+          <p className="text-[10px] text-slate-500 truncate leading-none mt-1">
+            {detail}
+          </p>
+        )}
+      </div>
+    </button>
+  );
+}
+
 export default function ComplaintRegisterDashboard({
   defaultStateId,
   defaultZoneId,
@@ -116,10 +157,10 @@ export default function ComplaintRegisterDashboard({
   const scope = React.useMemo(() => {
     const isHq = locationLevel === "hq";
     const zonal = !isHq
-      ? (defaultZoneId || (filterZone !== "all" ? filterZone : undefined))
+      ? (zoneLocked ? defaultZoneId : (filterZone !== "all" ? filterZone : undefined))
       : undefined;
     const state = !isHq
-      ? (defaultStateId || (filterState !== "all" ? filterState : undefined))
+      ? (stateLocked ? defaultStateId : (filterState !== "all" ? filterState : undefined))
       : undefined;
 
     return {
@@ -144,7 +185,7 @@ export default function ComplaintRegisterDashboard({
   }, [
     locationLevel, defaultStateId, defaultZoneId, filterState, filterZone,
     year, month, date, domain, priority, category, type, route, status,
-    excludeServicom, servicomOnly,
+    excludeServicom, servicomOnly, stateLocked, zoneLocked,
   ]);
 
   const drill = useDashboardDrill(
@@ -436,74 +477,94 @@ export default function ComplaintRegisterDashboard({
     </div>
   ) : (
     <>
-      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 items-stretch">
-        <DashKpi
-          label="Complaints received"
+      {/* Compressed 2-Row KPI Metric Strip (High-density, maximizes chart visibility) */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
+        <CompactKpiCard
+          label="Received"
           value={data?.received ?? 0}
-          detail="In the current filter"
+          detail="In current filter"
+          accent="border-l-[#1a7a52]"
           onClick={() => openComplaints("Complaints received")}
         />
-        <DashKpi
-          label="Average resolution"
-          value={data?.average_resolution != null ? `${data.average_resolution} days` : "—"}
+        <CompactKpiCard
+          label="Avg Resolution"
+          value={data?.average_resolution != null ? `${data.average_resolution}d` : "—"}
           detail="Mean days to close"
+          accent="border-l-blue-500"
           onClick={() => openComplaints("Closed complaints — resolution time", { kpi: "closed" })}
         />
-        <DashKpi
-          label="Resolved within SLA"
+        <CompactKpiCard
+          label="Within SLA"
           value={data?.resolved_within_sla != null ? `${data.resolved_within_sla}%` : "—"}
-          detail={`${data?.resolved_within_sla_count ?? 0} cases met the target`}
+          detail={`${data?.resolved_within_sla_count ?? 0} met target`}
+          accent="border-l-emerald-600"
           onClick={() => openComplaints("Resolved within SLA", { kpi: "within_sla" })}
         />
-        <DashKpi
-          label="Pending complaints"
+        <CompactKpiCard
+          label="Pending"
           value={data?.pending ?? 0}
-          detail="Not resolved, closed, or withdrawn"
+          detail="Active / open"
+          accent="border-l-amber-500"
           onClick={() => openComplaints("Pending complaints", { kpi: "pending" })}
         />
-        <DashKpi
-          label="Top complaint category"
+        <CompactKpiCard
+          label="Overdue"
+          value={data?.overdue_percent != null ? `${data.overdue_percent}%` : "—"}
+          detail="Past target date"
+          accent="border-l-rose-500"
+          onClick={() => openComplaints("Overdue / open complaints", { kpi: "overdue" })}
+        />
+        <CompactKpiCard
+          label="Beyond SLA"
+          value={data?.beyond_sla_percent != null ? `${data.beyond_sla_percent}%` : "—"}
+          detail="Closed past target"
+          accent="border-l-orange-500"
+          onClick={() => openComplaints("Resolved beyond SLA", { kpi: "beyond_sla" })}
+        />
+        <CompactKpiCard
+          label="Repeat Rate"
+          value={data?.repeat_rate != null ? `${data.repeat_rate}%` : "—"}
+          detail="Recurring issues"
+          accent="border-l-purple-500"
+          onClick={() => openComplaints("Repeat complaints", { kpi: "repeat" })}
+        />
+
+        {/* Row 2: Categories, Channels & Extremes */}
+        <CompactKpiCard
+          label="Top Category"
           value={data?.top_category || "—"}
-          detail="Most common category"
+          detail="Most frequent"
+          accent="border-l-indigo-400"
           onClick={() => openComplaints(
             data?.top_category ? `Category: ${data.top_category}` : "Complaints by category",
             data?.top_category ? { category: data.top_category } : undefined,
           )}
         />
-        <DashKpi
-          label="Top complaint type"
+        <CompactKpiCard
+          label="Top Complainant"
           value={data?.top_type || "—"}
-          detail="HCF, HMO, or enrollee"
+          detail="Respondent type"
+          accent="border-l-cyan-500"
           onClick={() => openComplaints(
             data?.top_type ? `Type: ${data.top_type}` : "Complaints by type",
             data?.top_type ? { type: data.top_type } : undefined,
           )}
         />
-        <DashKpi
-          label="Top transmission route"
+        <CompactKpiCard
+          label="Top Route"
           value={data?.top_route || "—"}
-          detail="How the complaint arrived"
+          detail="Intake channel"
+          accent="border-l-teal-500"
           onClick={() => openComplaints(
             data?.top_route ? `Route: ${data.top_route}` : "Complaints by route",
             data?.top_route ? { route: data.top_route } : undefined,
           )}
         />
-        <DashKpi
-          label="% overdue complaints"
-          value={data?.overdue_percent != null ? `${data.overdue_percent}%` : "—"}
-          detail="Open past the resolution target"
-          onClick={() => openComplaints("Overdue / open complaints", { kpi: "overdue" })}
-        />
-        <DashKpi
-          label="% resolution beyond SLA"
-          value={data?.beyond_sla_percent != null ? `${data.beyond_sla_percent}%` : "—"}
-          detail="Closed cases past the target"
-          onClick={() => openComplaints("Resolved beyond SLA", { kpi: "beyond_sla" })}
-        />
-        <DashKpi
-          label="Highest volume state"
+        <CompactKpiCard
+          label="Highest State"
           value={volumeLabel(data?.highest_state)}
-          detail="Most complaints"
+          detail="Max volume"
+          accent="border-l-emerald-500"
           onClick={() => openComplaints(
             data?.highest_state?.name ? `State: ${data.highest_state.name}` : "Complaints by state",
             data?.highest_state?.code
@@ -511,10 +572,11 @@ export default function ComplaintRegisterDashboard({
               : undefined,
           )}
         />
-        <DashKpi
-          label="Lowest volume state"
+        <CompactKpiCard
+          label="Lowest State"
           value={volumeLabel(data?.lowest_state)}
-          detail="Fewest complaints"
+          detail="Min volume"
+          accent="border-l-slate-400"
           onClick={() => openComplaints(
             data?.lowest_state?.name ? `State: ${data.lowest_state.name}` : "Complaints by state",
             data?.lowest_state?.code
@@ -522,10 +584,11 @@ export default function ComplaintRegisterDashboard({
               : undefined,
           )}
         />
-        <DashKpi
-          label="Highest volume zone"
+        <CompactKpiCard
+          label="Highest Zone"
           value={volumeLabel(data?.highest_zone)}
-          detail="Most complaints"
+          detail="Max volume"
+          accent="border-l-blue-400"
           onClick={() => openComplaints(
             data?.highest_zone?.name ? `Zone: ${data.highest_zone.name}` : "Complaints by zone",
             data?.highest_zone?.code
@@ -533,22 +596,17 @@ export default function ComplaintRegisterDashboard({
               : undefined,
           )}
         />
-        <DashKpi
-          label="Lowest volume zone"
+        <CompactKpiCard
+          label="Lowest Zone"
           value={volumeLabel(data?.lowest_zone)}
-          detail="Fewest complaints"
+          detail="Min volume"
+          accent="border-l-slate-400"
           onClick={() => openComplaints(
             data?.lowest_zone?.name ? `Zone: ${data.lowest_zone.name}` : "Complaints by zone",
             data?.lowest_zone?.code
               ? { zone_id: String(data.lowest_zone.code), zonal_code: String(data.lowest_zone.code) }
               : undefined,
           )}
-        />
-        <DashKpi
-          label="Repeat complaint rate"
-          value={data?.repeat_rate != null ? `${data.repeat_rate}%` : "—"}
-          detail="Same complainant and facility or category"
-          onClick={() => openComplaints("Repeat complaints", { kpi: "repeat" })}
         />
       </div>
 

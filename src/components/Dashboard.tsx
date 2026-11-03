@@ -831,7 +831,8 @@ export default function Dashboard({ role, user, access = [], functionalities = "
                       ? String(user.state_code)
                       : (user?.state?.code ? String(user.state.code) : monthlyCtx.defaultStateId)
                   }
-                  userRole={user?.role}
+                  userRole={role || user?.role}
+                  user={user}
                 />
               }
             />
