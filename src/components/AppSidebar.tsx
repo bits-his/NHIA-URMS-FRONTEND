@@ -123,6 +123,7 @@ import {
   ANNUAL_REPORTS_ENABLED,
   isAnnualReportNavTitle,
 } from "@/src/access/accessUtils";
+import { isHubLeafAllowed, isHubNavTitle } from "@/src/access/hubPrivilegeConfig";
 import { NhiaSidebarBrand } from "@/src/components/NhiaCrest";
 
 type View = string;
@@ -467,7 +468,10 @@ function filterModuleTree(
       continue;
     }
 
-    if (!child.view || !allowedTitles.has(child.title)) continue;
+    const leafOk = isHubNavTitle(child.title)
+      ? isHubLeafAllowed(child.title, allowedTitles)
+      : allowedTitles.has(child.title);
+    if (!child.view || !leafOk) continue;
     if (!ANNUAL_REPORTS_ENABLED && isAnnualReportNavTitle(child.title)) continue;
 
     nodes.push({

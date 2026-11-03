@@ -7,7 +7,9 @@ export interface AccessEntry {
 /** The user object shape used throughout access control */
 export interface AccessUser {
   role: string;
-  access?: AccessEntry[];     // Structured permissions
+  access?: AccessEntry[];     // Structured permissions (legacy / explicit)
+  /** Auth store persists the same rows as `functionalities` */
+  functionalities?: AccessEntry[];
 }
 
 /**

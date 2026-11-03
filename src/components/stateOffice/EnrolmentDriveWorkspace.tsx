@@ -1,5 +1,4 @@
 import * as React from "react";
-import { useSelector } from "react-redux";
 import { useSearchParams } from "react-router-dom";
 import { ArrowLeft, ArrowRight, ChevronDown, Plus, RefreshCw, Save, Send, Download, Users, Pencil, Trash2, Eye, FileText, Clock, CheckCircle2, ClipboardList, History, Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -12,7 +11,6 @@ import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from "@
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { enrolmentDrivesApi as api } from "@/lib/api";
 import { cn } from "@/lib/utils";
-import type { RootState } from "@/src/store/store";
 import EnrolmentActivityForm, { Field, FieldSection } from "./EnrolmentActivityForm";
 import { MultiSelectField } from "./EnrolmentDriveForm";
 import StateOfficeFormSteps from "./StateOfficeFormSteps";
@@ -128,7 +126,6 @@ function Metrics({ values }: { values: Record<string, number> }) {
 }
 
 export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaultZoneId }: { onBack: () => void; defaultZoneId?: string | null; defaultStateId?: string | null }) {
-  const authUser = useSelector((s: RootState) => s.auth.user);
   const [searchParams, setSearchParams] = useSearchParams();
   const [catalogue, setCatalogue] = React.useState<Catalogue | null>(null);
   const [batches, setBatches] = React.useState<Batch[]>([]);
@@ -259,7 +256,9 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
   }, [catalogue, searchParams]);
   const openBatch = async (id: string, preferredStep?: number) => {
     const response = await api.batch(id);
-    const step = preferredStep ?? (["awaiting_review", "endorsed", "submitted"].includes(response.data.status) ? 3 : 1);
+    const locked = ["awaiting_review", "endorsed", "submitted"].includes(response.data.status);
+    // Locked reports open on review unless caller asked for a specific workflow step.
+    const step = preferredStep ?? (locked ? 3 : 1);
     setBatch(response.data); setPlanned(String(response.data.planned_activities ?? "")); setReportingDeadline(response.data.reporting_deadline || ""); setBatchStep(step); setReviewNote("");
     setDraft(emptyActivity()); setFiles([]); setActivityErrors({});
     if (preferredStep !== undefined) {
@@ -294,10 +293,11 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
     const finalBatch = (await api.batch(batch.reference_id)).data as Batch;
     setBatch(finalBatch);
     if (clearAfter) {
-      toast.success(complete ? "Activity saved. Add another activity below." : "Draft activity saved");
+      toast.success(complete ? (draft.reference_id ? "Activity updated in the list" : "Activity added to the list") : "Draft activity saved");
       setDraft(emptyActivity());
       setActivityFormKey((value) => value + 1);
       setActivityErrors({});
+      setExpandedActivityId(null);
     } else {
       const saved = finalBatch.activities?.find((activity) => activity.reference_id === id);
       if (saved) setDraft(toDraft(saved));
@@ -310,15 +310,16 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
       activityFormRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   };
-  const saveActivity = () => run(async () => { await persistActivity(true, false); });
-  const saveActivityDraft = () => run(async () => { await persistActivity(false, false); });
-  const addAnotherActivity = () => run(async () => { await persistActivity(true, true); });
+  /** Validate, save to register, then clear the form for the next entry. */
+  const addToList = () => run(async () => {
+    await persistActivity(true, true);
+  });
   const requireActivityListed = () => {
-    if (canEdit && (hasPendingDriveActivity(draft) || files.length)) throw new Error("Save the current activity before continuing, or cancel the entry.");
+    if (canEdit && (hasPendingDriveActivity(draft) || files.length)) throw new Error("Add the current activity to the list before continuing, or cancel the entry.");
   };
   const saveReportDraft = () => run(async () => {
     if (canEdit && (hasPendingDriveActivity(draft) || files.length)) {
-      await persistActivity(false, false);
+      throw new Error("Add the current activity to the list (or cancel it) before saving the report draft.");
     }
     await refresh();
     toast.success("Report draft kept in register");
@@ -385,14 +386,11 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
     const stateCode = current?.state_code || period.state_code;
     const zoneCode = current?.zonal_code || catalogue?.states.find((state) => state.code === stateCode)?.zonal_code || "";
     const zoneName = catalogue?.zones?.find((zone) => zone.zonal_code === zoneCode)?.description || zoneCode;
-    const officerName = current?.reporting_officer || authUser?.name || authUser?.staff_id || "—";
     return <Section title="Reporting information">
       <Field label="State / FCT" required><Dropdown value={stateCode} options={stateOptions} onChange={(value) => setPeriod((previous) => ({ ...previous, state_code: value }))} disabled={!!current || catalogue?.states.length === 1} placeholder="Select State / FCT" /></Field>
       <Field label="Zone"><Input value={zoneName} readOnly placeholder="Auto-derived from State" /></Field>
       <Field label="Reporting month" required><Input type="month" min="2000-01" max="2100-12" disabled={!!current} value={driveReportingMonth(current?.reporting_year ?? period.reporting_year, current?.reporting_month ?? period.reporting_month)} onChange={(event) => setPeriod((previous) => ({ ...previous, ...driveReportingPeriod(event.target.value) }))} /></Field>
-      <Field label="Reporting officer"><Input value={officerName} readOnly placeholder="Name / login identity" /></Field>
       <Field label="Number of planned activities"><Input type="number" min={0} step={1} value={current ? planned : period.planned_activities} disabled={!!current && (!canEdit || batchStep !== 0 || mode !== "batch")} onChange={(event) => current ? setPlanned(event.target.value) : setPeriod((previous) => ({ ...previous, planned_activities: event.target.value }))} placeholder="Enter once" /></Field>
-      <Field label="Reporting batch ID"><Input value={current?.reference_id || "System-generated after continue"} readOnly placeholder="System-generated" /></Field>
     </Section>;
   };
 
@@ -562,11 +560,9 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
       </Table>
     );
 
-    if (inline) return <div className="overflow-x-auto rounded-xl border border-[#d4e8dc]">{table}</div>;
-
-    return (
-      <Card className="rounded-xl border border-[#d4e8dc] shadow-sm overflow-hidden">
-        <div className="bg-[#e8f5ee] px-4 py-2.5 border-b border-[#d4e8dc] flex flex-wrap items-center justify-between gap-2">
+    const registerBody = (
+      <>
+        <div className={`px-4 py-2.5 border-b border-[#d4e8dc] flex flex-wrap items-center justify-between gap-2 ${inline ? "bg-[#f4f7f5]" : "bg-[#e8f5ee]"}`}>
           <h3 className="text-[12px] font-bold uppercase tracking-[0.06em] text-[#0f3d2e]">
             {registration ? "Beneficiary Registration" : "Activity Register"}
           </h3>
@@ -574,30 +570,44 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
             {activitiesCount} activit{activitiesCount === 1 ? "y" : "ies"} recorded
           </p>
         </div>
+        {activitiesCount === 0 ? (
+          <div className="py-10 text-center text-sm text-slate-400 px-4">
+            {canEdit && batchStep === 1
+              ? "No activities in the list yet. Fill the form above and click Add to list."
+              : "No activities recorded for this report."}
+          </div>
+        ) : (
+          <div className="overflow-x-auto">{table}</div>
+        )}
+        {canEdit && !registration && !review && batchStep !== 1 && (
+          <div className="px-4 py-3 border-t border-[#d4e8dc] flex flex-wrap items-center justify-between gap-2 bg-[#f4f7f5]">
+            <Button
+              variant="outline"
+              className="gap-2 border-[#1a7a52] text-[#0f3d2e] hover:bg-[#eef6f1]"
+              onClick={() => startActivity()}
+            >
+              <Plus className="w-4 h-4" /> Add Activity
+            </Button>
+            <p className="text-[11px] text-slate-500">
+              Activity count is calculated from saved records.
+            </p>
+          </div>
+        )}
+      </>
+    );
+
+    if (inline) {
+      return (
+        <div className="rounded-xl border border-[#d4e8dc] overflow-hidden bg-white">
+          {registerBody}
+        </div>
+      );
+    }
+
+    return (
+      <Card className="rounded-xl border border-[#d4e8dc] shadow-sm overflow-hidden">
         <CardContent className="p-0 bg-white">
-          {activitiesCount === 0 ? (
-            <div className="py-12 text-center text-sm text-slate-400">
-              {canEdit && batchStep === 1
-                ? "No activities added to the list yet. Complete the form above and click 'Add to list'."
-                : "No activities recorded for this report."}
-            </div>
-          ) : (
-            <div className="overflow-x-auto">{table}</div>
-          )}
-          {canEdit && !registration && !review && batchStep !== 1 && (
-            <div className="px-4 py-3 border-t border-[#d4e8dc] flex flex-wrap items-center justify-between gap-2 bg-[#f4f7f5]">
-              <Button
-                variant="outline"
-                className="gap-2 border-[#1a7a52] text-[#0f3d2e] hover:bg-[#eef6f1]"
-                onClick={() => startActivity()}
-              >
-                <Plus className="w-4 h-4" /> Add Activity
-              </Button>
-              <p className="text-[11px] text-slate-500">
-                Activity count is calculated from saved records.
-              </p>
-            </div>
-          )}
+          {registerBody}
         </CardContent>
       </Card>
     );
@@ -653,10 +663,9 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
           </Button>
         )}
         {mode === "register" && !showCreate && permissions.create && <Button disabled={busy} className={ACTION} onClick={() => setShowCreate(true)}><Plus className="w-4 h-4" />New Enrolment Drive Report</Button>}
-        {mode === "batch" && canEdit && batchStep === 1 && <Button disabled={busy} className={ACTION} onClick={() => startActivity()}><Plus className="w-4 h-4" />Add activity</Button>}
         {mode === "batch" && canEdit && batchStep === 1 && (
           <Button variant="outline" size="sm" className="gap-2 border-[#d4e8dc] text-[#145c3f]" disabled={busy} onClick={() => void saveReportDraft()}>
-            <Save className="w-4 h-4" />Save Draft
+            <Save className="w-4 h-4" />Save Report Draft
           </Button>
         )}
         {mode === "actions" && !actionDraft && permissions.manage && <Button className={ACTION} disabled={busy} onClick={() => { setActionDraft(blankAction()); setActionFiles([]); }}><Plus className="w-4 h-4" />Record Action</Button>}
@@ -671,10 +680,26 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
       {mode === "register" && <>
         {showCreate ? <>
           <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-visible"><CardContent className="p-4 md:p-5 space-y-5">
-            {geoInfo()}
-            <div className="border-t border-[#e8f3ec] pt-4"><StateOfficeFormSteps steps={WORKFLOW_STEPS} activeIndex={0} onStepChange={() => {}} /></div>
+            <StateOfficeFormSteps steps={WORKFLOW_STEPS} activeIndex={0} onStepChange={() => {}} />
+            <div className="border-t border-[#e8f3ec] pt-4">{geoInfo()}</div>
           </CardContent></Card>
-          <div className="flex items-center justify-between gap-3"><Button variant="ghost" onClick={() => setShowCreate(false)}>Cancel</Button><Button className={ACTION} disabled={busy || !period.state_code || !driveReportingMonth(period.reporting_year, period.reporting_month)} onClick={() => void run(async () => { const response = await api.createBatch(period); setShowCreate(false); await refresh(); await openBatch(response.data.reference_id, 1); })}>Continue<ArrowRight className="w-4 h-4" /></Button></div>
+          <div className="flex items-center justify-between gap-3">
+            <Button variant="ghost" onClick={() => setShowCreate(false)}>Cancel</Button>
+            <Button
+              className={ACTION}
+              disabled={busy || !period.state_code || !driveReportingMonth(period.reporting_year, period.reporting_month)}
+              onClick={() => void run(async () => {
+                const response = await api.createBatch(period);
+                setShowCreate(false);
+                await refresh();
+                const locked = ["awaiting_review", "endorsed", "submitted"].includes(response.data.status);
+                await openBatch(response.data.reference_id, locked ? 3 : 1);
+              })}
+            >
+              Continue
+              <ArrowRight className="w-4 h-4" />
+            </Button>
+          </div>
         </> : <>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
             {[{ label: "Total", count: periodFiltered.length, tone: "text-[#0f3d2e] bg-white border-[#d4e8dc]" }, { label: "Draft / Returned", count: periodFiltered.filter((row) => ["draft", "returned"].includes(row.status)).length, tone: "text-slate-600 bg-white border-slate-200" }, { label: "Awaiting review", count: periodFiltered.filter((row) => row.status === "awaiting_review").length, tone: "text-amber-800 bg-amber-50/80 border-amber-100" }, { label: "Endorsed", count: periodFiltered.filter((row) => row.status === "endorsed").length, tone: "text-teal-800 bg-teal-50/80 border-teal-100" }, { label: "Submitted", count: periodFiltered.filter((row) => row.status === "submitted").length, tone: "text-emerald-700 bg-emerald-50/80 border-emerald-100" }].map((item) => <div className={`rounded-xl border px-4 py-3 ${item.tone}`} key={item.label}><p className="text-2xl font-bold tabular-nums">{item.count}</p><p className="text-[11px] font-semibold text-slate-500 mt-0.5">{item.label}</p></div>)}
@@ -701,8 +726,6 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
               <ReviewRow label="State / Zone" value={`${stateName(batch.state_code)} · ${catalogue?.zones?.find((z) => z.zonal_code === batch.zonal_code)?.description || batch.zonal_code || "—"}`} />
               <ReviewRow label="Planned activities" value={batch.planned_activities != null ? formatCount(batch.planned_activities) : "—"} />
               <ReviewRow label="Activities recorded" value={formatCount(batch.activities?.length || 0)} />
-              <ReviewRow label="Reporting officer" value={batch.reporting_officer || "—"} />
-              <ReviewRow label="Reporting batch ID" value={batch.reference_id} />
               <ReviewRow label="Submission date" value={batch.submitted_at ? formatDate(batch.submitted_at) : "—"} />
               <ReviewRow label="Reporting deadline" value={batch.reporting_deadline || "—"} />
               <ReviewRow label="Status" value={statusLabel(batch.status)} />
@@ -810,9 +833,27 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
       )}
       {mode === "batch" && batch && <>
         <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-visible"><CardContent className="p-4 md:p-5 space-y-4">
-          {geoInfo(batch)}
-          <div className="border-t border-[#e8f3ec] pt-4"><StateOfficeFormSteps steps={WORKFLOW_STEPS} activeIndex={batchStep} maximumIndex={3} onStepChange={(step) => void goToBatchStep(step)} /></div>
-          {batchStep === 0 && canEdit && <div className="flex justify-end"><Button variant="outline" disabled={busy} onClick={() => void run(async () => { const response = await api.updateBatch(batch.reference_id, { planned_activities: planned, revision: batch.revision }); setBatch(response.data); toast.success("Plan saved"); })}><Save className="w-4 h-4 mr-2" />Save plan</Button></div>}
+          <StateOfficeFormSteps steps={WORKFLOW_STEPS} activeIndex={batchStep} maximumIndex={3} onStepChange={(step) => void goToBatchStep(step)} />
+          {batchStep === 0 && (
+            <div className="border-t border-[#e8f3ec] pt-4 space-y-4">
+              {geoInfo(batch)}
+              {canEdit && (
+                <div className="flex justify-end">
+                  <Button
+                    variant="outline"
+                    disabled={busy}
+                    onClick={() => void run(async () => {
+                      const response = await api.updateBatch(batch.reference_id, { planned_activities: planned, revision: batch.revision });
+                      setBatch(response.data);
+                      toast.success("Plan saved");
+                    })}
+                  >
+                    <Save className="w-4 h-4 mr-2" />Save plan
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
         </CardContent></Card>
         {permissions.manage && batchStep === 3 && <div className="flex flex-wrap items-end gap-3 rounded-xl border border-[#d4e8dc] bg-white p-4"><Field label="Reporting deadline"><Input type="date" value={reportingDeadline} onChange={(event) => setReportingDeadline(event.target.value)} /></Field><Button variant="outline" disabled={busy || !reportingDeadline} onClick={() => void run(async () => { const response = await api.deadline(batch.reference_id, { reporting_deadline: reportingDeadline, revision: batch.revision }); setBatch(response.data); toast.success("Reporting deadline saved"); })}>Save deadline</Button></div>}
         {batchStep === 3 && <Metrics values={batch.summary || {}} />}
@@ -974,9 +1015,8 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
                   </FieldSection>
                 </fieldset>
 
-                {/* Form Action Footer — matches design: Save Draft / Save Activity / Add Another */}
                 <div className="flex flex-wrap items-center justify-between gap-2 pt-4 border-t border-[#e8f3ec]">
-                  <div className="flex flex-wrap items-center gap-2">
+                  <div>
                     {draft.reference_id ? (
                       <Button
                         variant="ghost"
@@ -988,44 +1028,27 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
                         <ArrowLeft className="w-4 h-4" /> Cancel edit
                       </Button>
                     ) : null}
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="gap-2 border-[#d4e8dc] text-[#145c3f] hover:bg-[#e8f5ee]"
-                      disabled={busy || !canEdit}
-                      onClick={() => void saveActivityDraft()}
-                    >
-                      <Save className="w-4 h-4" /> Save Draft
-                    </Button>
                   </div>
+                  <Button
+                    type="button"
+                    className="bg-[#145c3f] hover:bg-[#0f3d2e] text-white gap-2 text-xs font-semibold shadow-xs"
+                    disabled={busy || !canEdit}
+                    onClick={() => void addToList()}
+                  >
+                    <Plus className="w-4 h-4" /> {draft.reference_id ? "Update list" : "Add to list"}
+                  </Button>
+                </div>
 
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="gap-2 border-[#1a7a52] text-[#0f3d2e] hover:bg-[#eef6f1]"
-                      disabled={busy || !canEdit}
-                      onClick={() => void addAnotherActivity()}
-                    >
-                      <Plus className="w-4 h-4" /> Add Another Activity
-                    </Button>
-                    <Button
-                      type="button"
-                      className="bg-[#145c3f] hover:bg-[#0f3d2e] text-white gap-2 text-xs font-semibold shadow-xs"
-                      disabled={busy || !canEdit}
-                      onClick={() => void saveActivity()}
-                    >
-                      <Save className="w-4 h-4" /> {draft.reference_id ? "Update Activity" : "Save Activity"}
-                    </Button>
-                  </div>
+                <div className="pt-2 border-t border-[#e8f3ec]">
+                  {activityTable(true)}
                 </div>
               </CardContent>
             </Card>
           </div>
         )}
-        {batchStep > 0 && activityTable()}
+        {/* Read-only / locked reports: still show the activity register on this step */}
+        {batchStep === 1 && !canEdit && activityTable()}
+        {batchStep > 1 && activityTable()}
         {batchStep === 3 && <Card className="rounded-2xl border-[#d4e8dc] shadow-sm"><CardContent className="p-4 md:p-5"><Section title="Review and sign-off">
           {permissions.review && batch.status === "awaiting_review" && <Field label="Review comment" required className="sm:col-span-2"><textarea className={inputClass} rows={3} value={reviewNote} onChange={(event) => setReviewNote(event.target.value)} placeholder="Enter your review comment" /></Field>}
           <div className="flex flex-wrap justify-end gap-2 sm:col-span-2">{canEdit && <Button className={ACTION} disabled={busy} onClick={() => void transition("send_for_review")}><Send className="mr-2 h-4 w-4" />Send for review</Button>}{permissions.review && batch.status === "awaiting_review" && <><Button variant="outline" disabled={busy || !reviewNote.trim()} onClick={() => void transition("return")}>Return for correction</Button><Button className={ACTION} disabled={busy || !reviewNote.trim()} onClick={() => void transition("endorse")}>Endorse report</Button></>}{permissions.create && batch.status === "endorsed" && <Button className={ACTION} disabled={busy} onClick={() => void transition("final_submit")}>Final submit</Button>}</div>

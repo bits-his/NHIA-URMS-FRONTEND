@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft,
   ClipboardCheck,
+  LayoutDashboard,
   RefreshCw,
   Scale,
   Search,
@@ -13,9 +14,10 @@ import {
   COMPLIANCE_HUB_TABS,
   COMPLIANCE_HUB_NAV_TITLE,
   COMPLIANCE_HUB_PATH,
-  parseComplianceHubTab,
   type ComplianceHubTabKey,
 } from "./complianceHubTypes";
+import { COMPLIANCE_HUB_PRIVILEGES } from "@/src/access/hubPrivilegeConfig";
+import { useAllowedHubTabs } from "@/src/access/hubAccess";
 import ServicomComplaintsPage from "../servicom/ServicomComplaintsPage";
 import StateOfficeWeeklyCompliancePage from "./StateOfficeWeeklyCompliancePage";
 import StateOfficeHmoIndebtednessHubPage from "./StateOfficeHmoIndebtednessHubPage";
@@ -52,9 +54,26 @@ export default function ComplianceHubPage({
   canReview = true,
 }: Props) {
   const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab = parseComplianceHubTab(searchParams.get("tab"));
+  const { allowedTabs, allowedKeys, defaultTab, hideTabStrip } =
+    useAllowedHubTabs(COMPLIANCE_HUB_PRIVILEGES);
+
+  const requested = searchParams.get("tab") as ComplianceHubTabKey | null;
+  const activeTab: ComplianceHubTabKey | null =
+    requested && allowedKeys.has(requested)
+      ? requested
+      : defaultTab;
+
   const [refreshKey, setRefreshKey] = React.useState(0);
   const [syncing, setSyncing] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!defaultTab) return;
+    if (!requested || !allowedKeys.has(requested)) {
+      const params = new URLSearchParams();
+      params.set("tab", defaultTab);
+      setSearchParams(params, { replace: true });
+    }
+  }, [requested, defaultTab, allowedKeys, setSearchParams]);
 
   const setActiveTab = (tab: ComplianceHubTabKey) => {
     const params = new URLSearchParams();
@@ -74,6 +93,34 @@ export default function ComplianceHubPage({
     defaultStateId,
   };
 
+  const visibleTabMeta = COMPLIANCE_HUB_TABS.filter((t) => allowedKeys.has(t.key));
+
+  if (!activeTab || allowedTabs.length === 0) {
+    return (
+      <div className="flex flex-col h-full bg-[#f4f7f5]">
+        <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3 flex items-center gap-3 sticky top-0 z-30">
+          <Button variant="ghost" size="icon" className="rounded-full shrink-0" aria-label="Back" onClick={onBack}>
+            <ArrowLeft className="w-5 h-5" />
+          </Button>
+          <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">
+            {COMPLIANCE_HUB_NAV_TITLE}
+          </h2>
+        </div>
+        <div className="flex-1 flex items-center justify-center p-8">
+          <div className="rounded-sm border border-[#d4e8dc] bg-white p-8 text-center space-y-3 max-w-md">
+            <div className="mx-auto w-10 h-10 rounded-full bg-[#e8f5ee] flex items-center justify-center">
+              <LayoutDashboard className="w-5 h-5 text-[#145c3f]" />
+            </div>
+            <h3 className="text-lg font-bold text-[#0f3d2e]">No access</h3>
+            <p className="text-sm text-slate-500">
+              You do not have privilege for any Complaint/Compliance tab. Ask an admin to grant the forms you need.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col h-full bg-[#f4f7f5]">
       <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30 gap-3">
@@ -90,7 +137,9 @@ export default function ComplianceHubPage({
           <div className="min-w-0 flex items-center gap-2">
             <Scale className="w-5 h-5 text-[#145c3f] shrink-0" />
             <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">
-              {COMPLIANCE_HUB_NAV_TITLE}
+              {hideTabStrip
+                ? (visibleTabMeta.find((t) => t.key === activeTab)?.title ?? COMPLIANCE_HUB_NAV_TITLE)
+                : COMPLIANCE_HUB_NAV_TITLE}
             </h2>
           </div>
         </div>
@@ -107,31 +156,33 @@ export default function ComplianceHubPage({
         </Button>
       </div>
 
-      <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 sticky top-[57px] z-20">
-        <div className="flex gap-4 overflow-x-auto -mb-px" role="tablist" aria-label="Compliance modules">
-          {COMPLIANCE_HUB_TABS.map((tab) => {
-            const active = activeTab === tab.key;
-            const Icon = ICON_MAP[tab.key];
-            return (
-              <button
-                key={tab.key}
-                type="button"
-                role="tab"
-                aria-selected={active}
-                onClick={() => setActiveTab(tab.key)}
-                className={`group relative shrink-0 inline-flex items-center gap-2 px-3.5 py-3 text-xs font-bold whitespace-nowrap border-b-2 transition-all outline-none ${
-                  active
-                    ? "border-[#145c3f] text-[#145c3f]"
-                    : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300"
-                }`}
-              >
-                <Icon className="size-4 shrink-0" strokeWidth={2} />
-                <span>{tab.tabLabel}</span>
-              </button>
-            );
-          })}
+      {!hideTabStrip && (
+        <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 sticky top-[57px] z-20">
+          <div className="flex gap-4 overflow-x-auto -mb-px" role="tablist" aria-label="Compliance modules">
+            {visibleTabMeta.map((tab) => {
+              const active = activeTab === tab.key;
+              const Icon = ICON_MAP[tab.key];
+              return (
+                <button
+                  key={tab.key}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => setActiveTab(tab.key)}
+                  className={`group relative shrink-0 inline-flex items-center gap-2 px-3.5 py-3 text-xs font-bold whitespace-nowrap border-b-2 transition-all outline-none ${
+                    active
+                      ? "border-[#145c3f] text-[#145c3f]"
+                      : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300"
+                  }`}
+                >
+                  <Icon className="size-4 shrink-0" strokeWidth={2} />
+                  <span>{tab.tabLabel}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="flex-1 min-h-0 overflow-hidden">
         {activeTab === "complaints" && (

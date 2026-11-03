@@ -1,10 +1,16 @@
 import * as React from "react";
 import { useSearchParams } from "react-router-dom";
-import { ArrowLeft, Landmark, ShieldCheck, Receipt } from "lucide-react";
+import { ArrowLeft, Landmark, LayoutDashboard, Receipt, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import IgrWorkspace from "./IgrWorkspace";
 import SshiaWorkspace from "./SshiaWorkspace";
 import ExpenditureWorkspace from "./ExpenditureWorkspace";
+import {
+  FINANCE_HUB_NAV_TITLE,
+  FINANCE_HUB_PRIVILEGES,
+  type FinanceHubTabKey,
+} from "@/src/access/hubPrivilegeConfig";
+import { useAllowedHubTabs } from "@/src/access/hubAccess";
 
 interface Props {
   onBack: () => void;
@@ -13,18 +19,15 @@ interface Props {
   userRole?: string;
 }
 
-type FinanceTab = "igr" | "sshia" | "expenditure";
-
-const TABS: { key: FinanceTab; label: string; icon: React.ReactNode }[] = [
+const TAB_META: {
+  key: FinanceHubTabKey;
+  label: string;
+  icon: React.ReactNode;
+}[] = [
   { key: "igr", label: "IGR", icon: <Landmark className="size-4 shrink-0" /> },
   { key: "sshia", label: "SSHIA", icon: <ShieldCheck className="size-4 shrink-0" /> },
   { key: "expenditure", label: "Expenditure", icon: <Receipt className="size-4 shrink-0" /> },
 ];
-
-function parseTab(value: string | null): FinanceTab {
-  if (value === "sshia" || value === "expenditure") return value;
-  return "igr";
-}
 
 export default function FinanceWorkspace({
   onBack,
@@ -33,9 +36,23 @@ export default function FinanceWorkspace({
   userRole,
 }: Props) {
   const [params, setParams] = useSearchParams();
-  const activeTab = parseTab(params.get("tab"));
+  const { allowedTabs, allowedKeys, defaultTab, hideTabStrip } =
+    useAllowedHubTabs(FINANCE_HUB_PRIVILEGES);
 
-  const selectTab = (tab: FinanceTab) => {
+  const requested = params.get("tab") as FinanceHubTabKey | null;
+  const activeTab: FinanceHubTabKey | null =
+    requested && allowedKeys.has(requested) ? requested : defaultTab;
+
+  React.useEffect(() => {
+    if (!defaultTab) return;
+    if (!requested || !allowedKeys.has(requested)) {
+      const next = new URLSearchParams(params);
+      next.set("tab", defaultTab);
+      setParams(next, { replace: true });
+    }
+  }, [requested, defaultTab, allowedKeys, params, setParams]);
+
+  const selectTab = (tab: FinanceHubTabKey) => {
     const next = new URLSearchParams(params);
     next.set("tab", tab);
     setParams(next, { replace: true });
@@ -48,6 +65,32 @@ export default function FinanceWorkspace({
     userRole,
     embedded: true,
   };
+
+  const visibleTabs = TAB_META.filter((t) => allowedKeys.has(t.key));
+
+  if (!activeTab || allowedTabs.length === 0) {
+    return (
+      <div className="flex flex-col h-full bg-[#f4f7f5]">
+        <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3 flex items-center gap-3 sticky top-0 z-30">
+          <Button variant="ghost" size="icon" className="rounded-full shrink-0" aria-label="Back" onClick={onBack}>
+            <ArrowLeft className="w-5 h-5" />
+          </Button>
+          <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">{FINANCE_HUB_NAV_TITLE}</h2>
+        </div>
+        <div className="flex-1 flex items-center justify-center p-8">
+          <div className="rounded-sm border border-[#d4e8dc] bg-white p-8 text-center space-y-3 max-w-md">
+            <div className="mx-auto w-10 h-10 rounded-full bg-[#e8f5ee] flex items-center justify-center">
+              <LayoutDashboard className="w-5 h-5 text-[#145c3f]" />
+            </div>
+            <h3 className="text-lg font-bold text-[#0f3d2e]">No access</h3>
+            <p className="text-sm text-slate-500">
+              You do not have privilege for any Finance tab. Ask an admin to grant IGR, SSHIA, and/or Expenditure.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full bg-[#f4f7f5]">
@@ -62,31 +105,35 @@ export default function FinanceWorkspace({
           <ArrowLeft className="w-5 h-5" />
         </Button>
         <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">
-          Finance
+          {hideTabStrip
+            ? (visibleTabs.find((t) => t.key === activeTab)?.label ?? "Finance")
+            : "Finance"}
         </h2>
       </div>
 
-      <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 sticky top-[57px] z-20">
-        <div className="flex gap-4 overflow-x-auto -mb-px" role="tablist">
-          {TABS.map((tab) => (
-            <button
-              key={tab.key}
-              type="button"
-              role="tab"
-              aria-selected={activeTab === tab.key}
-              onClick={() => selectTab(tab.key)}
-              className={`group relative shrink-0 inline-flex items-center gap-2 px-3.5 py-3 text-xs font-bold whitespace-nowrap border-b-2 transition-all outline-none ${
-                activeTab === tab.key
-                  ? "border-[#145c3f] text-[#145c3f]"
-                  : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300"
-              }`}
-            >
-              {tab.icon}
-              <span>{tab.label}</span>
-            </button>
-          ))}
+      {!hideTabStrip && (
+        <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 sticky top-[57px] z-20">
+          <div className="flex gap-4 overflow-x-auto -mb-px" role="tablist">
+            {visibleTabs.map((tab) => (
+              <button
+                key={tab.key}
+                type="button"
+                role="tab"
+                aria-selected={activeTab === tab.key}
+                onClick={() => selectTab(tab.key)}
+                className={`group relative shrink-0 inline-flex items-center gap-2 px-3.5 py-3 text-xs font-bold whitespace-nowrap border-b-2 transition-all outline-none ${
+                  activeTab === tab.key
+                    ? "border-[#145c3f] text-[#145c3f]"
+                    : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300"
+                }`}
+              >
+                {tab.icon}
+                <span>{tab.label}</span>
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="flex-1 min-h-0">
         {activeTab === "igr" ? (

@@ -42,18 +42,18 @@ import {
   HMO_INDEBTEDNESS_NAV_TITLE,
 } from "@/src/components/stateOffice/hmoIndebtednessTypes";
 import {
-  COMPLIANCE_HUB_CHILDREN,
   COMPLIANCE_HUB_NAV_TITLE,
 } from "@/src/components/stateOffice/complianceHubTypes";
+import {
+  FINANCE_HUB_NAV_TITLE,
+  HUB_PRIVILEGE_CONFIGS,
+  canonicalHubTabTitle,
+  hubConfigByTitle,
+  isHubLeafAllowed,
+  isHubNavTitle,
+} from "./hubPrivilegeConfig";
 
-/** Legacy per-sheet privilege titles → single HMO Indebtedness leaf */
-const FINANCE_NAV_TITLE = "IGR, SSHIA & Expenditure";
-
-const LEGACY_FINANCE_TITLES = new Set([
-  "Internally Generated Revenue (IGR)",
-  "SSHIA Financial Report",
-  "Expenditure Profile",
-]);
+const FINANCE_NAV_TITLE = FINANCE_HUB_NAV_TITLE;
 
 const LEGACY_HMO_INDEBTEDNESS_TITLES = new Set([
   ...HMO_INDEBTEDNESS_CHILDREN.flatMap((c) => [c.title, c.navLabel]),
@@ -62,16 +62,6 @@ const LEGACY_HMO_INDEBTEDNESS_TITLES = new Set([
   "Private Health Insurance Reconciliation",
   "FFS Reconciliation",
   "Fee For Service Reconciliation",
-]);
-
-/** Legacy compliance submenu privileges → single Complaint/Compliance Management leaf */
-const LEGACY_COMPLIANCE_HUB_TITLES = new Set([
-  ...COMPLIANCE_HUB_CHILDREN.flatMap((c) => [c.title, c.navLabel]),
-  ...LEGACY_HMO_INDEBTEDNESS_TITLES,
-  HMO_INDEBTEDNESS_NAV_TITLE,
-  "Complaint/Compliance management",
-  "Weekly Compliance",
-  "State Complaints Register",
 ]);
 
 /** Legacy per-activity privilege titles → single Enrolment Drives leaf */
@@ -107,11 +97,19 @@ export function normalizeModuleTitle(title: string): string {
 
 
 
+/** Prefer explicit `access`, fall back to auth `functionalities`. */
+export function userAccessEntries(user: AccessUser | null | undefined): AccessEntry[] {
+  if (!user) return [];
+  if (Array.isArray(user.access) && user.access.length > 0) return user.access;
+  if (Array.isArray(user.functionalities)) return user.functionalities;
+  return user.access ?? [];
+}
+
 export function findEntry(user: AccessUser, moduleTitle: string): AccessEntry | undefined {
 
   const normalized = resolveModuleTitle(moduleTitle);
 
-  return (user.access ?? []).find(e => resolveModuleTitle(e.access_to) === normalized);
+  return userAccessEntries(user).find(e => resolveModuleTitle(e.access_to) === normalized);
 
 }
 
@@ -192,11 +190,13 @@ export function normalizeFunctionalityTitle(title: string, moduleTitle?: string)
 
     if (LEGACY_BENEFICIARY_TITLE_SET.has(title)) return BENEFICIARY_MANAGEMENT_NAV_TITLE;
 
-    if (LEGACY_COMPLIANCE_HUB_TITLES.has(title) || title === HMO_INDEBTEDNESS_NAV_TITLE) {
-      return COMPLIANCE_HUB_NAV_TITLE;
+    // Hub tab titles stay granular (do not collapse to hub). Only normalize aliases → canonical tab / hub casing.
+    if (title === "Complaint/Compliance management") return COMPLIANCE_HUB_NAV_TITLE;
+    for (const hub of HUB_PRIVILEGE_CONFIGS) {
+      const canonical = canonicalHubTabTitle(title, hub);
+      if (canonical) return canonical;
     }
-
-    if (LEGACY_FINANCE_TITLES.has(title)) return FINANCE_NAV_TITLE;
+    if (LEGACY_HMO_INDEBTEDNESS_TITLES.has(title)) return HMO_INDEBTEDNESS_NAV_TITLE;
 
   }
 
@@ -246,11 +246,12 @@ export function normalizeFunctionalityTitle(title: string, moduleTitle?: string)
 
     if (LEGACY_BENEFICIARY_TITLE_SET.has(title)) return BENEFICIARY_MANAGEMENT_NAV_TITLE;
 
-    if (LEGACY_COMPLIANCE_HUB_TITLES.has(title) || title === HMO_INDEBTEDNESS_NAV_TITLE) {
-      return COMPLIANCE_HUB_NAV_TITLE;
+    if (title === "Complaint/Compliance management") return COMPLIANCE_HUB_NAV_TITLE;
+    for (const hub of HUB_PRIVILEGE_CONFIGS) {
+      const canonical = canonicalHubTabTitle(title, hub);
+      if (canonical) return canonical;
     }
-
-    if (LEGACY_FINANCE_TITLES.has(title)) return FINANCE_NAV_TITLE;
+    if (LEGACY_HMO_INDEBTEDNESS_TITLES.has(title)) return HMO_INDEBTEDNESS_NAV_TITLE;
 
   }
 
@@ -266,6 +267,41 @@ export function normalizeAllowedTitles(functionalities: string[], moduleTitle?: 
 
   return new Set(functionalities.map(f => normalizeFunctionalityTitle(f, moduleTitle)));
 
+}
+
+/**
+ * Expand hub privilege rows for runtime access:
+ * - Hub title with no tabs → grant every tab (legacy / folder-all)
+ * - Any tab titles → keep them (canonicalized); do not force hub title into storage
+ */
+export function expandHubFunctionalities(funcs: string[], hubTitle: string): string[] {
+  const hub = hubConfigByTitle(hubTitle);
+  if (!hub) return funcs;
+
+  const tabTitles = hub.tabs.map((t) => t.privilegeTitle);
+  const tabSet = new Set(tabTitles);
+  const others: string[] = [];
+  const foundTabs = new Set<string>();
+  let hasHub = false;
+
+  for (const raw of funcs) {
+    const canonical = canonicalHubTabTitle(raw, hub) ?? normalizeFunctionalityTitle(raw, hub.moduleTitle);
+    if (canonical === hub.hubTitle) {
+      hasHub = true;
+      continue;
+    }
+    if (tabSet.has(canonical)) {
+      foundTabs.add(canonical);
+      continue;
+    }
+    others.push(raw);
+  }
+
+  if (hasHub && foundTabs.size === 0) {
+    tabTitles.forEach((t) => foundTabs.add(t));
+  }
+
+  return [...others, ...foundTabs];
 }
 
 
@@ -284,7 +320,20 @@ export function canAccessFunctionality(moduleTitle: string, functionalityTitle: 
 
   }
 
-
+  // Hub shell pages (Compliance / Finance): any granted tab unlocks the hub view
+  const hub = isHubNavTitle(normalized)
+    ? hubConfigByTitle(normalized)
+    : isHubNavTitle(functionalityTitle)
+      ? hubConfigByTitle(functionalityTitle)
+      : undefined;
+  if (hub && entry) {
+    const funcs = Array.isArray(entry.functionalities) ? entry.functionalities : [];
+    const canonicals = funcs
+      .map((f) => canonicalHubTabTitle(f, hub) ?? normalizeFunctionalityTitle(f, moduleTitle))
+      .filter(Boolean);
+    if (canonicals.includes(hub.hubTitle)) return true;
+    if (hub.tabs.some((t) => canonicals.includes(t.privilegeTitle))) return true;
+  }
 
   // Legacy SDO privilege grants Monitoring Visits under Zonal
 
@@ -383,29 +432,9 @@ export function expandAccessEntries(access: AccessEntry[]): AccessEntry[] {
       );
       funcs.push(BENEFICIARY_MANAGEMENT_NAV_TITLE);
     }
-    // Legacy compliance submenu / HMO privileges → single Complaint/Compliance Management leaf
-    const hasComplianceHub = funcs.some(
-      f => normalizeFunctionalityTitle(f, ZONAL_MODULE) === COMPLIANCE_HUB_NAV_TITLE
-        || LEGACY_COMPLIANCE_HUB_TITLES.has(f)
-        || f === HMO_INDEBTEDNESS_NAV_TITLE,
-    );
-    if (hasComplianceHub) {
-      funcs = funcs.filter(
-        f => !LEGACY_COMPLIANCE_HUB_TITLES.has(f)
-          && f !== HMO_INDEBTEDNESS_NAV_TITLE
-          && f !== COMPLIANCE_HUB_NAV_TITLE,
-      );
-      funcs.push(COMPLIANCE_HUB_NAV_TITLE);
-    }
-    const hasFinance = funcs.some(
-      f => normalizeFunctionalityTitle(f, ZONAL_MODULE) === FINANCE_NAV_TITLE
-        || LEGACY_FINANCE_TITLES.has(f),
-    );
-    if (hasFinance) {
-      funcs = funcs.filter(
-        f => !LEGACY_FINANCE_TITLES.has(f) && f !== FINANCE_NAV_TITLE,
-      );
-      funcs.push(FINANCE_NAV_TITLE);
+    // Hub privileges: keep tab titles granular; expand hub-only → all tabs
+    for (const hub of HUB_PRIVILEGE_CONFIGS) {
+      funcs = expandHubFunctionalities(funcs, hub.hubTitle);
     }
     // Finance Dashboard is a separate privilege — do not auto-grant from form access
     out[zonalIdx] = { ...out[zonalIdx], functionalities: funcs };
@@ -459,17 +488,17 @@ export function filterSidebar(
 
 
 
-    const visibleChildren = mod.children.filter(c => {
+    const leafAllowed = (title: string) =>
+      isHubNavTitle(title) ? isHubLeafAllowed(title, allowed) : allowed.has(title);
 
-      if (isSubGroup(c)) {
-
-        return flatLeaves({ ...mod, children: c.children }).some((t) => allowed.has(t));
-
+    const nodeVisible = (node: ParentModule["children"][number]): boolean => {
+      if (isSubGroup(node)) {
+        return node.children.some((child) => nodeVisible(child));
       }
+      return leafAllowed((node as ChildModule).title);
+    };
 
-      return allowed.has((c as ChildModule).title);
-
-    });
+    const visibleChildren = mod.children.filter((c) => nodeVisible(c));
 
 
 

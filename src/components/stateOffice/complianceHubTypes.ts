@@ -21,7 +21,7 @@ export const COMPLIANCE_HUB_TABS: {
 }[] = [
   { key: "complaints", tabLabel: "Complaints Register", title: "State Complaints Register" },
   { key: "weekly-compliance", tabLabel: "Weekly Compliance", title: "Weekly Compliance Report" },
-  { key: "hmo-indebtedness", tabLabel: "HMO Indebtedness", title: "HMO Indebtedness & Reconciliation" },
+  { key: "hmo-indebtedness", tabLabel: "HMO Indebtedness", title: "HMO Indebtedness" },
   { key: "mystery-shopping", tabLabel: "Mystery Shopping", title: "Mystery Shopping" },
 ];
 
