@@ -1,5 +1,5 @@
 import * as React from "react";
-import { ArrowLeft, BarChart3, AlertTriangle, Eye, FileText, HandHelping, Link2, Loader2, MessageSquare, Pencil, Plus, RefreshCw, Send, User2 } from "lucide-react";
+import { ArrowLeft, AlertTriangle, Eye, FileText, HandHelping, Link2, Loader2, MessageSquare, Pencil, Plus, RefreshCw, Send, User2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,7 +12,6 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { ShadcnDataTable } from "@/components/common/ShadcnDataTable";
 import { challengesSupportApi as api } from "@/lib/api";
 import { Field, FieldSection } from "./EnrolmentActivityForm";
-import ChallengesSupportDashboardTab from "./ChallengesSupportDashboardTab";
 import {
   CHALLENGE_CATEGORIES, CHALLENGE_DEPARTMENTS, CHALLENGE_IMPACTS, CHALLENGE_PROGRAMS,
   CHALLENGE_RELATED_ACTIVITIES, CHALLENGE_SEVERITIES, CHALLENGE_STATUSES,
@@ -98,7 +97,7 @@ export default function ChallengesSupportWorkspace({ onBack }: Props) {
   const [catalogue, setCatalogue] = React.useState<Catalogue | null>(null);
   const [challenges, setChallenges] = React.useState<Challenge[]>([]);
   const [supportList, setSupportList] = React.useState<SupportRequest[]>([]);
-  const [mode, setMode] = React.useState<"dashboard" | "challenges" | "support" | "challenge-form" | "support-form" | "challenge-detail" | "support-detail">("dashboard");
+  const [mode, setMode] = React.useState<"challenges" | "support" | "challenge-form" | "support-form" | "challenge-detail" | "support-detail">("challenges");
   const [busy, setBusy] = React.useState(false);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState("");
@@ -165,7 +164,7 @@ export default function ChallengesSupportWorkspace({ onBack }: Props) {
     await refresh(); toast.success("Saved");
   });
   const handleBack = () => {
-    if (["challenge-form", "support-form", "challenge-detail", "support-detail"].includes(mode)) setMode("dashboard");
+    if (["challenge-form", "support-form", "challenge-detail", "support-detail"].includes(mode)) setMode("challenges");
     else onBack();
   };
 
@@ -421,7 +420,7 @@ export default function ChallengesSupportWorkspace({ onBack }: Props) {
         </div>
       </div>
       <div className="flex items-center gap-2 shrink-0">
-        {["dashboard", "challenges", "support"].includes(mode) && (
+        {["challenges", "support"].includes(mode) && (
           <Button
             variant="outline"
             size="sm"
@@ -459,11 +458,10 @@ export default function ChallengesSupportWorkspace({ onBack }: Props) {
       </div>
     </div>
   );
-  const tabs = ["dashboard", "challenges", "support"].includes(mode) && (
+  const tabs = ["challenges", "support"].includes(mode) && (
     <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 sticky top-[57px] z-20">
       <div className="flex gap-0 overflow-x-auto -mb-px" role="tablist" aria-label="Challenges and Support">
         {[
-          { key: "dashboard", label: "Dashboard", count: null, icon: BarChart3 },
           { key: "challenges", label: "Challenges Register", count: challenges.length, icon: AlertTriangle },
           { key: "support", label: "Support Requests", count: supportList.length, icon: HandHelping },
         ].map(({ key, label, count, icon: Icon }) => (
@@ -710,19 +708,6 @@ export default function ChallengesSupportWorkspace({ onBack }: Props) {
       {header}{tabs}
       <ScrollArea className="flex-1"><div className="w-full px-3 md:px-5 py-2.5 space-y-3 pb-6">
         {error && <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700" role="alert">{error}</div>}
-        {mode === "dashboard" && (
-          <ChallengesSupportDashboardTab
-            challenges={challenges}
-            supportList={supportList}
-            catalogue={catalogue}
-            loading={busy || loading}
-            onRefresh={() => void run(refresh)}
-            onOpenChallengeDetail={openChallengeDetail}
-            onOpenSupportDetail={openSupportDetail}
-            onNewChallenge={permissions.create ? () => startChallengeForm() : undefined}
-            onNewSupport={permissions.create ? () => startSupportForm(null) : undefined}
-          />
-        )}
         {mode === "challenges" && (
           <ShadcnDataTable
             title="CHALLENGES REGISTER"

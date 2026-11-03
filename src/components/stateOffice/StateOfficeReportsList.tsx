@@ -862,12 +862,11 @@ export default function StateOfficeReportsList({
                       <TableRow className="bg-[#f0fdf7] hover:bg-[#f0fdf7]">
                         {reportType === "igr" ? (
                           <>
-                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">State</TableHead>
                             <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Date</TableHead>
+                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">State</TableHead>
                             <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Service Type</TableHead>
                             <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Principal</TableHead>
                             <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Receipt No.</TableHead>
-                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Bill / RRR</TableHead>
                             <TableHead className="text-xs font-bold text-slate-600 text-right whitespace-nowrap">Amount (₦)</TableHead>
                             <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Payment Date</TableHead>
                             <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Status</TableHead>
@@ -875,8 +874,8 @@ export default function StateOfficeReportsList({
                           </>
                         ) : reportType === "sshia-financial" ? (
                           <>
-                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">State</TableHead>
                             <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Period</TableHead>
+                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">State</TableHead>
                             <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Sub-heads filled</TableHead>
                             <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Submitted by</TableHead>
                             <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Status</TableHead>
@@ -884,10 +883,8 @@ export default function StateOfficeReportsList({
                           </>
                         ) : reportType === "expenditure-profile" ? (
                           <>
+                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Period</TableHead>
                             <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">State</TableHead>
-                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Year</TableHead>
-                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Month</TableHead>
-                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Quarter</TableHead>
                             <TableHead className="text-xs font-bold text-slate-600 text-right whitespace-nowrap">Total (₦)</TableHead>
                             <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Status</TableHead>
                             <TableHead className="text-right text-xs font-bold text-slate-600 whitespace-nowrap">Actions</TableHead>
@@ -1003,12 +1000,12 @@ export default function StateOfficeReportsList({
                           transition={{ delay: i * 0.02 }}
                           className="hover:bg-[#f8fdfb] transition-colors border-b border-slate-100 last:border-0"
                         >
-                          <TableCell className="text-sm font-semibold text-slate-800 whitespace-nowrap">
-                            {r.state?.description || "—"}
-                          </TableCell>
                           <TableCell className="text-sm text-slate-700 whitespace-nowrap">
                             <span className="font-medium">{monthLabel(r.reporting_month)} {r.reporting_year}</span>
                             <span className="text-slate-400"> · Q{quarter}</span>
+                          </TableCell>
+                          <TableCell className="text-sm font-semibold text-slate-800 whitespace-nowrap">
+                            {r.state?.description || "—"}
                           </TableCell>
                           <TableCell className="py-2.5">
                             {row.filledCount === 0 ? (
@@ -1077,17 +1074,12 @@ export default function StateOfficeReportsList({
                             className="hover:bg-[#f8fdfb] transition-colors border-b border-slate-100 last:border-0">
                             {reportType === "expenditure-profile" ? (
                               <>
+                                <TableCell className="text-sm text-slate-700 whitespace-nowrap">
+                                  <span className="font-medium">{monthLabel(r.reporting_month)} {r.reporting_year}</span>
+                                  <span className="text-slate-400"> · Q{(r as any).reporting_quarter || quarterFromMonth(r.reporting_month)}</span>
+                                </TableCell>
                                 <TableCell className="text-sm font-semibold text-slate-800 whitespace-nowrap">
                                   {r.state?.description || "—"}
-                                </TableCell>
-                                <TableCell className="text-sm font-semibold text-slate-800 whitespace-nowrap">
-                                  {r.reporting_year}
-                                </TableCell>
-                                <TableCell className="text-sm text-slate-600 whitespace-nowrap">
-                                  {monthLabel(r.reporting_month)}
-                                </TableCell>
-                                <TableCell className="text-sm text-slate-500 whitespace-nowrap">
-                                  Q{(r as any).reporting_quarter || quarterFromMonth(r.reporting_month)}
                                 </TableCell>
                                 <TableCell className="text-sm font-semibold text-[#145c3f] text-right tabular-nums whitespace-nowrap">
                                   {formatNaira(reportLineTotal("expenditure-profile", r))}
@@ -1124,11 +1116,11 @@ export default function StateOfficeReportsList({
                               </>
                             ) : reportType === "igr" ? (
                               <>
-                                <TableCell className="text-sm font-semibold text-slate-800 whitespace-nowrap">
-                                  {r.state?.description || "—"}
-                                </TableCell>
                                 <TableCell className="text-sm text-slate-700 whitespace-nowrap tabular-nums">
                                   {formatDateShort((r as any).entry_date || r.submission_date)}
+                                </TableCell>
+                                <TableCell className="text-sm font-semibold text-slate-800 whitespace-nowrap">
+                                  {r.state?.description || "—"}
                                 </TableCell>
                                 <TableCell className="text-sm text-slate-800 whitespace-nowrap">
                                   {labelOf(IGR_SERVICE_TYPES, String((r as any).service_type || r.lines?.[0]?.service_type || ""))}
@@ -1139,9 +1131,6 @@ export default function StateOfficeReportsList({
                                 </TableCell>
                                 <TableCell className="text-sm font-mono text-slate-700 whitespace-nowrap">
                                   {String((r as any).receipt_no || r.lines?.[0]?.receipt_no || "—")}
-                                </TableCell>
-                                <TableCell className="text-sm font-mono text-slate-600 whitespace-nowrap">
-                                  {String((r as any).bill_rrr_no || r.lines?.[0]?.bill_rrr_no || "—")}
                                 </TableCell>
                                 <TableCell className="text-sm font-semibold text-[#145c3f] text-right tabular-nums whitespace-nowrap">
                                   {formatAmount((r as any).amount ?? r.lines?.[0]?.amount ?? 0)}

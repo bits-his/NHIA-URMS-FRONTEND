@@ -44,7 +44,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useSelector } from "react-redux";
-import type { RootState } from "@/store";
+import type { RootState } from "@/src/store/store";
 import type { ColumnDef } from "@tanstack/react-table";
 import { ShadcnDataTable } from "@/components/common/ShadcnDataTable";
 

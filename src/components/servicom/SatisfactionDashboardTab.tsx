@@ -35,7 +35,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import type { RootState } from "@/store";
+import type { RootState } from "@/src/store/store";
 
 interface Props {
   surveys: any[];
@@ -251,7 +251,19 @@ export default function SatisfactionDashboardTab({
       },
     ];
 
-    // Resolution statistics calculated from actual survey responses
+    // Resolution statistics derived from score bands (excellent/acceptable ≈ resolved)
+    let resolvedYes = 0;
+    let resolvedPartial = 0;
+    let commentsCount = 0;
+    scopedSurveys.forEach((s) => {
+      const pct = Number(s.percentage_score) || 0;
+      if (pct >= 60) resolvedYes++;
+      else if (pct >= 40) resolvedPartial++;
+      const lines = Array.isArray(s.responses) ? s.responses : [];
+      if (s.provider_name || lines.some((r: any) => String(r.response_value || r.response || "").trim().length > 20)) {
+        commentsCount++;
+      }
+    });
     const resolvedPct = totalCount ? Math.round((resolvedYes / totalCount) * 100) : 0;
     const partiallyPct = totalCount ? Math.round((resolvedPartial / totalCount) * 100) : 0;
     const notResolvedPct = totalCount ? Math.max(0, 100 - resolvedPct - partiallyPct) : 0;
