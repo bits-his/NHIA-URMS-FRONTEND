@@ -27,8 +27,15 @@ interface Props {
   defaultStateId?: string | null;
   defaultZoneId?: string | null;
   lockLocation?: boolean;
-  /** When true, omit outer card chrome (used as a section inside SERVICOM dashboard). */
+  /** When true, omit outer card chrome (used as a section inside SERVICOM dashboard or State Office). */
   embedded?: boolean;
+  /** When true, exclude SERVICOM complaints and hide SERVICOM channel from filters (for State Office). */
+  excludeServicom?: boolean;
+  /** When true, restrict to SERVICOM-only channel. */
+  servicomOnly?: boolean;
+  /** Optional custom title for header */
+  title?: string;
+  subtitle?: string;
 }
 
 const currentYear = new Date().getFullYear();
@@ -55,7 +62,14 @@ function volumeLabel(row: { name?: string; count?: number } | null | undefined) 
 }
 
 export default function ComplaintRegisterDashboard({
-  defaultStateId, defaultZoneId, lockLocation = false, embedded = false,
+  defaultStateId,
+  defaultZoneId,
+  lockLocation = false,
+  embedded = false,
+  excludeServicom = false,
+  servicomOnly = false,
+  title,
+  subtitle,
 }: Props) {
   const zoneLocked = lockLocation && !!defaultZoneId && !defaultStateId;
   const stateLocked = lockLocation && !!defaultStateId;
@@ -75,8 +89,18 @@ export default function ComplaintRegisterDashboard({
   const [priority, setPriority] = React.useState("all");
   const [category, setCategory] = React.useState("all");
   const [type, setType] = React.useState("all");
-  const [route, setRoute] = React.useState("all");
+  const [route, setRoute] = React.useState(servicomOnly ? "SERVICOM" : "all");
   const [status, setStatus] = React.useState("all");
+
+  const availableRoutes = React.useMemo(() => {
+    if (excludeServicom) {
+      return TRANSMISSION_ROUTES.filter((r) => r.value.toUpperCase() !== "SERVICOM");
+    }
+    if (servicomOnly) {
+      return TRANSMISSION_ROUTES.filter((r) => r.value.toUpperCase() === "SERVICOM");
+    }
+    return TRANSMISSION_ROUTES;
+  }, [excludeServicom, servicomOnly]);
 
   React.useEffect(() => {
     if (stateLocked) return;
@@ -111,12 +135,16 @@ export default function ComplaintRegisterDashboard({
       priority: priority === "all" ? undefined : priority,
       category: category === "all" ? undefined : category,
       type: type === "all" ? undefined : type,
-      route: route === "all" ? undefined : route,
+      route: servicomOnly ? "SERVICOM" : (route === "all" ? undefined : route),
+      exclude_servicom: excludeServicom ? "1" : undefined,
+      exclude_route: excludeServicom ? "SERVICOM" : undefined,
+      channel: servicomOnly ? "servicom" : (excludeServicom ? "state" : undefined),
       status: status === "all" ? undefined : status,
     };
   }, [
     locationLevel, defaultStateId, defaultZoneId, filterState, filterZone,
     year, month, date, domain, priority, category, type, route, status,
+    excludeServicom, servicomOnly,
   ]);
 
   const drill = useDashboardDrill(
@@ -135,14 +163,17 @@ export default function ComplaintRegisterDashboard({
       category: scope.category,
       type: scope.type,
       route: scope.route,
+      exclude_servicom: scope.exclude_servicom,
+      exclude_route: scope.exclude_route,
+      channel: scope.channel,
       status: scope.status,
     },
   );
 
   const drillCtx = React.useMemo(() => ({
-    subtitle: "Complaint register",
-    breadcrumbs: ["SERVICOM", "Complaint register"],
-  }), []);
+    subtitle: excludeServicom ? "State Complaints register" : "Complaint register",
+    breadcrumbs: [excludeServicom ? "State Office" : "SERVICOM", "Complaint register"],
+  }), [excludeServicom]);
 
   const openComplaints = React.useCallback((title: string, extra?: Record<string, string>) => {
     const crumbs = [...drillCtx.breadcrumbs, title];
@@ -389,7 +420,7 @@ export default function ComplaintRegisterDashboard({
             <Choice value={type} onChange={setType} allLabel="All Types" options={COMPLAINT_TYPES} />
           </Filter>
           <Filter label="Route">
-            <Choice value={route} onChange={setRoute} allLabel="All Routes" options={TRANSMISSION_ROUTES} />
+            <Choice value={route} onChange={setRoute} allLabel={servicomOnly ? "SERVICOM" : "All Routes"} options={availableRoutes} />
           </Filter>
           <Filter label="Status">
             <Choice value={status} onChange={setStatus} allLabel="All Statuses" options={COMPLAINT_STATUSES} />
@@ -548,6 +579,11 @@ export default function ComplaintRegisterDashboard({
     />
   );
 
+  const displayTitle = title || (excludeServicom ? "State Office Complaints Analytics" : "Complaint Register Analytics");
+  const displaySubtitle = subtitle || (excludeServicom
+    ? "Volume, sources, issue patterns, and resolution performance for state-level complaints"
+    : "Volume, sources, issue patterns, resolution performance, SLA compliance and escalation");
+
   if (embedded) {
     return (
       <div className="space-y-6">
@@ -555,14 +591,19 @@ export default function ComplaintRegisterDashboard({
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 px-4 py-2.5 bg-[#f8faf9] border-b border-slate-200/80">
             <div className="flex items-center gap-2.5">
               <FilterIcon className="w-4 h-4 text-[#1a7a52]" />
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-slate-800 uppercase tracking-wide">
-                  Complaint Register Filters
-                </span>
-                {activeFiltersCount > 0 && (
-                  <Badge className="bg-[#1a7a52] text-white text-[10px] font-bold px-1.5 py-0 rounded-full">
-                    {activeFiltersCount} Active
-                  </Badge>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-slate-800 uppercase tracking-wide">
+                    {displayTitle}
+                  </span>
+                  {activeFiltersCount > 0 && (
+                    <Badge className="bg-[#1a7a52] text-white text-[10px] font-bold px-1.5 py-0 rounded-full">
+                      {activeFiltersCount} Active
+                    </Badge>
+                  )}
+                </div>
+                {subtitle && (
+                  <p className="text-[11px] text-slate-500 mt-0.5">{displaySubtitle}</p>
                 )}
               </div>
             </div>
@@ -606,7 +647,7 @@ export default function ComplaintRegisterDashboard({
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-xs font-bold text-slate-800 uppercase tracking-wide">
-                  Complaint Register Analytics
+                  {displayTitle}
                 </span>
                 {activeFiltersCount > 0 && (
                   <Badge className="bg-[#1a7a52] text-white text-[10px] font-bold px-1.5 py-0 rounded-full">
@@ -615,7 +656,7 @@ export default function ComplaintRegisterDashboard({
                 )}
               </div>
               <p className="text-[11px] text-slate-500">
-                Volume, sources, issue patterns, resolution performance, SLA compliance and escalation
+                {displaySubtitle}
               </p>
             </div>
           </div>

@@ -8,6 +8,7 @@ import {
   LayoutDashboard,
   Megaphone,
   RefreshCw,
+  Scale,
   Stethoscope,
   UserPlus,
 } from "lucide-react";
@@ -16,6 +17,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import EnrolmentDriveDashboard from "./EnrolmentDriveDashboard";
 import ProviderManagementDashboard from "./ProviderManagementDashboard";
 import ChallengesSupportDashboard from "./ChallengesSupportDashboard";
+import ComplaintRegisterDashboard from "../servicom/ComplaintRegisterDashboard";
 import { STAKEHOLDER_MANAGEMENT_PATH } from "./enrolmentPillarTypes";
 
 export type StateOfficeDashTab =
@@ -23,6 +25,7 @@ export type StateOfficeDashTab =
   | "enrolment-drives"
   | "stakeholder"
   | "provider"
+  | "complaints"
   | "challenges";
 
 const TABS: { key: StateOfficeDashTab; label: string; icon: React.ReactNode }[] = [
@@ -30,6 +33,7 @@ const TABS: { key: StateOfficeDashTab; label: string; icon: React.ReactNode }[] 
   { key: "enrolment-drives", label: "Enrolment Drives", icon: <Megaphone className="size-4 shrink-0" /> },
   { key: "stakeholder", label: "Stakeholder", icon: <Handshake className="size-4 shrink-0" /> },
   { key: "provider", label: "Provider Management", icon: <Stethoscope className="size-4 shrink-0" /> },
+  { key: "complaints", label: "Complaints", icon: <Scale className="size-4 shrink-0" /> },
   { key: "challenges", label: "Challenges & Support", icon: <AlertTriangle className="size-4 shrink-0" /> },
 ];
 
@@ -195,6 +199,23 @@ export default function StateOfficeDashboardHub({
           onBack={onBack}
           {...shared}
         />
+      )}
+
+      {activeTab === "complaints" && (
+        <ScrollArea className="flex-1">
+          <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-4">
+            <ComplaintRegisterDashboard
+              key={`state-comp-dash-${refreshKey}`}
+              embedded
+              defaultStateId={defaultStateId}
+              defaultZoneId={defaultZoneId}
+              lockLocation={!!defaultStateId}
+              excludeServicom
+              title="State Office Complaints Analytics"
+              subtitle="State-level complaint resolution, SLA performance, and trends (excluding SERVICOM)"
+            />
+          </div>
+        </ScrollArea>
       )}
 
       {activeTab === "challenges" && (
