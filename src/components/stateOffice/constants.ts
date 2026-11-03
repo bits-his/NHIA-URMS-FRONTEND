@@ -631,6 +631,17 @@ export function formatNaira(value: number | string | null | undefined) {
   return `₦${formatAmount(value)}`;
 }
 
+/** Compact money for KPI cards: ₦35.3M, ₦12.4K, etc. */
+export function formatNairaCompact(value: number | string | null | undefined) {
+  const n = Number(value) || 0;
+  const abs = Math.abs(n);
+  const sign = n < 0 ? "-" : "";
+  if (abs >= 1_000_000_000) return `${sign}₦${(abs / 1_000_000_000).toFixed(1)}B`;
+  if (abs >= 1_000_000) return `${sign}₦${(abs / 1_000_000).toFixed(1)}M`;
+  if (abs >= 1_000) return `${sign}₦${(abs / 1_000).toFixed(1)}K`;
+  return `${sign}₦${abs.toLocaleString("en-NG", { maximumFractionDigits: 0 })}`;
+}
+
 /** Blank-aware SSHIA math: missing inputs stay null; never invent zeros for display. */
 export function calcSshiaLine(
   opening: number | string | null | undefined,

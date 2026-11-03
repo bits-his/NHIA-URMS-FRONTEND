@@ -17,7 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { financeDashboardApi, stockApi } from "@/lib/api";
-import { SSHIA_SUB_HEADS, formatNaira } from "./constants";
+import { SSHIA_SUB_HEADS, formatNaira, formatNairaCompact } from "./constants";
 
 interface Props {
   onBack?: () => void;
@@ -49,6 +49,12 @@ export default function SshiaDashboard({
   const isNational = userRole === "sdo" || userRole === "dg-ceo" || userRole === "admin" || !userRole;
   const isZonalCoordinator = userRole === "soc-zonal-coordinator" || (userRole && userRole.includes("zonal") && !isNational);
   const isStateOffice = !!defaultStateId || (userRole && userRole.includes("state") && !isZonalCoordinator && !isNational);
+  const viewScope: "national" | "zone" | "state" = isStateOffice || stateId !== "all"
+    ? "state"
+    : isZonalCoordinator || zoneId !== "all"
+      ? "zone"
+      : "national";
+  const showGeoComparison = viewScope !== "state";
 
   React.useEffect(() => {
     stockApi.getZones().then((r) => {
@@ -101,11 +107,11 @@ export default function SshiaDashboard({
     }));
   }, [dashboardData]);
 
-  const sshiaZoneLivesData = React.useMemo(() => {
+  const sshiaUtilisationByZoneData = React.useMemo(() => {
     return (dashboardData?.by_zone || []).map((z: any) => ({
       name: z.label || z.zonal_code,
       code: z.zonal_code,
-      lives: Number(z.lives) || 0,
+      utilisation: Number(z.utilisation_rate) || 0,
     }));
   }, [dashboardData]);
 
@@ -241,7 +247,7 @@ export default function SshiaDashboard({
                   </span>
                   <div className="mt-1.5">
                     <span className="text-lg font-black text-slate-800 tabular-nums">
-                      {formatNaira(kpis.budget_available || 0)}
+                      {formatNairaCompact(kpis.budget_available || 0)}
                     </span>
                     <p className="text-[10px] text-slate-400 mt-0.5">Opening + Receipts</p>
                   </div>
@@ -253,7 +259,7 @@ export default function SshiaDashboard({
                   </span>
                   <div className="mt-1.5">
                     <span className="text-lg font-black text-[#145c3f] tabular-nums">
-                      {formatNaira(kpis.actual_expenditure || 0)}
+                      {formatNairaCompact(kpis.actual_expenditure || 0)}
                     </span>
                     <p className="text-[10px] text-slate-400 mt-0.5">Reported spend</p>
                   </div>
@@ -265,7 +271,7 @@ export default function SshiaDashboard({
                   </span>
                   <div className="mt-1.5">
                     <span className="text-lg font-black text-slate-800 tabular-nums">
-                      {formatNaira(kpis.balance || 0)}
+                      {formatNairaCompact(kpis.balance || 0)}
                     </span>
                     <p className="text-[10px] text-slate-400 mt-0.5">Available − Spend</p>
                   </div>
@@ -360,7 +366,7 @@ export default function SshiaDashboard({
               </div>
 
               {/* 3 PPT Charts (Slide 6 & 7) */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+              <div className={`grid grid-cols-1 gap-3 ${showGeoComparison ? "lg:grid-cols-3" : "lg:grid-cols-2"}`}>
                 {/* Available vs Spend by Sub-head */}
                 <Card className="border border-slate-200/80 rounded-sm shadow-xs overflow-hidden">
                   <CardHeader className="border-b border-slate-200 bg-[#f4f7f5] py-2 px-3 rounded-none m-0">
@@ -394,36 +400,46 @@ export default function SshiaDashboard({
                   </CardContent>
                 </Card>
 
-                {/* BHCPF Lives Covered by Zone */}
+                {showGeoComparison && (
                 <Card className="border border-slate-200/80 rounded-sm shadow-xs overflow-hidden">
                   <CardHeader className="border-b border-slate-200 bg-[#f4f7f5] py-2 px-3 rounded-none m-0">
                     <CardTitle className="text-xs font-bold text-slate-800 uppercase tracking-wide flex items-center justify-between">
-                      <span>BHCPF Lives Covered by Zone</span>
+                      <span>SSHIA utilisation by zone</span>
                       <Badge variant="outline" className="border-blue-400 text-blue-700 text-[10px]">
-                        Coverage
+                        Zone comparison
                       </Badge>
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="p-2.5">
                     <div className="h-[200px] w-full">
-                      {sshiaZoneLivesData.length > 0 ? (
+                      {sshiaUtilisationByZoneData.length > 0 ? (
                         <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={sshiaZoneLivesData} margin={{ top: 8, right: 10, left: 0, bottom: 20 }}>
+                          <BarChart
+                            data={sshiaUtilisationByZoneData}
+                            margin={{ top: 8, right: 10, left: 0, bottom: 28 }}
+                            onClick={(e: any) => {
+                              if (e?.activePayload?.[0]?.payload?.code && !isZonalCoordinator && !isStateOffice) {
+                                setZoneId(String(e.activePayload[0].payload.code));
+                                setStateId("all");
+                              }
+                            }}
+                          >
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                            <XAxis dataKey="name" angle={-20} textAnchor="end" interval={0} tick={{ fontSize: 9 }} />
-                            <YAxis tick={{ fontSize: 9 }} />
-                            <RechartsTooltip formatter={(v: any) => [Number(v).toLocaleString(), "Lives"]} />
-                            <Bar dataKey="lives" fill="#3b82f6" radius={[2, 2, 0, 0]} />
+                            <XAxis dataKey="name" angle={-20} textAnchor="end" interval={0} height={48} tick={{ fontSize: 9 }} />
+                            <YAxis domain={[0, 100]} tick={{ fontSize: 9 }} unit="%" />
+                            <RechartsTooltip formatter={(v: any) => [`${Number(v).toFixed(1)}%`, "Utilisation"]} />
+                            <Bar dataKey="utilisation" fill="#0f766e" radius={[2, 2, 0, 0]} cursor="pointer" />
                           </BarChart>
                         </ResponsiveContainer>
                       ) : (
                         <div className="h-full flex items-center justify-center text-xs text-slate-400">
-                          No lives reported for this period
+                          No utilisation data by zone
                         </div>
                       )}
                     </div>
                   </CardContent>
                 </Card>
+                )}
 
                 {/* Quarter-on-Quarter Utilisation Trend */}
                 <Card className="border border-slate-200/80 rounded-sm shadow-xs overflow-hidden">
