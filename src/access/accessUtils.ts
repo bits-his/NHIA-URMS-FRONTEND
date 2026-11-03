@@ -41,8 +41,20 @@ import {
   HMO_INDEBTEDNESS_CHILDREN,
   HMO_INDEBTEDNESS_NAV_TITLE,
 } from "@/src/components/stateOffice/hmoIndebtednessTypes";
+import {
+  COMPLIANCE_HUB_CHILDREN,
+  COMPLIANCE_HUB_NAV_TITLE,
+} from "@/src/components/stateOffice/complianceHubTypes";
 
 /** Legacy per-sheet privilege titles → single HMO Indebtedness leaf */
+const FINANCE_NAV_TITLE = "IGR, SSHIA & Expenditure";
+
+const LEGACY_FINANCE_TITLES = new Set([
+  "Internally Generated Revenue (IGR)",
+  "SSHIA Financial Report",
+  "Expenditure Profile",
+]);
+
 const LEGACY_HMO_INDEBTEDNESS_TITLES = new Set([
   ...HMO_INDEBTEDNESS_CHILDREN.flatMap((c) => [c.title, c.navLabel]),
   "HMO Indebtedness Collation",
@@ -50,6 +62,16 @@ const LEGACY_HMO_INDEBTEDNESS_TITLES = new Set([
   "Private Health Insurance Reconciliation",
   "FFS Reconciliation",
   "Fee For Service Reconciliation",
+]);
+
+/** Legacy compliance submenu privileges → single Complaint/Compliance Management leaf */
+const LEGACY_COMPLIANCE_HUB_TITLES = new Set([
+  ...COMPLIANCE_HUB_CHILDREN.flatMap((c) => [c.title, c.navLabel]),
+  ...LEGACY_HMO_INDEBTEDNESS_TITLES,
+  HMO_INDEBTEDNESS_NAV_TITLE,
+  "Complaint/Compliance management",
+  "Weekly Compliance",
+  "State Complaints Register",
 ]);
 
 /** Legacy per-activity privilege titles → single Enrolment Drives leaf */
@@ -170,7 +192,11 @@ export function normalizeFunctionalityTitle(title: string, moduleTitle?: string)
 
     if (LEGACY_BENEFICIARY_TITLE_SET.has(title)) return BENEFICIARY_MANAGEMENT_NAV_TITLE;
 
-    if (LEGACY_HMO_INDEBTEDNESS_TITLES.has(title)) return HMO_INDEBTEDNESS_NAV_TITLE;
+    if (LEGACY_COMPLIANCE_HUB_TITLES.has(title) || title === HMO_INDEBTEDNESS_NAV_TITLE) {
+      return COMPLIANCE_HUB_NAV_TITLE;
+    }
+
+    if (LEGACY_FINANCE_TITLES.has(title)) return FINANCE_NAV_TITLE;
 
   }
 
@@ -220,7 +246,11 @@ export function normalizeFunctionalityTitle(title: string, moduleTitle?: string)
 
     if (LEGACY_BENEFICIARY_TITLE_SET.has(title)) return BENEFICIARY_MANAGEMENT_NAV_TITLE;
 
-    if (LEGACY_HMO_INDEBTEDNESS_TITLES.has(title)) return HMO_INDEBTEDNESS_NAV_TITLE;
+    if (LEGACY_COMPLIANCE_HUB_TITLES.has(title) || title === HMO_INDEBTEDNESS_NAV_TITLE) {
+      return COMPLIANCE_HUB_NAV_TITLE;
+    }
+
+    if (LEGACY_FINANCE_TITLES.has(title)) return FINANCE_NAV_TITLE;
 
   }
 
@@ -353,16 +383,29 @@ export function expandAccessEntries(access: AccessEntry[]): AccessEntry[] {
       );
       funcs.push(BENEFICIARY_MANAGEMENT_NAV_TITLE);
     }
-    // Legacy per-sheet privileges → single HMO Indebtedness leaf
-    const hasHmo = funcs.some(
-      f => normalizeFunctionalityTitle(f, ZONAL_MODULE) === HMO_INDEBTEDNESS_NAV_TITLE
-        || LEGACY_HMO_INDEBTEDNESS_TITLES.has(f),
+    // Legacy compliance submenu / HMO privileges → single Complaint/Compliance Management leaf
+    const hasComplianceHub = funcs.some(
+      f => normalizeFunctionalityTitle(f, ZONAL_MODULE) === COMPLIANCE_HUB_NAV_TITLE
+        || LEGACY_COMPLIANCE_HUB_TITLES.has(f)
+        || f === HMO_INDEBTEDNESS_NAV_TITLE,
     );
-    if (hasHmo) {
+    if (hasComplianceHub) {
       funcs = funcs.filter(
-        f => !LEGACY_HMO_INDEBTEDNESS_TITLES.has(f) && f !== HMO_INDEBTEDNESS_NAV_TITLE,
+        f => !LEGACY_COMPLIANCE_HUB_TITLES.has(f)
+          && f !== HMO_INDEBTEDNESS_NAV_TITLE
+          && f !== COMPLIANCE_HUB_NAV_TITLE,
       );
-      funcs.push(HMO_INDEBTEDNESS_NAV_TITLE);
+      funcs.push(COMPLIANCE_HUB_NAV_TITLE);
+    }
+    const hasFinance = funcs.some(
+      f => normalizeFunctionalityTitle(f, ZONAL_MODULE) === FINANCE_NAV_TITLE
+        || LEGACY_FINANCE_TITLES.has(f),
+    );
+    if (hasFinance) {
+      funcs = funcs.filter(
+        f => !LEGACY_FINANCE_TITLES.has(f) && f !== FINANCE_NAV_TITLE,
+      );
+      funcs.push(FINANCE_NAV_TITLE);
     }
     // Finance Dashboard is a separate privilege — do not auto-grant from form access
     out[zonalIdx] = { ...out[zonalIdx], functionalities: funcs };

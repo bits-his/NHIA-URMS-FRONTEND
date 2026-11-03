@@ -1,4 +1,6 @@
 import * as React from "react";
+import { useSelector } from "react-redux";
+import { useSearchParams } from "react-router-dom";
 import { ArrowLeft, ArrowRight, ChevronDown, Plus, RefreshCw, Save, Send, Download, Users, Pencil, Trash2, Eye, FileText, Clock, CheckCircle2, ClipboardList, History, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -10,6 +12,7 @@ import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from "@
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { enrolmentDrivesApi as api } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import type { RootState } from "@/src/store/store";
 import EnrolmentActivityForm, { Field, FieldSection } from "./EnrolmentActivityForm";
 import { MultiSelectField } from "./EnrolmentDriveForm";
 import StateOfficeFormSteps from "./StateOfficeFormSteps";
@@ -78,6 +81,7 @@ type Activity = {
 type Batch = {
   reference_id: string; revision: number; state_code: string; state_name?: string; zonal_code: string; reporting_year: number; reporting_month: number;
   planned_activities: number | null; status: string; reporting_officer: string; activity_count?: number; submitted_at?: string;
+  reporting_deadline?: string | null;
   activities?: Activity[]; summary?: Record<string, number>;
   reviews?: { reference_id: string; action: string; actor_name: string; note: string; createdAt?: string; created_at?: string; revision: number }[];
 };
@@ -124,6 +128,8 @@ function Metrics({ values }: { values: Record<string, number> }) {
 }
 
 export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaultZoneId }: { onBack: () => void; defaultZoneId?: string | null; defaultStateId?: string | null }) {
+  const authUser = useSelector((s: RootState) => s.auth.user);
+  const [searchParams, setSearchParams] = useSearchParams();
   const [catalogue, setCatalogue] = React.useState<Catalogue | null>(null);
   const [batches, setBatches] = React.useState<Batch[]>([]);
   const [batch, setBatch] = React.useState<Batch | null>(null);
@@ -151,7 +157,19 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
   const [analytics, setAnalytics] = React.useState<any>(null);
   const [reportFilter, setReportFilter] = React.useState({ year: String(new Date().getFullYear()), month: String(new Date().getMonth() + 1) });
   const [actions, setActions] = React.useState<FollowUp[]>([]);
-  const blankAction = (): FollowUp => ({ state_code: batch?.state_code || period.state_code, reporting_year: String(batch?.reporting_year || period.reporting_year), reporting_month: String(batch?.reporting_month || period.reporting_month), issue: "", agreed_action: "", source_dashboard: "Enrolment Drives", accountable_owner: "", owner_user_id: "", deadline: "", status: "Open", outcome: "" });
+  const blankAction = (seed?: { state_code?: string; issue?: string }): FollowUp => ({
+    state_code: seed?.state_code || batch?.state_code || period.state_code,
+    reporting_year: String(batch?.reporting_year || period.reporting_year),
+    reporting_month: String(batch?.reporting_month || period.reporting_month),
+    issue: seed?.issue || "",
+    agreed_action: "",
+    source_dashboard: "Enrolment Drives",
+    accountable_owner: "",
+    owner_user_id: "",
+    deadline: "",
+    status: "Open",
+    outcome: "",
+  });
   const [actionDraft, setActionDraft] = React.useState<FollowUp | null>(null);
   const [actionFiles, setActionFiles] = React.useState<File[]>([]);
   const [actionEvidenceType, setActionEvidenceType] = React.useState("Field Report");
@@ -223,6 +241,22 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
   React.useEffect(() => {
     if (catalogue?.states.length === 1) setPeriod((current) => current.state_code ? current : { ...current, state_code: catalogue.states[0].code });
   }, [catalogue]);
+  React.useEffect(() => {
+    const tab = searchParams.get("tab");
+    if (tab !== "actions" || !catalogue) return;
+    const stateCode = searchParams.get("state") || defaultStateId || "";
+    const issue = searchParams.get("issue") || "";
+    void run(async () => {
+      setActions((await api.actions()).data);
+      setMode("actions");
+      if (catalogue.permissions?.manage) {
+        setActionDraft(blankAction({ state_code: stateCode || undefined, issue: issue || undefined }));
+        setActionFiles([]);
+      }
+      setSearchParams({}, { replace: true });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [catalogue, searchParams]);
   const openBatch = async (id: string, preferredStep?: number) => {
     const response = await api.batch(id);
     const step = preferredStep ?? (["awaiting_review", "endorsed", "submitted"].includes(response.data.status) ? 3 : 1);
@@ -241,40 +275,53 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
     if (next === "legacy") setHistorical((await api.legacy()).data);
     setMode(next);
   });
-  const addActivityToList = () => run(async () => {
+  const persistActivity = async (complete: boolean, clearAfter: boolean) => {
     if (!batch) return;
-    if (!validateActivity()) return;
-    if (!catalogue?.drive_types.some((type) => type.key === draft.drive_type)) throw new Error("Select a drive type before adding the activity");
-    if (draft.activity_status === "Completed" && !files.length && !draft.evidence?.length) throw new Error("Select supporting evidence for the completed activity");
-    const response = await api.saveActivity(batch.reference_id, draft.reference_id, { ...draft, complete: true });
-    const id = response.data.reference_id;
-    const savedBatch = (await api.batch(batch.reference_id)).data as Batch;
-    const saved = savedBatch.activities?.find((activity) => activity.reference_id === id);
-    if (saved) setDraft(toDraft(saved));
-    setBatch(savedBatch);
+    if (complete) {
+      if (!validateActivity()) return;
+      if (!catalogue?.drive_types.some((type) => type.key === draft.drive_type)) throw new Error("Select a drive type before saving the activity");
+      if (draft.activity_status === "Completed" && !files.length && !draft.evidence?.length) throw new Error("Select supporting evidence for the completed activity");
+    } else if (!draft.drive_type && !draft.activity_category && !draft.specific_activity.trim()) {
+      throw new Error("Enter at least a drive type or activity details before saving a draft");
+    }
+    const response = await api.saveActivity(batch.reference_id, draft.reference_id, { ...draft, complete });
+    const id = response.data.reference_id as string;
     if (files.length) {
+      if (!draft.evidence_type) throw new Error("Select an evidence type before uploading files");
       await api.evidence("activities", id, draft.evidence_type, files);
       setFiles([]);
     }
-    const finalBatch = (await api.batch(batch.reference_id)).data;
+    const finalBatch = (await api.batch(batch.reference_id)).data as Batch;
     setBatch(finalBatch);
-    toast.success(draft.reference_id ? "Activity updated in the list" : "Activity added to the list");
-    setDraft(emptyActivity());
-    setFiles([]);
-    setActivityErrors({});
+    if (clearAfter) {
+      toast.success(complete ? "Activity saved. Add another activity below." : "Draft activity saved");
+      setDraft(emptyActivity());
+      setActivityFormKey((value) => value + 1);
+      setActivityErrors({});
+    } else {
+      const saved = finalBatch.activities?.find((activity) => activity.reference_id === id);
+      if (saved) setDraft(toDraft(saved));
+      toast.success(complete ? "Activity saved" : "Draft activity saved");
+      setActivityErrors({});
+    }
     setBatchStep(1);
     setMode("batch");
     if (activityFormRef.current) {
       activityFormRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
     }
-  });
+  };
+  const saveActivity = () => run(async () => { await persistActivity(true, false); });
+  const saveActivityDraft = () => run(async () => { await persistActivity(false, false); });
+  const addAnotherActivity = () => run(async () => { await persistActivity(true, true); });
   const requireActivityListed = () => {
-    if (canEdit && (hasPendingDriveActivity(draft) || files.length)) throw new Error("Add the current activity to the list before continuing, or cancel the entry.");
+    if (canEdit && (hasPendingDriveActivity(draft) || files.length)) throw new Error("Save the current activity before continuing, or cancel the entry.");
   };
   const saveReportDraft = () => run(async () => {
-    requireActivityListed();
+    if (canEdit && (hasPendingDriveActivity(draft) || files.length)) {
+      await persistActivity(false, false);
+    }
     await refresh();
-    toast.success("Draft saved");
+    toast.success("Report draft kept in register");
     setMode("register");
   });
   const leaveActivityForm = (step: number) => run(async () => {
@@ -338,11 +385,14 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
     const stateCode = current?.state_code || period.state_code;
     const zoneCode = current?.zonal_code || catalogue?.states.find((state) => state.code === stateCode)?.zonal_code || "";
     const zoneName = catalogue?.zones?.find((zone) => zone.zonal_code === zoneCode)?.description || zoneCode;
+    const officerName = current?.reporting_officer || authUser?.name || authUser?.staff_id || "—";
     return <Section title="Reporting information">
       <Field label="State / FCT" required><Dropdown value={stateCode} options={stateOptions} onChange={(value) => setPeriod((previous) => ({ ...previous, state_code: value }))} disabled={!!current || catalogue?.states.length === 1} placeholder="Select State / FCT" /></Field>
-      <Field label="Zone"><Input value={zoneName} readOnly placeholder="Derived from State / FCT" /></Field>
+      <Field label="Zone"><Input value={zoneName} readOnly placeholder="Auto-derived from State" /></Field>
       <Field label="Reporting month" required><Input type="month" min="2000-01" max="2100-12" disabled={!!current} value={driveReportingMonth(current?.reporting_year ?? period.reporting_year, current?.reporting_month ?? period.reporting_month)} onChange={(event) => setPeriod((previous) => ({ ...previous, ...driveReportingPeriod(event.target.value) }))} /></Field>
-      <Field label="Number of planned activities"><Input type="number" min={0} step={1} value={current ? planned : period.planned_activities} disabled={!!current && (!canEdit || batchStep !== 0 || mode !== "batch")} onChange={(event) => current ? setPlanned(event.target.value) : setPeriod((previous) => ({ ...previous, planned_activities: event.target.value }))} placeholder="Enter planned activities" /></Field>
+      <Field label="Reporting officer"><Input value={officerName} readOnly placeholder="Name / login identity" /></Field>
+      <Field label="Number of planned activities"><Input type="number" min={0} step={1} value={current ? planned : period.planned_activities} disabled={!!current && (!canEdit || batchStep !== 0 || mode !== "batch")} onChange={(event) => current ? setPlanned(event.target.value) : setPeriod((previous) => ({ ...previous, planned_activities: event.target.value }))} placeholder="Enter once" /></Field>
+      <Field label="Reporting batch ID"><Input value={current?.reference_id || "System-generated after continue"} readOnly placeholder="System-generated" /></Field>
     </Section>;
   };
 
@@ -604,6 +654,11 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
         )}
         {mode === "register" && !showCreate && permissions.create && <Button disabled={busy} className={ACTION} onClick={() => setShowCreate(true)}><Plus className="w-4 h-4" />New Enrolment Drive Report</Button>}
         {mode === "batch" && canEdit && batchStep === 1 && <Button disabled={busy} className={ACTION} onClick={() => startActivity()}><Plus className="w-4 h-4" />Add activity</Button>}
+        {mode === "batch" && canEdit && batchStep === 1 && (
+          <Button variant="outline" size="sm" className="gap-2 border-[#d4e8dc] text-[#145c3f]" disabled={busy} onClick={() => void saveReportDraft()}>
+            <Save className="w-4 h-4" />Save Draft
+          </Button>
+        )}
         {mode === "actions" && !actionDraft && permissions.manage && <Button className={ACTION} disabled={busy} onClick={() => { setActionDraft(blankAction()); setActionFiles([]); }}><Plus className="w-4 h-4" />Record Action</Button>}
       </div>
     </div>
@@ -646,7 +701,8 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
               <ReviewRow label="State / Zone" value={`${stateName(batch.state_code)} · ${catalogue?.zones?.find((z) => z.zonal_code === batch.zonal_code)?.description || batch.zonal_code || "—"}`} />
               <ReviewRow label="Planned activities" value={batch.planned_activities != null ? formatCount(batch.planned_activities) : "—"} />
               <ReviewRow label="Activities recorded" value={formatCount(batch.activities?.length || 0)} />
-              <ReviewRow label="Reporting officer" value={batch.creator_name || "—"} />
+              <ReviewRow label="Reporting officer" value={batch.reporting_officer || "—"} />
+              <ReviewRow label="Reporting batch ID" value={batch.reference_id} />
               <ReviewRow label="Submission date" value={batch.submitted_at ? formatDate(batch.submitted_at) : "—"} />
               <ReviewRow label="Reporting deadline" value={batch.reporting_deadline || "—"} />
               <ReviewRow label="Status" value={statusLabel(batch.status)} />
@@ -918,28 +974,52 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
                   </FieldSection>
                 </fieldset>
 
-                {/* Form Action Footer */}
+                {/* Form Action Footer — matches design: Save Draft / Save Activity / Add Another */}
                 <div className="flex flex-wrap items-center justify-between gap-2 pt-4 border-t border-[#e8f3ec]">
-                  {draft.reference_id ? (
+                  <div className="flex flex-wrap items-center gap-2">
+                    {draft.reference_id ? (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="gap-2 text-slate-600"
+                        disabled={busy}
+                        onClick={() => startActivity()}
+                      >
+                        <ArrowLeft className="w-4 h-4" /> Cancel edit
+                      </Button>
+                    ) : null}
                     <Button
-                      variant="ghost"
+                      type="button"
+                      variant="outline"
                       size="sm"
-                      className="gap-2 text-slate-600"
-                      disabled={busy}
-                      onClick={() => startActivity()}
+                      className="gap-2 border-[#d4e8dc] text-[#145c3f] hover:bg-[#e8f5ee]"
+                      disabled={busy || !canEdit}
+                      onClick={() => void saveActivityDraft()}
                     >
-                      <ArrowLeft className="w-4 h-4" /> Cancel edit
+                      <Save className="w-4 h-4" /> Save Draft
                     </Button>
-                  ) : <div />}
+                  </div>
 
-                  <Button
-                    type="button"
-                    className="bg-[#145c3f] hover:bg-[#0f3d2e] text-white gap-2 text-xs font-semibold shadow-xs"
-                    disabled={busy || !canEdit}
-                    onClick={() => void addActivityToList()}
-                  >
-                    <Plus className="w-4 h-4" /> {draft.reference_id ? "Update in list" : "Add to list"}
-                  </Button>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="gap-2 border-[#1a7a52] text-[#0f3d2e] hover:bg-[#eef6f1]"
+                      disabled={busy || !canEdit}
+                      onClick={() => void addAnotherActivity()}
+                    >
+                      <Plus className="w-4 h-4" /> Add Another Activity
+                    </Button>
+                    <Button
+                      type="button"
+                      className="bg-[#145c3f] hover:bg-[#0f3d2e] text-white gap-2 text-xs font-semibold shadow-xs"
+                      disabled={busy || !canEdit}
+                      onClick={() => void saveActivity()}
+                    >
+                      <Save className="w-4 h-4" /> {draft.reference_id ? "Update Activity" : "Save Activity"}
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -987,7 +1067,7 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
         {permissions.create && <Card className="rounded-2xl border-[#d4e8dc] shadow-sm"><CardContent className="p-4"><Field label="Add historical activities to report"><Dropdown value={batch?.reference_id || ""} placeholder="Select reporting period" options={batches.filter((row) => editable(row)).map((row) => ({ value: row.reference_id, label: `${stateName(row.state_code)} · ${monthLabel(row.reporting_month)} ${row.reporting_year}` }))} onChange={(value) => void run(async () => { const response = await api.batch(value); setBatch(response.data); })} /></Field></CardContent></Card>}
         {searchInput}
         <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden"><CardHeader className="pb-3 border-b border-[#d4e8dc]"><CardTitle className="text-sm font-bold">Historical activities</CardTitle></CardHeader><CardContent className="p-0"><div className="overflow-x-auto"><Table><TableHeader><TableRow className="bg-[#f0fdf7] hover:bg-[#f0fdf7]">{["Period", "State", "Activity", "Reported enrolments", "Evidence", "Action"].map((label) => <TableHead className={`text-xs font-bold text-slate-600 whitespace-nowrap ${label === "Action" ? "text-right" : ""}`} key={label}>{label}</TableHead>)}</TableRow></TableHeader><TableBody>
-          {historical.filter((activity) => matchesSearch([activity, stateName(activity.state_code), monthLabel(activity.reporting_month)])).map((activity) => <TableRow key={activity.reference_id} className="hover:bg-[#f8fdfb] border-b border-[#e8f3ec] last:border-0"><TableCell className="text-sm font-semibold text-[#0f3d2e] whitespace-nowrap">{monthLabel(activity.reporting_month)} {activity.reporting_year}</TableCell><TableCell className="text-sm whitespace-nowrap">{stateName(activity.state_code)}</TableCell><TableCell><p className="text-sm font-medium">{activity.activity_category}</p><p className="text-[10px] font-mono text-slate-400">{activity.reference_id}</p></TableCell><TableCell className="text-sm font-semibold text-[#145c3f] tabular-nums">{activity.new_enrolments ?? "—"}</TableCell><TableCell><EvidenceFiles files={activity.evidence || []} /></TableCell><TableCell className="text-right">{canEdit && batch && batch.state_code === activity.state_code && Number(batch.reporting_year) === Number(activity.reporting_year) && Number(batch.reporting_month) === Number(activity.reporting_month) && <Button disabled={busy} variant="ghost" size="sm" className="h-8 gap-1.5 text-[#145c3f] hover:bg-[#eef6f1]" onClick={() => void run(async () => { await api.attachLegacy(batch.reference_id, activity.reference_id); setHistorical((await api.legacy()).data); setBatch((await api.batch(batch.reference_id)).data); toast.success("Activity added to the report"); })}><Plus className="w-3.5 h-3.5" />Add to report</Button>}</TableCell></TableRow>)}
+          {historical.filter((activity) => matchesSearch([activity, stateName(activity.state_code), monthLabel(activity.reporting_month)])).map((activity) => <TableRow key={activity.reference_id} className="hover:bg-[#f8fdfb] border-b border-[#e8f3ec] last:border-0"><TableCell className="text-sm font-semibold text-[#0f3d2e] whitespace-nowrap">{monthLabel(activity.reporting_month)} {activity.reporting_year}</TableCell><TableCell className="text-sm whitespace-nowrap">{stateName(activity.state_code)}</TableCell><TableCell><p className="text-sm font-medium">{activity.activity_category}</p><p className="text-[10px] font-mono text-slate-400">{activity.reference_id}</p></TableCell><TableCell className="text-sm font-semibold text-[#145c3f] tabular-nums">{activity.enrolment_count ?? activity.new_enrolments ?? "—"}</TableCell><TableCell><EvidenceFiles files={activity.evidence || []} /></TableCell><TableCell className="text-right">{canEdit && batch && batch.state_code === activity.state_code && Number(batch.reporting_year) === Number(activity.reporting_year) && Number(batch.reporting_month) === Number(activity.reporting_month) && <Button disabled={busy} variant="ghost" size="sm" className="h-8 gap-1.5 text-[#145c3f] hover:bg-[#eef6f1]" onClick={() => void run(async () => { await api.attachLegacy(batch.reference_id, activity.reference_id); setHistorical((await api.legacy()).data); setBatch((await api.batch(batch.reference_id)).data); toast.success("Activity added to the report"); })}><Plus className="w-3.5 h-3.5" />Add to report</Button>}</TableCell></TableRow>)}
         </TableBody></Table></div>{!historical.filter((activity) => matchesSearch([activity, stateName(activity.state_code), monthLabel(activity.reporting_month)])).length && <div className="py-16 text-center text-sm text-slate-400">No historical activities found.</div>}</CardContent></Card>
       </>}
     </>}

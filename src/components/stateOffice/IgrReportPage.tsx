@@ -2,8 +2,8 @@ import * as React from "react";
 import { Loader2, Save, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import StateOfficeFormShell from "./StateOfficeFormShell";
 import { IGR_SERVICE_TYPES, labelOf } from "./constants";
 
@@ -11,7 +11,7 @@ function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return (
     <textarea
       {...props}
-      className="w-full min-h-[4.5rem] rounded-xl px-3.5 py-2 text-sm bg-[#f4f7f5] border-2 border-[#1a7a52] text-slate-800 shadow-xs outline-none hover:border-[#0f3d2e] hover:bg-white focus-visible:border-[#0f3d2e] focus-visible:bg-white focus-visible:ring-3 focus-visible:ring-[#1a7a52]/25"
+      className="w-full min-h-[4.5rem] rounded-lg px-3.5 py-2 text-sm bg-white border border-[#c5ddd0] text-slate-800 shadow-xs outline-none hover:border-[#0f3d2e] focus-visible:border-[#0f3d2e] focus-visible:ring-3 focus-visible:ring-[#1a7a52]/25"
     />
   );
 }
@@ -33,6 +33,8 @@ const blank = () => ({
   payment_date: "",
   remarks: "",
 });
+
+const inputCls = "h-9 text-sm bg-white border border-[#c5ddd0] rounded-lg";
 
 export default function IgrReportPage({
   reportId, onBack, onSubmitted, defaultZoneId, defaultStateId,
@@ -81,7 +83,6 @@ export default function IgrReportPage({
       }}
       buildPayload={(base) => ({
         ...base,
-        // Top header Date is the only transaction date
         entry_date: base.submission_date || new Date().toISOString().slice(0, 10),
         service_type: entry.service_type,
         principal_name: entry.principal_name.trim(),
@@ -94,82 +95,139 @@ export default function IgrReportPage({
       })}
     >
       {({ saving, submitting, persist, requestSubmit }) => (
-        <div className="rounded-2xl border border-[#d4e8dc] bg-white p-4 md:p-5 space-y-4">
-          <div>
-            <h3 className="text-sm font-bold text-slate-800">Transaction details</h3>
+        <div className="rounded-2xl border border-[#d4e8dc] bg-white overflow-hidden">
+          <div className="px-4 md:px-5 py-3 border-b border-[#e6f0ea] bg-[#f8fbf9]">
+            <p className="text-sm font-bold text-slate-800">Transaction details</p>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Enter one IGR receipt for this date. Required fields are marked.
+            </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label>Service type <span className="text-red-500">*</span></Label>
-              <Select value={entry.service_type} onValueChange={(v) => set("service_type", v)}>
-                <SelectTrigger displayValue={labelOf(IGR_SERVICE_TYPES, entry.service_type, "Select service")}>
-                  <SelectValue placeholder="Select service" />
-                </SelectTrigger>
-                <SelectContent>
-                  {IGR_SERVICE_TYPES.map((o) => (
-                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-[#f0fdf7] hover:bg-[#f0fdf7] border-[#d4e8dc]">
+                  <TableHead className="text-xs font-bold text-slate-600 w-[36%]">Field</TableHead>
+                  <TableHead className="text-xs font-bold text-slate-600">Value</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow className="border-[#e6f0ea] hover:bg-[#f8fdfb]">
+                  <TableCell className="py-2.5 text-sm font-medium text-slate-800">
+                    Service type <span className="text-red-500">*</span>
+                  </TableCell>
+                  <TableCell className="py-2.5">
+                    <Select
+                      value={entry.service_type}
+                      onValueChange={(v) => set("service_type", v)}
+                      disabled={!canEdit}
+                    >
+                      <SelectTrigger
+                        className={inputCls}
+                        displayValue={labelOf(IGR_SERVICE_TYPES, entry.service_type, "Select service")}
+                      >
+                        <SelectValue placeholder="Select service" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {IGR_SERVICE_TYPES.map((o) => (
+                          <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </TableCell>
+                </TableRow>
 
-            <div className="space-y-1.5">
-              <Label>Name of principal <span className="text-red-500">*</span></Label>
-              <Input
-                placeholder="Full name"
-                value={entry.principal_name}
-                onChange={(e) => set("principal_name", e.target.value)}
-              />
-            </div>
+                <TableRow className="border-[#e6f0ea] hover:bg-[#f8fdfb]">
+                  <TableCell className="py-2.5 text-sm font-medium text-slate-800">
+                    Name of principal <span className="text-red-500">*</span>
+                  </TableCell>
+                  <TableCell className="py-2.5">
+                    <Input
+                      placeholder="Full name"
+                      className={inputCls}
+                      value={entry.principal_name}
+                      onChange={(e) => set("principal_name", e.target.value)}
+                      disabled={!canEdit}
+                    />
+                  </TableCell>
+                </TableRow>
 
-            <div className="space-y-1.5">
-              <Label>Receipt number <span className="text-red-500">*</span></Label>
-              <Input
-                placeholder="Enter receipt"
-                value={entry.receipt_no}
-                onChange={(e) => set("receipt_no", e.target.value)}
-              />
-            </div>
+                <TableRow className="border-[#e6f0ea] hover:bg-[#f8fdfb]">
+                  <TableCell className="py-2.5 text-sm font-medium text-slate-800">
+                    Receipt number <span className="text-red-500">*</span>
+                  </TableCell>
+                  <TableCell className="py-2.5">
+                    <Input
+                      placeholder="Enter receipt"
+                      className={inputCls}
+                      value={entry.receipt_no}
+                      onChange={(e) => set("receipt_no", e.target.value)}
+                      disabled={!canEdit}
+                    />
+                  </TableCell>
+                </TableRow>
 
-            <div className="space-y-1.5">
-              <Label>Bill / RRR number</Label>
-              <Input
-                placeholder="Enter RRR"
-                value={entry.bill_rrr_no}
-                onChange={(e) => set("bill_rrr_no", e.target.value)}
-              />
-            </div>
+                <TableRow className="border-[#e6f0ea] hover:bg-[#f8fdfb]">
+                  <TableCell className="py-2.5 text-sm font-medium text-slate-800">Bill / RRR number</TableCell>
+                  <TableCell className="py-2.5">
+                    <Input
+                      placeholder="Enter RRR"
+                      className={inputCls}
+                      value={entry.bill_rrr_no}
+                      onChange={(e) => set("bill_rrr_no", e.target.value)}
+                      disabled={!canEdit}
+                    />
+                  </TableCell>
+                </TableRow>
 
-            <div className="space-y-1.5">
-              <Label>Amount (₦) <span className="text-red-500">*</span></Label>
-              <Input
-                type="number"
-                min="0"
-                step="0.01"
-                placeholder="Enter amount"
-                value={entry.amount}
-                onChange={(e) => set("amount", e.target.value)}
-              />
-            </div>
+                <TableRow className="border-[#e6f0ea] hover:bg-[#f8fdfb]">
+                  <TableCell className="py-2.5 text-sm font-medium text-slate-800">
+                    Amount (₦) <span className="text-red-500">*</span>
+                  </TableCell>
+                  <TableCell className="py-2.5">
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      placeholder="Enter amount"
+                      className={`${inputCls} tabular-nums`}
+                      value={entry.amount}
+                      onChange={(e) => set("amount", e.target.value)}
+                      disabled={!canEdit}
+                    />
+                  </TableCell>
+                </TableRow>
 
-            <div className="space-y-1.5">
-              <Label>Payment date</Label>
-              <Input type="date" value={entry.payment_date} onChange={(e) => set("payment_date", e.target.value)} />
-            </div>
+                <TableRow className="border-[#e6f0ea] hover:bg-[#f8fdfb]">
+                  <TableCell className="py-2.5 text-sm font-medium text-slate-800">Payment date</TableCell>
+                  <TableCell className="py-2.5">
+                    <Input
+                      type="date"
+                      className={inputCls}
+                      value={entry.payment_date}
+                      onChange={(e) => set("payment_date", e.target.value)}
+                      disabled={!canEdit}
+                    />
+                  </TableCell>
+                </TableRow>
 
-            <div className="space-y-1.5 md:col-span-2">
-              <Label>Remarks</Label>
-              <Textarea
-                rows={3}
-                placeholder="Optional notes"
-                value={entry.remarks}
-                onChange={(e) => set("remarks", e.target.value)}
-              />
-            </div>
+                <TableRow className="border-[#e6f0ea] hover:bg-[#f8fdfb]">
+                  <TableCell className="py-2.5 text-sm font-medium text-slate-800 align-top pt-3">Remarks</TableCell>
+                  <TableCell className="py-2.5">
+                    <Textarea
+                      rows={3}
+                      placeholder="Optional notes"
+                      value={entry.remarks}
+                      onChange={(e) => set("remarks", e.target.value)}
+                      disabled={!canEdit}
+                    />
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
           </div>
 
-          <div className="flex flex-wrap items-center justify-end gap-3 pt-2 border-t border-[#e6f0ea]">
+          <div className="flex flex-wrap items-center justify-end gap-3 px-4 md:px-5 py-3 border-t border-[#e6f0ea]">
             {canEdit && (
               <>
                 <Button

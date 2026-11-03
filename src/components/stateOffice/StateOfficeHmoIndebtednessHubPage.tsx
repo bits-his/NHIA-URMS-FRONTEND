@@ -7,11 +7,11 @@ import { Button } from "@/components/ui/button";
 import {
   HMO_INDEBTEDNESS_DEFAULT_TAB,
   HMO_INDEBTEDNESS_NAV_TITLE,
-  HMO_INDEBTEDNESS_PATH,
   HMO_INDEBTEDNESS_TABS,
   type HmoIndebtednessTabKey,
   type HmoReconStream,
 } from "./hmoIndebtednessTypes";
+import { COMPLIANCE_HUB_PATH } from "./complianceHubTypes";
 import StateOfficeHmoMasterPage from "./StateOfficeHmoMasterPage";
 import StateOfficeHmoReconPage from "./StateOfficeHmoReconPage";
 import StateOfficeHmoIndebtednessPage from "./StateOfficeHmoIndebtednessPage";
@@ -20,6 +20,8 @@ interface Props {
   onBack: () => void;
   defaultZoneId?: string | null;
   defaultStateId?: string | null;
+  /** When true, hide outer chrome (parent hub owns title/back) and use `hmoTab` query. */
+  embedded?: boolean;
 }
 
 const TAB_KEYS = new Set<HmoIndebtednessTabKey>(
@@ -50,40 +52,50 @@ export default function StateOfficeHmoIndebtednessHubPage({
   onBack,
   defaultZoneId,
   defaultStateId,
+  embedded = false,
 }: Props) {
   const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab = parseTab(searchParams.get("tab"));
+  const tabParamKey = embedded ? "hmoTab" : "tab";
+  const activeTab = parseTab(searchParams.get(tabParamKey));
   const activeMeta = HMO_INDEBTEDNESS_TABS.find((t) => t.key === activeTab) ?? HMO_INDEBTEDNESS_TABS[0];
 
   const setActiveTab = (tab: HmoIndebtednessTabKey) => {
     const next = new URLSearchParams(searchParams);
-    if (tab === HMO_INDEBTEDNESS_DEFAULT_TAB) next.delete("tab");
-    else next.set("tab", tab);
-    next.delete("stream");
+    if (embedded) {
+      next.set("tab", "hmo-indebtedness");
+      if (tab === HMO_INDEBTEDNESS_DEFAULT_TAB) next.delete("hmoTab");
+      else next.set("hmoTab", tab);
+    } else {
+      if (tab === HMO_INDEBTEDNESS_DEFAULT_TAB) next.delete("tab");
+      else next.set("tab", tab);
+      next.delete("stream");
+    }
     setSearchParams(next, { replace: true });
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#f4f7f5]">
-      <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3.5 flex items-center justify-between sticky top-0 z-30 gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <Button variant="ghost" size="icon" onClick={onBack} className="rounded-full shrink-0" aria-label="Back">
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-          <div className="min-w-0">
-            <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">
-              {HMO_INDEBTEDNESS_NAV_TITLE}
-            </h2>
-            <p className="text-xs text-slate-500 truncate">
-              {activeMeta.title}
-            </p>
+    <div className={`flex flex-col h-full ${embedded ? "" : "bg-[#f4f7f5]"}`}>
+      {!embedded && (
+        <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3.5 flex items-center justify-between sticky top-0 z-30 gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <Button variant="ghost" size="icon" onClick={onBack} className="rounded-full shrink-0" aria-label="Back">
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+            <div className="min-w-0">
+              <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">
+                {HMO_INDEBTEDNESS_NAV_TITLE}
+              </h2>
+              <p className="text-xs text-slate-500 truncate">
+                {activeMeta.title}
+              </p>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
-      <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 sticky top-[57px] z-20">
+      <div className={`bg-white border-b border-[#d4e8dc] px-4 md:px-6 ${embedded ? "sticky top-0 z-10" : "sticky top-[57px] z-20"}`}>
         <div
-          className="flex gap-0 overflow-x-auto -mb-px"
+          className="flex gap-4 overflow-x-auto -mb-px"
           role="tablist"
           aria-label="HMO Indebtedness sections"
         >
@@ -97,16 +109,13 @@ export default function StateOfficeHmoIndebtednessHubPage({
                 role="tab"
                 aria-selected={active}
                 onClick={() => setActiveTab(tab.key)}
-                className={`group relative shrink-0 inline-flex items-center gap-2 px-4 py-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors outline-none focus-visible:bg-[#f4f7f5] ${
+                className={`group relative shrink-0 inline-flex items-center gap-2 px-3.5 py-3 text-xs font-bold whitespace-nowrap border-b-2 transition-all outline-none ${
                   active
                     ? "border-[#145c3f] text-[#145c3f]"
-                    : "border-transparent text-slate-500 hover:text-[#0f3d2e] hover:border-[#c5ddd0]"
+                    : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300"
                 }`}
               >
-                <Icon
-                  className={`h-4 w-4 shrink-0 ${active ? "text-[#145c3f]" : "text-slate-400 group-hover:text-[#145c3f]"}`}
-                  strokeWidth={2}
-                />
+                <Icon className="size-4 shrink-0" strokeWidth={2} />
                 <span>{tab.tabLabel}</span>
               </button>
             );
@@ -146,7 +155,7 @@ export default function StateOfficeHmoIndebtednessHubPage({
   );
 }
 
-/** Redirect legacy per-sheet URLs into the hub with the matching tab. */
+/** Redirect legacy per-sheet URLs into the compliance hub HMO tab. */
 export function HmoIndebtednessLegacyRedirect({
   tab,
 }: {
@@ -157,9 +166,9 @@ export function HmoIndebtednessLegacyRedirect({
   const navigate = useNavigate();
   React.useEffect(() => {
     const params = new URLSearchParams();
-    if (tab !== HMO_INDEBTEDNESS_DEFAULT_TAB) params.set("tab", tab);
-    const qs = params.toString();
-    navigate(`${HMO_INDEBTEDNESS_PATH}${qs ? `?${qs}` : ""}`, { replace: true });
+    params.set("tab", "hmo-indebtedness");
+    if (tab !== HMO_INDEBTEDNESS_DEFAULT_TAB) params.set("hmoTab", tab);
+    navigate(`${COMPLIANCE_HUB_PATH}?${params.toString()}`, { replace: true });
   }, [navigate, tab]);
   return null;
 }

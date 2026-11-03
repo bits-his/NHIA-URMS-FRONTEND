@@ -8,9 +8,10 @@ import ChallengesSupportDashboardTab from "./ChallengesSupportDashboardTab";
 
 interface Props {
   onBack: () => void;
+  embedded?: boolean;
 }
 
-export default function ChallengesSupportDashboard({ onBack }: Props) {
+export default function ChallengesSupportDashboard({ onBack, embedded = false }: Props) {
   const navigate = useNavigate();
   const [catalogue, setCatalogue] = React.useState<any>(null);
   const [challenges, setChallenges] = React.useState<any[]>([]);
@@ -39,30 +40,32 @@ export default function ChallengesSupportDashboard({ onBack }: Props) {
   }, [load]);
 
   return (
-    <div className="flex flex-col h-full bg-[#f4f7f5]">
-      <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30 gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <Button variant="ghost" size="icon" className="rounded-full shrink-0" aria-label="Back" onClick={onBack}>
-            <ArrowLeft className="w-5 h-5" />
+    <div className={`flex flex-col h-full ${embedded ? "" : "bg-[#f4f7f5]"}`}>
+      {!embedded && (
+        <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30 gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <Button variant="ghost" size="icon" className="rounded-full shrink-0" aria-label="Back" onClick={onBack}>
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+            <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">
+              Challenges & Support Dashboard
+            </h2>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8.5 gap-1.5 border border-slate-300 text-slate-700 bg-white hover:bg-[#f4f7f5] text-xs font-bold rounded-sm shadow-2xs"
+            disabled={syncing || loading}
+            onClick={() => {
+              setSyncing(true);
+              void load();
+            }}
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${syncing ? "animate-spin" : ""}`} />
+            <span>Sync</span>
           </Button>
-          <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">
-            Challenges & Support Dashboard
-          </h2>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-8.5 gap-1.5 border border-slate-300 text-slate-700 bg-white hover:bg-[#f4f7f5] text-xs font-bold rounded-sm shadow-2xs"
-          disabled={syncing || loading}
-          onClick={() => {
-            setSyncing(true);
-            void load();
-          }}
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${syncing ? "animate-spin" : ""}`} />
-          <span>Sync</span>
-        </Button>
-      </div>
+      )}
       <ScrollArea className="flex-1">
         <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-4">
           {error && (

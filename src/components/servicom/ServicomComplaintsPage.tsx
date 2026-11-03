@@ -66,6 +66,8 @@ interface Props {
   canReview?: boolean;
   /** State-level register: list only the signed-in user's state. */
   stateScope?: boolean;
+  /** When true, hide the standalone page title chrome (parent hub owns it). */
+  embedded?: boolean;
 }
 
 type Mode = "list" | "register" | "manage" | "view";
@@ -620,6 +622,7 @@ function officerMatchesUser(
 export default function ServicomComplaintsPage({
   defaultStateId, defaultZoneId, userName, userStaffId, userRole, userDepartment,
   canCreate = true, canReview = true, stateScope: stateScopeProp = false,
+  embedded = false,
 }: Props) {
   const [searchParams, setSearchParams] = useSearchParams();
   const roleKey = String(userRole ?? "");
@@ -3991,11 +3994,19 @@ export default function ServicomComplaintsPage({
   ];
 
   return (
-    <div className="bg-[#f4f7f5] min-h-full">
-      <div className="bg-white border-b px-4 md:px-5 py-2.5 flex items-center justify-between gap-3 sticky top-0 z-30">
+    <div className={`${embedded ? "" : "bg-[#f4f7f5]"} min-h-full h-full overflow-auto`}>
+      <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-5 py-2.5 flex items-center justify-between gap-3 sticky top-0 z-10">
         <div className="min-w-0">
-          <h2 className="text-base font-bold tracking-tight truncate">Complaints Management</h2>
-          <p className="text-[11px] text-slate-500">{listStats.total} complaint{listStats.total === 1 ? "" : "s"}</p>
+          {!embedded ? (
+            <>
+              <h2 className="text-base font-bold tracking-tight truncate">Complaints Management</h2>
+              <p className="text-[11px] text-slate-500">{listStats.total} complaint{listStats.total === 1 ? "" : "s"}</p>
+            </>
+          ) : (
+            <p className="text-xs text-slate-500 truncate">
+              {listStats.total} complaint{listStats.total === 1 ? "" : "s"} in register
+            </p>
+          )}
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <Button variant="outline" size="sm" onClick={load} disabled={loading} className="h-8 gap-1.5 text-xs">

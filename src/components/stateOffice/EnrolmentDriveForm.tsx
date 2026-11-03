@@ -610,8 +610,16 @@ export default function EnrolmentDriveForm({ reportType, reportId, onBack, onCan
                       <Field label="Number of Leads Generated">
                         <Input type="number" min={0} value={entry.leads_generated} onChange={(e) => set("leads_generated", e.target.value)} placeholder="0" />
                       </Field>
-                      <Field label="Number of New Enrolments">
-                        <Input type="number" min={0} value={entry.new_enrolments} onChange={(e) => set("new_enrolments", e.target.value)} placeholder="0" />
+                      <Field label="Linked enrolments (auto)">
+                        <Input
+                          type="number"
+                          min={0}
+                          value={entry.new_enrolments}
+                          readOnly
+                          disabled
+                          placeholder="Calculated from linked enrolment records"
+                          title="Enrolment counts are calculated from linked enrolment records in the Enrolment Drives workspace"
+                        />
                       </Field>
                     </FieldSection>
 

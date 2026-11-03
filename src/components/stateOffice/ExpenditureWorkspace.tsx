@@ -3,7 +3,6 @@ import {
   ArrowLeft,
   RefreshCw,
   Plus,
-  Eye,
 } from "lucide-react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
@@ -17,6 +16,7 @@ import { EXPENDITURE_SUB_HEADS, formatNaira, monthLabel, quarterFromMonth, MONTH
 import ExpenditureProfileReportPage from "./ExpenditureProfileReportPage";
 import ExpenditureProfileReportDetail from "./ExpenditureProfileReportDetail";
 import { useStateOfficeAccess } from "@/src/access/createReviewAccess";
+import { FinanceRowActions, useFinanceFinalSubmit } from "./shared/FinanceRowActions";
 
 const STATUS_CONFIG: Record<string, { label: string; cls: string }> = {
   draft: { label: "Draft", cls: "bg-slate-100 text-slate-600 border-slate-200" },
@@ -32,6 +32,8 @@ interface Props {
   defaultZoneId?: string | null;
   defaultStateId?: string | null;
   userRole?: string;
+  /** Parent Finance page owns the page title and tabs. */
+  embedded?: boolean;
 }
 
 export default function ExpenditureWorkspace({
@@ -39,6 +41,7 @@ export default function ExpenditureWorkspace({
   defaultZoneId,
   defaultStateId,
   userRole,
+  embedded = false,
 }: Props) {
   const { canCreate } = useStateOfficeAccess();
   const [mode, setMode] = React.useState<"tabs" | "form" | "detail">("tabs");
@@ -122,6 +125,8 @@ export default function ExpenditureWorkspace({
     setRefreshKey((k) => k + 1);
     setTimeout(() => setSyncing(false), 600);
   };
+  const reloadList = React.useCallback(() => setRefreshKey((k) => k + 1), []);
+  const { finalBusy, requestFinalSubmit, modal: finalSubmitModal } = useFinanceFinalSubmit("expenditure-profile", reloadList);
 
   const handleBack = () => {
     if (mode !== "tabs") {
@@ -144,15 +149,6 @@ export default function ExpenditureWorkspace({
 
   const columns: ColumnDef<any>[] = React.useMemo(
     () => [
-      {
-        accessorKey: "reference_id",
-        header: "REF ID",
-        cell: ({ row }) => (
-          <span className="font-mono text-xs font-bold text-[#1a7a52]">
-            #{row.original.reference_id || row.original.id}
-          </span>
-        ),
-      },
       {
         id: "state_name",
         header: "State / FCT",
@@ -211,31 +207,38 @@ export default function ExpenditureWorkspace({
       {
         id: "actions",
         header: "Action",
-        cell: ({ row }) => (
-          <div className="flex items-center justify-end" onClick={(e) => e.stopPropagation()}>
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-7 px-2.5 text-xs font-bold text-[#1a7a52] border border-[#1a7a52]/40 bg-[#f4f7f5] hover:bg-[#e8f5ee] rounded-sm gap-1 shadow-2xs"
-              onClick={() => {
-                setSelectedId(row.original.id || row.original.reference_id);
+        cell: ({ row }) => {
+          const id = row.original.id || row.original.reference_id;
+          return (
+            <FinanceRowActions
+              status={row.original.status || "draft"}
+              canCreate={canCreate}
+              finalBusy={finalBusy}
+              onView={() => {
+                setSelectedId(id);
                 setMode("detail");
               }}
-            >
-              <Eye className="w-3.5 h-3.5" />
-              <span>View</span>
-            </Button>
-          </div>
-        ),
+              onUpdate={() => {
+                setEditingId(id);
+                setSelectedId(id);
+                setMode("form");
+              }}
+              onFinalSubmit={() => requestFinalSubmit(id)}
+            />
+          );
+        },
       },
     ],
-    []
+    [canCreate, finalBusy, requestFinalSubmit]
   );
 
+  const showOwnTitle = !embedded || mode !== "tabs";
+
   return (
-    <div className="flex flex-col h-full bg-[#f4f7f5]">
+    <div className={`flex flex-col h-full min-h-0 ${embedded ? "" : "bg-[#f4f7f5]"}`}>
       {/* Header */}
-      <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30 gap-3">
+      <div className={`bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3 flex items-center sticky top-0 z-30 gap-3 ${showOwnTitle ? "justify-between" : "justify-end"}`}>
+        {showOwnTitle && (
         <div className="flex items-center gap-3 min-w-0">
           <Button
             variant="ghost"
@@ -256,6 +259,7 @@ export default function ExpenditureWorkspace({
             </h2>
           </div>
         </div>
+        )}
 
         <div className="flex items-center gap-2 shrink-0">
           {mode === "detail" && detailStatus && (
@@ -430,6 +434,7 @@ export default function ExpenditureWorkspace({
           )}
         </div>
       </ScrollArea>
+      {finalSubmitModal}
     </div>
   );
 }

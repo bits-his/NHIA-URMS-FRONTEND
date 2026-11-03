@@ -31,6 +31,7 @@ interface Props {
   onBack: () => void;
   defaultStateId?: string | null;
   defaultZoneId?: string | null;
+  embedded?: boolean;
 }
 
 type FormState = {
@@ -144,7 +145,7 @@ function InfoField({ label, value }: { label: string; value: React.ReactNode }) 
   );
 }
 
-export default function StateOfficeWeeklyCompliancePage({ onBack, defaultStateId, defaultZoneId }: Props) {
+export default function StateOfficeWeeklyCompliancePage({ onBack, defaultStateId, defaultZoneId, embedded = false }: Props) {
   const { canCreate, createOnly } = useStateOfficeAccess();
   const user = useSelector((s: RootState) => s.auth.user) as any;
   const officer = React.useMemo(() => ({
@@ -549,9 +550,13 @@ export default function StateOfficeWeeklyCompliancePage({ onBack, defaultStateId
   }
 
   return (
-    <div className="flex flex-col h-full bg-slate-50/30">
-      <div className="bg-white border-b px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30 gap-3">
-        <h2 className="text-xl font-bold tracking-tight truncate">Weekly Compliance Reports</h2>
+    <div className={`flex flex-col h-full ${embedded ? "" : "bg-slate-50/30"}`}>
+      <div className={`bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-10 gap-3 ${embedded ? "" : ""}`}>
+        {!embedded ? (
+          <h2 className="text-xl font-bold tracking-tight truncate">Weekly Compliance Reports</h2>
+        ) : (
+          <p className="text-xs text-slate-500 truncate">Weekly compliance reports for deployed officers</p>
+        )}
         <div className="flex items-center gap-3 shrink-0">
           <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
