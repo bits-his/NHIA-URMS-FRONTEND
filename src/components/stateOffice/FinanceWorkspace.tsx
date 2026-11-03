@@ -60,8 +60,8 @@ export default function FinanceWorkspace({
 
   const shared = {
     onBack,
-    defaultZoneId,
-    defaultStateId,
+    defaultZoneId: params.get("zone_id") || defaultZoneId,
+    defaultStateId: params.get("state_id") || defaultStateId,
     userRole,
     embedded: true,
   };

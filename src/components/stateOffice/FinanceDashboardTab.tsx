@@ -1,17 +1,12 @@
 import * as React from "react";
 import {
   Building2,
-  TrendingUp,
   Receipt,
-  Wallet,
-  AlertCircle,
   ShieldCheck,
   CheckCircle2,
-  PieChart as PieIcon,
-  Users,
+  AlertCircle,
   ChevronRight,
   RotateCcw,
-  AlertTriangle,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -21,7 +16,6 @@ import {
   YAxis,
   Tooltip as RechartsTooltip,
   CartesianGrid,
-  Cell,
   Legend,
 } from "recharts";
 import { Button } from "@/components/ui/button";
@@ -30,7 +24,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { financeDashboardApi, stockApi } from "@/lib/api";
-import { IGR_SERVICE_TYPES, SSHIA_SUB_HEADS, MONTHS, formatNaira, labelOf } from "./constants";
+import { IGR_SERVICE_TYPES, MONTHS, formatNaira, formatNairaCompact, labelOf } from "./constants";
 
 interface Props {
   userRole?: string;
@@ -64,6 +58,14 @@ export default function FinanceDashboardTab({
   const isNational = userRole === "sdo" || userRole === "dg-ceo" || userRole === "admin" || !userRole;
   const isZonalCoordinator = lockZone || userRole === "soc-zonal-coordinator" || (userRole && userRole.includes("zonal") && !isNational);
   const isStateOffice = !!defaultStateId || (userRole && userRole.includes("state") && !isZonalCoordinator && !isNational);
+
+  /** PPT drill levels: national compares zones; zone compares states; state has no comparison charts. */
+  const viewScope: "national" | "zone" | "state" = isStateOffice || stateId !== "all"
+    ? "state"
+    : isZonalCoordinator || zoneId !== "all"
+      ? "zone"
+      : "national";
+  const showGeoComparison = viewScope !== "state";
 
   // Load zones list
   React.useEffect(() => {
@@ -160,18 +162,11 @@ export default function FinanceDashboardTab({
   }, [igr]);
 
   const igrStateData = React.useMemo(() => {
-    return (igr?.by_state || []).slice(0, 8).map((s: any) => ({
+    return (igr?.by_state || []).map((s: any) => ({
       name: s.label || s.state_code,
       code: s.state_code,
+      zoneCode: s.zonal_code,
       amount: Number(s.amount) || 0,
-    }));
-  }, [igr]);
-
-  const igrZoneData = React.useMemo(() => {
-    return (igr?.by_zone || []).map((z: any) => ({
-      name: z.label || z.zonal_code,
-      code: z.zonal_code,
-      amount: Number(z.amount) || 0,
     }));
   }, [igr]);
 
@@ -186,11 +181,11 @@ export default function FinanceDashboardTab({
     }));
   }, [sshia]);
 
-  const sshiaZoneLivesData = React.useMemo(() => {
+  const sshiaUtilisationByZoneData = React.useMemo(() => {
     return (sshia?.by_zone || []).map((z: any) => ({
       name: z.label || z.zonal_code,
       code: z.zonal_code,
-      lives: Number(z.lives) || 0,
+      utilisation: Number(z.utilisation_rate) || 0,
     }));
   }, [sshia]);
 
@@ -417,7 +412,7 @@ export default function FinanceDashboardTab({
             </span>
             <div className="mt-1.5">
               <span className="text-lg font-black text-[#145c3f] tabular-nums">
-                {formatNaira(igr?.kpis?.total_igr || 0)}
+                {formatNairaCompact(igr?.kpis?.total_igr || 0)}
               </span>
               <p className="text-[10px] text-slate-400 mt-0.5">Sum of amounts</p>
             </div>
@@ -441,7 +436,7 @@ export default function FinanceDashboardTab({
             </span>
             <div className="mt-1.5">
               <span className="text-lg font-black text-slate-800 tabular-nums">
-                {igr?.kpis?.average_receipt ? formatNaira(igr.kpis.average_receipt) : "—"}
+                {igr?.kpis?.average_receipt ? formatNairaCompact(igr.kpis.average_receipt) : "—"}
               </span>
               <p className="text-[10px] text-slate-400 mt-0.5">Total IGR ÷ receipts</p>
             </div>
@@ -471,28 +466,28 @@ export default function FinanceDashboardTab({
                 {igr?.kpis?.top_service ? labelOf(IGR_SERVICE_TYPES, igr.kpis.top_service.service_type) : "—"}
               </span>
               <p className="text-[10px] text-slate-400 mt-0.5">
-                {igr?.kpis?.top_service ? formatNaira(igr.kpis.top_service.amount) : "No data"}
+                {igr?.kpis?.top_service ? formatNairaCompact(igr.kpis.top_service.amount) : "No data"}
               </p>
             </div>
           </div>
 
           <div className="bg-white border border-slate-200/80 rounded-sm p-3 shadow-xs flex flex-col justify-between">
             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-              TOP REVENUE ZONE
+              TOP REVENUE STATE
             </span>
             <div className="mt-1.5">
               <span className="text-xs font-bold text-slate-800 truncate block">
-                {igr?.by_zone?.[0]?.label || "—"}
+                {igr?.by_state?.[0]?.label || "—"}
               </span>
               <p className="text-[10px] text-slate-400 mt-0.5">
-                {igr?.by_zone?.[0] ? formatNaira(igr.by_zone[0].amount) : "No data"}
+                {igr?.by_state?.[0] ? formatNairaCompact(igr.by_state[0].amount) : "No data"}
               </p>
             </div>
           </div>
         </div>
 
-        {/* IGR Charts Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+        {/* IGR Charts — monthly + service only (state bars do not scale for 36 states) */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
           {/* Monthly Trend */}
           <Card className="border border-slate-200/80 rounded-sm shadow-xs overflow-hidden">
             <CardHeader className="border-b border-slate-200 bg-[#f4f7f5] py-2 px-3 rounded-none m-0">
@@ -528,7 +523,7 @@ export default function FinanceDashboardTab({
           <Card className="border border-slate-200/80 rounded-sm shadow-xs overflow-hidden">
             <CardHeader className="border-b border-slate-200 bg-[#f4f7f5] py-2 px-3 rounded-none m-0">
               <CardTitle className="text-xs font-bold text-slate-800 uppercase tracking-wide flex items-center justify-between">
-                <span>Revenue Mix by Service</span>
+                <span>{viewScope === "state" ? "IGR by service — selected state" : "IGR by service"}</span>
                 <Badge variant="outline" className="border-slate-300 text-slate-600 text-[10px]">
                   Amount &amp; % Share
                 </Badge>
@@ -545,7 +540,7 @@ export default function FinanceDashboardTab({
                         </span>
                         <div className="flex items-center gap-1.5 shrink-0">
                           <span className="text-[11px] font-bold text-[#145c3f] tabular-nums">
-                            {formatNaira(item.amount)}
+                            {formatNairaCompact(item.amount)}
                           </span>
                           <span className="text-[10px] font-bold text-slate-400 tabular-nums">
                             ({item.share.toFixed(1)}%)
@@ -568,13 +563,16 @@ export default function FinanceDashboardTab({
               </div>
             </CardContent>
           </Card>
+        </div>
 
-          {/* Geographic Breakdown (Zone or State) */}
+        {showGeoComparison && (
           <Card className="border border-slate-200/80 rounded-sm shadow-xs overflow-hidden">
             <CardHeader className="border-b border-slate-200 bg-[#f4f7f5] py-2 px-3 rounded-none m-0">
               <CardTitle className="text-xs font-bold text-slate-800 uppercase tracking-wide flex items-center justify-between">
                 <span>
-                  {zoneId === "all" ? "IGR by Zone" : `State Comparison (${activeZoneLabel})`}
+                  {viewScope === "zone"
+                    ? `IGR by state — ${activeZoneLabel}`
+                    : "IGR by state"}
                 </span>
                 <Badge variant="outline" className="border-[#1a7a52] text-[#1a7a52] text-[10px]">
                   Comparison
@@ -582,29 +580,30 @@ export default function FinanceDashboardTab({
               </CardTitle>
             </CardHeader>
             <CardContent className="p-2.5">
-              <div className="h-[200px] w-full">
-                {(zoneId === "all" ? igrZoneData : igrStateData).length > 0 ? (
+              <div className="h-[280px] w-full">
+                {igrStateData.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart
-                      data={zoneId === "all" ? igrZoneData : igrStateData}
-                      margin={{ top: 8, right: 10, left: 0, bottom: 20 }}
+                      data={igrStateData}
+                      margin={{ top: 8, right: 12, left: 0, bottom: 48 }}
                       onClick={(e: any) => {
                         if (e?.activePayload?.[0]?.payload) {
                           const payload = e.activePayload[0].payload;
-                          if (zoneId === "all" && !isZonalCoordinator) {
-                            setZoneId(payload.code);
-                          } else if (stateId === "all" && !isStateOffice) {
-                            setStateId(payload.code);
+                          if (isStateOffice) return;
+                          if (payload.zoneCode && zoneId === "all" && !isZonalCoordinator) {
+                            setZoneId(String(payload.zoneCode));
                           }
+                          if (payload.code) setStateId(String(payload.code));
                         }
                       }}
                     >
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                       <XAxis
                         dataKey="name"
-                        angle={-20}
+                        angle={-35}
                         textAnchor="end"
                         interval={0}
+                        height={64}
                         tick={{ fontSize: 9 }}
                       />
                       <YAxis tick={{ fontSize: 9 }} tickFormatter={(v) => `${(v / 1e6).toFixed(1)}M`} />
@@ -620,7 +619,7 @@ export default function FinanceDashboardTab({
               </div>
             </CardContent>
           </Card>
-        </div>
+        )}
       </section>
 
       {/* ── PANEL B: SSHIA PROGRESS REPORT ── */}
@@ -645,7 +644,7 @@ export default function FinanceDashboardTab({
             </span>
             <div className="mt-1.5">
               <span className="text-lg font-black text-slate-800 tabular-nums">
-                {formatNaira(sshia?.kpis?.budget_available || 0)}
+                {formatNairaCompact(sshia?.kpis?.budget_available || 0)}
               </span>
               <p className="text-[10px] text-slate-400 mt-0.5">Opening + Receipts</p>
             </div>
@@ -657,7 +656,7 @@ export default function FinanceDashboardTab({
             </span>
             <div className="mt-1.5">
               <span className="text-lg font-black text-[#145c3f] tabular-nums">
-                {formatNaira(sshia?.kpis?.actual_expenditure || 0)}
+                {formatNairaCompact(sshia?.kpis?.actual_expenditure || 0)}
               </span>
               <p className="text-[10px] text-slate-400 mt-0.5">Reported actual spend</p>
             </div>
@@ -669,7 +668,7 @@ export default function FinanceDashboardTab({
             </span>
             <div className="mt-1.5">
               <span className="text-lg font-black text-slate-800 tabular-nums">
-                {formatNaira(sshia?.kpis?.balance || 0)}
+                {formatNairaCompact(sshia?.kpis?.balance || 0)}
               </span>
               <p className="text-[10px] text-slate-400 mt-0.5">Available − Spend</p>
             </div>
@@ -763,32 +762,53 @@ export default function FinanceDashboardTab({
           </div>
         </div>
 
-        {/* SSHIA Charts Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-          {/* Sub-head Budget vs Actual */}
+        {/* SSHIA Charts — PPT: national zone compare; zone state compare; state = sub-head detail only */}
+        <div className={`grid grid-cols-1 gap-3 ${showGeoComparison ? "lg:grid-cols-3" : "lg:grid-cols-2"}`}>
+          {/* Sub-head Budget vs Actual / utilisation bars */}
           <Card className="border border-slate-200/80 rounded-sm shadow-xs overflow-hidden">
             <CardHeader className="border-b border-slate-200 bg-[#f4f7f5] py-2 px-3 rounded-none m-0">
               <CardTitle className="text-xs font-bold text-slate-800 uppercase tracking-wide flex items-center justify-between">
-                <span>Available vs Spend by Sub-head</span>
+                <span>{viewScope === "state" ? "SSHIA sub-head details" : "SSHIA budget position"}</span>
                 <Badge variant="outline" className="border-[#1a7a52] text-[#1a7a52] text-[10px]">
-                  Comparison
+                  Sub-heads
                 </Badge>
               </CardTitle>
             </CardHeader>
             <CardContent className="p-2.5">
               <div className="h-[200px] w-full">
                 {sshiaSubHeadData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={sshiaSubHeadData} margin={{ top: 8, right: 10, left: 0, bottom: 20 }}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                      <XAxis dataKey="name" angle={-15} textAnchor="end" interval={0} tick={{ fontSize: 9 }} />
-                      <YAxis tick={{ fontSize: 9 }} tickFormatter={(v) => `${(v / 1e6).toFixed(1)}M`} />
-                      <RechartsTooltip formatter={(v: any) => [formatNaira(Number(v))]} />
-                      <Legend wrapperStyle={{ fontSize: 10, paddingTop: 6 }} />
-                      <Bar dataKey="available" fill="#cbd5e1" name="Available" radius={[2, 2, 0, 0]} />
-                      <Bar dataKey="actual" fill="#1a7a52" name="Actual Spend" radius={[2, 2, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
+                  viewScope === "national" || viewScope === "zone" ? (
+                    <div className="h-full overflow-y-auto space-y-2.5 pr-1">
+                      {sshiaSubHeadData.map((item: any) => (
+                        <div key={item.name} className="space-y-1">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="font-semibold text-slate-700 truncate">{item.name}</span>
+                            <span className="text-[10px] font-bold text-[#145c3f] tabular-nums">
+                              {item.utilisation.toFixed(0)}%
+                            </span>
+                          </div>
+                          <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+                            <div
+                              className="h-full rounded-full bg-[#1a7a52]"
+                              style={{ width: `${Math.min(100, Math.max(2, item.utilisation))}%` }}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={sshiaSubHeadData} margin={{ top: 8, right: 10, left: 0, bottom: 20 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                        <XAxis dataKey="name" angle={-15} textAnchor="end" interval={0} tick={{ fontSize: 9 }} />
+                        <YAxis tick={{ fontSize: 9 }} tickFormatter={(v) => `${(v / 1e6).toFixed(1)}M`} />
+                        <RechartsTooltip formatter={(v: any) => [formatNaira(Number(v))]} />
+                        <Legend wrapperStyle={{ fontSize: 10, paddingTop: 6 }} />
+                        <Bar dataKey="available" fill="#cbd5e1" name="Available" radius={[2, 2, 0, 0]} />
+                        <Bar dataKey="actual" fill="#1a7a52" name="Actual Spend" radius={[2, 2, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  )
                 ) : (
                   <div className="h-full flex items-center justify-center text-xs text-slate-400">
                     No sub-head data recorded
@@ -798,36 +818,46 @@ export default function FinanceDashboardTab({
             </CardContent>
           </Card>
 
-          {/* BHCPF Lives Covered by Zone */}
-          <Card className="border border-slate-200/80 rounded-sm shadow-xs overflow-hidden">
-            <CardHeader className="border-b border-slate-200 bg-[#f4f7f5] py-2 px-3 rounded-none m-0">
-              <CardTitle className="text-xs font-bold text-slate-800 uppercase tracking-wide flex items-center justify-between">
-                <span>BHCPF Lives Covered by Zone</span>
-                <Badge variant="outline" className="border-blue-400 text-blue-700 text-[10px]">
-                  Coverage
-                </Badge>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-2.5">
-              <div className="h-[200px] w-full">
-                {sshiaZoneLivesData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={sshiaZoneLivesData} margin={{ top: 8, right: 10, left: 0, bottom: 20 }}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                      <XAxis dataKey="name" angle={-20} textAnchor="end" interval={0} tick={{ fontSize: 9 }} />
-                      <YAxis tick={{ fontSize: 9 }} />
-                      <RechartsTooltip formatter={(v: any) => [Number(v).toLocaleString(), "Lives"]} />
-                      <Bar dataKey="lives" fill="#3b82f6" radius={[2, 2, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div className="h-full flex items-center justify-center text-xs text-slate-400">
-                    No lives reported for this period
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+          {showGeoComparison && (
+            <Card className="border border-slate-200/80 rounded-sm shadow-xs overflow-hidden">
+              <CardHeader className="border-b border-slate-200 bg-[#f4f7f5] py-2 px-3 rounded-none m-0">
+                <CardTitle className="text-xs font-bold text-slate-800 uppercase tracking-wide flex items-center justify-between">
+                  <span>SSHIA utilisation by zone</span>
+                  <Badge variant="outline" className="border-blue-400 text-blue-700 text-[10px]">
+                    Zone comparison
+                  </Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-2.5">
+                <div className="h-[200px] w-full">
+                  {sshiaUtilisationByZoneData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={sshiaUtilisationByZoneData}
+                        margin={{ top: 8, right: 10, left: 0, bottom: 28 }}
+                        onClick={(e: any) => {
+                          if (e?.activePayload?.[0]?.payload?.code && !isZonalCoordinator && !isStateOffice) {
+                            setZoneId(String(e.activePayload[0].payload.code));
+                            setStateId("all");
+                          }
+                        }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                        <XAxis dataKey="name" angle={-20} textAnchor="end" interval={0} height={48} tick={{ fontSize: 9 }} />
+                        <YAxis domain={[0, 100]} tick={{ fontSize: 9 }} unit="%" />
+                        <RechartsTooltip formatter={(v: any) => [`${Number(v).toFixed(1)}%`, "Utilisation"]} />
+                        <Bar dataKey="utilisation" fill="#0f766e" radius={[2, 2, 0, 0]} cursor="pointer" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-full flex items-center justify-center text-xs text-slate-400">
+                      No utilisation data by zone
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Quarter-on-Quarter Utilisation Trend */}
           <Card className="border border-slate-200/80 rounded-sm shadow-xs overflow-hidden">
@@ -860,6 +890,7 @@ export default function FinanceDashboardTab({
             </CardContent>
           </Card>
         </div>
+
       </section>
     </div>
   );
