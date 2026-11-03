@@ -21,7 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { adhocAssignmentApi } from "@/lib/api";
+import { adhocAssignmentApi, apiFileUrl } from "@/lib/api";
 
 function FieldSection({
   title,
@@ -201,22 +201,21 @@ export default function StateAssignmentReportModal({
         <form onSubmit={handleSubmit} className="w-full">
           <DialogHeader className="p-6 pb-4 border-b bg-gradient-to-r from-emerald-50/70 to-white">
             <div className="flex items-center justify-between">
-              <div>
-                <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-100/70 px-2.5 py-0.5 rounded-full">
-                  Form 2 — State Office Report
-                </span>
-                <DialogTitle className="text-xl font-bold text-[#0f3d2e] mt-1">
+              <div className="flex items-center gap-3">
+                <DialogTitle className="text-xl font-bold text-[#0f3d2e]">
                   State Ad-Hoc Assignment Report
                 </DialogTitle>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Complete work summary, record achievements, and attach supporting evidence.
-                </p>
-              </div>
-              <div className="text-right">
-                <Badge className="bg-[#145c3f] text-white font-mono text-xs block mb-1">
+                <Badge className="bg-[#145c3f] text-white font-mono text-xs">
                   {stateAssignment.state_assignment_id}
                 </Badge>
-                <span className="text-[11px] text-slate-400">
+                {stateAssignment.state?.description && (
+                  <Badge variant="outline" className="border-[#145c3f]/30 text-[#145c3f] bg-emerald-50/60 text-xs">
+                    {stateAssignment.state.description}
+                  </Badge>
+                )}
+              </div>
+              <div className="text-right">
+                <span className="text-xs text-slate-500">
                   Due: {stateAssignment.state_due_date ? String(stateAssignment.state_due_date).slice(0, 10) : "—"}
                 </span>
               </div>
@@ -274,7 +273,7 @@ export default function StateAssignmentReportModal({
                       Original Instruction Memo: {master.original_instruction_name || "Instruction Memo"}
                     </span>
                     <a
-                      href={master.original_instruction_url}
+                      href={apiFileUrl(master.original_instruction_url)}
                       target="_blank"
                       rel="noreferrer"
                       className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#145c3f] hover:text-[#0f3d2e] underline"
@@ -388,7 +387,7 @@ export default function StateAssignmentReportModal({
                         {ef.name}
                       </span>
                       <a
-                        href={ef.path}
+                        href={apiFileUrl(ef.path)}
                         target="_blank"
                         rel="noreferrer"
                         className="text-[#145c3f] font-semibold text-[11px] underline flex items-center gap-1 hover:text-[#0f3d2e]"

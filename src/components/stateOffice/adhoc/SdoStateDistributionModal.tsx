@@ -214,20 +214,17 @@ export default function SdoStateDistributionModal({
       <DialogContent className="w-[96vw] max-w-7xl max-h-[94vh] overflow-y-auto p-0 rounded-2xl border-[#d4e8dc]">
         <DialogHeader className="p-6 pb-4 border-b bg-gradient-to-r from-emerald-50/70 to-white">
           <div className="flex items-center justify-between">
-            <div>
-              <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-100/70 px-2.5 py-0.5 rounded-full">
-                SDO Form 2 — Distribution
-              </span>
-              <DialogTitle className="text-xl font-bold text-[#0f3d2e] mt-1">
-                Multi-State Assignment Distribution
+            <div className="flex items-center gap-3">
+              <DialogTitle className="text-xl font-bold text-[#0f3d2e]">
+                State Assignment Distribution
               </DialogTitle>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Select recipient State Offices to fan out the directive and generate State Assignment IDs.
-              </p>
+              <Badge className="bg-[#145c3f] text-white font-mono text-xs">
+                {master.master_assignment_id}
+              </Badge>
             </div>
-            <Badge className="bg-[#145c3f] text-white font-mono text-xs">
-              {master.master_assignment_id}
-            </Badge>
+            <span className="text-xs text-slate-500">
+              Select recipient State Offices to fan out the directive
+            </span>
           </div>
         </DialogHeader>
 
@@ -357,18 +354,6 @@ export default function SdoStateDistributionModal({
               <Switch checked={copyZonal} onCheckedChange={setCopyZonal} />
             </div>
           </FieldSection>
-
-          {/* SDO Guidance notice */}
-          <div className="flex items-start gap-3 p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200/80 text-emerald-950 text-xs">
-            <Info className="w-5 h-5 text-emerald-700 shrink-0 mt-0.5" />
-            <div className="space-y-1">
-              <p className="font-bold">Automated ID Fan-Out:</p>
-              <p className="text-slate-600 leading-relaxed">
-                Clicking <strong>"Dispatch to States"</strong> creates unique State Assignment records (e.g.{" "}
-                <code>{master.master_assignment_id}-[STATE_CODE]</code>) with status <em>Not Started</em>. Recipient State Offices will immediately see the directive on their dashboard.
-              </p>
-            </div>
-          </div>
         </div>
 
         <DialogFooter className="p-4 px-6 border-t bg-slate-50/70 flex items-center justify-between">
