@@ -2,6 +2,9 @@ import {
   ENROLMENT_DRIVES_NAV_TITLE,
   ENROLMENT_DRIVES_VIEW,
   ENROLMENT_DRIVES_PATH,
+  ENROLMENT_DRIVE_DASHBOARD_NAV_TITLE,
+  ENROLMENT_DRIVE_DASHBOARD_VIEW,
+  ENROLMENT_DRIVE_DASHBOARD_PATH,
 } from "@/src/components/stateOffice/enrolmentDriveTypes";
 import {
   BENEFICIARY_MANAGEMENT_NAV_TITLE,
@@ -220,8 +223,8 @@ export const MODULE_CONFIG: ParentModule[] = [
       { type: "group", label: "SERVICOM", children: [
         { title: "SERVICOM Dashboard", view: "servicom-dashboard", path: "/sdo/servicom", navLabel: "Dashboard" },
         { title: "Charter Performance",          view: "servicom-comment-card", path: "/sdo/servicom/comment-card", navLabel: "Citizens' Comment Card" },
-        { title: "Complaints Management",        view: "servicom-complaints",   path: "/sdo/servicom/complaints", navLabel: "Complaints Register" },
-        { title: "HCF Customer Satisfaction Survey", view: "servicom-satisfaction", path: "/sdo/servicom/satisfaction", navLabel: "Satisfaction Survey" },
+        { title: "Complaints Management", view: "servicom-complaints", path: "/sdo/servicom/complaints", navLabel: "Complaints Register" },
+        { title: "HCF Customer Satisfaction Survey", view: "servicom-satisfaction", path: "/sdo/servicom/satisfaction", navLabel: "HCF Customer Satisfaction Survey" },
       ]},
       { type: "group", label: SDO_STOCK_NAV_GROUP, children: [
         { title: "Stock Verification Dashboard", view: "stock-verification-dashboard", path: "/sdo/stock-dashboard", navLabel: "Dashboard" },
@@ -262,12 +265,20 @@ export const MODULE_CONFIG: ParentModule[] = [
     roles: "all",
     children: [
       { title: "Enrolment", view: "state-enrolment", path: "/zonal/enrolment", navLabel: "Enrolment" },
-      {
-        title: ENROLMENT_DRIVES_NAV_TITLE,
-        navLabel: ENROLMENT_DRIVES_NAV_TITLE,
-        view: ENROLMENT_DRIVES_VIEW,
-        path: ENROLMENT_DRIVES_PATH,
-      },
+      { type: "group", label: "Enrolment Drives Management", children: [
+        {
+          title: ENROLMENT_DRIVE_DASHBOARD_NAV_TITLE,
+          navLabel: "Dashboard",
+          view: ENROLMENT_DRIVE_DASHBOARD_VIEW,
+          path: ENROLMENT_DRIVE_DASHBOARD_PATH,
+        },
+        {
+          title: ENROLMENT_DRIVES_NAV_TITLE,
+          navLabel: ENROLMENT_DRIVES_NAV_TITLE,
+          view: ENROLMENT_DRIVES_VIEW,
+          path: ENROLMENT_DRIVES_PATH,
+        },
+      ]},
       {
         title: BENEFICIARY_MANAGEMENT_NAV_TITLE,
         navLabel: BENEFICIARY_MANAGEMENT_NAV_TITLE,
@@ -295,7 +306,7 @@ export const MODULE_CONFIG: ParentModule[] = [
         },
       ]},
       { type: "group", label: "Complaint/Compliance management", children: [
-        { title: "State Complaints Register", view: "zonal-complaints-register", path: "/zonal/complaints-register", navLabel: "Complaints Register" },
+        { title: "State Complaints Register", view: "zonal-complaints-register", path: "/zonal/complaints-register", navLabel: "State Complaints Register" },
         { title: "Weekly Compliance Report", view: "state-weekly-compliance", path: "/zonal/weekly-compliance", navLabel: "Weekly Compliance" },
         {
           title: HMO_INDEBTEDNESS_NAV_TITLE,
@@ -308,9 +319,15 @@ export const MODULE_CONFIG: ParentModule[] = [
       { type: "group", label: "Internal Management", children: [
         { type: "group", label: "Finance", children: [
           { title: "Finance Dashboard", view: "state-finance-dashboard", path: "/zonal/finance/dashboard", navLabel: "Dashboard" },
-          { title: "Internally Generated Revenue (IGR)", view: "state-igr", path: "/zonal/igr", navLabel: "IGR" },
-          { title: "SSHIA Financial Report", view: "state-sshia-financial", path: "/zonal/sshia-financial", navLabel: "SSHIA Report" },
-          { title: "Expenditure Profile", view: "state-expenditure-profile", path: "/zonal/expenditure-profile", navLabel: "Expenditure" },
+          { type: "group", label: "IGR Management", children: [
+            { title: "Internally Generated Revenue (IGR)", view: "state-igr", path: "/zonal/igr", navLabel: "Internally Generated Revenue (IGR)" },
+          ]},
+          { type: "group", label: "SSHIA Management", children: [
+            { title: "SSHIA Financial Report", view: "state-sshia-financial", path: "/zonal/sshia-financial", navLabel: "SSHIA Financial Report" },
+          ]},
+          { type: "group", label: "Expenditure Management", children: [
+            { title: "Expenditure Profile", view: "state-expenditure-profile", path: "/zonal/expenditure-profile", navLabel: "Expenditure Profile" },
+          ]},
         ]},
         { type: "group", label: "Admin / Human Resource", children: [
           { title: "State Office Meeting Report", view: "state-office-meeting", path: "/zonal/admin-hr/office-meeting" },
@@ -326,10 +343,13 @@ export const MODULE_CONFIG: ParentModule[] = [
         ]},
         { type: "group", label: "SERVICOM", children: [
           { title: "Charter Performance", view: "servicom-comment-card", path: "/zonal/servicom/comment-card", navLabel: "Citizens' Comment Card" },
-          { title: "HCF Customer Satisfaction Survey", view: "servicom-satisfaction", path: "/zonal/servicom/satisfaction", navLabel: "Satisfaction Survey" },
+          { title: "HCF Customer Satisfaction Survey", view: "servicom-satisfaction", path: "/zonal/servicom/satisfaction", navLabel: "HCF Customer Satisfaction Survey" },
         ]},
       ]},
-      { title: "Challenges & Recommendations", view: "state-challenges", path: "/zonal/challenges", navLabel: "Challenges & Support" },
+      { type: "group", label: "Challenges & Support Management", children: [
+        { title: "Challenges & Support Dashboard", view: "state-challenges-dashboard", path: "/zonal/challenges/dashboard", navLabel: "Dashboard" },
+        { title: "Challenges & Recommendations", view: "state-challenges", path: "/zonal/challenges", navLabel: "Challenges & Support" },
+      ]},
     ],
   },
 

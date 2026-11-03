@@ -4007,9 +4007,14 @@ export default function ServicomComplaintsPage({
             </Button>
           )}
           <div className="min-w-0">
-            <h2 className="text-xl font-black tracking-tight text-slate-900 truncate">
-              Complaints Management
-            </h2>
+            <div className="flex items-center gap-2">
+              <h2 className="text-xl font-black tracking-tight text-slate-900 truncate">
+                Complaints Management
+              </h2>
+              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                {listStats.total} {listStats.total === 1 ? "complaint" : "complaints"}
+              </span>
+            </div>
             <p className="text-xs text-slate-500 truncate">
               SERVICOM dispute resolution, investigations, SLA tracking & escalation workflow
             </p>

@@ -1,12 +1,11 @@
 import * as React from "react";
-import { ArrowLeft, Loader2, FileText, Clock, CheckCircle2, Pencil, XCircle, Send } from "lucide-react";
+import { ArrowLeft, Loader2, Pencil, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { stateOfficeApi } from "@/lib/api";
 import {
-  SSHIA_SUB_HEADS, monthLabel, formatNaira, calcSshiaLine,
+  SSHIA_SUB_HEADS, formatNaira, calcSshiaLine,
 } from "./constants";
 import FinanceReviewPanel from "./shared/FinanceReviewPanel";
 import { useStateOfficeAccess } from "@/src/access/createReviewAccess";
@@ -19,16 +18,9 @@ interface Props {
   reportId: number | string;
   onBack: () => void;
   onEdit?: () => void;
+  embedded?: boolean;
+  onStatusChange?: (status: string | null) => void;
 }
-
-const STATUS_CONFIG = {
-  draft:            { label: "Draft",            cls: "bg-slate-100 text-slate-600 border-slate-200", icon: <FileText className="w-3 h-3" /> },
-  awaiting_review:  { label: "Awaiting review",  cls: "bg-amber-100 text-amber-800 border-amber-200", icon: <Clock className="w-3 h-3" /> },
-  returned:         { label: "Returned",         cls: "bg-rose-100 text-rose-700 border-rose-200", icon: <XCircle className="w-3 h-3" /> },
-  endorsed:         { label: "Endorsed",         cls: "bg-teal-100 text-teal-800 border-teal-200", icon: <CheckCircle2 className="w-3 h-3" /> },
-  submitted:        { label: "Submitted",        cls: "bg-blue-100 text-blue-700 border-blue-200", icon: <Clock className="w-3 h-3" /> },
-  approved:         { label: "Approved",         cls: "bg-emerald-100 text-emerald-700 border-emerald-200", icon: <CheckCircle2 className="w-3 h-3" /> },
-};
 
 function InfoField({ label, value }: { label: string; value: string }) {
   return (
@@ -41,7 +33,13 @@ function InfoField({ label, value }: { label: string; value: string }) {
 
 const api = stateOfficeApi["sshia-financial"];
 
-export default function SshiaFinancialReportDetail({ reportId, onBack, onEdit }: Props) {
+export default function SshiaFinancialReportDetail({
+  reportId,
+  onBack,
+  onEdit,
+  embedded = false,
+  onStatusChange,
+}: Props) {
   const { canCreate } = useStateOfficeAccess();
   const submitConfirm = useReportingOfficerSubmitConfirm();
   const [report, setReport] = React.useState<Record<string, unknown> | null>(null);
@@ -64,6 +62,14 @@ export default function SshiaFinancialReportDetail({ reportId, onBack, onEdit }:
     return () => { cancelled = true; };
   }, [reportId]);
 
+  React.useEffect(() => {
+    onStatusChange?.(report ? String(report.status || "") : null);
+  }, [report, onStatusChange]);
+
+  React.useEffect(() => {
+    return () => onStatusChange?.(null);
+  }, [onStatusChange]);
+
   const reload = React.useCallback(async () => {
     setLoading(true);
     try {
@@ -76,7 +82,6 @@ export default function SshiaFinancialReportDetail({ reportId, onBack, onEdit }:
     }
   }, [reportId]);
 
-  const statusCfg = report ? STATUS_CONFIG[report.status as keyof typeof STATUS_CONFIG] : null;
   const canUpdate = !!onEdit && ["draft", "returned"].includes(String(report?.status || ""));
   const canFinalSubmit = canCreate && report?.status === "endorsed";
 
@@ -118,7 +123,7 @@ export default function SshiaFinancialReportDetail({ reportId, onBack, onEdit }:
 
   if (loading) {
     return (
-      <div className="flex h-full items-center justify-center gap-3 text-slate-400">
+      <div className="flex h-full items-center justify-center gap-3 text-slate-400 py-16">
         <Loader2 className="w-6 h-6 animate-spin" /><span className="text-sm">Loading…</span>
       </div>
     );
@@ -126,7 +131,9 @@ export default function SshiaFinancialReportDetail({ reportId, onBack, onEdit }:
   if (!report) {
     return (
       <div className="p-6">
-        <Button variant="ghost" onClick={onBack} className="gap-2 mb-4"><ArrowLeft className="w-4 h-4" /> Back</Button>
+        {!embedded && (
+          <Button variant="ghost" onClick={onBack} className="gap-2 mb-4"><ArrowLeft className="w-4 h-4" /> Back</Button>
+        )}
         <p className="text-sm text-slate-500">Report not found.</p>
       </div>
     );
@@ -134,57 +141,50 @@ export default function SshiaFinancialReportDetail({ reportId, onBack, onEdit }:
 
   const money = (v: number | null | undefined) => (v == null ? "—" : formatNaira(v));
 
+  const actions = (canUpdate || canFinalSubmit) ? (
+    <div className="flex flex-wrap items-center justify-end gap-2 border-t border-[#d4e8dc] pt-4">
+      {canUpdate && (
+        <Button size="sm" className="gap-1.5 bg-[#145c3f] hover:bg-[#0f3d2e]" onClick={onEdit}>
+          <Pencil className="w-3.5 h-3.5" /> Update
+        </Button>
+      )}
+      {canFinalSubmit && (
+        <Button
+          size="sm"
+          className="gap-1.5 bg-[#145c3f] hover:bg-[#0f3d2e]"
+          disabled={finalBusy}
+          onClick={() => submitConfirm.requestSubmit(() => finalSubmit(), {
+            force: true,
+            title: "Confirm final submission",
+            description:
+              "This completes the report after State Coordinator endorsement. You will not be able to edit it afterwards.",
+            confirmLabel: "Yes, final submit",
+          })}
+        >
+          {finalBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+          Final Submit
+        </Button>
+      )}
+    </div>
+  ) : null;
+
   return (
-    <div className="flex flex-col h-full bg-slate-50/30">
-      <div className="bg-white border-b px-4 md:px-6 py-3 flex items-center justify-between gap-3 sticky top-0 z-20">
-        <div className="flex items-center gap-2 min-w-0">
+    <div className="flex flex-col h-full">
+      {!embedded && (
+        <div className="bg-white border-b px-4 md:px-6 py-3 flex items-center gap-3 sticky top-0 z-20">
           <Button variant="ghost" size="icon" onClick={onBack} className="rounded-full shrink-0">
             <ArrowLeft className="w-5 h-5" />
           </Button>
-          <div className="min-w-0">
-            <h2 className="text-xl font-bold tracking-tight truncate">SSHIA Progress Report</h2>
-            <p className="text-xs text-slate-500 truncate">
-              <span className="font-mono font-semibold text-[#145c3f]">{String(report.reference_id)}</span>
-              {" · "}{monthLabel(report.reporting_month as number)} {String(report.reporting_year)}
-              {" · Q"}{String(report.reporting_quarter || "")}
-            </p>
-          </div>
+          <h2 className="text-xl font-bold tracking-tight truncate">SSHIA report details</h2>
         </div>
-        <div className="flex items-center gap-2">
-          {statusCfg && (
-            <Badge variant="outline" className={`gap-1 ${statusCfg.cls}`}>
-              {statusCfg.icon}{statusCfg.label}
-            </Badge>
-          )}
-          {canUpdate && (
-            <Button size="sm" className="gap-1.5 bg-[#145c3f] hover:bg-[#0f3d2e]" onClick={onEdit}>
-              <Pencil className="w-3.5 h-3.5" /> Update
-            </Button>
-          )}
-          {canFinalSubmit && (
-            <Button
-              size="sm"
-              className="gap-1.5 bg-[#145c3f] hover:bg-[#0f3d2e]"
-              disabled={finalBusy}
-              onClick={() => submitConfirm.requestSubmit(() => finalSubmit(), {
-                force: true,
-                title: "Confirm final submission",
-                description:
-                  "This completes the report after State Coordinator endorsement. You will not be able to edit it afterwards.",
-                confirmLabel: "Yes, final submit",
-              })}
-            >
-              {finalBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-              Final Submit
-            </Button>
-          )}
-        </div>
-      </div>
+      )}
 
-      <div className="flex-1 overflow-auto p-4 md:p-6 space-y-4">
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-base">Reporting context</CardTitle></CardHeader>
-          <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className={`flex-1 space-y-4 ${embedded ? "pt-1" : "overflow-auto p-4 md:p-6"}`}>
+        <Card className="rounded-xl border border-[#d4e8dc] bg-white shadow-xs">
+          <CardHeader className="px-5 pt-5 pb-3">
+            <CardTitle className="text-base font-bold text-[#0f3d2e]">Reporting context</CardTitle>
+          </CardHeader>
+          <CardContent className="px-5 pb-5 grid grid-cols-2 md:grid-cols-4 gap-4">
             <InfoField label="Zone" value={String((report.zone as any)?.description || report.zonal_code || "—")} />
             <InfoField label="State" value={String((report.state as any)?.description || report.state_code || "—")} />
             <InfoField label="Quarter" value={`Q${report.reporting_quarter}`} />
@@ -193,17 +193,17 @@ export default function SshiaFinancialReportDetail({ reportId, onBack, onEdit }:
         </Card>
 
         {filled.length === 0 ? (
-          <Card>
-            <CardContent className="py-8 text-center text-sm text-slate-500">
+          <Card className="rounded-xl border border-[#d4e8dc] bg-white shadow-xs">
+            <CardContent className="px-5 py-8 text-center text-sm text-slate-500">
               No sub-head filled yet. Use Update to add figures.
             </CardContent>
           </Card>
         ) : filled.map((row) => (
-          <Card key={row.label}>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base">{row.label}</CardTitle>
+          <Card key={row.label} className="rounded-xl border border-[#d4e8dc] bg-white shadow-xs">
+            <CardHeader className="px-5 pt-5 pb-3">
+              <CardTitle className="text-base font-bold text-[#0f3d2e]">{row.label}</CardTitle>
             </CardHeader>
-            <CardContent className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <CardContent className="px-5 pb-5 grid grid-cols-2 md:grid-cols-3 gap-4">
               <InfoField label="Opening (A)" value={money(row.opening)} />
               <InfoField label="Receipts (B)" value={money(row.receipts)} />
               <InfoField label="Available (C = A + B)" value={money(row.total_budget)} />
@@ -227,6 +227,8 @@ export default function SshiaFinancialReportDetail({ reportId, onBack, onEdit }:
           onChanged={() => void reload()}
           hideFinalSubmit
         />
+
+        {actions}
       </div>
 
       <SubmitConfirmModal

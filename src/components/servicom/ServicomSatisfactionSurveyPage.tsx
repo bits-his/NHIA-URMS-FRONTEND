@@ -5,12 +5,10 @@ import {
   Plus,
   RefreshCw,
   Loader2,
-  ClipboardCheck,
   Eye,
   Search,
   CheckCircle2,
   Trash2,
-  BarChart3,
   Building2,
   MapPin,
   Calendar,
@@ -111,7 +109,6 @@ function buildResponsesPayload(responses: Record<string, string>) {
     return { question_id: q.id, category: q.category, question: q.question, response, score };
   });
 }
-
 
 export default function ServicomSatisfactionSurveyPage({
   onBack,
@@ -785,7 +782,7 @@ export default function ServicomSatisfactionSurveyPage({
     );
   }
 
-  // MAIN WORKSPACE VIEW (Dashboard & Register Tabs)
+  // MAIN WORKSPACE VIEW (Register)
   return (
     <div className="flex flex-col h-full bg-[#f4f7f5]">
       {/* 1. Master Workspace Header */}
