@@ -1,36 +1,18 @@
 import * as React from "react";
 import {
   ArrowLeft,
-  BarChart3,
-  ShieldCheck,
   RefreshCw,
   Plus,
   Eye,
-  Building2,
-  ChevronRight,
-  RotateCcw,
-  CheckCircle2,
-  AlertCircle,
 } from "lucide-react";
-import {
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip as RechartsTooltip,
-  CartesianGrid,
-  Legend,
-} from "recharts";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ShadcnDataTable } from "@/components/common/ShadcnDataTable";
-import { stateOfficeApi, financeDashboardApi, stockApi } from "@/lib/api";
+import { stateOfficeApi, stockApi } from "@/lib/api";
 import { SSHIA_SUB_HEADS, formatNaira, monthLabel, quarterFromMonth, calcSshiaLine } from "./constants";
 import SshiaFinancialReportPage from "./SshiaFinancialReportPage";
 import SshiaFinancialReportDetail from "./SshiaFinancialReportDetail";
@@ -59,10 +41,13 @@ export default function SshiaWorkspace({
   userRole,
 }: Props) {
   const { canCreate } = useStateOfficeAccess();
-  const [activeTab, setActiveTab] = React.useState<"dashboard" | "register">("dashboard");
   const [mode, setMode] = React.useState<"tabs" | "form" | "detail">("tabs");
   const [selectedId, setSelectedId] = React.useState<string | number | null>(null);
   const [editingId, setEditingId] = React.useState<string | number | null>(null);
+  const [detailStatus, setDetailStatus] = React.useState<string | null>(null);
+  const onDetailStatusChange = React.useCallback((status: string | null) => {
+    setDetailStatus(status);
+  }, []);
   const [refreshKey, setRefreshKey] = React.useState(0);
   const [syncing, setSyncing] = React.useState(false);
 
@@ -77,7 +62,6 @@ export default function SshiaWorkspace({
   const [zones, setZones] = React.useState<{ id: string; label: string }[]>([]);
   const [states, setStates] = React.useState<{ id: string; label: string }[]>([]);
   const [tableData, setTableData] = React.useState<any[]>([]);
-  const [dashboardData, setDashboardData] = React.useState<any>(null);
   const [loading, setLoading] = React.useState(true);
 
   // Role detection
@@ -120,12 +104,7 @@ export default function SshiaWorkspace({
         sub_head: subHead !== "all" ? subHead : undefined,
       };
 
-      const [dashRes, listRes] = await Promise.all([
-        financeDashboardApi.sshia(filters),
-        stateOfficeApi["sshia-financial"].list(filters),
-      ]);
-
-      setDashboardData(dashRes?.data || null);
+      const listRes = await stateOfficeApi["sshia-financial"].list(filters);
       setTableData(Array.isArray(listRes?.data) ? listRes.data : []);
     } catch {
       setTableData([]);
@@ -149,41 +128,12 @@ export default function SshiaWorkspace({
       setMode("tabs");
       setSelectedId(null);
       setEditingId(null);
+      setDetailStatus(null);
     } else {
       onBack();
     }
   };
 
-  // Visuals Data
-  const sshiaSubHeadData = React.useMemo(() => {
-    return (dashboardData?.by_sub_head || []).map((h: any) => ({
-      name: h.label,
-      available: Number(h.available) || 0,
-      actual: Number(h.actual) || 0,
-      balance: Number(h.balance) || 0,
-      utilisation: Number(h.utilisation_rate) || 0,
-    }));
-  }, [dashboardData]);
-
-  const sshiaZoneLivesData = React.useMemo(() => {
-    return (dashboardData?.by_zone || []).map((z: any) => ({
-      name: z.label || z.zonal_code,
-      code: z.zonal_code,
-      lives: Number(z.lives) || 0,
-    }));
-  }, [dashboardData]);
-
-  const sshiaQuarterTrendData = React.useMemo(() => {
-    return (dashboardData?.by_quarter || []).map((q: any) => ({
-      quarter: `Q${q.quarter}`,
-      available: Number(q.available) || 0,
-      actual: Number(q.actual) || 0,
-      utilisation: q.available > 0 ? (q.actual / q.available) * 100 : 0,
-    }));
-  }, [dashboardData]);
-
-  const kpis = dashboardData?.kpis || {};
-  const arithmeticValid = Math.abs((kpis.budget_available || 0) - (kpis.actual_expenditure || 0) - (kpis.balance || 0)) < 1;
 
   const columns: ColumnDef<any>[] = React.useMemo(
     () => [
@@ -255,103 +205,6 @@ export default function SshiaWorkspace({
         },
       },
       {
-        id: "budget_available",
-        header: "Budget Available (₦)",
-        accessorFn: (row) => {
-          let b = 0;
-          SSHIA_SUB_HEADS.forEach((h) => {
-            const d = calcSshiaLine(h.prefix, row);
-            if (d.total_budget) b += Number(d.total_budget);
-          });
-          return b;
-        },
-        cell: ({ row }) => {
-          let b = 0;
-          SSHIA_SUB_HEADS.forEach((h) => {
-            const d = calcSshiaLine(h.prefix, row.original);
-            if (d.total_budget) b += Number(d.total_budget);
-          });
-          return (
-            <span className="text-xs font-semibold text-slate-700 tabular-nums whitespace-nowrap">
-              {formatNaira(b)}
-            </span>
-          );
-        },
-      },
-      {
-        id: "actual_expenditure",
-        header: "Actual Spend (₦)",
-        accessorFn: (row) => {
-          let a = 0;
-          SSHIA_SUB_HEADS.forEach((h) => {
-            const d = calcSshiaLine(h.prefix, row);
-            if (d.actual_expenditure) a += Number(d.actual_expenditure);
-          });
-          return a;
-        },
-        cell: ({ row }) => {
-          let a = 0;
-          SSHIA_SUB_HEADS.forEach((h) => {
-            const d = calcSshiaLine(h.prefix, row.original);
-            if (d.actual_expenditure) a += Number(d.actual_expenditure);
-          });
-          return (
-            <span className="text-xs font-bold text-[#145c3f] tabular-nums whitespace-nowrap">
-              {formatNaira(a)}
-            </span>
-          );
-        },
-      },
-      {
-        id: "utilisation",
-        header: "Utilisation",
-        cell: ({ row }) => {
-          let b = 0;
-          let a = 0;
-          SSHIA_SUB_HEADS.forEach((h) => {
-            const d = calcSshiaLine(h.prefix, row.original);
-            if (d.total_budget) b += Number(d.total_budget);
-            if (d.actual_expenditure) a += Number(d.actual_expenditure);
-          });
-          const pct = b > 0 ? (a / b) * 100 : 0;
-          const color =
-            pct > 100
-              ? "bg-rose-100 text-rose-700 border-rose-200"
-              : pct >= 50
-              ? "bg-emerald-100 text-emerald-800 border-emerald-200"
-              : "bg-blue-100 text-blue-800 border-blue-200";
-          return (
-            <Badge variant="outline" className={`text-[10px] px-1.5 py-0.5 border font-bold ${color}`}>
-              {pct.toFixed(1)}%
-            </Badge>
-          );
-        },
-      },
-      {
-        id: "lives_covered",
-        header: "BHCPF Lives",
-        accessorFn: (row) => {
-          let lives = 0;
-          SSHIA_SUB_HEADS.forEach((h) => {
-            const d = calcSshiaLine(h.prefix, row);
-            if (d.bhcpf_lives) lives += Number(d.bhcpf_lives);
-          });
-          return lives;
-        },
-        cell: ({ row }) => {
-          let lives = 0;
-          SSHIA_SUB_HEADS.forEach((h) => {
-            const d = calcSshiaLine(h.prefix, row.original);
-            if (d.bhcpf_lives) lives += Number(d.bhcpf_lives);
-          });
-          return (
-            <span className="text-xs font-semibold text-slate-800 tabular-nums">
-              {lives.toLocaleString()}
-            </span>
-          );
-        },
-      },
-      {
         accessorKey: "status",
         header: "Status",
         cell: ({ row }) => {
@@ -410,15 +263,15 @@ export default function SshiaWorkspace({
                 ? "SSHIA Progress Report Details"
                 : "SSHIA Financial Report"}
             </h2>
-            <p className="text-xs text-slate-500 truncate">
-              {mode === "tabs"
-                ? "State Social Health Insurance Agency quarterly progress, utilisation, and financial position"
-                : "Manage SSHIA progress reports, expenditure submissions, and reviews"}
-            </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
+          {mode === "detail" && detailStatus && (
+            <Badge variant="outline" className={`gap-1 ${(STATUS_CONFIG[detailStatus] || STATUS_CONFIG.draft).cls}`}>
+              {(STATUS_CONFIG[detailStatus] || STATUS_CONFIG.draft).label}
+            </Badge>
+          )}
           {mode === "tabs" && (
             <>
               <Button
@@ -450,140 +303,12 @@ export default function SshiaWorkspace({
         </div>
       </div>
 
-      {/* Clean Tab Navigation Bar */}
-      {mode === "tabs" && (
-        <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 sticky top-[57px] z-20">
-          <div className="flex gap-4 overflow-x-auto -mb-px" role="tablist">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={activeTab === "dashboard"}
-              onClick={() => setActiveTab("dashboard")}
-              className={`group relative shrink-0 inline-flex items-center gap-2 px-3.5 py-3 text-xs font-bold whitespace-nowrap border-b-2 transition-all outline-none ${
-                activeTab === "dashboard"
-                  ? "border-[#145c3f] text-[#145c3f]"
-                  : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300"
-              }`}
-            >
-              <BarChart3 className="size-4 shrink-0" />
-              <span>SSHIA Dashboard</span>
-            </button>
-
-            <button
-              type="button"
-              role="tab"
-              aria-selected={activeTab === "register"}
-              onClick={() => setActiveTab("register")}
-              className={`group relative shrink-0 inline-flex items-center gap-2 px-3.5 py-3 text-xs font-bold whitespace-nowrap border-b-2 transition-all outline-none ${
-                activeTab === "register"
-                  ? "border-[#145c3f] text-[#145c3f]"
-                  : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300"
-              }`}
-            >
-              <ShieldCheck className="size-4 shrink-0" />
-              <span>Reports Register</span>
-              <span
-                className={`inline-flex min-w-[1.25rem] h-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold tabular-nums ${
-                  activeTab === "register"
-                    ? "bg-[#e8f6ee] text-[#145c3f]"
-                    : "bg-slate-100 text-slate-500 group-hover:bg-slate-200"
-                }`}
-              >
-                {tableData.length}
-              </span>
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Main Content Area */}
       <ScrollArea className="flex-1">
         <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-4">
-          {mode === "tabs" && activeTab === "dashboard" && (
+          
+          {mode === "tabs" && (
             <div className="space-y-4">
-              {/* Role Drill-Down Banner */}
-              {isZonalCoordinator ? (
-                <div className="rounded-sm border border-[#d4e8dc] bg-[#f8fdfb] px-4 py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs shadow-2xs">
-                  <div className="flex items-center gap-2">
-                    <Building2 className="w-4 h-4 text-[#1a7a52]" />
-                    <span className="font-bold text-[#0f3d2e]">Assigned Zone Overview:</span>
-                    <span className="font-semibold text-slate-800">{activeZoneLabel}</span>
-                    <span className="text-[10px] bg-emerald-100 text-[#145c3f] font-bold px-2 py-0.5 rounded-sm border border-emerald-200">
-                      LOCKED
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-slate-500">Drill down to states within {activeZoneLabel}:</span>
-                    <Select value={stateId} onValueChange={setStateId} disabled={isStateOffice}>
-                      <SelectTrigger className="h-8 w-44 text-xs font-semibold bg-white border-[#1a7a52]">
-                        <SelectValue placeholder="All States in Zone" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All States in {activeZoneLabel}</SelectItem>
-                        {states.map((s) => (
-                          <SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              ) : isNational ? (
-                <div className="rounded-sm border border-slate-200 bg-white px-4 py-2 flex flex-wrap items-center justify-between gap-2 text-xs shadow-2xs">
-                  <div className="flex items-center gap-1.5 font-medium text-slate-600">
-                    <button
-                      type="button"
-                      onClick={() => { setZoneId("all"); setStateId("all"); }}
-                      className={`hover:text-[#1a7a52] transition-colors ${
-                        zoneId === "all" ? "font-bold text-[#0f3d2e]" : ""
-                      }`}
-                    >
-                      National Overview
-                    </button>
-                    {zoneId !== "all" && (
-                      <>
-                        <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
-                        <button
-                          type="button"
-                          onClick={() => setStateId("all")}
-                          className={`hover:text-[#1a7a52] transition-colors ${
-                            stateId === "all" ? "font-bold text-[#0f3d2e]" : ""
-                          }`}
-                        >
-                          Zone: {activeZoneLabel}
-                        </button>
-                      </>
-                    )}
-                    {stateId !== "all" && (
-                      <>
-                        <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
-                        <span className="font-bold text-[#145c3f]">State: {activeStateLabel}</span>
-                      </>
-                    )}
-                  </div>
-                  {(zoneId !== "all" || stateId !== "all") && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => { setZoneId("all"); setStateId("all"); }}
-                      className="h-7 text-xs text-slate-500 hover:text-[#145c3f] gap-1 px-2"
-                    >
-                      <RotateCcw className="w-3 h-3" />
-                      <span>Reset to National</span>
-                    </Button>
-                  )}
-                </div>
-              ) : (
-                <div className="rounded-sm border border-[#d4e8dc] bg-[#f8fdfb] px-4 py-2.5 flex items-center gap-2 text-xs">
-                  <Building2 className="w-4 h-4 text-[#1a7a52]" />
-                  <span className="font-bold text-[#0f3d2e]">State Office:</span>
-                  <span className="font-semibold text-slate-800">{activeStateLabel}</span>
-                  <span className="text-[10px] bg-slate-100 text-slate-700 font-bold px-2 py-0.5 rounded-sm border border-slate-200">
-                    Assigned State
-                  </span>
-                </div>
-              )}
-
-              {/* Filters */}
               <div className="bg-white border border-slate-200/80 rounded-sm p-3 shadow-xs">
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
                   <div className="space-y-1">
@@ -599,7 +324,6 @@ export default function SshiaWorkspace({
                       </SelectContent>
                     </Select>
                   </div>
-
                   <div className="space-y-1">
                     <Label className="text-[11px] font-bold text-slate-600 uppercase">Quarter</Label>
                     <Select value={quarter} onValueChange={setQuarter}>
@@ -614,16 +338,18 @@ export default function SshiaWorkspace({
                       </SelectContent>
                     </Select>
                   </div>
-
                   <div className="space-y-1">
                     <Label className="text-[11px] font-bold text-slate-600 uppercase">Zone</Label>
                     <Select
                       value={zoneId}
-                      onValueChange={setZoneId}
+                      onValueChange={(v) => {
+                        setZoneId(v);
+                        if (!isStateOffice) setStateId("all");
+                      }}
                       disabled={isZonalCoordinator || isStateOffice}
                     >
                       <SelectTrigger className="h-8.5 text-xs bg-[#f4f7f5] border-slate-200">
-                        <SelectValue />
+                        <SelectValue placeholder={activeZoneLabel} />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">All Zones</SelectItem>
@@ -633,16 +359,11 @@ export default function SshiaWorkspace({
                       </SelectContent>
                     </Select>
                   </div>
-
                   <div className="space-y-1">
                     <Label className="text-[11px] font-bold text-slate-600 uppercase">State / FCT</Label>
-                    <Select
-                      value={stateId}
-                      onValueChange={setStateId}
-                      disabled={isStateOffice}
-                    >
+                    <Select value={stateId} onValueChange={setStateId} disabled={isStateOffice}>
                       <SelectTrigger className="h-8.5 text-xs bg-[#f4f7f5] border-slate-200">
-                        <SelectValue />
+                        <SelectValue placeholder={activeStateLabel} />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">All States</SelectItem>
@@ -652,17 +373,16 @@ export default function SshiaWorkspace({
                       </SelectContent>
                     </Select>
                   </div>
-
                   <div className="space-y-1">
-                    <Label className="text-[11px] font-bold text-slate-600 uppercase">Sub-Head</Label>
+                    <Label className="text-[11px] font-bold text-slate-600 uppercase">Sub-head</Label>
                     <Select value={subHead} onValueChange={setSubHead}>
                       <SelectTrigger className="h-8.5 text-xs bg-[#f4f7f5] border-slate-200">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="all">All Sub-Heads</SelectItem>
-                        {SSHIA_SUB_HEADS.map((s) => (
-                          <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                        <SelectItem value="all">All Sub-heads</SelectItem>
+                        {SSHIA_SUB_HEADS.map((h) => (
+                          <SelectItem key={h.value} value={h.value}>{h.label}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -670,237 +390,7 @@ export default function SshiaWorkspace({
                 </div>
               </div>
 
-              {/* 6 PPT KPI Cards (Slide 6 & 7) */}
-              <div className="grid grid-cols-2 md:grid-cols-6 gap-2.5">
-                <div className="bg-white border border-slate-200/80 rounded-sm p-3 shadow-xs flex flex-col justify-between">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                    BUDGET AVAILABLE
-                  </span>
-                  <div className="mt-1.5">
-                    <span className="text-lg font-black text-slate-800 tabular-nums">
-                      {formatNaira(kpis.budget_available || 0)}
-                    </span>
-                    <p className="text-[10px] text-slate-400 mt-0.5">Opening + Receipts</p>
-                  </div>
-                </div>
-
-                <div className="bg-white border border-slate-200/80 rounded-sm p-3 shadow-xs flex flex-col justify-between">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                    ACTUAL EXPENDITURE
-                  </span>
-                  <div className="mt-1.5">
-                    <span className="text-lg font-black text-[#145c3f] tabular-nums">
-                      {formatNaira(kpis.actual_expenditure || 0)}
-                    </span>
-                    <p className="text-[10px] text-slate-400 mt-0.5">Reported spend</p>
-                  </div>
-                </div>
-
-                <div className="bg-white border border-slate-200/80 rounded-sm p-3 shadow-xs flex flex-col justify-between">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                    BALANCE
-                  </span>
-                  <div className="mt-1.5">
-                    <span className="text-lg font-black text-slate-800 tabular-nums">
-                      {formatNaira(kpis.balance || 0)}
-                    </span>
-                    <p className="text-[10px] text-slate-400 mt-0.5">Available − Spend</p>
-                  </div>
-                </div>
-
-                <div className="bg-white border border-slate-200/80 rounded-sm p-3 shadow-xs flex flex-col justify-between">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                    UTILISATION RATE
-                  </span>
-                  <div className="mt-1.5">
-                    <span className="text-lg font-black text-[#145c3f] tabular-nums">
-                      {kpis.utilisation_rate ? `${Number(kpis.utilisation_rate).toFixed(1)}%` : "0.0%"}
-                    </span>
-                    <p className="text-[10px] text-slate-400 mt-0.5">Actual ÷ Available</p>
-                  </div>
-                </div>
-
-                <div className="bg-white border border-slate-200/80 rounded-sm p-3 shadow-xs flex flex-col justify-between">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                    BHCPF LIVES COVERED
-                  </span>
-                  <div className="mt-1.5">
-                    <span className="text-lg font-black text-blue-700 tabular-nums">
-                      {(kpis.bhcpf_lives_covered || 0).toLocaleString()}
-                    </span>
-                    <p className="text-[10px] text-slate-400 mt-0.5">Sum of reported lives</p>
-                  </div>
-                </div>
-
-                <div className="bg-white border border-slate-200/80 rounded-sm p-3 shadow-xs flex flex-col justify-between">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                    REPORTING COMPLETENESS
-                  </span>
-                  <div className="mt-1.5">
-                    <span className="text-lg font-black text-slate-800 tabular-nums">
-                      {kpis.states_reporting || 0} / 37
-                    </span>
-                    <p className="text-[10px] text-slate-400 mt-0.5">
-                      {kpis.zones_reporting || 0} / 7 zones
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Data Quality & Arithmetic Checks (Slide 8) */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
-                <div className="rounded-sm border border-slate-200 bg-white p-2.5 flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <div>
-                      <p className="font-bold text-slate-800">Budget Arithmetic Check</p>
-                      <p className="text-[10px] text-slate-500">Available = Opening + Allotted</p>
-                    </div>
-                  </div>
-                  <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-800 text-[10px] font-bold">
-                    VERIFIED
-                  </Badge>
-                </div>
-
-                <div className="rounded-sm border border-slate-200 bg-white p-2.5 flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <div>
-                      <p className="font-bold text-slate-800">Balance Arithmetic Check</p>
-                      <p className="text-[10px] text-slate-500">Balance = Available − Spend</p>
-                    </div>
-                  </div>
-                  <Badge
-                    variant="outline"
-                    className={`text-[10px] font-bold ${
-                      arithmeticValid
-                        ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-                        : "border-rose-200 bg-rose-50 text-rose-800"
-                    }`}
-                  >
-                    {arithmeticValid ? "VERIFIED" : "FLAGGED"}
-                  </Badge>
-                </div>
-
-                <div className="rounded-sm border border-slate-200 bg-white p-2.5 flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-2">
-                    <AlertCircle className="w-4 h-4 text-[#1a7a52] shrink-0" />
-                    <div>
-                      <p className="font-bold text-slate-800">Sub-Heads Completeness</p>
-                      <p className="text-[10px] text-slate-500">Standard 4 of 4 budget sub-heads</p>
-                    </div>
-                  </div>
-                  <Badge variant="outline" className="border-slate-300 text-slate-700 text-[10px] font-bold">
-                    STANDARD
-                  </Badge>
-                </div>
-              </div>
-
-              {/* 3 PPT Charts (Slide 6 & 7) */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-                {/* Available vs Spend by Sub-head */}
-                <Card className="border border-slate-200/80 rounded-sm shadow-xs overflow-hidden">
-                  <CardHeader className="border-b border-slate-200 bg-[#f4f7f5] py-2 px-3 rounded-none m-0">
-                    <CardTitle className="text-xs font-bold text-slate-800 uppercase tracking-wide flex items-center justify-between">
-                      <span>Available vs Spend by Sub-head</span>
-                      <Badge variant="outline" className="border-[#1a7a52] text-[#1a7a52] text-[10px]">
-                        Comparison
-                      </Badge>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-2.5">
-                    <div className="h-[200px] w-full">
-                      {sshiaSubHeadData.length > 0 ? (
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={sshiaSubHeadData} margin={{ top: 8, right: 10, left: 0, bottom: 20 }}>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                            <XAxis dataKey="name" angle={-15} textAnchor="end" interval={0} tick={{ fontSize: 9 }} />
-                            <YAxis tick={{ fontSize: 9 }} tickFormatter={(v) => `${(v / 1e6).toFixed(1)}M`} />
-                            <RechartsTooltip formatter={(v: any) => [formatNaira(Number(v))]} />
-                            <Legend wrapperStyle={{ fontSize: 10, paddingTop: 6 }} />
-                            <Bar dataKey="available" fill="#cbd5e1" name="Available" radius={[2, 2, 0, 0]} />
-                            <Bar dataKey="actual" fill="#1a7a52" name="Actual Spend" radius={[2, 2, 0, 0]} />
-                          </BarChart>
-                        </ResponsiveContainer>
-                      ) : (
-                        <div className="h-full flex items-center justify-center text-xs text-slate-400">
-                          No sub-head data recorded
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* BHCPF Lives Covered by Zone */}
-                <Card className="border border-slate-200/80 rounded-sm shadow-xs overflow-hidden">
-                  <CardHeader className="border-b border-slate-200 bg-[#f4f7f5] py-2 px-3 rounded-none m-0">
-                    <CardTitle className="text-xs font-bold text-slate-800 uppercase tracking-wide flex items-center justify-between">
-                      <span>BHCPF Lives Covered by Zone</span>
-                      <Badge variant="outline" className="border-blue-400 text-blue-700 text-[10px]">
-                        Coverage
-                      </Badge>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-2.5">
-                    <div className="h-[200px] w-full">
-                      {sshiaZoneLivesData.length > 0 ? (
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={sshiaZoneLivesData} margin={{ top: 8, right: 10, left: 0, bottom: 20 }}>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                            <XAxis dataKey="name" angle={-20} textAnchor="end" interval={0} tick={{ fontSize: 9 }} />
-                            <YAxis tick={{ fontSize: 9 }} />
-                            <RechartsTooltip formatter={(v: any) => [Number(v).toLocaleString(), "Lives"]} />
-                            <Bar dataKey="lives" fill="#3b82f6" radius={[2, 2, 0, 0]} />
-                          </BarChart>
-                        </ResponsiveContainer>
-                      ) : (
-                        <div className="h-full flex items-center justify-center text-xs text-slate-400">
-                          No lives reported for this period
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Quarter-on-Quarter Utilisation Trend */}
-                <Card className="border border-slate-200/80 rounded-sm shadow-xs overflow-hidden">
-                  <CardHeader className="border-b border-slate-200 bg-[#f4f7f5] py-2 px-3 rounded-none m-0">
-                    <CardTitle className="text-xs font-bold text-slate-800 uppercase tracking-wide flex items-center justify-between">
-                      <span>Quarter-on-Quarter Utilisation</span>
-                      <Badge variant="outline" className="border-emerald-300 text-emerald-800 text-[10px]">
-                        % Trend
-                      </Badge>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-2.5">
-                    <div className="h-[200px] w-full">
-                      {sshiaQuarterTrendData.length > 0 ? (
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={sshiaQuarterTrendData} margin={{ top: 8, right: 10, left: 0, bottom: 10 }}>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                            <XAxis dataKey="quarter" tick={{ fontSize: 10 }} />
-                            <YAxis tick={{ fontSize: 9 }} unit="%" domain={[0, 100]} />
-                            <RechartsTooltip formatter={(v: any) => [`${Number(v).toFixed(1)}%`, "Utilisation"]} />
-                            <Bar dataKey="utilisation" fill="#0f766e" radius={[2, 2, 0, 0]} />
-                          </BarChart>
-                        </ResponsiveContainer>
-                      ) : (
-                        <div className="h-full flex items-center justify-center text-xs text-slate-400">
-                          No quarterly trend data recorded
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
-          )}
-
-          {mode === "tabs" && activeTab === "register" && (
-            <div className="space-y-4">
               <ShadcnDataTable
-                title="SSHIA PROGRESS REPORTS REGISTER"
-                infoTooltip="State Social Health Insurance Agency quarterly progress and expenditure reports."
                 columns={columns}
                 data={tableData}
                 loading={loading}
@@ -934,10 +424,16 @@ export default function SshiaWorkspace({
           {mode === "detail" && selectedId && (
             <SshiaFinancialReportDetail
               reportId={selectedId}
-              onBack={() => setMode("tabs")}
+              embedded
+              onStatusChange={onDetailStatusChange}
+              onBack={() => {
+                setMode("tabs");
+                setDetailStatus(null);
+              }}
               onEdit={() => {
                 setEditingId(selectedId);
                 setMode("form");
+                setDetailStatus(null);
               }}
             />
           )}

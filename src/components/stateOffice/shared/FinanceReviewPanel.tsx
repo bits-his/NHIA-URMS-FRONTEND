@@ -77,11 +77,11 @@ export default function FinanceReviewPanel({
 
   return (
     <>
-      <Card className="rounded-2xl border-[#d4e8dc]">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">Coordinator decision</CardTitle>
+      <Card className="rounded-xl border border-[#d4e8dc] bg-white shadow-xs">
+        <CardHeader className="px-5 pt-5 pb-3">
+          <CardTitle className="text-base font-bold text-[#0f3d2e]">Coordinator decision</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent className="px-5 pb-5 space-y-3">
           {status === "awaiting_review" && (
             <p className="text-sm text-amber-800 font-medium">Awaiting state coordinator endorsement</p>
           )}

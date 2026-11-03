@@ -1,5 +1,5 @@
 import * as React from "react";
-import { ArrowLeft, ArrowRight, ChevronDown, Plus, RefreshCw, Save, Send, Download, Users, Pencil, Trash2, Eye, FileText, Clock, CheckCircle2, ClipboardList, LayoutDashboard, History, Loader2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, ChevronDown, Plus, RefreshCw, Save, Send, Download, Users, Pencil, Trash2, Eye, FileText, Clock, CheckCircle2, ClipboardList, History, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,7 +12,6 @@ import { enrolmentDrivesApi as api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import EnrolmentActivityForm, { Field, FieldSection } from "./EnrolmentActivityForm";
 import { MultiSelectField } from "./EnrolmentDriveForm";
-import EnrolmentDriveDashboard from "./EnrolmentDriveDashboard";
 import StateOfficeFormSteps from "./StateOfficeFormSteps";
 import { AddRowButton } from "./adminHr/ui";
 import { driveReportingMonth, driveReportingPeriod, hasPendingDriveActivity, shouldOpenDriveActivityForm } from "./enrolmentDriveTypes";
@@ -128,7 +127,7 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
   const [catalogue, setCatalogue] = React.useState<Catalogue | null>(null);
   const [batches, setBatches] = React.useState<Batch[]>([]);
   const [batch, setBatch] = React.useState<Batch | null>(null);
-  const [mode, setMode] = React.useState<"register" | "batch" | "view" | "activity" | "enrolment" | "dashboard" | "actions" | "legacy">("register");
+  const [mode, setMode] = React.useState<"register" | "batch" | "view" | "activity" | "enrolment" | "actions" | "legacy">("register");
   const [busy, setBusy] = React.useState(false);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState("");
@@ -238,7 +237,6 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
   const navigate = (next: typeof mode) => run(async () => {
     setSearch(""); setShowCreate(false);
     if (next === "register") await refresh();
-    if (next === "dashboard") setAnalytics((await api.analytics(reportFilter)).data);
     if (next === "actions") { setActions((await api.actions()).data); setActionDraft(null); }
     if (next === "legacy") setHistorical((await api.legacy()).data);
     setMode(next);
@@ -323,7 +321,7 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
   const monthOptions = Array.from({ length: 12 }, (_, index) => ({ value: String(index + 1), label: monthLabel(index + 1) }));
   const periodFiltered = batches.filter((row) => (filterYear === "all" || String(row.reporting_year) === filterYear) && (filterMonth === "all" || String(row.reporting_month) === filterMonth) && (filterState === "all" || row.state_code === filterState));
   const filteredBatches = periodFiltered.filter((row) => (filterStatus === "all" || row.status === filterStatus) && matchesSearch([row, stateName(row.state_code), monthLabel(row.reporting_month), statusLabel(row.status)]));
-  const listMode = ["register", "dashboard", "actions", "legacy"].includes(mode) && !showCreate && !actionDraft;
+  const listMode = ["register", "actions", "legacy"].includes(mode) && !showCreate && !actionDraft;
   const handleBack = () => {
     if (showCreate) setShowCreate(false);
     else if (mode === "view") setMode("register");
@@ -596,7 +594,6 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
               else if (mode === "batch" && batch) await openBatch(batch.reference_id, batchStep);
               else {
                 await refresh();
-                if (mode === "dashboard") setAnalytics((await api.analytics(reportFilter)).data);
                 if (mode === "actions") setActions((await api.actions()).data);
                 if (mode === "legacy") setHistorical((await api.legacy()).data);
               }
@@ -611,7 +608,7 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
       </div>
     </div>
     {listMode && <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 sticky top-[57px] z-20"><div className="flex gap-0 overflow-x-auto -mb-px" role="tablist" aria-label="Enrolment Drive sections">
-      {[{ key: "register", label: "Enrolment Drives", icon: ClipboardList }, { key: "dashboard", label: "Dashboard", icon: LayoutDashboard }, { key: "actions", label: "Management Follow-up", icon: Users }, { key: "legacy", label: "Historical Activities", icon: History }].map(({ key, label, icon: Icon }) => <button key={key} type="button" role="tab" aria-selected={mode === key} disabled={busy} onClick={() => void navigate(key as typeof mode)} className={`group relative shrink-0 inline-flex items-center gap-2 px-4 py-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors outline-none focus-visible:bg-[#f4f7f5] ${mode === key ? "border-[#145c3f] text-[#145c3f]" : "border-transparent text-slate-500 hover:text-[#0f3d2e] hover:border-[#c5ddd0]"}`}><Icon className={`h-4 w-4 shrink-0 ${mode === key ? "text-[#145c3f]" : "text-slate-400 group-hover:text-[#145c3f]"}`} />{label}{key === "register" && <span className={`inline-flex min-w-[1.25rem] h-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold tabular-nums ${mode === key ? "bg-[#e8f6ee] text-[#145c3f]" : "bg-slate-100 text-slate-500"}`}>{batches.length}</span>}</button>)}
+      {[{ key: "register", label: "Enrolment Drives", icon: ClipboardList }, { key: "actions", label: "Management Follow-up", icon: Users }, { key: "legacy", label: "Historical Activities", icon: History }].map(({ key, label, icon: Icon }) => <button key={key} type="button" role="tab" aria-selected={mode === key} disabled={busy} onClick={() => void navigate(key as typeof mode)} className={`group relative shrink-0 inline-flex items-center gap-2 px-4 py-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors outline-none focus-visible:bg-[#f4f7f5] ${mode === key ? "border-[#145c3f] text-[#145c3f]" : "border-transparent text-slate-500 hover:text-[#0f3d2e] hover:border-[#c5ddd0]"}`}><Icon className={`h-4 w-4 shrink-0 ${mode === key ? "text-[#145c3f]" : "text-slate-400 group-hover:text-[#145c3f]"}`} />{label}{key === "register" && <span className={`inline-flex min-w-[1.25rem] h-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold tabular-nums ${mode === key ? "bg-[#e8f6ee] text-[#145c3f]" : "bg-slate-100 text-slate-500"}`}>{batches.length}</span>}</button>)}
     </div></div>}
     <ScrollArea className="flex-1"><div className="w-full px-4 md:px-6 py-4 space-y-4 pb-8">
     {error && <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700" role="alert">{error}</div>}
@@ -959,25 +956,6 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
           {batchStep < 3 && <Button className={ACTION} disabled={busy || (batchStep === 1 && !batch.activities?.length)} onClick={() => void goToBatchStep(batchStep + 1)}>{batchStep === 1 ? "Register beneficiaries" : batchStep === 2 ? "Review" : "Continue"}<ArrowRight className="w-4 h-4" /></Button>}
         </div>
       </>}
-      {mode === "dashboard" && (
-        <EnrolmentDriveDashboard
-          embedded
-          defaultStateId={defaultStateId}
-          defaultZoneId={defaultZoneId}
-          onRecordAction={(stateCode, issue) => {
-            setActionDraft({
-              ...blankAction(),
-              state_code: stateCode || "",
-              reporting_year: reportFilter.year,
-              reporting_month: reportFilter.month,
-              issue: issue || "Review activity performance and enrolment conversion",
-            });
-            setMode("actions");
-            void run(async () => setActions((await api.actions()).data));
-          }}
-          onViewReport={(id) => void run(() => openBatch(id))}
-        />
-      )}
       {mode === "actions" && <>
         {actionDraft && <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-visible"><CardContent className="p-4 md:p-5"><Section title={actionDraft.reference_id || "New management action"}>
           <Field label="State" required><Dropdown value={actionDraft.state_code} options={stateOptions} disabled={!!actionDraft.reference_id} onChange={(value) => setActionDraft({ ...actionDraft, state_code: value })} /></Field>
