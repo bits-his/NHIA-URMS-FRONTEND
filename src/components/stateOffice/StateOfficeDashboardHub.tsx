@@ -233,13 +233,13 @@ export default function StateOfficeDashboardHub({
               excludeServicom
               title={
                 isStateLocked
-                  ? `State Complaints Dashboard (${defaultStateId || "State Office"})`
+                  ? "State Complaints Dashboard"
                   : "State Office Complaints Analytics"
               }
               subtitle={
                 isStateLocked
-                  ? `Complaint resolution, SLA tracking, and trends for ${defaultStateId || "your state"} (excluding SERVICOM)`
-                  : "State-level complaint resolution, SLA performance, and trends across states (excluding SERVICOM)"
+                  ? `Complaint resolution, SLA tracking, and trends for ${defaultStateId || "your state"}`
+                  : "State-level complaint resolution, SLA performance, and trends across states"
               }
             />
           </div>

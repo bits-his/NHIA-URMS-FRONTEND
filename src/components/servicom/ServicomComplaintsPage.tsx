@@ -11,6 +11,14 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { useSearchParams } from "react-router-dom";
 import { servicomApi } from "@/lib/api";
@@ -431,29 +439,24 @@ function CloseComplaintModal({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
-  if (!open) return null;
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={busy ? undefined : onCancel} />
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="close-complaint-title"
-        className="relative z-10 w-full max-w-md rounded-2xl border border-[#d4e8dc] bg-white p-5 shadow-xl"
-      >
-        <h3 id="close-complaint-title" className="text-base font-bold text-slate-900">
-          {lockStatus ? `Mark complaint as ${status}?` : "Close complaint"}
-        </h3>
-        <p className="mt-2 text-sm text-slate-600 leading-relaxed">
-          This will end the investigation and skip the remaining steps. The complaint will be
-          marked <span className="font-semibold">{status}</span> with today as the date closed and can no longer be updated.
-        </p>
-        <div className="mt-4 space-y-3">
+    <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen && !busy) onCancel(); }}>
+      <DialogContent className="max-w-md p-6 rounded-xl border border-slate-200 bg-white shadow-xl">
+        <DialogHeader className="space-y-1.5 text-left">
+          <DialogTitle className="text-base font-bold text-slate-900">
+            {lockStatus ? `Mark complaint as ${status}?` : "Close complaint"}
+          </DialogTitle>
+          <DialogDescription className="text-sm text-slate-600 leading-relaxed">
+            This will end the investigation and skip the remaining steps. The complaint will be
+            marked <span className="font-semibold text-slate-900">{status}</span> with today as the date closed and can no longer be updated.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3 py-2">
           {!lockStatus && (
             <div className="space-y-1.5">
-              <Label className="text-xs text-slate-500">Close as</Label>
+              <Label className="text-xs font-semibold text-slate-600">Close as</Label>
               <Select value={status} onValueChange={onStatusChange} disabled={busy}>
-                <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-9 text-sm bg-white border-slate-200"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {INVESTIGATION_CLOSING_STATUSES.map((s) => (
                     <SelectItem key={s} value={s}>{s}</SelectItem>
@@ -463,32 +466,32 @@ function CloseComplaintModal({
             </div>
           )}
           <div className="space-y-1.5">
-            <Label className="text-xs text-slate-500">Remarks</Label>
+            <Label className="text-xs font-semibold text-slate-600">Remarks</Label>
             <Input
               value={remarks}
               onChange={(e) => onRemarksChange(e.target.value)}
-              placeholder="Optional"
+              placeholder="Optional notes or remarks"
               disabled={busy}
-              className="h-9 text-sm"
+              className="h-9 text-sm bg-white border-slate-200"
             />
           </div>
         </div>
-        <div className="mt-5 flex justify-end gap-2">
-          <Button type="button" variant="outline" onClick={onCancel} disabled={busy}>
+        <DialogFooter className="flex flex-row justify-end gap-2 pt-2">
+          <Button type="button" variant="outline" onClick={onCancel} disabled={busy} className="rounded-sm">
             Cancel
           </Button>
           <Button
             type="button"
-            className="bg-rose-600 hover:bg-rose-700 text-white gap-2"
+            className="bg-rose-600 hover:bg-rose-700 text-white gap-2 rounded-sm"
             onClick={onConfirm}
             disabled={busy}
           >
             {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
             {busy ? "Closing…" : `Yes, mark ${status}`}
           </Button>
-        </div>
-      </div>
-    </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
