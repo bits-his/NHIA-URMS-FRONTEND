@@ -18,7 +18,7 @@ interface SolvixStatCardsProps {
 
 const SPARKLINE_CONFIG: Record<string, { base: string; tip: string }> = {
   dark: { base: "bg-slate-200", tip: "bg-slate-700" },
-  teal: { base: "bg-[#007a8c]/25", tip: "bg-[#007a8c]" },
+  teal: { base: "bg-[#1a7a52]/25", tip: "bg-[#1a7a52]" },
   emerald: { base: "bg-emerald-200/60", tip: "bg-emerald-600" },
   sky: { base: "bg-sky-200/60", tip: "bg-sky-600" },
   indigo: { base: "bg-indigo-200/60", tip: "bg-indigo-600" },
