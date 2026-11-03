@@ -306,6 +306,7 @@ export const MODULE_CONFIG: ParentModule[] = [
         { title: "Mystery Shopping", view: "state-mystery-shopping", path: "/zonal/mystery-shopping" },
       ]},
       { type: "group", label: "Internal Management", children: [
+        { title: "Meetings & Coordination", view: "state-meetings", path: "/zonal/meetings" },
         { type: "group", label: "Finance", children: [
           { title: "IGR", view: "state-igr", path: "/zonal/igr" },
           { title: "SSHIA Financial Report", view: "state-sshia-financial", path: "/zonal/sshia-financial", navLabel: "SSHIA Report" },

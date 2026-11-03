@@ -160,6 +160,8 @@ export function normalizeFunctionalityTitle(title: string, moduleTitle?: string)
 
     if (title === "Reconciliation Meetings") return "Contracted Services";
 
+    if (title === "State Office Meeting Report" || title === "ETMC Cascading Report") return "Meetings & Coordination";
+
     if (title === "ICT Support" || title === "Support") return "ICT Support Register";
 
     if (LEGACY_ENROLMENT_DRIVE_TITLES.has(title)) return ENROLMENT_DRIVES_NAV_TITLE;
@@ -171,6 +173,8 @@ export function normalizeFunctionalityTitle(title: string, moduleTitle?: string)
     if (LEGACY_BENEFICIARY_TITLE_SET.has(title)) return BENEFICIARY_MANAGEMENT_NAV_TITLE;
 
     if (LEGACY_HMO_INDEBTEDNESS_TITLES.has(title)) return HMO_INDEBTEDNESS_NAV_TITLE;
+
+    if (title === "State Office Meeting Report" || title === "ETMC Cascading Report") return "Meetings & Coordination";
 
   }
 
@@ -221,6 +225,8 @@ export function normalizeFunctionalityTitle(title: string, moduleTitle?: string)
     if (LEGACY_BENEFICIARY_TITLE_SET.has(title)) return BENEFICIARY_MANAGEMENT_NAV_TITLE;
 
     if (LEGACY_HMO_INDEBTEDNESS_TITLES.has(title)) return HMO_INDEBTEDNESS_NAV_TITLE;
+
+    if (title === "State Office Meeting Report" || title === "ETMC Cascading Report") return "Meetings & Coordination";
 
   }
 

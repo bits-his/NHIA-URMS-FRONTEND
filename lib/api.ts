@@ -79,6 +79,22 @@ export const enrolmentDrivesApi = {
   attachLegacy: (batchId: string, id: string) => driveRequest(`/batches/${encodeURIComponent(batchId)}/legacy/${encodeURIComponent(id)}`, "POST"),
 };
 
+const MC_ROOT = "/state-office/meetings";
+export const meetingsApi = {
+  catalogue: () => request<{ success: boolean; data: any }>(`${MC_ROOT}/catalogue`),
+  meetings: (filters: Record<string, string> = {}) => request<{ success: boolean; data: any[] }>(`${MC_ROOT}/meetings?${new URLSearchParams(filters)}`),
+  createMeeting: (payload: unknown) => request<{ success: boolean; data: any }>(`${MC_ROOT}/meetings`, { method: "POST", body: JSON.stringify(payload) }),
+  meeting: (id: string) => request<{ success: boolean; data: any }>(`${MC_ROOT}/meetings/${encodeURIComponent(id)}`),
+  updateMeeting: (id: string, payload: unknown) => request<{ success: boolean; data: any }>(`${MC_ROOT}/meetings/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(payload) }),
+  transitionMeeting: (id: string, payload: unknown) => request<{ success: boolean; data: any }>(`${MC_ROOT}/meetings/${encodeURIComponent(id)}/transition`, { method: "POST", body: JSON.stringify(payload) }),
+  openActionPoints: () => request<{ success: boolean; data: any[] }>(`${MC_ROOT}/meetings/open-action-points`),
+  etmcList: (filters: Record<string, string> = {}) => request<{ success: boolean; data: any[] }>(`${MC_ROOT}/etmc?${new URLSearchParams(filters)}`),
+  createEtmc: (payload: unknown) => request<{ success: boolean; data: any }>(`${MC_ROOT}/etmc`, { method: "POST", body: JSON.stringify(payload) }),
+  etmc: (id: string) => request<{ success: boolean; data: any }>(`${MC_ROOT}/etmc/${encodeURIComponent(id)}`),
+  updateEtmc: (id: string, payload: unknown) => request<{ success: boolean; data: any }>(`${MC_ROOT}/etmc/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(payload) }),
+  transitionEtmc: (id: string, payload: unknown) => request<{ success: boolean; data: any }>(`${MC_ROOT}/etmc/${encodeURIComponent(id)}/transition`, { method: "POST", body: JSON.stringify(payload) }),
+};
+
 const CH_ROOT = "/state-office/challenges";
 export const challengesSupportApi = {
   catalogue: () => request<{ success: boolean; data: any }>(`${CH_ROOT}/catalogue`),
