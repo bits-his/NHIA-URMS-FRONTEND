@@ -3,7 +3,7 @@ import {
   ArrowLeft, Plus, RefreshCw, Loader2, Search,
   CheckCircle2, Circle, XCircle, Trash2, Pencil,
   MessageSquare, Clock, AlertTriangle,
-  FileText, ChevronRight,
+  FileText, ChevronRight, BarChart3, ClipboardList,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -618,6 +618,7 @@ function officerMatchesUser(
 }
 
 export default function ServicomComplaintsPage({
+  onBack,
   defaultStateId, defaultZoneId, userName, userStaffId, userRole, userDepartment,
   canCreate = true, canReview = true, stateScope: stateScopeProp = false,
 }: Props) {
@@ -704,7 +705,6 @@ export default function ServicomComplaintsPage({
   const queryStage = searchParams.get("stage") as LifecycleStage | null;
 
   const [formKey, setFormKey] = React.useState(0);
-  const [listPanel, setListPanel] = React.useState<"dashboard" | "register">("register");
   const [complaints, setComplaints] = React.useState<any[]>([]);
   const [selected, setSelected] = React.useState<any | null>(null);
   const [loading, setLoading] = React.useState(true);
@@ -3992,52 +3992,55 @@ export default function ServicomComplaintsPage({
 
   return (
     <div className="bg-[#f4f7f5] min-h-full">
-      <div className="bg-white border-b px-4 md:px-5 py-2.5 flex items-center justify-between gap-3 sticky top-0 z-30">
-        <div className="min-w-0">
-          <h2 className="text-base font-bold tracking-tight truncate">Complaints Management</h2>
-          <p className="text-[11px] text-slate-500">{listStats.total} complaint{listStats.total === 1 ? "" : "s"}</p>
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <div className="flex items-center gap-1 p-0.5 rounded-lg bg-slate-100">
+      {/* 1. Header with Back Button, Title, and Action Buttons */}
+      <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sticky top-0 z-30">
+        <div className="flex items-center gap-3 min-w-0">
+          {onBack && (
             <Button
-              type="button"
-              variant={listPanel === "dashboard" ? "default" : "ghost"}
-              size="sm"
-              className={`h-7 text-[11px] px-2.5 ${listPanel === "dashboard" ? "bg-[#145c3f] hover:bg-[#0f4a31]" : ""}`}
-              onClick={() => setListPanel("dashboard")}
+              variant="ghost"
+              size="icon"
+              onClick={onBack}
+              className="rounded-sm hover:bg-[#e8f5ee] text-slate-700"
+              aria-label="Back"
             >
-              Dashboard
+              <ArrowLeft className="w-5 h-5" />
             </Button>
-            <Button
-              type="button"
-              variant={listPanel === "register" ? "default" : "ghost"}
-              size="sm"
-              className={`h-7 text-[11px] px-2.5 ${listPanel === "register" ? "bg-[#145c3f] hover:bg-[#0f4a31]" : ""}`}
-              onClick={() => setListPanel("register")}
-            >
-              Register
-            </Button>
+          )}
+          <div className="min-w-0">
+            <h2 className="text-xl font-black tracking-tight text-slate-900 truncate">
+              Complaints Management
+            </h2>
+            <p className="text-xs text-slate-500 truncate">
+              SERVICOM dispute resolution, investigations, SLA tracking & escalation workflow
+            </p>
           </div>
-          <Button variant="outline" size="sm" onClick={load} disabled={loading} className="h-8 gap-1.5 text-xs">
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh
+        </div>
+
+        <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={load}
+            disabled={loading}
+            className="h-8.5 gap-1.5 border border-slate-300 text-slate-700 bg-white hover:bg-[#f4f7f5] text-xs font-bold rounded-sm shadow-2xs"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+            <span>Sync</span>
           </Button>
           {canRegister && (
-            <Button size="sm" className="h-8 bg-orange-action hover:bg-orange-600 gap-1.5 text-xs" onClick={openRegister}>
-              <Plus className="w-3.5 h-3.5" /> New Complaint
+            <Button
+              size="sm"
+              className="h-8.5 bg-[#1a7a52] hover:bg-[#145c3f] text-white border border-[#145c3f] font-bold text-xs gap-1.5 rounded-sm shadow-xs"
+              onClick={openRegister}
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>New Complaint</span>
             </Button>
           )}
         </div>
       </div>
 
       <div className="w-full px-4 md:px-5 py-3 space-y-3">
-        {listPanel === "dashboard" ? (
-          <ComplaintRegisterDashboard
-            defaultStateId={defaultStateId}
-            defaultZoneId={defaultZoneId}
-            lockLocation={hideGeoFields}
-          />
-        ) : (
-        <>
         {!isReportingOfficer && (
           <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-2">
             {[
@@ -4238,8 +4241,6 @@ export default function ServicomComplaintsPage({
           fitViewport
           getRowClassName={(c) => slaRowClass(c.sla?.color)}
         />
-        </>
-        )}
       </div>
     </div>
   );

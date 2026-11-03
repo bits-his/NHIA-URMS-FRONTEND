@@ -38,7 +38,6 @@ import {
 } from "./servicomSurveyConstants";
 import { SubmitConfirmModal, useReportingOfficerSubmitConfirm } from "@/src/components/SubmitConfirmModal";
 import { ShadcnDataTable } from "@/components/common/ShadcnDataTable";
-import SatisfactionDashboardTab from "./SatisfactionDashboardTab";
 
 interface Props {
   onBack: () => void;
@@ -113,7 +112,6 @@ function buildResponsesPayload(responses: Record<string, string>) {
   });
 }
 
-type TabKey = "dashboard" | "register";
 
 export default function ServicomSatisfactionSurveyPage({
   onBack,
@@ -128,8 +126,7 @@ export default function ServicomSatisfactionSurveyPage({
   const geoLocked = !!(defaultZoneId && defaultStateId);
   const submitConfirm = useReportingOfficerSubmitConfirm();
 
-  // Navigation & Tabs
-  const [activeTab, setActiveTab] = React.useState<TabKey>("dashboard");
+  // Navigation & State
   const [mode, setMode] = React.useState<"list" | "form" | "view">(createOnly ? "form" : "list");
   const [formKey, setFormKey] = React.useState(0);
 
@@ -834,80 +831,14 @@ export default function ServicomSatisfactionSurveyPage({
         </div>
       </div>
 
-      {/* 2. Clean Tab Navigation Bar (Underline style matching State Office Profile) */}
-      <div className="bg-white border-b border-slate-200/80 px-4 md:px-6 sticky top-[65px] z-20">
-        <div className="flex gap-4 overflow-x-auto -mb-px" role="tablist">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === "dashboard"}
-            onClick={() => setActiveTab("dashboard")}
-            className={`group relative shrink-0 inline-flex items-center gap-2 px-3.5 py-3 text-xs font-bold whitespace-nowrap border-b-2 transition-all outline-none ${
-              activeTab === "dashboard"
-                ? "border-[#1a7a52] text-[#1a7a52]"
-                : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300"
-            }`}
-          >
-            <BarChart3
-              className={`size-4 shrink-0 ${activeTab === "dashboard" ? "text-[#1a7a52]" : "text-slate-400 group-hover:text-slate-600"}`}
-            />
-            <span>Satisfaction Dashboard</span>
-          </button>
-
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === "register"}
-            onClick={() => setActiveTab("register")}
-            className={`group relative shrink-0 inline-flex items-center gap-2 px-3.5 py-3 text-xs font-bold whitespace-nowrap border-b-2 transition-all outline-none ${
-              activeTab === "register"
-                ? "border-[#1a7a52] text-[#1a7a52]"
-                : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300"
-            }`}
-          >
-            <ClipboardCheck
-              className={`size-4 shrink-0 ${activeTab === "register" ? "text-[#1a7a52]" : "text-slate-400 group-hover:text-slate-600"}`}
-            />
-            <span>Survey Register</span>
-            <span
-              className={`inline-flex min-w-[1.25rem] h-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold tabular-nums ${
-                activeTab === "register"
-                  ? "bg-[#e8f5ee] text-[#1a7a52]"
-                  : "bg-slate-100 text-slate-500 group-hover:bg-slate-200"
-              }`}
-            >
-              {surveys.length}
-            </span>
-          </button>
-        </div>
-      </div>
-
-      {/* 3. Main Body Content */}
+      {/* 2. Main Register Content */}
       <ScrollArea className="flex-1">
         <div className="w-full px-4 md:px-6 py-5 max-w-7xl mx-auto space-y-6">
-          {/* TAB 1: SATISFACTION DASHBOARD */}
-          {activeTab === "dashboard" && (
-            <SatisfactionDashboardTab
-              surveys={surveys}
-              zones={zones}
-              states={states}
-              loading={loading}
-              defaultZoneId={defaultZoneId}
-              defaultStateId={defaultStateId}
-              onDrillDownState={(stCode) => {
-                setFilterState(stCode);
-                setActiveTab("register");
-              }}
-            />
-          )}
-
-          {/* TAB 2: SURVEY REGISTER (ShadcnDataTable with custom inputs) */}
-          {activeTab === "register" && (
-            <div className="space-y-4">
-              {/* Filter Bar with Zone, State, Date matching Select styling */}
-              <Card className="rounded-sm border border-slate-200/80 bg-white shadow-xs">
-                <CardContent className="p-3.5">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="space-y-4">
+            {/* Filter Bar with Zone, State, Date matching Select styling */}
+            <Card className="rounded-sm border border-slate-200/80 bg-white shadow-xs">
+              <CardContent className="p-3.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
                     {/* Search Input */}
                     <div className="relative">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
@@ -998,8 +929,7 @@ export default function ServicomSatisfactionSurveyPage({
                 enableSelection={false}
                 showTableOptions={false}
               />
-            </div>
-          )}
+          </div>
         </div>
       </ScrollArea>
     </div>

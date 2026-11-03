@@ -7,6 +7,7 @@
 import * as React from "react";
 import {
   RefreshCw, Loader2, TrendingDown, AlertTriangle, TrendingUp,
+  Smile, MessageSquare, FileText, ArrowLeft, BarChart3,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -27,6 +28,7 @@ import DashboardDrillPanel from "@/components/dashboard/DashboardDrillPanel";
 import { useDashboardDrill } from "@/components/dashboard/useDashboardDrill";
 import { satisfactionCategoryLabel } from "./servicomSurveyConstants";
 import ComplaintRegisterDashboard from "./ComplaintRegisterDashboard";
+import SatisfactionDashboardTab from "./SatisfactionDashboardTab";
 
 const CATEGORY_CHART_COLORS = ["#145c3f", "#1a7a52", "#25a872", "#3d9b6e", "#7eb89a"];
 
@@ -39,7 +41,7 @@ const INDICATOR_CHART_COLORS = [
 ];
 
 interface Props {
-  onBack: () => void;
+  onBack?: () => void;
   defaultStateId?: string | null;
   defaultZoneId?: string | null;
 }
@@ -82,7 +84,11 @@ function SectionTitle({ title, note }: { title: string; note: string }) {
   );
 }
 
-export default function ServicomDashboard({ defaultStateId, defaultZoneId }: Props) {
+export default function ServicomDashboard({ onBack, defaultStateId, defaultZoneId }: Props) {
+  const [activeTab, setActiveTab] = React.useState<"comment-card" | "complaints" | "satisfaction">("comment-card");
+  const [surveys, setSurveys] = React.useState<any[]>([]);
+  const [surveysLoading, setSurveysLoading] = React.useState(false);
+
   const zoneLocked = !!defaultZoneId && !defaultStateId;
   const stateLocked = !!defaultStateId;
   const [data, setData] = React.useState<any | null>(null);
@@ -99,6 +105,25 @@ export default function ServicomDashboard({ defaultStateId, defaultZoneId }: Pro
   const [provider, setProvider] = React.useState("");
   const [surveyDate, setSurveyDate] = React.useState("");
   const [categoryFocus, setCategoryFocus] = React.useState<string | null>(null);
+
+  const loadSurveys = React.useCallback(async () => {
+    setSurveysLoading(true);
+    try {
+      const res = await servicomApi.listSatisfactionSurveys({
+        state_code: defaultStateId ? defaultStateId : (filterState !== "all" ? filterState : undefined),
+        zonal_code: defaultZoneId ? defaultZoneId : (filterZone !== "all" ? filterZone : undefined),
+      });
+      setSurveys(res.data || []);
+    } catch {
+      setSurveys([]);
+    } finally {
+      setSurveysLoading(false);
+    }
+  }, [defaultStateId, defaultZoneId, filterState, filterZone]);
+
+  React.useEffect(() => {
+    loadSurveys();
+  }, [loadSurveys]);
 
   React.useEffect(() => {
     zonesApi.list().then((r) => setZones(r.data || [])).catch(() => setZones([]));
@@ -203,384 +228,307 @@ export default function ServicomDashboard({ defaultStateId, defaultZoneId }: Pro
 
   return (
     <div className="flex flex-col h-full bg-slate-50/40">
-      <div className="bg-white border-b border-slate-200 px-4 md:px-6 py-4 sticky top-0 z-30 space-y-3">
-        <div className="flex items-start justify-between gap-3">
+      {/* 1. Master Header */}
+      <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sticky top-0 z-30">
+        <div className="flex items-center gap-3 min-w-0">
+          {onBack && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onBack}
+              className="rounded-sm hover:bg-[#e8f5ee] text-slate-700"
+              aria-label="Back"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+          )}
           <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-[#145c3f]">SERVICOM</p>
-            <h1 className="text-lg font-semibold text-slate-900">Service Delivery Dashboard</h1>
-            <ul className="mt-1 text-xs text-slate-500 space-y-0.5 list-disc list-inside">
-              <li>Identify service delivery gaps</li>
-              <li>Compare performance across states and facilities</li>
-              <li>Determine where corrective action is required</li>
-            </ul>
-            {data && (
-              <p className="mt-2 text-[11px] text-slate-500">
-                Live from database
-                {" · "}
-                {data.comment_cards ?? data.meta?.counts?.comment_cards ?? 0} comment cards
-                {" · "}
-                {data.satisfaction_surveys ?? data.meta?.counts?.satisfaction_surveys ?? 0} satisfaction surveys
-                {" · "}
-                {data.complaints_received ?? data.meta?.counts?.complaints ?? 0} complaints
-              </p>
-            )}
+            <h1 className="text-xl font-black tracking-tight text-slate-900 truncate">
+              SERVICOM Dashboard
+            </h1>
+            <p className="text-xs text-slate-500 truncate">
+              Unified service delivery intelligence across Customer Satisfaction Surveys, Complaints Management &amp; Citizens' Comment Cards
+            </p>
           </div>
-          <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2 shrink-0">
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
-          </Button>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-2">
-          <Filter label="Reporting year">
-            <Select value={year} onValueChange={setYear}>
-              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {YEARS.map((y) => (
-                  <SelectItem key={y} value={y}>{y === "all" ? "All years" : y}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Filter>
-          <Filter label="Reporting period">
-            <Select value={quarter} onValueChange={setQuarter}>
-              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All quarters</SelectItem>
-                <SelectItem value="1">Q1</SelectItem>
-                <SelectItem value="2">Q2</SelectItem>
-                <SelectItem value="3">Q3</SelectItem>
-                <SelectItem value="4">Q4</SelectItem>
-              </SelectContent>
-            </Select>
-          </Filter>
-          {!zoneLocked && !stateLocked && (
-            <Filter label="Location">
-              <Select
-                value={locationLevel}
-                onValueChange={(v: "all" | "hq" | "zone" | "state") => {
-                  setLocationLevel(v);
-                  if (v === "hq" || v === "all") {
-                    setFilterZone("all");
-                    setFilterState("all");
-                  }
-                  if (v === "zone") setFilterState("all");
-                }}
-              >
-                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All locations</SelectItem>
-                  <SelectItem value="hq">HQ</SelectItem>
-                  <SelectItem value="zone">Zone</SelectItem>
-                  <SelectItem value="state">State</SelectItem>
-                </SelectContent>
-              </Select>
-            </Filter>
-          )}
-          {!stateLocked && locationLevel !== "hq" && (
-            <Filter label="Zone">
-              <Select
-                value={filterZone}
-                onValueChange={(v) => { setFilterZone(v); setFilterState("all"); }}
-                disabled={zoneLocked}
-              >
-                <SelectTrigger className="h-9" displayValue={zoneLabel}><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All zones</SelectItem>
-                  {zones.map((z) => (
-                    <SelectItem key={z.zonal_code} value={String(z.zonal_code)}>{z.description}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Filter>
-          )}
-          {locationLevel !== "hq" && (
-            <Filter label="State">
-              <Select value={filterState} onValueChange={setFilterState} disabled={stateLocked}>
-                <SelectTrigger className="h-9" displayValue={stateLabel}><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All states</SelectItem>
-                  {states.map((s) => (
-                    <SelectItem key={s.code} value={String(s.code)}>{s.description}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Filter>
-          )}
+        <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => { void load(); void loadSurveys(); }}
+            disabled={loading || surveysLoading}
+            className="h-8.5 gap-1.5 border border-slate-300 text-slate-700 bg-white hover:bg-[#f4f7f5] text-xs font-bold rounded-sm shadow-2xs"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${loading || surveysLoading ? "animate-spin" : ""}`} />
+            <span>Sync</span>
+          </Button>
         </div>
       </div>
 
+      {/* 2. Unified Tab Navigation Bar (in sidebar order: Citizens' Comment Card, Complaints, Satisfaction Survey) */}
+      <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 sticky top-[57px] z-20">
+        <div className="flex gap-4 overflow-x-auto -mb-px" role="tablist">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "comment-card"}
+            onClick={() => setActiveTab("comment-card")}
+            className={`group relative shrink-0 inline-flex items-center gap-2 px-3.5 py-3 text-xs font-bold whitespace-nowrap border-b-2 transition-all outline-none ${
+              activeTab === "comment-card"
+                ? "border-[#145c3f] text-[#145c3f]"
+                : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300"
+            }`}
+          >
+            <FileText className="size-4 shrink-0" />
+            <span>Citizens' Comment Card</span>
+            <span
+              className={`inline-flex min-w-[1.25rem] h-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold tabular-nums ${
+                activeTab === "comment-card"
+                  ? "bg-[#e8f6ee] text-[#145c3f]"
+                  : "bg-slate-100 text-slate-500 group-hover:bg-slate-200"
+              }`}
+            >
+              {data?.comment_cards ?? data?.meta?.counts?.comment_cards ?? 0}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "complaints"}
+            onClick={() => setActiveTab("complaints")}
+            className={`group relative shrink-0 inline-flex items-center gap-2 px-3.5 py-3 text-xs font-bold whitespace-nowrap border-b-2 transition-all outline-none ${
+              activeTab === "complaints"
+                ? "border-[#145c3f] text-[#145c3f]"
+                : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300"
+            }`}
+          >
+            <MessageSquare className="size-4 shrink-0" />
+            <span>Complaints Dashboard</span>
+            <span
+              className={`inline-flex min-w-[1.25rem] h-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold tabular-nums ${
+                activeTab === "complaints"
+                  ? "bg-[#e8f6ee] text-[#145c3f]"
+                  : "bg-slate-100 text-slate-500 group-hover:bg-slate-200"
+              }`}
+            >
+              {data?.complaints_received ?? data?.meta?.counts?.complaints ?? 0}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === "satisfaction"}
+            onClick={() => setActiveTab("satisfaction")}
+            className={`group relative shrink-0 inline-flex items-center gap-2 px-3.5 py-3 text-xs font-bold whitespace-nowrap border-b-2 transition-all outline-none ${
+              activeTab === "satisfaction"
+                ? "border-[#145c3f] text-[#145c3f]"
+                : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300"
+            }`}
+          >
+            <Smile className="size-4 shrink-0" />
+            <span>Customer Satisfaction Survey</span>
+            <span
+              className={`inline-flex min-w-[1.25rem] h-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold tabular-nums ${
+                activeTab === "satisfaction"
+                  ? "bg-[#e8f6ee] text-[#145c3f]"
+                  : "bg-slate-100 text-slate-500 group-hover:bg-slate-200"
+              }`}
+            >
+              {surveys.length}
+            </span>
+          </button>
+        </div>
+      </div>
+
+      {/* 3. Main Body Content */}
       <ScrollArea className="flex-1">
-        <div className="px-4 md:px-6 py-5 space-y-12 max-w-[1400px]">
-          {loading ? (
-            <div className="flex items-center justify-center py-24 gap-3 text-slate-400">
-              <Loader2 className="w-5 h-5 animate-spin" /> Loading SERVICOM dashboard…
-            </div>
-          ) : (
-            <>
-              {/* ── 1. Citizens' Comment Card ── */}
-              <section className="space-y-4">
-                <SectionTitle
-                  title="Citizens' Comment Card"
-                  note="Filters: reporting period (Q1–Q4) and location (HQ / Zone / State). Reception and overall use the 1–5 scale."
-                />
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-stretch">
-                  <DashKpi
-                    label="Count of responses"
-                    value={card?.responses ?? 0}
-                    detail="Comment cards in this period"
-                    onClick={() => openCards("Comment card responses")}
-                  />
-                  <DashKpi
-                    label="Reception average"
-                    value={fmtScore(card?.reception_average)}
-                    detail="Mean of the reception question (1–5)"
-                    onClick={() => openCards("Reception average — comment cards")}
-                  />
-                  <DashKpi
-                    label="Overall rating"
-                    value={fmtScore(card?.overall_rating)}
-                    detail="Mean of the overall question (1–5)"
-                    onClick={() => openCards("Overall rating — comment cards")}
-                  />
-                </div>
-                <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 items-stretch">
-                  <DashChartCard title="Average score by question">
-                    {(card?.avg_by_question ?? []).every((q: any) => !q.responses) ? (
-                      <ChartEmpty message="No comment cards in this period." />
-                    ) : (
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={card?.avg_by_question ?? []} margin={{ left: 4, right: 8, top: 8 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                          <XAxis dataKey="label" tick={{ fontSize: 11 }} />
-                          <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} unit="%" />
-                          <Tooltip
-                            formatter={(value: any, _n, item: any) => [
-                              `${value}% · avg ${item?.payload?.average ?? "—"} / ${item?.payload?.max}`,
-                              "Score",
-                            ]}
-                          />
-                          <Bar dataKey="percent" fill="#1a7a52" radius={[4, 4, 0, 0]} maxBarSize={42} />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    )}
-                  </DashChartCard>
-                  <DashChartCard title="Response distribution: reception vs overall">
-                    {(card?.distribution ?? []).every((d: any) => !d.reception && !d.overall) ? (
-                      <ChartEmpty message="No reception or overall scores yet." />
-                    ) : (
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={card?.distribution ?? []} margin={{ left: 4, right: 8, top: 8 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                          <XAxis dataKey="score" tick={{ fontSize: 11 }} />
-                          <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
-                          <Tooltip />
-                          <Legend wrapperStyle={{ fontSize: 12 }} />
-                          <Bar dataKey="reception" name="Reception" fill="#1a7a52" radius={[4, 4, 0, 0]} maxBarSize={28} />
-                          <Bar dataKey="overall" name="Overall" fill="#7eb89a" radius={[4, 4, 0, 0]} maxBarSize={28} />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    )}
-                  </DashChartCard>
-                </div>
-              </section>
-
-              {/* ── 2. HCF Customer Satisfaction Survey ── */}
-              <section className="space-y-4">
-                <SectionTitle
-                  title="Healthcare facility customer satisfaction survey"
-                  note="Filters: reporting period, location (state), facility/provider, survey date. Yes = positive response."
-                />
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 max-w-3xl">
-                  <Filter label="Facility / Provider">
-                    <Input
-                      className="h-9"
-                      placeholder="Provider name"
-                      value={provider}
-                      onChange={(e) => setProvider(e.target.value)}
-                    />
+        <div className="w-full px-4 md:px-6 py-5 max-w-7xl mx-auto space-y-6">
+          {/* TAB 1: Citizens' Comment Card */}
+          {activeTab === "comment-card" && (
+            <div className="space-y-6">
+              {/* Comment Card Filter Bar */}
+              <div className="bg-white border border-slate-200/80 rounded-sm p-3 shadow-xs">
+                <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3">
+                  <Filter label="Reporting year">
+                    <Select value={year} onValueChange={setYear}>
+                      <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {YEARS.map((y) => (
+                          <SelectItem key={y} value={y}>{y === "all" ? "All years" : y}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </Filter>
-                  <Filter label="Survey date">
-                    <Input
-                      className="h-9"
-                      type="date"
-                      value={surveyDate}
-                      onChange={(e) => setSurveyDate(e.target.value)}
-                    />
+                  <Filter label="Reporting period">
+                    <Select value={quarter} onValueChange={setQuarter}>
+                      <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All quarters</SelectItem>
+                        <SelectItem value="1">Q1</SelectItem>
+                        <SelectItem value="2">Q2</SelectItem>
+                        <SelectItem value="3">Q3</SelectItem>
+                        <SelectItem value="4">Q4</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </Filter>
+                  {!zoneLocked && !stateLocked && (
+                    <Filter label="Location">
+                      <Select
+                        value={locationLevel}
+                        onValueChange={(v: "all" | "hq" | "zone" | "state") => {
+                          setLocationLevel(v);
+                          if (v === "hq" || v === "all") {
+                            setFilterZone("all");
+                            setFilterState("all");
+                          }
+                          if (v === "zone") setFilterState("all");
+                        }}
+                      >
+                        <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All locations</SelectItem>
+                          <SelectItem value="hq">HQ</SelectItem>
+                          <SelectItem value="zone">Zone</SelectItem>
+                          <SelectItem value="state">State</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </Filter>
+                  )}
+                  {!stateLocked && locationLevel !== "hq" && (
+                    <Filter label="Zone">
+                      <Select
+                        value={filterZone}
+                        onValueChange={(v) => { setFilterZone(v); setFilterState("all"); }}
+                        disabled={zoneLocked}
+                      >
+                        <SelectTrigger className="h-9" displayValue={zoneLabel}><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All zones</SelectItem>
+                          {zones.map((z) => (
+                            <SelectItem key={z.zonal_code} value={String(z.zonal_code)}>{z.description}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </Filter>
+                  )}
+                  {locationLevel !== "hq" && (
+                    <Filter label="State">
+                      <Select value={filterState} onValueChange={setFilterState} disabled={stateLocked}>
+                        <SelectTrigger className="h-9" displayValue={stateLabel}><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All states</SelectItem>
+                          {states.map((s) => (
+                            <SelectItem key={s.code} value={String(s.code)}>{s.description}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </Filter>
+                  )}
                 </div>
-                <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 items-stretch">
-                  <DashKpi
-                    label="Facilities surveyed"
-                    value={survey?.facilities_surveyed ?? 0}
-                    detail={`${survey?.surveys ?? 0} survey records`}
-                    onClick={() => openSurveys("Facilities surveyed — satisfaction surveys")}
-                  />
-                  <DashKpi
-                    label="Overall response rate"
-                    value={survey?.overall_response_rate != null ? `${survey.overall_response_rate}%` : "—"}
-                    detail="Share of Yes answers"
-                    onClick={() => openSurveys("Overall response rate — surveys")}
-                  />
-                  <DashKpi
-                    label="Strongest category"
-                    value={survey?.strongest_category ? satisfactionCategoryLabel(survey.strongest_category.name) : "—"}
-                    detail={survey?.strongest_category ? `${survey.strongest_category.rate}% positive` : "Needs survey data"}
-                    onClick={() => openSurveys(
-                      survey?.strongest_category
-                        ? `Strongest: ${satisfactionCategoryLabel(survey.strongest_category.name)}`
-                        : "Satisfaction surveys",
-                    )}
-                  />
-                  <DashKpi
-                    label="Priority category"
-                    value={survey?.priority_category ? satisfactionCategoryLabel(survey.priority_category.name) : "—"}
-                    detail={survey?.priority_category ? `${survey.priority_category.rate}% positive` : "Lowest category appears here"}
-                    onClick={() => openSurveys(
-                      survey?.priority_category
-                        ? `Priority: ${satisfactionCategoryLabel(survey.priority_category.name)}`
-                        : "Satisfaction surveys",
-                    )}
-                  />
-                </div>
-                <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 items-stretch">
-                  <CategoryRadialChart
-                    rows={survey?.by_category ?? []}
-                    categoryFocus={categoryFocus}
-                    onSelectCategory={setCategoryFocus}
-                  />
+              </div>
 
-                  <DashChartCard title="Indicator-level positive response">
-                    {indicators.length === 0 ? (
-                      <ChartEmpty message="No indicators in this view." />
-                    ) : (
-                      <div className="flex h-full flex-col">
-                        <div className="flex items-center justify-between gap-2 mb-1 px-1">
-                          <p className="text-[11px] text-slate-500">
-                            {categoryFocus ? satisfactionCategoryLabel(categoryFocus) : "All categories"}
-                            {" · each bar is a unique indicator · dashed line = 50%"}
-                          </p>
-                          {categoryFocus && (
-                            <button
-                              type="button"
-                              className="text-[11px] font-semibold text-[#145c3f] shrink-0"
-                              onClick={() => setCategoryFocus(null)}
-                            >
-                              Show all
-                            </button>
-                          )}
-                        </div>
-                        <div
-                          className="w-full"
-                          style={{ height: Math.max(300, indicators.length * 28 + 48) }}
-                        >
+              {loading ? (
+                <div className="flex items-center justify-center py-24 gap-3 text-slate-400">
+                  <Loader2 className="w-5 h-5 animate-spin" /> Loading Citizens' Comment Card analytics…
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {/* Citizens' Comment Card */}
+                  <section className="space-y-4">
+                    <SectionTitle
+                      title="Citizens' Comment Card"
+                      note="Filters: reporting period (Q1–Q4) and location (HQ / Zone / State). Reception and overall use the 1–5 scale."
+                    />
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-stretch">
+                      <DashKpi
+                        label="Count of responses"
+                        value={card?.responses ?? 0}
+                        detail="Comment cards in this period"
+                        onClick={() => openCards("Comment card responses")}
+                      />
+                      <DashKpi
+                        label="Reception average"
+                        value={fmtScore(card?.reception_average)}
+                        detail="Mean of the reception question (1–5)"
+                        onClick={() => openCards("Reception average — comment cards")}
+                      />
+                      <DashKpi
+                        label="Overall rating"
+                        value={fmtScore(card?.overall_rating)}
+                        detail="Mean of the overall question (1–5)"
+                        onClick={() => openCards("Overall rating — comment cards")}
+                      />
+                    </div>
+                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 items-stretch">
+                      <DashChartCard title="Average score by question">
+                        {(card?.avg_by_question ?? []).every((q: any) => !q.responses) ? (
+                          <ChartEmpty message="No comment cards in this period." />
+                        ) : (
                           <ResponsiveContainer width="100%" height="100%">
-                            <BarChart
-                              data={indicators.map((row: any, index: number) => ({
-                                id: row.id,
-                                question: row.question,
-                                rate: row.positive_rate != null ? Number(row.positive_rate) : 0,
-                                low: !!row.low,
-                                repeated_low: !!row.repeated_low,
-                                color: indicatorColor(index),
-                              }))}
-                              layout="vertical"
-                              margin={{ left: 4, right: 16, top: 8, bottom: 4 }}
-                            >
-                              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal={false} />
-                              <XAxis
-                                type="number"
-                                domain={[0, 100]}
-                                tick={{ fontSize: 11 }}
-                                unit="%"
-                              />
-                              <YAxis
-                                type="category"
-                                dataKey="id"
-                                width={42}
-                                tick={{ fontSize: 11, fontWeight: 600, fill: "#334155" }}
-                              />
+                            <BarChart data={card?.avg_by_question ?? []} margin={{ left: 4, right: 8, top: 8 }}>
+                              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                              <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+                              <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} unit="%" />
                               <Tooltip
-                                formatter={(value: any, _n, item: any) => {
-                                  const flag = item?.payload?.repeated_low
-                                    ? "Repeated low"
-                                    : item?.payload?.low
-                                      ? "Low"
-                                      : "OK";
-                                  return [`${value}% · ${flag}`, "Positive rate"];
-                                }}
-                                labelFormatter={(_label, payload) =>
-                                  payload?.[0]?.payload?.question
-                                    ? `${payload[0].payload.id}: ${payload[0].payload.question}`
-                                    : String(_label)
-                                }
-                                contentStyle={{
-                                  borderRadius: 10,
-                                  border: "1px solid #d4e8dc",
-                                  fontSize: 12,
-                                  maxWidth: 280,
-                                }}
+                                formatter={(value: any, _n, item: any) => [
+                                  `${value}% · avg ${item?.payload?.average ?? "—"} / ${item?.payload?.max}`,
+                                  "Score",
+                                ]}
                               />
-                              <ReferenceLine
-                                x={50}
-                                stroke="#94a3b8"
-                                strokeDasharray="4 4"
-                                strokeWidth={1.5}
-                              />
-                              <Bar dataKey="rate" radius={[0, 6, 6, 0]} maxBarSize={18}>
-                                {indicators.map((row: any, index: number) => (
-                                  <Cell key={row.id} fill={indicatorColor(index)} />
-                                ))}
-                              </Bar>
+                              <Bar dataKey="percent" fill="#1a7a52" radius={[4, 4, 0, 0]} maxBarSize={42} />
                             </BarChart>
                           </ResponsiveContainer>
-                        </div>
-                      </div>
-                    )}
-                  </DashChartCard>
-                </div>
-
-                <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 items-stretch">
-                  <StateComparePanel topStates={topStates} lowStates={lowStates} className="xl:col-span-2" />
-                  <div className="rounded-xl border border-amber-200 bg-amber-50/40 p-4 space-y-3">
-                    <div className="flex items-center gap-2">
-                      <AlertTriangle className="w-4 h-4 text-amber-700" />
-                      <p className="text-sm font-semibold text-slate-800">Repeated low indicators</p>
+                        )}
+                      </DashChartCard>
+                      <DashChartCard title="Response distribution: reception vs overall">
+                        {(card?.distribution ?? []).every((d: any) => !d.reception && !d.overall) ? (
+                          <ChartEmpty message="No reception or overall scores yet." />
+                        ) : (
+                          <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={card?.distribution ?? []} margin={{ left: 4, right: 8, top: 8 }}>
+                              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                              <XAxis dataKey="score" tick={{ fontSize: 11 }} />
+                              <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
+                              <Tooltip />
+                              <Legend wrapperStyle={{ fontSize: 12 }} />
+                              <Bar dataKey="reception" name="Reception" fill="#1a7a52" radius={[4, 4, 0, 0]} maxBarSize={28} />
+                              <Bar dataKey="overall" name="Overall" fill="#7eb89a" radius={[4, 4, 0, 0]} maxBarSize={28} />
+                            </BarChart>
+                          </ResponsiveContainer>
+                        )}
+                      </DashChartCard>
                     </div>
-                    {repeatedLow.length === 0 ? (
-                      <p className="text-xs text-slate-500 py-8 text-center">No repeated low indicators flagged.</p>
-                    ) : (
-                      <ul className="space-y-2 max-h-[240px] overflow-auto">
-                        {repeatedLow.map((f: any) => (
-                          <li key={f.id} className="rounded-lg bg-white border border-amber-100 px-3 py-2">
-                            <p className="text-[11px] font-semibold text-amber-800">
-                              {f.id} · {satisfactionCategoryLabel(f.category || "")}
-                            </p>
-                            <p className="text-xs text-slate-700 mt-0.5">{f.question}</p>
-                            <p className="text-[11px] tabular-nums text-slate-500 mt-1">
-                              {f.positive_rate != null ? `${f.positive_rate}% positive` : "—"}
-                            </p>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
+                  </section>
                 </div>
-              </section>
+              )}
+            </div>
+          )}
 
-              {/* ── 3. Complaint Register ── */}
-              <section className="space-y-4">
-                <SectionTitle
-                  title="Complaint register"
-                  note="Filters: Period (date / month / year) · Location (state / zone / HQ) · Programs · Case attributes (priority, category, type, route, status)."
-                />
-                <ComplaintRegisterDashboard
-                  embedded
-                  defaultStateId={defaultStateId}
-                  defaultZoneId={defaultZoneId}
-                  lockLocation={!!(defaultStateId || defaultZoneId)}
-                />
-              </section>
-            </>
+          {/* TAB 2: Complaints Dashboard */}
+          {activeTab === "complaints" && (
+            <ComplaintRegisterDashboard
+              defaultStateId={defaultStateId}
+              defaultZoneId={defaultZoneId}
+              lockLocation={!!(defaultStateId || defaultZoneId)}
+            />
+          )}
+
+          {/* TAB 3: Satisfaction Survey Dashboard */}
+          {activeTab === "satisfaction" && (
+            <SatisfactionDashboardTab
+              surveys={surveys}
+              zones={zones}
+              states={states}
+              loading={surveysLoading}
+              defaultZoneId={defaultZoneId}
+              defaultStateId={defaultStateId}
+              onDrillDownState={(stCode) => {
+                setFilterState(stCode);
+              }}
+            />
           )}
         </div>
       </ScrollArea>
