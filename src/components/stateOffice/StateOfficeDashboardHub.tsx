@@ -1,5 +1,6 @@
 import * as React from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { useSelector } from "react-redux";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -13,10 +14,12 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import type { RootState } from "@/src/store/store";
 import EnrolmentDriveDashboard from "./EnrolmentDriveDashboard";
 import ProviderManagementDashboard from "./ProviderManagementDashboard";
 import ChallengesSupportDashboard from "./ChallengesSupportDashboard";
 import { STAKEHOLDER_MANAGEMENT_PATH } from "./enrolmentPillarTypes";
+import { canAccessEnrolmentDriveDashboard } from "./enrolmentDriveTypes";
 
 export type StateOfficeDashTab =
   | "enrolment"
@@ -79,22 +82,40 @@ export default function StateOfficeDashboardHub({
   defaultStateId,
 }: Props) {
   const navigate = useNavigate();
+  const user = useSelector((s: RootState) => s.auth.user);
+  const canEdDash = canAccessEnrolmentDriveDashboard(user?.role, {
+    reportScope: user?.role_config?.report_scope ?? null,
+    stateCode: user?.state_code || (user as any)?.state?.code || defaultStateId || null,
+    zonalCode: user?.zonal_code || (user as any)?.zone?.zonal_code || defaultZoneId || null,
+  });
+  const visibleTabs = React.useMemo(
+    () => TABS.filter((tab) => tab.key !== "enrolment-drives" || canEdDash),
+    [canEdDash],
+  );
+
   const [searchParams, setSearchParams] = useSearchParams();
   const tabParam = searchParams.get("tab") as StateOfficeDashTab | null;
+  const fallbackTab: StateOfficeDashTab = visibleTabs[0]?.key || "enrolment";
   const initialTab: StateOfficeDashTab =
-    tabParam && TAB_KEYS.has(tabParam) ? tabParam : "enrolment-drives";
+    tabParam && visibleTabs.some((t) => t.key === tabParam)
+      ? tabParam
+      : (canEdDash ? "enrolment-drives" : fallbackTab);
 
   const [activeTab, setActiveTab] = React.useState<StateOfficeDashTab>(initialTab);
   const [refreshKey, setRefreshKey] = React.useState(0);
   const [syncing, setSyncing] = React.useState(false);
 
   React.useEffect(() => {
-    if (tabParam && TAB_KEYS.has(tabParam) && tabParam !== activeTab) {
+    if (tabParam && visibleTabs.some((t) => t.key === tabParam) && tabParam !== activeTab) {
       setActiveTab(tabParam);
+    } else if (activeTab === "enrolment-drives" && !canEdDash) {
+      setActiveTab(fallbackTab);
+      setSearchParams({ tab: fallbackTab }, { replace: true });
     }
-  }, [tabParam]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [tabParam, canEdDash, visibleTabs, fallbackTab]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const selectTab = (key: StateOfficeDashTab) => {
+    if (key === "enrolment-drives" && !canEdDash) return;
     setActiveTab(key);
     setSearchParams({ tab: key }, { replace: true });
   };
@@ -145,7 +166,7 @@ export default function StateOfficeDashboardHub({
 
       <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 sticky top-[57px] z-20">
         <div className="flex gap-4 overflow-x-auto -mb-px" role="tablist">
-          {TABS.map((tab) => (
+          {visibleTabs.map((tab) => (
             <button
               key={tab.key}
               type="button"
@@ -169,7 +190,7 @@ export default function StateOfficeDashboardHub({
         <UnavailablePanel moduleLabel="Enrolment" registerPath="/zonal/enrolment" />
       )}
 
-      {activeTab === "enrolment-drives" && (
+      {activeTab === "enrolment-drives" && canEdDash && (
         <EnrolmentDriveDashboard
           key={`ed-dash-${refreshKey}`}
           embedded
@@ -182,6 +203,9 @@ export default function StateOfficeDashboardHub({
             navigate(`/zonal/enrolment-drives?${params.toString()}`);
           }}
         />
+      )}
+      {activeTab === "enrolment-drives" && !canEdDash && (
+        <UnavailablePanel moduleLabel="Enrolment Drives" registerPath="/zonal/enrolment-drives" />
       )}
 
       {activeTab === "stakeholder" && (
