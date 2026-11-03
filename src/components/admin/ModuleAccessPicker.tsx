@@ -1,7 +1,8 @@
 import * as React from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
-import { MODULE_CONFIG, flatLeaves } from "@/src/access/moduleConfig";
+import { MODULE_CONFIG } from "@/src/access/moduleConfig";
 import {
+  assignableLeavesForModule,
   buildPrivilegeSections,
   privilegeLeafTitles,
   type PrivilegeFolderNode,
@@ -23,7 +24,7 @@ function collectLeaves(node: PrivilegeNode): PrivilegeLeafNode[] {
 function dropOrphanParents(next: Set<string>) {
   for (const mod of MODULE_CONFIG) {
     if (!next.has(mod.title)) continue;
-    const leaves = flatLeaves(mod);
+    const leaves = assignableLeavesForModule(mod);
     if (leaves.length > 0 && !leaves.some((t) => next.has(t))) {
       next.delete(mod.title);
     }

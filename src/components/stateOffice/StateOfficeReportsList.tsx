@@ -1,7 +1,7 @@
 import * as React from "react";
 import { useListSearch } from "./useListSearch";
 import {
-  Plus, Loader2, RefreshCw, Eye, ArrowLeft,
+  Plus, Loader2, RefreshCw, Eye, ArrowLeft, Send,
   FileText, Clock, CheckCircle2, XCircle,
   type LucideIcon,
 } from "lucide-react";
@@ -26,11 +26,16 @@ import SshiaFinancialReportDetail from "./SshiaFinancialReportDetail";
 import ExpenditureProfileReportPage from "./ExpenditureProfileReportPage";
 import ExpenditureProfileReportDetail from "./ExpenditureProfileReportDetail";
 import {
-  REPORT_CONFIG, MONTHS, monthLabel, quarterFromMonth, formatCount, formatDate,
+  REPORT_CONFIG, MONTHS, monthLabel, quarterFromMonth, formatCount, formatDate, formatDateShort, formatAmount, formatNaira,
+  labelOf, IGR_SERVICE_TYPES, SSHIA_SUB_HEADS,
   reportLineTotal, reportLineCount, ENROLLEE_REGISTER_SCHEMES, type StateOfficeReportType,
 } from "./constants";
 import { ENROLMENT_ACTIVITIES, enrolmentLineListSummary } from "./enrolmentPillarTypes";
 import { useStateOfficeAccess } from "@/src/access/createReviewAccess";
+import {
+  SubmitConfirmModal,
+  useReportingOfficerSubmitConfirm,
+} from "@/src/components/SubmitConfirmModal";
 
 interface Report {
   id: number;
@@ -127,10 +132,16 @@ export default function StateOfficeReportsList({
   );
   const multiType = typesToLoad.length > 1;
   const { canCreate, canReview, createOnly: baseCreateOnly } = useStateOfficeAccess();
+  const submitConfirm = useReportingOfficerSubmitConfirm();
+  const [finalBusy, setFinalBusy] = React.useState(false);
   const authUser = useSelector((s: RootState) => s.auth.user);
   // Match Stakeholder Management: officers with the endorsement workflow see their own list
   // (draft → awaiting review → endorsed → final submit), not a create-only form-first screen.
   const createOnly = providerWorkflow ? false : baseCreateOnly;
+  const isFinanceList =
+    reportType === "igr"
+    || reportType === "sshia-financial"
+    || reportType === "expenditure-profile";
   const hasActivityTabs = !!activityTabs?.length;
   const defaultActivityTab = activityTabs?.[0]?.value ?? "all";
 
@@ -253,6 +264,30 @@ export default function StateOfficeReportsList({
     setMode(nextMode);
   };
 
+  const requestFinalSubmit = (r: Report) => {
+    const type = (r.__reportType ?? reportType) as StateOfficeReportType;
+    submitConfirm.requestSubmit(async () => {
+      setFinalBusy(true);
+      try {
+        await stateOfficeApi[type].updateStatus(r.id, "submitted");
+        toast.success("Final submission complete");
+        await load();
+        return true;
+      } catch (err: unknown) {
+        toast.error((err as Error).message || "Final submission failed");
+        return false;
+      } finally {
+        setFinalBusy(false);
+      }
+    }, {
+      force: true,
+      title: "Confirm final submission",
+      description:
+        "This completes the report after State Coordinator endorsement. You will not be able to edit it afterwards.",
+      confirmLabel: "Yes, final submit",
+    });
+  };
+
   const load = React.useCallback(async () => {
     if (createOnly) return;
     setLoading(true);
@@ -338,6 +373,43 @@ export default function StateOfficeReportsList({
     }
     return matching;
   }, [reports, reportType, filterActivity, activityRows, hasActivityTabs, matchesSearch]);
+
+  /** SSHIA list: one unified row per office + quarter. */
+  const sshiaListRows = React.useMemo(() => {
+    if (reportType !== "sshia-financial") return [] as Array<{
+      report: Report;
+      filledLabels: string[];
+      filledCount: number;
+    }>;
+    return filteredReports.map((r) => {
+      const lines = Array.isArray((r as any).lines) ? (r as any).lines as any[] : [];
+      const filledLabels: string[] = [];
+
+      if (lines.length) {
+        for (const line of lines) {
+          filledLabels.push(
+            labelOf(SSHIA_SUB_HEADS as any, String(line.sub_head || ""), String(line.sub_head || "—")),
+          );
+        }
+      } else {
+        for (const h of SSHIA_SUB_HEADS) {
+          const p = h.prefix;
+          const opening = (r as any)[`${p}_opening_balance`] ?? null;
+          const receipts = (r as any)[`${p}_receipts`] ?? null;
+          const actual = (r as any)[`${p}_actual_expenditure`] ?? null;
+          const lives = (r as any)[`${p}_bhcpf_lives`] ?? null;
+          if (opening == null && receipts == null && actual == null && lives == null) continue;
+          filledLabels.push(h.label);
+        }
+      }
+
+      return {
+        report: r,
+        filledLabels,
+        filledCount: filledLabels.length,
+      };
+    });
+  }, [filteredReports, reportType]);
 
   const activityTabCounts = React.useMemo(() => {
     if (!hasActivityTabs) return {} as Record<string, number>;
@@ -547,7 +619,7 @@ export default function StateOfficeReportsList({
           </Button>
           <div className="min-w-0">
             <h2 className="text-xl font-bold tracking-tight truncate">{listTitle ?? cfg.title}</h2>
-            {providerWorkflow && (
+            {providerWorkflow && !isFinanceList && (
               <p className="text-xs text-slate-500 truncate">
                 {canReview
                   ? "Review and endorse reports awaiting your action"
@@ -750,15 +822,17 @@ export default function StateOfficeReportsList({
 
           {searchInput}
           <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden">
-            <CardHeader className="pb-3 border-b border-[#d4e8dc]">
-              <CardTitle className="text-sm font-bold">
-                {loading
-                  ? "Loading..."
-                  : reportType === "enrollee-register" || reportType === "etmc-tmc-action-point" || reportType === "ict-support-register" || reportType === "adhoc-special-assignment"
-                    ? `${filteredReports.length} register${filteredReports.length !== 1 ? "s" : ""}`
-                    : `${filteredReports.length} report${filteredReports.length !== 1 ? "s" : ""}`}
-              </CardTitle>
-            </CardHeader>
+            {!isFinanceList && (
+              <CardHeader className="pb-3 border-b border-[#d4e8dc]">
+                <CardTitle className="text-sm font-bold">
+                  {loading
+                    ? "Loading..."
+                    : reportType === "enrollee-register" || reportType === "etmc-tmc-action-point" || reportType === "ict-support-register" || reportType === "adhoc-special-assignment"
+                      ? `${filteredReports.length} register${filteredReports.length !== 1 ? "s" : ""}`
+                      : `${filteredReports.length} report${filteredReports.length !== 1 ? "s" : ""}`}
+                </CardTitle>
+              </CardHeader>
+            )}
             <CardContent className="p-0">
               {loading ? (
                 <div className="flex items-center justify-center py-16 gap-3 text-slate-400">
@@ -786,7 +860,36 @@ export default function StateOfficeReportsList({
                   <Table>
                     <TableHeader>
                       <TableRow className="bg-[#f0fdf7] hover:bg-[#f0fdf7]">
-                        {reportType === "enrollee-register" ? (
+                        {reportType === "igr" ? (
+                          <>
+                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Date</TableHead>
+                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">State</TableHead>
+                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Service Type</TableHead>
+                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Principal</TableHead>
+                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Receipt No.</TableHead>
+                            <TableHead className="text-xs font-bold text-slate-600 text-right whitespace-nowrap">Amount (₦)</TableHead>
+                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Payment Date</TableHead>
+                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Status</TableHead>
+                            <TableHead className="text-right text-xs font-bold text-slate-600 whitespace-nowrap">Actions</TableHead>
+                          </>
+                        ) : reportType === "sshia-financial" ? (
+                          <>
+                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Period</TableHead>
+                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">State</TableHead>
+                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Sub-heads filled</TableHead>
+                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Submitted by</TableHead>
+                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Status</TableHead>
+                            <TableHead className="text-right text-xs font-bold text-slate-600 whitespace-nowrap">Actions</TableHead>
+                          </>
+                        ) : reportType === "expenditure-profile" ? (
+                          <>
+                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Period</TableHead>
+                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">State</TableHead>
+                            <TableHead className="text-xs font-bold text-slate-600 text-right whitespace-nowrap">Total (₦)</TableHead>
+                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Status</TableHead>
+                            <TableHead className="text-right text-xs font-bold text-slate-600 whitespace-nowrap">Actions</TableHead>
+                          </>
+                        ) : reportType === "enrollee-register" ? (
                           <>
                             <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Year</TableHead>
                             <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Month</TableHead>
@@ -885,7 +988,79 @@ export default function StateOfficeReportsList({
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                    {filteredReports.map((r, i) => {
+                    {reportType === "sshia-financial" ? sshiaListRows.map((row, i) => {
+                      const r = row.report;
+                      const sc = STATUS_CONFIG[r.status] || STATUS_CONFIG.draft;
+                      const quarter = (r as any).reporting_quarter || quarterFromMonth(r.reporting_month);
+                      return (
+                        <motion.tr
+                          key={String(r.id)}
+                          initial={{ opacity: 0, y: 4 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: i * 0.02 }}
+                          className="hover:bg-[#f8fdfb] transition-colors border-b border-slate-100 last:border-0"
+                        >
+                          <TableCell className="text-sm text-slate-700 whitespace-nowrap">
+                            <span className="font-medium">{monthLabel(r.reporting_month)} {r.reporting_year}</span>
+                            <span className="text-slate-400"> · Q{quarter}</span>
+                          </TableCell>
+                          <TableCell className="text-sm font-semibold text-slate-800 whitespace-nowrap">
+                            {r.state?.description || "—"}
+                          </TableCell>
+                          <TableCell className="py-2.5">
+                            {row.filledCount === 0 ? (
+                              <span className="text-sm text-slate-400">None yet</span>
+                            ) : (
+                              <div className="flex flex-wrap gap-1.5 max-w-[22rem]">
+                                {row.filledLabels.map((label) => (
+                                  <span
+                                    key={label}
+                                    className="inline-flex items-center rounded-md border border-[#d4e8dc] bg-[#f4faf7] px-2 py-0.5 text-[11px] font-medium text-[#145c3f]"
+                                  >
+                                    {label}
+                                  </span>
+                                ))}
+                                <span className="inline-flex items-center text-[11px] text-slate-400 px-0.5">
+                                  {row.filledCount} of 4
+                                </span>
+                              </div>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-sm text-slate-600 whitespace-nowrap">
+                            {r.submitted_by || "—"}
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={`text-[10px] px-2 py-0.5 flex items-center gap-1 w-fit border ${sc.cls}`}>
+                              {sc.icon} {sc.label}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="inline-flex items-center justify-end gap-1">
+                              <Button variant="ghost" size="sm"
+                                className="h-7 gap-1 px-2 text-slate-500 hover:text-primary hover:bg-primary/10"
+                                onClick={() => openReport(r, "view")}>
+                                <Eye className="w-3.5 h-3.5" /> View
+                              </Button>
+                              {canCreate && (r.status === "draft" || r.status === "returned") && (
+                                <Button variant="ghost" size="sm"
+                                  className="h-7 gap-1 px-2 text-[#145c3f] hover:text-[#145c3f] hover:bg-[#145c3f]/10"
+                                  onClick={() => openReport(r, "edit")}>
+                                  Update
+                                </Button>
+                              )}
+                              {canCreate && r.status === "endorsed" && (
+                                <Button variant="ghost" size="sm"
+                                  className="h-7 gap-1 px-2 text-[#145c3f] hover:text-[#0f3d2e] hover:bg-[#145c3f]/10"
+                                  disabled={finalBusy}
+                                  onClick={() => requestFinalSubmit(r)}>
+                                  <Send className="w-3.5 h-3.5" /> Final Submit
+                                </Button>
+                              )}
+                            </div>
+                          </TableCell>
+                        </motion.tr>
+                      );
+                    }) : filteredReports.map((r, i) => {
                       const sc = STATUS_CONFIG[r.status] || STATUS_CONFIG.draft;
                       const rowType = r.__reportType ?? reportType;
                       const typeLabel = REPORT_CONFIG[rowType]?.title ?? rowType;
@@ -897,7 +1072,103 @@ export default function StateOfficeReportsList({
                           <motion.tr key={`${rowType}-${r.id}`} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: i * 0.02 }}
                             className="hover:bg-[#f8fdfb] transition-colors border-b border-slate-100 last:border-0">
-                            {reportType === "enrollee-register" ? (
+                            {reportType === "expenditure-profile" ? (
+                              <>
+                                <TableCell className="text-sm text-slate-700 whitespace-nowrap">
+                                  <span className="font-medium">{monthLabel(r.reporting_month)} {r.reporting_year}</span>
+                                  <span className="text-slate-400"> · Q{(r as any).reporting_quarter || quarterFromMonth(r.reporting_month)}</span>
+                                </TableCell>
+                                <TableCell className="text-sm font-semibold text-slate-800 whitespace-nowrap">
+                                  {r.state?.description || "—"}
+                                </TableCell>
+                                <TableCell className="text-sm font-semibold text-[#145c3f] text-right tabular-nums whitespace-nowrap">
+                                  {formatNaira(reportLineTotal("expenditure-profile", r))}
+                                </TableCell>
+                                <TableCell>
+                                  <Badge className={`text-[10px] px-2 py-0.5 flex items-center gap-1 w-fit border ${sc.cls}`}>
+                                    {sc.icon} {sc.label}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <div className="inline-flex items-center justify-end gap-1">
+                                    <Button variant="ghost" size="sm"
+                                      className="h-7 gap-1 px-2 text-slate-500 hover:text-primary hover:bg-primary/10"
+                                      onClick={() => openReport(r, "view")}>
+                                      <Eye className="w-3.5 h-3.5" /> View
+                                    </Button>
+                                    {canCreate && (r.status === "draft" || r.status === "returned") && (
+                                      <Button variant="ghost" size="sm"
+                                        className="h-7 gap-1 px-2 text-[#145c3f] hover:text-[#145c3f] hover:bg-[#145c3f]/10"
+                                        onClick={() => openReport(r, "edit")}>
+                                        Update
+                                      </Button>
+                                    )}
+                                    {canCreate && r.status === "endorsed" && (
+                                      <Button variant="ghost" size="sm"
+                                        className="h-7 gap-1 px-2 text-[#145c3f] hover:text-[#0f3d2e] hover:bg-[#145c3f]/10"
+                                        disabled={finalBusy}
+                                        onClick={() => requestFinalSubmit(r)}>
+                                        <Send className="w-3.5 h-3.5" /> Final Submit
+                                      </Button>
+                                    )}
+                                  </div>
+                                </TableCell>
+                              </>
+                            ) : reportType === "igr" ? (
+                              <>
+                                <TableCell className="text-sm text-slate-700 whitespace-nowrap tabular-nums">
+                                  {formatDateShort((r as any).entry_date || r.submission_date)}
+                                </TableCell>
+                                <TableCell className="text-sm font-semibold text-slate-800 whitespace-nowrap">
+                                  {r.state?.description || "—"}
+                                </TableCell>
+                                <TableCell className="text-sm text-slate-800 whitespace-nowrap">
+                                  {labelOf(IGR_SERVICE_TYPES, String((r as any).service_type || r.lines?.[0]?.service_type || ""))}
+                                </TableCell>
+                                <TableCell className="text-sm font-medium text-slate-800 whitespace-nowrap max-w-[160px] truncate"
+                                  title={String((r as any).principal_name || r.lines?.[0]?.principal_name || "")}>
+                                  {String((r as any).principal_name || r.lines?.[0]?.principal_name || "—")}
+                                </TableCell>
+                                <TableCell className="text-sm font-mono text-slate-700 whitespace-nowrap">
+                                  {String((r as any).receipt_no || r.lines?.[0]?.receipt_no || "—")}
+                                </TableCell>
+                                <TableCell className="text-sm font-semibold text-[#145c3f] text-right tabular-nums whitespace-nowrap">
+                                  {formatAmount((r as any).amount ?? r.lines?.[0]?.amount ?? 0)}
+                                </TableCell>
+                                <TableCell className="text-sm text-slate-600 whitespace-nowrap tabular-nums">
+                                  {formatDateShort((r as any).payment_date || r.lines?.[0]?.payment_date)}
+                                </TableCell>
+                                <TableCell>
+                                  <Badge className={`text-[10px] px-2 py-0.5 flex items-center gap-1 w-fit border ${sc.cls}`}>
+                                    {sc.icon} {sc.label}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <div className="inline-flex items-center justify-end gap-1">
+                                    <Button variant="ghost" size="sm"
+                                      className="h-7 gap-1 px-2 text-slate-500 hover:text-primary hover:bg-primary/10"
+                                      onClick={() => openReport(r, "view")}>
+                                      <Eye className="w-3.5 h-3.5" /> View
+                                    </Button>
+                                    {canCreate && (r.status === "draft" || r.status === "returned") && (
+                                      <Button variant="ghost" size="sm"
+                                        className="h-7 gap-1 px-2 text-[#145c3f] hover:text-[#145c3f] hover:bg-[#145c3f]/10"
+                                        onClick={() => openReport(r, "edit")}>
+                                        Update
+                                      </Button>
+                                    )}
+                                    {canCreate && r.status === "endorsed" && (
+                                      <Button variant="ghost" size="sm"
+                                        className="h-7 gap-1 px-2 text-[#145c3f] hover:text-[#0f3d2e] hover:bg-[#145c3f]/10"
+                                        disabled={finalBusy}
+                                        onClick={() => requestFinalSubmit(r)}>
+                                        <Send className="w-3.5 h-3.5" /> Final Submit
+                                      </Button>
+                                    )}
+                                  </div>
+                                </TableCell>
+                              </>
+                            ) : reportType === "enrollee-register" ? (
                               <>
                                 <TableCell className="text-sm font-semibold text-slate-800 whitespace-nowrap">{r.reporting_year}</TableCell>
                                 <TableCell className="text-sm text-slate-600 whitespace-nowrap">{monthLabel(r.reporting_month)}</TableCell>
@@ -1079,6 +1350,18 @@ export default function StateOfficeReportsList({
           </Card>
         </div>
       </ScrollArea>
+
+      {isFinanceList && (
+        <SubmitConfirmModal
+          open={submitConfirm.open}
+          busy={submitConfirm.busy || finalBusy}
+          title={submitConfirm.title}
+          description={submitConfirm.description}
+          confirmLabel={submitConfirm.confirmLabel}
+          onConfirm={submitConfirm.confirm}
+          onCancel={submitConfirm.cancel}
+        />
+      )}
     </div>
   );
 }

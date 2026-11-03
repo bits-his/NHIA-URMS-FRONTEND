@@ -29,6 +29,7 @@ interface Props {
   onBack: () => void;
   defaultStateId?: string | null;
   defaultZoneId?: string | null;
+  embedded?: boolean;
 }
 
 type Geo = { id?: number | string; code?: string; zonal_code?: string; description: string };
@@ -193,7 +194,7 @@ function answeredCount(map: ScoreMap, keys: readonly { key: string }[]) {
   return keys.filter((k) => map[k.key] !== undefined && map[k.key] !== "").length;
 }
 
-export default function StateOfficeMysteryShoppingPage({ onBack, defaultStateId, defaultZoneId }: Props) {
+export default function StateOfficeMysteryShoppingPage({ onBack, defaultStateId, defaultZoneId, embedded = false }: Props) {
   const { canCreate, createOnly } = useStateOfficeAccess();
   const [mode, setMode] = React.useState<Mode>(createOnly ? "create" : "list");
   const [formKey, setFormKey] = React.useState(0);
@@ -823,13 +824,19 @@ export default function StateOfficeMysteryShoppingPage({ onBack, defaultStateId,
   }
 
   return (
-    <div className="flex flex-col h-full bg-slate-50/30">
-      <div className="bg-white border-b border-border/50 px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30">
-        <div>
-          <h2 className="text-xl font-bold tracking-tight">Mystery Shopping</h2>
-          <p className="text-xs text-muted-foreground">Facility visit scorecards for enrollee experience</p>
+    <div className={`flex flex-col h-full ${embedded ? "" : "bg-slate-50/30"}`}>
+      <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-10 gap-3">
+        <div className="min-w-0">
+          {!embedded ? (
+            <>
+              <h2 className="text-xl font-bold tracking-tight">Mystery Shopping</h2>
+              <p className="text-xs text-muted-foreground">Facility visit scorecards for enrollee experience</p>
+            </>
+          ) : (
+            <p className="text-xs text-slate-500 truncate">Facility visit scorecards for enrollee experience</p>
+          )}
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 shrink-0">
           <Button variant="outline" size="sm" onClick={() => void load()} disabled={loading} className="gap-2">
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
           </Button>

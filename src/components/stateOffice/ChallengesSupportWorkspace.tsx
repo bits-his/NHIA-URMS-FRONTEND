@@ -1,5 +1,5 @@
 import * as React from "react";
-import { ArrowLeft, Eye, FileText, Link2, Loader2, MessageSquare, Pencil, Plus, RefreshCw, Send, User2 } from "lucide-react";
+import { ArrowLeft, AlertTriangle, Eye, FileText, HandHelping, Link2, Loader2, MessageSquare, Pencil, Plus, RefreshCw, Send, User2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,9 +8,10 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import type { ColumnDef } from "@tanstack/react-table";
+import { ShadcnDataTable } from "@/components/common/ShadcnDataTable";
 import { challengesSupportApi as api } from "@/lib/api";
 import { Field, FieldSection } from "./EnrolmentActivityForm";
-import { useListSearch } from "./useListSearch";
 import {
   CHALLENGE_CATEGORIES, CHALLENGE_DEPARTMENTS, CHALLENGE_IMPACTS, CHALLENGE_PROGRAMS,
   CHALLENGE_RELATED_ACTIVITIES, CHALLENGE_SEVERITIES, CHALLENGE_STATUSES,
@@ -105,7 +106,6 @@ export default function ChallengesSupportWorkspace({ onBack }: Props) {
   const [detail, setDetail] = React.useState<any>(null);
   const [note, setNote] = React.useState("");
   const [newStatus, setNewStatus] = React.useState("");
-  const { search, setSearch, matchesSearch, searchInput } = useListSearch();
   const permissions = catalogue?.permissions || { create: false, comment: false, assign: false, national: false };
 
   const run = async <T,>(op: () => Promise<T>): Promise<T | undefined> => {
@@ -165,12 +165,248 @@ export default function ChallengesSupportWorkspace({ onBack }: Props) {
   });
   const handleBack = () => {
     if (["challenge-form", "support-form", "challenge-detail", "support-detail"].includes(mode)) setMode("challenges");
-    else if (mode === "support") setMode("challenges");
     else onBack();
   };
 
-  const challengeRows = challenges.filter((c) => matchesSearch([c, stateName(c.state_code), c.specific_challenge, c.category_label]));
-  const supportRows = supportList.filter((s) => matchesSearch([s, stateName(s.state_code), s.specific_support, s.support_category, s.action_required_from]));
+  const challengeColumns: ColumnDef<Challenge>[] = React.useMemo(() => [
+    {
+      accessorKey: "challenge_id",
+      header: "ID",
+      cell: ({ row }) => (
+        <span className="font-mono text-xs font-bold text-[#1a7a52]">
+          #{row.original.challenge_id}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "date_reported",
+      header: "Date",
+      cell: ({ row }) => (
+        <span className="text-xs text-slate-700 font-medium whitespace-nowrap">
+          {row.original.date_reported}
+        </span>
+      ),
+    },
+    {
+      id: "category_label",
+      accessorFn: (row) => `${row.category_label || ""} ${row.specific_challenge || ""} ${row.other_challenge || ""} ${row.description || ""}`,
+      header: "Challenge Details",
+      cell: ({ row }) => (
+        <div className="max-w-[280px]">
+          <p className="text-xs font-bold text-[#0f3d2e] leading-snug">
+            {row.original.category_label}
+          </p>
+          <p className="text-[11px] text-slate-500 truncate mt-0.5">
+            {row.original.other_challenge || row.original.specific_challenge || "—"}
+          </p>
+        </div>
+      ),
+    },
+    {
+      id: "state_code",
+      accessorFn: (row) => `${stateName(row.state_code)} ${row.state_code}`,
+      header: "State / FCT",
+      cell: ({ row }) => (
+        <span className="text-xs font-semibold text-slate-700 whitespace-nowrap">
+          {stateName(row.original.state_code)}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "severity",
+      header: "Severity",
+      cell: ({ row }) => {
+        const sev = row.original.severity || "—";
+        const color =
+          sev === "Critical"
+            ? "bg-rose-100 text-rose-700 border-rose-200"
+            : sev === "High"
+            ? "bg-amber-100 text-amber-700 border-amber-200"
+            : sev === "Medium"
+            ? "bg-blue-100 text-blue-700 border-blue-200"
+            : "bg-emerald-100 text-emerald-700 border-emerald-200";
+        return (
+          <Badge variant="outline" className={`text-[10px] px-2 py-0.5 border font-bold ${color}`}>
+            {sev}
+          </Badge>
+        );
+      },
+    },
+    {
+      accessorKey: "impact",
+      header: "Impact",
+      cell: ({ row }) => (
+        <span className="text-xs text-slate-600">
+          {row.original.impact || "—"}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "status",
+      header: "Status",
+      cell: ({ row }) => {
+        const st = row.original.status || "In-progress";
+        return (
+          <Badge className={`text-[10px] px-2 py-0.5 border ${TONES[st] || TONES["In-progress"]}`}>
+            {st}
+          </Badge>
+        );
+      },
+    },
+    {
+      id: "support_count",
+      header: "Support",
+      cell: ({ row }) => {
+        const count = (row.original.support_requests || []).length;
+        return (
+          <span className="inline-flex min-w-[1.25rem] h-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold tabular-nums bg-slate-100 text-slate-700">
+            {count}
+          </span>
+        );
+      },
+    },
+    {
+      id: "actions",
+      header: "Action",
+      cell: ({ row }) => (
+        <div className="flex items-center justify-end" onClick={(e) => e.stopPropagation()}>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 px-2.5 text-xs font-bold text-[#1a7a52] border border-[#1a7a52]/40 bg-[#f4f7f5] hover:bg-[#e8f5ee] rounded-sm gap-1 shadow-2xs"
+            disabled={busy}
+            onClick={() => void openChallengeDetail(row.original.challenge_id)}
+          >
+            <Eye className="w-3.5 h-3.5" />
+            <span>View</span>
+          </Button>
+        </div>
+      ),
+    },
+  ], [permissions.create, busy, catalogue]);
+
+  const supportColumns: ColumnDef<SupportRequest>[] = React.useMemo(() => [
+    {
+      accessorKey: "support_id",
+      header: "ID",
+      cell: ({ row }) => (
+        <span className="font-mono text-xs font-bold text-[#1a7a52]">
+          #{row.original.support_id}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "date_submitted",
+      header: "Date",
+      cell: ({ row }) => (
+        <span className="text-xs text-slate-700 font-medium whitespace-nowrap">
+          {row.original.date_submitted}
+        </span>
+      ),
+    },
+    {
+      id: "support_category",
+      accessorFn: (row) => `${row.other_support || ""} ${row.specific_support || ""} ${row.support_category || ""} ${row.description || ""}`,
+      header: "Support Request",
+      cell: ({ row }) => (
+        <div className="max-w-[280px]">
+          <p className="text-xs font-bold text-[#0f3d2e] leading-snug">
+            {row.original.other_support || row.original.specific_support || row.original.support_category}
+          </p>
+          <p className="text-[11px] text-slate-500 truncate mt-0.5">
+            {row.original.support_category}
+          </p>
+        </div>
+      ),
+    },
+    {
+      id: "state_code",
+      accessorFn: (row) => `${stateName(row.state_code)} ${row.state_code}`,
+      header: "State / FCT",
+      cell: ({ row }) => (
+        <span className="text-xs font-semibold text-slate-700 whitespace-nowrap">
+          {stateName(row.original.state_code)}
+        </span>
+      ),
+    },
+    {
+      id: "action_required_from",
+      accessorFn: (row) =>
+        row.action_required_from === "Other NHIA Departments"
+          ? (row.nhia_department || "NHIA Dept")
+          : (row.other_action_owner || row.action_required_from || ""),
+      header: "Action Owner",
+      cell: ({ row }) => {
+        const s = row.original;
+        const owner =
+          s.action_required_from === "Other NHIA Departments"
+            ? s.nhia_department || "NHIA Dept"
+            : s.other_action_owner || s.action_required_from;
+        return (
+          <span className="text-xs font-medium text-slate-700">
+            {owner || "—"}
+          </span>
+        );
+      },
+    },
+    {
+      accessorKey: "priority",
+      header: "Priority",
+      cell: ({ row }) => {
+        const prio = row.original.priority || "Medium";
+        const color =
+          prio === "Critical"
+            ? "bg-rose-100 text-rose-700 border-rose-200"
+            : prio === "High"
+            ? "bg-amber-100 text-amber-700 border-amber-200"
+            : "bg-blue-100 text-blue-700 border-blue-200";
+        return (
+          <Badge variant="outline" className={`text-[10px] px-2 py-0.5 border font-bold ${color}`}>
+            {prio}
+          </Badge>
+        );
+      },
+    },
+    {
+      accessorKey: "status",
+      header: "Status",
+      cell: ({ row }) => {
+        const st = row.original.status || "Submitted";
+        return (
+          <Badge className={`text-[10px] px-2 py-0.5 border ${TONES[st] || TONES.Submitted}`}>
+            {st}
+          </Badge>
+        );
+      },
+    },
+    {
+      accessorKey: "required_by_date",
+      header: "Required By",
+      cell: ({ row }) => (
+        <span className="text-xs text-slate-600 whitespace-nowrap">
+          {row.original.required_by_date || "—"}
+        </span>
+      ),
+    },
+    {
+      id: "actions",
+      header: "Action",
+      cell: ({ row }) => (
+        <div className="flex items-center justify-end" onClick={(e) => e.stopPropagation()}>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 px-2.5 text-xs font-bold text-[#1a7a52] border border-[#1a7a52]/40 bg-[#f4f7f5] hover:bg-[#e8f5ee] rounded-sm gap-1 shadow-2xs"
+            disabled={busy}
+            onClick={() => void openSupportDetail(row.original.support_id)}
+          >
+            <Eye className="w-3.5 h-3.5" />
+            <span>View</span>
+          </Button>
+        </div>
+      ),
+    },
+  ], [busy, catalogue]);
 
   const header = (
     <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3.5 flex items-center justify-between sticky top-0 z-30 gap-3">
@@ -180,23 +416,78 @@ export default function ChallengesSupportWorkspace({ onBack }: Props) {
         </Button>
         <div className="min-w-0">
           <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">Challenges &amp; Support</h2>
-          <p className="text-xs text-slate-500 truncate">Record challenges and raise support requests</p>
+          <p className="text-xs text-slate-500 truncate">Operational challenges, departmental support requests, and action queue</p>
         </div>
       </div>
       <div className="flex items-center gap-2 shrink-0">
-        {["challenges", "support"].includes(mode) && <Button variant="outline" size="sm" className="gap-2 border-[#d4e8dc]" disabled={busy || loading} onClick={() => void run(refresh)}><RefreshCw className={`w-4 h-4 ${busy ? "animate-spin" : ""}`} />Refresh</Button>}
-        {mode === "challenges" && permissions.create && <Button className={ACTION} disabled={busy} onClick={() => startChallengeForm()}><Plus className="w-4 h-4" />New Challenge</Button>}
-        {mode === "support" && permissions.create && <Button className={ACTION} disabled={busy} onClick={() => startSupportForm(null)}><Plus className="w-4 h-4" />New Support Request</Button>}
+        {["challenges", "support"].includes(mode) && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8.5 gap-1.5 border border-slate-300 text-slate-700 bg-white hover:bg-[#f4f7f5] text-xs font-bold rounded-sm shadow-2xs"
+            disabled={busy || loading}
+            onClick={() => void run(refresh)}
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${busy ? "animate-spin" : ""}`} />
+            <span>Sync</span>
+          </Button>
+        )}
+        {permissions.create && (
+          <Button
+            size="sm"
+            className="h-8.5 bg-[#1a7a52] hover:bg-[#145c3f] text-white border border-[#145c3f] font-bold text-xs gap-1.5 rounded-sm shadow-xs"
+            disabled={busy}
+            onClick={() => startChallengeForm()}
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Record Challenge</span>
+          </Button>
+        )}
+        {permissions.create && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8.5 bg-white hover:bg-[#f4f7f5] text-[#1a7a52] border-2 border-[#1a7a52] font-bold text-xs gap-1.5 rounded-sm shadow-xs"
+            disabled={busy}
+            onClick={() => startSupportForm(null)}
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Request Support</span>
+          </Button>
+        )}
       </div>
     </div>
   );
   const tabs = ["challenges", "support"].includes(mode) && (
     <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 sticky top-[57px] z-20">
       <div className="flex gap-0 overflow-x-auto -mb-px" role="tablist" aria-label="Challenges and Support">
-        {[{ key: "challenges", label: "Challenges", count: challenges.length }, { key: "support", label: "Support Requests", count: supportList.length }].map(({ key, label, count }) => (
-          <button key={key} type="button" role="tab" aria-selected={mode === key} onClick={() => setMode(key as any)}
-            className={`group relative shrink-0 inline-flex items-center gap-2 px-4 py-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors outline-none focus-visible:bg-[#f4f7f5] ${mode === key ? "border-[#145c3f] text-[#145c3f]" : "border-transparent text-slate-500 hover:text-[#0f3d2e] hover:border-[#c5ddd0]"}`}>
-            {label}<span className={`inline-flex min-w-[1.25rem] h-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold tabular-nums ${mode === key ? "bg-[#e8f6ee] text-[#145c3f]" : "bg-slate-100 text-slate-500"}`}>{count}</span>
+        {[
+          { key: "challenges", label: "Challenges Register", count: challenges.length, icon: AlertTriangle },
+          { key: "support", label: "Support Requests", count: supportList.length, icon: HandHelping },
+        ].map(({ key, label, count, icon: Icon }) => (
+          <button
+            key={key}
+            type="button"
+            role="tab"
+            aria-selected={mode === key}
+            onClick={() => setMode(key as any)}
+            className={`group relative shrink-0 inline-flex items-center gap-2 px-4 py-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors outline-none focus-visible:bg-[#f4f7f5] ${
+              mode === key
+                ? "border-[#145c3f] text-[#145c3f]"
+                : "border-transparent text-slate-500 hover:text-[#0f3d2e] hover:border-[#c5ddd0]"
+            }`}
+          >
+            <Icon className="w-4 h-4" />
+            <span>{label}</span>
+            {count !== null && (
+              <span
+                className={`inline-flex min-w-[1.25rem] h-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold tabular-nums ${
+                  mode === key ? "bg-[#e8f6ee] text-[#145c3f]" : "bg-slate-100 text-slate-500"
+                }`}
+              >
+                {count}
+              </span>
+            )}
           </button>
         ))}
       </div>
@@ -415,53 +706,38 @@ export default function ChallengesSupportWorkspace({ onBack }: Props) {
   return (
     <div className="flex flex-col h-full bg-[#f4f7f5]">
       {header}{tabs}
-      <ScrollArea className="flex-1"><div className="w-full px-4 md:px-6 py-4 space-y-4 pb-8">
+      <ScrollArea className="flex-1"><div className="w-full px-3 md:px-5 py-2.5 space-y-3 pb-6">
         {error && <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700" role="alert">{error}</div>}
-        {mode === "challenges" && <>
-          {searchInput}
-          <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden">
-            <CardHeader className="pb-3 border-b border-[#d4e8dc]"><CardTitle className="text-sm font-bold">Challenges ({challenges.length})</CardTitle></CardHeader>
-            <CardContent className="p-0"><div className="overflow-x-auto"><Table>
-              <TableHeader><TableRow className="bg-[#f0fdf7] hover:bg-[#f0fdf7]">{["Date", "Challenge", "State", "Severity", "Impact", "Status", "Support", "Action"].map((l) => <TableHead key={l} className={`text-xs font-bold text-slate-600 whitespace-nowrap ${l === "Action" ? "text-right" : ""}`}>{l}</TableHead>)}</TableRow></TableHeader>
-              <TableBody>{challengeRows.map((c) => (
-                <TableRow key={c.challenge_id} className="hover:bg-[#f8fdfb] border-b border-[#e8f3ec] last:border-0">
-                  <TableCell className="text-sm whitespace-nowrap">{c.date_reported}</TableCell>
-                  <TableCell className="min-w-[200px]"><p className="text-sm font-semibold text-[#0f3d2e]">{c.category_label}</p><p className="text-xs text-slate-500">{c.other_challenge || c.specific_challenge || "—"}</p></TableCell>
-                  <TableCell className="text-sm whitespace-nowrap">{stateName(c.state_code)}</TableCell>
-                  <TableCell className="text-sm">{c.severity || "—"}</TableCell>
-                  <TableCell className="text-sm">{c.impact || "—"}</TableCell>
-                  <TableCell><Badge className={`text-[10px] px-2 py-0.5 border ${TONES[c.status] || TONES["In-progress"]}`}>{c.status}</Badge></TableCell>
-                  <TableCell className="text-sm tabular-nums">{(c.support_requests || []).length}</TableCell>
-                  <TableCell className="text-right"><div className="flex items-center justify-end gap-2">
-                    {permissions.create && <Button size="sm" variant="ghost" className="h-8 gap-1.5 text-[#145c3f] hover:bg-[#eef6f1]" disabled={busy} onClick={() => startSupportForm(c)}><Plus className="w-3.5 h-3.5" />Support</Button>}
-                    <Button size="sm" variant="ghost" className="h-8 gap-1.5 text-[#145c3f] hover:bg-[#eef6f1]" disabled={busy} onClick={() => void openChallengeDetail(c.challenge_id)}><Eye className="w-3.5 h-3.5" />View</Button>
-                  </div></TableCell>
-                </TableRow>))}
-              </TableBody></Table></div>
-              {!challengeRows.length && <div className="flex flex-col items-center justify-center py-16 gap-2 text-slate-400"><FileText className="w-8 h-8 opacity-30" /><p className="text-sm font-medium">No challenges recorded.</p>{permissions.create && <Button variant="outline" size="sm" className="mt-2 gap-2" onClick={() => startChallengeForm()}><Plus className="w-4 h-4" />New Challenge</Button>}</div>}
-            </CardContent></Card>
-        </>}
-        {mode === "support" && <>
-          {searchInput}
-          <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden">
-            <CardHeader className="pb-3 border-b border-[#d4e8dc]"><CardTitle className="text-sm font-bold">Support Requests ({supportList.length})</CardTitle></CardHeader>
-            <CardContent className="p-0"><div className="overflow-x-auto"><Table>
-              <TableHeader><TableRow className="bg-[#f0fdf7] hover:bg-[#f0fdf7]">{["Date", "Support", "State", "Owner", "Priority", "Status", "Required by", "Action"].map((l) => <TableHead key={l} className={`text-xs font-bold text-slate-600 whitespace-nowrap ${l === "Action" ? "text-right" : ""}`}>{l}</TableHead>)}</TableRow></TableHeader>
-              <TableBody>{supportRows.map((s) => (
-                <TableRow key={s.support_id} className="hover:bg-[#f8fdfb] border-b border-[#e8f3ec] last:border-0">
-                  <TableCell className="text-sm whitespace-nowrap">{s.date_submitted}</TableCell>
-                  <TableCell className="min-w-[200px]"><p className="text-sm font-semibold text-[#0f3d2e]">{s.other_support || s.specific_support || s.support_category}</p><p className="text-xs text-slate-500">{s.support_category}</p></TableCell>
-                  <TableCell className="text-sm whitespace-nowrap">{stateName(s.state_code)}</TableCell>
-                  <TableCell className="text-sm">{s.action_required_from === "Other NHIA Departments" ? s.nhia_department : (s.other_action_owner || s.action_required_from)}</TableCell>
-                  <TableCell className="text-sm">{s.priority || "—"}</TableCell>
-                  <TableCell><Badge className={`text-[10px] px-2 py-0.5 border ${TONES[s.status] || TONES.Submitted}`}>{s.status}</Badge></TableCell>
-                  <TableCell className="text-sm">{s.required_by_date || "—"}</TableCell>
-                  <TableCell className="text-right"><Button size="sm" variant="ghost" className="h-8 gap-1.5 text-[#145c3f] hover:bg-[#eef6f1]" disabled={busy} onClick={() => void openSupportDetail(s.support_id)}><Eye className="w-3.5 h-3.5" />View</Button></TableCell>
-                </TableRow>))}
-              </TableBody></Table></div>
-              {!supportRows.length && <div className="flex flex-col items-center justify-center py-16 gap-2 text-slate-400"><FileText className="w-8 h-8 opacity-30" /><p className="text-sm font-medium">No support requests recorded.</p>{permissions.create && <Button variant="outline" size="sm" className="mt-2 gap-2" onClick={() => startSupportForm(null)}><Plus className="w-4 h-4" />New Support Request</Button>}</div>}
-            </CardContent></Card>
-        </>}
+        {mode === "challenges" && (
+          <ShadcnDataTable
+            title="CHALLENGES REGISTER"
+            infoTooltip="Operational and strategic challenges registered across NHIA state offices."
+            columns={challengeColumns}
+            data={challenges}
+            loading={busy || loading}
+            searchPlaceholder="Search challenges, categories, states..."
+            searchClassName="h-9 rounded-sm border-2 border-[#1a7a52] bg-[#f4f7f5] pl-8 pr-7 text-xs font-medium text-slate-800 placeholder:text-slate-400"
+            emptyMessage="No challenges recorded for this view."
+            onRowClick={(row) => void openChallengeDetail(row.challenge_id)}
+            pageSize={50}
+            showTableOptions={false}
+          />
+        )}
+        {mode === "support" && (
+          <ShadcnDataTable
+            title="SUPPORT REQUESTS REGISTER"
+            infoTooltip="Inter-departmental and executive support requests for resolution."
+            columns={supportColumns}
+            data={supportList}
+            loading={busy || loading}
+            searchPlaceholder="Search support requests, owners, states..."
+            searchClassName="h-9 rounded-sm border-2 border-[#1a7a52] bg-[#f4f7f5] pl-8 pr-7 text-xs font-medium text-slate-800 placeholder:text-slate-400"
+            emptyMessage="No support requests recorded for this view."
+            onRowClick={(row) => void openSupportDetail(row.support_id)}
+            pageSize={50}
+            showTableOptions={false}
+          />
+        )}
         {mode === "challenge-form" && challengeForm}
         {mode === "support-form" && supportForm}
         {mode === "challenge-detail" && challengeDetail}

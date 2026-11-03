@@ -48,6 +48,8 @@ interface Props {
   showGeoIds?: boolean;
   /** Zone · State · Year · Month · Quarter header (ICT register) */
   showQuarter?: boolean;
+  /** With showQuarter: Zone · State · Year only (Expenditure year matrix). */
+  yearOnly?: boolean;
   afterPersist?: (saved: { id: number | string }) => Promise<void>;
   /** Fired after every successful create/update (e.g. draft resume for create-only officers). */
   onPersisted?: (saved: { id: number | string; status: string; reference_id?: string }) => void;
@@ -57,6 +59,12 @@ interface Props {
   compact?: boolean;
   /** Zone + period always; State only required when sending for review / final submit. */
   deferStateUntilReview?: boolean;
+  /** Label for the header submission-date field (ReportBasicInfo). */
+  submitDateLabel?: string;
+  /** After Save Draft, leave the form (same as submit success). */
+  returnOnDraft?: boolean;
+  /** Parent workspace owns Back + title — skip FormShell sticky header. */
+  hidePageHeader?: boolean;
 }
 
 export default function StateOfficeFormShell({
@@ -65,6 +73,7 @@ export default function StateOfficeFormShell({
   reportWeek, setReportWeek,
   showGeoIds,
   showQuarter,
+  yearOnly = false,
   pageTitle,
   pageSubtitle,
   hideFooterActions = false,
@@ -74,6 +83,9 @@ export default function StateOfficeFormShell({
   preserveHeader = false,
   compact = false,
   deferStateUntilReview = false,
+  submitDateLabel,
+  returnOnDraft = false,
+  hidePageHeader = false,
 }: Props) {
   const preserveHeaderRef = React.useRef(preserveHeader);
   preserveHeaderRef.current = preserveHeader;
@@ -136,6 +148,7 @@ export default function StateOfficeFormShell({
     const headerErr = header.validateHeader({
       requireState,
       requireZone: deferStateUntilReview ? requireState : true,
+      requireMonth: !yearOnly,
     });
     if (headerErr) { toast.error(headerErr); return; }
     if (setReportWeek && !reportWeek) { toast.error("Please select a Reporting Week"); return; }
@@ -176,46 +189,61 @@ export default function StateOfficeFormShell({
       toast.success(messages[status] || "Saved", {
         description: `Ref: ${res.data.reference_id}`,
       });
-      if (status === "submitted" || status === "awaiting_review" || status === "approved") handleSubmitted();
+      if (
+        status === "submitted"
+        || status === "awaiting_review"
+        || status === "approved"
+        || (returnOnDraft && isDraftSave)
+      ) {
+        handleSubmitted();
+      }
     } catch (err: any) {
       toast.error(isDraftSave ? "Save failed" : "Action failed", { description: err.message });
     } finally { setter(false); }
   };
 
+  const contentPad = hidePageHeader
+    ? "px-4 md:px-5 py-3 space-y-3"
+    : compact
+      ? "px-4 md:px-5 py-3 space-y-3"
+      : "px-4 md:px-6 py-4 space-y-4";
+
   return (
-    <div className={`flex flex-col h-full ${compact ? "bg-[#f4f7f5]" : "bg-slate-50/30"}`}>
-      <div className={`bg-white border-b sticky top-0 z-30 flex items-center justify-between gap-3 ${compact ? "px-4 md:px-5 py-2.5" : "border-border/50 px-4 md:px-6 py-3"}`}>
-        <div className="flex items-center gap-2 min-w-0">
-          <Button
-            variant="ghost"
-            size={compact ? "sm" : "icon"}
-            onClick={handleCancel}
-            className={compact ? "h-8 gap-1.5 -ml-2 shrink-0" : "rounded-full shrink-0"}
-            aria-label="Back"
-          >
-            <ArrowLeft className={compact ? "w-4 h-4" : "w-5 h-5"} />
-            {compact ? "Back" : null}
-          </Button>
-          <div className="min-w-0">
-            {pageTitle ? (
-              <>
-                <h2 className={`font-bold tracking-tight truncate ${compact ? "text-base" : "text-xl"}`}>{pageTitle}</h2>
-                {(pageSubtitle || refId) && (
-                  <p className={`text-slate-500 truncate ${compact ? "text-[11px]" : "text-xs"}`}>
-                    {refId ? <span className="font-mono font-semibold text-[#145c3f]">{refId}</span> : null}
-                    {refId && pageSubtitle ? " · " : null}
-                    {pageSubtitle || null}
-                  </p>
-                )}
-              </>
-            ) : refId ? (
-              <span className="text-xs font-mono font-semibold text-[#145c3f] truncate">{refId}</span>
-            ) : null}
+    <div className={`flex flex-col h-full min-h-0 ${hidePageHeader ? "bg-transparent" : compact ? "bg-[#f4f7f5]" : "bg-slate-50/30"}`}>
+      {!hidePageHeader && (
+        <div className={`bg-white border-b sticky top-0 z-30 flex items-center justify-between gap-3 ${compact ? "px-4 md:px-5 py-2.5" : "border-border/50 px-4 md:px-6 py-3"}`}>
+          <div className="flex items-center gap-2 min-w-0">
+            <Button
+              variant="ghost"
+              size={compact ? "sm" : "icon"}
+              onClick={handleCancel}
+              className={compact ? "h-8 gap-1.5 -ml-2 shrink-0" : "rounded-full shrink-0"}
+              aria-label="Back"
+            >
+              <ArrowLeft className={compact ? "w-4 h-4" : "w-5 h-5"} />
+              {compact ? "Back" : null}
+            </Button>
+            <div className="min-w-0">
+              {pageTitle ? (
+                <>
+                  <h2 className={`font-bold tracking-tight truncate ${compact ? "text-base" : "text-xl"}`}>{pageTitle}</h2>
+                  {(pageSubtitle || refId) && (
+                    <p className={`text-slate-500 truncate ${compact ? "text-[11px]" : "text-xs"}`}>
+                      {refId ? <span className="font-mono font-semibold text-[#145c3f]">{refId}</span> : null}
+                      {refId && pageSubtitle ? " · " : null}
+                      {pageSubtitle || null}
+                    </p>
+                  )}
+                </>
+              ) : refId ? (
+                <span className="text-xs font-mono font-semibold text-[#145c3f] truncate">{refId}</span>
+              ) : null}
+            </div>
           </div>
         </div>
-      </div>
-      <ScrollArea className="flex-1">
-        <div className={`w-full ${compact ? "px-4 md:px-5 py-3 space-y-3" : "px-4 md:px-6 py-4 space-y-4"} ${hideFooterActions ? "pb-8" : "pb-28"}`}>
+      )}
+      <ScrollArea className="flex-1 min-h-0">
+        <div className={`w-full ${contentPad} ${hideFooterActions ? "pb-8" : "pb-28"}`}>
           {loadingRecord ? (
             <div className="flex items-center justify-center py-24 gap-3 text-slate-400">
               <Loader2 className="w-6 h-6 animate-spin" /><span className="text-sm">Loading report...</span>
@@ -231,6 +259,8 @@ export default function StateOfficeFormShell({
                   setReportWeek={setReportWeek}
                   showGeoIds={showGeoIds}
                   showQuarter={showQuarter}
+                  yearOnly={yearOnly}
+                  submitDateLabel={submitDateLabel}
                 />
               )}
               {children({

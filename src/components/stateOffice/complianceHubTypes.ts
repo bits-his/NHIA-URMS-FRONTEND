@@ -1,11 +1,15 @@
 /**
- * Complaint / Complaint Management hub (Enforcement Department).
- * Combines multiple compliance-related features into a single tabbed interface.
+ * Complaint / Compliance Management hub.
+ * Combines compliance-related registers into a single tabbed interface.
  */
 
-export type ComplianceHubTabKey = "complaints" | "weekly-compliance" | "hmo-indebtedness" | "mystery-shopping";
+export type ComplianceHubTabKey =
+  | "complaints"
+  | "weekly-compliance"
+  | "hmo-indebtedness"
+  | "mystery-shopping";
 
-export const COMPLIANCE_HUB_NAV_TITLE = "Complaint / Complaint Management";
+export const COMPLIANCE_HUB_NAV_TITLE = "Complaint/Compliance Management";
 export const COMPLIANCE_HUB_VIEW = "state-compliance-hub";
 export const COMPLIANCE_HUB_PATH = "/zonal/compliance-hub";
 export const COMPLIANCE_HUB_DEFAULT_TAB: ComplianceHubTabKey = "complaints";
@@ -14,13 +18,19 @@ export const COMPLIANCE_HUB_TABS: {
   key: ComplianceHubTabKey;
   tabLabel: string;
   title: string;
-  icon: string;
 }[] = [
-  { key: "complaints", tabLabel: "Complaints Register", title: "State Complaints Register", icon: "Scale" },
-  { key: "weekly-compliance", tabLabel: "Weekly Compliance", title: "Weekly Compliance Report", icon: "ClipboardCheck" },
-  { key: "hmo-indebtedness", tabLabel: "HMO Indebtedness", title: "HMO Indebtedness & Reconciliation", icon: "Wallet" },
-  { key: "mystery-shopping", tabLabel: "Mystery Shopping", title: "Mystery Shopping", icon: "Search" },
+  { key: "complaints", tabLabel: "Complaints Register", title: "State Complaints Register" },
+  { key: "weekly-compliance", tabLabel: "Weekly Compliance", title: "Weekly Compliance Report" },
+  { key: "hmo-indebtedness", tabLabel: "HMO Indebtedness", title: "HMO Indebtedness" },
+  { key: "mystery-shopping", tabLabel: "Mystery Shopping", title: "Mystery Shopping" },
 ];
+
+const TAB_KEYS = new Set<ComplianceHubTabKey>(COMPLIANCE_HUB_TABS.map((t) => t.key));
+
+export function parseComplianceHubTab(raw: string | null): ComplianceHubTabKey {
+  if (raw && TAB_KEYS.has(raw as ComplianceHubTabKey)) return raw as ComplianceHubTabKey;
+  return COMPLIANCE_HUB_DEFAULT_TAB;
+}
 
 /** Legacy deep-link children (kept for redirects / privilege title expansion). */
 export type ComplianceHubChild = {

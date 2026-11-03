@@ -13,6 +13,18 @@ import type { AccessEntry } from "@/src/access/types";
 import { MODULE_CONFIG, SOC_ZONES_MODULE, type ChildModule, type SubGroup, hasRoutableView, flatLeaves, moduleConfigForAccess, isSubGroup, modulesVisibleToAdmin, adminAllowedTitlesForModule } from "@/src/access/moduleConfig";
 import { hasModuleAccess } from "@/src/access/roles";
 import { normalizeAllowedTitles, normalizeModuleTitle, expandAccessEntries } from "@/src/access/accessUtils";
+import { isHubLeafAllowed, isHubNavTitle } from "@/src/access/hubPrivilegeConfig";
+
+function isNavLeafAllowed(title: string, allowedTitles: Set<string>) {
+  return isHubNavTitle(title) ? isHubLeafAllowed(title, allowedTitles) : allowedTitles.has(title);
+}
+
+function isNavNodeVisible(node: ChildModule | SubGroup, allowedTitles: Set<string>): boolean {
+  if (isSubGroup(node)) {
+    return node.children.some((child) => isNavNodeVisible(child, allowedTitles));
+  }
+  return isNavLeafAllowed(node.title, allowedTitles);
+}
 
 type View = string;
 
@@ -106,12 +118,7 @@ function DepartmentChildren({ children, allowedTitles, currentView, setView, sid
   sidebarOpen: boolean;
   baseDepth: number;
 }) {
-  const visibleChildren = children.filter(c => {
-    if (isSubGroup(c)) {
-      return flatLeaves({ title: "", roles: "all", children: c.children }).some(t => allowedTitles.has(t));
-    }
-    return allowedTitles.has((c as ChildModule).title);
-  });
+  const visibleChildren = children.filter((c) => isNavNodeVisible(c, allowedTitles));
 
   if (visibleChildren.length === 0) return null;
 
@@ -175,7 +182,9 @@ function NavSubGroup({ group, allowedTitles, currentView, setView, sidebarOpen, 
   currentView: View; setView: (v: View) => void; sidebarOpen: boolean;
   baseDepth?: number;
 }) {
-  const visibleChildren = group.children.filter((c): c is ChildModule => !isSubGroup(c) && allowedTitles.has(c.title));
+  const visibleChildren = group.children.filter((c): c is ChildModule =>
+    !isSubGroup(c) && isNavLeafAllowed(c.title, allowedTitles),
+  );
   if (visibleChildren.length === 0) return null;
 
   const childDepth = baseDepth + 1;
@@ -233,12 +242,7 @@ function ModuleGroup({ title, children, allowedTitles, currentView, setView, sid
   isOpen: boolean;
   onToggle: () => void;
 }) {
-  const visibleChildren = children.filter(c => {
-    if (isSubGroup(c)) {
-      return flatLeaves({ title: "", roles: "all", children: c.children }).some(t => allowedTitles.has(t));
-    }
-    return allowedTitles.has((c as ChildModule).title);
-  });
+  const visibleChildren = children.filter((c) => isNavNodeVisible(c, allowedTitles));
 
   if (visibleChildren.length === 0) return null;
 

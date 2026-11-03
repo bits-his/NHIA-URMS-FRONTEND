@@ -245,7 +245,6 @@ export default function EnrolmentDriveReportDetail({ reportType, reportId, onBac
                   <InfoField label="Drive category" value={driveTitle} />
                   <InfoField label="Planned activities" value={report.planned_activities != null ? formatCount(report.planned_activities) : "—"} />
                   <InfoField label="Activities recorded" value={formatCount(lines.length)} />
-                  <InfoField label="Reporting officer" value={report.submitted_by || "—"} />
                   <InfoField label="Submission date" value={report.submission_date ? formatDate(report.submission_date) : "—"} />
                   <InfoField label="Status" value={statusCfg?.label} />
                 </div>

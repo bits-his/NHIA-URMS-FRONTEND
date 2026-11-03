@@ -20,6 +20,8 @@ interface Props {
   onBack: () => void;
   defaultZoneId?: string | null;
   defaultStateId?: string | null;
+  /** When true, omit page chrome so a parent hub owns the header. */
+  embedded?: boolean;
 }
 
 const currentYear = new Date().getFullYear();
@@ -53,7 +55,7 @@ function levelMeta(level: 1 | 2 | 3 | 4) {
 }
 
 export default function ProviderManagementDashboard({
-  onBack, defaultZoneId, defaultStateId,
+  onBack, defaultZoneId, defaultStateId, embedded = false,
 }: Props) {
   const user = useSelector((s: RootState) => s.auth.user);
   const role = user?.role || "";
@@ -180,7 +182,7 @@ export default function ProviderManagementDashboard({
     ? "National monitoring by zone, programme and activity type, with distinct pipelines."
     : level === 1 && lockedStateLabel
       ? `Operational view for ${lockedStateLabel}: plan, execute and follow up. Other states appear at zonal and national levels as they report.`
-      : blurb;
+    : blurb;
 
   const monthlyTrend = React.useMemo(() => {
     return ((byMonth as any[]) || []).map((r) => ({
@@ -215,7 +217,8 @@ export default function ProviderManagementDashboard({
   }, [byZone]);
 
   return (
-    <div className="flex flex-col h-full bg-[#f7fafc]">
+    <div className={`flex flex-col h-full ${embedded ? "" : "bg-[#f7fafc]"}`}>
+      {!embedded && (
       <div className="bg-white border-b border-slate-200 px-4 md:px-6 py-4 sticky top-0 z-30">
         <div className="flex items-start gap-3">
           <Button variant="ghost" size="icon" onClick={onBack} className="rounded-full shrink-0 mt-0.5">
@@ -232,9 +235,13 @@ export default function ProviderManagementDashboard({
           </Button>
         </div>
       </div>
+      )}
 
       <ScrollArea className="flex-1">
         <div className="px-4 md:px-6 py-5 space-y-5 pb-12 max-w-[1400px] mx-auto w-full">
+          {embedded && (
+            <p className="text-xs text-slate-500 -mt-1 mb-1">{displayBlurb}</p>
+          )}
           <motion.div
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}

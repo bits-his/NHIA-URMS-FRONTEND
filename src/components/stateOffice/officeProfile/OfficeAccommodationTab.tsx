@@ -384,7 +384,7 @@ export default function OfficeAccommodationTab({
             onChange={(e) => setIssueDescription(e.target.value)}
             placeholder="Describe facility defects, structural maintenance, or repair requirements..."
             disabled={readOnly}
-            className="w-full rounded-sm border border-slate-200 bg-white p-3 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#007a8c] resize-y"
+            className="w-full rounded-sm border border-slate-200 bg-white p-3 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#1a7a52] resize-y"
           />
         </div>
 
@@ -396,7 +396,7 @@ export default function OfficeAccommodationTab({
             onChange={(e) => setRemarks(e.target.value)}
             placeholder="Additional notes on lease renewal or landlord liaison..."
             disabled={readOnly}
-            className="h-9 bg-white border-slate-200 text-xs rounded-sm focus-visible:ring-1 focus-visible:ring-[#007a8c]"
+            className="h-9 bg-white border-slate-200 text-xs rounded-sm focus-visible:ring-1 focus-visible:ring-[#1a7a52]"
           />
         </div>
       </CardContent>
@@ -422,7 +422,7 @@ export default function OfficeAccommodationTab({
             size="sm"
             onClick={handleSaveRecord}
             disabled={saving || readOnly}
-            className="h-8 text-xs bg-[#0f2d42] hover:bg-[#1a3d54] text-white font-medium rounded-sm gap-1.5"
+            className="h-8.5 text-xs bg-[#1a7a52] hover:bg-[#145c3f] text-white font-bold rounded-sm gap-1.5 shadow-xs border border-[#145c3f]"
           >
             {saving && <Loader2 className="size-3.5 animate-spin mr-1" />}
             {editingId ? "Update Record" : "Save Record"}

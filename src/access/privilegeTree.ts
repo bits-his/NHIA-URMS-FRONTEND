@@ -14,6 +14,12 @@ import {
   type ParentModule,
   type SubGroup,
 } from "./moduleConfig";
+import {
+  hubConfigByTitle,
+  hubTabPrivilegeTitlesForModule,
+  isHubNavTitle,
+  allHubAssignableTitles,
+} from "./hubPrivilegeConfig";
 
 export type PrivilegeLeafNode = {
   kind: "leaf";
@@ -56,17 +62,45 @@ function convertChildren(
         alsoGrant,
         children: convertChildren(c.children, accessTo, alsoGrant),
       });
-    } else {
-      out.push({
-        kind: "leaf",
-        title: c.title,
-        navLabel: c.navLabel,
-        accessTo,
-        alsoGrant,
-      });
+      continue;
     }
+    // Hub sidebar leaf → privilege folder of grantable tabs
+    if (isHubNavTitle(c.title)) {
+      const hub = hubConfigByTitle(c.title);
+      if (hub) {
+        out.push({
+          kind: "folder",
+          label: hub.hubTitle,
+          accessTo,
+          alsoGrant,
+          children: hub.tabs.map((tab) => ({
+            kind: "leaf" as const,
+            title: tab.privilegeTitle,
+            navLabel: tab.tabLabel,
+            accessTo,
+            alsoGrant,
+          })),
+        });
+        continue;
+      }
+    }
+    out.push({
+      kind: "leaf",
+      title: c.title,
+      navLabel: c.navLabel,
+      accessTo,
+      alsoGrant,
+    });
   }
   return out;
+}
+
+/** Sidebar leaves + hub tab privilege titles for a module. */
+export function assignableLeavesForModule(mod: ParentModule): string[] {
+  return [...new Set([
+    ...flatLeaves(mod),
+    ...hubTabPrivilegeTitlesForModule(mod.title),
+  ])];
 }
 
 function moduleFolder(mod: ParentModule, label?: string): PrivilegeFolderNode {
@@ -202,13 +236,13 @@ export function privilegeAccessTargets(node: PrivilegeNode): string[] {
 
 export type AccessEntry = { access_to: string; functionalities: string[] };
 
-/** Build API payload from the granted title set (parents + leaf titles) */
+/** Build API payload from the granted title set (parents + leaf / hub-tab titles) */
 export function buildAccessPayload(granted: Set<string>): AccessEntry[] {
   return MODULE_CONFIG
     .filter((mod) => granted.has(mod.title))
     .map((mod) => ({
       access_to: mod.title,
-      functionalities: flatLeaves(mod).filter((t) => granted.has(t)),
+      functionalities: assignableLeavesForModule(mod).filter((t) => granted.has(t) && !isHubNavTitle(t)),
     }));
 }
 
@@ -221,7 +255,12 @@ export function selectAllPrivilegeKeys(): Set<string> {
   MODULE_CONFIG.forEach((m) => {
     if (isPrivilegeUiHidden(m.title)) return;
     all.add(m.title);
-    flatLeaves(m).forEach((t) => all.add(t));
+    assignableLeavesForModule(m).forEach((t) => {
+      if (!isHubNavTitle(t)) all.add(t);
+    });
+  });
+  allHubAssignableTitles().forEach((t) => {
+    if (!isHubNavTitle(t)) all.add(t);
   });
   return all;
 }

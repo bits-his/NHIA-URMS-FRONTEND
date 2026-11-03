@@ -16,7 +16,6 @@ import ContractedServicesDetail from "./ContractedServicesDetail";
 import EnrolleeRegisterForm from "./EnrolleeRegisterForm";
 import EnrolleeRegisterDetail from "./EnrolleeRegisterDetail";
 import ExtraDependantForm from "./ExtraDependantForm";
-import EnrolmentDriveForm from "./EnrolmentDriveForm";
 import EnrolmentActivityForm from "./EnrolmentActivityForm";
 import EnrolmentReportDetail from "./EnrolmentReportDetail";
 import EnrolmentDriveReportDetail from "./EnrolmentDriveReportDetail";
@@ -30,12 +29,19 @@ import IctSupportRegisterForm from "./IctSupportRegisterForm";
 import IctSupportRegisterDetail from "./IctSupportRegisterDetail";
 import AdhocSpecialAssignmentForm from "./AdhocSpecialAssignmentForm";
 import AdhocSpecialAssignmentDetail from "./AdhocSpecialAssignmentDetail";
+import { EnrolmentDriveLegacyRedirect } from "./EnrolmentDrivesPage";
 
 const EXTENDED_DETAIL = new Set<StateOfficeReportType>([
   "complaints", "accreditation", "challenges",
 ]);
 
 const BENEFICIARY_DETAIL = new Set<string>(BENEFICIARY_REPORT_TYPES);
+
+/** Legacy pack form path — redirect into the batch workflow hub. */
+function EnrolmentDriveFormRedirect(props: { reportType?: string }) {
+  const key = String(props.reportType || "").replace(/^enrolment-drive-/, "") || "advocacy";
+  return <EnrolmentDriveLegacyRedirect driveKey={key} />;
+}
 
 const FORM_COMPONENTS: Partial<Record<StateOfficeReportType, React.ComponentType<any>>> = {
   enrolment: EnrolmentActivityForm,
@@ -46,7 +52,7 @@ const FORM_COMPONENTS: Partial<Record<StateOfficeReportType, React.ComponentType
   stakeholder: StakeholderReportForm,
   "hmo-selection": HmoSelectionReportForm,
   "extra-dependant": ExtraDependantForm,
-  ...Object.fromEntries(ENROLMENT_DRIVE_REPORT_TYPES.map((t) => [t, EnrolmentDriveForm])),
+  ...Object.fromEntries(ENROLMENT_DRIVE_REPORT_TYPES.map((t) => [t, EnrolmentDriveFormRedirect])),
   "hcf-change": HcpChangeForm,
   challenges: ChallengesReportForm,
   "weekly-actionable": WeeklyActionableForm,

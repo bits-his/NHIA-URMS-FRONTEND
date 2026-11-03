@@ -446,6 +446,7 @@ export default function EnrolmentActivityForm({
 
   const isBudgeted = entry.funding_option === ENROLMENT_BUDGETED;
   const isEnrolment = entry.category === "enrolment";
+  const isSshiaChannel = isEnrolment && entry.enrolment_channel === "SSHIA";
   const isNin = entry.category === "nin_validation";
   const isIdCard = entry.category === "id_card_issuance";
   const isValidation = entry.category === "validation_of_enrolees";
@@ -646,10 +647,16 @@ export default function EnrolmentActivityForm({
       if (e.enrolment_type === "Renewal" && !ENROLMENT_RENEWABLE_PROGRAM_LABELS.has(e.program_name)) {
         return fail("program_name", "Renewal is only allowed for GIFSHIP-G, GIFSHIP-C or GIFSHIP-R");
       }
-      if (e.enrolment_channel !== "SSHIA") return null;
+      if (e.enrolment_channel === "SSHIA") {
+        if (e.enrolment_count === "" || !Number.isSafeInteger(Number(e.enrolment_count)) || Number(e.enrolment_count) < 1) {
+          return fail("enrolment_count", "Enter the number enrolled");
+        }
+        return null;
+      }
+      return null;
     }
 
-    if (e.category === "enrolment" && (stepId === "details" || (stepId === "channel" && e.enrolment_channel === "SSHIA"))) {
+    if (e.category === "enrolment" && stepId === "details") {
       if (!e.activity_status) return fail("activity_status", "Select the activity status");
       if (ENROLMENT_STATUS_NEEDS_REASON.has(e.activity_status) && !e.status_reason.trim()) {
         return fail("status_reason", "Enter a reason for Not Conducted / Cancelled");
@@ -749,14 +756,16 @@ export default function EnrolmentActivityForm({
       enrolment_category: e.enrolment_category || null,
       beneficiary_category: e.beneficiary_category || null,
       beneficiary_status: e.beneficiary_status || null,
-      funding_option: e.funding_option || null,
-      supporting_evidence: e.supporting_evidence || null,
-      activity_budget: budgeted ? numOrNull(e.activity_budget) : null,
-      approved_amount: budgeted ? numOrNull(e.approved_amount) : null,
+      funding_option: e.enrolment_channel === "SSHIA" ? null : (e.funding_option || null),
+      supporting_evidence: e.enrolment_channel === "SSHIA" ? null : (e.supporting_evidence || null),
+      activity_budget: e.enrolment_channel === "SSHIA" ? null : (budgeted ? numOrNull(e.activity_budget) : null),
+      approved_amount: e.enrolment_channel === "SSHIA" ? null : (budgeted ? numOrNull(e.approved_amount) : null),
       enrolment_count: Number(e.enrolment_count) || 0,
       enrollees_validated: numOrNull(e.enrollees_validated),
-      activity_status: e.activity_status || e.id_card_status || e.validation_status || null,
-      status_reason: e.status_reason || null,
+      activity_status: e.enrolment_channel === "SSHIA"
+        ? null
+        : (e.activity_status || e.id_card_status || e.validation_status || null),
+      status_reason: e.enrolment_channel === "SSHIA" ? null : (e.status_reason || null),
       remarks: e.remarks || null,
       program_details: details && Object.keys(details).length ? details : null,
     };
@@ -848,6 +857,16 @@ export default function EnrolmentActivityForm({
                         program_name: "",
                         enrolment_category: "",
                         program_details: {},
+                        ...(v === "SSHIA"
+                          ? {
+                              activity_status: "",
+                              status_reason: "",
+                              supporting_evidence: "",
+                              funding_option: "",
+                              activity_budget: "",
+                              approved_amount: "",
+                            }
+                          : {}),
                       }))}
                     >
                       <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
@@ -940,11 +959,24 @@ export default function EnrolmentActivityForm({
                     </Select>
                   </Field>
                   )}
+                  {/* SSHIA: only the count is required — no status, evidence, or funding */}
+                  {isSshiaChannel && !!entry.program_name && (
+                    <Field label="Number Enrolled" required error={fieldErrors.enrolment_count}>
+                      <Input
+                        type="number"
+                        min={1}
+                        step={1}
+                        value={entry.enrolment_count}
+                        onChange={(e) => set("enrolment_count", e.target.value)}
+                        placeholder="Enter number enrolled"
+                      />
+                    </Field>
+                  )}
                 </div>
               )}
 
-              {/* STEP: Details & Funding (Enrolment) */}
-              {isEnrolment && (currentStep?.id === "details" || (currentStep?.id === "channel" && entry.enrolment_channel === "SSHIA" && !!entry.program_name)) && (
+              {/* STEP: Details & Funding (NHIA Enrolment only) */}
+              {isEnrolment && !isSshiaChannel && currentStep?.id === "details" && (
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   <Field label="Number Enrolled / Beneficiaries" required={Boolean(driveContext)} error={fieldErrors.enrolment_count}>
                     <Input type="number" min={0} value={entry.enrolment_count} onChange={(e) => set("enrolment_count", e.target.value)} />
@@ -1225,26 +1257,32 @@ export default function EnrolmentActivityForm({
                     <ReviewRow label="Activity" value={activityLabel} />
                     <ReviewRow label="Date" value={entry.activity_date || entry.validation_date} />
                     <ReviewRow label="Channel" value={entry.enrolment_channel} />
-                    <ReviewRow label="Enrolment type" value={entry.enrolment_type} />
+                    {!isSshiaChannel && <ReviewRow label="Enrolment type" value={entry.enrolment_type} />}
                     <ReviewRow label="Program" value={entry.program_name} />
-                    <ReviewRow label="Enrolment mode" value={entry.enrolment_category} />
-                    <ReviewRow label="Beneficiary category" value={entry.beneficiary_category} />
-                    <ReviewRow label="Beneficiary status" value={entry.beneficiary_status} />
-                    <ReviewRow label="Funding" value={entry.funding_option} />
-                    <ReviewRow
-                      label="Activity budget (₦)"
-                      value={entry.activity_budget !== "" ? entry.activity_budget : ""}
-                    />
-                    <ReviewRow
-                      label="Approved budget (₦)"
-                      value={entry.approved_amount !== "" ? entry.approved_amount : ""}
-                    />
-                    <ReviewRow label="Activity status" value={entry.activity_status || entry.validation_status || entry.id_card_status} />
-                    <ReviewRow label="Status reason" value={entry.status_reason} />
+                    {!isSshiaChannel && <ReviewRow label="Enrolment mode" value={entry.enrolment_category} />}
+                    {!isSshiaChannel && <ReviewRow label="Beneficiary category" value={entry.beneficiary_category} />}
+                    {!isSshiaChannel && <ReviewRow label="Beneficiary status" value={entry.beneficiary_status} />}
+                    {!isSshiaChannel && <ReviewRow label="Funding" value={entry.funding_option} />}
+                    {!isSshiaChannel && (
+                      <ReviewRow
+                        label="Activity budget (₦)"
+                        value={entry.activity_budget !== "" ? entry.activity_budget : ""}
+                      />
+                    )}
+                    {!isSshiaChannel && (
+                      <ReviewRow
+                        label="Approved budget (₦)"
+                        value={entry.approved_amount !== "" ? entry.approved_amount : ""}
+                      />
+                    )}
+                    {!isSshiaChannel && (
+                      <ReviewRow label="Activity status" value={entry.activity_status || entry.validation_status || entry.id_card_status} />
+                    )}
+                    {!isSshiaChannel && <ReviewRow label="Status reason" value={entry.status_reason} />}
                     <ReviewRow label="Number enrolled" value={entry.enrolment_count} />
                     <ReviewRow label="Records validated" value={entry.enrollees_validated} />
-                    <ReviewRow label="Evidence" value={entry.supporting_evidence} />
-                    <ReviewRow label="Remarks" value={entry.remarks} />
+                    {!isSshiaChannel && <ReviewRow label="Evidence" value={entry.supporting_evidence} />}
+                    {!isSshiaChannel && <ReviewRow label="Remarks" value={entry.remarks} />}
                   </ReviewSection>
 
                   {(isNin || isIdCard || isValidation) && (

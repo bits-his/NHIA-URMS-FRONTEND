@@ -1,6 +1,6 @@
 import * as React from "react";
 import {
-  ArrowLeft, CheckCircle2, ChevronDown, Clock, FileText, Loader2, Pencil, Send, XCircle,
+  ArrowLeft, Check, CheckCircle2, ChevronDown, Clock, FileText, Loader2, Pencil, Send, XCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -113,6 +113,22 @@ function reviewSummary(lines: any[]) {
     withEvidence: lines.filter(lineHasEvidence).length,
   };
 }
+
+type ChecklistKey = "activities" | "outcomes" | "followUp" | "evidence";
+
+const CHECKLIST_ITEMS: { key: ChecklistKey; title: string; hint: string }[] = [
+  { key: "activities", title: "Activity records complete", hint: "Check mandatory activity fields" },
+  { key: "outcomes", title: "Outcome mapping valid", hint: "Check category and specific outcome pairing" },
+  { key: "followUp", title: "Follow-up information complete", hint: "Check all required fields where Follow-up = Yes" },
+  { key: "evidence", title: "Supporting evidence attached", hint: "Check mandatory attachment for every activity" },
+];
+
+const EMPTY_CHECKS: Record<ChecklistKey, boolean> = {
+  activities: false,
+  outcomes: false,
+  followUp: false,
+  evidence: false,
+};
 
 function SectionBand({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -252,6 +268,7 @@ export default function StakeholderReportDetail({ reportId, onBack, onEdit }: Pr
   const [reviewNote, setReviewNote] = React.useState("");
   const [reviewBusy, setReviewBusy] = React.useState(false);
   const [finalConfirmOpen, setFinalConfirmOpen] = React.useState(false);
+  const [checks, setChecks] = React.useState<Record<ChecklistKey, boolean>>(EMPTY_CHECKS);
 
   const reload = React.useCallback(async () => {
     setLoading(true);
@@ -261,6 +278,7 @@ export default function StakeholderReportDetail({ reportId, onBack, onEdit }: Pr
       setReport(data);
       setOpenKey(null);
       setReviewNote(data?.coordinator_review_note || "");
+      setChecks(EMPTY_CHECKS);
     } catch (err: any) {
       toast.error("Failed to load report", { description: err.message });
     } finally {
@@ -273,8 +291,12 @@ export default function StakeholderReportDetail({ reportId, onBack, onEdit }: Pr
   }, [reload]);
 
   const review = async (status: "endorsed" | "returned" | "submitted") => {
-    if (status === "returned" && !reviewNote.trim()) {
-      toast.error("Enter remarks before returning for correction");
+    if ((status === "returned" || status === "endorsed") && !reviewNote.trim()) {
+      toast.error("Enter remarks before endorsing or returning");
+      return false;
+    }
+    if (status === "endorsed" && !CHECKLIST_ITEMS.every((item) => checks[item.key])) {
+      toast.error("Complete the review checklist before endorsing");
       return false;
     }
     setReviewBusy(true);
@@ -304,6 +326,7 @@ export default function StakeholderReportDetail({ reportId, onBack, onEdit }: Pr
     : "—";
   const summary = reviewSummary(lines);
   const canAct = canReview && report?.status === "awaiting_review";
+  const checklistComplete = CHECKLIST_ITEMS.every((item) => checks[item.key]);
   const canFinalSubmit = canCreate && report?.status === "endorsed";
   const canEditReport = canCreate && ["draft", "returned"].includes(report?.status);
   // RO and SC see the decision block once the report is in the review pipeline
@@ -314,6 +337,12 @@ export default function StakeholderReportDetail({ reportId, onBack, onEdit }: Pr
     || report.status === "submitted"
     || report.status === "approved"
   );
+  const showChecklist = canAct || (canReview && !!report && ["endorsed", "returned", "submitted", "approved"].includes(report.status));
+  React.useEffect(() => {
+    if (!canAct && report && ["endorsed", "submitted", "approved"].includes(report.status)) {
+      setChecks({ activities: true, outcomes: true, followUp: true, evidence: true });
+    }
+  }, [canAct, report?.status, report]);
 
   return (
     <div className="flex flex-col h-full bg-slate-50/30">
@@ -336,6 +365,17 @@ export default function StakeholderReportDetail({ reportId, onBack, onEdit }: Pr
           {canEditReport && onEdit && (
             <Button variant="outline" size="sm" onClick={onEdit} className="gap-2">
               <Pencil className="w-4 h-4" /> {report?.status === "returned" ? "Edit & Resubmit" : "Edit Draft"}
+            </Button>
+          )}
+          {canFinalSubmit && (
+            <Button
+              size="sm"
+              className="gap-1.5 bg-[#145c3f] hover:bg-[#0f3d2e]"
+              disabled={reviewBusy}
+              onClick={() => setFinalConfirmOpen(true)}
+            >
+              {reviewBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+              Final Submit
             </Button>
           )}
         </div>
@@ -465,6 +505,46 @@ export default function StakeholderReportDetail({ reportId, onBack, onEdit }: Pr
                 </div>
               </SectionBand>
 
+              {showChecklist && (
+                <SectionBand title="Review Checklist">
+                  <div className="space-y-2">
+                    {CHECKLIST_ITEMS.map((item) => {
+                      const checked = checks[item.key];
+                      return (
+                        <label
+                          key={item.key}
+                          className={cn(
+                            "flex items-center gap-3 rounded-xl border bg-white px-3.5 py-3 shadow-sm",
+                            checked ? "border-[#25a872]/40" : "border-[#d4e8dc]",
+                            canAct ? "cursor-pointer hover:border-[#25a872]/50" : "cursor-default opacity-90",
+                          )}
+                        >
+                          <button
+                            type="button"
+                            disabled={!canAct || reviewBusy}
+                            aria-pressed={checked}
+                            aria-label={item.title}
+                            onClick={() => canAct && setChecks((prev) => ({ ...prev, [item.key]: !prev[item.key] }))}
+                            className={cn(
+                              "flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 transition-colors",
+                              checked
+                                ? "border-[#25a872] bg-[#25a872] text-white"
+                                : "border-slate-300 bg-white text-transparent",
+                            )}
+                          >
+                            <Check className="h-3.5 w-3.5" strokeWidth={3} />
+                          </button>
+                          <span className="min-w-0 flex-1 flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-0.5 sm:gap-3">
+                            <span className="text-sm font-semibold text-[#0f3d2e]">{item.title}</span>
+                            <span className="text-xs text-slate-500 sm:text-right">{item.hint}</span>
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </SectionBand>
+              )}
+
               {showDecisionBlock && (
                 <SectionBand title="Coordinator Decision">
                   <div className="space-y-4">
@@ -477,7 +557,7 @@ export default function StakeholderReportDetail({ reportId, onBack, onEdit }: Pr
                           rows={3}
                           value={reviewNote}
                           onChange={(e) => setReviewNote(e.target.value)}
-                          placeholder="Enter remarks"
+                          placeholder="Required before endorse or return"
                           disabled={reviewBusy}
                           className="w-full rounded-xl border border-[#d4e8dc] bg-white px-3.5 py-2.5 text-sm text-slate-800 shadow-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#25a872]/30 focus:border-[#25a872]"
                         />
@@ -507,7 +587,7 @@ export default function StakeholderReportDetail({ reportId, onBack, onEdit }: Pr
                         </Button>
                         <Button
                           type="button"
-                          disabled={reviewBusy}
+                          disabled={reviewBusy || !checklistComplete}
                           onClick={() => review("endorsed")}
                           className="bg-[#0f3d2e] hover:bg-[#145c3f] text-white gap-2"
                         >

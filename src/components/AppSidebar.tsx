@@ -82,6 +82,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import {
   ENROLMENT_DRIVES_VIEW,
   ENROLMENT_DRIVES_PATH,
+  ENROLMENT_DRIVE_DASHBOARD_VIEW,
   ENROLMENT_DRIVE_TYPES,
   enrolmentDriveView,
 } from "@/src/components/stateOffice/enrolmentDriveTypes";
@@ -95,8 +96,6 @@ import {
   PROVIDER_MANAGEMENT_VIEW,
   PROVIDER_MANAGEMENT_PATH,
   PROVIDER_MANAGEMENT_DASHBOARD_VIEW,
-  PROVIDER_MANAGEMENT_DASHBOARD_PATH,
-  PROVIDER_MANAGEMENT_DASHBOARD_NAV_TITLE,
 } from "@/src/components/stateOffice/enrolmentPillarTypes";
 import {
   COMPLIANCE_HUB_VIEW,
@@ -124,6 +123,7 @@ import {
   ANNUAL_REPORTS_ENABLED,
   isAnnualReportNavTitle,
 } from "@/src/access/accessUtils";
+import { isHubLeafAllowed, isHubNavTitle } from "@/src/access/hubPrivilegeConfig";
 import { NhiaSidebarBrand } from "@/src/components/NhiaCrest";
 
 type View = string;
@@ -182,6 +182,15 @@ const ICON_MAP: Record<string, React.ElementType> = {
   "Stakeholder forum": Users,
   Others: ListFilter,
   "Enrolment Drives": Megaphone,
+  "Enrolment Drives Dashboard": LayoutDashboard,
+  "State Office Dashboard": LayoutDashboard,
+  "Enrolment Drives Management": Megaphone,
+  "Challenges & Support Dashboard": LayoutDashboard,
+  "Challenges & Support Management": AlertTriangle,
+  "Satisfaction Survey Dashboard": LayoutDashboard,
+  "Satisfaction Survey Management": MessageSquare,
+  "Complaints Dashboard": LayoutDashboard,
+  "Complaints Management": Scale,
   "Weekly Compliance Report": ClipboardCheck,
   "Advocacy / Courtesy Visits": Landmark,
   "Community Sensitization": Users,
@@ -199,6 +208,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
   Reaccreditation: Stethoscope,
   "Quality Assurance inspections": ClipboardCheck,
   "Complaint/Compliance management": Scale,
+  "Complaint/Compliance Management": Scale,
   "Internal Management": Landmark,
   Finance: Landmark,
   ICT: Monitor,
@@ -220,8 +230,12 @@ const ICON_MAP: Record<string, React.ElementType> = {
   "Staff Feedback": MessageSquare,
   Infractions: ShieldAlert,
   IGR: Landmark,
+  "IGR Dashboard": LayoutDashboard,
   "SSHIA Financial Report": Landmark,
+  "SSHIA Dashboard": LayoutDashboard,
   "Expenditure Profile": Receipt,
+  "IGR, SSHIA & Expenditure": Landmark,
+  "Finance Dashboard": LayoutDashboard,
   "Challenges & Recommendations": AlertTriangle,
   "Additional / Extra Dependant": Users,
   "HMO Selection Process": HeartPulse,
@@ -254,7 +268,6 @@ const ICON_MAP: Record<string, React.ElementType> = {
   "Operation Monitoring Visit": MapPin,
   "Spot Check Visit": MapPin,
   Complaints: Scale,
-  "Complaints Management": Scale,
   "State Complaints Register": Scale,
   "Customer Satisfaction Survey": TrendingUp,
   "HCF Customer Satisfaction Survey": TrendingUp,
@@ -298,9 +311,10 @@ const VIEW_TO_PATH: Record<string, string> = {
   "state-extra-dependant": BENEFICIARY_MANAGEMENT_PATH,
   [BENEFICIARY_MANAGEMENT_VIEW]: BENEFICIARY_MANAGEMENT_PATH,
   [ENROLMENT_DRIVES_VIEW]: ENROLMENT_DRIVES_PATH,
+  [ENROLMENT_DRIVE_DASHBOARD_VIEW]: "/zonal/dashboard?tab=enrolment-drives",
   [STAKEHOLDER_MANAGEMENT_VIEW]: STAKEHOLDER_MANAGEMENT_PATH,
   [PROVIDER_MANAGEMENT_VIEW]: PROVIDER_MANAGEMENT_PATH,
-  [PROVIDER_MANAGEMENT_DASHBOARD_VIEW]: PROVIDER_MANAGEMENT_DASHBOARD_PATH,
+  [PROVIDER_MANAGEMENT_DASHBOARD_VIEW]: "/zonal/dashboard?tab=provider",
   ...Object.fromEntries(
     ENROLMENT_DRIVE_TYPES.map((t) => [enrolmentDriveView(t.key), `${ENROLMENT_DRIVES_PATH}?type=${t.key}`]),
   ),
@@ -320,16 +334,29 @@ const VIEW_TO_PATH: Record<string, string> = {
   "state-staff-feedback": "/zonal/admin-hr/enrollee-feedback",
   "state-infractions": "/zonal/admin-hr/conflict-infraction",
   "servicom-visits": "/zonal/monitoring-visits",
-  "state-hmo-indebtedness": "/zonal/hmo-indebtedness",
-  "state-hmo-recon-phi": "/zonal/hmo-indebtedness",
-  "state-hmo-recon-ffs": "/zonal/hmo-indebtedness",
-  "state-hmo-recon-cap": "/zonal/hmo-indebtedness",
-  "state-hmo-master": "/zonal/hmo-indebtedness",
-  "state-mystery-shopping": "/zonal/mystery-shopping",
+  "state-hmo-indebtedness": "/zonal/compliance-hub?tab=hmo-indebtedness",
+  "state-hmo-recon-phi": "/zonal/compliance-hub?tab=hmo-indebtedness&hmoTab=phi",
+  "state-hmo-recon-ffs": "/zonal/compliance-hub?tab=hmo-indebtedness&hmoTab=ffs",
+  "state-hmo-recon-cap": "/zonal/compliance-hub?tab=hmo-indebtedness&hmoTab=cap",
+  "state-hmo-master": "/zonal/compliance-hub?tab=hmo-indebtedness&hmoTab=master",
+  "state-mystery-shopping": "/zonal/compliance-hub?tab=mystery-shopping",
+  "state-weekly-compliance": "/zonal/compliance-hub?tab=weekly-compliance",
   "servicom-complaints": "/sdo/servicom/complaints",
-  "zonal-complaints-register": "/zonal/complaints-register",
+  "servicom-complaints-dashboard": "/sdo/servicom/complaints/dashboard",
+  "zonal-complaints-register": "/zonal/compliance-hub?tab=complaints",
+  "zonal-complaints-dashboard": "/zonal/compliance-hub?tab=complaints",
   "servicom-satisfaction": "/sdo/servicom/satisfaction",
+  "servicom-satisfaction-dashboard": "/sdo/servicom/satisfaction/dashboard",
+  "zonal-servicom-satisfaction-dashboard": "/zonal/servicom/satisfaction/dashboard",
   "servicom-comment-card": "/sdo/servicom/comment-card",
+  "state-office-dashboard": "/zonal/dashboard",
+  "state-finance-dashboard": "/zonal/finance/dashboard",
+  "state-finance": "/zonal/finance/records",
+  "state-igr": "/zonal/finance/records?tab=igr",
+  "state-sshia-financial": "/zonal/finance/records?tab=sshia",
+  "state-expenditure-profile": "/zonal/finance/records?tab=expenditure",
+  "state-challenges": "/zonal/challenges",
+  "state-challenges-dashboard": "/zonal/dashboard?tab=challenges",
   "special-projects": "/sdo/projects",
   notifications: "/notifications",
   settings: "/settings",
@@ -441,7 +468,10 @@ function filterModuleTree(
       continue;
     }
 
-    if (!child.view || !allowedTitles.has(child.title)) continue;
+    const leafOk = isHubNavTitle(child.title)
+      ? isHubLeafAllowed(child.title, allowedTitles)
+      : allowedTitles.has(child.title);
+    if (!child.view || !leafOk) continue;
     if (!ANNUAL_REPORTS_ENABLED && isAnnualReportNavTitle(child.title)) continue;
 
     nodes.push({
@@ -623,14 +653,6 @@ function formatNavTitle(title: string) {
 }
 
 function displayName(node: TreeNode, role: string, depth = 0) {
-  // Standalone PM dashboard (group collapsed) — full title, not bare "Dashboard"
-  if (
-    node.kind === "leaf"
-    && depth === 0
-    && node.title === PROVIDER_MANAGEMENT_DASHBOARD_NAV_TITLE
-  ) {
-    return formatNavTitle(PROVIDER_MANAGEMENT_DASHBOARD_NAV_TITLE);
-  }
   if (node.kind === "leaf" && node.navLabel) return formatNavTitle(node.navLabel);
   if (role === "sdo" && node.title === "Dashboard") return "SDO Dashboard";
   return formatNavTitle(node.title);

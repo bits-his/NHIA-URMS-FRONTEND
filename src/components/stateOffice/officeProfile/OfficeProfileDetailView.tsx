@@ -104,7 +104,7 @@ export default function OfficeProfileDetailView({
         {canEdit && (
           <Button
             onClick={onEdit}
-            className="bg-[#0f3d2e] hover:bg-[#145c3f] text-white text-xs h-8 gap-1.5 shadow-sm"
+            className="bg-[#1a7a52] hover:bg-[#145c3f] text-white text-xs h-8.5 font-bold gap-1.5 shadow-xs rounded-sm border border-[#145c3f]"
           >
             <Pencil className="w-3.5 h-3.5" /> Edit Information
           </Button>
