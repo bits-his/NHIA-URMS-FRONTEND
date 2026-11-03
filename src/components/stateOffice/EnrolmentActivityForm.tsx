@@ -107,6 +107,8 @@ interface Props {
   /** When creating from an activity tab, skip the activity picker. */
   initialCategory?: string | null;
   driveContext?: { reference_id: string; programs_supported: string[] };
+  /** Embed inside a parent dialog/workspace — hide FormShell page chrome. */
+  embedded?: boolean;
 }
 
 export function FieldSection({ title, children, gridClassName = "grid gap-3 sm:grid-cols-2 lg:grid-cols-3" }: { title: string; children: React.ReactNode; gridClassName?: string }) {
@@ -415,7 +417,7 @@ function stepsForCategory(category: string, channel = ""): { id: StepId; label: 
 
 /** Activity Reporting Template — stepped flow from Enrolment.pptx */
 export default function EnrolmentActivityForm({
-  reportId, onBack, onCancel, onSubmitted, defaultZoneId, defaultStateId, initialCategory, driveContext: suppliedDriveContext,
+  reportId, onBack, onCancel, onSubmitted, defaultZoneId, defaultStateId, initialCategory, driveContext: suppliedDriveContext, embedded = false,
 }: Props) {
   const [savedDriveContext, setSavedDriveContext] = React.useState<Props["driveContext"]>();
   const driveContext = suppliedDriveContext || savedDriveContext;
@@ -801,6 +803,8 @@ export default function EnrolmentActivityForm({
       pageTitle={activityMeta?.label ?? "Enrolment Activity Reporting"}
       hideFooterActions
       hideBasicInfo
+      hidePageHeader={embedded}
+      compact={embedded}
       showQuarter
       onLoaded={loadData}
       validate={() => driveContext && (!Number.isSafeInteger(Number(entryRef.current.enrolment_count)) || Number(entryRef.current.enrolment_count) < 1) ? "Enter a whole number of at least one beneficiary" : validateEntry(entryRef.current)}

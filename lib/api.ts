@@ -54,7 +54,7 @@ const driveRequest = (path: string, method = "GET", payload?: unknown) => reques
 export const enrolmentDrivesApi = {
   catalogue: () => driveRequest("/catalogue"),
   batches: (filters: Record<string, string> = {}) => driveRequest(`/batches?${new URLSearchParams(filters)}`),
-  createBatch: (payload: unknown) => driveRequest("/batches", "POST", payload),
+  createBatch: (payload: unknown) => request<{ success: boolean; created?: boolean; data: any }>(`${DRIVE_ROOT}/batches`, { method: "POST", body: JSON.stringify(payload) }),
   batch: (id: string) => driveRequest(`/batches/${encodeURIComponent(id)}`),
   updateBatch: (id: string, payload: unknown) => driveRequest(`/batches/${encodeURIComponent(id)}`, "PUT", payload),
   transition: (id: string, payload: unknown) => driveRequest(`/batches/${encodeURIComponent(id)}/transition`, "POST", payload),
