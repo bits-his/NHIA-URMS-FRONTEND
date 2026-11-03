@@ -11,6 +11,14 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { useSearchParams } from "react-router-dom";
 import { servicomApi } from "@/lib/api";
@@ -68,11 +76,22 @@ interface Props {
   stateScope?: boolean;
   /** When true, hide the standalone page title chrome (parent hub owns it). */
   embedded?: boolean;
+  /**
+   * Channel scope:
+   * - "servicom-only": Complaints Management (SERVICOM module) - only show complaints received via SERVICOM channel.
+   * - "exclude-servicom": Complaint/Compliance Management (State Office) - hide SERVICOM channel and records.
+   * - "all": all channels.
+   */
+  channelScope?: "servicom-only" | "exclude-servicom" | "all";
 }
 
 type Mode = "list" | "register" | "manage" | "view";
 
-const emptyForm = (defaultZoneId?: string | null, defaultStateId?: string | null) => ({
+const emptyForm = (
+  defaultZoneId?: string | null,
+  defaultStateId?: string | null,
+  defaultRoute: string = "",
+) => ({
   zonal_code: defaultZoneId ?? "",
   state_code: defaultStateId ?? "",
   complaint_type: "" as PartyType | "",
@@ -84,7 +103,7 @@ const emptyForm = (defaultZoneId?: string | null, defaultStateId?: string | null
   domain_code: "",
   priority_rating: "",
   date_received: new Date().toISOString().slice(0, 10),
-  transmission_route: "",
+  transmission_route: defaultRoute,
   complainant_category: "",
   complainant_id: "",
   respondent_category: "",
@@ -420,29 +439,24 @@ function CloseComplaintModal({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
-  if (!open) return null;
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={busy ? undefined : onCancel} />
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="close-complaint-title"
-        className="relative z-10 w-full max-w-md rounded-2xl border border-[#d4e8dc] bg-white p-5 shadow-xl"
-      >
-        <h3 id="close-complaint-title" className="text-base font-bold text-slate-900">
-          {lockStatus ? `Mark complaint as ${status}?` : "Close complaint"}
-        </h3>
-        <p className="mt-2 text-sm text-slate-600 leading-relaxed">
-          This will end the investigation and skip the remaining steps. The complaint will be
-          marked <span className="font-semibold">{status}</span> with today as the date closed and can no longer be updated.
-        </p>
-        <div className="mt-4 space-y-3">
+    <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen && !busy) onCancel(); }}>
+      <DialogContent className="max-w-md p-6 rounded-xl border border-slate-200 bg-white shadow-xl">
+        <DialogHeader className="space-y-1.5 text-left">
+          <DialogTitle className="text-base font-bold text-slate-900">
+            {lockStatus ? `Mark complaint as ${status}?` : "Close complaint"}
+          </DialogTitle>
+          <DialogDescription className="text-sm text-slate-600 leading-relaxed">
+            This will end the investigation and skip the remaining steps. The complaint will be
+            marked <span className="font-semibold text-slate-900">{status}</span> with today as the date closed and can no longer be updated.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3 py-2">
           {!lockStatus && (
             <div className="space-y-1.5">
-              <Label className="text-xs text-slate-500">Close as</Label>
+              <Label className="text-xs font-semibold text-slate-600">Close as</Label>
               <Select value={status} onValueChange={onStatusChange} disabled={busy}>
-                <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-9 text-sm bg-white border-slate-200"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {INVESTIGATION_CLOSING_STATUSES.map((s) => (
                     <SelectItem key={s} value={s}>{s}</SelectItem>
@@ -452,32 +466,32 @@ function CloseComplaintModal({
             </div>
           )}
           <div className="space-y-1.5">
-            <Label className="text-xs text-slate-500">Remarks</Label>
+            <Label className="text-xs font-semibold text-slate-600">Remarks</Label>
             <Input
               value={remarks}
               onChange={(e) => onRemarksChange(e.target.value)}
-              placeholder="Optional"
+              placeholder="Optional notes or remarks"
               disabled={busy}
-              className="h-9 text-sm"
+              className="h-9 text-sm bg-white border-slate-200"
             />
           </div>
         </div>
-        <div className="mt-5 flex justify-end gap-2">
-          <Button type="button" variant="outline" onClick={onCancel} disabled={busy}>
+        <DialogFooter className="flex flex-row justify-end gap-2 pt-2">
+          <Button type="button" variant="outline" onClick={onCancel} disabled={busy} className="rounded-sm">
             Cancel
           </Button>
           <Button
             type="button"
-            className="bg-rose-600 hover:bg-rose-700 text-white gap-2"
+            className="bg-rose-600 hover:bg-rose-700 text-white gap-2 rounded-sm"
             onClick={onConfirm}
             disabled={busy}
           >
             {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
             {busy ? "Closing…" : `Yes, mark ${status}`}
           </Button>
-        </div>
-      </div>
-    </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -623,8 +637,23 @@ export default function ServicomComplaintsPage({
   onBack,
   defaultStateId, defaultZoneId, userName, userStaffId, userRole, userDepartment,
   canCreate = true, canReview = true, stateScope: stateScopeProp = false,
-  embedded = false,
+  embedded = false, channelScope,
 }: Props) {
+  const effectiveChannelScope: "servicom-only" | "exclude-servicom" | "all" =
+    channelScope ?? (stateScopeProp ? "exclude-servicom" : "servicom-only");
+  const isServicomOnly = effectiveChannelScope === "servicom-only";
+  const isExcludeServicom = effectiveChannelScope === "exclude-servicom";
+
+  const availableRoutes = React.useMemo(() => {
+    if (isExcludeServicom) {
+      return TRANSMISSION_ROUTES.filter((r) => r.value.toUpperCase() !== "SERVICOM");
+    }
+    if (isServicomOnly) {
+      return TRANSMISSION_ROUTES.filter((r) => r.value.toUpperCase() === "SERVICOM");
+    }
+    return TRANSMISSION_ROUTES;
+  }, [isExcludeServicom, isServicomOnly]);
+
   const [searchParams, setSearchParams] = useSearchParams();
   const roleKey = String(userRole ?? "");
   /** Zonal coordinators see every complaint in their zone (zone comes from profile). */
@@ -721,7 +750,7 @@ export default function ServicomComplaintsPage({
   const [zones, setZones] = React.useState<any[]>([]);
   const [states, setStates] = React.useState<any[]>([]);
   const [filterStates, setFilterStates] = React.useState<any[]>([]);
-  const [f, setF] = React.useState(emptyForm(defaultZoneId, defaultStateId));
+  const [f, setF] = React.useState(emptyForm(defaultZoneId, defaultStateId, isServicomOnly ? "SERVICOM" : ""));
 
   const [filterZone, setFilterZone] = React.useState(defaultZoneId ?? "all");
   const [filterState, setFilterState] = React.useState(defaultStateId ?? "all");
@@ -732,7 +761,7 @@ export default function ServicomComplaintsPage({
   const [filterFacilityId, setFilterFacilityId] = React.useState("");
   const [filterFacilityName, setFilterFacilityName] = React.useState("");
   const [filterHmoId, setFilterHmoId] = React.useState("");
-  const [filterTransmission, setFilterTransmission] = React.useState("all");
+  const [filterTransmission, setFilterTransmission] = React.useState(isServicomOnly ? "SERVICOM" : "all");
   const [filterAssigned, setFilterAssigned] = React.useState<"all" | "mine">("all");
   const [activeStage, setActiveStage] = React.useState<LifecycleStage>("registration");
   const [slaRules, setSlaRules] = React.useState<ComplaintSlaRuleRow[]>(SLA_SUMMARY as ComplaintSlaRuleRow[]);
@@ -869,7 +898,12 @@ export default function ServicomComplaintsPage({
         priority: filterPriority !== "all" ? filterPriority : undefined,
         facility_name: filterFacilityName || undefined,
         hmo_code: filterHmoId || undefined,
-        transmission_route: filterTransmission !== "all" ? filterTransmission : undefined,
+        transmission_route: isServicomOnly
+          ? "SERVICOM"
+          : (filterTransmission !== "all" ? filterTransmission : undefined),
+        exclude_route: isExcludeServicom ? "SERVICOM" : undefined,
+        exclude_servicom: isExcludeServicom ? "1" : undefined,
+        channel: isServicomOnly ? "servicom" : (isExcludeServicom ? "state" : undefined),
       };
 
       if (isZonalCoordinator) {
@@ -904,7 +938,7 @@ export default function ServicomComplaintsPage({
     defaultStateId, defaultZoneId, filterState, filterZone, filterStatus, filterPriority,
     filterAssigned, showAssignedFilter, userName, geoLocked,
     isStateCoordinator, isReportingOfficer, isStateOfficer, stateScope, isZonalCoordinator,
-    filterFacilityName, filterHmoId, filterTransmission,
+    filterFacilityName, filterHmoId, filterTransmission, isServicomOnly, isExcludeServicom,
   ]);
 
   React.useEffect(() => { if (mode === "list") load(); }, [load, mode]);
@@ -927,7 +961,7 @@ export default function ServicomComplaintsPage({
     || filterPriority !== "all"
     || !!filterFacilityName
     || !!filterHmoId
-    || filterTransmission !== "all"
+    || (!isServicomOnly && filterTransmission !== "all")
     || (showAssignedFilter && filterAssigned !== "all");
 
   const clearFilters = () => {
@@ -942,13 +976,19 @@ export default function ServicomComplaintsPage({
     setFilterFacilityId("");
     setFilterFacilityName("");
     setFilterHmoId("");
-    setFilterTransmission("all");
+    setFilterTransmission(isServicomOnly ? "SERVICOM" : "all");
     setFilterAssigned("all");
   };
 
   const filtered = React.useMemo(() => {
     const q = filterSearch.trim().toLowerCase();
     return complaints.filter((c) => {
+      if (isServicomOnly) {
+        if ((c.transmission_route || "").toUpperCase() !== "SERVICOM") return false;
+      }
+      if (isExcludeServicom) {
+        if ((c.transmission_route || "").toUpperCase() === "SERVICOM") return false;
+      }
       if (q) {
         const hay = [
           c.complaint_number, c.complaint_category, c.complaint_domain,
@@ -964,7 +1004,7 @@ export default function ServicomComplaintsPage({
       }
       return true;
     });
-  }, [complaints, filterSearch, filterDate, filterAssigned, showAssignedFilter, userName, userStaffId]);
+  }, [complaints, filterSearch, filterDate, filterAssigned, showAssignedFilter, userName, userStaffId, isServicomOnly, isExcludeServicom]);
 
   const assignedToMeCount = React.useMemo(
     () => (showAssignedFilter
@@ -1028,7 +1068,7 @@ export default function ServicomComplaintsPage({
 
   const openRegister = () => {
     if (!canRegister) return;
-    setF(emptyForm(defaultZoneId, defaultStateId));
+    setF(emptyForm(defaultZoneId, defaultStateId, isServicomOnly ? "SERVICOM" : ""));
     setSelected(null);
     setActiveStage("registration");
     setFormKey((k) => k + 1);
@@ -2095,9 +2135,9 @@ export default function ServicomComplaintsPage({
             <div className="col-span-full">
               <FieldSelect
                 label="Transmission Route"
-                value={transmissionRoute ?? ""}
-                options={TRANSMISSION_ROUTES}
-                readOnly={readOnly}
+                value={transmissionRoute ?? (isServicomOnly ? "SERVICOM" : "")}
+                options={availableRoutes}
+                readOnly={readOnly || isServicomOnly}
                 onChange={(v) => set("transmission_route", v)}
               />
             </div>
@@ -4184,19 +4224,21 @@ export default function ServicomComplaintsPage({
                 </SelectContent>
               </Select>
             </div>
-            <div className="min-w-0">
-              <Select value={filterTransmission} onValueChange={setFilterTransmission}>
-                <SelectTrigger className="h-8 w-full text-xs" displayValue={filterTransmission === "all" ? "Channel" : filterTransmission}>
-                  <SelectValue placeholder="Channel" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All channels</SelectItem>
-                  {TRANSMISSION_ROUTES.map((r) => (
-                    <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {!isServicomOnly && (
+              <div className="min-w-0">
+                <Select value={filterTransmission} onValueChange={setFilterTransmission}>
+                  <SelectTrigger className="h-8 w-full text-xs" displayValue={filterTransmission === "all" ? "Channel" : filterTransmission}>
+                    <SelectValue placeholder="Channel" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All channels</SelectItem>
+                    {availableRoutes.map((r) => (
+                      <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="min-w-0">
               <HcfFacilitySelect
                 requireState={false}

@@ -190,6 +190,7 @@ export default function ComplianceHubPage({
             key={`complaints-${refreshKey}`}
             embedded
             stateScope
+            channelScope="exclude-servicom"
             defaultZoneId={defaultZoneId}
             defaultStateId={null}
             userName={userName}

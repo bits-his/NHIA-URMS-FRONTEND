@@ -9,15 +9,18 @@ import {
   LayoutDashboard,
   Megaphone,
   RefreshCw,
+  Scale,
   Stethoscope,
   UserPlus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { RootState } from "@/src/store/store";
+import { isDeptStateCoordinator } from "@/src/access/departmentRoles";
 import EnrolmentDriveDashboard from "./EnrolmentDriveDashboard";
 import ProviderManagementDashboard from "./ProviderManagementDashboard";
 import ChallengesSupportDashboard from "./ChallengesSupportDashboard";
+import ComplaintRegisterDashboard from "../servicom/ComplaintRegisterDashboard";
 import { STAKEHOLDER_MANAGEMENT_PATH } from "./enrolmentPillarTypes";
 import { canAccessEnrolmentDriveDashboard } from "./enrolmentDriveTypes";
 
@@ -26,6 +29,7 @@ export type StateOfficeDashTab =
   | "enrolment-drives"
   | "stakeholder"
   | "provider"
+  | "complaints"
   | "challenges";
 
 const TABS: { key: StateOfficeDashTab; label: string; icon: React.ReactNode }[] = [
@@ -33,16 +37,16 @@ const TABS: { key: StateOfficeDashTab; label: string; icon: React.ReactNode }[] 
   { key: "enrolment-drives", label: "Enrolment Drives", icon: <Megaphone className="size-4 shrink-0" /> },
   { key: "stakeholder", label: "Stakeholder", icon: <Handshake className="size-4 shrink-0" /> },
   { key: "provider", label: "Provider Management", icon: <Stethoscope className="size-4 shrink-0" /> },
+  { key: "complaints", label: "Complaints", icon: <Scale className="size-4 shrink-0" /> },
   { key: "challenges", label: "Challenges & Support", icon: <AlertTriangle className="size-4 shrink-0" /> },
 ];
-
-const TAB_KEYS = new Set<StateOfficeDashTab>(TABS.map((t) => t.key));
 
 interface Props {
   onBack: () => void;
   defaultZoneId?: string | null;
   defaultStateId?: string | null;
   userRole?: string;
+  user?: any;
 }
 
 function UnavailablePanel({
@@ -80,13 +84,15 @@ export default function StateOfficeDashboardHub({
   onBack,
   defaultZoneId,
   defaultStateId,
+  userRole,
+  user,
 }: Props) {
   const navigate = useNavigate();
-  const user = useSelector((s: RootState) => s.auth.user);
-  const canEdDash = canAccessEnrolmentDriveDashboard(user?.role, {
-    reportScope: user?.role_config?.report_scope ?? null,
-    stateCode: user?.state_code || (user as any)?.state?.code || defaultStateId || null,
-    zonalCode: user?.zonal_code || (user as any)?.zone?.zonal_code || defaultZoneId || null,
+  const authUser = useSelector((s: RootState) => s.auth.user);
+  const canEdDash = canAccessEnrolmentDriveDashboard(authUser?.role || userRole, {
+    reportScope: authUser?.role_config?.report_scope ?? user?.role_config?.report_scope ?? null,
+    stateCode: authUser?.state_code || (authUser as any)?.state?.code || user?.state_code || defaultStateId || null,
+    zonalCode: authUser?.zonal_code || (authUser as any)?.zone?.zonal_code || user?.zonal_code || defaultZoneId || null,
   });
   const visibleTabs = React.useMemo(
     () => TABS.filter((tab) => tab.key !== "enrolment-drives" || canEdDash),
@@ -100,6 +106,22 @@ export default function StateOfficeDashboardHub({
     tabParam && visibleTabs.some((t) => t.key === tabParam)
       ? tabParam
       : (canEdDash ? "enrolment-drives" : fallbackTab);
+
+  const isStateCoordinator =
+    userRole === "state-coordinator" ||
+    isDeptStateCoordinator(userRole || "") ||
+    userRole === "state-officer" ||
+    user?.role_config?.report_scope === "state";
+
+  const isAdminOrNational =
+    userRole === "admin" ||
+    userRole === "sdo" ||
+    userRole === "dg-ceo" ||
+    userRole === "hq-department" ||
+    user?.role_config?.report_scope === "national";
+
+  // State coordinator sees his own state locked. Admin can select any state.
+  const isStateLocked = isStateCoordinator && !isAdminOrNational && !!defaultStateId;
 
   const [activeTab, setActiveTab] = React.useState<StateOfficeDashTab>(initialTab);
   const [refreshKey, setRefreshKey] = React.useState(0);
@@ -219,6 +241,31 @@ export default function StateOfficeDashboardHub({
           onBack={onBack}
           {...shared}
         />
+      )}
+
+      {activeTab === "complaints" && (
+        <ScrollArea className="flex-1">
+          <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-4">
+            <ComplaintRegisterDashboard
+              key={`state-comp-dash-${refreshKey}`}
+              embedded
+              defaultStateId={isStateLocked ? defaultStateId : undefined}
+              defaultZoneId={isStateLocked ? defaultZoneId : undefined}
+              lockLocation={isStateLocked}
+              excludeServicom
+              title={
+                isStateLocked
+                  ? "State Complaints Dashboard"
+                  : "State Office Complaints Analytics"
+              }
+              subtitle={
+                isStateLocked
+                  ? `Complaint resolution, SLA tracking, and trends for ${defaultStateId || "your state"}`
+                  : "State-level complaint resolution, SLA performance, and trends across states"
+              }
+            />
+          </div>
+        </ScrollArea>
       )}
 
       {activeTab === "challenges" && (
