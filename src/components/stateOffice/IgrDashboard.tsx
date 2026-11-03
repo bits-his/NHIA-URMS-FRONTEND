@@ -16,7 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { financeDashboardApi, stockApi } from "@/lib/api";
-import { IGR_SERVICE_TYPES, MONTHS, formatNaira, labelOf } from "./constants";
+import { IGR_SERVICE_TYPES, MONTHS, formatNaira, formatNairaCompact, labelOf } from "./constants";
 
 interface Props {
   onBack?: () => void;
@@ -51,6 +51,12 @@ export default function IgrDashboard({
   const isNational = userRole === "sdo" || userRole === "dg-ceo" || userRole === "admin" || !userRole;
   const isZonalCoordinator = userRole === "soc-zonal-coordinator" || (userRole && userRole.includes("zonal") && !isNational);
   const isStateOffice = !!defaultStateId || (userRole && userRole.includes("state") && !isZonalCoordinator && !isNational);
+  const viewScope: "national" | "zone" | "state" = isStateOffice || stateId !== "all"
+    ? "state"
+    : isZonalCoordinator || zoneId !== "all"
+      ? "zone"
+      : "national";
+  const showGeoComparison = viewScope !== "state";
 
   React.useEffect(() => {
     stockApi.getZones().then((r) => {
@@ -114,18 +120,11 @@ export default function IgrDashboard({
   }, [dashboardData]);
 
   const igrStateData = React.useMemo(() => {
-    return (dashboardData?.by_state || []).slice(0, 8).map((s: any) => ({
+    return (dashboardData?.by_state || []).map((s: any) => ({
       name: s.label || s.state_code,
       code: s.state_code,
+      zoneCode: s.zonal_code,
       amount: Number(s.amount) || 0,
-    }));
-  }, [dashboardData]);
-
-  const igrZoneData = React.useMemo(() => {
-    return (dashboardData?.by_zone || []).map((z: any) => ({
-      name: z.label || z.zonal_code,
-      code: z.zonal_code,
-      amount: Number(z.amount) || 0,
     }));
   }, [dashboardData]);
 
@@ -252,7 +251,7 @@ export default function IgrDashboard({
                   </span>
                   <div className="mt-1.5">
                     <span className="text-lg font-black text-[#145c3f] tabular-nums">
-                      {formatNaira(kpis.total_igr || 0)}
+                      {formatNairaCompact(kpis.total_igr || 0)}
                     </span>
                     <p className="text-[10px] text-slate-400 mt-0.5">Sum of Amount (NGN)</p>
                   </div>
@@ -276,7 +275,7 @@ export default function IgrDashboard({
                   </span>
                   <div className="mt-1.5">
                     <span className="text-lg font-black text-slate-800 tabular-nums">
-                      {kpis.average_receipt ? formatNaira(kpis.average_receipt) : "—"}
+                      {kpis.average_receipt ? formatNairaCompact(kpis.average_receipt) : "—"}
                     </span>
                     <p className="text-[10px] text-slate-400 mt-0.5">IGR ÷ transaction count</p>
                   </div>
@@ -306,28 +305,27 @@ export default function IgrDashboard({
                       {kpis.top_service ? labelOf(IGR_SERVICE_TYPES, kpis.top_service.service_type) : "—"}
                     </span>
                     <p className="text-[10px] text-slate-400 mt-0.5">
-                      {kpis.top_service ? formatNaira(kpis.top_service.amount) : "No data"}
+                      {kpis.top_service ? formatNairaCompact(kpis.top_service.amount) : "No data"}
                     </p>
                   </div>
                 </div>
 
                 <div className="bg-white border border-slate-200/80 rounded-sm p-3 shadow-xs flex flex-col justify-between">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                    TOP REVENUE ZONE
+                    TOP REVENUE STATE
                   </span>
                   <div className="mt-1.5">
                     <span className="text-xs font-bold text-slate-800 truncate block">
-                      {dashboardData?.by_zone?.[0]?.label || "—"}
+                      {dashboardData?.by_state?.[0]?.label || "—"}
                     </span>
                     <p className="text-[10px] text-slate-400 mt-0.5">
-                      {dashboardData?.by_zone?.[0] ? formatNaira(dashboardData.by_zone[0].amount) : "No data"}
+                      {dashboardData?.by_state?.[0] ? formatNairaCompact(dashboardData.by_state[0].amount) : "No data"}
                     </p>
                   </div>
                 </div>
               </div>
 
-              {/* 3 PPT Charts (Slide 3, 4, 5) */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
                 {/* Monthly Trend */}
                 <Card className="border border-slate-200/80 rounded-sm shadow-xs overflow-hidden">
                   <CardHeader className="border-b border-slate-200 bg-[#f4f7f5] py-2 px-3 rounded-none m-0">
@@ -359,7 +357,7 @@ export default function IgrDashboard({
                   </CardContent>
                 </Card>
 
-                {/* Revenue Mix by Service (Slide 5) */}
+                {/* Revenue Mix by Service */}
                 <Card className="border border-slate-200/80 rounded-sm shadow-xs overflow-hidden">
                   <CardHeader className="border-b border-slate-200 bg-[#f4f7f5] py-2 px-3 rounded-none m-0">
                     <CardTitle className="text-xs font-bold text-slate-800 uppercase tracking-wide flex items-center justify-between">
@@ -380,7 +378,7 @@ export default function IgrDashboard({
                               </span>
                               <div className="flex items-center gap-1.5 shrink-0">
                                 <span className="text-[11px] font-bold text-[#145c3f] tabular-nums">
-                                  {formatNaira(item.amount)}
+                                  {formatNairaCompact(item.amount)}
                                 </span>
                                 <span className="text-[10px] font-bold text-slate-400 tabular-nums">
                                   ({item.share.toFixed(1)}%)
@@ -403,37 +401,49 @@ export default function IgrDashboard({
                     </div>
                   </CardContent>
                 </Card>
+              </div>
 
-                {/* State Comparison (Slide 4) */}
+              {showGeoComparison && (
                 <Card className="border border-slate-200/80 rounded-sm shadow-xs overflow-hidden">
                   <CardHeader className="border-b border-slate-200 bg-[#f4f7f5] py-2 px-3 rounded-none m-0">
                     <CardTitle className="text-xs font-bold text-slate-800 uppercase tracking-wide flex items-center justify-between">
-                      <span>{zoneId === "all" ? "IGR by Zone" : `State Comparison (${activeZoneLabel})`}</span>
+                      <span>
+                        {viewScope === "zone"
+                          ? `IGR by state — ${activeZoneLabel}`
+                          : "IGR by state"}
+                      </span>
                       <Badge variant="outline" className="border-[#1a7a52] text-[#1a7a52] text-[10px]">
                         Comparison
                       </Badge>
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="p-2.5">
-                    <div className="h-[200px] w-full">
-                      {(zoneId === "all" ? igrZoneData : igrStateData).length > 0 ? (
+                    <div className="h-[280px] w-full">
+                      {igrStateData.length > 0 ? (
                         <ResponsiveContainer width="100%" height="100%">
                           <BarChart
-                            data={zoneId === "all" ? igrZoneData : igrStateData}
-                            margin={{ top: 8, right: 10, left: 0, bottom: 20 }}
+                            data={igrStateData}
+                            margin={{ top: 8, right: 12, left: 0, bottom: 48 }}
                             onClick={(e: any) => {
                               if (e?.activePayload?.[0]?.payload) {
                                 const payload = e.activePayload[0].payload;
-                                if (zoneId === "all" && !isZonalCoordinator) {
-                                  setZoneId(payload.code);
-                                } else if (stateId === "all" && !isStateOffice) {
-                                  setStateId(payload.code);
+                                if (isStateOffice) return;
+                                if (payload.zoneCode && zoneId === "all" && !isZonalCoordinator) {
+                                  setZoneId(String(payload.zoneCode));
                                 }
+                                if (payload.code) setStateId(String(payload.code));
                               }
                             }}
                           >
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                            <XAxis dataKey="name" angle={-20} textAnchor="end" interval={0} tick={{ fontSize: 9 }} />
+                            <XAxis
+                              dataKey="name"
+                              angle={-35}
+                              textAnchor="end"
+                              interval={0}
+                              height={64}
+                              tick={{ fontSize: 9 }}
+                            />
                             <YAxis tick={{ fontSize: 9 }} tickFormatter={(v) => `${(v / 1e6).toFixed(1)}M`} />
                             <RechartsTooltip formatter={(v: any) => [formatNaira(Number(v)), "IGR"]} />
                             <Bar dataKey="amount" fill="#0284c7" radius={[2, 2, 0, 0]} cursor="pointer" />
@@ -447,7 +457,7 @@ export default function IgrDashboard({
                     </div>
                   </CardContent>
                 </Card>
-              </div>
+              )}
             </div>
         </div>
       </ScrollArea>
