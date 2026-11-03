@@ -3,11 +3,12 @@
  * Spec: volume, sources, issue patterns, resolution performance, SLA, escalation.
  */
 import * as React from "react";
-import { RefreshCw, Loader2 } from "lucide-react";
+import { RefreshCw, Loader2, Filter as FilterIcon, X, Calendar, Tag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
@@ -186,37 +187,89 @@ export default function ComplaintRegisterDashboard({
     ? "All states"
     : (states.find((s) => String(s.code) === filterState)?.description || filterState);
 
+  const clearFilters = () => {
+    setYear(String(currentYear));
+    setMonth("all");
+    setDate("");
+    if (!stateLocked && !zoneLocked) {
+      setLocationLevel("all");
+      setFilterZone("all");
+      setFilterState("all");
+    } else if (zoneLocked && !stateLocked) {
+      setFilterState("all");
+    }
+    setDomain("all");
+    setPriority("all");
+    setCategory("all");
+    setType("all");
+    setRoute("all");
+    setStatus("all");
+  };
+
+  const activeFiltersCount = React.useMemo(() => {
+    let count = 0;
+    if (year !== "all" && year !== String(currentYear)) count++;
+    if (month !== "all") count++;
+    if (date) count++;
+    if (locationLevel !== "all" && !stateLocked && !zoneLocked) count++;
+    if (filterZone !== "all" && !zoneLocked) count++;
+    if (filterState !== "all" && !stateLocked) count++;
+    if (domain !== "all") count++;
+    if (priority !== "all") count++;
+    if (category !== "all") count++;
+    if (type !== "all") count++;
+    if (route !== "all") count++;
+    if (status !== "all") count++;
+    return count;
+  }, [year, month, date, locationLevel, filterZone, filterState, domain, priority, category, type, route, status, stateLocked, zoneLocked]);
+
   const filters = (
-    <div className="space-y-3">
-      <FilterGroup title="Period" note="Date / Month / Year">
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-          <Filter label="Year">
+    <div className="p-3.5 space-y-3.5 bg-white">
+      {/* Row 1: Timeframe & Location Scope */}
+      <div>
+        <div className="flex items-center gap-1.5 mb-2">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-[#1a7a52] flex items-center gap-1">
+            <Calendar className="w-3 h-3" /> Timeframe & Location Scope
+          </span>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+          {/* Year */}
+          <Filter label="Reporting Year">
             <Select
               value={year}
               onValueChange={(v) => { setYear(v); if (v !== "all") setDate(""); }}
             >
-              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-8.5 text-xs bg-slate-50/60 hover:bg-slate-50 border-slate-200 rounded-sm">
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
                 {YEARS.map((y) => (
-                  <SelectItem key={y} value={y}>{y === "all" ? "All years" : y}</SelectItem>
+                  <SelectItem key={y} value={y}>{y === "all" ? "All Years" : y}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </Filter>
+
+          {/* Month */}
           <Filter label="Month">
             <Select
               value={month}
               onValueChange={(v) => { setMonth(v); if (v !== "all") setDate(""); }}
             >
-              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-8.5 text-xs bg-slate-50/60 hover:bg-slate-50 border-slate-200 rounded-sm">
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
                 {MONTHS.map((m) => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
               </SelectContent>
             </Select>
           </Filter>
-          <Filter label="Date">
+
+          {/* Date */}
+          <Filter label="Specific Date">
             <Input
-              className="h-9"
+              className="h-8.5 text-xs bg-slate-50/60 border-slate-200 rounded-sm"
               type="date"
               value={date}
               onChange={(e) => {
@@ -228,13 +281,10 @@ export default function ComplaintRegisterDashboard({
               }}
             />
           </Filter>
-        </div>
-      </FilterGroup>
 
-      <FilterGroup title="Location" note="State / Zone / HQ">
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-          {!stateLocked && !zoneLocked && (
-            <Filter label="Level">
+          {/* Location Level */}
+          {!stateLocked && !zoneLocked ? (
+            <Filter label="Location Level">
               <Select
                 value={locationLevel}
                 onValueChange={(v: "all" | "hq" | "zone" | "state") => {
@@ -246,76 +296,106 @@ export default function ComplaintRegisterDashboard({
                   if (v === "zone") setFilterState("all");
                 }}
               >
-                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-8.5 text-xs bg-slate-50/60 hover:bg-slate-50 border-slate-200 rounded-sm">
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All locations</SelectItem>
+                  <SelectItem value="all">All Locations</SelectItem>
                   <SelectItem value="hq">HQ</SelectItem>
                   <SelectItem value="zone">Zone</SelectItem>
                   <SelectItem value="state">State</SelectItem>
                 </SelectContent>
               </Select>
             </Filter>
+          ) : (
+            <Filter label="Location Level">
+              <div className="h-8.5 px-3 flex items-center text-xs bg-slate-100/70 border border-slate-200 rounded-sm text-slate-600 font-medium">
+                {stateLocked ? "State Locked" : "Zone Locked"}
+              </div>
+            </Filter>
           )}
-          {!stateLocked && locationLevel !== "hq" && (
-            <Filter label="Zone">
+
+          {/* Zone */}
+          {!stateLocked && locationLevel !== "hq" ? (
+            <Filter label={`Zone ${zoneLocked ? "• Locked" : ""}`}>
               <Select
                 value={filterZone}
                 onValueChange={(v) => { setFilterZone(v); setFilterState("all"); }}
                 disabled={zoneLocked}
               >
-                <SelectTrigger className="h-9" displayValue={zoneLabel}><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-8.5 text-xs bg-slate-50/60 hover:bg-slate-50 border-slate-200 rounded-sm" displayValue={zoneLabel}>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All zones</SelectItem>
+                  <SelectItem value="all">All Zones</SelectItem>
                   {zones.map((z) => (
                     <SelectItem key={z.zonal_code} value={String(z.zonal_code)}>{z.description}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </Filter>
+          ) : (
+            <Filter label="Zone">
+              <div className="h-8.5 px-3 flex items-center text-xs bg-slate-100/70 border border-slate-200 rounded-sm text-slate-400">
+                {locationLevel === "hq" ? "HQ (N/A)" : zoneLabel}
+              </div>
+            </Filter>
           )}
-          {locationLevel !== "hq" && (
-            <Filter label="State">
+
+          {/* State */}
+          {locationLevel !== "hq" ? (
+            <Filter label={`State ${stateLocked ? "• Locked" : ""}`}>
               <Select value={filterState} onValueChange={setFilterState} disabled={stateLocked}>
-                <SelectTrigger className="h-9" displayValue={stateLabel}><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-8.5 text-xs bg-slate-50/60 hover:bg-slate-50 border-slate-200 rounded-sm" displayValue={stateLabel}>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All states</SelectItem>
+                  <SelectItem value="all">All States</SelectItem>
                   {states.map((s) => (
                     <SelectItem key={s.code} value={String(s.code)}>{s.description}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </Filter>
+          ) : (
+            <Filter label="State">
+              <div className="h-8.5 px-3 flex items-center text-xs bg-slate-100/70 border border-slate-200 rounded-sm text-slate-400">
+                HQ (N/A)
+              </div>
+            </Filter>
           )}
         </div>
-      </FilterGroup>
+      </div>
 
-      <FilterGroup title="Programs">
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 max-w-xl">
-          <Filter label="Program">
-            <Choice value={domain} onChange={setDomain} allLabel="All programs" options={COMPLAINT_DOMAINS} />
-          </Filter>
+      {/* Row 2: Case Attributes & Classification */}
+      <div className="border-t border-slate-100 pt-3">
+        <div className="flex items-center gap-1.5 mb-2">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-[#1a7a52] flex items-center gap-1">
+            <Tag className="w-3 h-3" /> Case Attributes & Classification
+          </span>
         </div>
-      </FilterGroup>
 
-      <FilterGroup title="Case attributes" note="Priority, category, type, route, status">
-        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-2">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+          <Filter label="Program">
+            <Choice value={domain} onChange={setDomain} allLabel="All Programs" options={COMPLAINT_DOMAINS} />
+          </Filter>
           <Filter label="Priority">
-            <Choice value={priority} onChange={setPriority} allLabel="All priorities" options={PRIORITY_RATINGS} />
+            <Choice value={priority} onChange={setPriority} allLabel="All Priorities" options={PRIORITY_RATINGS} />
           </Filter>
           <Filter label="Category">
-            <Choice value={category} onChange={setCategory} allLabel="All categories" options={COMPLAINT_CATEGORIES} />
+            <Choice value={category} onChange={setCategory} allLabel="All Categories" options={COMPLAINT_CATEGORIES} />
           </Filter>
           <Filter label="Type">
-            <Choice value={type} onChange={setType} allLabel="All types" options={COMPLAINT_TYPES} />
+            <Choice value={type} onChange={setType} allLabel="All Types" options={COMPLAINT_TYPES} />
           </Filter>
           <Filter label="Route">
-            <Choice value={route} onChange={setRoute} allLabel="All routes" options={TRANSMISSION_ROUTES} />
+            <Choice value={route} onChange={setRoute} allLabel="All Routes" options={TRANSMISSION_ROUTES} />
           </Filter>
           <Filter label="Status">
-            <Choice value={status} onChange={setStatus} allLabel="All statuses" options={COMPLAINT_STATUSES} />
+            <Choice value={status} onChange={setStatus} allLabel="All Statuses" options={COMPLAINT_STATUSES} />
           </Filter>
         </div>
-      </FilterGroup>
+      </div>
     </div>
   );
 
@@ -470,13 +550,47 @@ export default function ComplaintRegisterDashboard({
 
   if (embedded) {
     return (
-      <div className="space-y-4">
-        <div className="flex items-center justify-end">
-          <Button variant="outline" size="sm" onClick={load} disabled={loading} className="h-8 gap-1.5 text-xs">
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh
-          </Button>
+      <div className="space-y-6">
+        <div className="rounded-sm border border-slate-200/80 bg-white shadow-xs overflow-hidden">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 px-4 py-2.5 bg-[#f8faf9] border-b border-slate-200/80">
+            <div className="flex items-center gap-2.5">
+              <FilterIcon className="w-4 h-4 text-[#1a7a52]" />
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-slate-800 uppercase tracking-wide">
+                  Complaint Register Filters
+                </span>
+                {activeFiltersCount > 0 && (
+                  <Badge className="bg-[#1a7a52] text-white text-[10px] font-bold px-1.5 py-0 rounded-full">
+                    {activeFiltersCount} Active
+                  </Badge>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center gap-2 self-end sm:self-auto">
+              {activeFiltersCount > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearFilters}
+                  className="h-7 text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 gap-1 rounded-sm px-2"
+                >
+                  <X className="w-3.5 h-3.5" />
+                  <span>Reset</span>
+                </Button>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={load}
+                disabled={loading}
+                className="h-7 gap-1.5 text-xs rounded-sm border-slate-300 text-slate-700 hover:bg-[#f4f7f5]"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh
+              </Button>
+            </div>
+          </div>
+          {filters}
         </div>
-        {filters}
         {body}
         {drillPanel}
       </div>
@@ -484,18 +598,49 @@ export default function ComplaintRegisterDashboard({
   }
 
   return (
-    <div className="space-y-4">
-      <div className="rounded-xl border border-[#d4e8dc] bg-white p-3 space-y-3">
-        <div className="flex items-center justify-between gap-2">
-          <div>
-            <p className="text-sm font-semibold text-slate-800">Complaint register</p>
-            <p className="text-[11px] text-slate-500">
-              Volume, sources, issue patterns, resolution performance, SLA compliance and escalation
-            </p>
+    <div className="space-y-6">
+      <div className="rounded-sm border border-slate-200/80 bg-white shadow-xs overflow-hidden">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 px-4 py-2.5 bg-[#f8faf9] border-b border-slate-200/80">
+          <div className="flex items-center gap-2.5">
+            <FilterIcon className="w-4 h-4 text-[#1a7a52]" />
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-slate-800 uppercase tracking-wide">
+                  Complaint Register Analytics
+                </span>
+                {activeFiltersCount > 0 && (
+                  <Badge className="bg-[#1a7a52] text-white text-[10px] font-bold px-1.5 py-0 rounded-full">
+                    {activeFiltersCount} Active
+                  </Badge>
+                )}
+              </div>
+              <p className="text-[11px] text-slate-500">
+                Volume, sources, issue patterns, resolution performance, SLA compliance and escalation
+              </p>
+            </div>
           </div>
-          <Button variant="outline" size="sm" onClick={load} disabled={loading} className="h-8 gap-1.5 text-xs">
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh
-          </Button>
+          <div className="flex items-center gap-2 self-end sm:self-auto">
+            {activeFiltersCount > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearFilters}
+                className="h-7 text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 gap-1 rounded-sm px-2"
+              >
+                <X className="w-3.5 h-3.5" />
+                <span>Reset</span>
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={load}
+              disabled={loading}
+              className="h-7 gap-1.5 text-xs rounded-sm border-slate-300 text-slate-700 hover:bg-[#f4f7f5]"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh
+            </Button>
+          </div>
         </div>
         {filters}
       </div>
@@ -550,28 +695,12 @@ function DaysChart({ title, data }: { title: string; data?: { name: string; days
   );
 }
 
-function FilterGroup({
-  title, note, children,
-}: {
-  title: string;
-  note?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="rounded-lg border border-[#e2efe8] bg-[#f8fbf9] px-3 py-2.5 space-y-2">
-      <div className="flex items-baseline gap-2">
-        <p className="text-[11px] font-bold uppercase tracking-wide text-[#145c3f]">{title}</p>
-        {note ? <p className="text-[10px] text-slate-500">{note}</p> : null}
-      </div>
-      {children}
-    </div>
-  );
-}
-
 function Filter({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="space-y-1 min-w-0">
-      <Label className="text-[11px] text-slate-500">{label}</Label>
+      <Label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider truncate block">
+        {label}
+      </Label>
       {children}
     </div>
   );
@@ -588,7 +717,9 @@ function Choice({
   const label = value === "all" ? allLabel : (options.find((o) => o.value === value)?.label || value);
   return (
     <Select value={value} onValueChange={onChange}>
-      <SelectTrigger className="h-9" displayValue={label}><SelectValue /></SelectTrigger>
+      <SelectTrigger className="h-8.5 text-xs bg-slate-50/60 hover:bg-slate-50 border-slate-200 rounded-sm" displayValue={label}>
+        <SelectValue />
+      </SelectTrigger>
       <SelectContent>
         <SelectItem value="all">{allLabel}</SelectItem>
         {options.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}

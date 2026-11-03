@@ -52,9 +52,7 @@ import { stateZonalFocalPersonApi, stockApi } from "@/lib/api";
 import { buildReportingYearOptions } from "../../monthly/reportingYears";
 import { ShadcnDataTable } from "@/components/common/ShadcnDataTable";
 import {
-  SolvixStatCards,
   SolvixStatusPill,
-  type SolvixStatItem,
 } from "@/components/common/SolvixStatCards";
 import { SolvixFilterBar } from "@/components/common/SolvixFilterBar";
 
@@ -430,10 +428,6 @@ export default function FocalPersonsTab({
     });
   }, [records, domainFilter, searchQuery]);
 
-  // Statistics calculation for Solvix Stat Cards
-  const emailCount = records.filter((r) => r.email && r.email.includes("@")).length;
-  const phoneCount = records.filter((r) => r.phone && r.phone.length > 5).length;
-
   // TanStack Column Definitions matching Solvix Table
   const columns: ColumnDef<FocalPersonRow>[] = [
     {
@@ -463,7 +457,7 @@ export default function FocalPersonsTab({
             <div className="size-6 rounded-full bg-slate-100 border border-slate-200 text-slate-700 flex items-center justify-center text-[10px] font-bold shrink-0">
               {initials}
             </div>
-            <span className="font-semibold text-slate-900 hover:text-[#007a8c] transition-colors">
+            <span className="font-semibold text-slate-900 hover:text-[#1a7a52] transition-colors">
               {name}
             </span>
           </div>
@@ -540,7 +534,7 @@ export default function FocalPersonsTab({
             variant="ghost"
             size="sm"
             onClick={() => handleStartView(row.original)}
-            className="h-7 px-2.5 text-xs font-semibold text-[#007a8c] hover:text-[#005a66] hover:bg-[#007a8c]/10 rounded-md gap-1"
+            className="h-7 px-2.5 text-xs font-semibold text-[#1a7a52] hover:text-[#145c3f] hover:bg-[#1a7a52]/10 rounded-sm gap-1"
           >
             <Eye className="size-3.5" />
             <span>View</span>
@@ -549,42 +543,6 @@ export default function FocalPersonsTab({
       ),
     },
   ];
-
-  // 4 Solvix Stat Items (Unconditionally declared at top before any early return)
-  const focalStatItems: SolvixStatItem[] = React.useMemo(() => [
-    {
-      label: "APPOINTED OFFICERS",
-      value: records.length,
-      trendValue: `${Math.round((records.length / 16) * 100)}%`,
-      trendLabel: "of 16 domains designated",
-      trendColor: "emerald",
-      sparklineVariant: "teal",
-    },
-    {
-      label: "VERIFIED EMAILS",
-      value: emailCount,
-      trendValue: `${records.length > 0 ? Math.round((emailCount / records.length) * 100) : 0}%`,
-      trendLabel: "official email addresses",
-      trendColor: "emerald",
-      sparklineVariant: "emerald",
-    },
-    {
-      label: "PHONE REACHABILITY",
-      value: phoneCount,
-      trendValue: `${records.length > 0 ? Math.round((phoneCount / records.length) * 100) : 0}%`,
-      trendLabel: "active phone lines",
-      trendColor: "sky",
-      sparklineVariant: "sky",
-    },
-    {
-      label: "REPORTING CYCLE",
-      value: currentYear,
-      trendValue: selectedState?.description || "All States",
-      trendLabel: selectedZone?.description || "Nationwide",
-      trendColor: "indigo",
-      sparklineVariant: "indigo",
-    },
-  ], [records, emailCount, phoneCount, currentYear, selectedState, selectedZone]);
 
   /* =========================================================================
      VIEW MODE 1: ON-PAGE FORM (1 CARD, ZONE FIRST AS SELECT, STATE FILTERED)
@@ -706,7 +664,7 @@ export default function FocalPersonsTab({
             {/* 2. LIVE OFFICER PROFILE PREVIEW BANNER */}
             <div className="p-3.5 rounded-sm bg-gradient-to-r from-slate-50 to-slate-100/80 border border-slate-200/80 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="size-11 rounded-full bg-[#007a8c] text-white flex items-center justify-center text-sm font-bold shadow-xs">
+                <div className="size-11 rounded-full bg-[#1a7a52] text-white flex items-center justify-center text-sm font-bold shadow-xs">
                   {previewInitials}
                 </div>
                 <div>
@@ -714,7 +672,7 @@ export default function FocalPersonsTab({
                     <p className="text-sm font-bold text-slate-900 leading-tight">
                       {officerName.trim() || "Officer Full Name"}
                     </p>
-                    <span className="px-2 py-0.5 rounded-sm text-[10px] font-semibold bg-white border border-slate-200 text-[#007a8c]">
+                    <span className="px-2 py-0.5 rounded-sm text-[10px] font-semibold bg-white border border-slate-200 text-[#1a7a52]">
                       {domain}
                     </span>
                   </div>
@@ -751,7 +709,7 @@ export default function FocalPersonsTab({
                   onChange={(e) => setOfficerName(e.target.value)}
                   placeholder="e.g. Dr. Aminu Bello"
                   disabled={readOnly}
-                  className="h-9 bg-white border-slate-200 text-xs rounded-sm focus-visible:ring-1 focus-visible:ring-[#007a8c]"
+                  className="h-9 bg-white border-slate-200 text-xs rounded-sm focus-visible:ring-1 focus-visible:ring-[#1a7a52]"
                 />
               </div>
 
@@ -764,7 +722,7 @@ export default function FocalPersonsTab({
                   onChange={(e) => setDesignation(e.target.value)}
                   placeholder="e.g. Senior ICT Officer / Focal Officer"
                   disabled={readOnly}
-                  className="h-9 bg-white border-slate-200 text-xs rounded-sm focus-visible:ring-1 focus-visible:ring-[#007a8c]"
+                  className="h-9 bg-white border-slate-200 text-xs rounded-sm focus-visible:ring-1 focus-visible:ring-[#1a7a52]"
                 />
               </div>
 
@@ -778,7 +736,7 @@ export default function FocalPersonsTab({
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="officer@nhia.gov.ng"
                     disabled={readOnly}
-                    className="pl-9 h-9 bg-white border-slate-200 text-xs rounded-sm focus-visible:ring-1 focus-visible:ring-[#007a8c]"
+                    className="pl-9 h-9 bg-white border-slate-200 text-xs rounded-sm focus-visible:ring-1 focus-visible:ring-[#1a7a52]"
                   />
                 </div>
               </div>
@@ -793,7 +751,7 @@ export default function FocalPersonsTab({
                     onChange={(e) => setPhoneNumber(e.target.value)}
                     placeholder="0803 000 0000"
                     disabled={readOnly}
-                    className="pl-9 h-9 bg-white border-slate-200 text-xs rounded-sm focus-visible:ring-1 focus-visible:ring-[#007a8c]"
+                    className="pl-9 h-9 bg-white border-slate-200 text-xs rounded-sm focus-visible:ring-1 focus-visible:ring-[#1a7a52]"
                   />
                 </div>
               </div>
@@ -819,7 +777,7 @@ export default function FocalPersonsTab({
                 size="sm"
                 onClick={() => handleSaveOfficer()}
                 disabled={saving || readOnly}
-                className="h-8 text-xs bg-[#0f2d42] hover:bg-[#1a3d54] text-white font-medium rounded-sm gap-1.5 shadow-2xs"
+                className="h-8.5 text-xs bg-[#1a7a52] hover:bg-[#145c3f] text-white font-bold rounded-sm gap-1.5 shadow-xs border border-[#145c3f]"
               >
                 {saving ? (
                   <Loader2 className="size-3.5 animate-spin" />
@@ -892,7 +850,7 @@ export default function FocalPersonsTab({
 
         {/* Executive Profile Card */}
         <Card className="rounded-sm border-slate-200/80 shadow-2xs overflow-hidden bg-white">
-          <div className="bg-gradient-to-r from-[#0f2d42] to-[#102a43] p-6 text-white flex items-center justify-between">
+          <div className="bg-gradient-to-r from-[#145c3f] to-[#1a7a52] p-6 text-white flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="size-14 rounded-full bg-white/10 border-2 border-white/20 flex items-center justify-center text-lg font-bold">
                 {initials}
@@ -960,10 +918,7 @@ export default function FocalPersonsTab({
 
   return (
     <div className="w-full space-y-3.5 animate-in fade-in-50 duration-200">
-      {/* 1. Compact Solvix Stat Cards */}
-      <SolvixStatCards items={focalStatItems} loading={loading} />
-
-      {/* 2. Solvix Filter Bar matching media_1793555167591_0eae438b.png (No duplicate button) */}
+      {/* Solvix Filter Bar matching media_1793555167591_0eae438b.png (No duplicate button) */}
       <SolvixFilterBar
         filters={[
           {

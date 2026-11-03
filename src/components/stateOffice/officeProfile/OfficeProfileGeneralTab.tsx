@@ -235,7 +235,7 @@ export default function OfficeProfileGeneralTab({
               }
               placeholder="e.g. 24"
               disabled={readOnly}
-              className="h-9 bg-white border-slate-200 text-xs rounded-sm focus-visible:ring-1 focus-visible:ring-[#007a8c]"
+              className="h-9 bg-white border-slate-200 text-xs rounded-sm focus-visible:ring-1 focus-visible:ring-[#1a7a52]"
             />
           </div>
 
@@ -246,7 +246,7 @@ export default function OfficeProfileGeneralTab({
               onChange={(e) => onChange({ coordinator_name: e.target.value })}
               placeholder="e.g. Dr. Aminu Bello"
               disabled={readOnly}
-              className="h-9 bg-white border-slate-200 text-xs rounded-sm focus-visible:ring-1 focus-visible:ring-[#007a8c]"
+              className="h-9 bg-white border-slate-200 text-xs rounded-sm focus-visible:ring-1 focus-visible:ring-[#1a7a52]"
             />
           </div>
 
@@ -258,7 +258,7 @@ export default function OfficeProfileGeneralTab({
               onChange={(e) => onChange({ coordinator_phone: e.target.value })}
               placeholder="0803 000 0000"
               disabled={readOnly}
-              className="h-9 bg-white border-slate-200 text-xs rounded-sm focus-visible:ring-1 focus-visible:ring-[#007a8c]"
+              className="h-9 bg-white border-slate-200 text-xs rounded-sm focus-visible:ring-1 focus-visible:ring-[#1a7a52]"
             />
           </div>
         </div>
@@ -273,7 +273,7 @@ export default function OfficeProfileGeneralTab({
               onChange={(e) => onChange({ coordinator_email: e.target.value })}
               placeholder="coordinator@gmail.com"
               disabled={readOnly}
-              className="h-9 bg-white border-slate-200 text-xs rounded-sm focus-visible:ring-1 focus-visible:ring-[#007a8c]"
+              className="h-9 bg-white border-slate-200 text-xs rounded-sm focus-visible:ring-1 focus-visible:ring-[#1a7a52]"
             />
           </div>
 
@@ -285,7 +285,7 @@ export default function OfficeProfileGeneralTab({
               onChange={(e) => onChange({ office_email: e.target.value })}
               placeholder="stateoffice@nhia.gov.ng"
               disabled={readOnly}
-              className="h-9 bg-white border-slate-200 text-xs rounded-sm focus-visible:ring-1 focus-visible:ring-[#007a8c]"
+              className="h-9 bg-white border-slate-200 text-xs rounded-sm focus-visible:ring-1 focus-visible:ring-[#1a7a52]"
             />
           </div>
 
@@ -296,7 +296,7 @@ export default function OfficeProfileGeneralTab({
               onChange={(e) => onChange({ office_address: e.target.value })}
               placeholder="e.g. Plot 12, Federal Secretariat Complex"
               disabled={readOnly}
-              className="h-9 bg-white border-slate-200 text-xs rounded-sm focus-visible:ring-1 focus-visible:ring-[#007a8c]"
+              className="h-9 bg-white border-slate-200 text-xs rounded-sm focus-visible:ring-1 focus-visible:ring-[#1a7a52]"
             />
           </div>
         </div>
@@ -316,7 +316,7 @@ export default function OfficeProfileGeneralTab({
               }
               placeholder="e.g. 50000"
               disabled={readOnly}
-              className="h-9 bg-white border-slate-200 text-xs rounded-sm focus-visible:ring-1 focus-visible:ring-[#007a8c]"
+              className="h-9 bg-white border-slate-200 text-xs rounded-sm focus-visible:ring-1 focus-visible:ring-[#1a7a52]"
             />
           </div>
 
@@ -333,14 +333,14 @@ export default function OfficeProfileGeneralTab({
               }
               placeholder="e.g. 25000000"
               disabled={readOnly}
-              className="h-9 bg-white border-slate-200 text-xs rounded-sm focus-visible:ring-1 focus-visible:ring-[#007a8c]"
+              className="h-9 bg-white border-slate-200 text-xs rounded-sm focus-visible:ring-1 focus-visible:ring-[#1a7a52]"
             />
           </div>
 
           <div className="space-y-1.5">
             <Label className="text-xs font-semibold text-slate-700">Annual Operational Plan (AOP)</Label>
             <div className="relative">
-              <label className="flex items-center justify-between h-9 px-3 bg-white border border-slate-200 rounded-sm cursor-pointer hover:border-[#007a8c] transition-colors">
+              <label className="flex items-center justify-between h-9 px-3 bg-white border border-slate-200 rounded-sm cursor-pointer hover:border-[#1a7a52] transition-colors">
                 <span className="text-xs text-slate-500 truncate pr-2">
                   {selectedFile
                     ? selectedFile.name
@@ -349,8 +349,8 @@ export default function OfficeProfileGeneralTab({
                     : "Upload PDF attachment"}
                 </span>
                 <div className="flex items-center gap-1.5 shrink-0">
-                  <Upload className="size-3.5 text-[#007a8c]" />
-                  <span className="text-[11px] font-semibold text-[#007a8c]">Browse</span>
+                  <Upload className="size-3.5 text-[#1a7a52]" />
+                  <span className="text-[11px] font-semibold text-[#1a7a52]">Browse</span>
                 </div>
                 <input
                   type="file"
@@ -372,7 +372,7 @@ export default function OfficeProfileGeneralTab({
                       href={apiFileUrl(profile.aop_file_path)}
                       target="_blank"
                       rel="noreferrer"
-                      className="inline-flex items-center text-[11px] font-medium text-[#007a8c] hover:underline"
+                      className="inline-flex items-center text-[11px] font-medium text-[#1a7a52] hover:underline"
                     >
                       <Download className="size-3 mr-1" /> View Uploaded PDF
                     </a>
@@ -437,7 +437,7 @@ export default function OfficeProfileGeneralTab({
             size="sm"
             onClick={onSubmit}
             disabled={isSaving || readOnly}
-            className="h-8 text-xs bg-[#0f2d42] hover:bg-[#1a3d54] text-white font-medium rounded-sm gap-1.5 shadow-2xs"
+            className="h-8.5 text-xs bg-[#1a7a52] hover:bg-[#145c3f] text-white font-bold rounded-sm gap-1.5 shadow-xs border border-[#145c3f]"
           >
             {isSaving ? <Loader2 className="size-3.5 animate-spin mr-1" /> : <Send className="size-3.5 mr-1" />}
             <span>Submit Profile</span>
@@ -451,7 +451,7 @@ export default function OfficeProfileGeneralTab({
           <div className="bg-white rounded-sm max-w-2xl w-full p-5 shadow-xl space-y-4 max-h-[85vh] flex flex-col border border-slate-200">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div>
-                <h3 className="text-sm font-bold text-[#0f2d42]">
+                <h3 className="text-sm font-bold text-slate-900">
                   Historical Profiles — {selectedState?.description || "State Office"}
                 </h3>
                 <p className="text-xs text-slate-500">
@@ -480,7 +480,7 @@ export default function OfficeProfileGeneralTab({
                   >
                     <div className="space-y-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="font-bold text-xs text-[#0f2d42]">
+                        <span className="font-bold text-xs text-[#1a7a52]">
                           Year {hist.reporting_year}
                         </span>
                         <span className="text-[10px] uppercase px-2 py-0.5 rounded-sm bg-slate-200/60 font-semibold text-slate-700">
@@ -501,7 +501,7 @@ export default function OfficeProfileGeneralTab({
                         href={apiFileUrl(hist.aop_file_path)}
                         target="_blank"
                         rel="noreferrer"
-                        className="inline-flex items-center shrink-0 px-3 py-1 rounded-sm border border-[#007a8c] text-[#007a8c] hover:bg-[#007a8c]/10 text-xs font-semibold"
+                        className="inline-flex items-center shrink-0 px-3 py-1 rounded-sm border border-[#1a7a52] text-[#1a7a52] hover:bg-[#1a7a52]/10 text-xs font-semibold"
                       >
                         <Download className="size-3 mr-1" /> AOP PDF
                       </a>

@@ -242,11 +242,9 @@ export const MODULE_CONFIG: ParentModule[] = [
     roles: "all",
     children: [
       { title: "State/Zonal Office Profile", view: "soc-office-profile", path: "/soc/office-profile", navLabel: "State Office Profile" },
-      { title: "State/Zonal Focal Persons Register", view: "soc-focal-persons", path: "/soc/focal-persons", navLabel: "State Focal Persons" },
       { title: "Monthly Enrollee Register", view: "state-enrollee-register", path: "/soc/enrollee-register", navLabel: "Enrollee Register" },
       { title: "ETMC/TMC Action-Point Register", view: "state-etmc-tmc-action-point", path: "/soc/etmc-tmc-action-point", navLabel: "ETMC/TMC Action-Point Register" },
       { title: "Weekly Actionable", view: "state-weekly-actionable", path: "/soc/weekly-actionable", navLabel: "Escalated Issues" },
-      { title: "Contracted Services", view: "state-contracted-services", path: "/soc/contracted-services" },
       { title: "Operation Monitoring Visit", view: "soc-operation-monitoring-visit", path: "/soc/operation-monitoring-visit", navLabel: "Operation Monitoring" },
       { title: "Spot Check Visit", view: "soc-spot-check-visit", path: "/soc/spot-check-visit", navLabel: "Spot Check" },
     ],

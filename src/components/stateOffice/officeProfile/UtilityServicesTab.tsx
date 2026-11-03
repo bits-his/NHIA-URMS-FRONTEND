@@ -570,7 +570,7 @@ export default function UtilityServicesTab({
               onChange={(e) => setContractorName(e.target.value)}
               placeholder="e.g. TotalEnergies Ltd / Max Guard Security"
               disabled={readOnly}
-              className="h-9 bg-white border-slate-200 text-xs rounded-sm focus-visible:ring-1 focus-visible:ring-[#007a8c]"
+              className="h-9 bg-white border-slate-200 text-xs rounded-sm focus-visible:ring-1 focus-visible:ring-[#1a7a52]"
             />
           </div>
 
@@ -585,7 +585,7 @@ export default function UtilityServicesTab({
               onChange={(e) => setAmountClaimed(e.target.value)}
               placeholder="e.g. 450000"
               disabled={readOnly}
-              className="h-9 bg-white border-slate-200 text-xs rounded-sm focus-visible:ring-1 focus-visible:ring-[#007a8c]"
+              className="h-9 bg-white border-slate-200 text-xs rounded-sm focus-visible:ring-1 focus-visible:ring-[#1a7a52]"
             />
           </div>
         </div>
@@ -599,7 +599,7 @@ export default function UtilityServicesTab({
               onChange={(e) => setPaymentRequestRef(e.target.value)}
               placeholder="e.g. INV-2025-088"
               disabled={readOnly}
-              className="h-9 bg-white border-slate-200 text-xs rounded-sm focus-visible:ring-1 focus-visible:ring-[#007a8c]"
+              className="h-9 bg-white border-slate-200 text-xs rounded-sm focus-visible:ring-1 focus-visible:ring-[#1a7a52]"
             />
           </div>
 
@@ -644,7 +644,7 @@ export default function UtilityServicesTab({
             onChange={(e) => setRemarks(e.target.value)}
             placeholder="Details of diesel supplied, maintenance carried out, security shifts covered, or facility work done..."
             disabled={readOnly}
-            className="w-full rounded-sm border border-slate-200 bg-white p-2.5 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#007a8c] resize-y"
+            className="w-full rounded-sm border border-slate-200 bg-white p-2.5 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#1a7a52] resize-y"
           />
         </div>
 
@@ -652,7 +652,7 @@ export default function UtilityServicesTab({
         <div className="space-y-2 pt-2 border-t border-slate-100">
           <div className="flex items-center justify-between">
             <Label className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
-              <FileCheck2 className="size-4 text-[#007a8c]" />
+              <FileCheck2 className="size-4 text-[#1a7a52]" />
               Mandatory Audit Verification Documents
             </Label>
             <span className="text-[10px] text-slate-400 font-medium">
@@ -676,11 +676,11 @@ export default function UtilityServicesTab({
                   {certFile ? "Ready" : "Pending"}
                 </span>
               </div>
-              <label className="flex items-center justify-between h-8 px-2.5 bg-white border border-slate-200 rounded-sm cursor-pointer hover:border-[#007a8c] transition-colors">
+              <label className="flex items-center justify-between h-8 px-2.5 bg-white border border-slate-200 rounded-sm cursor-pointer hover:border-[#1a7a52] transition-colors">
                 <span className="text-xs text-slate-500 truncate pr-2">
                   {certFile ? certFile.name : "Attach Signed Cert"}
                 </span>
-                <Upload className="size-3.5 text-[#007a8c] shrink-0" />
+                <Upload className="size-3.5 text-[#1a7a52] shrink-0" />
                 <input
                   type="file"
                   accept=".pdf,.doc,.docx,.jpg,.png"
@@ -708,11 +708,11 @@ export default function UtilityServicesTab({
                   {contractorLetterFile ? "Ready" : "Pending"}
                 </span>
               </div>
-              <label className="flex items-center justify-between h-8 px-2.5 bg-white border border-slate-200 rounded-sm cursor-pointer hover:border-[#007a8c] transition-colors">
+              <label className="flex items-center justify-between h-8 px-2.5 bg-white border border-slate-200 rounded-sm cursor-pointer hover:border-[#1a7a52] transition-colors">
                 <span className="text-xs text-slate-500 truncate pr-2">
                   {contractorLetterFile ? contractorLetterFile.name : "Attach Request Letter"}
                 </span>
-                <Upload className="size-3.5 text-[#007a8c] shrink-0" />
+                <Upload className="size-3.5 text-[#1a7a52] shrink-0" />
                 <input
                   type="file"
                   accept=".pdf,.doc,.docx,.jpg,.png"
@@ -740,11 +740,11 @@ export default function UtilityServicesTab({
                   {invoiceFile ? "Ready" : "Pending"}
                 </span>
               </div>
-              <label className="flex items-center justify-between h-8 px-2.5 bg-white border border-slate-200 rounded-sm cursor-pointer hover:border-[#007a8c] transition-colors">
+              <label className="flex items-center justify-between h-8 px-2.5 bg-white border border-slate-200 rounded-sm cursor-pointer hover:border-[#1a7a52] transition-colors">
                 <span className="text-xs text-slate-500 truncate pr-2">
                   {invoiceFile ? invoiceFile.name : "Attach Invoice"}
                 </span>
-                <Upload className="size-3.5 text-[#007a8c] shrink-0" />
+                <Upload className="size-3.5 text-[#1a7a52] shrink-0" />
                 <input
                   type="file"
                   accept=".pdf,.doc,.docx,.jpg,.png"
@@ -788,7 +788,7 @@ export default function UtilityServicesTab({
                 {loading ? (
                   <TableRow>
                     <TableCell colSpan={8} className="py-6 text-center text-slate-400 text-xs">
-                      <Loader2 className="size-4 animate-spin inline-block mr-2 text-[#007a8c]" />
+                      <Loader2 className="size-4 animate-spin inline-block mr-2 text-[#1a7a52]" />
                       Loading recorded claims...
                     </TableCell>
                   </TableRow>
@@ -803,7 +803,7 @@ export default function UtilityServicesTab({
                     <TableRow
                       key={r.id || idx}
                       className={`border-b border-slate-100 hover:bg-slate-50 text-xs transition-colors ${
-                        editingId === r.id ? "bg-[#007a8c]/5 font-medium" : ""
+                        editingId === r.id ? "bg-[#1a7a52]/5 font-medium" : ""
                       }`}
                     >
                       <TableCell className="font-semibold text-center text-slate-600">{idx + 1}</TableCell>
@@ -834,7 +834,7 @@ export default function UtilityServicesTab({
                             variant="ghost"
                             size="sm"
                             onClick={() => handleStartEditRecord(r)}
-                            className="h-7 w-7 p-0 text-[#007a8c] hover:bg-[#007a8c]/10 rounded-sm"
+                            className="h-7 w-7 p-0 text-[#1a7a52] hover:bg-[#1a7a52]/10 rounded-sm"
                             title="Edit Claim"
                           >
                             <Pencil className="size-3.5" />
@@ -892,7 +892,7 @@ export default function UtilityServicesTab({
             size="sm"
             onClick={handleSaveClaim}
             disabled={saving || readOnly}
-            className="h-8 text-xs bg-[#0f2d42] hover:bg-[#1a3d54] text-white font-medium rounded-sm gap-1.5 shadow-2xs"
+            className="h-8.5 text-xs bg-[#1a7a52] hover:bg-[#145c3f] text-white font-bold rounded-sm gap-1.5 shadow-xs border border-[#145c3f]"
           >
             {saving ? (
               <Loader2 className="size-3.5 animate-spin" />

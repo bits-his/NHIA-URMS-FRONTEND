@@ -22,7 +22,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { adhocAssignmentApi } from "@/lib/api";
+import { adhocAssignmentApi, apiFileUrl } from "@/lib/api";
 
 interface Props {
   open: boolean;
@@ -38,13 +38,16 @@ const PROGRESS_BADGES: Record<string, { label: string; cls: string }> = {
   in_progress: { label: "In Progress", cls: "bg-blue-100 text-blue-700 border-blue-200" },
   awaiting_support: { label: "Awaiting Support", cls: "bg-amber-100 text-amber-700 border-amber-200" },
   completed: { label: "Completed", cls: "bg-emerald-100 text-emerald-700 border-emerald-200" },
-  deferred: { label: "Deferred", cls: "bg-violet-100 text-violet-700 border-violet-200" },
+  deferred: { label: "Deferred", cls: "bg-purple-100 text-purple-700 border-purple-200" },
   cancelled: { label: "Cancelled", cls: "bg-rose-100 text-rose-700 border-rose-200" },
 };
 
 const REVIEW_BADGES: Record<string, { label: string; cls: string }> = {
+  not_due: { label: "Not Due", cls: "bg-sky-50 text-sky-700 border-sky-200" },
+  not_submitted: { label: "Not Submitted", cls: "bg-amber-50 text-amber-800 border-amber-200" },
+  draft: { label: "Draft", cls: "bg-slate-100 text-slate-700 border-slate-200" },
   submitted: { label: "Submitted", cls: "bg-blue-50 text-blue-700 border-blue-200" },
-  under_review: { label: "Under Review", cls: "bg-amber-50 text-amber-700 border-amber-200" },
+  under_review: { label: "Under Review", cls: "bg-purple-50 text-purple-700 border-purple-200" },
   returned_for_clarification: { label: "Returned for Clarification", cls: "bg-rose-50 text-rose-700 border-rose-200" },
   accepted: { label: "Accepted", cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
 };
@@ -190,7 +193,7 @@ export default function AdhocMasterDetailModal({
                   </div>
                   {data.original_instruction_url && (
                     <a
-                      href={data.original_instruction_url}
+                      href={apiFileUrl(data.original_instruction_url)}
                       target="_blank"
                       rel="noreferrer"
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-100/70 text-emerald-800 hover:bg-emerald-200 transition shrink-0"
@@ -239,7 +242,16 @@ export default function AdhocMasterDetailModal({
                         const isExpanded = expandedState === sa.state_assignment_id;
                         const pb = PROGRESS_BADGES[sa.progress_status] || PROGRESS_BADGES.not_started;
                         const latestRep = sa.reports?.[0];
-                        const rb = latestRep ? REVIEW_BADGES[latestRep.review_status] || REVIEW_BADGES.submitted : null;
+                        let rb = null;
+                        if (latestRep?.review_status && REVIEW_BADGES[latestRep.review_status]) {
+                          rb = REVIEW_BADGES[latestRep.review_status];
+                        } else if (sa.closure_status === "closed") {
+                          rb = REVIEW_BADGES.accepted;
+                        } else if (sa.state_due_date && new Date(sa.state_due_date) < new Date()) {
+                          rb = REVIEW_BADGES.not_submitted;
+                        } else {
+                          rb = REVIEW_BADGES.not_due;
+                        }
                         const isClosed = sa.closure_status === "closed";
 
                         return (
@@ -344,7 +356,7 @@ export default function AdhocMasterDetailModal({
                                             {latestRep.evidence_files.map((ef: any, idx: number) => (
                                               <a
                                                 key={idx}
-                                                href={ef.path}
+                                                href={apiFileUrl(ef.path)}
                                                 target="_blank"
                                                 rel="noreferrer"
                                                 className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 font-medium"

@@ -60,7 +60,7 @@ export function SolvixFilterBar({
                   className={cn(
                     "h-8 px-3.5 rounded-sm text-xs font-medium inline-flex items-center justify-between gap-2 transition-colors border shadow-2xs shrink-0 select-none cursor-pointer outline-none min-w-[150px] sm:min-w-[190px]",
                     isSelected
-                      ? "bg-[#eaf5f7] border-[#007a8c]/50 text-[#007a8c] font-semibold"
+                      ? "bg-[#e8f5ee] border-[#1a7a52]/40 text-[#1a7a52] font-semibold"
                       : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
                   )}
                 >
@@ -81,11 +81,11 @@ export function SolvixFilterBar({
                     onClick={() => f.onChange("all")}
                     className={cn(
                       "cursor-pointer text-xs justify-between rounded-sm",
-                      !isSelected && "font-bold text-[#007a8c] bg-[#eaf5f7]"
+                      !isSelected && "font-bold text-[#1a7a52] bg-[#e8f5ee]"
                     )}
                   >
                     <span>{f.allLabel || `All ${f.label}s`}</span>
-                    {!isSelected && <Check className="size-3.5 text-[#007a8c]" />}
+                    {!isSelected && <Check className="size-3.5 text-[#1a7a52]" />}
                   </DropdownMenuItem>
                   {f.options.map((opt) => {
                     const itemSelected = String(opt.value) === String(f.value);
@@ -95,11 +95,11 @@ export function SolvixFilterBar({
                         onClick={() => f.onChange(opt.value)}
                         className={cn(
                           "cursor-pointer text-xs justify-between rounded-sm",
-                          itemSelected && "font-bold text-[#007a8c] bg-[#eaf5f7]"
+                          itemSelected && "font-bold text-[#1a7a52] bg-[#e8f5ee]"
                         )}
                       >
                         <span className="truncate">{opt.label}</span>
-                        {itemSelected && <Check className="size-3.5 text-[#007a8c]" />}
+                        {itemSelected && <Check className="size-3.5 text-[#1a7a52]" />}
                       </DropdownMenuItem>
                     );
                   })}

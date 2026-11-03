@@ -30,8 +30,11 @@ import { toast } from "sonner";
 import { adhocAssignmentApi } from "@/lib/api";
 import SdoAssignmentRegisterPage from "./SdoAssignmentRegisterPage";
 import SdoStateDistributionModal from "./SdoStateDistributionModal";
+import SdoStateDistributionPage from "./SdoStateDistributionPage";
 import StateAssignmentReportModal from "./StateAssignmentReportModal";
+import StateAssignmentReportPage from "./StateAssignmentReportPage";
 import AdhocMasterDetailModal from "./AdhocMasterDetailModal";
+import AdhocMasterDetailPage from "./AdhocMasterDetailPage";
 
 interface Props {
   onBack: () => void;
@@ -44,13 +47,16 @@ const PROGRESS_BADGES: Record<string, { label: string; cls: string }> = {
   in_progress: { label: "In Progress", cls: "bg-blue-100 text-blue-700 border-blue-200" },
   awaiting_support: { label: "Awaiting Support", cls: "bg-amber-100 text-amber-700 border-amber-200" },
   completed: { label: "Completed", cls: "bg-emerald-100 text-emerald-700 border-emerald-200" },
-  deferred: { label: "Deferred", cls: "bg-violet-100 text-violet-700 border-violet-200" },
+  deferred: { label: "Deferred", cls: "bg-purple-100 text-purple-700 border-purple-200" },
   cancelled: { label: "Cancelled", cls: "bg-rose-100 text-rose-700 border-rose-200" },
 };
 
 const REVIEW_BADGES: Record<string, { label: string; cls: string }> = {
+  not_due: { label: "Not Due", cls: "bg-sky-50 text-sky-700 border-sky-200" },
+  not_submitted: { label: "Not Submitted", cls: "bg-amber-50 text-amber-800 border-amber-200" },
+  draft: { label: "Draft", cls: "bg-slate-100 text-slate-700 border-slate-200" },
   submitted: { label: "Submitted", cls: "bg-blue-50 text-blue-700 border-blue-200" },
-  under_review: { label: "Under Review", cls: "bg-amber-50 text-amber-700 border-amber-200" },
+  under_review: { label: "Under Review", cls: "bg-purple-50 text-purple-700 border-purple-200" },
   returned_for_clarification: { label: "Returned for Clarification", cls: "bg-rose-50 text-rose-700 border-rose-200" },
   accepted: { label: "Accepted", cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
 };
@@ -83,7 +89,7 @@ export default function AdhocAssignmentWorkspace({ onBack, user, userRole }: Pro
   // Page vs list view mode
   const location = useLocation();
   const navigate = useNavigate();
-  const [viewMode, setViewMode] = React.useState<"list" | "register" | "edit">("list");
+  const [viewMode, setViewMode] = React.useState<"list" | "register" | "edit" | "report" | "distribute" | "view_master">("list");
   const [editMasterData, setEditMasterData] = React.useState<any>(null);
 
   React.useEffect(() => {
@@ -202,12 +208,68 @@ export default function AdhocAssignmentWorkspace({ onBack, user, userRole }: Pro
           fetchMasters();
           if (proceedToDispatch && savedMaster) {
             setDispatchMasterTarget(savedMaster);
-            setDistributionModalOpen(true);
+            setViewMode("distribute");
           }
         }}
         departments={departments}
         userName={user?.name || user?.staff_id}
         initialData={viewMode === "edit" ? editMasterData : null}
+      />
+    );
+  }
+
+  if (viewMode === "distribute" && dispatchMasterTarget) {
+    return (
+      <SdoStateDistributionPage
+        onBack={() => {
+          setViewMode("list");
+          setDispatchMasterTarget(null);
+        }}
+        onSuccess={() => {
+          setViewMode("list");
+          setDispatchMasterTarget(null);
+          fetchMasters();
+          fetchStateTasks();
+        }}
+        master={dispatchMasterTarget}
+        allStates={allStates}
+      />
+    );
+  }
+
+  if (viewMode === "report" && selectedStateAssignment) {
+    return (
+      <StateAssignmentReportPage
+        onBack={() => {
+          setViewMode("list");
+          setSelectedStateAssignment(null);
+        }}
+        onSuccess={() => {
+          setViewMode("list");
+          setSelectedStateAssignment(null);
+          fetchStateTasks();
+          fetchMasters();
+        }}
+        stateAssignment={selectedStateAssignment}
+        userName={user?.name || user?.staff_id}
+      />
+    );
+  }
+
+  if (viewMode === "view_master" && detailMasterId) {
+    return (
+      <AdhocMasterDetailPage
+        onBack={() => {
+          setViewMode("list");
+          setDetailMasterId(null);
+        }}
+        masterId={detailMasterId}
+        canReview={isSdo || !!user?.department_code}
+        canClose={isSdo}
+        onSuccess={() => {
+          fetchMasters();
+          fetchStateTasks();
+        }}
       />
     );
   }
@@ -226,17 +288,9 @@ export default function AdhocAssignmentWorkspace({ onBack, user, userRole }: Pro
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl font-bold tracking-tight text-slate-900">
-                Ad-hoc / Special Assignment Management
-              </h1>
-              <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-100/70 px-2 py-0.5 rounded-full">
-                October 2026 Rebuild
-              </span>
-            </div>
-            <p className="text-xs text-slate-500 mt-0.5">
-              SDO assignment registration, State Office reporting, evidence submission and departmental oversight
-            </p>
+            <h1 className="text-xl font-bold tracking-tight text-slate-900">
+              Ad-hoc / Special Assignment Management
+            </h1>
           </div>
         </div>
 
@@ -469,7 +523,7 @@ export default function AdhocAssignmentWorkspace({ onBack, user, userRole }: Pro
                       </TableCell>
                       <TableCell>
                         <Badge
-                          className={`text-[10px] capitalize ${
+                          className={`text-[10px] capitalize font-semibold ${
                             m.status === "dispatched"
                               ? "bg-emerald-100 text-emerald-800 border-emerald-200"
                               : m.status === "closed"
@@ -477,7 +531,7 @@ export default function AdhocAssignmentWorkspace({ onBack, user, userRole }: Pro
                               : "bg-amber-100 text-amber-800 border-amber-200"
                           }`}
                         >
-                          {m.status}
+                          {m.status === "draft" ? "Saved (Pending Dispatch)" : m.status}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
@@ -496,23 +550,31 @@ export default function AdhocAssignmentWorkspace({ onBack, user, userRole }: Pro
                               <Pencil className="w-3 h-3" /> Edit
                             </Button>
                           )}
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              setDispatchMasterTarget(m);
-                              setDistributionModalOpen(true);
-                            }}
-                            className="h-7 px-2 text-xs text-emerald-700 hover:text-emerald-800 hover:bg-emerald-50 gap-1"
-                          >
-                            <Send className="w-3 h-3" /> Dispatch
-                          </Button>
+                          {isSdo && m.status !== "closed" && (
+                            <Button
+                              variant={m.status === "draft" ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => {
+                                setDispatchMasterTarget(m);
+                                setViewMode("distribute");
+                              }}
+                              className={`h-7 px-2.5 text-xs gap-1 font-semibold ${
+                                m.status === "draft"
+                                  ? "bg-[#145c3f] hover:bg-[#0f3d2e] text-white shadow-xs"
+                                  : "text-emerald-700 hover:text-emerald-800 border-emerald-200 hover:bg-emerald-50"
+                              }`}
+                              title={m.status === "draft" ? "Dispatch to recipient State Offices" : "Re-dispatch or add more states"}
+                            >
+                              <Send className="w-3 h-3" />
+                              {m.status === "draft" ? "Dispatch to States" : "Add States"}
+                            </Button>
+                          )}
                           <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => {
                               setDetailMasterId(m.master_assignment_id);
-                              setDetailModalOpen(true);
+                              setViewMode("view_master");
                             }}
                             className="h-7 px-2 text-xs text-slate-600 hover:text-[#145c3f] hover:bg-slate-100 gap-1"
                           >
@@ -561,7 +623,16 @@ export default function AdhocAssignmentWorkspace({ onBack, user, userRole }: Pro
                   stateAssignments.map((sa) => {
                     const pb = PROGRESS_BADGES[sa.progress_status] || PROGRESS_BADGES.not_started;
                     const latestRep = sa.reports?.[0];
-                    const rb = latestRep ? REVIEW_BADGES[latestRep.review_status] || REVIEW_BADGES.submitted : null;
+                    let reviewBadge = null;
+                    if (latestRep?.review_status && REVIEW_BADGES[latestRep.review_status]) {
+                      reviewBadge = REVIEW_BADGES[latestRep.review_status];
+                    } else if (sa.closure_status === "closed") {
+                      reviewBadge = REVIEW_BADGES.accepted;
+                    } else if (sa.state_due_date && new Date(sa.state_due_date) < new Date()) {
+                      reviewBadge = REVIEW_BADGES.not_submitted;
+                    } else {
+                      reviewBadge = REVIEW_BADGES.not_due;
+                    }
 
                     return (
                       <TableRow key={sa.state_assignment_id} className="hover:bg-slate-50/60 transition">
@@ -587,11 +658,7 @@ export default function AdhocAssignmentWorkspace({ onBack, user, userRole }: Pro
                           <Badge className={`text-[10px] border ${pb.cls}`}>{pb.label}</Badge>
                         </TableCell>
                         <TableCell>
-                          {rb ? (
-                            <Badge className={`text-[10px] border ${rb.cls}`}>{rb.label}</Badge>
-                          ) : (
-                            <span className="text-xs text-slate-400">Not Submitted</span>
-                          )}
+                          <Badge className={`text-[10px] border ${reviewBadge.cls}`}>{reviewBadge.label}</Badge>
                         </TableCell>
                         <TableCell className="text-right">
                           <Button
@@ -599,7 +666,7 @@ export default function AdhocAssignmentWorkspace({ onBack, user, userRole }: Pro
                             size="sm"
                             onClick={() => {
                               setSelectedStateAssignment(sa);
-                              setStateReportModalOpen(true);
+                              setViewMode("report");
                             }}
                             className="h-7 px-2.5 text-xs text-[#145c3f] hover:bg-emerald-50 gap-1.5 font-semibold"
                           >

@@ -577,7 +577,7 @@ export default function OfficeProfileWorkspace({
           "State Office";
         return (
           <div className="flex items-center gap-2">
-            <div className="size-6 rounded-full bg-[#007a8c]/10 text-[#007a8c] flex items-center justify-center text-[10px] font-bold shrink-0">
+            <div className="size-6 rounded-full bg-[#1a7a52]/10 text-[#1a7a52] flex items-center justify-center text-[10px] font-bold shrink-0">
               {stateName.slice(0, 2).toUpperCase()}
             </div>
             <span className="font-semibold text-slate-900">{stateName}</span>
@@ -631,7 +631,7 @@ export default function OfficeProfileWorkspace({
             variant="ghost"
             size="sm"
             onClick={() => handleViewItem(row.original)}
-            className="h-7 px-2.5 text-xs font-semibold text-[#007a8c] hover:text-[#005a66] hover:bg-[#007a8c]/10 rounded-md gap-1"
+            className="h-7 px-2.5 text-xs font-semibold text-[#1a7a52] hover:text-[#145c3f] hover:bg-[#1a7a52]/10 rounded-sm gap-1"
           >
             <Eye className="size-3.5" />
             <span>View</span>
@@ -663,7 +663,7 @@ export default function OfficeProfileWorkspace({
           "State Office";
         return (
           <div className="flex items-center gap-2">
-            <div className="size-6 rounded-full bg-[#007a8c]/10 text-[#007a8c] flex items-center justify-center text-[10px] font-bold shrink-0">
+            <div className="size-6 rounded-full bg-[#1a7a52]/10 text-[#1a7a52] flex items-center justify-center text-[10px] font-bold shrink-0">
               {stateName.slice(0, 2).toUpperCase()}
             </div>
             <div>
@@ -722,7 +722,7 @@ export default function OfficeProfileWorkspace({
             variant="ghost"
             size="sm"
             onClick={() => handleViewItem(row.original)}
-            className="h-7 px-2.5 text-xs font-semibold text-[#007a8c] hover:text-[#005a66] hover:bg-[#007a8c]/10 rounded-md gap-1"
+            className="h-7 px-2.5 text-xs font-semibold text-[#1a7a52] hover:text-[#145c3f] hover:bg-[#1a7a52]/10 rounded-sm gap-1"
           >
             <Eye className="size-3.5" />
             <span>View</span>
@@ -801,7 +801,7 @@ export default function OfficeProfileWorkspace({
             variant="ghost"
             size="sm"
             onClick={() => handleViewItem(row.original)}
-            className="h-7 px-2.5 text-xs font-semibold text-[#007a8c] hover:text-[#005a66] hover:bg-[#007a8c]/10 rounded-md gap-1"
+            className="h-7 px-2.5 text-xs font-semibold text-[#1a7a52] hover:text-[#145c3f] hover:bg-[#1a7a52]/10 rounded-sm gap-1"
           >
             <Eye className="size-3.5" />
             <span>View</span>
@@ -875,9 +875,9 @@ export default function OfficeProfileWorkspace({
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#f8faf9]">
+    <div className="flex flex-col h-full bg-[#f4f7f5]">
       {/* 1. Sticky Navigation Header */}
-      <div className="bg-white border-b border-slate-200/80 px-4 md:px-6 py-3.5 flex items-center justify-between sticky top-0 z-30 gap-3">
+      <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3.5 flex items-center justify-between sticky top-0 z-30 gap-3">
         <div className="flex items-center gap-3 min-w-0">
           <Button
             variant="ghost"
@@ -904,14 +904,14 @@ export default function OfficeProfileWorkspace({
             size="sm"
             onClick={loadData}
             disabled={loading}
-            className="h-8 gap-1.5 border-slate-200 text-xs text-slate-700 hover:bg-slate-50"
+            className="h-8.5 gap-1.5 border-slate-300 text-xs font-medium text-slate-700 hover:bg-slate-50 rounded-sm"
           >
             <RefreshCw className={`size-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh
           </Button>
 
           {mode === "list" && (
             <Button
-              className="h-8 bg-[#0f2d42] hover:bg-[#1a3d54] text-white text-xs gap-1.5 font-medium shadow-xs rounded-md"
+              className="h-8.5 bg-[#1a7a52] hover:bg-[#145c3f] text-white text-xs gap-1.5 font-bold shadow-xs rounded-sm border border-[#145c3f]"
               onClick={() => {
                 if (activeTab === "focal_persons") {
                   updateQueryParams({ mode: "new", id: null });
@@ -929,7 +929,7 @@ export default function OfficeProfileWorkspace({
               variant="outline"
               size="sm"
               onClick={handleBackToList}
-              className="h-8 gap-1.5 border-slate-200 text-xs text-slate-700"
+              className="h-8.5 gap-1.5 border-slate-300 text-xs font-medium text-slate-700 rounded-sm"
             >
               Back to Table
             </Button>
@@ -938,14 +938,14 @@ export default function OfficeProfileWorkspace({
       </div>
 
       {/* 2. Solvix-style Clean Tab Underline Navigation Bar */}
-      <div className="bg-white border-b border-slate-200/80 px-4 md:px-6 sticky top-[57px] z-20">
+      <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 sticky top-[57px] z-20">
         <div className="flex gap-2 overflow-x-auto -mb-px" role="tablist">
           {TAB_CONFIG.map((tab) => {
             const active = activeTab === tab.key;
             const Icon = tab.icon;
             const count =
               tab.key === "general"
-                ? profiles.length
+                 ? profiles.length
                 : tab.key === "accommodation"
                 ? accommodations.length
                 : tab.key === "utilities"
@@ -961,18 +961,18 @@ export default function OfficeProfileWorkspace({
                 onClick={() => handleTabChange(tab.key)}
                 className={`group relative shrink-0 inline-flex items-center gap-2 px-3.5 py-3 text-xs font-semibold whitespace-nowrap border-b-2 transition-all outline-none ${
                   active
-                    ? "border-[#007a8c] text-[#007a8c]"
+                    ? "border-[#1a7a52] text-[#1a7a52]"
                     : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300"
                 }`}
               >
                 <Icon
-                  className={`size-4 shrink-0 ${active ? "text-[#007a8c]" : "text-slate-400 group-hover:text-slate-600"}`}
+                  className={`size-4 shrink-0 ${active ? "text-[#1a7a52]" : "text-slate-400 group-hover:text-slate-600"}`}
                 />
                 <span>{tab.label}</span>
                 <span
                   className={`inline-flex min-w-[1.25rem] h-4.5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold tabular-nums ${
                     active
-                      ? "bg-[#e6f4f6] text-[#007a8c]"
+                      ? "bg-[#e8f5ee] text-[#1a7a52]"
                       : "bg-slate-100 text-slate-500 group-hover:bg-slate-200"
                   }`}
                 >

@@ -36,6 +36,7 @@ import {
 } from "./servicomSurveyConstants";
 import { SubmitConfirmModal, useReportingOfficerSubmitConfirm } from "@/src/components/SubmitConfirmModal";
 import { ShadcnDataTable } from "@/components/common/ShadcnDataTable";
+
 interface Props {
   onBack: () => void;
   defaultStateId?: string | null;
@@ -122,6 +123,7 @@ export default function ServicomSatisfactionSurveyPage({
   const geoLocked = !!(defaultZoneId && defaultStateId);
   const submitConfirm = useReportingOfficerSubmitConfirm();
 
+  // Navigation & State
   const [mode, setMode] = React.useState<"list" | "form" | "view">(createOnly ? "form" : "list");
   const [formKey, setFormKey] = React.useState(0);
 
@@ -826,14 +828,14 @@ export default function ServicomSatisfactionSurveyPage({
         </div>
       </div>
 
-      {/* Main Body Content */}
+      {/* 2. Main Register Content */}
       <ScrollArea className="flex-1">
         <div className="w-full px-4 md:px-6 py-5 max-w-7xl mx-auto space-y-6">
-            <div className="space-y-4">
-              {/* Filter Bar with Zone, State, Date matching Select styling */}
-              <Card className="rounded-sm border border-slate-200/80 bg-white shadow-xs">
-                <CardContent className="p-3.5">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="space-y-4">
+            {/* Filter Bar with Zone, State, Date matching Select styling */}
+            <Card className="rounded-sm border border-slate-200/80 bg-white shadow-xs">
+              <CardContent className="p-3.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
                     {/* Search Input */}
                     <div className="relative">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
@@ -924,7 +926,7 @@ export default function ServicomSatisfactionSurveyPage({
                 enableSelection={false}
                 showTableOptions={false}
               />
-            </div>
+          </div>
         </div>
       </ScrollArea>
     </div>
