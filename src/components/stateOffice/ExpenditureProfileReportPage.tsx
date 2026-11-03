@@ -14,13 +14,15 @@ interface Props {
   onSubmitted?: () => void;
   defaultZoneId?: string | null;
   defaultStateId?: string | null;
+  /** Parent workspace already shows Back + title. */
+  embedded?: boolean;
 }
 
 const blank = () =>
   Object.fromEntries(EXPENDITURE_SUB_HEADS.map((h) => [h.value, ""])) as Record<string, string>;
 
 export default function ExpenditureProfileReportPage({
-  reportId, onBack, onSubmitted, defaultZoneId, defaultStateId,
+  reportId, onBack, onSubmitted, defaultZoneId, defaultStateId, embedded = false,
 }: Props) {
   const [amounts, setAmounts] = React.useState(blank);
   const [reportStatus, setReportStatus] = React.useState("draft");
@@ -43,7 +45,8 @@ export default function ExpenditureProfileReportPage({
       defaultZoneId={defaultZoneId}
       defaultStateId={defaultStateId}
       reportType="expenditure-profile"
-      pageTitle="Expenditure Profile"
+      pageTitle={embedded ? undefined : "Expenditure Profile"}
+      hidePageHeader={embedded}
       showQuarter
       hideFooterActions
       returnOnDraft

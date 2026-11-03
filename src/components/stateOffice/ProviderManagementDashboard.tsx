@@ -182,7 +182,7 @@ export default function ProviderManagementDashboard({
     ? "National monitoring by zone, programme and activity type, with distinct pipelines."
     : level === 1 && lockedStateLabel
       ? `Operational view for ${lockedStateLabel}: plan, execute and follow up. Other states appear at zonal and national levels as they report.`
-      : blurb;
+    : blurb;
 
   const monthlyTrend = React.useMemo(() => {
     return ((byMonth as any[]) || []).map((r) => ({
@@ -219,22 +219,22 @@ export default function ProviderManagementDashboard({
   return (
     <div className={`flex flex-col h-full ${embedded ? "" : "bg-[#f7fafc]"}`}>
       {!embedded && (
-        <div className="bg-white border-b border-slate-200 px-4 md:px-6 py-4 sticky top-0 z-30">
-          <div className="flex items-start gap-3">
-            <Button variant="ghost" size="icon" onClick={onBack} className="rounded-full shrink-0 mt-0.5">
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
-            <div className="min-w-0 flex-1">
-              <div className="min-w-0">
-                <h2 className="text-xl md:text-2xl font-bold tracking-tight text-slate-900">Provider Management Dashboard</h2>
-                <p className="text-sm text-slate-500 mt-1 max-w-3xl">{displayBlurb}</p>
-              </div>
+      <div className="bg-white border-b border-slate-200 px-4 md:px-6 py-4 sticky top-0 z-30">
+        <div className="flex items-start gap-3">
+          <Button variant="ghost" size="icon" onClick={onBack} className="rounded-full shrink-0 mt-0.5">
+            <ArrowLeft className="w-5 h-5" />
+          </Button>
+          <div className="min-w-0 flex-1">
+            <div className="min-w-0">
+              <h2 className="text-xl md:text-2xl font-bold tracking-tight text-slate-900">Provider Management Dashboard</h2>
+              <p className="text-sm text-slate-500 mt-1 max-w-3xl">{displayBlurb}</p>
             </div>
-            <Button variant="outline" size="sm" className="gap-2 shrink-0" onClick={() => void load()} disabled={loading}>
-              <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
-            </Button>
           </div>
+          <Button variant="outline" size="sm" className="gap-2 shrink-0" onClick={() => void load()} disabled={loading}>
+            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
+          </Button>
         </div>
+      </div>
       )}
 
       <ScrollArea className="flex-1">

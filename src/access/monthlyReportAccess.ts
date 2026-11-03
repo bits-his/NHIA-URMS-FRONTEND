@@ -1,5 +1,5 @@
 import { getCreateReviewAccess } from "./createReviewAccess";
-import { isDeptZonalCoordinator } from "./departmentRoles";
+import { isDeptStateCoordinator, isDeptZonalCoordinator } from "./departmentRoles";
 
 const NATIONAL_ROLES = new Set(["admin", "sdo", "hq-department", "dg-ceo"]);
 const ZONAL_ROLES = new Set(["zonal-coordinator", "zonal-officer", "zc"]);
@@ -8,14 +8,21 @@ const STATE_ROLES = new Set(["state-officer", "state-coordinator", "department-o
 function resolveReportScope(
   role: string,
   roleConfig?: { report_scope?: string } | null,
+  user?: { state_code?: string; state_id?: number | string; zonal_code?: string; zone_id?: number | string } | null,
 ): "national" | "zonal" | "state" | "none" {
+  // Assigned state coordinators stay state-scoped even if roles.report_scope is mis-set to national.
+  if (isDeptStateCoordinator(role) && (user?.state_code || user?.state_id)) return "state";
+  if (isDeptZonalCoordinator(role) && (user?.zonal_code || user?.zone_id) && !user?.state_code && !user?.state_id) {
+    return "zonal";
+  }
+
   const fromDb = roleConfig?.report_scope;
   if (fromDb === "national" || fromDb === "zonal" || fromDb === "state" || fromDb === "none") {
     return fromDb;
   }
   if (NATIONAL_ROLES.has(role)) return "national";
   if (ZONAL_ROLES.has(role) || isDeptZonalCoordinator(role)) return "zonal";
-  if (STATE_ROLES.has(role)) return "state";
+  if (STATE_ROLES.has(role) || isDeptStateCoordinator(role)) return "state";
   return "none";
 }
 
@@ -30,7 +37,7 @@ export function getMonthlyReportContext(role: string, user?: {
     can_review_monthly?: boolean;
   };
 } | null) {
-  const reportScope = resolveReportScope(role, user?.role_config);
+  const reportScope = resolveReportScope(role, user?.role_config, user);
   const stateScoped = reportScope === "state";
   /** Zone default only for state/zonal roles — never for SDO/national (even if user.zone_id is set). */
   const zoneScoped = reportScope === "state" || reportScope === "zonal";

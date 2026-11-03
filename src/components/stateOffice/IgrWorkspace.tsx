@@ -24,7 +24,6 @@ const STATUS_CONFIG: Record<string, { label: string; cls: string }> = {
   returned: { label: "Returned", cls: "bg-rose-100 text-rose-700 border-rose-200" },
   endorsed: { label: "Endorsed", cls: "bg-teal-100 text-teal-800 border-teal-200" },
   submitted: { label: "Submitted", cls: "bg-blue-100 text-blue-700 border-blue-200" },
-  approved: { label: "Approved", cls: "bg-emerald-100 text-emerald-700 border-emerald-200" },
 };
 
 interface Props {
@@ -202,7 +201,7 @@ export default function IgrWorkspace({
         accessorKey: "status",
         header: "Status",
         cell: ({ row }) => {
-          const st = row.original.status || "draft";
+          const st = row.original.status === "approved" ? "submitted" : (row.original.status || "draft");
           const sc = STATUS_CONFIG[st] || STATUS_CONFIG.draft;
           return (
             <Badge className={`text-[10px] px-2 py-0.5 border font-semibold ${sc.cls}`}>
@@ -306,8 +305,23 @@ export default function IgrWorkspace({
       </div>
 
       {/* Main Content Area */}
+      {mode === "form" ? (
+        <div className="flex-1 min-h-0">
+          <IgrReportPage
+            reportId={editingId}
+            onBack={() => setMode("tabs")}
+            onSubmitted={() => {
+              setMode("tabs");
+              handleSync();
+            }}
+            defaultZoneId={defaultZoneId}
+            defaultStateId={defaultStateId}
+            embedded
+          />
+        </div>
+      ) : (
       <ScrollArea className="flex-1">
-        <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-4">
+        <div className={`space-y-4 ${mode === "detail" ? "p-0" : "p-4 md:p-6 max-w-7xl mx-auto"}`}>
           {mode === "tabs" && (
             <div className="space-y-4">
               <div className="bg-white border border-slate-200/80 rounded-sm p-3 shadow-xs">
@@ -401,38 +415,27 @@ export default function IgrWorkspace({
             </div>
           )}
 
-          {/* Form and Detail Views */}
-          {mode === "form" && (
-            <IgrReportPage
-              reportId={editingId}
-              onBack={() => setMode("tabs")}
-              onSubmitted={() => {
-                setMode("tabs");
-                handleSync();
-              }}
-              defaultZoneId={defaultZoneId}
-              defaultStateId={defaultStateId}
-            />
-          )}
-
           {mode === "detail" && selectedId && (
-            <IgrReportDetail
-              reportId={selectedId}
-              embedded
-              onStatusChange={onDetailStatusChange}
-              onBack={() => {
-                setMode("tabs");
-                setDetailStatus(null);
-              }}
-              onEdit={() => {
-                setEditingId(selectedId);
-                setMode("form");
-                setDetailStatus(null);
-              }}
-            />
+            <div className="p-4 md:p-6 max-w-7xl mx-auto">
+              <IgrReportDetail
+                reportId={selectedId}
+                embedded
+                onStatusChange={onDetailStatusChange}
+                onBack={() => {
+                  setMode("tabs");
+                  setDetailStatus(null);
+                }}
+                onEdit={() => {
+                  setEditingId(selectedId);
+                  setMode("form");
+                  setDetailStatus(null);
+                }}
+              />
+            </div>
           )}
         </div>
       </ScrollArea>
+      )}
       {finalSubmitModal}
     </div>
   );

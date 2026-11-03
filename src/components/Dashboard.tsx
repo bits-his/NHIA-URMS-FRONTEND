@@ -551,8 +551,16 @@ export default function Dashboard({ role, user, access = [], functionalities = "
                 ) : isDeptStateCoordinator(role) ? (
                   <StateCoordinatorDashboard
                     user={user}
-                    stateName={user?.role_config?.report_scope === "national" ? "All States" : user?.state?.description ?? "State"}
-                    zoneName={user?.role_config?.report_scope === "national" ? "National" : user?.zone?.description ?? "Zone"}
+                    stateName={
+                      user?.state?.description
+                      || (user?.state_code ? String(user.state_code) : null)
+                      || "State"
+                    }
+                    zoneName={
+                      user?.zone?.description
+                      || (user?.zonal_code ? String(user.zonal_code) : null)
+                      || "Zone"
+                    }
                     onNavigate={(path) => {
                       navigate(path);
                       if (path.includes("report-review")) setView("report-review");
@@ -813,8 +821,16 @@ export default function Dashboard({ role, user, access = [], functionalities = "
                 <StateOfficeDashboardHub
                   key="state-office-dashboard"
                   onBack={() => setView("home")}
-                  defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId}
-                  defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId}
+                  defaultZoneId={
+                    user?.zonal_code
+                      ? String(user.zonal_code)
+                      : (user?.zone?.zonal_code ? String(user.zone.zonal_code) : monthlyCtx.defaultZoneId)
+                  }
+                  defaultStateId={
+                    user?.state_code
+                      ? String(user.state_code)
+                      : (user?.state?.code ? String(user.state.code) : monthlyCtx.defaultStateId)
+                  }
                   userRole={user?.role}
                 />
               }
@@ -825,8 +841,16 @@ export default function Dashboard({ role, user, access = [], functionalities = "
                 <EnrolmentDrivesPage
                   key="state-enrolment-drives"
                   onBack={() => setView("home")}
-                  defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId}
-                  defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId}
+                  defaultZoneId={
+                    user?.zonal_code
+                      ? String(user.zonal_code)
+                      : (user?.zone?.zonal_code ? String(user.zone.zonal_code) : monthlyCtx.defaultZoneId)
+                  }
+                  defaultStateId={
+                    user?.state_code
+                      ? String(user.state_code)
+                      : (user?.state?.code ? String(user.state.code) : monthlyCtx.defaultStateId)
+                  }
                 />
               }
             />

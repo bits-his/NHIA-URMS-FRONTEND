@@ -2,12 +2,13 @@ export function isDeptReportingOfficer(role: string) {
   return role.endsWith("-reporting-officer");
 }
 
-export function isDeptStateCoordinator(role: string) {
-  return role === "state-coordinator" || role.endsWith("-state-coordinator");
-}
-
 function normalizeRoleKey(role: string) {
   return String(role || "").trim().toLowerCase().replace(/_/g, "-").replace(/\s+/g, "-");
+}
+
+export function isDeptStateCoordinator(role: string) {
+  const r = normalizeRoleKey(role);
+  return r === "state-coordinator" || r.endsWith("-state-coordinator");
 }
 
 export function isDeptZonalCoordinator(role: string) {

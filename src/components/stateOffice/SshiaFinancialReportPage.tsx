@@ -14,6 +14,8 @@ interface Props {
   onSubmitted?: () => void;
   defaultZoneId?: string | null;
   defaultStateId?: string | null;
+  /** Parent workspace already shows Back + title. */
+  embedded?: boolean;
 }
 
 type RowState = {
@@ -50,7 +52,7 @@ function SummaryPill({ label, value }: { label: string; value: string }) {
 }
 
 export default function SshiaFinancialReportPage({
-  reportId, onBack, onSubmitted, defaultZoneId, defaultStateId,
+  reportId, onBack, onSubmitted, defaultZoneId, defaultStateId, embedded = false,
 }: Props) {
   const [entries, setEntries] = React.useState<EntriesState>(blankEntries);
   const [reportStatus, setReportStatus] = React.useState("draft");
@@ -74,7 +76,8 @@ export default function SshiaFinancialReportPage({
       defaultZoneId={defaultZoneId}
       defaultStateId={defaultStateId}
       reportType="sshia-financial"
-      pageTitle="SSHIA Progress Report"
+      pageTitle={embedded ? undefined : "SSHIA Progress Report"}
+      hidePageHeader={embedded}
       showQuarter
       hideFooterActions
       returnOnDraft

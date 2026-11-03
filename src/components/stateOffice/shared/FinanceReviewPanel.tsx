@@ -40,7 +40,7 @@ export default function FinanceReviewPanel({
 
   const canAct = canReview && status === "awaiting_review";
   const canFinalSubmit = !hideFinalSubmit && canCreate && status === "endorsed";
-  const show = ["awaiting_review", "endorsed", "returned", "submitted", "approved"].includes(status);
+  const show = ["awaiting_review", "endorsed", "returned", "submitted"].includes(status);
   if (!show) return null;
 
   const stamp = reviewedAt
@@ -95,7 +95,7 @@ export default function FinanceReviewPanel({
               Returned for correction{reviewedBy ? ` by ${reviewedBy}` : ""}{stamp ? ` · ${stamp}` : ""}
             </p>
           )}
-          {(status === "submitted" || status === "approved") && (
+          {status === "submitted" && (
             <p className="text-sm text-emerald-700 font-medium">
               Final submission complete{reviewedBy ? ` · endorsed by ${reviewedBy}` : ""}{stamp ? ` · ${stamp}` : ""}
             </p>

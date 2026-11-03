@@ -85,13 +85,22 @@ export default function EnrolmentDriveDashboard({
 }: EnrolmentDriveDashboardProps) {
   const user = useSelector((s: RootState) => s.auth.user);
   const role = user?.role || "";
-  const lockZone = !!(defaultZoneId && (isDeptZonalCoordinator(role) || isDeptStateCoordinator(role) || /zonal/i.test(role)));
-  const lockState = !!(defaultStateId && isDeptStateCoordinator(role));
+  // Prefer business codes (state_code / zonal_code), never numeric ids.
+  const resolvedStateCode = String(
+    defaultStateId || user?.state_code || (user as any)?.state?.code || "",
+  ).trim() || null;
+  const resolvedZoneCode = String(
+    defaultZoneId || user?.zonal_code || (user as any)?.zone?.zonal_code || "",
+  ).trim() || null;
+  const isStateCoord = isDeptStateCoordinator(role);
+  const isZonalCoord = isDeptZonalCoordinator(role) || /zonal/i.test(role);
+  const lockState = isStateCoord && !!resolvedStateCode;
+  const lockZone = !lockState && isZonalCoord && !!resolvedZoneCode;
 
   const [year, setYear] = React.useState(String(currentYear));
   const [month, setMonth] = React.useState("all");
-  const [filterZone, setFilterZone] = React.useState(defaultZoneId ?? "all");
-  const [filterState, setFilterState] = React.useState(defaultStateId ?? "all");
+  const [filterZone, setFilterZone] = React.useState(resolvedZoneCode ?? "all");
+  const [filterState, setFilterState] = React.useState(resolvedStateCode ?? "all");
   const [tab, setTab] = React.useState<TabKey>("overview");
 
   const [zones, setZones] = React.useState<any[]>([]);
@@ -104,19 +113,27 @@ export default function EnrolmentDriveDashboard({
   }, []);
 
   React.useEffect(() => {
-    const zoneArg = lockZone ? (defaultZoneId ?? undefined) : filterZone === "all" ? undefined : filterZone;
+    const zoneArg = lockState || lockZone
+      ? (resolvedZoneCode ?? undefined)
+      : filterZone === "all" ? undefined : filterZone;
     stockApi.getStates(zoneArg).then((res) => setStates(res.data || [])).catch(() => setStates([]));
-  }, [filterZone, lockZone, defaultZoneId]);
+  }, [filterZone, lockState, lockZone, resolvedZoneCode]);
 
   const load = React.useCallback(async () => {
     setLoading(true);
     try {
       const filters: Record<string, string> = { year };
       if (month !== "all") filters.month = month;
-      const zone = lockZone ? defaultZoneId : filterZone !== "all" ? filterZone : null;
-      const state = lockState ? defaultStateId : filterState !== "all" ? filterState : null;
-      if (zone) filters.zonal_code = String(zone);
-      if (state) filters.state_code = String(state);
+      // State-locked users only send state_code (backend derives zone).
+      // Zone-locked users only send zonal_code.
+      if (lockState && resolvedStateCode) {
+        filters.state_code = resolvedStateCode;
+      } else if (lockZone && resolvedZoneCode) {
+        filters.zonal_code = resolvedZoneCode;
+      } else {
+        if (filterZone !== "all") filters.zonal_code = String(filterZone);
+        if (filterState !== "all") filters.state_code = String(filterState);
+      }
       const res = await api.analytics(filters);
       setData(res.data || null);
     } catch (error: any) {
@@ -125,7 +142,7 @@ export default function EnrolmentDriveDashboard({
     } finally {
       setLoading(false);
     }
-  }, [year, month, filterZone, filterState, lockZone, lockState, defaultZoneId, defaultStateId]);
+  }, [year, month, filterZone, filterState, lockState, lockZone, resolvedStateCode, resolvedZoneCode]);
 
   React.useEffect(() => {
     void load();
