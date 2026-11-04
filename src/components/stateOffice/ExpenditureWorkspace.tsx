@@ -7,16 +7,19 @@ import {
 import type { ColumnDef } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ShadcnDataTable } from "@/components/common/ShadcnDataTable";
 import { stateOfficeApi, stockApi } from "@/lib/api";
 import { EXPENDITURE_SUB_HEADS, formatNaira, monthLabel, quarterFromMonth, MONTHS } from "./constants";
+import { RegisterStatsCards, workflowRegisterStats } from "./RegisterStatsCards";
 import ExpenditureProfileReportPage from "./ExpenditureProfileReportPage";
 import ExpenditureProfileReportDetail from "./ExpenditureProfileReportDetail";
 import { useStateOfficeAccess } from "@/src/access/createReviewAccess";
 import { FinanceRowActions, useFinanceFinalSubmit } from "./shared/FinanceRowActions";
+import type { FinanceChrome } from "./FinanceWorkspace";
 
 const STATUS_CONFIG: Record<string, { label: string; cls: string }> = {
   draft: { label: "Draft", cls: "bg-slate-100 text-slate-600 border-slate-200" },
@@ -33,6 +36,7 @@ interface Props {
   userRole?: string;
   /** Parent Finance page owns the page title and tabs. */
   embedded?: boolean;
+  onChromeChange?: (chrome: FinanceChrome | null) => void;
 }
 
 export default function ExpenditureWorkspace({
@@ -41,6 +45,7 @@ export default function ExpenditureWorkspace({
   defaultStateId,
   userRole,
   embedded = false,
+  onChromeChange,
 }: Props) {
   const { canCreate } = useStateOfficeAccess();
   const [mode, setMode] = React.useState<"tabs" | "form" | "detail">("tabs");
@@ -89,11 +94,6 @@ export default function ExpenditureWorkspace({
       setStates((r.data || []).map((s: any) => ({ id: String(s.id || s.code), label: s.description })));
     }).catch(() => {});
   }, [zoneId, defaultStateId]);
-
-  const activeZoneObj = zones.find((z) => z.id === zoneId);
-  const activeZoneLabel = activeZoneObj?.label || (zoneId !== "all" ? zoneId : "All Zones");
-  const activeStateObj = states.find((s) => s.id === stateId);
-  const activeStateLabel = activeStateObj?.label || (stateId !== "all" ? stateId : "All States");
 
   const loadData = React.useCallback(async () => {
     setLoading(true);
@@ -231,13 +231,68 @@ export default function ExpenditureWorkspace({
     [canCreate, finalBusy, requestFinalSubmit]
   );
 
-  const showOwnTitle = !embedded || mode !== "tabs";
+  const pageTitle =
+    mode === "form"
+      ? editingId ? "Edit Expenditure Profile" : "Record Expenditure Profile"
+      : mode === "detail"
+        ? "Expenditure Profile Details"
+        : "Expenditure Profile";
+  const listActions = (
+    <>
+      <Button
+        variant="outline"
+        size="sm"
+        className="gap-2 border-[#d4e8dc]"
+        disabled={syncing}
+        onClick={handleSync}
+      >
+        <RefreshCw className={`w-4 h-4 ${syncing ? "animate-spin" : ""}`} />
+        Refresh
+      </Button>
+      {canCreate && (
+        <Button
+          size="sm"
+          className="bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20"
+          onClick={() => {
+            setEditingId(null);
+            setMode("form");
+          }}
+        >
+          <Plus className="w-4 h-4" />
+          Record Expenditure
+        </Button>
+      )}
+    </>
+  );
+
+  React.useEffect(() => {
+    if (!embedded || !onChromeChange) return;
+    onChromeChange({
+      mode: mode === "tabs" ? "list" : mode,
+      title: pageTitle,
+      onInnerBack: mode !== "tabs" ? () => {
+        setMode("tabs");
+        setSelectedId(null);
+        setEditingId(null);
+        setDetailStatus(null);
+      } : undefined,
+      actions: mode === "tabs" ? listActions : undefined,
+      statusBadge:
+        mode === "detail" && detailStatus ? (
+          <Badge variant="outline" className={`gap-1 ${(STATUS_CONFIG[detailStatus] || STATUS_CONFIG.draft).cls}`}>
+            {(STATUS_CONFIG[detailStatus] || STATUS_CONFIG.draft).label}
+          </Badge>
+        ) : undefined,
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [embedded, onChromeChange, mode, editingId, detailStatus, canCreate, syncing, pageTitle]);
+
+  React.useEffect(() => () => onChromeChange?.(null), [onChromeChange]);
 
   return (
     <div className={`flex flex-col h-full min-h-0 ${embedded ? "" : "bg-[#f4f7f5]"}`}>
-      {/* Header */}
-      <div className={`bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3 flex items-center sticky top-0 z-30 gap-3 ${showOwnTitle ? "justify-between" : "justify-end"}`}>
-        {showOwnTitle && (
+      {!embedded && (
+      <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3.5 flex items-center justify-between sticky top-0 z-30 gap-3">
         <div className="flex items-center gap-3 min-w-0">
           <Button
             variant="ghost"
@@ -248,54 +303,18 @@ export default function ExpenditureWorkspace({
           >
             <ArrowLeft className="w-5 h-5" />
           </Button>
-          <div className="min-w-0">
-            <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">
-              {mode === "form"
-                ? editingId ? "Edit Expenditure Profile" : "Record Expenditure Profile"
-                : mode === "detail"
-                ? "Expenditure Profile Details"
-                : "Expenditure Profile"}
-            </h2>
-          </div>
+          <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">{pageTitle}</h2>
         </div>
-        )}
-
         <div className="flex items-center gap-2 shrink-0">
           {mode === "detail" && detailStatus && (
             <Badge variant="outline" className={`gap-1 ${(STATUS_CONFIG[detailStatus] || STATUS_CONFIG.draft).cls}`}>
               {(STATUS_CONFIG[detailStatus] || STATUS_CONFIG.draft).label}
             </Badge>
           )}
-          {mode === "tabs" && (
-            <>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8.5 gap-1.5 border border-slate-300 text-slate-700 bg-white hover:bg-[#f4f7f5] text-xs font-bold rounded-sm shadow-2xs"
-                disabled={syncing}
-                onClick={handleSync}
-              >
-                <RefreshCw className={`w-3.5 h-3.5 ${syncing ? "animate-spin" : ""}`} />
-                <span>Sync</span>
-              </Button>
-
-              {canCreate && (
-                <Button
-                  size="sm"
-                  className="h-8.5 bg-[#1a7a52] hover:bg-[#145c3f] text-white border border-[#145c3f] font-bold text-xs gap-1.5 rounded-sm shadow-xs"
-                  onClick={() => {
-                    setEditingId(null);
-                    setMode("form");
-                  }}
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Record Expenditure</span>
-                </Button>
-              )}
-            </>
-          )}
+          {mode === "tabs" && listActions}
         </div>
       </div>
+      )}
 
       {/* Main Content Area */}
       {mode === "form" ? (
@@ -314,18 +333,18 @@ export default function ExpenditureWorkspace({
         </div>
       ) : (
       <ScrollArea className="flex-1">
-        <div className={`space-y-4 ${mode === "detail" ? "p-0" : "p-4 md:p-6 max-w-7xl mx-auto"}`}>
+        <div className={`space-y-4 ${mode === "detail" ? "p-0" : "p-4 md:p-6 w-full"}`}>
           {mode === "tabs" && (
             <div className="space-y-4">
-              <div className="bg-white border border-slate-200/80 rounded-sm p-3 shadow-xs">
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
+              <RegisterStatsCards stats={workflowRegisterStats(tableData)} loading={loading} />
+              <Card className="rounded-2xl border-[#d4e8dc]">
+                <CardContent className="pt-4 pb-4 grid grid-flow-col auto-cols-fr gap-3">
                   <div className="space-y-1">
-                    <Label className="text-[11px] font-bold text-slate-600 uppercase">Year</Label>
+                    <Label className="text-xs text-muted-foreground">Year</Label>
                     <Select value={year} onValueChange={setYear}>
-                      <SelectTrigger className="h-8.5 text-xs bg-[#f4f7f5] border-slate-200">
-                        <SelectValue />
-                      </SelectTrigger>
+                      <SelectTrigger displayValue={year === "all" ? "All Years" : year}><SelectValue /></SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="all">All Years</SelectItem>
                         {[currentYear, currentYear - 1, currentYear - 2].map((y) => (
                           <SelectItem key={y} value={String(y)}>{y}</SelectItem>
                         ))}
@@ -333,11 +352,9 @@ export default function ExpenditureWorkspace({
                     </Select>
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-[11px] font-bold text-slate-600 uppercase">Month</Label>
+                    <Label className="text-xs text-muted-foreground">Month</Label>
                     <Select value={month} onValueChange={setMonth}>
-                      <SelectTrigger className="h-8.5 text-xs bg-[#f4f7f5] border-slate-200">
-                        <SelectValue />
-                      </SelectTrigger>
+                      <SelectTrigger displayValue={month === "all" ? "All Months" : (MONTHS.find((m) => String(m.value) === month)?.label || month)}><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">All Months</SelectItem>
                         {MONTHS.map((m) => (
@@ -347,76 +364,68 @@ export default function ExpenditureWorkspace({
                     </Select>
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-[11px] font-bold text-slate-600 uppercase">Quarter</Label>
+                    <Label className="text-xs text-muted-foreground">Quarter</Label>
                     <Select value={quarter} onValueChange={setQuarter}>
-                      <SelectTrigger className="h-8.5 text-xs bg-[#f4f7f5] border-slate-200">
-                        <SelectValue />
-                      </SelectTrigger>
+                      <SelectTrigger displayValue={quarter === "all" ? "All Quarters" : `Q${quarter}`}><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">All Quarters</SelectItem>
                         {[1, 2, 3, 4].map((q) => (
-                          <SelectItem key={q} value={String(q)}>Q{q}</SelectItem>
+                          <SelectItem key={q} value={String(q)}>{`Q${q}`}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="space-y-1">
-                    <Label className="text-[11px] font-bold text-slate-600 uppercase">Zone</Label>
-                    <Select
-                      value={zoneId}
-                      onValueChange={(v) => {
-                        setZoneId(v);
-                        if (!isStateOffice) setStateId("all");
-                      }}
-                      disabled={isZonalCoordinator || isStateOffice}
-                    >
-                      <SelectTrigger className="h-8.5 text-xs bg-[#f4f7f5] border-slate-200">
-                        <SelectValue placeholder={activeZoneLabel} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Zones</SelectItem>
-                        {zones.map((z) => (
-                          <SelectItem key={z.id} value={z.id}>{z.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-[11px] font-bold text-slate-600 uppercase">State / FCT</Label>
-                    <Select value={stateId} onValueChange={setStateId} disabled={isStateOffice}>
-                      <SelectTrigger className="h-8.5 text-xs bg-[#f4f7f5] border-slate-200">
-                        <SelectValue placeholder={activeStateLabel} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All States</SelectItem>
-                        {states.map((s) => (
-                          <SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </div>
+                  {!isZonalCoordinator && !isStateOffice && (
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">Zone</Label>
+                      <Select value={zoneId} onValueChange={(v) => { setZoneId(v); if (!isStateOffice) setStateId("all"); }}>
+                        <SelectTrigger displayValue={zoneId === "all" ? "All Zones" : (zones.find((z) => z.id === zoneId)?.label || "Zone")}><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Zones</SelectItem>
+                          {zones.map((z) => (
+                            <SelectItem key={z.id} value={z.id}>{z.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                  {!isStateOffice && (
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">State</Label>
+                      <Select value={stateId} onValueChange={setStateId}>
+                        <SelectTrigger displayValue={stateId === "all" ? "All States" : (states.find((s) => s.id === stateId)?.label || "State")}><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All States</SelectItem>
+                          {states.map((s) => (
+                            <SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
 
               <ShadcnDataTable
+                title="EXPENDITURE PROFILE REGISTER"
+                infoTooltip="State office expenditure profiles by category, period, and submission status."
                 columns={columns}
                 data={tableData}
                 loading={loading}
                 searchPlaceholder="Search expenditure by state, year, month, officer..."
-                searchClassName="h-9 rounded-sm border-2 border-[#1a7a52] bg-[#f4f7f5] pl-8 pr-7 text-xs font-medium text-slate-800 placeholder:text-slate-400"
                 emptyMessage="No expenditure profiles recorded for this view."
                 onRowClick={(row) => {
                   setSelectedId(row.id || row.reference_id);
                   setMode("detail");
                 }}
-                pageSize={25}
+                pageSize={50}
                 showTableOptions={false}
               />
             </div>
           )}
 
           {mode === "detail" && selectedId && (
-            <div className="p-4 md:p-6 max-w-7xl mx-auto">
+            <div className="p-4 md:p-6 w-full">
               <ExpenditureProfileReportDetail
                 reportId={selectedId}
                 embedded

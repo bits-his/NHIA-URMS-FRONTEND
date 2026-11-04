@@ -1,17 +1,18 @@
 import * as React from "react";
-import { useListSearch } from "./useListSearch";
 import {
   ArrowLeft, Award, CheckCircle2, ClipboardCheck, Clock, Eye, FileText,
-  Loader2, Plus, RefreshCw, Stethoscope, type LucideIcon, XCircle,
+  Plus, RefreshCw, Stethoscope, type LucideIcon, XCircle,
 } from "lucide-react";
+import type { ColumnDef } from "@tanstack/react-table";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ShadcnDataTable } from "@/components/common/ShadcnDataTable";
 import { stateOfficeApi } from "@/lib/api";
 import { MONTHS, monthLabel, formatCount, formatDate, quarterFromMonth } from "./constants";
 import { buildReportingYearOptions } from "../monthly/reportingYears";
@@ -61,7 +62,7 @@ function reportModule(r: { activity_module?: string; form_type?: string }): Prov
  * Provider Management hub — tabbed by form type (accreditation, reaccreditation, QA, audits).
  */
 export default function ProviderManagementPage({ onBack, defaultZoneId, defaultStateId }: Props) {
-  const { canCreate, canReview } = useStateOfficeAccess();
+  const { canCreate } = useStateOfficeAccess();
   const [mode, setMode] = React.useState<Mode>("list");
   const [selectedId, setSelectedId] = React.useState<number | string | null>(null);
   const [selectedModule, setSelectedModule] = React.useState<ProviderFormKey>("accreditation");
@@ -116,10 +117,91 @@ export default function ProviderManagementPage({ onBack, defaultZoneId, defaultS
     return map;
   }, [reports]);
 
-  const { matchesSearch, searchInput } = useListSearch();
   const filtered = React.useMemo(
-    () => reports.filter((r) => reportModule(r) === activeTab && matchesSearch([r, monthLabel(r.reporting_month)])),
-    [reports, activeTab, matchesSearch]
+    () => reports.filter((r) => reportModule(r) === activeTab),
+    [reports, activeTab]
+  );
+
+  const columns = React.useMemo<ColumnDef<any>[]>(
+    () => [
+      {
+        id: "period",
+        header: "Period",
+        accessorFn: (row) => `${monthLabel(row.reporting_month)} ${row.reporting_year}`,
+        cell: ({ row }) => (
+          <div>
+            <p className="text-sm font-semibold text-slate-900 whitespace-nowrap">
+              {monthLabel(row.original.reporting_month)} {row.original.reporting_year}
+            </p>
+            <p className="text-[11px] text-slate-400">Q{quarterFromMonth(row.original.reporting_month)}</p>
+          </div>
+        ),
+      },
+      {
+        id: "state",
+        header: "State",
+        accessorFn: (row) => row.state?.description || "",
+        cell: ({ row }) => (
+          <span className="text-sm text-slate-700 whitespace-nowrap">
+            {row.original.state?.description || "—"}
+          </span>
+        ),
+      },
+      {
+        id: "activities",
+        header: "Activities",
+        accessorFn: (row) => row.lines?.length ?? row.planned_activities ?? 0,
+        cell: ({ row }) => (
+          <span className="text-sm font-semibold text-slate-900 tabular-nums">
+            {formatCount(row.original.lines?.length ?? row.original.planned_activities ?? 0)}
+          </span>
+        ),
+      },
+      {
+        id: "submitted",
+        header: "Submitted",
+        accessorFn: (row) => row.submission_date || "",
+        cell: ({ row }) => (
+          <span className="text-xs text-slate-500 whitespace-nowrap">
+            {row.original.submission_date ? formatDate(row.original.submission_date) : "—"}
+          </span>
+        ),
+      },
+      {
+        id: "status",
+        header: "Status",
+        accessorKey: "status",
+        cell: ({ row }) => {
+          const sc = STATUS_CONFIG[row.original.status] ?? STATUS_CONFIG.draft;
+          return (
+            <Badge className={`text-[10px] px-2 py-0.5 flex items-center gap-1 w-fit border ${sc.cls}`}>
+              {sc.icon} {sc.label}
+            </Badge>
+          );
+        },
+      },
+      {
+        id: "actions",
+        header: "Action",
+        enableSorting: false,
+        cell: ({ row }) => (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 gap-1.5 text-[#145c3f] hover:bg-[#eef6f1]"
+            onClick={(e) => {
+              e.stopPropagation();
+              setSelectedId(row.original.reference_id || row.original.id);
+              setSelectedModule((row.original.activity_module || row.original.form_type || "accreditation") as ProviderFormKey);
+              setMode("view");
+            }}
+          >
+            <Eye className="w-3.5 h-3.5" /> View
+          </Button>
+        ),
+      },
+    ],
+    []
   );
 
   const counts = React.useMemo(() => ({
@@ -170,23 +252,21 @@ export default function ProviderManagementPage({ onBack, defaultZoneId, defaultS
     );
   }
 
-  const hasFilters = filterYear !== "all" || filterMonth !== "all" || filterStatus !== "all"
-    || (showStateFilter && filterState !== ALL_STATES);
-
   return (
     <PageLayout
       title={PROVIDER_MANAGEMENT_NAV_TITLE}
       actions={
         <div className="flex items-center gap-2 shrink-0">
-          <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2 border-[#d4e8dc]">
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
+          <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-1.5 h-8 text-xs rounded-md border-[#d4e8dc]">
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh
           </Button>
           {canCreate && (
             <Button
-              className="bg-[#145c3f] hover:bg-[#0f3d2e] text-white gap-2 shadow-sm"
+              size="sm"
+              className="bg-orange-action hover:bg-orange-600 gap-1.5 shadow-md shadow-orange-500/20 h-8 text-xs rounded-md"
               onClick={openCreate}
             >
-              <Plus className="w-4 h-4" /> {activeMeta.newLabel}
+              <Plus className="w-3.5 h-3.5" /> {newButtonLabel}
             </Button>
           )}
         </div>
@@ -250,163 +330,82 @@ export default function ProviderManagementPage({ onBack, defaultZoneId, defaultS
             ))}
           </div>
 
-          <div className={`grid gap-3 w-full rounded-xl border border-[#d4e8dc] bg-white px-4 py-4 ${
-            showStateFilter
-              ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4"
-              : "grid-cols-1 sm:grid-cols-3"
-          }`}>
-            {showStateFilter && (
-              <Select value={filterState} onValueChange={setFilterState}>
-                <SelectTrigger className="w-full h-10 bg-[#f4f7f5] border-2 border-[#1a7a52]"
-                  displayValue={filterState === ALL_STATES
-                    ? "All States"
-                    : (states.find((s) => String(s.id) === filterState)?.description ?? filterState)}>
-                  <SelectValue placeholder="All States" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={ALL_STATES}>All States</SelectItem>
-                  {states.map((s) => (
-                    <SelectItem key={s.id} value={String(s.id)}>{s.description}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-            <Select value={filterYear} onValueChange={setFilterYear}>
-              <SelectTrigger className="w-full h-10 bg-[#f4f7f5] border-2 border-[#1a7a52]" displayValue={filterYear === "all" ? "All Years" : filterYear}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Years</SelectItem>
-                {yearOptions.map((y) => <SelectItem key={y} value={y}>{y}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Select value={filterMonth} onValueChange={setFilterMonth}>
-              <SelectTrigger className="w-full h-10 bg-[#f4f7f5] border-2 border-[#1a7a52]"
-                displayValue={filterMonth === "all" ? "All Months" : monthLabel(filterMonth)}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Months</SelectItem>
-                {MONTHS.map((m) => (
-                  <SelectItem key={m.value} value={String(m.value)}>{m.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="w-full h-10 bg-[#f4f7f5] border-2 border-[#1a7a52]"
-                displayValue={filterStatus === "all" ? "All Statuses" : STATUS_CONFIG[filterStatus]?.label}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                {Object.entries(STATUS_CONFIG).map(([k, v]) => (
-                  <SelectItem key={k} value={k}>{v.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {hasFilters && (
-              <div className="col-span-full flex justify-end">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-slate-500"
-                  onClick={() => {
-                    setFilterYear("all");
-                    setFilterMonth("all");
-                    setFilterStatus("all");
-                    if (showStateFilter) setFilterState(ALL_STATES);
-                  }}
-                >
-                  Clear
-                </Button>
-              </div>
-            )}
-          </div>
-
-          {searchInput}
-          <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden">
-            <CardContent className="p-0">
-              {loading ? (
-                <div className="flex items-center justify-center py-20 gap-3 text-slate-400">
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  <span className="text-sm">Loading reports...</span>
-                </div>
-              ) : filtered.length === 0 ? (
-                <div className="py-16 text-center space-y-3">
-                  <p className="text-sm text-slate-500">
-                    No {activeMeta.label.toLowerCase()} reports yet for these filters.
-                  </p>
-                  {canCreate && (
-                    <Button
-                      className="bg-orange-action hover:bg-orange-600 gap-2"
-                      onClick={openCreate}
-                    >
-                      <Plus className="w-4 h-4" /> {activeMeta.newLabel}
-                    </Button>
-                  )}
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-[#e8f5ee] hover:bg-[#e8f5ee] border-b border-[#d4e8dc]">
-                        <TableHead className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e]">Period</TableHead>
-                        <TableHead className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e]">State</TableHead>
-                        <TableHead className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e] text-right">Activities</TableHead>
-                        <TableHead className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e]">Submitted</TableHead>
-                        <TableHead className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e]">Status</TableHead>
-                        <TableHead className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e] text-right">Action</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filtered.map((r) => {
-                        const sc = STATUS_CONFIG[r.status] ?? STATUS_CONFIG.draft;
-                        const activities = r.lines?.length ?? r.planned_activities ?? 0;
-                        return (
-                          <TableRow key={r.id} className="hover:bg-[#f8fdfb] border-b border-[#e8f3ec] last:border-0">
-                            <TableCell className="text-sm font-semibold text-[#0f3d2e] whitespace-nowrap">
-                              {monthLabel(r.reporting_month)} {r.reporting_year}
-                              <span className="block text-[11px] font-normal text-slate-400">
-                                Q{quarterFromMonth(r.reporting_month)}
-                              </span>
-                            </TableCell>
-                            <TableCell className="text-sm text-slate-700 whitespace-nowrap">
-                              {r.state?.description || "—"}
-                            </TableCell>
-                            <TableCell className="text-sm font-semibold text-[#145c3f] text-right tabular-nums">
-                              {formatCount(activities)}
-                            </TableCell>
-                            <TableCell className="text-xs text-slate-500 whitespace-nowrap">
-                              {r.submission_date ? formatDate(r.submission_date) : "—"}
-                            </TableCell>
-                            <TableCell>
-                              <Badge className={`text-[10px] px-2 py-0.5 flex items-center gap-1 w-fit border ${sc.cls}`}>
-                                {sc.icon} {sc.label}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-8 gap-1.5 text-[#145c3f] hover:bg-[#eef6f1]"
-                                onClick={() => {
-                                  setSelectedId(r.reference_id || r.id);
-                                  setSelectedModule((r.activity_module || r.form_type || "accreditation") as ProviderFormKey);
-                                  setMode("view");
-                                }}
-                              >
-                                <Eye className="w-3.5 h-3.5" /> View
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
+          <Card className="rounded-lg border-[#d4e8dc] shadow-2xs">
+            <CardContent className="pt-4 pb-4 grid grid-flow-col auto-cols-fr gap-3">
+              {showStateFilter && (
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">State</Label>
+                  <Select
+                    value={filterState === ALL_STATES ? "all" : filterState}
+                    onValueChange={(v) => setFilterState(v === "all" ? ALL_STATES : v)}
+                  >
+                    <SelectTrigger displayValue={filterState === ALL_STATES ? "All States" : (states.find((s) => String(s.id) === filterState)?.description || "State")}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All States</SelectItem>
+                      {states.map((s) => (
+                        <SelectItem key={String(s.id)} value={String(s.id)}>{s.description}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               )}
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Year</Label>
+                <Select value={filterYear} onValueChange={setFilterYear}>
+                  <SelectTrigger displayValue={filterYear === "all" ? "All Years" : filterYear}><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Years</SelectItem>
+                    {yearOptions.map((y) => (
+                      <SelectItem key={y} value={y}>{y}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Month</Label>
+                <Select value={filterMonth} onValueChange={setFilterMonth}>
+                  <SelectTrigger displayValue={filterMonth === "all" ? "All Months" : monthLabel(filterMonth)}><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Months</SelectItem>
+                    {MONTHS.map((m) => (
+                      <SelectItem key={m.value} value={String(m.value)}>{m.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Status</Label>
+                <Select value={filterStatus} onValueChange={setFilterStatus}>
+                  <SelectTrigger displayValue={filterStatus === "all" ? "All Statuses" : (STATUS_CONFIG[filterStatus]?.label || filterStatus)}><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    {Object.entries(STATUS_CONFIG).map(([k, v]) => (
+                      <SelectItem key={k} value={k}>{v.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </CardContent>
           </Card>
+
+          <ShadcnDataTable
+            title={`${activeMeta.tabLabel.toUpperCase()} REGISTER`}
+            infoTooltip={`${activeMeta.label} reports by period, state, and submission status.`}
+            columns={columns}
+            data={filtered}
+            loading={loading}
+            searchPlaceholder={`Search ${activeMeta.label.toLowerCase()}...`}
+            emptyMessage={`No ${activeMeta.label.toLowerCase()} reports yet for these filters.`}
+            onRowClick={(r) => {
+              setSelectedId(r.reference_id || r.id);
+              setSelectedModule((r.activity_module || r.form_type || "accreditation") as ProviderFormKey);
+              setMode("view");
+            }}
+            pageSize={50}
+            showTableOptions={false}
+          />
         </div>
     </PageLayout>
   );

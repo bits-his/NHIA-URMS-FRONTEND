@@ -19,15 +19,40 @@ interface Props {
   userRole?: string;
 }
 
+export type FinanceChrome = {
+  mode: "list" | "form" | "detail";
+  title: string;
+  onInnerBack?: () => void;
+  actions?: React.ReactNode;
+  statusBadge?: React.ReactNode;
+};
+
+
 const TAB_META: {
   key: FinanceHubTabKey;
   label: string;
   icon: React.ReactNode;
+  listTitle: string;
 }[] = [
-    { key: "igr", label: "IGR", icon: <Landmark className="size-4 shrink-0" /> },
-    { key: "sshia", label: "SSHIA", icon: <ShieldCheck className="size-4 shrink-0" /> },
-    { key: "expenditure", label: "Expenditure", icon: <Receipt className="size-4 shrink-0" /> },
-  ];
+  {
+    key: "igr",
+    label: "IGR",
+    icon: <Landmark className="size-4 shrink-0" />,
+    listTitle: "Internally Generated Revenue (IGR)",
+  },
+  {
+    key: "sshia",
+    label: "SSHIA",
+    icon: <ShieldCheck className="size-4 shrink-0" />,
+    listTitle: "SSHIA Progress Report",
+  },
+  {
+    key: "expenditure",
+    label: "Expenditure",
+    icon: <Receipt className="size-4 shrink-0" />,
+    listTitle: "Expenditure Profile",
+  },
+];
 
 export default function FinanceWorkspace({
   onBack,
@@ -42,6 +67,14 @@ export default function FinanceWorkspace({
   const requested = params.get("tab") as FinanceHubTabKey | null;
   const activeTab: FinanceHubTabKey | null =
     requested && allowedKeys.has(requested) ? requested : defaultTab;
+
+  const activeMeta = TAB_META.find((t) => t.key === activeTab);
+
+  const [chrome, setChrome] = React.useState<FinanceChrome | null>(null);
+
+  React.useEffect(() => {
+    setChrome(null);
+  }, [activeTab]);
 
   React.useEffect(() => {
     if (!defaultTab) return;
@@ -64,9 +97,17 @@ export default function FinanceWorkspace({
     defaultStateId: params.get("state_id") || defaultStateId,
     userRole,
     embedded: true,
+    onChromeChange: setChrome,
   };
 
   const visibleTabs = TAB_META.filter((t) => allowedKeys.has(t.key));
+  const inLeaf = chrome?.mode === "form" || chrome?.mode === "detail";
+  const pageTitle = chrome?.title || activeMeta?.listTitle || FINANCE_HUB_NAV_TITLE;
+
+  const handleHeaderBack = () => {
+    if (inLeaf && chrome?.onInnerBack) chrome.onInnerBack();
+    else onBack();
+  };
 
   if (!activeTab || allowedTabs.length === 0) {
     return (
@@ -91,27 +132,37 @@ export default function FinanceWorkspace({
 
   return (
     <PageLayout
-      title={hideTabStrip ? (visibleTabs.find((t) => t.key === activeTab)?.label ?? "Finance") : "Finance"}
-      filters={!hideTabStrip ? (
-        <div className="flex gap-4 overflow-x-auto -mb-px" role="tablist">
-          {visibleTabs.map((tab) => (
-            <button
-              key={tab.key}
-              type="button"
-              role="tab"
-              aria-selected={activeTab === tab.key}
-              onClick={() => selectTab(tab.key)}
-              className={`group relative shrink-0 inline-flex items-center gap-2 px-3.5 py-3 text-xs font-bold whitespace-nowrap border-b-2 transition-all outline-none ${activeTab === tab.key
-                  ? "border-[#145c3f] text-[#145c3f]"
-                  : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300"
-                }`}
-            >
-              {tab.icon}
-              <span>{tab.label}</span>
-            </button>
-          ))}
+      title={pageTitle}
+      onBack={inLeaf ? handleHeaderBack : undefined}
+      actions={
+        <div className="flex items-center gap-2 shrink-0">
+          {chrome?.statusBadge}
+          {chrome?.actions}
         </div>
-      ) : undefined}
+      }
+      filters={
+        !hideTabStrip && !inLeaf ? (
+          <div className="flex gap-4 overflow-x-auto -mb-px" role="tablist">
+            {visibleTabs.map((tab) => (
+              <button
+                key={tab.key}
+                type="button"
+                role="tab"
+                aria-selected={activeTab === tab.key}
+                onClick={() => selectTab(tab.key)}
+                className={`group relative shrink-0 inline-flex items-center gap-2 px-3.5 py-3 text-xs font-bold whitespace-nowrap border-b-2 transition-all outline-none ${
+                  activeTab === tab.key
+                    ? "border-[#145c3f] text-[#145c3f]"
+                    : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300"
+                }`}
+              >
+                {tab.icon}
+                <span>{tab.label}</span>
+              </button>
+            ))}
+          </div>
+        ) : undefined
+      }
       variant="fluid"
       contentClassName="p-0 flex-1 min-h-0"
     >

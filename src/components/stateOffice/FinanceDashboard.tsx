@@ -60,7 +60,7 @@ export default function FinanceDashboard({
 
   return (
     <div className="flex flex-col h-full bg-[#f4f7f5]">
-      <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30 gap-3">
+      <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3.5 flex items-center justify-between sticky top-0 z-30 gap-3">
         <div className="flex items-center gap-3 min-w-0">
           <Button
             variant="ghost"
@@ -71,18 +71,9 @@ export default function FinanceDashboard({
           >
             <ArrowLeft className="w-5 h-5" />
           </Button>
-          <div className="min-w-0">
-            <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">
-              {dashTitle}
-            </h2>
-            <p className="text-[11px] text-slate-500 truncate">
-              {isState
-                ? "IGR and SSHIA position for the assigned state only."
-                : isZonal
-                  ? "Assigned zone is locked; compare states within the zone."
-                  : "National landing page; drill down to a zone, then a state."}
-            </p>
-          </div>
+          <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">
+            {dashTitle}
+          </h2>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <span className="hidden sm:inline-flex rounded-sm bg-[#145c3f] text-white text-[10px] font-bold tracking-wide px-2.5 py-1">
@@ -96,7 +87,7 @@ export default function FinanceDashboard({
             onClick={handleSync}
           >
             <RefreshCw className={`w-3.5 h-3.5 ${syncing ? "animate-spin" : ""}`} />
-            <span>Sync</span>
+            <span>Refresh</span>
           </Button>
         </div>
       </div>
@@ -125,7 +116,7 @@ export default function FinanceDashboard({
 
       {activeTab === "overview" ? (
         <ScrollArea className="flex-1">
-          <div className="w-full p-3 sm:p-4 space-y-3.5">
+          <div className="w-full p-3 sm:p-4 space-y-4">
             <FinanceDashboardTab
               key={`executive-dash-${refreshKey}`}
               userRole={userRole}

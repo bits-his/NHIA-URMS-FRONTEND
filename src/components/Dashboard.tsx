@@ -125,6 +125,7 @@ import OfficesView from "../modules/store_management/pages/admin/OfficesView";
 import AuditView from "../modules/store_management/pages/admin/AuditView";
 import AdjustmentsView from "../modules/store_management/pages/AdjustmentsView";
 import MovementLedgerView from "../modules/store_management/pages/MovementLedgerView";
+import StoreManagementWorkspace from "../modules/store_management/pages/StoreManagementWorkspace";
 import { getMonthlyReportContext } from "@/src/access/monthlyReportAccess";
 import { canAccessFunctionality, expandAccessEntries, getFirstAccessiblePath, canAccessHomeDashboard, isDgCeoUser, DASHBOARDS_ENABLED, ANNUAL_REPORTS_ENABLED } from "@/src/access/accessUtils";
 import { VIEW_MODULE_ACCESS } from "@/src/access/moduleConfig";
@@ -906,14 +907,14 @@ export default function Dashboard({ role, user, access = [], functionalities = "
             <Route path="/zonal/expenditure-profile/dashboard" element={<Navigate to="/zonal/finance/records?tab=expenditure" replace />} />
             <Route path="/zonal/expenditure-profile" element={<Navigate to="/zonal/finance/records?tab=expenditure" replace />} />
             <Route path="/zonal/ict/support" element={<StateOfficeReportsList key="state-ict-support" reportType="ict-support-register" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
-            <Route path="/zonal/admin-hr/office-meeting" element={<AdminHrReportsList key="office-meeting" reportType="office-meeting" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
-            <Route path="/zonal/admin-hr/etmc-cascading" element={<AdminHrReportsList key="etmc-cascading" reportType="etmc-cascading" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
+            <Route path="/zonal/admin-hr/office-meeting" element={<Navigate to="/zonal/meetings" replace />} />
+            <Route path="/zonal/admin-hr/etmc-cascading" element={<Navigate to="/zonal/meetings/etmc" replace />} />
             <Route path="/zonal/admin-hr/office-accommodation" element={<AdminHrReportsList key="office-accommodation" reportType="office-accommodation" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
             <Route path="/zonal/admin-hr/utility-services" element={<AdminHrReportsList key="utility-services" reportType="utility-services" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
             <Route path="/zonal/admin-hr/vehicle-maintenance" element={<AdminHrReportsList key="vehicle-maintenance" reportType="vehicle-maintenance" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
             <Route path="/zonal/admin-hr/conflict-infraction" element={<AdminHrReportsList key="conflict-infraction" reportType="conflict-infraction" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
             <Route path="/zonal/admin-hr/enrollee-feedback" element={<AdminHrReportsList key="enrollee-feedback" reportType="enrollee-feedback" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
-            <Route path="/zonal/admin-hr/meetings" element={<Navigate to="/zonal/admin-hr/office-meeting" replace />} />
+            <Route path="/zonal/admin-hr/meetings" element={<Navigate to="/zonal/meetings" replace />} />
             <Route path="/zonal/admin-hr/accommodation" element={<Navigate to="/zonal/admin-hr/office-accommodation" replace />} />
             <Route path="/zonal/admin-hr/utilities" element={<Navigate to="/zonal/admin-hr/utility-services" replace />} />
             <Route path="/zonal/admin-hr/vehicles" element={<Navigate to="/zonal/admin-hr/vehicle-maintenance" replace />} />
@@ -921,29 +922,23 @@ export default function Dashboard({ role, user, access = [], functionalities = "
             <Route path="/zonal/admin-hr/infractions" element={<Navigate to="/zonal/admin-hr/conflict-infraction" replace />} />
 
             {/* ── Store & Asset Management Module ── */}
-            <Route
-              path="/store-management"
-              element={
-                DASHBOARDS_ENABLED
-                  ? <DashboardView />
-                  : <Navigate to={getFirstAccessiblePath(access, role, user)} replace />
-              }
-            />
+            <Route path="/store-management" element={<StoreManagementWorkspace />} />
+            <Route path="/store-management/workspace" element={<StoreManagementWorkspace />} />
             <Route path="/store-management/assets/register" element={<AssetRegisterView />} />
             <Route path="/store-management/assets/list" element={<AssetListView />} />
             <Route path="/store-management/assets/detail/:id" element={<AssetDetailView />} />
             <Route path="/store-management/assets/detail/*" element={<AssetDetailView />} />
             <Route path="/store-management/assets/categories" element={<CategoriesView />} />
             <Route path="/store-management/assets/qr-labels" element={<QrLabelsView />} />
-            <Route path="/store-management/inventory/items" element={<InventoryItemsView />} />
+            <Route path="/store-management/inventory/items" element={<Navigate to="/store-management?tab=inventory" replace />} />
             <Route path="/store-management/inventory/items/new" element={<AddStockView />} />
             <Route path="/store-management/inventory/items/:id" element={<InventoryItemDetailView />} />
             <Route path="/store-management/inventory/receipts" element={<GoodsReceiptView />} />
-            <Route path="/store-management/stores/issues" element={<StockIssuesView />} />
+            <Route path="/store-management/stores/issues" element={<Navigate to="/store-management?tab=issuance" replace />} />
             <Route path="/store-management/stores/issues/new" element={<NewStockIssueView />} />
             <Route path="/store-management/stores/list" element={<StoreListView />} />
             <Route path="/store-management/stores/returns" element={<StockReturnsView />} />
-            <Route path="/store-management/transfers/requests" element={<StockIssuesView />} />
+            <Route path="/store-management/transfers/requests" element={<Navigate to="/store-management?tab=issuance" replace />} />
             <Route path="/store-management/transfers/new" element={<NewStockIssueView />} />
             <Route path="/transfers/requests" element={<StockIssuesView />} />
             <Route path="/transfers/new" element={<NewStockIssueView />} />
@@ -966,8 +961,8 @@ export default function Dashboard({ role, user, access = [], functionalities = "
             <Route path="/store-management/admin/offices" element={<OfficesView />} />
             <Route path="/store-management/admin/logs" element={<AuditView />} />
             <Route path="/store-management/adjustments" element={<AdjustmentsView />} />
-            <Route path="/store-management/conversion" element={<Navigate to="/store-management/transfers/requests" replace />} />
-            <Route path="/store-management/conversion/new" element={<Navigate to="/store-management/transfers/requests" replace />} />
+            <Route path="/store-management/conversion" element={<Navigate to="/store-management?tab=issuance" replace />} />
+            <Route path="/store-management/conversion/new" element={<Navigate to="/store-management?tab=issuance" replace />} />
             <Route path="/store-management/movement-ledger" element={<MovementLedgerView />} />
 
             {/* ── System Administration ── */}

@@ -1,10 +1,11 @@
 import * as React from "react";
 import { useNavigate } from "react-router-dom";
-import { RefreshCw, Loader2 } from "lucide-react";
+import type { ColumnDef } from "@tanstack/react-table";
+import { ArrowLeft, RefreshCw, Loader2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
@@ -12,9 +13,11 @@ import {
 import { toast } from "sonner";
 import PageLayout from "@/components/PageLayout";
 import { stockApi } from "@/lib/api";
-import { DashKpi, DashChartCard } from "@/components/dashboard/dashboardUi";
+import { DashChartCard } from "@/components/dashboard/dashboardUi";
 import { pickGeoLabel } from "@/src/components/servicom/servicomConstants";
 import { LOOKUPS } from "@/src/store/useAssetManagement";
+import { RegisterStatsCards } from "@/src/components/stateOffice/RegisterStatsCards";
+import { ShadcnDataTable } from "@/components/common/ShadcnDataTable";
 
 interface Props {
   onBack: () => void;
@@ -103,72 +106,229 @@ export default function StockVerificationDashboard({ onBack, defaultStateId, def
     !conditionFocus || row.physicalCondition === conditionFocus,
   );
 
-  const zoneLabel = filterZone === "all" ? "All zones" : pickGeoLabel(zones, filterZone, "Zone");
-  const stateLabel = filterState === "all" ? "All states" : pickGeoLabel(states, filterState, "State");
+  const zoneLabel = filterZone === "all" ? "All Zones" : pickGeoLabel(zones, filterZone, "Zone");
+  const stateLabel = filterState === "all" ? "All States" : pickGeoLabel(states, filterState, "State");
+  const hasFilters =
+    year !== String(currentYear) ||
+    quarter !== "all" ||
+    office !== "all" ||
+    (!geoLocked && (filterZone !== "all" || filterState !== "all")) ||
+    category !== "all" ||
+    status !== "all" ||
+    condition !== "all";
+
+  const clearFilters = () => {
+    setYear(String(currentYear));
+    setQuarter("all");
+    setOffice("all");
+    if (!geoLocked) {
+      setFilterZone(defaultZoneId ?? "all");
+      setFilterState(defaultStateId ?? "all");
+    }
+    setCategory("all");
+    setStatus("all");
+    setCondition("all");
+  };
+
+  const drillColumns = React.useMemo<ColumnDef<any>[]>(
+    () => [
+      {
+        accessorKey: "name",
+        header: "Asset",
+        cell: ({ row }) => <span className="text-xs font-medium whitespace-nowrap">{row.original.name}</span>,
+      },
+      {
+        accessorKey: "specificLocation",
+        header: "Location",
+        cell: ({ row }) => <span className="text-xs text-slate-600">{row.original.specificLocation || "—"}</span>,
+      },
+      {
+        accessorKey: "facilitySite",
+        header: "Site",
+        cell: ({ row }) => <span className="text-xs whitespace-nowrap">{row.original.facilitySite || "—"}</span>,
+      },
+      {
+        accessorKey: "assignedCustodian",
+        header: "Custodian",
+        cell: ({ row }) => <span className="text-xs whitespace-nowrap">{row.original.assignedCustodian || "—"}</span>,
+      },
+      {
+        accessorKey: "verificationStatus",
+        header: "Status",
+        cell: ({ row }) => <span className="text-xs whitespace-nowrap">{row.original.verificationStatus || "—"}</span>,
+      },
+    ],
+    []
+  );
+
+  const redFlagColumns = React.useMemo<ColumnDef<any>[]>(
+    () => [
+      {
+        accessorKey: "name",
+        header: "Asset",
+        cell: ({ row }) => <span className="text-xs font-medium">{row.original.name}</span>,
+      },
+      {
+        accessorKey: "office",
+        header: "Office",
+        cell: ({ row }) => <span className="text-xs">{row.original.office || "—"}</span>,
+      },
+      {
+        id: "flags",
+        header: "Flags",
+        accessorFn: (row) => (row.flags || []).join(", "),
+        cell: ({ row }) => (
+          <span className="text-xs text-rose-700">{(row.original.flags || []).join(", ") || "—"}</span>
+        ),
+      },
+      {
+        accessorKey: "observations",
+        header: "Observations",
+        cell: ({ row }) => <span className="text-xs text-slate-500">{row.original.observations || "—"}</span>,
+      },
+    ],
+    []
+  );
+
 
   return (
     <PageLayout
       title="Stock Verification Unit"
       actions={
-        <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">
-          <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
+        <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-1.5 h-8 text-xs rounded-md">
+          <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh
         </Button>
-      }
-      filters={
-        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-2">
-          <Filter label="Year">
-            <Select value={year} onValueChange={setYear}>
-              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {YEARS.map((y) => <SelectItem key={y} value={y}>{y === "all" ? "All years" : y}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </Filter>
-          <Filter label="Quarter">
-            <Select value={quarter} onValueChange={setQuarter}>
-              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All quarters</SelectItem>
-                {["1", "2", "3", "4"].map((q) => <SelectItem key={q} value={q}>{`Q${q}`}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </Filter>
-          <Filter label="Office">
-            <Select value={office} onValueChange={setOffice}>
-              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All offices</SelectItem>
-                <SelectItem value="hq">HQ</SelectItem>
-              </SelectContent>
-            </Select>
-          </Filter>
-          {!geoLocked && (
-            <>
-              <Filter label="Zone">
-                <Select value={filterZone} onValueChange={(v) => { setFilterZone(v); setFilterState("all"); }}>
-                  <SelectTrigger className="h-9" displayValue={zoneLabel}><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All zones</SelectItem>
-                    {zones.map((z) => <SelectItem key={z.id} value={String(z.id)}>{z.description}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </Filter>
-              <Filter label="State">
-                <Select value={filterState} onValueChange={setFilterState}>
-                  <SelectTrigger className="h-9" displayValue={stateLabel}><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All states</SelectItem>
-                    {states.map((s) => <SelectItem key={s.id} value={String(s.id)}>{s.description}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </Filter>
-            </>
-          )}
-        </div>
       }
       contentClassName="space-y-4 w-full pb-8"
     >
       <div className="w-full space-y-4">
+        <Card className="rounded-lg border-[#d4e8dc] shadow-2xs">
+          <CardContent className="pt-4 pb-4 space-y-3">
+            <div className={`grid gap-3 ${geoLocked ? "grid-cols-2 md:grid-cols-3 xl:grid-cols-6" : "grid-cols-2 md:grid-cols-3 xl:grid-cols-4"}`}>
+              <div className="space-y-1 min-w-0">
+                <Label className="text-xs text-muted-foreground">Year</Label>
+                <Select value={year} onValueChange={setYear}>
+                  <SelectTrigger className="w-full" displayValue={year === "all" ? "All Years" : year}>
+                    <SelectValue placeholder="Year" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {YEARS.map((y) => (
+                      <SelectItem key={y} value={y}>{y === "all" ? "All Years" : y}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1 min-w-0">
+                <Label className="text-xs text-muted-foreground">Quarter</Label>
+                <Select value={quarter} onValueChange={setQuarter}>
+                  <SelectTrigger className="w-full" displayValue={quarter === "all" ? "All Quarters" : `Q${quarter}`}>
+                    <SelectValue placeholder="Quarter" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Quarters</SelectItem>
+                    {["1", "2", "3", "4"].map((q) => (
+                      <SelectItem key={q} value={q}>{`Q${q}`}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1 min-w-0">
+                <Label className="text-xs text-muted-foreground">Office</Label>
+                <Select value={office} onValueChange={setOffice}>
+                  <SelectTrigger className="w-full" displayValue={office === "all" ? "All Offices" : office.toUpperCase()}>
+                    <SelectValue placeholder="Office" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Offices</SelectItem>
+                    <SelectItem value="hq">HQ</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {!geoLocked && (
+                <>
+                  <div className="space-y-1 min-w-0">
+                    <Label className="text-xs text-muted-foreground">Zone</Label>
+                    <Select value={filterZone} onValueChange={(v) => { setFilterZone(v); setFilterState("all"); }}>
+                      <SelectTrigger className="w-full" displayValue={zoneLabel}>
+                        <SelectValue placeholder="Zone" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Zones</SelectItem>
+                        {zones.map((z) => (
+                          <SelectItem key={z.id} value={String(z.id)}>{z.description}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1 min-w-0">
+                    <Label className="text-xs text-muted-foreground">State</Label>
+                    <Select value={filterState} onValueChange={setFilterState}>
+                      <SelectTrigger className="w-full" displayValue={stateLabel}>
+                        <SelectValue placeholder="State" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All States</SelectItem>
+                        {states.map((s) => (
+                          <SelectItem key={s.id} value={String(s.id)}>{s.description}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </>
+              )}
+              <div className="space-y-1 min-w-0">
+                <Label className="text-xs text-muted-foreground">Category</Label>
+                <Select value={category} onValueChange={setCategory}>
+                  <SelectTrigger className="w-full" displayValue={category === "all" ? "All Categories" : category}>
+                    <SelectValue placeholder="Category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Categories</SelectItem>
+                    {Object.keys(LOOKUPS.primaryCategories).map((c) => (
+                      <SelectItem key={c} value={c}>{c}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1 min-w-0">
+                <Label className="text-xs text-muted-foreground">Status</Label>
+                <Select value={status} onValueChange={setStatus}>
+                  <SelectTrigger className="w-full" displayValue={status === "all" ? "All Statuses" : status}>
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    {LOOKUPS.operationalStatuses.map((s: string) => (
+                      <SelectItem key={s} value={s}>{s}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1 min-w-0">
+                <Label className="text-xs text-muted-foreground">Condition</Label>
+                <Select value={condition} onValueChange={setCondition}>
+                  <SelectTrigger className="w-full" displayValue={condition === "all" ? "All Conditions" : condition}>
+                    <SelectValue placeholder="Condition" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Conditions</SelectItem>
+                    {LOOKUPS.physicalConditions.map((s: string) => (
+                      <SelectItem key={s} value={s}>{s}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            {hasFilters && (
+              <div className="flex justify-end">
+                <Button variant="ghost" size="sm" className="text-slate-500 gap-1 shrink-0" onClick={clearFilters}>
+                  <XCircle className="w-3.5 h-3.5" /> Clear
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         {loading ? (
             <div className="flex items-center justify-center py-24 gap-3 text-slate-400">
               <Loader2 className="w-5 h-5 animate-spin" /> Loading dashboard…
@@ -178,51 +338,26 @@ export default function StockVerificationDashboard({ onBack, defaultStateId, def
               <section className="space-y-4">
                 <div className="flex items-end justify-between gap-3 flex-wrap">
                   <div>
-                    <h2 className="text-base font-semibold text-slate-900">Fixed asset register</h2>
+                    <h2 className="text-base font-semibold text-[#0f3d2e]">Fixed asset register</h2>
                     <p className="text-xs text-slate-500 mt-0.5">Period uses the last verification date, then the date the asset was recorded.</p>
                   </div>
                   <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => navigate("/store-management/verification/verify")}>
                     Open asset verification
                   </Button>
                 </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-3 items-stretch">
-                  <DashKpi label="Total assets recorded" value={assets?.total_recorded ?? 0} detail="In the current filter" />
-                  <DashKpi label="Total assets verified" value={assets?.total_verified ?? 0} detail="Verified or verified and passed" />
-                  <DashKpi label="Tagged" value={assets?.tagged ?? 0} detail="NHIA tag number present" />
-                  <DashKpi label="Poor / defective" value={assets?.poor_defective ?? 0} detail="Poor, defective, or damaged" />
-                  <DashKpi label="Unverified / missing" value={assets?.unverified_missing ?? 0} detail="Status or condition" />
-                  <DashKpi label="No custodian recorded" value={assets?.no_custodian ?? 0} detail="Custodian field empty" />
-                  <DashKpi label="In store" value={assets?.in_store ?? 0} detail="Operational status" />
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                  <Filter label="Category">
-                    <Select value={category} onValueChange={setCategory}>
-                      <SelectTrigger className="h-9 bg-white"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All categories</SelectItem>
-                        {Object.keys(LOOKUPS.primaryCategories).map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </Filter>
-                  <Filter label="Status">
-                    <Select value={status} onValueChange={setStatus}>
-                      <SelectTrigger className="h-9 bg-white"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All statuses</SelectItem>
-                        {LOOKUPS.operationalStatuses.map((s: string) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </Filter>
-                  <Filter label="Condition">
-                    <Select value={condition} onValueChange={setCondition}>
-                      <SelectTrigger className="h-9 bg-white"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All conditions</SelectItem>
-                        {LOOKUPS.physicalConditions.map((s: string) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </Filter>
-                </div>
+                <RegisterStatsCards
+                  loading={loading}
+                  className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-3"
+                  stats={[
+                    { label: "Total recorded", value: assets?.total_recorded ?? 0, tone: "text-[#0f3d2e] bg-white border-[#d4e8dc]" },
+                    { label: "Verified", value: assets?.total_verified ?? 0, tone: "text-emerald-700 bg-emerald-50/80 border-emerald-100" },
+                    { label: "Tagged", value: assets?.tagged ?? 0, tone: "text-blue-700 bg-blue-50/80 border-blue-100" },
+                    { label: "Poor / defective", value: assets?.poor_defective ?? 0, tone: "text-amber-800 bg-amber-50/80 border-amber-100" },
+                    { label: "Unverified / missing", value: assets?.unverified_missing ?? 0, tone: "text-rose-700 bg-rose-50/80 border-rose-100" },
+                    { label: "No custodian", value: assets?.no_custodian ?? 0, tone: "text-slate-600 bg-white border-slate-200" },
+                    { label: "In store", value: assets?.in_store ?? 0, tone: "text-indigo-800 bg-indigo-50/80 border-indigo-100" },
+                  ]}
+                />
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 items-stretch">
                   <DashChartCard title="Assets by primary category">
                     {(assets?.by_category ?? []).length === 0 ? <ChartEmpty message="No assets in this filter." /> : (
@@ -303,90 +438,65 @@ export default function StockVerificationDashboard({ onBack, defaultStateId, def
                   )}
                 </div>
 
-                <div className="rounded-lg border border-[#d4e8dc] bg-white p-3.5 shadow-2xs">
-                  <div className="flex items-center justify-between mb-1">
-                    <p className="text-sm font-semibold text-slate-800">
-                      {conditionFocus ? `${conditionFocus} assets` : "Condition drill-down"}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-xs text-slate-500">
+                      {conditionFocus
+                        ? `Showing ${conditionFocus} assets — click a condition bar to change.`
+                        : "Click a condition bar to drill into site, location, custodian, and verification status."}
                     </p>
                     {conditionFocus && (
-                      <button type="button" className="text-[11px] font-semibold text-[#145c3f]" onClick={() => setConditionFocus(null)}>Clear</button>
+                      <button type="button" className="text-[11px] font-semibold text-[#145c3f]" onClick={() => setConditionFocus(null)}>
+                        Clear drill
+                      </button>
                     )}
                   </div>
-                  <p className="text-[11px] text-slate-500 mb-3">Click a condition bar to see site, location, custodian, and verification status.</p>
-                  <div className="overflow-auto max-h-[480px]">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="text-xs">Asset</TableHead>
-                          <TableHead className="text-xs">Location</TableHead>
-                          <TableHead className="text-xs">Site</TableHead>
-                          <TableHead className="text-xs">Custodian</TableHead>
-                          <TableHead className="text-xs">Status</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {drillRows.length === 0 ? (
-                          <TableRow><TableCell colSpan={5} className="text-xs text-slate-500">Nothing to show.</TableCell></TableRow>
-                        ) : drillRows.map((row: any) => (
-                          <TableRow key={row.id} className="cursor-pointer" onClick={() => navigate(`/store-management/assets/detail/${row.id}`)}>
-                            <TableCell className="text-xs font-medium whitespace-nowrap">{row.name}</TableCell>
-                            <TableCell className="text-xs text-slate-600">{row.specificLocation}</TableCell>
-                            <TableCell className="text-xs whitespace-nowrap">{row.facilitySite}</TableCell>
-                            <TableCell className="text-xs whitespace-nowrap">{row.assignedCustodian}</TableCell>
-                            <TableCell className="text-xs whitespace-nowrap">{row.verificationStatus}</TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
+                  <ShadcnDataTable
+                    title={conditionFocus ? `${conditionFocus.toUpperCase()} ASSETS` : "CONDITION DRILL-DOWN"}
+                    columns={drillColumns}
+                    data={drillRows}
+                    loading={false}
+                    emptyMessage="Nothing to show."
+                    onRowClick={(row) => navigate(`/store-management/assets/detail/${row.id}`)}
+                    pageSize={50}
+                    showTableOptions={false}
+                  />
                 </div>
-                <div className="rounded-lg border border-rose-200 bg-white overflow-hidden shadow-2xs">
-                  <div className="px-4 py-3 border-b border-rose-100">
-                    <p className="text-sm font-semibold text-slate-800">Priority red-flag register</p>
-                    <p className="text-[11px] text-slate-500">Maintenance overdue, poor or defective, no custodian, unverified or missing.</p>
-                  </div>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="text-xs">Asset</TableHead>
-                        <TableHead className="text-xs">Office</TableHead>
-                        <TableHead className="text-xs">Flags</TableHead>
-                        <TableHead className="text-xs">Observations</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {(assets?.red_flags ?? []).length === 0 ? (
-                        <TableRow><TableCell colSpan={4} className="text-xs text-slate-500">No red flags in this filter.</TableCell></TableRow>
-                      ) : (assets.red_flags as any[]).map((row) => (
-                        <TableRow key={row.id} className="cursor-pointer" onClick={() => navigate(`/store-management/assets/detail/${row.id}`)}>
-                          <TableCell className="text-xs font-medium">{row.name}</TableCell>
-                          <TableCell className="text-xs">{row.office}</TableCell>
-                          <TableCell className="text-xs text-rose-700">{row.flags.join(", ")}</TableCell>
-                          <TableCell className="text-xs text-slate-500">{row.observations || "—"}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
+
+                <ShadcnDataTable
+                  title="PRIORITY RED-FLAG REGISTER"
+                  infoTooltip="Maintenance overdue, poor or defective, no custodian, unverified or missing."
+                  columns={redFlagColumns}
+                  data={assets?.red_flags ?? []}
+                  loading={false}
+                  emptyMessage="No red flags in this filter."
+                  onRowClick={(row) => navigate(`/store-management/assets/detail/${row.id}`)}
+                  pageSize={50}
+                  showTableOptions={false}
+                />
               </section>
 
               <section className="space-y-4">
                 <div className="flex items-end justify-between gap-3 flex-wrap">
                   <div>
-                    <h2 className="text-base font-semibold text-slate-900">Prepayment register</h2>
+                    <h2 className="text-base font-semibold text-[#0f3d2e]">Prepayment register</h2>
                     <p className="text-xs text-slate-500 mt-0.5">Expenditure is quantity supplied times rate. Recurrent means the same item in more than one quarter.</p>
                   </div>
                   <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => navigate("/store-management/prepayment-analysis")}>
                     Open prepayment register
                   </Button>
                 </div>
-                <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3 items-stretch">
-                  <DashKpi label="Total expenditure" value={money(prep?.total_expenditure)} detail="Supplied quantity × rate" />
-                  <DashKpi label="Highest expenditure" value={prep?.highest ? money(prep.highest.amount) : "—"} detail={prep?.highest?.item || "No lines in this period"} />
-                  <DashKpi label="Lowest expenditure" value={prep?.lowest ? money(prep.lowest.amount) : "—"} detail={prep?.lowest?.item || "No lines in this period"} />
-                  <DashKpi label="Recurrent supply" value={prep?.recurrent_supply ?? 0} detail="Items supplied in 2+ quarters" />
-                  <DashKpi label="Largest quantity" value={prep?.largest_quantity ? prep.largest_quantity.quantity : "—"} detail={prep?.largest_quantity?.item || "Quantity supplied"} />
-                </div>
+                <RegisterStatsCards
+                  loading={loading}
+                  className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3"
+                  stats={[
+                    { label: "Total expenditure", value: money(prep?.total_expenditure), tone: "text-[#0f3d2e] bg-white border-[#d4e8dc]" },
+                    { label: "Highest expenditure", value: prep?.highest ? money(prep.highest.amount) : "—", tone: "text-amber-800 bg-amber-50/80 border-amber-100" },
+                    { label: "Lowest expenditure", value: prep?.lowest ? money(prep.lowest.amount) : "—", tone: "text-blue-700 bg-blue-50/80 border-blue-100" },
+                    { label: "Recurrent supply", value: prep?.recurrent_supply ?? 0, tone: "text-indigo-800 bg-indigo-50/80 border-indigo-100" },
+                    { label: "Largest quantity", value: prep?.largest_quantity ? prep.largest_quantity.quantity : "—", tone: "text-slate-600 bg-white border-slate-200" },
+                  ]}
+                />
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 items-stretch">
                   <DashChartCard title="Verified supplies by category">
                     {(prep?.by_category ?? []).length === 0 ? <ChartEmpty message="No prepayment lines in this period." /> : (
@@ -481,11 +591,3 @@ function VolumeBars({
   );
 }
 
-function Filter({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="space-y-1 min-w-0">
-      <Label className="text-[11px] text-slate-500">{label}</Label>
-      {children}
-    </div>
-  );
-}

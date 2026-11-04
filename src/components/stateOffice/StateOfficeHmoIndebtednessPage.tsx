@@ -1,7 +1,10 @@
 import * as React from "react";
+import type { ColumnDef } from "@tanstack/react-table";
 import { useListSearch } from "./useListSearch";
+import { ShadcnDataTable } from "@/components/common/ShadcnDataTable";
+import { RegisterStatsCards } from "./RegisterStatsCards";
 import {
-  ArrowLeft, Plus, Eye, Pencil, RefreshCw, Loader2, Save, Trash2, Wallet,
+  ArrowLeft, Plus, Eye, Pencil, RefreshCw, Loader2, Save, Trash2,
   ChevronDown, ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -26,6 +29,12 @@ interface Props {
   defaultZoneId?: string | null;
   /** When true, hide page chrome (hub provides header/tabs). */
   embedded?: boolean;
+  onChromeChange?: (chrome: {
+    mode: "list" | "form" | "detail";
+    title?: string;
+    onInnerBack?: () => void;
+    actions?: React.ReactNode;
+  } | null) => void;
 }
 
 type Geo = { id: number; description: string };
@@ -68,7 +77,7 @@ function pickGeoLabel(options: Geo[], value: string, fallback: string) {
   return options.find((o) => String(o.id) === value)?.description ?? fallback;
 }
 
-export default function StateOfficeHmoIndebtednessPage({ onBack, defaultStateId, defaultZoneId, embedded = false }: Props) {
+export default function StateOfficeHmoIndebtednessPage({ onBack, defaultStateId, defaultZoneId, embedded = false, onChromeChange }: Props) {
   const { canCreate, createOnly } = useStateOfficeAccess();
   const [mode, setMode] = React.useState<Mode>(createOnly ? "create" : "list");
   const [formKey, setFormKey] = React.useState(0);
@@ -133,7 +142,7 @@ export default function StateOfficeHmoIndebtednessPage({ onBack, defaultStateId,
     stockApi.getStates(zoneId).then((r) => setStates(r.data)).catch(() => setStates([]));
   }, [zoneId]);
 
-  const { matchesSearch, searchInput } = useListSearch();
+  const { search, setSearch, matchesSearch } = useListSearch();
   const hmoRows = React.useMemo(() => {
     const map = new Map<string, {
       key: string;
@@ -275,6 +284,39 @@ export default function StateOfficeHmoIndebtednessPage({ onBack, defaultStateId,
       setLoadingViewSheets(false);
     }
   };
+
+  const listColumns = React.useMemo((): ColumnDef<(typeof hmoRows)[number]>[] => [
+    { id: "hmo", header: "HMO", cell: ({ row }) => <span className="text-sm font-semibold text-slate-800">{row.original.name}</span> },
+    { id: "state", header: "State", cell: ({ row }) => <span className="text-xs">{row.original.stateName}</span> },
+    {
+      id: "period",
+      header: "Period",
+      cell: ({ row }) => {
+        const item = row.original;
+        return (
+          <span className="text-xs text-slate-500">
+            {item.periods.length === 1 ? item.periods[0] : `${item.periods[0]} · ${item.periods.length} periods`}
+          </span>
+        );
+      },
+    },
+    { id: "hcfs", header: "HCFs", cell: ({ row }) => <span className="text-xs">{row.original.hcfCount}</span> },
+    { id: "total", header: "Total", cell: ({ row }) => <span className="text-xs font-mono font-semibold">₦{naira(row.original.total)}</span> },
+    {
+      id: "view",
+      header: "View",
+      cell: ({ row }) => (
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-8 gap-1.5 px-2 text-[#145c3f]"
+          onClick={(e) => { e.stopPropagation(); void openHmoView(row.original.latest, row.original.name); }}
+        >
+          <Eye className="w-4 h-4" /> View
+        </Button>
+      ),
+    },
+  ], [openHmoView]);
 
   const linesByHmo = React.useMemo(() => {
     const map = new Map<string, Line[]>();
@@ -588,6 +630,51 @@ export default function StateOfficeHmoIndebtednessPage({ onBack, defaultStateId,
     </div>
   ) : null;
 
+  React.useEffect(() => {
+    if (!embedded || !onChromeChange) return;
+    if (mode === "list") {
+      onChromeChange({
+        mode: "list",
+        actions: (
+          <>
+            <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">
+              <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
+            </Button>
+            {canCreate && (
+              <Button className="bg-orange-action hover:bg-orange-600 gap-2" onClick={openCreate}>
+                <Plus className="w-4 h-4" /> New Collation Sheet
+              </Button>
+            )}
+          </>
+        ),
+      });
+      return;
+    }
+    onChromeChange({
+      mode: mode === "view" ? "detail" : "form",
+      title:
+        mode === "view"
+          ? (viewHmoName || "Collation Sheet")
+          : mode === "edit"
+            ? "Edit Collation Sheet"
+            : "New Collation Sheet",
+      onInnerBack: () => {
+        if (mode === "view") {
+          setViewHmoName("");
+          setViewSheets([]);
+          setMode(createOnly ? "create" : "list");
+        } else if (mode === "edit") {
+          setMode("view");
+        } else {
+          setMode(createOnly ? "create" : "list");
+        }
+      },
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [embedded, onChromeChange, mode, loading, canCreate, viewHmoName, createOnly]);
+
+  React.useEffect(() => () => onChromeChange?.(null), [onChromeChange]);
+
   if (mode === "view") {
     const viewLines = linesByHmo.flatMap(([, hcfLines]) => hcfLines);
     const capTotal = viewLines.reduce((s, l) => s + money(l.nhia_cap), 0);
@@ -596,34 +683,30 @@ export default function StateOfficeHmoIndebtednessPage({ onBack, defaultStateId,
     const viewTotal = viewLines.reduce((s, l) => s + lineTotal(l), 0);
     return (
       <div className="flex flex-col h-full bg-slate-50/30">
-        <div className="bg-white border-b border-border/50 px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30">
-          <div className="flex items-center gap-3 min-w-0">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => {
-                setViewHmoName("");
-                setViewSheets([]);
-                setMode(createOnly ? "create" : "list");
-              }}
-              className="rounded-full shrink-0"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
-            <div className="min-w-0">
-              <h2 className="text-xl font-bold tracking-tight truncate">{viewHmoName || "Collation Sheet"}</h2>
-              <p className="text-xs text-slate-500 truncate">
-                {pickGeoLabel(states, stateId, "—")}
-                {loadingViewSheets ? " · loading…" : ""}
-              </p>
+        {!embedded && (
+          <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3.5 flex items-center justify-between sticky top-0 z-30">
+            <div className="flex items-center gap-3 min-w-0">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => {
+                  setViewHmoName("");
+                  setViewSheets([]);
+                  setMode(createOnly ? "create" : "list");
+                }}
+                className="rounded-full shrink-0"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </Button>
+              <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">{viewHmoName || "Collation Sheet"}</h2>
             </div>
+            {canCreate && (
+              <Button className="bg-orange-action hover:bg-orange-600 gap-2 shrink-0" onClick={() => setMode("edit")}>
+                <Pencil className="w-4 h-4" /> Edit
+              </Button>
+            )}
           </div>
-          {canCreate && (
-          <Button className="bg-orange-action hover:bg-orange-600 gap-2 shrink-0" onClick={() => setMode("edit")}>
-            <Pencil className="w-4 h-4" /> Edit
-          </Button>
-          )}
-        </div>
+        )}
         <ScrollArea className="flex-1">
           <div className="w-full px-4 md:px-6 py-4 space-y-4 pb-16">
             <Card className="rounded-xl border border-[#d4e8dc]">
@@ -736,12 +819,14 @@ export default function StateOfficeHmoIndebtednessPage({ onBack, defaultStateId,
   if (mode === "create" || mode === "edit") {
     return (
       <div key={formKey} className="flex flex-col h-full bg-slate-50/30">
-        <div className="bg-white border-b border-border/50 px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={mode === "edit" ? () => setMode("view") : leaveForm} className="rounded-full"><ArrowLeft className="w-5 h-5" /></Button>
-            <h2 className="text-xl font-bold tracking-tight">HMO Indebtedness Collation</h2>
+        {!embedded && (
+          <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3.5 flex items-center justify-between sticky top-0 z-30">
+            <div className="flex items-center gap-3">
+              <Button variant="ghost" size="icon" onClick={mode === "edit" ? () => setMode("view") : leaveForm} className="rounded-full"><ArrowLeft className="w-5 h-5" /></Button>
+              <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e]">HMO Indebtedness Collation</h2>
+            </div>
           </div>
-        </div>
+        )}
         <ScrollArea className="flex-1">
           <div className="w-full px-4 md:px-6 py-4 space-y-4 pb-28">
             {headerFields}
@@ -775,27 +860,48 @@ export default function StateOfficeHmoIndebtednessPage({ onBack, defaultStateId,
 
   return (
     <div className="flex flex-col h-full bg-slate-50/30">
-      <div className={`bg-white border-b border-border/50 px-4 md:px-6 py-3 flex items-center justify-between ${embedded ? "" : "sticky top-0 z-30"}`}>
-        {!embedded ? (
-          <h2 className="text-xl font-bold tracking-tight">HMO Indebtedness Collation</h2>
-        ) : (
-          <div />
-        )}
-        <div className="flex items-center gap-3">
-          <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
-          </Button>
-          {canCreate && (
-          <Button className="bg-orange-action hover:bg-orange-600 gap-2" onClick={openCreate}>
-            <Plus className="w-4 h-4" /> New Sheet
-          </Button>
-          )}
+      {!embedded && (
+        <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3.5 flex items-center justify-between sticky top-0 z-30">
+          <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">HMO Indebtedness Collation</h2>
+          <div className="flex items-center gap-3">
+            <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">
+              <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
+            </Button>
+            {canCreate && (
+              <Button className="bg-orange-action hover:bg-orange-600 gap-2" onClick={openCreate}>
+                <Plus className="w-4 h-4" /> New Collation Sheet
+              </Button>
+            )}
+          </div>
         </div>
-      </div>
+      )}
       <ScrollArea className="flex-1">
         <div className="w-full px-4 md:px-6 py-4 space-y-4">
+          <RegisterStatsCards
+            loading={loading}
+            className="grid grid-cols-2 md:grid-cols-4 gap-3"
+            stats={[
+              { label: "HMOs", value: hmoRows.length, tone: "text-[#0f3d2e] bg-white border-[#d4e8dc]" },
+              {
+                label: "HCFs",
+                value: hmoRows.reduce((sum, r) => sum + Number(r.hcfCount || 0), 0),
+                tone: "text-slate-600 bg-white border-slate-200",
+              },
+              {
+                label: "States",
+                value: new Set(hmoRows.map((r) => r.stateId)).size,
+                tone: "text-teal-800 bg-teal-50/80 border-teal-100",
+              },
+              {
+                label: "Total (₦)",
+                value: naira(hmoRows.reduce((sum, r) => sum + Number(r.total || 0), 0)),
+                tone: "text-emerald-700 bg-emerald-50/80 border-emerald-100",
+              },
+            ]}
+          />
+
           <Card className="rounded-2xl border-[#d4e8dc]">
-            <CardContent className="pt-4 pb-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+            <CardContent className="pt-4 pb-4 grid grid-flow-col auto-cols-fr gap-3">
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">Zone</Label>
                 <Select value={filterZone} disabled={zoneLocked} onValueChange={(v) => { setFilterZone(v); if (!stateLocked) setFilterState("all"); }}>
@@ -839,55 +945,18 @@ export default function StateOfficeHmoIndebtednessPage({ onBack, defaultStateId,
             </CardContent>
           </Card>
 
-          {searchInput}
-          <Card className="rounded-2xl border-[#d4e8dc] overflow-hidden">
-            <CardHeader className="pb-3 border-b">
-              <CardTitle className="text-sm font-bold flex items-center gap-2">
-                <Wallet className="w-4 h-4" />
-                {loading ? "Loading..." : `${hmoRows.length} HMO${hmoRows.length === 1 ? "" : "s"}`}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              {loading ? (
-                <div className="flex justify-center py-16"><Loader2 className="w-5 h-5 animate-spin text-slate-400" /></div>
-              ) : hmoRows.length === 0 ? (
-                <div className="flex justify-center py-16 text-sm text-slate-400">No HMO indebtedness for this period</div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-[#f0fdf7]">
-                      <TableHead className="text-xs font-bold">HMO</TableHead>
-                      <TableHead className="text-xs font-bold">State</TableHead>
-                      <TableHead className="text-xs font-bold">Period</TableHead>
-                      <TableHead className="text-xs font-bold">HCFs</TableHead>
-                      <TableHead className="text-xs font-bold">Total</TableHead>
-                      <TableHead className="text-xs font-bold w-16">View</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {hmoRows.map((item) => (
-                      <TableRow key={item.key}>
-                        <TableCell className="text-sm font-semibold text-slate-800">{item.name}</TableCell>
-                        <TableCell className="text-xs">{item.stateName}</TableCell>
-                        <TableCell className="text-xs text-slate-500">
-                          {item.periods.length === 1
-                            ? item.periods[0]
-                            : `${item.periods[0]} · ${item.periods.length} periods`}
-                        </TableCell>
-                        <TableCell className="text-xs">{item.hcfCount}</TableCell>
-                        <TableCell className="text-xs font-mono font-semibold">₦{naira(item.total)}</TableCell>
-                        <TableCell>
-                          <Button size="sm" variant="ghost" className="h-8 gap-1.5 px-2 text-[#145c3f]" onClick={() => void openHmoView(item.latest, item.name)}>
-                            <Eye className="w-4 h-4" /> View
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
+          <ShadcnDataTable
+            title="HMO INDEBTEDNESS REGISTER"
+            columns={listColumns}
+            data={hmoRows}
+            loading={loading}
+            searchPlaceholder="Search HMOs..."
+            searchValue={search}
+            onSearchChange={setSearch}
+            emptyMessage="No HMO indebtedness for this period."
+            pageSize={50}
+            showTableOptions={false}
+          />
         </div>
       </ScrollArea>
     </div>

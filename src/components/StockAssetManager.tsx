@@ -1,18 +1,21 @@
 import * as React from "react";
-import { ArrowLeft, Plus, Pencil, Save, X, Loader2, PackageSearch, Ban, RotateCcw } from "lucide-react";
+import type { ColumnDef } from "@tanstack/react-table";
+import {
+  ArrowLeft, Plus, Pencil, Save, X, Loader2, Ban, RotateCcw, RefreshCw, XCircle,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { motion } from "motion/react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import PageLayout from "./PageLayout";
 import { stockApi } from "@/lib/api";
 import { useCreateReviewAccess } from "@/src/access/createReviewAccess";
+import { RegisterStatsCards } from "@/src/components/stateOffice/RegisterStatsCards";
+import { ShadcnDataTable } from "@/components/common/ShadcnDataTable";
 
 const ALL = "all";
 
@@ -292,250 +295,357 @@ export default function StockAssetManager({ onBack }: Props) {
   const f = (k: keyof AssetForm) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm(p => ({ ...p, [k]: e.target.value }));
 
-  const showStateColumn = filterState === ALL;
-  const listTitle = loading
-    ? "Loading..."
-    : `${assets.length} asset${assets.length !== 1 ? "s" : ""}`;
+  const hasFilters = filterZone !== ALL || filterState !== ALL || filterStatus !== ALL;
+  const counts = React.useMemo(() => ({
+    total: assets.length,
+    active: assets.filter((a) => isAssetActive(a.is_active)).length,
+    inactive: assets.filter((a) => !isAssetActive(a.is_active)).length,
+  }), [assets]);
+
+  const columns = React.useMemo<ColumnDef<Asset>[]>(() => {
+    const cols: ColumnDef<Asset>[] = [];
+    if (filterState === ALL) {
+      cols.push({
+        id: "state",
+        header: "State",
+        accessorFn: (row) => row.state?.description || "—",
+        cell: ({ row }) => (
+          <span className="text-sm text-slate-600">{row.original.state?.description || "—"}</span>
+        ),
+      });
+    }
+    cols.push(
+      {
+        accessorKey: "item_class",
+        header: "Item Class",
+        cell: ({ row }) => <span className="text-sm font-medium">{row.original.item_class}</span>,
+      },
+      {
+        accessorKey: "item_description",
+        header: "Description",
+        cell: ({ row }) => <span className="text-sm text-slate-700">{row.original.item_description}</span>,
+      },
+      {
+        accessorKey: "asset_tag",
+        header: "Asset Tag",
+        cell: ({ row }) => (
+          <span className="text-xs font-mono text-slate-500">{row.original.asset_tag || "—"}</span>
+        ),
+      },
+      {
+        accessorKey: "book_balance",
+        header: "Book Balance",
+        cell: ({ row }) => (
+          <span className="text-sm font-semibold tabular-nums">
+            {row.original.book_balance.toLocaleString()}
+          </span>
+        ),
+      },
+      {
+        id: "unit",
+        header: "Unit",
+        accessorFn: (row) => row.unit?.name || "—",
+        cell: ({ row }) => (
+          <span className="text-xs text-slate-500">{row.original.unit?.name || "—"}</span>
+        ),
+      },
+      {
+        id: "status",
+        header: "Status",
+        accessorFn: (row) => (isAssetActive(row.is_active) ? "Active" : "Inactive"),
+        cell: ({ row }) => {
+          const inactive = !isAssetActive(row.original.is_active);
+          return (
+            <Badge
+              variant="outline"
+              className={`text-[10px] ${
+                inactive
+                  ? "text-slate-500 border-slate-300"
+                  : "text-emerald-700 border-emerald-200 bg-emerald-50"
+              }`}
+            >
+              {inactive ? "Inactive" : "Active"}
+            </Badge>
+          );
+        },
+      },
+      {
+        id: "actions",
+        header: "Actions",
+        enableSorting: false,
+        cell: ({ row }) => {
+          const a = row.original;
+          const inactive = !isAssetActive(a.is_active);
+          return (
+            <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+              {inactive ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  title="Reactivate"
+                  className="h-7 w-7 p-0 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50"
+                  onClick={() => handleSetActive(a.id, true)}
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                </Button>
+              ) : (
+                <>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    title="Edit"
+                    className="h-7 w-7 p-0 text-slate-400 hover:text-primary hover:bg-primary/10"
+                    onClick={() => openEdit(a)}
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    title="Deactivate"
+                    className="h-7 w-7 p-0 text-slate-400 hover:text-amber-600 hover:bg-amber-50"
+                    onClick={() => handleSetActive(a.id, false)}
+                  >
+                    <Ban className="w-3.5 h-3.5" />
+                  </Button>
+                </>
+              )}
+            </div>
+          );
+        },
+      },
+    );
+    return cols;
+  }, [filterState]);
 
   const formCard = (
-    <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
-      <Card className="rounded-2xl border-primary/30 shadow-md">
-        <CardHeader className="pb-3 flex flex-row items-center justify-between">
-          <div>
-            <CardTitle className="text-sm">{editId ? "Edit Asset" : "New Asset"}</CardTitle>
-            <CardDescription className="text-xs">Register an asset under zone → state → department → unit</CardDescription>
+    <Card className="rounded-2xl border-[#d4e8dc]">
+      <CardHeader className="pb-3 flex flex-row items-center justify-between">
+        <div>
+          <CardTitle className="text-sm">{editId ? "Edit Asset" : "New Asset"}</CardTitle>
+          <CardDescription className="text-xs">
+            Register an asset under zone → state → department → unit
+          </CardDescription>
+        </div>
+        <Button variant="ghost" size="icon" onClick={cancelForm} className="h-7 w-7">
+          <X className="w-4 h-4" />
+        </Button>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="space-y-2">
+            <Label className="text-xs">Zone <span className="text-red-500">*</span></Label>
+            <Select value={form.zone_id} onValueChange={handleFormZone}>
+              <SelectTrigger className="w-full" displayValue={labelOf(zones, form.zone_id, "Select Zone")}>
+                <SelectValue placeholder="Select Zone" />
+              </SelectTrigger>
+              <SelectContent>
+                {zones.map((z) => (
+                  <SelectItem key={z.id} value={String(z.id)}>{z.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-          <Button variant="ghost" size="icon" onClick={cancelForm} className="h-7 w-7">
-            <X className="w-4 h-4" />
-          </Button>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="space-y-2">
-              <Label className="text-xs">Zone <span className="text-red-500">*</span></Label>
-              <Select value={form.zone_id} onValueChange={handleFormZone}>
-                <SelectTrigger className="w-full"
-                  displayValue={labelOf(zones, form.zone_id, "Select Zone")}>
-                  <SelectValue placeholder="Select Zone" />
-                </SelectTrigger>
-                <SelectContent>{zones.map(z => <SelectItem key={z.id} value={String(z.id)}>{z.label}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label className="text-xs">State <span className="text-red-500">*</span></Label>
-              <Select value={form.state_id} onValueChange={handleFormState} disabled={!form.zone_id}>
-                <SelectTrigger className="w-full"
-                  displayValue={labelOf(formStates, form.state_id, "Select State")}>
-                  <SelectValue placeholder="Select State" />
-                </SelectTrigger>
-                <SelectContent>{formStates.map(s => <SelectItem key={s.id} value={String(s.id)}>{s.label}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label className="text-xs">Department</Label>
-              <Select value={form.department_id} onValueChange={handleFormDepartment} disabled={!form.state_id}>
-                <SelectTrigger className="w-full"
-                  displayValue={labelOf(formDepts, form.department_id, "Select Department")}>
-                  <SelectValue placeholder="Select Department" />
-                </SelectTrigger>
-                <SelectContent>{formDepts.map(d => <SelectItem key={d.id} value={String(d.id)}>{d.label}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label className="text-xs">Unit</Label>
-              <Select value={form.unit_id} onValueChange={v => setForm(p => ({ ...p, unit_id: v }))} disabled={!form.department_id}>
-                <SelectTrigger className="w-full"
-                  displayValue={labelOf(formUnits, form.unit_id, "Select Unit")}>
-                  <SelectValue placeholder="Select Unit" />
-                </SelectTrigger>
-                <SelectContent>{formUnits.map(u => <SelectItem key={u.id} value={String(u.id)}>{u.label}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
+          <div className="space-y-2">
+            <Label className="text-xs">State <span className="text-red-500">*</span></Label>
+            <Select value={form.state_id} onValueChange={handleFormState} disabled={!form.zone_id}>
+              <SelectTrigger className="w-full" displayValue={labelOf(formStates, form.state_id, "Select State")}>
+                <SelectValue placeholder="Select State" />
+              </SelectTrigger>
+              <SelectContent>
+                {formStates.map((s) => (
+                  <SelectItem key={s.id} value={String(s.id)}>{s.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="space-y-2">
-              <Label className="text-xs">Item Class <span className="text-red-500">*</span></Label>
-              <Input placeholder="e.g. Furniture" value={form.item_class} onChange={f("item_class")} />
-            </div>
-            <div className="space-y-2 md:col-span-2">
-              <Label className="text-xs">Item Description <span className="text-red-500">*</span></Label>
-              <Input placeholder="e.g. Executive Chair" value={form.item_description} onChange={f("item_description")} />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-xs">Asset Tag / S/N</Label>
-              <Input placeholder="e.g. NHIA/FCT/001" value={form.asset_tag} onChange={f("asset_tag")} />
-            </div>
+          <div className="space-y-2">
+            <Label className="text-xs">Department</Label>
+            <Select value={form.department_id} onValueChange={handleFormDepartment} disabled={!form.state_id}>
+              <SelectTrigger className="w-full" displayValue={labelOf(formDepts, form.department_id, "Select Department")}>
+                <SelectValue placeholder="Select Department" />
+              </SelectTrigger>
+              <SelectContent>
+                {formDepts.map((d) => (
+                  <SelectItem key={d.id} value={String(d.id)}>{d.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-            <div className="space-y-2">
-              <Label className="text-xs">Book Balance</Label>
-              <Input type="number" min="0" value={form.book_balance} onChange={f("book_balance")} />
-            </div>
-            <div className="flex gap-2 md:col-span-3 justify-end">
-              <Button variant="outline" onClick={cancelForm}>Cancel</Button>
-              <Button onClick={handleSave} disabled={saving} className="gap-2 bg-[#145c3f] hover:bg-[#0f3d2e] text-white">
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                {saving ? "Saving..." : "Save Asset"}
-              </Button>
-            </div>
+          <div className="space-y-2">
+            <Label className="text-xs">Unit</Label>
+            <Select
+              value={form.unit_id}
+              onValueChange={(v) => setForm((p) => ({ ...p, unit_id: v }))}
+              disabled={!form.department_id}
+            >
+              <SelectTrigger className="w-full" displayValue={labelOf(formUnits, form.unit_id, "Select Unit")}>
+                <SelectValue placeholder="Select Unit" />
+              </SelectTrigger>
+              <SelectContent>
+                {formUnits.map((u) => (
+                  <SelectItem key={u.id} value={String(u.id)}>{u.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-        </CardContent>
-      </Card>
-    </motion.div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="space-y-2">
+            <Label className="text-xs">Item Class <span className="text-red-500">*</span></Label>
+            <Input placeholder="e.g. Furniture" value={form.item_class} onChange={f("item_class")} />
+          </div>
+          <div className="space-y-2 md:col-span-2">
+            <Label className="text-xs">Item Description <span className="text-red-500">*</span></Label>
+            <Input placeholder="e.g. Executive Chair" value={form.item_description} onChange={f("item_description")} />
+          </div>
+          <div className="space-y-2">
+            <Label className="text-xs">Asset Tag / S/N</Label>
+            <Input placeholder="e.g. NHIA/FCT/001" value={form.asset_tag} onChange={f("asset_tag")} />
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+          <div className="space-y-2">
+            <Label className="text-xs">Book Balance</Label>
+            <Input type="number" min="0" value={form.book_balance} onChange={f("book_balance")} />
+          </div>
+          <div className="flex gap-2 md:col-span-3 justify-end">
+            <Button variant="outline" onClick={cancelForm}>Cancel</Button>
+            <Button
+              onClick={handleSave}
+              disabled={saving}
+              className="gap-2 bg-orange-action hover:bg-orange-600 text-white"
+            >
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              {saving ? "Saving..." : "Save Asset"}
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 
   return (
     <PageLayout
-      title={showForm ? (editId ? "Edit Asset" : "New Asset") : "Stock & Asset Register"}
-      onBack={showForm ? cancelForm : undefined}
+      title={showForm || createOnly ? (editId ? "Edit Asset" : "New Asset") : "Stock & Asset Register"}
+      onBack={showForm && !createOnly ? cancelForm : onBack}
       actions={
-        !showForm && canCreate ? (
-          <Button className="bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20" onClick={openCreate}>
-            <Plus className="w-4 h-4" /> New Asset
-          </Button>
-        ) : undefined
+        <div className="flex items-center gap-2">
+          {!showForm && !createOnly && (
+            <Button variant="outline" size="sm" onClick={loadFilteredAssets} disabled={loading} className="gap-1.5 h-8 text-xs rounded-md">
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh
+            </Button>
+          )}
+          {!showForm && canCreate && (
+            <Button
+              size="sm"
+              className="bg-orange-action hover:bg-orange-600 gap-1.5 shadow-md shadow-orange-500/20 h-8 text-xs rounded-md"
+              onClick={openCreate}
+            >
+              <Plus className="w-3.5 h-3.5" /> New Asset
+            </Button>
+          )}
+        </div>
       }
       contentClassName="space-y-4 pb-8"
     >
       <div className="w-full space-y-4">
-        {showForm || createOnly ? formCard : (
-            <>
-              <Card className="rounded-2xl border-[#d4e8dc]">
-                <CardContent className="pt-5 pb-4">
-                  <div className="flex flex-row items-end gap-3 w-full">
-                    <div className="flex-1 min-w-0 space-y-2">
-                      <Label className="text-xs">Zone</Label>
+        {showForm || createOnly ? (
+          formCard
+        ) : (
+          <>
+            <RegisterStatsCards
+              loading={loading}
+              className="grid grid-cols-2 md:grid-cols-3 gap-3"
+              stats={[
+                { label: "Total", value: counts.total, tone: "text-[#0f3d2e] bg-white border-[#d4e8dc]" },
+                { label: "Active", value: counts.active, tone: "text-emerald-700 bg-emerald-50/80 border-emerald-100" },
+                { label: "Inactive", value: counts.inactive, tone: "text-slate-600 bg-white border-slate-200" },
+              ]}
+            />
+
+            <Card className="rounded-lg border-[#d4e8dc] shadow-2xs">
+                <CardContent className="pt-4 pb-4 space-y-3">
+                  <div className="grid grid-flow-col auto-cols-fr gap-3">
+                    <div className="space-y-1 min-w-0">
+                      <Label className="text-xs text-muted-foreground">Zone</Label>
                       <Select value={filterZone} onValueChange={setFilterZone}>
-                        <SelectTrigger className="w-full"
-                          displayValue={filterZone === ALL ? "All Zones" : labelOf(zones, filterZone, "All Zones")}>
+                        <SelectTrigger
+                          className="w-full"
+                          displayValue={filterZone === ALL ? "All Zones" : labelOf(zones, filterZone, "All Zones")}
+                        >
                           <SelectValue placeholder="All Zones" />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value={ALL}>All Zones</SelectItem>
-                          {zones.map(z => <SelectItem key={z.id} value={String(z.id)}>{z.label}</SelectItem>)}
+                          {zones.map((z) => (
+                            <SelectItem key={z.id} value={String(z.id)}>{z.label}</SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="flex-1 min-w-0 space-y-2">
-                      <Label className="text-xs">State</Label>
+                    <div className="space-y-1 min-w-0">
+                      <Label className="text-xs text-muted-foreground">State</Label>
                       <Select value={filterState} onValueChange={setFilterState}>
-                        <SelectTrigger className="w-full"
-                          displayValue={filterState === ALL ? "All States" : labelOf(states, filterState, "All States")}>
+                        <SelectTrigger
+                          className="w-full"
+                          displayValue={filterState === ALL ? "All States" : labelOf(states, filterState, "All States")}
+                        >
                           <SelectValue placeholder="All States" />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value={ALL}>All States</SelectItem>
-                          {states.map(s => <SelectItem key={s.id} value={String(s.id)}>{s.label}</SelectItem>)}
+                          {states.map((s) => (
+                            <SelectItem key={s.id} value={String(s.id)}>{s.label}</SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="flex-1 min-w-0 space-y-2">
-                      <Label className="text-xs">Status</Label>
+                    <div className="space-y-1 min-w-0">
+                      <Label className="text-xs text-muted-foreground">Status</Label>
                       <Select value={filterStatus} onValueChange={setFilterStatus}>
-                        <SelectTrigger className="w-full"
-                          displayValue={statusLabel(filterStatus)}>
+                        <SelectTrigger className="w-full" displayValue={statusLabel(filterStatus)}>
                           <SelectValue placeholder="All Statuses" />
                         </SelectTrigger>
                         <SelectContent>
-                          {STATUS_FILTER_OPTIONS.map(s => (
+                          {STATUS_FILTER_OPTIONS.map((s) => (
                             <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
-
-              <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden">
-                <CardHeader className="pb-3 border-b border-[#d4e8dc]">
-                  <CardTitle className="text-sm font-bold flex items-center gap-2">
-                    <PackageSearch className="w-4 h-4 text-primary" />
-                    {listTitle}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-0">
-                  {loading ? (
-                    <div className="flex items-center justify-center py-16 gap-3 text-slate-400">
-                      <Loader2 className="w-5 h-5 animate-spin" /><span className="text-sm">Loading...</span>
-                    </div>
-                  ) : assets.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-16 gap-2 text-slate-400">
-                      <PackageSearch className="w-8 h-8 opacity-30" />
-                      <p className="text-sm">No assets found</p>
-                      {canCreate && (
-                      <Button variant="outline" size="sm" onClick={openCreate} className="mt-2 gap-2">
-                        <Plus className="w-4 h-4" /> New Asset
+                  {hasFilters && (
+                    <div className="flex justify-end">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-slate-500 gap-1 shrink-0"
+                        onClick={() => {
+                          setFilterZone(ALL);
+                          setFilterState(ALL);
+                          setFilterStatus(ALL);
+                        }}
+                      >
+                        <XCircle className="w-3.5 h-3.5" /> Clear
                       </Button>
-                      )}
                     </div>
-                  ) : (
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="bg-[#f0fdf7] hover:bg-[#f0fdf7]">
-                          {showStateColumn && (
-                            <TableHead className="text-xs font-bold text-slate-600">State</TableHead>
-                          )}
-                          <TableHead className="text-xs font-bold text-slate-600">Item Class</TableHead>
-                          <TableHead className="text-xs font-bold text-slate-600">Description</TableHead>
-                          <TableHead className="text-xs font-bold text-slate-600">Asset Tag</TableHead>
-                          <TableHead className="text-xs font-bold text-slate-600 text-center">Book Balance</TableHead>
-                          <TableHead className="text-xs font-bold text-slate-600">Unit</TableHead>
-                          <TableHead className="text-xs font-bold text-slate-600">Status</TableHead>
-                          <TableHead className="text-right text-xs font-bold text-slate-600">Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {assets.map((a, i) => {
-                          const inactive = !isAssetActive(a.is_active);
-                          return (
-                          <motion.tr key={a.id} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: i * 0.02 }}
-                            className={`hover:bg-[#f8fdfb] transition-colors border-b border-slate-100 last:border-0 ${inactive ? "opacity-60" : ""}`}>
-                            {showStateColumn && (
-                              <TableCell className="text-sm text-slate-600">{a.state?.description || "—"}</TableCell>
-                            )}
-                            <TableCell className="text-sm font-medium">{a.item_class}</TableCell>
-                            <TableCell className="text-sm text-slate-700">{a.item_description}</TableCell>
-                            <TableCell className="text-xs font-mono text-slate-500">{a.asset_tag || "—"}</TableCell>
-                            <TableCell className="text-sm text-center font-semibold">{a.book_balance.toLocaleString()}</TableCell>
-                            <TableCell className="text-xs text-slate-500">{a.unit?.name || "—"}</TableCell>
-                            <TableCell>
-                              <Badge variant="outline" className={`text-[10px] ${inactive ? "text-slate-500 border-slate-300" : "text-emerald-700 border-emerald-200 bg-emerald-50"}`}>
-                                {inactive ? "Inactive" : "Active"}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <div className="flex items-center justify-end gap-1">
-                                {inactive ? (
-                                  <Button variant="ghost" size="sm" title="Reactivate"
-                                    className="h-7 w-7 p-0 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50"
-                                    onClick={() => handleSetActive(a.id, true)}>
-                                    <RotateCcw className="w-3.5 h-3.5" />
-                                  </Button>
-                                ) : (
-                                  <>
-                                    <Button variant="ghost" size="sm" title="Edit"
-                                      className="h-7 w-7 p-0 text-slate-400 hover:text-primary hover:bg-primary/10"
-                                      onClick={() => openEdit(a)}><Pencil className="w-3.5 h-3.5" /></Button>
-                                    <Button variant="ghost" size="sm" title="Deactivate"
-                                      className="h-7 w-7 p-0 text-slate-400 hover:text-amber-600 hover:bg-amber-50"
-                                      onClick={() => handleSetActive(a.id, false)}><Ban className="w-3.5 h-3.5" /></Button>
-                                  </>
-                                )}
-                              </div>
-                            </TableCell>
-                          </motion.tr>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
                   )}
                 </CardContent>
               </Card>
+
+              <ShadcnDataTable
+                title="STOCK ASSETS REGISTER"
+                columns={columns}
+                data={assets}
+                loading={loading}
+                searchPlaceholder="Search by class, description, tag, unit..."
+                emptyMessage="No assets found"
+                pageSize={50}
+                showTableOptions={false}
+              />
             </>
           )}
-
         </div>
     </PageLayout>
   );

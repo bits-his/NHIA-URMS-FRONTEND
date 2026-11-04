@@ -7,16 +7,19 @@ import {
 import type { ColumnDef } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ShadcnDataTable } from "@/components/common/ShadcnDataTable";
 import { stateOfficeApi, stockApi } from "@/lib/api";
 import { IGR_SERVICE_TYPES, MONTHS, formatAmount, formatDateShort, labelOf } from "./constants";
+import { RegisterStatsCards, workflowRegisterStats } from "./RegisterStatsCards";
 import IgrReportPage from "./IgrReportPage";
 import IgrReportDetail from "./IgrReportDetail";
 import { useStateOfficeAccess } from "@/src/access/createReviewAccess";
 import { FinanceRowActions, useFinanceFinalSubmit } from "./shared/FinanceRowActions";
+import type { FinanceChrome } from "./FinanceWorkspace";
 
 const STATUS_CONFIG: Record<string, { label: string; cls: string }> = {
   draft: { label: "Draft", cls: "bg-slate-100 text-slate-600 border-slate-200" },
@@ -33,6 +36,7 @@ interface Props {
   userRole?: string;
   /** Parent Finance page owns the page title and tabs. */
   embedded?: boolean;
+  onChromeChange?: (chrome: FinanceChrome | null) => void;
 }
 
 export default function IgrWorkspace({
@@ -41,6 +45,7 @@ export default function IgrWorkspace({
   defaultStateId,
   userRole,
   embedded = false,
+  onChromeChange,
 }: Props) {
   const { canCreate } = useStateOfficeAccess();
   const [mode, setMode] = React.useState<"tabs" | "form" | "detail">("tabs");
@@ -238,13 +243,68 @@ export default function IgrWorkspace({
     [canCreate, finalBusy, requestFinalSubmit]
   );
 
-  const showOwnTitle = !embedded || mode !== "tabs";
+  const pageTitle =
+    mode === "form"
+      ? editingId ? "Edit IGR Transaction" : "Record IGR Transaction"
+      : mode === "detail"
+        ? "IGR Transaction Details"
+        : "Internally Generated Revenue (IGR)";
+  const listActions = (
+    <>
+      <Button
+        variant="outline"
+        size="sm"
+        className="gap-2 border-[#d4e8dc]"
+        disabled={syncing}
+        onClick={handleSync}
+      >
+        <RefreshCw className={`w-4 h-4 ${syncing ? "animate-spin" : ""}`} />
+        Refresh
+      </Button>
+      {canCreate && (
+        <Button
+          size="sm"
+          className="bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20"
+          onClick={() => {
+            setEditingId(null);
+            setMode("form");
+          }}
+        >
+          <Plus className="w-4 h-4" />
+          Record IGR
+        </Button>
+      )}
+    </>
+  );
+
+  React.useEffect(() => {
+    if (!embedded || !onChromeChange) return;
+    onChromeChange({
+      mode: mode === "tabs" ? "list" : mode,
+      title: pageTitle,
+      onInnerBack: mode !== "tabs" ? () => {
+        setMode("tabs");
+        setSelectedId(null);
+        setEditingId(null);
+        setDetailStatus(null);
+      } : undefined,
+      actions: mode === "tabs" ? listActions : undefined,
+      statusBadge:
+        mode === "detail" && detailStatus ? (
+          <Badge variant="outline" className={`gap-1 ${(STATUS_CONFIG[detailStatus] || STATUS_CONFIG.draft).cls}`}>
+            {(STATUS_CONFIG[detailStatus] || STATUS_CONFIG.draft).label}
+          </Badge>
+        ) : undefined,
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [embedded, onChromeChange, mode, editingId, detailStatus, canCreate, syncing, pageTitle]);
+
+  React.useEffect(() => () => onChromeChange?.(null), [onChromeChange]);
 
   return (
     <div className={`flex flex-col h-full min-h-0 ${embedded ? "" : "bg-[#f4f7f5]"}`}>
-      {/* Header */}
-      <div className={`bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3 flex items-center sticky top-0 z-30 gap-3 ${showOwnTitle ? "justify-between" : "justify-end"}`}>
-        {showOwnTitle && (
+      {!embedded && (
+      <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3.5 flex items-center justify-between sticky top-0 z-30 gap-3">
         <div className="flex items-center gap-3 min-w-0">
           <Button
             variant="ghost"
@@ -255,54 +315,18 @@ export default function IgrWorkspace({
           >
             <ArrowLeft className="w-5 h-5" />
           </Button>
-          <div className="min-w-0">
-            <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">
-              {mode === "form"
-                ? editingId ? "Edit IGR Transaction" : "Record IGR Transaction"
-                : mode === "detail"
-                ? "IGR Transaction Details"
-                : "Internally Generated Revenue (IGR)"}
-            </h2>
-          </div>
+          <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">{pageTitle}</h2>
         </div>
-        )}
-
         <div className="flex items-center gap-2 shrink-0">
           {mode === "detail" && detailStatus && (
             <Badge variant="outline" className={`gap-1 ${(STATUS_CONFIG[detailStatus] || STATUS_CONFIG.draft).cls}`}>
               {(STATUS_CONFIG[detailStatus] || STATUS_CONFIG.draft).label}
             </Badge>
           )}
-          {mode === "tabs" && (
-            <>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8.5 gap-1.5 border border-slate-300 text-slate-700 bg-white hover:bg-[#f4f7f5] text-xs font-bold rounded-sm shadow-2xs"
-                disabled={syncing}
-                onClick={handleSync}
-              >
-                <RefreshCw className={`w-3.5 h-3.5 ${syncing ? "animate-spin" : ""}`} />
-                <span>Sync</span>
-              </Button>
-
-              {canCreate && (
-                <Button
-                  size="sm"
-                  className="h-8.5 bg-[#1a7a52] hover:bg-[#145c3f] text-white border border-[#145c3f] font-bold text-xs gap-1.5 rounded-sm shadow-xs"
-                  onClick={() => {
-                    setEditingId(null);
-                    setMode("form");
-                  }}
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Record IGR</span>
-                </Button>
-              )}
-            </>
-          )}
+          {mode === "tabs" && listActions}
         </div>
       </div>
+      )}
 
       {/* Main Content Area */}
       {mode === "form" ? (
@@ -321,18 +345,18 @@ export default function IgrWorkspace({
         </div>
       ) : (
       <ScrollArea className="flex-1">
-        <div className={`space-y-4 ${mode === "detail" ? "p-0" : "p-4 md:p-6 max-w-7xl mx-auto"}`}>
+        <div className={`space-y-4 ${mode === "detail" ? "p-0" : "p-4 md:p-6 w-full"}`}>
           {mode === "tabs" && (
             <div className="space-y-4">
-              <div className="bg-white border border-slate-200/80 rounded-sm p-3 shadow-xs">
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
+              <RegisterStatsCards stats={workflowRegisterStats(tableData)} loading={loading} />
+              <Card className="rounded-2xl border-[#d4e8dc]">
+                <CardContent className="pt-4 pb-4 grid grid-flow-col auto-cols-fr gap-3">
                   <div className="space-y-1">
-                    <Label className="text-[11px] font-bold text-slate-600 uppercase">Year</Label>
+                    <Label className="text-xs text-muted-foreground">Year</Label>
                     <Select value={year} onValueChange={setYear}>
-                      <SelectTrigger className="h-8.5 text-xs bg-[#f4f7f5] border-slate-200">
-                        <SelectValue />
-                      </SelectTrigger>
+                      <SelectTrigger displayValue={year === "all" ? "All Years" : year}><SelectValue /></SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="all">All Years</SelectItem>
                         {[currentYear, currentYear - 1, currentYear - 2].map((y) => (
                           <SelectItem key={y} value={String(y)}>{y}</SelectItem>
                         ))}
@@ -340,11 +364,9 @@ export default function IgrWorkspace({
                     </Select>
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-[11px] font-bold text-slate-600 uppercase">Month</Label>
+                    <Label className="text-xs text-muted-foreground">Month</Label>
                     <Select value={month} onValueChange={setMonth}>
-                      <SelectTrigger className="h-8.5 text-xs bg-[#f4f7f5] border-slate-200">
-                        <SelectValue />
-                      </SelectTrigger>
+                      <SelectTrigger displayValue={month === "all" ? "All Months" : (MONTHS.find((m) => String(m.value) === month)?.label || month)}><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">All Months</SelectItem>
                         {MONTHS.map((m) => (
@@ -353,40 +375,38 @@ export default function IgrWorkspace({
                       </SelectContent>
                     </Select>
                   </div>
+                  {!isZonalCoordinator && !isStateOffice && (
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">Zone</Label>
+                      <Select value={zoneId} onValueChange={(v) => { setZoneId(v); if (!isStateOffice) setStateId("all"); }}>
+                        <SelectTrigger displayValue={zoneId === "all" ? "All Zones" : (zones.find((z) => z.id === zoneId)?.label || "Zone")}><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Zones</SelectItem>
+                          {zones.map((z) => (
+                            <SelectItem key={z.id} value={z.id}>{z.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                  {!isStateOffice && (
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">State</Label>
+                      <Select value={stateId} onValueChange={setStateId}>
+                        <SelectTrigger displayValue={stateId === "all" ? "All States" : (states.find((s) => s.id === stateId)?.label || "State")}><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All States</SelectItem>
+                          {states.map((s) => (
+                            <SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
                   <div className="space-y-1">
-                    <Label className="text-[11px] font-bold text-slate-600 uppercase">Zone</Label>
-                    <Select value={zoneId} onValueChange={setZoneId} disabled={isZonalCoordinator || isStateOffice}>
-                      <SelectTrigger className="h-8.5 text-xs bg-[#f4f7f5] border-slate-200">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Zones</SelectItem>
-                        {zones.map((z) => (
-                          <SelectItem key={z.id} value={z.id}>{z.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-[11px] font-bold text-slate-600 uppercase">State / FCT</Label>
-                    <Select value={stateId} onValueChange={setStateId} disabled={isStateOffice}>
-                      <SelectTrigger className="h-8.5 text-xs bg-[#f4f7f5] border-slate-200">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All States</SelectItem>
-                        {states.map((s) => (
-                          <SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-[11px] font-bold text-slate-600 uppercase">Revenue Service</Label>
+                    <Label className="text-xs text-muted-foreground">Service</Label>
                     <Select value={service} onValueChange={setService}>
-                      <SelectTrigger className="h-8.5 text-xs bg-[#f4f7f5] border-slate-200">
-                        <SelectValue />
-                      </SelectTrigger>
+                      <SelectTrigger displayValue={service === "all" ? "All Services" : labelOf(IGR_SERVICE_TYPES, service)}><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">All Services</SelectItem>
                         {IGR_SERVICE_TYPES.map((s) => (
@@ -395,28 +415,29 @@ export default function IgrWorkspace({
                       </SelectContent>
                     </Select>
                   </div>
-                </div>
-              </div>
+                </CardContent>
+              </Card>
 
               <ShadcnDataTable
+                title="IGR TRANSACTIONS REGISTER"
+                infoTooltip="Internally generated revenue receipts by state office, service type, and period."
                 columns={columns}
                 data={tableData}
                 loading={loading}
                 searchPlaceholder="Search by principal, receipt #, state, service..."
-                searchClassName="h-9 rounded-sm border-2 border-[#1a7a52] bg-[#f4f7f5] pl-8 pr-7 text-xs font-medium text-slate-800 placeholder:text-slate-400"
                 emptyMessage="No IGR transactions recorded for this view."
                 onRowClick={(row) => {
                   setSelectedId(row.id || row.reference_id);
                   setMode("detail");
                 }}
-                pageSize={25}
+                pageSize={50}
                 showTableOptions={false}
               />
             </div>
           )}
 
           {mode === "detail" && selectedId && (
-            <div className="p-4 md:p-6 max-w-7xl mx-auto">
+            <div className="p-4 md:p-6 w-full">
               <IgrReportDetail
                 reportId={selectedId}
                 embedded

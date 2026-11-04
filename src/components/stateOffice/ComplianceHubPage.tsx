@@ -36,6 +36,13 @@ interface Props {
   canReview?: boolean;
 }
 
+export type ComplianceChrome = {
+  mode: "list" | "form" | "detail";
+  title?: string;
+  onInnerBack?: () => void;
+  actions?: React.ReactNode;
+};
+
 const ICON_MAP: Record<ComplianceHubTabKey, React.ElementType> = {
   complaints: Scale,
   "weekly-compliance": ClipboardCheck,
@@ -64,8 +71,13 @@ export default function ComplianceHubPage({
       ? requested
       : defaultTab;
 
+  const [chrome, setChrome] = React.useState<ComplianceChrome | null>(null);
   const [refreshKey, setRefreshKey] = React.useState(0);
-  const [syncing, setSyncing] = React.useState(false);
+  const [refreshing, setRefreshing] = React.useState(false);
+
+  React.useEffect(() => {
+    setChrome(null);
+  }, [activeTab]);
 
   React.useEffect(() => {
     if (!defaultTab) return;
@@ -82,24 +94,37 @@ export default function ComplianceHubPage({
     setSearchParams(params, { replace: true });
   };
 
-  const handleSync = () => {
-    setSyncing(true);
+  const handleRefresh = () => {
+    setRefreshing(true);
     setRefreshKey((k) => k + 1);
-    setTimeout(() => setSyncing(false), 600);
+    setTimeout(() => setRefreshing(false), 600);
   };
 
   const shared = {
     onBack,
     defaultZoneId,
     defaultStateId,
+    embedded: true as const,
+    onChromeChange: setChrome,
   };
 
   const visibleTabMeta = COMPLIANCE_HUB_TABS.filter((t) => allowedKeys.has(t.key));
+  const activeTabMeta = visibleTabMeta.find((t) => t.key === activeTab);
+  const inLeaf = chrome?.mode === "form" || chrome?.mode === "detail";
+  const pageTitle =
+    chrome?.title ||
+    activeTabMeta?.title ||
+    COMPLIANCE_HUB_NAV_TITLE;
+
+  const handleHeaderBack = () => {
+    if (inLeaf && chrome?.onInnerBack) chrome.onInnerBack();
+    else onBack();
+  };
 
   if (!activeTab || allowedTabs.length === 0) {
     return (
       <div className="flex flex-col h-full bg-[#f4f7f5]">
-        <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3 flex items-center gap-3 sticky top-0 z-30">
+        <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3.5 flex items-center gap-3 sticky top-0 z-30">
           <Button variant="ghost" size="icon" className="rounded-full shrink-0" aria-label="Back" onClick={onBack}>
             <ArrowLeft className="w-5 h-5" />
           </Button>
@@ -124,25 +149,24 @@ export default function ComplianceHubPage({
 
   return (
     <PageLayout
-      title={
-        hideTabStrip
-          ? (visibleTabMeta.find((t) => t.key === activeTab)?.title ?? COMPLIANCE_HUB_NAV_TITLE)
-          : COMPLIANCE_HUB_NAV_TITLE
-      }
+      title={pageTitle}
+      onBack={inLeaf ? handleHeaderBack : undefined}
       actions={
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-8.5 gap-1.5 border border-slate-300 text-slate-700 bg-white hover:bg-[#f4f7f5] text-xs font-bold rounded-sm shadow-2xs"
-          disabled={syncing}
-          onClick={handleSync}
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${syncing ? "animate-spin" : ""}`} />
-          <span>Sync</span>
-        </Button>
+        chrome?.actions ?? (
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8.5 gap-1.5 border border-slate-300 text-slate-700 bg-white hover:bg-[#f4f7f5] text-xs font-bold rounded-sm shadow-2xs"
+            disabled={refreshing}
+            onClick={handleRefresh}
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`} />
+            <span>Refresh</span>
+          </Button>
+        )
       }
       filters={
-        !hideTabStrip ? (
+        !hideTabStrip && !inLeaf ? (
           <div className="flex gap-4 overflow-x-auto -mb-px w-full" role="tablist" aria-label="Compliance modules">
             {visibleTabMeta.map((tab) => {
               const active = activeTab === tab.key;
@@ -173,7 +197,6 @@ export default function ComplianceHubPage({
         {activeTab === "complaints" && (
           <ServicomComplaintsPage
             key={`complaints-${refreshKey}`}
-            embedded
             stateScope
             channelScope="exclude-servicom"
             defaultZoneId={defaultZoneId}
@@ -184,13 +207,13 @@ export default function ComplianceHubPage({
             userDepartment={userDepartment}
             canCreate={canCreate}
             canReview={canReview}
+            {...shared}
           />
         )}
 
         {activeTab === "weekly-compliance" && (
           <StateOfficeWeeklyCompliancePage
             key={`weekly-${refreshKey}`}
-            embedded
             {...shared}
           />
         )}
@@ -198,7 +221,6 @@ export default function ComplianceHubPage({
         {activeTab === "hmo-indebtedness" && (
           <StateOfficeHmoIndebtednessHubPage
             key={`hmo-${refreshKey}`}
-            embedded
             {...shared}
           />
         )}
@@ -206,7 +228,6 @@ export default function ComplianceHubPage({
         {activeTab === "mystery-shopping" && (
           <StateOfficeMysteryShoppingPage
             key={`mystery-${refreshKey}`}
-            embedded
             {...shared}
           />
         )}

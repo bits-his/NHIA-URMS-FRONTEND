@@ -6,14 +6,9 @@ import {
   RefreshCw,
   Loader2,
   Eye,
-  Search,
   CheckCircle2,
   Trash2,
-  Building2,
-  MapPin,
-  Calendar,
 } from "lucide-react";
-import { motion } from "motion/react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -37,6 +32,7 @@ import {
 } from "./servicomSurveyConstants";
 import { SubmitConfirmModal, useReportingOfficerSubmitConfirm } from "@/src/components/SubmitConfirmModal";
 import { ShadcnDataTable } from "@/components/common/ShadcnDataTable";
+import { RegisterStatsCards } from "@/src/components/stateOffice/RegisterStatsCards";
 
 interface Props {
   onBack: () => void;
@@ -201,6 +197,24 @@ export default function ServicomSatisfactionSurveyPage({
       return true;
     });
   }, [surveys, filterSearch, filterDate]);
+
+  const listStats = React.useMemo(() => {
+    const pcts = filteredSurveys
+      .map((s) => Number(s.percentage_score))
+      .filter((n) => !Number.isNaN(n));
+    const avgPct =
+      pcts.length > 0
+        ? Math.round(pcts.reduce((sum, n) => sum + n, 0) / pcts.length)
+        : null;
+    const excellent = pcts.filter((p) => p >= 70).length;
+    const needsImprovement = pcts.filter((p) => p < 70).length;
+    return {
+      total: filteredSurveys.length,
+      avgPct,
+      excellent,
+      needsImprovement,
+    };
+  }, [filteredSurveys]);
 
   const openForm = () => {
     if (!canCreate) return;
@@ -753,7 +767,6 @@ export default function ServicomSatisfactionSurveyPage({
   return (
     <PageLayout
       title="HCF Customer Satisfaction Survey"
-      maxWidth="7xl"
       actions={
         <div className="flex items-center gap-2">
           <Button
@@ -761,118 +774,124 @@ export default function ServicomSatisfactionSurveyPage({
             size="sm"
             onClick={load}
             disabled={loading}
-            className="h-9 gap-1.5 border-slate-300 text-xs font-bold text-slate-700 rounded-sm hover:bg-slate-50"
+            className="h-8.5 gap-1.5 border border-slate-300 text-slate-700 bg-white hover:bg-[#f4f7f5] text-xs font-bold rounded-sm shadow-2xs"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh
           </Button>
           {canCreate && (
             <Button
-              className="h-9 bg-[#1a7a52] hover:bg-[#145c3f] text-white text-xs font-bold gap-1.5 rounded-sm shadow-xs"
+              size="sm"
+              className="h-8.5 bg-orange-action hover:bg-orange-600 text-white text-xs font-bold gap-1.5 rounded-sm shadow-md shadow-orange-500/15"
               onClick={openForm}
             >
-              <Plus className="w-4 h-4" /> New Survey
+              <Plus className="w-3.5 h-3.5" /> New Survey
             </Button>
           )}
         </div>
       }
+      contentClassName="space-y-4 pb-8"
     >
-      <div className="w-full space-y-6">
-        <div className="space-y-4">
-            {/* Filter Bar with Zone, State, Date matching Select styling */}
-            <Card className="rounded-sm border border-slate-200/80 bg-white shadow-xs">
-              <CardContent className="p-3.5">
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-                    {/* Search Input */}
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-                      <input
-                        type="text"
-                        placeholder="Search provider, ID, team..."
-                        value={filterSearch}
-                        onChange={(e) => setFilterSearch(e.target.value)}
-                        className={`${inputStyling} pl-9`}
-                      />
-                    </div>
+      <div className="w-full space-y-4">
+        <RegisterStatsCards
+          loading={loading}
+          className="grid grid-cols-2 md:grid-cols-4 gap-3"
+          stats={[
+            { label: "Total", value: listStats.total, tone: "text-[#0f3d2e] bg-white border-[#d4e8dc]" },
+            {
+              label: "Avg satisfaction",
+              value: listStats.avgPct != null ? `${listStats.avgPct}%` : "—",
+              tone: "text-teal-800 bg-teal-50/80 border-teal-100",
+            },
+            {
+              label: "Excellent (≥70%)",
+              value: listStats.excellent,
+              tone: "text-emerald-700 bg-emerald-50/80 border-emerald-100",
+            },
+            {
+              label: "Needs improvement",
+              value: listStats.needsImprovement,
+              tone: "text-amber-800 bg-amber-50/80 border-amber-100",
+            },
+          ]}
+        />
 
-                    {/* Zone Select */}
-                    {!geoLocked ? (
-                      <Select
-                        value={filterZone}
-                        onValueChange={(v) => {
-                          setFilterZone(v);
-                          setFilterState("all");
-                        }}
-                      >
-                        <SelectTrigger displayValue={filterZone === "all" ? "All Zones" : pickGeoLabel(zones, filterZone, "Zone")}>
-                          <SelectValue placeholder="All Zones" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All Zones</SelectItem>
-                          {zones.map((z) => (
-                            <SelectItem key={z.zonal_code} value={z.zonal_code}>
-                              {z.description || z.name || z.zonal_code}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      <div className="flex items-center px-3 h-11 bg-[#f4f7f5] border-2 border-[#1a7a52] rounded-sm text-xs font-bold text-slate-800">
-                        Zone: {defaultZoneName || defaultZoneId}
-                      </div>
-                    )}
-
-                    {/* State Select */}
-                    {!geoLocked ? (
-                      <Select value={filterState} onValueChange={setFilterState}>
-                        <SelectTrigger displayValue={filterState === "all" ? "All States" : pickGeoLabel(filterStates.length ? filterStates : states, filterState, "State")}>
-                          <SelectValue placeholder="All States" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All States</SelectItem>
-                          {(filterStates.length ? filterStates : states).map((s) => (
-                            <SelectItem key={s.code} value={s.code}>
-                              {s.description || s.name || s.code}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      <div className="flex items-center px-3 h-11 bg-[#f4f7f5] border-2 border-[#1a7a52] rounded-sm text-xs font-bold text-slate-800">
-                        State: {defaultStateName || defaultStateId}
-                      </div>
-                    )}
-
-                    {/* Date Input matching select styling */}
-                    <div>
-                      <input
-                        type="date"
-                        value={filterDate}
-                        onChange={(e) => setFilterDate(e.target.value)}
-                        className={inputStyling}
-                      />
-                    </div>
+        <Card className="rounded-lg border-[#d4e8dc] shadow-2xs">
+            <CardContent className="pt-4 pb-4 grid grid-flow-col auto-cols-fr gap-3">
+              {!geoLocked && (
+                <>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Zone</Label>
+                    <Select
+                      value={filterZone}
+                      onValueChange={(v) => {
+                        setFilterZone(v);
+                        setFilterState("all");
+                      }}
+                    >
+                      <SelectTrigger className="w-full" displayValue={filterZone === "all" ? "All Zones" : pickGeoLabel(zones, filterZone, "Zone")}>
+                        <SelectValue placeholder="All Zones" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Zones</SelectItem>
+                        {zones.map((z) => (
+                          <SelectItem key={z.zonal_code} value={z.zonal_code}>
+                            {z.description || z.name || z.zonal_code}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-                </CardContent>
-              </Card>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">State</Label>
+                    <Select value={filterState} onValueChange={setFilterState}>
+                      <SelectTrigger
+                        className="w-full"
+                        displayValue={
+                          filterState === "all"
+                            ? "All States"
+                            : pickGeoLabel(filterStates.length ? filterStates : states, filterState, "State")
+                        }
+                      >
+                        <SelectValue placeholder="All States" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All States</SelectItem>
+                        {(filterStates.length ? filterStates : states).map((s) => (
+                          <SelectItem key={s.code} value={s.code}>
+                            {s.description || s.name || s.code}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </>
+              )}
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Survey date</Label>
+                <Input
+                  type="date"
+                  value={filterDate}
+                  onChange={(e) => setFilterDate(e.target.value)}
+                />
+              </div>
+            </CardContent>
+          </Card>
 
-              {/* ShadcnDataTable */}
-              <ShadcnDataTable
-                title="SURVEY SUBMISSIONS REGISTER"
-                infoTooltip="Comprehensive register of accredited healthcare facility customer satisfaction survey assessments."
-                columns={tableColumns}
-                data={filteredSurveys}
-                loading={loading}
-                searchPlaceholder="Filter register records..."
-                searchValue={filterSearch}
-                onSearchChange={setFilterSearch}
-                searchClassName="h-11 rounded-sm border-2 border-[#1a7a52] bg-[#f4f7f5] pl-9 pr-7 text-sm font-medium text-slate-800 placeholder:text-slate-400"
-                onRowClick={openView}
-                emptyMessage="No customer satisfaction surveys found for the selected criteria."
-                pageSize={50}
-                enableSelection={false}
-                showTableOptions={false}
-              />
-          </div>
+          <ShadcnDataTable
+            title="SURVEY SUBMISSIONS REGISTER"
+            infoTooltip="Comprehensive register of accredited healthcare facility customer satisfaction survey assessments."
+            columns={tableColumns}
+            data={filteredSurveys}
+            loading={loading}
+            searchPlaceholder="Search provider, ID, team..."
+            searchValue={filterSearch}
+            onSearchChange={setFilterSearch}
+            onRowClick={openView}
+            emptyMessage="No customer satisfaction surveys found for the selected criteria."
+            pageSize={50}
+            enableSelection={false}
+            showTableOptions={false}
+          />
         </div>
     </PageLayout>
   );

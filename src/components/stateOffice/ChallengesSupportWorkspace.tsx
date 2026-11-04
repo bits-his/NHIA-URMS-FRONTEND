@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -12,6 +13,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import PageLayout from "../PageLayout";
 import { ShadcnDataTable } from "@/components/common/ShadcnDataTable";
 import { challengesSupportApi as api } from "@/lib/api";
+import { RegisterStatsCards } from "./RegisterStatsCards";
 import { Field, FieldSection } from "./EnrolmentActivityForm";
 import {
   CHALLENGE_CATEGORIES, CHALLENGE_DEPARTMENTS, CHALLENGE_IMPACTS, CHALLENGE_PROGRAMS,
@@ -107,7 +109,33 @@ export default function ChallengesSupportWorkspace({ onBack }: Props) {
   const [detail, setDetail] = React.useState<any>(null);
   const [note, setNote] = React.useState("");
   const [newStatus, setNewStatus] = React.useState("");
+  const [filterStatus, setFilterStatus] = React.useState("all");
+  const [filterSeverity, setFilterSeverity] = React.useState("all");
+  const [filterPriority, setFilterPriority] = React.useState("all");
   const permissions = catalogue?.permissions || { create: false, comment: false, assign: false, national: false };
+
+  const filteredChallenges = React.useMemo(
+    () => challenges.filter((c) => {
+      if (filterStatus !== "all" && (c.status || "In-progress") !== filterStatus) return false;
+      if (filterSeverity !== "all" && c.severity !== filterSeverity) return false;
+      return true;
+    }),
+    [challenges, filterStatus, filterSeverity],
+  );
+  const filteredSupport = React.useMemo(
+    () => supportList.filter((s) => {
+      if (filterStatus !== "all" && (s.status || "Submitted") !== filterStatus) return false;
+      if (filterPriority !== "all" && s.priority !== filterPriority) return false;
+      return true;
+    }),
+    [supportList, filterStatus, filterPriority],
+  );
+
+  React.useEffect(() => {
+    setFilterStatus("all");
+    setFilterSeverity("all");
+    setFilterPriority("all");
+  }, [mode]);
 
   const run = async <T,>(op: () => Promise<T>): Promise<T | undefined> => {
     setBusy(true); setError("");
@@ -127,6 +155,27 @@ export default function ChallengesSupportWorkspace({ onBack }: Props) {
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, []);
+
+  // Prefill from Meetings & Coordination handoff (?from=meeting&meeting_id=&related_activity=&note=)
+  React.useEffect(() => {
+    if (loading || !catalogue) return;
+    try {
+      const q = new URLSearchParams(window.location.search);
+      if (q.get("from") !== "meeting") return;
+      const related = q.get("related_activity") || "Meetings & Coordination";
+      const note = q.get("note") || "";
+      const meetingId = q.get("meeting_id") || "";
+      const seed = blankChallenge(catalogue);
+      seed.related_activity = related;
+      seed.description = [note, meetingId ? `Source meeting: ${meetingId}` : ""].filter(Boolean).join("\n");
+      setEditingId(null);
+      setDraft(seed);
+      setMode("challenge-form");
+      const url = new URL(window.location.href);
+      ["from", "meeting_id", "related_activity", "note"].forEach((k) => url.searchParams.delete(k));
+      window.history.replaceState({}, "", url.pathname + (url.search ? url.search : ""));
+    } catch { /* ignore */ }
+  }, [loading, catalogue]);
 
   const stateName = (code: string) => catalogue?.states.find((s) => s.code === code)?.description || code;
   const zoneName = (code: string) => catalogue?.zones.find((z) => z.zonal_code === code)?.description || code;
@@ -410,44 +459,41 @@ export default function ChallengesSupportWorkspace({ onBack }: Props) {
   ], [busy, catalogue]);
 
   const actions = (
-    <>
+    <div className="flex items-center gap-2 shrink-0">
       {["challenges", "support"].includes(mode) && (
         <Button
           variant="outline"
           size="sm"
-          className="h-8.5 gap-1.5 border border-slate-300 text-slate-700 bg-white hover:bg-[#f4f7f5] text-xs font-bold rounded-sm shadow-2xs"
+          className="gap-1.5 h-8 text-xs rounded-md border-[#d4e8dc]"
           disabled={busy || loading}
           onClick={() => void run(refresh)}
         >
-          <RefreshCw className={`w-3.5 h-3.5 ${busy ? "animate-spin" : ""}`} />
-          <span>Sync</span>
+          <RefreshCw className={`w-3.5 h-3.5 ${busy ? "animate-spin" : ""}`} /> Refresh
         </Button>
       )}
-      {permissions.create && (
+      {permissions.create && mode === "challenges" && (
         <Button
           size="sm"
-          className="h-8.5 bg-[#1a7a52] hover:bg-[#145c3f] text-white border border-[#145c3f] font-bold text-xs gap-1.5 rounded-sm shadow-xs"
+          className="bg-orange-action hover:bg-orange-600 gap-1.5 shadow-md shadow-orange-500/15 h-8 text-xs rounded-md"
           disabled={busy}
           onClick={() => startChallengeForm()}
         >
-          <Plus className="w-3.5 h-3.5" />
-          <span>Record Challenge</span>
+          <Plus className="w-3.5 h-3.5" /> Record Challenge
         </Button>
       )}
-      {permissions.create && (
+      {permissions.create && mode === "support" && (
         <Button
-          variant="outline"
           size="sm"
-          className="h-8.5 bg-white hover:bg-[#f4f7f5] text-[#1a7a52] border-2 border-[#1a7a52] font-bold text-xs gap-1.5 rounded-sm shadow-xs"
+          className="bg-orange-action hover:bg-orange-600 gap-1.5 shadow-md shadow-orange-500/15 h-8 text-xs rounded-md"
           disabled={busy}
           onClick={() => startSupportForm(null)}
         >
-          <Plus className="w-3.5 h-3.5" />
-          <span>Request Support</span>
+          <Plus className="w-3.5 h-3.5" /> Request Support
         </Button>
       )}
-    </>
+    </div>
   );
+
 
   const tabs = ["challenges", "support"].includes(mode) ? (
     <div className="flex gap-0 overflow-x-auto -mb-px" role="tablist" aria-label="Challenges and Support">
@@ -711,34 +757,128 @@ export default function ChallengesSupportWorkspace({ onBack }: Props) {
     >
       <div className="w-full space-y-3">
         {mode === "challenges" && (
+          <>
+          <RegisterStatsCards
+            loading={busy || loading}
+            className="grid grid-cols-2 md:grid-cols-4 gap-3"
+            stats={[
+              { label: "Total", value: filteredChallenges.length, tone: "text-[#0f3d2e] bg-white border-[#d4e8dc]" },
+              {
+                label: "In-progress",
+                value: filteredChallenges.filter((c: any) => (c.status || "In-progress") === "In-progress").length,
+                tone: "text-amber-800 bg-amber-50/80 border-amber-100",
+              },
+              {
+                label: "Resolved",
+                value: filteredChallenges.filter((c: any) => c.status === "Resolved" || c.status === "Closed").length,
+                tone: "text-emerald-700 bg-emerald-50/80 border-emerald-100",
+              },
+              {
+                label: "Escalated",
+                value: filteredChallenges.filter((c: any) => /escalat/i.test(String(c.status || ""))).length,
+                tone: "text-rose-700 bg-rose-50/80 border-rose-100",
+              },
+            ]}
+          />
+          <Card className="rounded-2xl border-[#d4e8dc]">
+            <CardContent className="pt-4 pb-4 grid grid-flow-col auto-cols-fr gap-3">
+              <div className="space-y-1 min-w-0">
+                <Label className="text-xs text-muted-foreground">Status</Label>
+                <Select value={filterStatus} onValueChange={setFilterStatus}>
+                  <SelectTrigger displayValue={filterStatus === "all" ? "All Statuses" : filterStatus}><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    {CHALLENGE_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1 min-w-0">
+                <Label className="text-xs text-muted-foreground">Severity</Label>
+                <Select value={filterSeverity} onValueChange={setFilterSeverity}>
+                  <SelectTrigger displayValue={filterSeverity === "all" ? "All Severities" : filterSeverity}><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Severities</SelectItem>
+                    {CHALLENGE_SEVERITIES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
           <ShadcnDataTable
             title="CHALLENGES REGISTER"
             infoTooltip="Operational and strategic challenges registered across NHIA state offices."
             columns={challengeColumns}
-            data={challenges}
+            data={filteredChallenges}
             loading={busy || loading}
             searchPlaceholder="Search challenges, categories, states..."
-            searchClassName="h-9 rounded-sm border-2 border-[#1a7a52] bg-[#f4f7f5] pl-8 pr-7 text-xs font-medium text-slate-800 placeholder:text-slate-400"
             emptyMessage="No challenges recorded for this view."
             onRowClick={(row) => void openChallengeDetail(row.challenge_id)}
             pageSize={50}
             showTableOptions={false}
           />
+          </>
         )}
         {mode === "support" && (
+          <>
+          <RegisterStatsCards
+            loading={busy || loading}
+            className="grid grid-cols-2 md:grid-cols-4 gap-3"
+            stats={[
+              { label: "Total", value: filteredSupport.length, tone: "text-[#0f3d2e] bg-white border-[#d4e8dc]" },
+              {
+                label: "In progress",
+                value: filteredSupport.filter((s: any) => ["Submitted", "Under Review", "Assigned", "In Progress"].includes(s.status || "Submitted")).length,
+                tone: "text-amber-800 bg-amber-50/80 border-amber-100",
+              },
+              {
+                label: "Resolved",
+                value: filteredSupport.filter((s: any) => s.status === "Resolved" || s.status === "Closed").length,
+                tone: "text-emerald-700 bg-emerald-50/80 border-emerald-100",
+              },
+              {
+                label: "Returned",
+                value: filteredSupport.filter((s: any) => /return/i.test(String(s.status || ""))).length,
+                tone: "text-rose-700 bg-rose-50/80 border-rose-100",
+              },
+            ]}
+          />
+          <Card className="rounded-2xl border-[#d4e8dc]">
+            <CardContent className="pt-4 pb-4 grid grid-flow-col auto-cols-fr gap-3">
+              <div className="space-y-1 min-w-0">
+                <Label className="text-xs text-muted-foreground">Status</Label>
+                <Select value={filterStatus} onValueChange={setFilterStatus}>
+                  <SelectTrigger displayValue={filterStatus === "all" ? "All Statuses" : filterStatus}><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    {SUPPORT_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1 min-w-0">
+                <Label className="text-xs text-muted-foreground">Priority</Label>
+                <Select value={filterPriority} onValueChange={setFilterPriority}>
+                  <SelectTrigger displayValue={filterPriority === "all" ? "All Priorities" : filterPriority}><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Priorities</SelectItem>
+                    {SUPPORT_PRIORITIES.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
           <ShadcnDataTable
             title="SUPPORT REQUESTS REGISTER"
             infoTooltip="Inter-departmental and executive support requests for resolution."
             columns={supportColumns}
-            data={supportList}
+            data={filteredSupport}
             loading={busy || loading}
             searchPlaceholder="Search support requests, owners, states..."
-            searchClassName="h-9 rounded-sm border-2 border-[#1a7a52] bg-[#f4f7f5] pl-8 pr-7 text-xs font-medium text-slate-800 placeholder:text-slate-400"
             emptyMessage="No support requests recorded for this view."
             onRowClick={(row) => void openSupportDetail(row.support_id)}
             pageSize={50}
             showTableOptions={false}
           />
+          </>
         )}
         {mode === "challenge-form" && challengeForm}
         {mode === "support-form" && supportForm}

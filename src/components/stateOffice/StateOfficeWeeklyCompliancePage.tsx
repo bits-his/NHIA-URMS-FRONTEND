@@ -1,8 +1,11 @@
 import * as React from "react";
+import type { ColumnDef } from "@tanstack/react-table";
 import { useListSearch } from "./useListSearch";
+import { ShadcnDataTable } from "@/components/common/ShadcnDataTable";
+import { RegisterStatsCards } from "./RegisterStatsCards";
 import { useSelector } from "react-redux";
 import {
-  ArrowLeft, Plus, Eye, RefreshCw, Loader2, ClipboardCheck, Pencil,
+  ArrowLeft, Plus, Eye, RefreshCw, Loader2, Pencil,
 } from "lucide-react";
 import { motion } from "motion/react";
 import { Button } from "@/components/ui/button";
@@ -32,6 +35,12 @@ interface Props {
   defaultStateId?: string | null;
   defaultZoneId?: string | null;
   embedded?: boolean;
+  onChromeChange?: (chrome: {
+    mode: "list" | "form" | "detail";
+    title?: string;
+    onInnerBack?: () => void;
+    actions?: React.ReactNode;
+  } | null) => void;
 }
 
 type FormState = {
@@ -145,7 +154,7 @@ function InfoField({ label, value }: { label: string; value: React.ReactNode }) 
   );
 }
 
-export default function StateOfficeWeeklyCompliancePage({ onBack, defaultStateId, defaultZoneId, embedded = false }: Props) {
+export default function StateOfficeWeeklyCompliancePage({ onBack, defaultStateId, defaultZoneId, embedded = false, onChromeChange }: Props) {
   const { canCreate, createOnly } = useStateOfficeAccess();
   const user = useSelector((s: RootState) => s.auth.user) as any;
   const officer = React.useMemo(() => ({
@@ -157,7 +166,7 @@ export default function StateOfficeWeeklyCompliancePage({ onBack, defaultStateId
   const [editingId, setEditingId] = React.useState<number | string | null>(null);
   const [selected, setSelected] = React.useState<any | null>(null);
   const [allRows, setRows] = React.useState<any[]>([]);
-  const { matchesSearch, searchInput } = useListSearch();
+  const { search, setSearch, matchesSearch } = useListSearch();
   const rows = React.useMemo(() => allRows.filter(matchesSearch), [allRows, matchesSearch]);
   const [loading, setLoading] = React.useState(!createOnly);
   const [saving, setSaving] = React.useState(false);
@@ -216,7 +225,7 @@ export default function StateOfficeWeeklyCompliancePage({ onBack, defaultStateId
     setMode("form");
   };
 
-  const openView = async (id: number | string) => {
+  const openView = React.useCallback(async (id: number | string) => {
     setMode("view");
     setSelected(null);
     try {
@@ -226,7 +235,55 @@ export default function StateOfficeWeeklyCompliancePage({ onBack, defaultStateId
       toast.error("Failed to load report", { description: err.message });
       setMode("list");
     }
-  };
+  }, []);
+
+  const listColumns = React.useMemo((): ColumnDef<any>[] => [
+    {
+      id: "reference",
+      header: "Reference",
+      cell: ({ row }) => (
+        <span className="font-mono text-xs font-bold text-primary">{row.original.reference_id || row.original.id}</span>
+      ),
+    },
+    { id: "facility", header: "Facility", cell: ({ row }) => <span className="text-sm font-medium">{row.original.facility_name}</span> },
+    { id: "nhia_code", header: "NHIA Code", cell: ({ row }) => <span className="text-xs">{row.original.nhia_code || "—"}</span> },
+    {
+      id: "type",
+      header: "Type",
+      cell: ({ row }) => {
+        const r = row.original;
+        return <span className="text-xs">{r.facility_type === "Other" ? (r.facility_type_other || "Other") : (r.facility_type || "—")}</span>;
+      },
+    },
+    { id: "week", header: "Reporting Week", cell: ({ row }) => <span className="text-xs whitespace-nowrap">{formatIsoWeek(row.original.reporting_week)}</span> },
+    { id: "officer", header: "Compliance Officer", cell: ({ row }) => <span className="text-xs">{row.original.compliance_officer || "—"}</span> },
+    { id: "score", header: "Score", cell: ({ row }) => <ScoreBadge indicators={row.original.indicators} /> },
+    {
+      id: "breaches",
+      header: "Breaches",
+      cell: ({ row }) => {
+        const breaches = weeklyBreaches(row.original.indicators).length;
+        return breaches > 0
+          ? <Badge variant="outline" className="bg-rose-50 text-rose-700 border-rose-200">{breaches}</Badge>
+          : <span className="text-xs text-slate-400">0</span>;
+      },
+    },
+    { id: "state", header: "State", cell: ({ row }) => <span className="text-xs">{row.original.state?.description ?? "—"}</span> },
+    {
+      id: "view",
+      header: "View",
+      cell: ({ row }) => (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="gap-1.5 h-8"
+          onClick={(e) => { e.stopPropagation(); void openView(row.original.reference_id || row.original.id); }}
+        >
+          <Eye className="w-3.5 h-3.5" /> View
+        </Button>
+      ),
+    },
+  ], [openView]);
 
   const openEdit = (row: any) => {
     setEditingId(row.reference_id || row.id);
@@ -280,20 +337,64 @@ export default function StateOfficeWeeklyCompliancePage({ onBack, defaultStateId
     } finally { setSaving(false); }
   };
 
+  React.useEffect(() => {
+    if (!embedded || !onChromeChange) return;
+    if (mode === "list") {
+      onChromeChange({
+        mode: "list",
+        actions: (
+          <>
+            <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">
+              <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
+            </Button>
+            {canCreate && (
+              <Button className="bg-orange-action hover:bg-orange-600 gap-2" onClick={openNew}>
+                <Plus className="w-4 h-4" /> New Report
+              </Button>
+            )}
+          </>
+        ),
+      });
+      return;
+    }
+    if (mode === "form") {
+      onChromeChange({
+        mode: "form",
+        title: editingId ? "Edit Weekly Compliance Report" : "Weekly Compliance Report",
+        onInnerBack: leaveForm,
+      });
+      return;
+    }
+    if (mode === "view") {
+      onChromeChange({
+        mode: "detail",
+        title: selected?.facility_name ?? "Weekly Compliance Report",
+        onInnerBack: () => setMode("list"),
+        actions: selected && canCreate ? (
+          <Button variant="outline" className="gap-2" onClick={() => openEdit(selected)}>
+            <Pencil className="w-4 h-4" /> Edit
+          </Button>
+        ) : undefined,
+      });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [embedded, onChromeChange, mode, loading, canCreate, editingId, selected]);
+
+  React.useEffect(() => () => onChromeChange?.(null), [onChromeChange]);
+
   if (mode === "form") {
     return (
       <div className="flex flex-col h-full bg-slate-50/30">
-        <div className="bg-white border-b px-4 md:px-6 py-3 flex items-center gap-4 sticky top-0 z-30">
-          <Button variant="ghost" size="icon" onClick={leaveForm} className="rounded-full shrink-0">
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-          <div className="min-w-0">
-            <h2 className="text-xl font-bold tracking-tight truncate">
+        {!embedded && (
+          <div className="bg-white border-b px-4 md:px-6 py-3.5 flex items-center gap-4 sticky top-0 z-30">
+            <Button variant="ghost" size="icon" onClick={leaveForm} className="rounded-full shrink-0">
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+            <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">
               {editingId ? "Edit Weekly Compliance Report" : "Weekly Compliance Report"}
             </h2>
-            <p className="text-xs text-muted-foreground">To be completed by Compliance Officers deployed to Healthcare Facilities</p>
           </div>
-        </div>
+        )}
         <ScrollArea className="flex-1">
           <div className="w-full px-4 md:px-6 py-4 pb-24 space-y-4">
             <Card className="rounded-2xl border-[#d4e8dc]">
@@ -451,22 +552,21 @@ export default function StateOfficeWeeklyCompliancePage({ onBack, defaultStateId
     const breaches = r ? weeklyBreaches(r.indicators) : [];
     return (
       <div className="flex flex-col h-full bg-slate-50/30">
-        <div className="bg-white border-b px-4 md:px-6 py-3 flex items-center justify-between gap-4 sticky top-0 z-30">
-          <div className="flex items-center gap-4 min-w-0">
-            <Button variant="ghost" size="icon" onClick={() => setMode("list")} className="rounded-full shrink-0">
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
-            <div className="min-w-0">
-              <h2 className="text-xl font-bold tracking-tight truncate">{r?.facility_name ?? "Weekly Compliance Report"}</h2>
-              <p className="text-xs font-mono text-muted-foreground">{r?.reference_id}</p>
+        {!embedded && (
+          <div className="bg-white border-b px-4 md:px-6 py-3.5 flex items-center justify-between gap-4 sticky top-0 z-30">
+            <div className="flex items-center gap-4 min-w-0">
+              <Button variant="ghost" size="icon" onClick={() => setMode("list")} className="rounded-full shrink-0">
+                <ArrowLeft className="w-5 h-5" />
+              </Button>
+              <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">{r?.facility_name ?? "Weekly Compliance Report"}</h2>
             </div>
+            {r && canCreate && (
+              <Button variant="outline" className="gap-2" onClick={() => openEdit(r)}>
+                <Pencil className="w-4 h-4" /> Edit
+              </Button>
+            )}
           </div>
-          {r && canCreate && (
-            <Button variant="outline" className="gap-2" onClick={() => openEdit(r)}>
-              <Pencil className="w-4 h-4" /> Edit
-            </Button>
-          )}
-        </div>
+        )}
         <ScrollArea className="flex-1">
           {!r ? (
             <div className="flex justify-center py-16"><Loader2 className="w-5 h-5 animate-spin text-slate-400" /></div>
@@ -551,28 +651,53 @@ export default function StateOfficeWeeklyCompliancePage({ onBack, defaultStateId
 
   return (
     <div className={`flex flex-col h-full ${embedded ? "" : "bg-slate-50/30"}`}>
-      <div className={`bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-10 gap-3 ${embedded ? "" : ""}`}>
-        {!embedded ? (
-          <h2 className="text-xl font-bold tracking-tight truncate">Weekly Compliance Reports</h2>
-        ) : (
-          <p className="text-xs text-slate-500 truncate">Weekly compliance reports for deployed officers</p>
-        )}
-        <div className="flex items-center gap-3 shrink-0">
-          <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
-          </Button>
-          {canCreate && (
-            <Button className="bg-orange-action hover:bg-orange-600 gap-2" onClick={openNew}>
-              <Plus className="w-4 h-4" /> New Report
+      {!embedded && (
+        <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3.5 flex items-center justify-between sticky top-0 z-10 gap-3">
+          <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">Weekly Compliance Reports</h2>
+          <div className="flex items-center gap-3 shrink-0">
+            <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">
+              <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
             </Button>
-          )}
+            {canCreate && (
+              <Button className="bg-orange-action hover:bg-orange-600 gap-2" onClick={openNew}>
+                <Plus className="w-4 h-4" /> New Report
+              </Button>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       <ScrollArea className="flex-1">
         <div className="w-full px-4 md:px-6 py-4 space-y-4">
+          <RegisterStatsCards
+            loading={loading}
+            className="grid grid-cols-2 md:grid-cols-4 gap-3"
+            stats={[
+              { label: "Total", value: rows.length, tone: "text-[#0f3d2e] bg-white border-[#d4e8dc]" },
+              {
+                label: "With breaches",
+                value: rows.filter((r) => weeklyBreaches(r.indicators).length > 0).length,
+                tone: "text-rose-700 bg-rose-50/80 border-rose-100",
+              },
+              {
+                label: "No breaches",
+                value: rows.filter((r) => weeklyBreaches(r.indicators).length === 0).length,
+                tone: "text-emerald-700 bg-emerald-50/80 border-emerald-100",
+              },
+              {
+                label: "Avg score",
+                value: rows.length
+                  ? Math.round(
+                      rows.reduce((sum, r) => sum + weeklyComplianceScore(r.indicators), 0) / rows.length,
+                    )
+                  : 0,
+                tone: "text-teal-800 bg-teal-50/80 border-teal-100",
+              },
+            ]}
+          />
+
           <Card className="rounded-2xl border-[#d4e8dc]">
-            <CardContent className="pt-4 pb-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+            <CardContent className="pt-4 pb-4 grid grid-flow-col auto-cols-fr gap-3">
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">Zone</Label>
                 <Select value={filterZone} disabled={zoneLocked} onValueChange={(v) => { setFilterZone(v); if (!stateLocked) setFilterState("all"); }}>
@@ -618,62 +743,19 @@ export default function StateOfficeWeeklyCompliancePage({ onBack, defaultStateId
             </CardContent>
           </Card>
 
-          {searchInput}
-          <Card className="rounded-2xl border-[#d4e8dc] overflow-hidden">
-            <CardHeader className="pb-3 border-b">
-              <CardTitle className="text-sm font-bold flex items-center gap-2">
-                <ClipboardCheck className="w-4 h-4" />
-                {loading ? "Loading..." : `${rows.length} report(s)`}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              {loading ? (
-                <div className="flex justify-center py-16"><Loader2 className="w-5 h-5 animate-spin text-slate-400" /></div>
-              ) : rows.length === 0 ? (
-                <p className="text-sm text-slate-400 py-12 text-center">No weekly compliance reports for this period.</p>
-              ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-[#f0fdf7]">
-                        {["Reference", "Facility", "NHIA Code", "Type", "Reporting Week", "Compliance Officer", "Score", "Breaches", "State", ""].map((h) => (
-                          <TableHead key={h} className="text-xs font-bold whitespace-nowrap">{h}</TableHead>
-                        ))}
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {rows.map((r, i) => {
-                        const breaches = weeklyBreaches(r.indicators).length;
-                        return (
-                          <motion.tr key={r.reference_id || r.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.02 }}
-                            className="border-b border-slate-100">
-                            <TableCell className="font-mono text-xs font-bold text-primary">{r.reference_id || r.id}</TableCell>
-                            <TableCell className="text-sm font-medium">{r.facility_name}</TableCell>
-                            <TableCell className="text-xs">{r.nhia_code || "—"}</TableCell>
-                            <TableCell className="text-xs">{r.facility_type === "Other" ? (r.facility_type_other || "Other") : (r.facility_type || "—")}</TableCell>
-                            <TableCell className="text-xs whitespace-nowrap">{formatIsoWeek(r.reporting_week)}</TableCell>
-                            <TableCell className="text-xs">{r.compliance_officer || "—"}</TableCell>
-                            <TableCell><ScoreBadge indicators={r.indicators} /></TableCell>
-                            <TableCell>
-                              {breaches > 0
-                                ? <Badge variant="outline" className="bg-rose-50 text-rose-700 border-rose-200">{breaches}</Badge>
-                                : <span className="text-xs text-slate-400">0</span>}
-                            </TableCell>
-                            <TableCell className="text-xs">{r.state?.description ?? "—"}</TableCell>
-                            <TableCell>
-                              <Button variant="ghost" size="sm" className="gap-1.5 h-8" onClick={() => openView(r.reference_id || r.id)}>
-                                <Eye className="w-3.5 h-3.5" /> View
-                              </Button>
-                            </TableCell>
-                          </motion.tr>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <ShadcnDataTable
+            title="WEEKLY COMPLIANCE REGISTER"
+            columns={listColumns}
+            data={rows}
+            loading={loading}
+            searchPlaceholder="Search compliance reports..."
+            searchValue={search}
+            onSearchChange={setSearch}
+            emptyMessage="No weekly compliance reports for this period."
+            onRowClick={(r) => void openView(r.reference_id || r.id)}
+            pageSize={50}
+            showTableOptions={false}
+          />
         </div>
       </ScrollArea>
     </div>

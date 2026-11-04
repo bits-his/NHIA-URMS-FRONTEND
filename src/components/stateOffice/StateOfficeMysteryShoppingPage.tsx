@@ -1,5 +1,8 @@
 import * as React from "react";
+import type { ColumnDef } from "@tanstack/react-table";
 import { useListSearch } from "./useListSearch";
+import { ShadcnDataTable } from "@/components/common/ShadcnDataTable";
+import { RegisterStatsCards } from "./RegisterStatsCards";
 import {
   ArrowLeft, Plus, Eye, Pencil, RefreshCw, Loader2, Search, Save,
   Mail, Building2, CalendarDays, CheckCircle2,
@@ -30,6 +33,12 @@ interface Props {
   defaultStateId?: string | null;
   defaultZoneId?: string | null;
   embedded?: boolean;
+  onChromeChange?: (chrome: {
+    mode: "list" | "form" | "detail";
+    title?: string;
+    onInnerBack?: () => void;
+    actions?: React.ReactNode;
+  } | null) => void;
 }
 
 type Geo = { id?: number | string; code?: string; zonal_code?: string; description: string };
@@ -194,13 +203,13 @@ function answeredCount(map: ScoreMap, keys: readonly { key: string }[]) {
   return keys.filter((k) => map[k.key] !== undefined && map[k.key] !== "").length;
 }
 
-export default function StateOfficeMysteryShoppingPage({ onBack, defaultStateId, defaultZoneId, embedded = false }: Props) {
+export default function StateOfficeMysteryShoppingPage({ onBack, defaultStateId, defaultZoneId, embedded = false, onChromeChange }: Props) {
   const { canCreate, createOnly } = useStateOfficeAccess();
   const [mode, setMode] = React.useState<Mode>(createOnly ? "create" : "list");
   const [formKey, setFormKey] = React.useState(0);
   const [step, setStep] = React.useState(0);
   const [allRows, setRows] = React.useState<any[]>([]);
-  const { matchesSearch, searchInput } = useListSearch();
+  const { search, setSearch, matchesSearch } = useListSearch();
   const rows = React.useMemo(() => allRows.filter(matchesSearch), [allRows, matchesSearch]);
   const [loading, setLoading] = React.useState(!createOnly);
   const [saving, setSaving] = React.useState(false);
@@ -288,7 +297,7 @@ export default function StateOfficeMysteryShoppingPage({ onBack, defaultStateId,
     setFormKey((k) => k + 1);
   };
 
-  const openView = (row: any) => {
+  const openView = React.useCallback((row: any) => {
     setF(rowToForm(row, defaultZoneId, defaultStateId));
     setEditingId(String(row.reference_id ?? row.id));
     setDetailMeta({
@@ -297,7 +306,49 @@ export default function StateOfficeMysteryShoppingPage({ onBack, defaultStateId,
       reference: row.reference_id,
     });
     setMode("view");
-  };
+  }, [defaultZoneId, defaultStateId]);
+
+  const listColumns = React.useMemo((): ColumnDef<any>[] => [
+    {
+      id: "reference",
+      header: "Reference",
+      cell: ({ row }) => <span className="font-mono text-xs font-bold text-primary">{row.original.reference_id}</span>,
+    },
+    { id: "facility", header: "Facility", cell: ({ row }) => <span className="text-sm">{row.original.facility_name}</span> },
+    { id: "date", header: "Date", cell: ({ row }) => <span className="text-xs">{safeDate(row.original.visit_date)}</span> },
+    { id: "shopper", header: "Shopper", cell: ({ row }) => <span className="text-xs">{row.original.mystery_shopper_name || "—"}</span> },
+    {
+      id: "std_score",
+      header: "Std Score",
+      cell: ({ row }) => (
+        <span className="text-xs font-mono">{row.original.standard_expectations_score ?? 0}/{OBS_MAX}</span>
+      ),
+    },
+    {
+      id: "enrollee",
+      header: "Enrollee",
+      cell: ({ row }) => {
+        const v = row.original;
+        const total = (v.enrollee_score_1 || 0) + (v.enrollee_score_2 || 0) + (v.enrollee_score_3 || 0);
+        return <span className="text-xs font-mono">{total}/{ENROLLEE_MAX * 3}</span>;
+      },
+    },
+    { id: "state", header: "State", cell: ({ row }) => <span className="text-xs">{row.original.state?.description ?? "—"}</span> },
+    {
+      id: "view",
+      header: "View",
+      cell: ({ row }) => (
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-8 gap-1.5 px-2 text-[#145c3f]"
+          onClick={(e) => { e.stopPropagation(); openView(row.original); }}
+        >
+          <Eye className="w-4 h-4" /> View
+        </Button>
+      ),
+    },
+  ], [openView]);
 
   const openEdit = () => {
     setStep(0);
@@ -693,23 +744,68 @@ export default function StateOfficeMysteryShoppingPage({ onBack, defaultStateId,
     </div>
   );
 
+  React.useEffect(() => {
+    if (!embedded || !onChromeChange) return;
+    if (mode === "list") {
+      onChromeChange({
+        mode: "list",
+        actions: (
+          <>
+            <Button variant="outline" size="sm" onClick={() => void load()} disabled={loading} className="gap-2">
+              <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
+            </Button>
+            {canCreate && (
+              <Button className="bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20" onClick={openCreate}>
+                <Plus className="w-4 h-4" /> New Visit
+              </Button>
+            )}
+          </>
+        ),
+      });
+      return;
+    }
+    if (mode === "view") {
+      onChromeChange({
+        mode: "detail",
+        title: "View Mystery Shopping",
+        onInnerBack: () => setMode(createOnly ? "create" : "list"),
+        actions: canCreate ? (
+          <Button className="bg-orange-action hover:bg-orange-600 gap-2" onClick={openEdit}>
+            <Pencil className="w-4 h-4" /> Edit
+          </Button>
+        ) : undefined,
+      });
+      return;
+    }
+    onChromeChange({
+      mode: "form",
+      title: mode === "edit" ? "Edit Mystery Shopping" : "New Mystery Shopping",
+      onInnerBack: mode === "edit" ? () => setMode("view") : leaveForm,
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [embedded, onChromeChange, mode, loading, canCreate, createOnly]);
+
+  React.useEffect(() => () => onChromeChange?.(null), [onChromeChange]);
+
   if (mode === "view") {
     const stateName = detailMeta.state || pickGeoLabel(states.length ? states : dashboardStates, f.state_id, "—");
     return (
       <div className="flex flex-col h-full bg-slate-50/30">
-        <div className="bg-white border-b border-border/50 px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => setMode(createOnly ? "create" : "list")} className="rounded-full">
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
-            <h2 className="text-xl font-bold tracking-tight">View Mystery Shopping</h2>
+        {!embedded && (
+          <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3.5 flex items-center justify-between sticky top-0 z-30">
+            <div className="flex items-center gap-3">
+              <Button variant="ghost" size="icon" onClick={() => setMode(createOnly ? "create" : "list")} className="rounded-full">
+                <ArrowLeft className="w-5 h-5" />
+              </Button>
+              <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e]">View Mystery Shopping</h2>
+            </div>
+            {canCreate && (
+              <Button className="bg-orange-action hover:bg-orange-600 gap-2" onClick={openEdit}>
+                <Pencil className="w-4 h-4" /> Edit
+              </Button>
+            )}
           </div>
-          {canCreate && (
-            <Button className="bg-orange-action hover:bg-orange-600 gap-2" onClick={openEdit}>
-              <Pencil className="w-4 h-4" /> Edit
-            </Button>
-          )}
-        </div>
+        )}
         <ScrollArea className="flex-1">
           <div className="w-full px-4 md:px-6 py-4 space-y-4 pb-16">
             <Card className="rounded-2xl border-[#d4e8dc] overflow-hidden">
@@ -780,21 +876,18 @@ export default function StateOfficeMysteryShoppingPage({ onBack, defaultStateId,
   if (mode !== "list") {
     return (
       <div key={formKey} className="flex flex-col h-full bg-slate-50/30">
-        <div className="bg-white border-b border-border/50 px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30">
-          <div className="flex items-center gap-3 min-w-0">
-            <Button variant="ghost" size="icon" onClick={mode === "edit" ? () => setMode("view") : leaveForm} className="rounded-full shrink-0">
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
-            <div className="min-w-0">
-              <h2 className="text-xl font-bold tracking-tight truncate">
+        {!embedded && (
+          <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3.5 flex items-center justify-between sticky top-0 z-30">
+            <div className="flex items-center gap-3 min-w-0">
+              <Button variant="ghost" size="icon" onClick={mode === "edit" ? () => setMode("view") : leaveForm} className="rounded-full shrink-0">
+                <ArrowLeft className="w-5 h-5" />
+              </Button>
+              <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">
                 {mode === "edit" ? "Edit Mystery Shopping" : "New Mystery Shopping"}
               </h2>
-              <p className="text-xs text-muted-foreground truncate">
-                Facility visit scorecard · standard expectations + 3 enrollee cards
-              </p>
             </div>
           </div>
-        </div>
+        )}
         <ScrollArea className="flex-1">
           <div className="w-full max-w-5xl mx-auto px-4 md:px-6 py-4 space-y-4 pb-28">{formBody}</div>
         </ScrollArea>
@@ -825,33 +918,64 @@ export default function StateOfficeMysteryShoppingPage({ onBack, defaultStateId,
 
   return (
     <div className={`flex flex-col h-full ${embedded ? "" : "bg-slate-50/30"}`}>
-      <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-10 gap-3">
-        <div className="min-w-0">
-          {!embedded ? (
-            <>
-              <h2 className="text-xl font-bold tracking-tight">Mystery Shopping</h2>
-              <p className="text-xs text-muted-foreground">Facility visit scorecards for enrollee experience</p>
-            </>
-          ) : (
-            <p className="text-xs text-slate-500 truncate">Facility visit scorecards for enrollee experience</p>
-          )}
-        </div>
-        <div className="flex items-center gap-3 shrink-0">
-          <Button variant="outline" size="sm" onClick={() => void load()} disabled={loading} className="gap-2">
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
-          </Button>
-          {canCreate && (
-            <Button className="bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20" onClick={openCreate}>
-              <Plus className="w-4 h-4" /> New Visit
+      {!embedded && (
+        <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3.5 flex items-center justify-between sticky top-0 z-10 gap-3">
+          <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">Mystery Shopping</h2>
+          <div className="flex items-center gap-3 shrink-0">
+            <Button variant="outline" size="sm" onClick={() => void load()} disabled={loading} className="gap-2">
+              <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
             </Button>
-          )}
+            {canCreate && (
+              <Button className="bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20" onClick={openCreate}>
+                <Plus className="w-4 h-4" /> New Visit
+              </Button>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       <ScrollArea className="flex-1">
         <div className="w-full px-4 md:px-6 py-4 space-y-4">
+          <RegisterStatsCards
+            loading={loading}
+            className="grid grid-cols-2 md:grid-cols-4 gap-3"
+            stats={[
+              { label: "Total visits", value: rows.length, tone: "text-[#0f3d2e] bg-white border-[#d4e8dc]" },
+              {
+                label: "Facilities",
+                value: new Set(rows.map((r) => r.facility_name || r.reference_id)).size,
+                tone: "text-slate-600 bg-white border-slate-200",
+              },
+              {
+                label: "Avg std score",
+                value: rows.length
+                  ? Math.round(
+                      rows.reduce((sum, r) => sum + Number(r.standard_expectations_score || 0), 0) / rows.length,
+                    )
+                  : 0,
+                tone: "text-teal-800 bg-teal-50/80 border-teal-100",
+              },
+              {
+                label: "Avg enrollee",
+                value: rows.length
+                  ? Math.round(
+                      rows.reduce(
+                        (sum, r) =>
+                          sum
+                          + Number(r.enrollee_score_1 || 0)
+                          + Number(r.enrollee_score_2 || 0)
+                          + Number(r.enrollee_score_3 || 0),
+                        0,
+                      ) / rows.length,
+                    )
+                  : 0,
+                tone: "text-amber-800 bg-amber-50/80 border-amber-100",
+              },
+            ]}
+          />
+
           <Card className="rounded-2xl border-[#d4e8dc]">
-            <CardContent className="pt-4 pb-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+            <CardContent className="pt-4 pb-4 grid grid-flow-col auto-cols-fr gap-3">
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">Zone</Label>
                 <Select value={filterZone} disabled={zoneLocked} onValueChange={(v) => { setFilterZone(v); if (!stateLocked) setFilterState("all"); }}>
@@ -903,74 +1027,19 @@ export default function StateOfficeMysteryShoppingPage({ onBack, defaultStateId,
             </CardContent>
           </Card>
 
-          {searchInput}
-          <Card className="rounded-2xl border-[#d4e8dc] overflow-hidden">
-            <CardHeader className="pb-3 border-b">
-              <CardTitle className="text-sm font-bold flex items-center gap-2">
-                <Search className="w-4 h-4" />
-                {loading ? "Loading..." : `${rows.length} visit(s)`}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              {loading ? (
-                <div className="flex justify-center py-16"><Loader2 className="w-5 h-5 animate-spin text-slate-400" /></div>
-              ) : rows.length === 0 ? (
-                <div className="py-16 text-center text-sm text-slate-500">
-                  No mystery shopping visits for this period yet.
-                  {canCreate ? (
-                    <div className="mt-3">
-                      <Button className="bg-orange-action hover:bg-orange-600 gap-2" onClick={openCreate}>
-                        <Plus className="w-4 h-4" /> Record first visit
-                      </Button>
-                    </div>
-                  ) : null}
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-[#f0fdf7]">
-                        <TableHead className="text-xs font-bold">Reference</TableHead>
-                        <TableHead className="text-xs font-bold">Facility</TableHead>
-                        <TableHead className="text-xs font-bold">Date</TableHead>
-                        <TableHead className="text-xs font-bold">Shopper</TableHead>
-                        <TableHead className="text-xs font-bold">Std Score</TableHead>
-                        <TableHead className="text-xs font-bold">Enrollee</TableHead>
-                        <TableHead className="text-xs font-bold">State</TableHead>
-                        <TableHead className="text-xs font-bold w-16">View</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {rows.map((v, i) => (
-                        <motion.tr
-                          key={v.reference_id || v.id}
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          transition={{ delay: i * 0.02 }}
-                          className="border-b border-slate-100"
-                        >
-                          <TableCell className="font-mono text-xs font-bold text-primary">{v.reference_id}</TableCell>
-                          <TableCell className="text-sm">{v.facility_name}</TableCell>
-                          <TableCell className="text-xs">{safeDate(v.visit_date)}</TableCell>
-                          <TableCell className="text-xs">{v.mystery_shopper_name || "—"}</TableCell>
-                          <TableCell className="text-xs font-mono">{v.standard_expectations_score ?? 0}/{OBS_MAX}</TableCell>
-                          <TableCell className="text-xs font-mono">
-                            {(v.enrollee_score_1 || 0) + (v.enrollee_score_2 || 0) + (v.enrollee_score_3 || 0)}/{ENROLLEE_MAX * 3}
-                          </TableCell>
-                          <TableCell className="text-xs">{v.state?.description ?? "—"}</TableCell>
-                          <TableCell>
-                            <Button size="sm" variant="ghost" className="h-8 gap-1.5 px-2 text-[#145c3f]" onClick={() => openView(v)}>
-                              <Eye className="w-4 h-4" /> View
-                            </Button>
-                          </TableCell>
-                        </motion.tr>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <ShadcnDataTable
+            title="MYSTERY SHOPPING REGISTER"
+            columns={listColumns}
+            data={rows}
+            loading={loading}
+            searchPlaceholder="Search mystery shopping visits..."
+            searchValue={search}
+            onSearchChange={setSearch}
+            emptyMessage="No mystery shopping visits for this period yet."
+            onRowClick={openView}
+            pageSize={50}
+            showTableOptions={false}
+          />
         </div>
       </ScrollArea>
     </div>

@@ -4,7 +4,6 @@ import { useSelector } from "react-redux";
 import {
   AlertTriangle,
   ArrowLeft,
-  Building2,
   Handshake,
   LayoutDashboard,
   Megaphone,
@@ -88,7 +87,6 @@ export default function StateOfficeDashboardHub({
   userRole,
   user,
 }: Props) {
-  const navigate = useNavigate();
   const authUser = useSelector((s: RootState) => s.auth.user);
   const canEdDash = canAccessEnrolmentDriveDashboard(authUser?.role || userRole, {
     reportScope: authUser?.role_config?.report_scope ?? user?.role_config?.report_scope ?? null,
@@ -153,6 +151,7 @@ export default function StateOfficeDashboardHub({
     defaultZoneId,
     defaultStateId,
   };
+  const navigate = useNavigate();
 
   return (
     <PageLayout
@@ -166,7 +165,7 @@ export default function StateOfficeDashboardHub({
           onClick={handleSync}
         >
           <RefreshCw className={`w-3.5 h-3.5 ${syncing ? "animate-spin" : ""}`} />
-          <span>Sync</span>
+          <span>Refresh</span>
         </Button>
       }
       filters={
