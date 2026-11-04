@@ -14,11 +14,16 @@ import {
   FileText,
   ArrowLeft,
   RotateCcw,
+  Layers,
+  Send,
+  Building2,
+  Calendar,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Card,
   CardContent,
@@ -61,6 +66,11 @@ const MONTHS = [
   "December",
 ];
 
+const SHORT_MONTHS = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
+
 const SERVICE_CATEGORIES = [
   { value: "generator", label: "Generator Services (Biannual)" },
   { value: "security", label: "Security Services (Monthly)" },
@@ -71,13 +81,6 @@ const SERVICE_CATEGORIES = [
 const SERVICE_LOCATIONS = [
   { value: "state_office", label: "State Office" },
   { value: "zonal_office", label: "Zonal Office" },
-];
-
-const FREQUENCIES = [
-  { value: "monthly", label: "Monthly" },
-  { value: "biannual", label: "Biannual (Twice yearly)" },
-  { value: "quarterly", label: "Quarterly" },
-  { value: "annual", label: "Annual" },
 ];
 
 interface Props {
@@ -109,6 +112,7 @@ export type UtilityRecord = {
   frequency?: string;
   reporting_month?: number;
   reporting_year?: number;
+  consolidated_batch_id?: string | null;
   job_completion_cert_name?: string;
   job_completion_cert_path?: string;
   invoice_name?: string;
@@ -116,6 +120,33 @@ export type UtilityRecord = {
   contractor_letter_name?: string;
   contractor_letter_path?: string;
 };
+
+export interface UtilityFormRow {
+  tempId: string;
+  id?: number;
+  service_location: string;
+  service_category: string;
+  contractor_name: string;
+  amount_claimed: string;
+  payment_request_ref: string;
+  status: string;
+  remarks: string;
+  supporting_doc?: File | null;
+  supporting_doc_name?: string;
+}
+
+const createBlankRow = (index = 1, defaultLoc = "state_office", defaultCat = "generator", defaultContractor = ""): UtilityFormRow => ({
+  tempId: `row-${Date.now()}-${index}-${Math.random().toString(36).substring(2, 7)}`,
+  service_location: defaultLoc,
+  service_category: defaultCat,
+  contractor_name: defaultContractor,
+  amount_claimed: "",
+  payment_request_ref: "",
+  status: "draft",
+  remarks: "",
+  supporting_doc: null,
+  supporting_doc_name: "",
+});
 
 export default function UtilityServicesTab({
   stateId: propStateId,
@@ -130,13 +161,14 @@ export default function UtilityServicesTab({
 }: Props) {
   const [loading, setLoading] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
-  const [editingId, setEditingId] = React.useState<number | null>(initialItem?.id || null);
+  const [consolidating, setConsolidating] = React.useState(false);
 
   // Geo options
   const [states, setStates] = React.useState<any[]>([]);
   const [zones, setZones] = React.useState<any[]>([]);
 
-  // Top control fields
+  // Header scope filters matching Slide 05:
+  // Zonal Office | State Office | Year | Month | Period From | Period To
   const [selectedZoneVal, setSelectedZoneVal] = React.useState<string>(
     initialItem?.zone_id ? String(initialItem.zone_id) : propZoneId || ""
   );
@@ -149,38 +181,38 @@ export default function UtilityServicesTab({
   const [selectedMonthVal, setSelectedMonthVal] = React.useState<string>(
     initialItem?.reporting_month ? String(initialItem.reporting_month) : String(new Date().getMonth() + 1)
   );
+  const [periodFrom, setPeriodFrom] = React.useState<string>("Jan");
+  const [periodTo, setPeriodTo] = React.useState<string>("Jun");
 
-  // Active form inputs
-  const [serviceLocation, setServiceLocation] = React.useState<string>(
-    initialItem?.service_location || "state_office"
-  );
-  const [serviceCategory, setServiceCategory] = React.useState<string>(
-    initialItem?.service_category || "generator"
-  );
-  const [contractorName, setContractorName] = React.useState<string>(
-    initialItem?.contractor_name || ""
-  );
-  const [amountClaimed, setAmountClaimed] = React.useState<string>(
-    initialItem?.amount_claimed != null ? String(initialItem.amount_claimed) : ""
-  );
-  const [paymentRequestRef, setPaymentRequestRef] = React.useState<string>(
-    initialItem?.invoice_number || initialItem?.payment_request_ref || ""
-  );
-  const [frequency, setFrequency] = React.useState<string>(
-    initialItem?.frequency || (initialItem?.service_category === "generator" ? "biannual" : "monthly")
-  );
-  const [status, setStatus] = React.useState<string>(initialItem?.status || "draft");
-  const [remarks, setRemarks] = React.useState<string>(
-    initialItem?.service_description || initialItem?.remarks || ""
-  );
+  // Multi-Row Form Records State (Form 3: Add one row per service / reporting period)
+  const [rows, setRows] = React.useState<UtilityFormRow[]>([
+    initialItem
+      ? {
+          tempId: `edit-${initialItem.id || 1}`,
+          id: initialItem.id,
+          service_location: initialItem.service_location || "state_office",
+          service_category: initialItem.service_category || "generator",
+          contractor_name: initialItem.contractor_name || "",
+          amount_claimed: initialItem.amount_claimed != null ? String(initialItem.amount_claimed) : "",
+          payment_request_ref: initialItem.invoice_number || initialItem.payment_request_ref || "",
+          status: initialItem.status || "draft",
+          remarks: initialItem.service_description || initialItem.remarks || "",
+          supporting_doc: null,
+          supporting_doc_name: initialItem.job_completion_cert_name || "",
+        }
+      : createBlankRow(1, "state_office", "generator"),
+  ]);
 
-  // 3 Verification Files
+  // 3 Mandatory Verification Document Attachments
   const [certFile, setCertFile] = React.useState<File | null>(null);
   const [invoiceFile, setInvoiceFile] = React.useState<File | null>(null);
   const [contractorLetterFile, setContractorLetterFile] = React.useState<File | null>(null);
 
-  // Existing records logged for this state & year
+  // Existing records logged for this cycle
   const [records, setRecords] = React.useState<UtilityRecord[]>([]);
+
+  // Multi-select state for Zonal Consolidation
+  const [selectedClaimIds, setSelectedClaimIds] = React.useState<number[]>([]);
 
   const yearOptions = buildReportingYearOptions();
 
@@ -244,22 +276,13 @@ export default function UtilityServicesTab({
     }
   };
 
-  // Sync category with default frequency
-  React.useEffect(() => {
-    if (serviceCategory === "generator") {
-      setFrequency("biannual");
-    } else {
-      setFrequency("monthly");
-    }
-  }, [serviceCategory]);
-
-  // Load existing records from server
+  // Load existing records from server for the active zone/state and year
   const loadExistingRecords = React.useCallback(async () => {
-    if (!selectedStateVal) return;
     setLoading(true);
     try {
       const res = await utilityServiceReportApi.list({
-        state_id: selectedStateVal,
+        state_id: selectedStateVal || undefined,
+        zone_id: selectedZoneVal || undefined,
         year: String(selectedYearVal),
       });
       if (res.success && res.data) {
@@ -270,136 +293,62 @@ export default function UtilityServicesTab({
     } finally {
       setLoading(false);
     }
-  }, [selectedStateVal, selectedYearVal]);
+  }, [selectedStateVal, selectedZoneVal, selectedYearVal]);
 
   React.useEffect(() => {
     loadExistingRecords();
   }, [loadExistingRecords]);
 
-  // Sync with initialItem prop if editing
-  React.useEffect(() => {
-    if (initialItem) {
-      setEditingId(initialItem.id || null);
-      if (initialItem.zone_id) setSelectedZoneVal(String(initialItem.zone_id));
-      if (initialItem.state_id) setSelectedStateVal(String(initialItem.state_id));
-      if (initialItem.reporting_year) setSelectedYearVal(Number(initialItem.reporting_year));
-      if (initialItem.reporting_month) setSelectedMonthVal(String(initialItem.reporting_month));
-      setServiceLocation(initialItem.service_location || "state_office");
-      setServiceCategory(initialItem.service_category || "generator");
-      setContractorName(initialItem.contractor_name || "");
-      setAmountClaimed(initialItem.amount_claimed != null ? String(initialItem.amount_claimed) : "");
-      setPaymentRequestRef(initialItem.invoice_number || initialItem.payment_request_ref || "");
-      setFrequency(initialItem.frequency || "monthly");
-      setStatus(initialItem.status || "draft");
-      setRemarks(initialItem.service_description || initialItem.remarks || "");
-    }
-  }, [initialItem]);
+  // Suggest latest known contractor for a category from history
+  const getKnownContractor = React.useCallback(
+    (cat: string) => {
+      const found = records.find((r) => r.service_category === cat && r.contractor_name);
+      return found?.contractor_name || "";
+    },
+    [records]
+  );
 
-  // Reset form to blank create mode
-  const handleResetForm = () => {
-    setEditingId(null);
-    setServiceLocation("state_office");
-    setServiceCategory("generator");
-    setContractorName("");
-    setAmountClaimed("");
-    setPaymentRequestRef("");
-    setFrequency("biannual");
-    setStatus("draft");
-    setRemarks("");
-    setCertFile(null);
-    setInvoiceFile(null);
-    setContractorLetterFile(null);
+  // Row manipulation handlers
+  const handleAddRow = () => {
+    const newIdx = rows.length + 1;
+    const defaultCat = newIdx % 2 === 0 ? "security" : "generator";
+    const defaultLoc = "state_office";
+    const prepopContractor = getKnownContractor(defaultCat);
+    setRows((prev) => [...prev, createBlankRow(newIdx, defaultLoc, defaultCat, prepopContractor)]);
   };
 
-  // Populate form from existing record in the table
-  const handleStartEditRecord = (rec: UtilityRecord) => {
-    setEditingId(rec.id || null);
-    if (rec.service_location) setServiceLocation(rec.service_location);
-    if (rec.service_category) setServiceCategory(rec.service_category);
-    setContractorName(rec.contractor_name || "");
-    setAmountClaimed(rec.amount_claimed != null ? String(rec.amount_claimed) : "");
-    setPaymentRequestRef(rec.invoice_number || rec.payment_request_ref || "");
-    setFrequency(rec.frequency || "monthly");
-    setStatus(rec.status || "draft");
-    setRemarks(rec.service_description || rec.remarks || "");
-    if (rec.reporting_month) setSelectedMonthVal(String(rec.reporting_month));
+  const handleRemoveRow = (index: number) => {
+    if (rows.length <= 1) return;
+    setRows((prev) => prev.filter((_, i) => i !== index));
   };
 
-  // Save / update claim
-  const handleSaveClaim = async () => {
-    if (!selectedStateVal) {
-      toast.error("Please select a State Office");
-      return;
-    }
-    if (!contractorName.trim()) {
-      toast.error("Please enter Contractor Name");
-      return;
-    }
-    if (!amountClaimed || Number(amountClaimed) <= 0) {
-      toast.error("Please enter a valid Amount Claimed");
-      return;
-    }
-
-    setSaving(true);
-    try {
-      const payload: Record<string, any> = {
-        state_id: selectedStateVal,
-        zone_id: selectedZoneVal || undefined,
-        reporting_year: Number(selectedYearVal),
-        reporting_month: Number(selectedMonthVal),
-        service_location: serviceLocation,
-        service_category: serviceCategory,
-        frequency,
-        contractor_name: contractorName.trim(),
-        amount_claimed: Number(amountClaimed),
-        invoice_number: paymentRequestRef.trim() || undefined,
-        service_description: remarks.trim() || undefined,
-        status,
-        profile_id: profileId || undefined,
-      };
-
-      const files = {
-        job_completion_cert: certFile || null,
-        invoice: invoiceFile || null,
-        contractor_letter: contractorLetterFile || null,
-      };
-
-      await utilityServiceReportApi.save(payload, files, editingId || null);
-      toast.success(editingId ? "Utility claim updated successfully" : "Utility claim registered successfully");
-
-      handleResetForm();
-      await loadExistingRecords();
-
-      if (onSaved) {
-        onSaved();
-      }
-    } catch (err: any) {
-      toast.error(err.message || "Failed to save utility service claim");
-    } finally {
-      setSaving(false);
-    }
+  const handleRowChange = (index: number, fields: Partial<UtilityFormRow>) => {
+    setRows((prev) =>
+      prev.map((r, i) => {
+        if (i !== index) return r;
+        const updated = { ...r, ...fields };
+        // If category changed and contractor is blank, try prepopulating
+        if (fields.service_category && !updated.contractor_name) {
+          updated.contractor_name = getKnownContractor(fields.service_category);
+        }
+        return updated;
+      })
+    );
   };
 
-  // Delete claim
-  const handleDeleteRecord = async (id?: number) => {
-    if (!id) return;
-    if (!confirm("Are you sure you want to remove this utility service record?")) return;
-    try {
-      await utilityServiceReportApi.delete(id);
-      toast.success("Utility claim removed");
-      if (editingId === id) handleResetForm();
-      await loadExistingRecords();
-    } catch (err: any) {
-      toast.error(err.message || "Failed to remove utility claim");
-    }
-  };
+  // Total amount calculated across all form rows
+  const formTotalAmount = React.useMemo(() => {
+    return rows.reduce((acc, r) => acc + (Number(r.amount_claimed) || 0), 0);
+  }, [rows]);
 
+  // Format currency helper
   const formatCurrency = (val: number | string | null | undefined) => {
     if (val == null || val === "" || val === "—") return "—";
     const n = Number(val);
     return isNaN(n) ? "—" : `₦${n.toLocaleString("en-NG", { minimumFractionDigits: 2 })}`;
   };
 
+  // Category badge
   const getCategoryBadge = (cat: string) => {
     switch (cat) {
       case "generator":
@@ -413,14 +362,172 @@ export default function UtilityServicesTab({
     }
   };
 
+  // Save all rows to the server
+  const handleSaveAllRecords = async (forcedStatus?: "draft" | "submitted") => {
+    if (!selectedStateVal) {
+      toast.error("Please select a State Office");
+      return;
+    }
+
+    // Validate that rows have minimal required information
+    const validRows = rows.filter((r) => r.contractor_name.trim() || Number(r.amount_claimed) > 0);
+    if (!validRows.length) {
+      toast.error("Please fill in at least one utility record with Contractor Name and Amount");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const files = {
+        job_completion_cert: certFile || null,
+        invoice: invoiceFile || null,
+        contractor_letter: contractorLetterFile || null,
+      };
+
+      let successCount = 0;
+      for (const row of validRows) {
+        const payload: Record<string, any> = {
+          state_id: selectedStateVal,
+          zone_id: selectedZoneVal || undefined,
+          reporting_year: Number(selectedYearVal),
+          reporting_month: Number(selectedMonthVal),
+          service_location: row.service_location,
+          service_category: row.service_category,
+          frequency: row.service_category === "generator" ? "biannual" : "monthly",
+          contractor_name: row.contractor_name.trim() || "N/A",
+          amount_claimed: Number(row.amount_claimed) || 0,
+          invoice_number: row.payment_request_ref.trim() || undefined,
+          service_description: row.remarks.trim() || undefined,
+          status: forcedStatus || row.status || "draft",
+          profile_id: profileId || undefined,
+        };
+
+        // Attach supporting doc if provided on the row
+        const rowFiles = {
+          ...files,
+          ...(row.supporting_doc ? { invoice: row.supporting_doc } : {}),
+        };
+
+        await utilityServiceReportApi.save(payload, rowFiles, row.id || null);
+        successCount++;
+      }
+
+      toast.success(
+        successCount === 1
+          ? "Utility service claim saved successfully"
+          : `Successfully registered ${successCount} utility service records`
+      );
+
+      // Reset form to blank single row
+      setRows([createBlankRow(1, "state_office", "generator")]);
+      setCertFile(null);
+      setInvoiceFile(null);
+      setContractorLetterFile(null);
+
+      await loadExistingRecords();
+      if (onSaved) onSaved();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to save utility service claims");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Delete claim
+  const handleDeleteRecord = async (id?: number) => {
+    if (!id) return;
+    if (!confirm("Are you sure you want to remove this utility service record?")) return;
+    try {
+      await utilityServiceReportApi.delete(id);
+      toast.success("Utility claim removed");
+      setSelectedClaimIds((prev) => prev.filter((item) => item !== id));
+      await loadExistingRecords();
+    } catch (err: any) {
+      toast.error(err.message || "Failed to remove utility claim");
+    }
+  };
+
+  // Populate row for inline editing from recorded table
+  const handleEditRecord = (rec: UtilityRecord) => {
+    setRows([
+      {
+        tempId: `edit-${rec.id}`,
+        id: rec.id,
+        service_location: rec.service_location || "state_office",
+        service_category: rec.service_category || "generator",
+        contractor_name: rec.contractor_name || "",
+        amount_claimed: rec.amount_claimed != null ? String(rec.amount_claimed) : "",
+        payment_request_ref: rec.invoice_number || rec.payment_request_ref || "",
+        status: rec.status || "draft",
+        remarks: rec.service_description || rec.remarks || "",
+        supporting_doc: null,
+        supporting_doc_name: rec.job_completion_cert_name || "",
+      },
+    ]);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  // Zonal Consolidation: Multi-select & Batch Submit to HQ
+  const toggleSelectClaim = (id: number) => {
+    setSelectedClaimIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAllEligible = () => {
+    const eligible = records.filter((r) => r.id && r.status !== "consolidated");
+    if (selectedClaimIds.length === eligible.length) {
+      setSelectedClaimIds([]);
+    } else {
+      setSelectedClaimIds(eligible.map((r) => r.id!));
+    }
+  };
+
+  const selectedClaimsTotal = React.useMemo(() => {
+    return records
+      .filter((r) => r.id && selectedClaimIds.includes(r.id))
+      .reduce((acc, r) => acc + (Number(r.amount_claimed) || 0), 0);
+  }, [records, selectedClaimIds]);
+
+  const handleConsolidateSelected = async () => {
+    if (!selectedClaimIds.length) {
+      toast.error("Please select at least one claim to consolidate");
+      return;
+    }
+
+    setConsolidating(true);
+    try {
+      const zCode = selectedZone?.zonal_code || (selectedZoneVal !== "all" ? selectedZoneVal : undefined);
+      const res = await utilityServiceReportApi.consolidate(selectedClaimIds, zCode);
+      if (res.success) {
+        toast.success(
+          `Consolidation Successful! Batch Reference: ${res.batch_id}`,
+          {
+            description: `${selectedClaimIds.length} utility claims consolidated for HQ payment clearance.`,
+          }
+        );
+        setSelectedClaimIds([]);
+        await loadExistingRecords();
+        if (onSaved) onSaved();
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to consolidate reports into HQ batch");
+    } finally {
+      setConsolidating(false);
+    }
+  };
+
   return (
     <Card className="rounded-sm border-slate-200/80 shadow-2xs bg-white">
       <CardContent className="space-y-6 pt-6">
-        {/* ROW 1: JURISDICTION & OPERATIONAL CYCLE (ZONE FIRST, STATE SECOND FILTERED) */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* ZONE SELECT FIRST */}
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-slate-700">
+        {/* ═══════════════════════════════════════════════════════════════════════
+            TOP HEADER FILTERS (SLIDE 05)
+            Zonal Office | State Office | Year | Month | Period From | Period To
+        ═══════════════════════════════════════════════════════════════════════ */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 p-3.5 bg-slate-50/70 border border-slate-200/80 rounded-sm">
+          {/* 1. ZONAL OFFICE */}
+          <div className="space-y-1">
+            <Label className="text-[11px] font-bold text-slate-700 uppercase tracking-wide">
               Zonal Office <span className="text-rose-500">*</span>
             </Label>
             <Select
@@ -429,6 +536,7 @@ export default function UtilityServicesTab({
               disabled={readOnly}
             >
               <SelectTrigger
+                className="h-8.5 text-xs bg-white border-slate-200 rounded-sm"
                 displayValue={selectedZone?.description || (selectedZoneVal ? `Zone ${selectedZoneVal}` : undefined)}
               >
                 <SelectValue placeholder="Select Zone" />
@@ -443,9 +551,9 @@ export default function UtilityServicesTab({
             </Select>
           </div>
 
-          {/* STATE SELECT SECOND (FILTERED BY ZONE) */}
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-slate-700">
+          {/* 2. STATE OFFICE */}
+          <div className="space-y-1">
+            <Label className="text-[11px] font-bold text-slate-700 uppercase tracking-wide">
               State Office <span className="text-rose-500">*</span>
             </Label>
             <Select
@@ -454,9 +562,10 @@ export default function UtilityServicesTab({
               disabled={readOnly}
             >
               <SelectTrigger
+                className="h-8.5 text-xs bg-white border-slate-200 rounded-sm"
                 displayValue={selectedState?.description || (selectedStateVal ? `State Office` : undefined)}
               >
-                <SelectValue placeholder={selectedZoneVal ? "Select state in zone" : "Select zone first or state"} />
+                <SelectValue placeholder={selectedZoneVal ? "Select State" : "All States"} />
               </SelectTrigger>
               <SelectContent>
                 {availableStates.map((st) => (
@@ -468,41 +577,41 @@ export default function UtilityServicesTab({
             </Select>
           </div>
 
-          {/* REPORTING YEAR */}
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-slate-700">
-              Reporting Year <span className="text-rose-500">*</span>
+          {/* 3. REPORTING YEAR */}
+          <div className="space-y-1">
+            <Label className="text-[11px] font-bold text-slate-700 uppercase tracking-wide">
+              Year <span className="text-rose-500">*</span>
             </Label>
             <Select
-              value={String(selectedYearVal)}
+              value={selectedYearVal ? String(selectedYearVal) : ""}
               onValueChange={(val) => setSelectedYearVal(Number(val))}
               disabled={readOnly}
             >
-              <SelectTrigger>
-                <SelectValue placeholder="Select year" />
+              <SelectTrigger className="h-8.5 text-xs bg-white border-slate-200 rounded-sm">
+                <SelectValue placeholder="Select Year" />
               </SelectTrigger>
               <SelectContent>
                 {yearOptions.map((opt) => (
                   <SelectItem key={opt} value={opt}>
-                    {opt} Cycle
+                    {opt}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
 
-          {/* REPORTING MONTH */}
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-slate-700">
-              Reporting Month <span className="text-rose-500">*</span>
+          {/* 4. REPORTING MONTH */}
+          <div className="space-y-1">
+            <Label className="text-[11px] font-bold text-slate-700 uppercase tracking-wide">
+              Month
             </Label>
             <Select
               value={selectedMonthVal}
               onValueChange={setSelectedMonthVal}
               disabled={readOnly}
             >
-              <SelectTrigger>
-                <SelectValue placeholder="Select month" />
+              <SelectTrigger className="h-8.5 text-xs bg-white border-slate-200 rounded-sm">
+                <SelectValue placeholder="Select Month" />
               </SelectTrigger>
               <SelectContent>
                 {MONTHS.map((m, idx) => (
@@ -513,150 +622,265 @@ export default function UtilityServicesTab({
               </SelectContent>
             </Select>
           </div>
-        </div>
 
-        {/* ROW 2: SERVICE DETAILS & CONTRACTOR CREDENTIALS */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-slate-700">
-              Service Category <span className="text-rose-500">*</span>
+          {/* 5. PERIOD FROM (mmm) */}
+          <div className="space-y-1">
+            <Label className="text-[11px] font-bold text-slate-700 uppercase tracking-wide">
+              Period From
             </Label>
-            <Select
-              value={serviceCategory}
-              onValueChange={setServiceCategory}
-              disabled={readOnly}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select Category" />
-              </SelectTrigger>
-              <SelectContent>
-                {SERVICE_CATEGORIES.map((cat) => (
-                  <SelectItem key={cat.value} value={cat.value}>
-                    {cat.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-slate-700">
-              Service Location <span className="text-rose-500">*</span>
-            </Label>
-            <Select
-              value={serviceLocation}
-              onValueChange={setServiceLocation}
-              disabled={readOnly}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select Location" />
-              </SelectTrigger>
-              <SelectContent>
-                {SERVICE_LOCATIONS.map((loc) => (
-                  <SelectItem key={loc.value} value={loc.value}>
-                    {loc.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-slate-700">
-              Contractor / Vendor Name <span className="text-rose-500">*</span>
-            </Label>
-            <Input
-              value={contractorName}
-              onChange={(e) => setContractorName(e.target.value)}
-              placeholder="e.g. TotalEnergies Ltd / Max Guard Security"
-              disabled={readOnly}
-              className="h-9 bg-white border-slate-200 text-xs rounded-sm focus-visible:ring-1 focus-visible:ring-[#1a7a52]"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-slate-700">
-              Amount Due / Claimed (₦) <span className="text-rose-500">*</span>
-            </Label>
-            <Input
-              type="number"
-              step="0.01"
-              value={amountClaimed}
-              onChange={(e) => setAmountClaimed(e.target.value)}
-              placeholder="e.g. 450000"
-              disabled={readOnly}
-              className="h-9 bg-white border-slate-200 text-xs rounded-sm focus-visible:ring-1 focus-visible:ring-[#1a7a52]"
-            />
-          </div>
-        </div>
-
-        {/* ROW 3: BILLING REFS & BILLING FREQUENCY */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-slate-700">Invoice Number / Payment Request Ref</Label>
-            <Input
-              value={paymentRequestRef}
-              onChange={(e) => setPaymentRequestRef(e.target.value)}
-              placeholder="e.g. INV-2025-088"
-              disabled={readOnly}
-              className="h-9 bg-white border-slate-200 text-xs rounded-sm focus-visible:ring-1 focus-visible:ring-[#1a7a52]"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-slate-700">Billing Frequency</Label>
-            <Select value={frequency} onValueChange={setFrequency} disabled={readOnly}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select Frequency" />
-              </SelectTrigger>
-              <SelectContent>
-                {FREQUENCIES.map((f) => (
-                  <SelectItem key={f.value} value={f.value}>
-                    {f.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-slate-700">Reporting Status</Label>
-            <Select value={status} onValueChange={setStatus} disabled={readOnly}>
-              <SelectTrigger>
+            <Select value={periodFrom} onValueChange={setPeriodFrom} disabled={readOnly}>
+              <SelectTrigger className="h-8.5 text-xs bg-white border-slate-200 rounded-sm">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="draft">Draft</SelectItem>
-                <SelectItem value="submitted">Submitted to HQ</SelectItem>
+                {SHORT_MONTHS.map((m) => (
+                  <SelectItem key={m} value={m}>
+                    {m}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* 6. PERIOD TO (mmm) */}
+          <div className="space-y-1">
+            <Label className="text-[11px] font-bold text-slate-700 uppercase tracking-wide">
+              Period To
+            </Label>
+            <Select value={periodTo} onValueChange={setPeriodTo} disabled={readOnly}>
+              <SelectTrigger className="h-8.5 text-xs bg-white border-slate-200 rounded-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {SHORT_MONTHS.map((m) => (
+                  <SelectItem key={m} value={m}>
+                    {m}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
         </div>
 
-        {/* ROW 4: REMARKS / OPERATIONAL DESCRIPTION */}
-        <div className="space-y-1.5">
-          <Label className="text-xs font-semibold text-slate-700">
-            Service Description & Operational Remarks
-          </Label>
-          <textarea
-            rows={2}
-            value={remarks}
-            onChange={(e) => setRemarks(e.target.value)}
-            placeholder="Details of diesel supplied, maintenance carried out, security shifts covered, or facility work done..."
-            disabled={readOnly}
-            className="w-full rounded-sm border border-slate-200 bg-white p-2.5 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#1a7a52] resize-y"
-          />
+        {/* ═══════════════════════════════════════════════════════════════════════
+            SECTION 1: UTILITY SERVICE RECORDS TABLE (SLIDE 05 SPEC)
+            Add one row per service / reporting period
+        ═══════════════════════════════════════════════════════════════════════ */}
+        <div className="space-y-3">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pb-1 border-b border-slate-100">
+            <div>
+              <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                <Wrench className="size-4 text-[#1a7a52]" />
+                Utility Service Records
+                <span className="text-slate-400 font-normal">| Add one row per service / reporting period</span>
+              </h3>
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                Generator servicing reports twice yearly per office; Security and Cleaning report monthly to zone for consolidation.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-slate-800 bg-[#f4f7f5] border border-[#d4e8dc] px-2.5 py-1 rounded-sm">
+                Batch Total: {formatCurrency(formTotalAmount)}
+              </span>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleAddRow}
+                disabled={readOnly}
+                className="h-8 text-xs border-dashed border-[#1a7a52] text-[#1a7a52] hover:bg-emerald-50 rounded-sm gap-1"
+              >
+                <Plus className="size-3.5" /> Add Service Row
+              </Button>
+            </div>
+          </div>
+
+          {/* MULTI-ROW INPUT TABLE MATCHING SLIDE 05 */}
+          <div className="rounded-sm border border-slate-200 overflow-x-auto shadow-2xs">
+            <Table className="min-w-[1000px]">
+              <TableHeader>
+                <TableRow className="bg-[#102a43] hover:bg-[#102a43] border-none text-white">
+                  <TableHead className="w-10 text-[11px] font-bold text-white text-center">S/N</TableHead>
+                  <TableHead className="w-36 text-[11px] font-bold text-white">Service Location</TableHead>
+                  <TableHead className="w-44 text-[11px] font-bold text-white">Service Category</TableHead>
+                  <TableHead className="w-48 text-[11px] font-bold text-white">Contractor (State / Zone)</TableHead>
+                  <TableHead className="w-32 text-[11px] font-bold text-white">Amount Due (₦)</TableHead>
+                  <TableHead className="w-32 text-[11px] font-bold text-white">Payment Ref</TableHead>
+                  <TableHead className="w-36 text-[11px] font-bold text-white">Supporting Doc</TableHead>
+                  <TableHead className="w-28 text-[11px] font-bold text-white">Status</TableHead>
+                  <TableHead className="min-w-[120px] text-[11px] font-bold text-white">Remarks</TableHead>
+                  <TableHead className="w-10 text-[11px] font-bold text-white text-center">Action</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {rows.map((row, idx) => (
+                  <TableRow key={row.tempId} className="border-b border-slate-100 hover:bg-slate-50/60 text-xs">
+                    {/* S/N */}
+                    <TableCell className="font-semibold text-center text-slate-600 align-middle">
+                      {idx + 1}
+                    </TableCell>
+
+                    {/* Service Location */}
+                    <TableCell className="align-middle p-1.5">
+                      <Select
+                        value={row.service_location}
+                        onValueChange={(val) => handleRowChange(idx, { service_location: val })}
+                        disabled={readOnly}
+                      >
+                        <SelectTrigger className="h-8 text-xs bg-white border-slate-200 rounded-sm">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {SERVICE_LOCATIONS.map((loc) => (
+                            <SelectItem key={loc.value} value={loc.value}>
+                              {loc.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+
+                    {/* Service Category */}
+                    <TableCell className="align-middle p-1.5">
+                      <Select
+                        value={row.service_category}
+                        onValueChange={(val) => handleRowChange(idx, { service_category: val })}
+                        disabled={readOnly}
+                      >
+                        <SelectTrigger className="h-8 text-xs bg-white border-slate-200 rounded-sm">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {SERVICE_CATEGORIES.map((cat) => (
+                            <SelectItem key={cat.value} value={cat.value}>
+                              {cat.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+
+                    {/* Contractor (Prepopulated / editable) */}
+                    <TableCell className="align-middle p-1.5">
+                      <Input
+                        value={row.contractor_name}
+                        onChange={(e) => handleRowChange(idx, { contractor_name: e.target.value })}
+                        placeholder="Contractor / Firm"
+                        disabled={readOnly}
+                        className="h-8 text-xs bg-white border-slate-200 rounded-sm focus-visible:ring-1 focus-visible:ring-[#1a7a52]"
+                      />
+                    </TableCell>
+
+                    {/* Amount Due (NGN) */}
+                    <TableCell className="align-middle p-1.5">
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={row.amount_claimed}
+                        onChange={(e) => handleRowChange(idx, { amount_claimed: e.target.value })}
+                        placeholder="0.00"
+                        disabled={readOnly}
+                        className="h-8 text-xs bg-white border-slate-200 rounded-sm font-medium tabular-nums focus-visible:ring-1 focus-visible:ring-[#1a7a52]"
+                      />
+                    </TableCell>
+
+                    {/* Payment Request Ref */}
+                    <TableCell className="align-middle p-1.5">
+                      <Input
+                        value={row.payment_request_ref}
+                        onChange={(e) => handleRowChange(idx, { payment_request_ref: e.target.value })}
+                        placeholder="INV-..."
+                        disabled={readOnly}
+                        className="h-8 text-xs bg-white border-slate-200 rounded-sm focus-visible:ring-1 focus-visible:ring-[#1a7a52]"
+                      />
+                    </TableCell>
+
+                    {/* Supporting Document (Upload) */}
+                    <TableCell className="align-middle p-1.5">
+                      <label className="flex items-center justify-between h-8 px-2 bg-white border border-slate-200 rounded-sm cursor-pointer hover:border-[#1a7a52] transition-colors">
+                        <span className="text-[11px] text-slate-500 truncate max-w-[85px]">
+                          {row.supporting_doc ? row.supporting_doc.name : row.supporting_doc_name || "Upload file"}
+                        </span>
+                        <Upload className="size-3 text-[#1a7a52] shrink-0 ml-1" />
+                        <input
+                          type="file"
+                          accept=".pdf,.doc,.docx,.jpg,.png"
+                          className="hidden"
+                          disabled={readOnly}
+                          onChange={(e) => {
+                            if (e.target.files?.[0]) {
+                              handleRowChange(idx, {
+                                supporting_doc: e.target.files[0],
+                                supporting_doc_name: e.target.files[0].name,
+                              });
+                            }
+                          }}
+                        />
+                      </label>
+                    </TableCell>
+
+                    {/* Reporting Status */}
+                    <TableCell className="align-middle p-1.5">
+                      <Select
+                        value={row.status}
+                        onValueChange={(val) => handleRowChange(idx, { status: val })}
+                        disabled={readOnly}
+                      >
+                        <SelectTrigger className="h-8 text-xs bg-white border-slate-200 rounded-sm">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="draft">Draft</SelectItem>
+                          <SelectItem value="submitted">Submitted</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+
+                    {/* Remarks */}
+                    <TableCell className="align-middle p-1.5">
+                      <Input
+                        value={row.remarks}
+                        onChange={(e) => handleRowChange(idx, { remarks: e.target.value })}
+                        placeholder="Service details..."
+                        disabled={readOnly}
+                        className="h-8 text-xs bg-white border-slate-200 rounded-sm focus-visible:ring-1 focus-visible:ring-[#1a7a52]"
+                      />
+                    </TableCell>
+
+                    {/* Delete Row Action */}
+                    <TableCell className="align-middle p-1.5 text-center">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleRemoveRow(idx)}
+                        disabled={readOnly || rows.length <= 1}
+                        className="size-7 text-slate-400 hover:text-rose-600 hover:bg-rose-50"
+                        title="Remove row"
+                      >
+                        <Trash2 className="size-3.5" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         </div>
 
-        {/* SECTION 2: MANDATORY AUDIT VERIFICATION DOCUMENTS (3 Clean Document Cards) */}
-        <div className="space-y-2 pt-2 border-t border-slate-100">
+        {/* ═══════════════════════════════════════════════════════════════════════
+            SECTION 2: MANDATORY AUDIT VERIFICATION UPLOADS (SLIDE 05)
+            All 3 documents must accompany the payment request
+        ═══════════════════════════════════════════════════════════════════════ */}
+        <div className="space-y-2.5 pt-2 border-t border-slate-100">
           <div className="flex items-center justify-between">
             <Label className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
               <FileCheck2 className="size-4 text-[#1a7a52]" />
-              Mandatory Audit Verification Documents
+              Required Uploads — All Three Documents Must Accompany the Payment Request
             </Label>
             <span className="text-[10px] text-slate-400 font-medium">
-              All 3 files required before HQ payment voucher processing
+              Mandatory before HQ payment voucher processing
             </span>
           </div>
 
@@ -665,15 +889,15 @@ export default function UtilityServicesTab({
             <div className="p-3.5 rounded-sm border border-slate-200 bg-slate-50/50 space-y-2">
               <div className="flex items-start justify-between gap-2">
                 <div className="space-y-0.5">
-                  <p className="text-xs font-bold text-slate-800">1. Job Completion Cert</p>
+                  <p className="text-xs font-bold text-slate-800">1. Duly signed Job Completion Certificate</p>
                   <p className="text-[10px] text-slate-400 leading-tight">
-                    Signed certificate from State Coordinator or Facility Officer.
+                    Signed by State Coordinator / Zonal Facility Officer.
                   </p>
                 </div>
                 <span className={`px-2 py-0.5 rounded-sm text-[10px] font-bold shrink-0 ${
                   certFile ? "bg-emerald-100 text-emerald-800" : "bg-slate-200/60 text-slate-600"
                 }`}>
-                  {certFile ? "Ready" : "Pending"}
+                  {certFile ? "Attached" : "Pending"}
                 </span>
               </div>
               <label className="flex items-center justify-between h-8 px-2.5 bg-white border border-slate-200 rounded-sm cursor-pointer hover:border-[#1a7a52] transition-colors">
@@ -697,7 +921,7 @@ export default function UtilityServicesTab({
             <div className="p-3.5 rounded-sm border border-slate-200 bg-slate-50/50 space-y-2">
               <div className="flex items-start justify-between gap-2">
                 <div className="space-y-0.5">
-                  <p className="text-xs font-bold text-slate-800">2. Contractor Letter</p>
+                  <p className="text-xs font-bold text-slate-800">2. Firm's Request for Payment</p>
                   <p className="text-[10px] text-slate-400 leading-tight">
                     Formal firm payment request letter on official letterhead.
                   </p>
@@ -705,7 +929,7 @@ export default function UtilityServicesTab({
                 <span className={`px-2 py-0.5 rounded-sm text-[10px] font-bold shrink-0 ${
                   contractorLetterFile ? "bg-emerald-100 text-emerald-800" : "bg-slate-200/60 text-slate-600"
                 }`}>
-                  {contractorLetterFile ? "Ready" : "Pending"}
+                  {contractorLetterFile ? "Attached" : "Pending"}
                 </span>
               </div>
               <label className="flex items-center justify-between h-8 px-2.5 bg-white border border-slate-200 rounded-sm cursor-pointer hover:border-[#1a7a52] transition-colors">
@@ -729,7 +953,7 @@ export default function UtilityServicesTab({
             <div className="p-3.5 rounded-sm border border-slate-200 bg-slate-50/50 space-y-2">
               <div className="flex items-start justify-between gap-2">
                 <div className="space-y-0.5">
-                  <p className="text-xs font-bold text-slate-800">3. Service Invoice</p>
+                  <p className="text-xs font-bold text-slate-800">3. Invoice for Services Rendered</p>
                   <p className="text-[10px] text-slate-400 leading-tight">
                     Original stamped invoice with bank details and tax ID.
                   </p>
@@ -737,7 +961,7 @@ export default function UtilityServicesTab({
                 <span className={`px-2 py-0.5 rounded-sm text-[10px] font-bold shrink-0 ${
                   invoiceFile ? "bg-emerald-100 text-emerald-800" : "bg-slate-200/60 text-slate-600"
                 }`}>
-                  {invoiceFile ? "Ready" : "Pending"}
+                  {invoiceFile ? "Attached" : "Pending"}
                 </span>
               </div>
               <label className="flex items-center justify-between h-8 px-2.5 bg-white border border-slate-200 rounded-sm cursor-pointer hover:border-[#1a7a52] transition-colors">
@@ -759,152 +983,260 @@ export default function UtilityServicesTab({
           </div>
         </div>
 
-        {/* SECTION 3: EXISTING CLAIMS IN THIS CYCLE */}
-        <div className="space-y-2 pt-2 border-t border-slate-100">
-          <div className="flex items-center justify-between">
-            <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-              Recorded Utility Claims for this Cycle ({records.length})
-            </h3>
-            <span className="text-[11px] text-slate-400">
-              Total Recorded: {formatCurrency(records.reduce((acc, r) => acc + (Number(r.amount_claimed) || 0), 0))}
+        {/* FORM ACTION TOOLBAR */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-slate-100">
+          <div className="text-[11px] text-slate-500">
+            {rows.length} row{rows.length > 1 ? "s" : ""} in current batch · Total Amount:{" "}
+            <strong className="text-slate-900">{formatCurrency(formTotalAmount)}</strong>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => handleSaveAllRecords("draft")}
+              disabled={saving || readOnly}
+              className="h-8.5 text-xs border-slate-200 text-slate-700 rounded-sm gap-1.5"
+            >
+              <Save className="size-3.5" /> Save Draft
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => handleSaveAllRecords("submitted")}
+              disabled={saving || readOnly}
+              className="h-8.5 text-xs bg-[#1a7a52] hover:bg-[#145c3f] text-white font-bold rounded-sm gap-1.5 shadow-xs border border-[#145c3f]"
+            >
+              {saving ? <Loader2 className="size-3.5 animate-spin" /> : <Send className="size-3.5" />}
+              Submit to Zone / HQ
+            </Button>
+          </div>
+        </div>
+
+        {/* ═══════════════════════════════════════════════════════════════════════
+            SECTION 3: RECORDED CLAIMS & ZONAL CONSOLIDATION (SLIDE 07)
+            Multi-select checkbox & "Consolidate into HQ Payment Request"
+        ═══════════════════════════════════════════════════════════════════════ */}
+        <div className="space-y-3 pt-4 border-t border-slate-200">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+            <div>
+              <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                <span>Recorded Utility Claims for this Cycle ({records.length})</span>
+                {records.some((r) => r.status === "consolidated") && (
+                  <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200 text-[10px]">
+                    Has Consolidated Batches
+                  </Badge>
+                )}
+              </h3>
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                Zonal Coordinators: Select submitted security/cleaning claims across states to consolidate into one HQ payment request.
+              </p>
+            </div>
+            <span className="text-xs font-bold text-slate-700 bg-slate-100 px-2.5 py-1 rounded-sm">
+              Cycle Total: {formatCurrency(records.reduce((acc, r) => acc + (Number(r.amount_claimed) || 0), 0))}
             </span>
           </div>
 
+          {/* ZONAL CONSOLIDATION ACTION BANNER */}
+          {selectedClaimIds.length > 0 && (
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-gradient-to-r from-emerald-50 via-white to-emerald-50/60 border-2 border-[#1a7a52] p-3.5 rounded-sm shadow-xs animate-in fade-in duration-150">
+              <div className="flex items-center gap-3">
+                <div className="size-9 rounded-sm bg-[#1a7a52] text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-xs">
+                  <Layers className="size-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <p className="text-xs font-bold text-[#0f3d2e]">
+                      {selectedClaimIds.length} Claim{selectedClaimIds.length > 1 ? "s" : ""} Selected for Consolidation
+                    </p>
+                    <Badge className="bg-[#1a7a52] text-white text-[10px] font-bold">
+                      Ready for Batching
+                    </Badge>
+                  </div>
+                  <p className="text-[11px] text-slate-600 mt-0.5">
+                    Total batch amount: <strong className="text-slate-900">{formatCurrency(selectedClaimsTotal)}</strong> across selected state offices.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 self-end sm:self-auto">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSelectedClaimIds([])}
+                  className="h-8 text-xs border-slate-300 text-slate-700 hover:bg-slate-100 rounded-sm"
+                >
+                  Clear Selection
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={handleConsolidateSelected}
+                  disabled={consolidating}
+                  className="h-8.5 text-xs bg-[#1a7a52] hover:bg-[#145c3f] text-white font-bold rounded-sm gap-1.5 shadow-xs border border-[#145c3f]"
+                >
+                  {consolidating ? (
+                    <Loader2 className="size-3.5 animate-spin" />
+                  ) : (
+                    <Layers className="size-3.5" />
+                  )}
+                  Consolidate into HQ Payment Request
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* CLAIMS TABLE WITH MULTI-SELECT CHECKBOXES */}
           <div className="rounded-sm border border-slate-200 overflow-hidden shadow-2xs">
             <Table>
               <TableHeader>
-                <TableRow className="bg-slate-50/70 border-b border-slate-200 text-xs">
+                <TableRow className="bg-slate-50/80 border-b border-slate-200 text-xs">
+                  <TableHead className="w-10 text-center">
+                    <Checkbox
+                      checked={
+                        records.length > 0 &&
+                        records.filter((r) => r.id && r.status !== "consolidated").length > 0 &&
+                        selectedClaimIds.length === records.filter((r) => r.id && r.status !== "consolidated").length
+                      }
+                      onCheckedChange={toggleSelectAllEligible}
+                      aria-label="Select all eligible claims"
+                    />
+                  </TableHead>
                   <TableHead className="w-10 text-[11px] font-bold text-slate-700 text-center">S/N</TableHead>
                   <TableHead className="text-[11px] font-bold text-slate-700">Category</TableHead>
                   <TableHead className="text-[11px] font-bold text-slate-700">Location</TableHead>
                   <TableHead className="text-[11px] font-bold text-slate-700">Contractor</TableHead>
                   <TableHead className="text-[11px] font-bold text-slate-700">Amount (₦)</TableHead>
-                  <TableHead className="text-[11px] font-bold text-slate-700">Invoice Ref</TableHead>
-                  <TableHead className="text-[11px] font-bold text-slate-700">Status</TableHead>
-                  <TableHead className="w-24 text-[11px] font-bold text-slate-700 text-right">Action</TableHead>
+                  <TableHead className="text-[11px] font-bold text-slate-700">Invoice / Ref</TableHead>
+                  <TableHead className="text-[11px] font-bold text-slate-700">Reporting Status</TableHead>
+                  <TableHead className="text-[11px] font-bold text-slate-700">Consolidation Batch ID</TableHead>
+                  <TableHead className="w-20 text-[11px] font-bold text-slate-700 text-right">Action</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="py-6 text-center text-slate-400 text-xs">
+                    <TableCell colSpan={10} className="py-8 text-center text-slate-400 text-xs">
                       <Loader2 className="size-4 animate-spin inline-block mr-2 text-[#1a7a52]" />
-                      Loading recorded claims...
+                      Loading recorded utility claims...
                     </TableCell>
                   </TableRow>
                 ) : records.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="py-6 text-center text-slate-400 text-xs">
-                      No utility claims registered for this state office in {selectedYearVal} yet. Fill the form above to add a claim.
+                    <TableCell colSpan={10} className="py-8 text-center text-slate-400 text-xs">
+                      No utility claims registered for this state office in {selectedYearVal} yet. Add a row in the table above.
                     </TableCell>
                   </TableRow>
                 ) : (
-                  records.map((r, idx) => (
-                    <TableRow
-                      key={r.id || idx}
-                      className={`border-b border-slate-100 hover:bg-slate-50 text-xs transition-colors ${
-                        editingId === r.id ? "bg-[#1a7a52]/5 font-medium" : ""
-                      }`}
-                    >
-                      <TableCell className="font-semibold text-center text-slate-600">{idx + 1}</TableCell>
-                      <TableCell>{getCategoryBadge(r.service_category)}</TableCell>
-                      <TableCell className="text-slate-600 capitalize">
-                        {r.service_location === "zonal_office" ? "Zonal Office" : "State Office"}
-                      </TableCell>
-                      <TableCell className="font-semibold text-slate-800">{r.contractor_name || "—"}</TableCell>
-                      <TableCell className="font-bold text-slate-900 tabular-nums">
-                        {formatCurrency(r.amount_claimed)}
-                      </TableCell>
-                      <TableCell className="text-slate-500 font-mono text-[11px]">
-                        {r.invoice_number || r.payment_request_ref || "—"}
-                      </TableCell>
-                      <TableCell>
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-sm text-[10px] font-semibold ${
-                          r.status === "submitted"
-                            ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                            : "bg-slate-100 text-slate-600 border border-slate-200"
-                        }`}>
-                          {r.status === "submitted" ? "Submitted" : "Draft"}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleStartEditRecord(r)}
-                            className="h-7 w-7 p-0 text-[#1a7a52] hover:bg-[#1a7a52]/10 rounded-sm"
-                            title="Edit Claim"
+                  records.map((r, idx) => {
+                    const isSelected = r.id ? selectedClaimIds.includes(r.id) : false;
+                    const isConsolidated = r.status === "consolidated" || !!r.consolidated_batch_id;
+                    return (
+                      <TableRow
+                        key={r.id || idx}
+                        className={`border-b border-slate-100 hover:bg-slate-50 text-xs transition-colors ${
+                          isSelected ? "bg-emerald-50/40" : ""
+                        }`}
+                      >
+                        {/* Multi-select Checkbox */}
+                        <TableCell className="text-center p-2">
+                          {r.id && !isConsolidated ? (
+                            <Checkbox
+                              checked={isSelected}
+                              onCheckedChange={() => toggleSelectClaim(r.id!)}
+                              aria-label={`Select claim ${r.id}`}
+                            />
+                          ) : isConsolidated ? (
+                            <CheckCircle2 className="size-4 text-emerald-600 inline-block" title="Already Consolidated" />
+                          ) : (
+                            "—"
+                          )}
+                        </TableCell>
+
+                        {/* S/N */}
+                        <TableCell className="font-semibold text-center text-slate-600">{idx + 1}</TableCell>
+
+                        {/* Category */}
+                        <TableCell>{getCategoryBadge(r.service_category)}</TableCell>
+
+                        {/* Location */}
+                        <TableCell className="text-slate-600 capitalize">
+                          {r.service_location === "zonal_office" ? "Zonal Office" : "State Office"}
+                        </TableCell>
+
+                        {/* Contractor */}
+                        <TableCell className="font-semibold text-slate-800">{r.contractor_name || "—"}</TableCell>
+
+                        {/* Amount Due */}
+                        <TableCell className="font-bold text-slate-900 tabular-nums">
+                          {formatCurrency(r.amount_claimed)}
+                        </TableCell>
+
+                        {/* Invoice Ref */}
+                        <TableCell className="text-slate-500 font-mono text-[11px]">
+                          {r.invoice_number || r.payment_request_ref || "—"}
+                        </TableCell>
+
+                        {/* Reporting Status */}
+                        <TableCell>
+                          <span
+                            className={`inline-flex items-center px-2 py-0.5 rounded-sm text-[10px] font-semibold ${
+                              isConsolidated
+                                ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
+                                : r.status === "submitted"
+                                ? "bg-blue-50 text-blue-700 border border-blue-200"
+                                : "bg-slate-100 text-slate-600 border border-slate-200"
+                            }`}
                           >
-                            <Pencil className="size-3.5" />
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDeleteRecord(r.id)}
-                            className="h-7 w-7 p-0 text-rose-600 hover:bg-rose-50 rounded-sm"
-                            title="Delete Claim"
-                          >
-                            <Trash2 className="size-3.5" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
+                            {isConsolidated ? "Consolidated" : r.status === "submitted" ? "Submitted" : "Draft"}
+                          </span>
+                        </TableCell>
+
+                        {/* Consolidation Batch ID */}
+                        <TableCell>
+                          {r.consolidated_batch_id ? (
+                            <Badge variant="outline" className="font-mono text-[10px] bg-emerald-50 text-emerald-700 border-emerald-200">
+                              {r.consolidated_batch_id}
+                            </Badge>
+                          ) : (
+                            <span className="text-slate-400 text-[11px] italic">Unconsolidated</span>
+                          )}
+                        </TableCell>
+
+                        {/* Actions */}
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleEditRecord(r)}
+                              className="h-7 w-7 p-0 text-[#1a7a52] hover:bg-[#1a7a52]/10 rounded-sm"
+                              title="Edit / Load into Form"
+                            >
+                              <Pencil className="size-3.5" />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteRecord(r.id)}
+                              className="h-7 w-7 p-0 text-rose-600 hover:bg-rose-50 rounded-sm"
+                              title="Delete Record"
+                            >
+                              <Trash2 className="size-3.5" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
                 )}
               </TableBody>
             </Table>
           </div>
         </div>
       </CardContent>
-
-      <CardFooter className="bg-slate-50/50 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3 py-3 px-5 rounded-b-sm">
-        <span className="text-[11px] text-slate-400 text-center sm:text-left">
-          Fields marked with (<span className="text-rose-500">*</span>) are mandatory. Claims are aggregated for Zonal HQ reconciliation.
-        </span>
-        <div className="flex items-center gap-2 self-end sm:self-auto">
-          {editingId && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleResetForm}
-              className="h-8 text-xs border-slate-200 text-slate-700 rounded-sm gap-1"
-            >
-              <RotateCcw className="size-3" /> New Claim
-            </Button>
-          )}
-          {onCancel && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={onCancel}
-              className="h-8 text-xs border-slate-200 text-slate-700 rounded-sm"
-            >
-              Cancel
-            </Button>
-          )}
-          <Button
-            type="button"
-            size="sm"
-            onClick={handleSaveClaim}
-            disabled={saving || readOnly}
-            className="h-8.5 text-xs bg-[#1a7a52] hover:bg-[#145c3f] text-white font-bold rounded-sm gap-1.5 shadow-xs border border-[#145c3f]"
-          >
-            {saving ? (
-              <Loader2 className="size-3.5 animate-spin" />
-            ) : editingId ? (
-              <Save className="size-3.5" />
-            ) : (
-              <Plus className="size-3.5" />
-            )}
-            {editingId ? "Update Claim" : "Save Claim"}
-          </Button>
-        </div>
-      </CardFooter>
     </Card>
   );
 }
