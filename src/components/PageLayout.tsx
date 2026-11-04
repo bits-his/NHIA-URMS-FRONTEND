@@ -29,8 +29,10 @@ export interface PageLayoutProps {
   badge?: React.ReactNode;
   /** Header action buttons (e.g., Sync, Export, New Record) */
   actions?: React.ReactNode;
-  /** Sub-header slot for filter row, search bar, or tabs */
+  /** Sub-header slot for filter row, search bar, or tabs inside the header */
   filters?: React.ReactNode;
+  /** Navigation tab strip rendered directly under the header on a dedicated white bar */
+  tabs?: React.ReactNode;
 
   /** Show back button */
   back?: boolean;
@@ -108,6 +110,7 @@ export function PageLayout({
   badge,
   actions,
   filters,
+  tabs,
   back = false,
   showBack,
   onBack,
@@ -194,6 +197,13 @@ export function PageLayout({
           ) : null}
         </header>
       )}
+
+      {/* Under-Header Tab Bar (Dedicated white bar sitting directly below the header) */}
+      {tabs ? (
+        <div className="bg-white border-b border-[#d4e8dc]/80 px-4 md:px-6 shrink-0 shadow-2xs">
+          {tabs}
+        </div>
+      ) : null}
 
       {/* Main Content Body */}
       {loading ? (
