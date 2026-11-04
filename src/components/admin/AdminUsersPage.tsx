@@ -1,18 +1,15 @@
 import * as React from "react";
 import {
-  Plus, Pencil, Search, ChevronLeft, ChevronRight,
-  ShieldCheck, UserX, UserCheck, RefreshCw, RotateCcw,
-  X, MapPin, Building2, Mail, User, Shield, Check
+  Plus, Pencil, Search, ShieldCheck, UserX, UserCheck,
+  RefreshCw, RotateCcw, X, Mail, User, Shield
 } from "lucide-react";
 import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { SearchSelect } from "@/components/ui/search-select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Skeleton } from "@/components/ui/skeleton";
+import CustomTable, { type CustomTableField } from "@/components/CustomTable";
 import { cn } from "@/lib/utils";
 import {
   usersApi, rolesApi, zonesApi, statesApi, departmentsApi, unitsApi,
@@ -85,9 +82,6 @@ export default function AdminUsersPage() {
   const [states, setStates] = React.useState<StateOffice[]>([]);
   const [depts, setDepts] = React.useState<Department[]>([]);
   const [formUnits, setFormUnits] = React.useState<Unit[]>([]);
-  const [total, setTotal] = React.useState(0);
-  const [pages, setPages] = React.useState(1);
-  const [page, setPage] = React.useState(1);
   const [loading, setLoading] = React.useState(true);
   const [search, setSearch] = React.useState("");
   const [filterRole, setFilterRole] = React.useState("");
@@ -117,21 +111,18 @@ export default function AdminUsersPage() {
     setLoading(true);
     try {
       const res = await usersApi.list({
-        page,
-        limit: 100,
+        limit: 500,
         search: search.trim() || undefined,
         role: filterRole || undefined,
-        zonal_code: filterZone || undefined
+        zonal_code: filterZone || undefined,
       });
       setUsers(res.data);
-      setTotal(res.total);
-      setPages(res.pages);
     } catch (e: any) {
       toast.error(e.message);
     } finally {
       setLoading(false);
     }
-  }, [page, search, filterRole, filterZone]);
+  }, [search, filterRole, filterZone]);
 
   React.useEffect(() => {
     load();
@@ -289,7 +280,6 @@ export default function AdminUsersPage() {
     }
   };
 
-  // Status-filtered users
   const displayedUsers = React.useMemo(() => {
     if (filterStatus === "active") return users.filter(u => u.is_active);
     if (filterStatus === "inactive") return users.filter(u => !u.is_active);
@@ -303,28 +293,189 @@ export default function AdminUsersPage() {
     setFilterRole("");
     setFilterZone("");
     setFilterStatus("all");
-    setPage(1);
   };
 
+  // CustomTable fields configuration fitting viewport perfectly
+  const tableFields: CustomTableField[] = React.useMemo(() => [
+    {
+      title: "Staff Member",
+      value: "name",
+      className: "w-[24%] text-left",
+      custom: true,
+      component: (u: AdminUser) => (
+        <div className="flex items-center gap-2 min-w-0">
+          <div className={cn("size-6.5 rounded-sm flex items-center justify-center font-bold text-[10px] shrink-0 border", getAvatarColor(u.name))}>
+            {getInitials(u.name)}
+          </div>
+          <div className="min-w-0 flex-1 truncate">
+            <p className="font-semibold text-slate-900 text-xs truncate leading-tight">
+              {u.name}
+            </p>
+            <p className="text-[10px] text-slate-500 truncate flex items-center gap-1 mt-0.5">
+              <Mail className="size-2.5 text-slate-400 shrink-0" />
+              <span className="truncate">{u.email || "No email"}</span>
+            </p>
+          </div>
+        </div>
+      ),
+    },
+    {
+      title: "Staff ID",
+      value: "staff_id",
+      className: "w-[12%] text-left",
+      custom: true,
+      component: (u: AdminUser) => (
+        <span className="font-mono text-[11px] font-semibold px-1.5 py-0.5 rounded-sm bg-slate-100 text-slate-700 border border-slate-200">
+          {u.staff_id || "—"}
+        </span>
+      ),
+    },
+    {
+      title: "Role",
+      value: "role",
+      className: "w-[15%] text-left",
+      custom: true,
+      component: (u: AdminUser) => (
+        <span
+          className={cn(
+            "inline-block text-[10px] font-semibold px-1.5 py-0.5 rounded-sm border truncate max-w-full",
+            ROLE_BADGE_STYLES[u.role] ?? "bg-slate-50 text-slate-700 border-slate-200"
+          )}
+          title={roleLabels[u.role] ?? u.role}
+        >
+          {roleLabels[u.role] ?? u.role}
+        </span>
+      ),
+    },
+    {
+      title: "Department / Unit",
+      value: "department",
+      className: "w-[18%] text-left",
+      custom: true,
+      component: (u: AdminUser) => {
+        const deptName = u.department?.name || (u as any).department_code || "—";
+        const unitName = (u as any).unit?.name || (u as any).unit_code;
+        return (
+          <div className="min-w-0 truncate" title={`${deptName}${unitName ? ` / Unit: ${unitName}` : ""}`}>
+            <p className="text-[11px] font-medium text-slate-800 truncate">
+              {deptName}
+            </p>
+            {unitName && (
+              <p className="text-[10px] text-slate-400 truncate">
+                {unitName}
+              </p>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      title: "Location",
+      value: "location",
+      className: "w-[11%] text-left",
+      custom: true,
+      component: (u: AdminUser) => {
+        const zone = u.zone?.zonal_code || u.zonal_code;
+        const state = u.state?.code || u.state_code;
+        if (!zone && !state) {
+          return <span className="text-[11px] text-slate-400">HQ</span>;
+        }
+        return (
+          <div className="flex items-center gap-1 flex-wrap">
+            {zone && (
+              <span className="text-[9px] font-bold px-1 py-0.2 rounded-sm bg-sky-50 text-sky-700 border border-sky-100">
+                {zone}
+              </span>
+            )}
+            {state && (
+              <span className="text-[9px] font-bold px-1 py-0.2 rounded-sm bg-amber-50 text-amber-700 border border-amber-100">
+                {state}
+              </span>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      title: "Status",
+      value: "is_active",
+      className: "w-[10%] text-center",
+      custom: true,
+      component: (u: AdminUser) => (
+        u.is_active ? (
+          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-sm text-[10px] font-semibold bg-[#e8f5ee] text-[#145c3f] border border-[#d4e8dc]">
+            <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            Active
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-sm text-[10px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">
+            <span className="size-1.5 rounded-full bg-rose-500" />
+            Inactive
+          </span>
+        )
+      ),
+    },
+    {
+      title: "Actions",
+      value: "actions",
+      className: "w-[10%] text-right",
+      custom: true,
+      component: (u: AdminUser) => (
+        <div className="flex items-center gap-1 justify-end">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => openEdit(u)}
+            className="h-6 px-1.5 text-[11px] text-slate-600 hover:text-[#145c3f] hover:bg-[#e8f5ee] rounded-sm gap-1 font-medium cursor-pointer"
+          >
+            <Pencil className="size-3" />
+            <span>Edit</span>
+          </Button>
+          {u.is_active ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => handleDeactivate(u)}
+              title="Deactivate user"
+              className="size-6 p-0 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-sm cursor-pointer"
+            >
+              <UserX className="size-3" />
+            </Button>
+          ) : (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => handleActivate(u)}
+              title="Reactivate user"
+              className="size-6 p-0 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-sm cursor-pointer"
+            >
+              <UserCheck className="size-3" />
+            </Button>
+          )}
+        </div>
+      ),
+    },
+  ], [roleLabels]);
+
   return (
-    <div className="space-y-3.5">
+    <div className="space-y-3">
       {/* ── Toolbar & Filter Strip ── */}
-      <Card className="rounded-xl border-[#d4e8dc] bg-white shadow-2xs p-3">
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
+      <Card className="rounded-md border-[#d4e8dc] bg-white shadow-2xs p-2.5">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
           {/* Left search & filter controls */}
           <div className="flex flex-1 flex-wrap items-center gap-2">
             {/* Search Input */}
-            <div className="relative min-w-[200px] flex-1 max-w-sm">
+            <div className="relative min-w-[180px] flex-1 max-w-xs">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-slate-400 pointer-events-none" />
               <Input
                 placeholder="Search staff name or ID…"
                 value={search}
-                onChange={e => { setSearch(e.target.value); setPage(1); }}
-                className="h-9 pl-8 pr-7 text-xs rounded-lg border-[#d4e8dc] focus-visible:ring-[#25a872] bg-slate-50/50 hover:bg-white focus:bg-white"
+                onChange={e => setSearch(e.target.value)}
+                className="h-8.5 pl-8 pr-7 text-xs rounded-sm border-[#d4e8dc] focus-visible:ring-[#25a872] bg-slate-50/50 hover:bg-white focus:bg-white"
               />
               {search && (
                 <button
-                  onClick={() => { setSearch(""); setPage(1); }}
+                  onClick={() => setSearch("")}
                   className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
                 >
                   <X className="size-3" />
@@ -333,15 +484,15 @@ export default function AdminUsersPage() {
             </div>
 
             {/* Role Filter */}
-            <div className="w-[150px]">
+            <div className="w-[140px]">
               <Select
                 value={filterRole || "ALL"}
-                onValueChange={v => { setFilterRole(v === "ALL" ? "" : v); setPage(1); }}
+                onValueChange={v => setFilterRole(v === "ALL" ? "" : v)}
               >
                 <SelectTrigger
                   size="sm"
                   displayValue={filterRole ? (roleLabels[filterRole] || filterRole) : "All Roles"}
-                  className="h-9 rounded-lg border-[#d4e8dc] bg-white text-xs font-medium"
+                  className="h-8.5 rounded-sm border-[#d4e8dc] bg-white text-xs font-medium"
                 >
                   <SelectValue placeholder="All Roles" />
                 </SelectTrigger>
@@ -355,15 +506,15 @@ export default function AdminUsersPage() {
             </div>
 
             {/* Zone Filter */}
-            <div className="w-[140px]">
+            <div className="w-[130px]">
               <Select
                 value={filterZone || "ALL"}
-                onValueChange={v => { setFilterZone(v === "ALL" ? "" : v); setPage(1); }}
+                onValueChange={v => setFilterZone(v === "ALL" ? "" : v)}
               >
                 <SelectTrigger
                   size="sm"
                   displayValue={filterZone ? `Zone: ${filterZone}` : "All Zones"}
-                  className="h-9 rounded-lg border-[#d4e8dc] bg-white text-xs font-medium"
+                  className="h-8.5 rounded-sm border-[#d4e8dc] bg-white text-xs font-medium"
                 >
                   <SelectValue placeholder="All Zones" />
                 </SelectTrigger>
@@ -377,15 +528,15 @@ export default function AdminUsersPage() {
             </div>
 
             {/* Status Filter */}
-            <div className="w-[125px]">
+            <div className="w-[120px]">
               <Select
                 value={filterStatus}
-                onValueChange={(v: "all" | "active" | "inactive") => { setFilterStatus(v); setPage(1); }}
+                onValueChange={(v: "all" | "active" | "inactive") => setFilterStatus(v)}
               >
                 <SelectTrigger
                   size="sm"
                   displayValue={filterStatus === "all" ? "All Status" : filterStatus === "active" ? "Active Only" : "Inactive Only"}
-                  className="h-9 rounded-lg border-[#d4e8dc] bg-white text-xs font-medium"
+                  className="h-8.5 rounded-sm border-[#d4e8dc] bg-white text-xs font-medium"
                 >
                   <SelectValue placeholder="All Status" />
                 </SelectTrigger>
@@ -403,7 +554,7 @@ export default function AdminUsersPage() {
                 variant="ghost"
                 size="sm"
                 onClick={resetFilters}
-                className="h-9 text-xs text-slate-500 hover:text-slate-800 gap-1 rounded-lg px-2"
+                className="h-8.5 text-xs text-slate-500 hover:text-slate-800 gap-1 rounded-sm px-2 cursor-pointer"
               >
                 <RotateCcw className="size-3" />
                 Reset
@@ -412,13 +563,13 @@ export default function AdminUsersPage() {
           </div>
 
           {/* Right actions */}
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-1.5 shrink-0">
             <Button
               variant="outline"
               size="sm"
               onClick={load}
               disabled={loading}
-              className="h-9 text-xs rounded-lg border-[#d4e8dc] hover:bg-[#e8f5ee] text-slate-700 font-medium px-2.5 cursor-pointer"
+              className="h-8.5 text-xs rounded-sm border-[#d4e8dc] hover:bg-[#e8f5ee] text-slate-700 font-medium px-2.5 cursor-pointer"
             >
               <RefreshCw className={cn("size-3.5", loading && "animate-spin")} />
               <span className="hidden sm:inline">Refresh</span>
@@ -427,7 +578,7 @@ export default function AdminUsersPage() {
             <Button
               size="sm"
               onClick={openCreate}
-              className="h-9 bg-[#145c3f] hover:bg-[#0f442e] text-white rounded-lg text-xs font-semibold gap-1.5 shadow-2xs cursor-pointer px-3"
+              className="h-8.5 bg-[#145c3f] hover:bg-[#0f442e] text-white rounded-sm text-xs font-semibold gap-1.5 shadow-2xs cursor-pointer px-3"
             >
               <Plus className="size-3.5" />
               Add Staff User
@@ -436,303 +587,15 @@ export default function AdminUsersPage() {
         </div>
       </Card>
 
-      {/* ── Table Card ── */}
-      <Card className="rounded-xl border-[#d4e8dc] shadow-2xs bg-white overflow-hidden">
-        {/* Table summary subheader */}
-        <div className="px-4 py-2.5 border-b border-[#e8f5ee] bg-[#f8fbf9] flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-slate-800">Staff Accounts Directory</span>
-            <Badge variant="outline" className="text-[11px] font-semibold text-[#145c3f] border-[#d4e8dc] bg-[#e8f5ee]">
-              {displayedUsers.length} of {total} accounts
-            </Badge>
-          </div>
-
-          {hasActiveFilters && (
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="text-[11px] text-slate-500">Filtered by:</span>
-              {search && (
-                <span className="inline-flex items-center gap-1 text-[10px] font-medium bg-slate-100 px-2 py-0.5 rounded text-slate-700 border border-slate-200">
-                  "{search}"
-                  <button onClick={() => { setSearch(""); setPage(1); }} className="hover:text-rose-600"><X className="size-2.5" /></button>
-                </span>
-              )}
-              {filterRole && (
-                <span className="inline-flex items-center gap-1 text-[10px] font-medium bg-indigo-50 text-indigo-700 border border-indigo-100 px-2 py-0.5 rounded">
-                  Role: {roleLabels[filterRole] || filterRole}
-                  <button onClick={() => { setFilterRole(""); setPage(1); }} className="hover:text-rose-600"><X className="size-2.5" /></button>
-                </span>
-              )}
-              {filterZone && (
-                <span className="inline-flex items-center gap-1 text-[10px] font-medium bg-sky-50 text-sky-700 border border-sky-100 px-2 py-0.5 rounded">
-                  Zone: {filterZone}
-                  <button onClick={() => { setFilterZone(""); setPage(1); }} className="hover:text-rose-600"><X className="size-2.5" /></button>
-                </span>
-              )}
-              {filterStatus !== "all" && (
-                <span className="inline-flex items-center gap-1 text-[10px] font-medium bg-emerald-50 text-[#145c3f] border border-emerald-100 px-2 py-0.5 rounded">
-                  Status: {filterStatus}
-                  <button onClick={() => { setFilterStatus("all"); setPage(1); }} className="hover:text-rose-600"><X className="size-2.5" /></button>
-                </span>
-              )}
-              <button onClick={resetFilters} className="text-[10px] text-rose-600 hover:underline font-semibold ml-1 cursor-pointer">
-                Clear all
-              </button>
-            </div>
-          )}
-        </div>
-
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-[#f8fbf9] hover:bg-[#f8fbf9] border-b border-[#e8f5ee]">
-                <TableHead className="text-xs font-bold text-slate-700 pl-4 py-3">Staff Member</TableHead>
-                <TableHead className="text-xs font-bold text-slate-700 py-3">Staff ID</TableHead>
-                <TableHead className="text-xs font-bold text-slate-700 py-3">Role</TableHead>
-                <TableHead className="text-xs font-bold text-slate-700 py-3 hidden md:table-cell">Department / Unit</TableHead>
-                <TableHead className="text-xs font-bold text-slate-700 py-3 hidden lg:table-cell">Office Location</TableHead>
-                <TableHead className="text-xs font-bold text-slate-700 py-3 hidden sm:table-cell">Privileges</TableHead>
-                <TableHead className="text-xs font-bold text-slate-700 py-3">Status</TableHead>
-                <TableHead className="text-xs font-bold text-slate-700 pr-4 py-3 text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
-                Array.from({ length: 6 }).map((_, i) => (
-                  <TableRow key={`skel-${i}`} className="border-b border-[#e8f5ee]">
-                    <TableCell className="pl-4 py-3">
-                      <div className="flex items-center gap-2.5">
-                        <Skeleton className="size-8 rounded-full" />
-                        <div className="space-y-1.5">
-                          <Skeleton className="h-3.5 w-28" />
-                          <Skeleton className="h-2.5 w-36" />
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell><Skeleton className="h-4 w-16 rounded" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-20 rounded" /></TableCell>
-                    <TableCell className="hidden md:table-cell"><Skeleton className="h-4 w-24 rounded" /></TableCell>
-                    <TableCell className="hidden lg:table-cell"><Skeleton className="h-4 w-20 rounded" /></TableCell>
-                    <TableCell className="hidden sm:table-cell"><Skeleton className="h-4 w-16 rounded" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-16 rounded-full" /></TableCell>
-                    <TableCell className="pr-4 text-right"><Skeleton className="h-7 w-16 ml-auto rounded" /></TableCell>
-                  </TableRow>
-                ))
-              ) : displayedUsers.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={8} className="py-12 text-center">
-                    <div className="flex flex-col items-center justify-center max-w-sm mx-auto space-y-2.5">
-                      <div className="size-10 rounded-full bg-[#e8f5ee] text-[#145c3f] flex items-center justify-center border border-[#d4e8dc]">
-                        <Search className="size-5" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-bold text-slate-800">No staff members found</p>
-                        <p className="text-xs text-slate-500 mt-0.5">
-                          {hasActiveFilters
-                            ? "No staff matches your current filter or search criteria."
-                            : "No staff users have been registered yet."}
-                        </p>
-                      </div>
-                      {hasActiveFilters ? (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={resetFilters}
-                          className="text-xs border-[#d4e8dc] text-slate-700 hover:bg-[#e8f5ee] gap-1.5 mt-1 cursor-pointer"
-                        >
-                          <RotateCcw className="size-3" />
-                          Reset all filters
-                        </Button>
-                      ) : (
-                        <Button
-                          size="sm"
-                          onClick={openCreate}
-                          className="text-xs bg-[#145c3f] hover:bg-[#0f442e] text-white gap-1.5 mt-1 cursor-pointer"
-                        >
-                          <Plus className="size-3.5" />
-                          Add First Staff User
-                        </Button>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                displayedUsers.map(u => (
-                  <TableRow key={u.id} className="hover:bg-[#f8fbf9] transition-colors border-b border-[#e8f5ee]">
-                    {/* Staff Member */}
-                    <TableCell className="pl-4 py-2.5">
-                      <div className="flex items-center gap-2.5">
-                        <div className={cn("size-8 rounded-full flex items-center justify-center font-bold text-xs shrink-0 border", getAvatarColor(u.name))}>
-                          {getInitials(u.name)}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="font-semibold text-slate-900 text-xs sm:text-sm truncate leading-tight">
-                            {u.name}
-                          </p>
-                          <p className="text-[11px] text-slate-500 truncate flex items-center gap-1 mt-0.5">
-                            <Mail className="size-2.5 text-slate-400 shrink-0" />
-                            {u.email || "No email registered"}
-                          </p>
-                        </div>
-                      </div>
-                    </TableCell>
-
-                    {/* Staff ID */}
-                    <TableCell className="py-2.5">
-                      <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200">
-                        {u.staff_id || "—"}
-                      </span>
-                    </TableCell>
-
-                    {/* Role */}
-                    <TableCell className="py-2.5">
-                      <Badge
-                        variant="outline"
-                        className={cn("text-[10px] font-semibold tracking-wide border", ROLE_BADGE_STYLES[u.role] ?? "bg-slate-50 text-slate-700 border-slate-200")}
-                      >
-                        {roleLabels[u.role] ?? u.role}
-                      </Badge>
-                    </TableCell>
-
-                    {/* Department & Unit */}
-                    <TableCell className="py-2.5 hidden md:table-cell">
-                      <div className="min-w-0">
-                        <p className="text-xs font-medium text-slate-800 truncate">
-                          {u.department?.name || (u as any).department_code || "—"}
-                        </p>
-                        {((u as any).unit?.name || (u as any).unit_code) && (
-                          <p className="text-[10px] text-slate-400 truncate mt-0.5">
-                            Unit: {(u as any).unit?.name || (u as any).unit_code}
-                          </p>
-                        )}
-                      </div>
-                    </TableCell>
-
-                    {/* Location (Zone & State) */}
-                    <TableCell className="py-2.5 hidden lg:table-cell">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        {u.zone?.zonal_code || u.zonal_code ? (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-sky-50 text-sky-700 border border-sky-100">
-                            <MapPin className="size-2.5" />
-                            {u.zone?.zonal_code || u.zonal_code}
-                          </span>
-                        ) : null}
-                        {u.state?.code || u.state_code ? (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-100">
-                            <Building2 className="size-2.5" />
-                            {u.state?.code || u.state_code}
-                          </span>
-                        ) : null}
-                        {!u.zone?.zonal_code && !u.zonal_code && !u.state?.code && !u.state_code && (
-                          <span className="text-xs text-slate-400">HQ / National</span>
-                        )}
-                      </div>
-                    </TableCell>
-
-                    {/* Privileges */}
-                    <TableCell className="py-2.5 hidden sm:table-cell">
-                      {Array.isArray(u.functionalities) && u.functionalities.length > 0 ? (
-                        <Badge variant="outline" className="text-[10px] font-semibold text-[#145c3f] border-[#d4e8dc] bg-[#e8f5ee] gap-1">
-                          <ShieldCheck className="size-3" />
-                          {u.functionalities.length} {u.functionalities.length === 1 ? "module" : "modules"}
-                        </Badge>
-                      ) : (
-                        <span className="text-[11px] text-slate-400 italic">No access</span>
-                      )}
-                    </TableCell>
-
-                    {/* Status */}
-                    <TableCell className="py-2.5">
-                      {u.is_active ? (
-                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#e8f5ee] text-[#145c3f] border border-[#d4e8dc]">
-                          <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                          Active
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">
-                          <span className="size-1.5 rounded-full bg-rose-500" />
-                          Inactive
-                        </span>
-                      )}
-                    </TableCell>
-
-                    {/* Actions */}
-                    <TableCell className="pr-4 py-2.5 text-right">
-                      <div className="flex items-center gap-1 justify-end">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => openEdit(u)}
-                          className="h-7 px-2 text-xs text-slate-600 hover:text-[#145c3f] hover:bg-[#e8f5ee] gap-1 font-medium cursor-pointer"
-                        >
-                          <Pencil className="size-3" />
-                          <span className="hidden sm:inline">Edit</span>
-                        </Button>
-                        {u.is_active ? (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDeactivate(u)}
-                            title="Deactivate user"
-                            className="size-7 p-0 text-slate-400 hover:text-rose-600 hover:bg-rose-50 cursor-pointer"
-                          >
-                            <UserX className="size-3.5" />
-                          </Button>
-                        ) : (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleActivate(u)}
-                            title="Reactivate user"
-                            className="size-7 p-0 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 cursor-pointer"
-                          >
-                            <UserCheck className="size-3.5" />
-                          </Button>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-
-        {/* ── Pagination Footer ── */}
-        <div className="flex flex-col sm:flex-row items-center justify-between px-4 py-3 border-t border-[#e8f5ee] bg-[#f8fbf9] gap-2">
-          <p className="text-xs text-slate-500">
-            Showing <span className="font-semibold text-slate-800">{displayedUsers.length}</span> of{" "}
-            <span className="font-semibold text-slate-800">{total}</span> staff accounts
-          </p>
-
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={page <= 1}
-              onClick={() => setPage(p => Math.max(1, p - 1))}
-              className="h-8 text-xs rounded-lg border-[#d4e8dc] text-slate-700 font-medium px-2.5 cursor-pointer disabled:opacity-40"
-            >
-              <ChevronLeft className="size-3.5 mr-1" />
-              Previous
-            </Button>
-
-            <span className="text-xs font-semibold text-slate-700 px-1">
-              Page {page} of {Math.max(1, pages)}
-            </span>
-
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={page >= pages}
-              onClick={() => setPage(p => Math.min(pages, p + 1))}
-              className="h-8 text-xs rounded-lg border-[#d4e8dc] text-slate-700 font-medium px-2.5 cursor-pointer disabled:opacity-40"
-            >
-              Next
-              <ChevronRight className="size-3.5 ml-1" />
-            </Button>
-          </div>
-        </div>
-      </Card>
+      {/* ── CustomTable Component fitting viewport without horizontal scroll ── */}
+      <CustomTable
+        data={displayedUsers}
+        fields={tableFields}
+        loading={loading}
+        fitViewport={true}
+        pageSize={15}
+        message="No staff accounts match your current criteria"
+      />
 
       {/* ── Create / Edit Staff Modal ── */}
       <AdminModal
@@ -742,14 +605,14 @@ export default function AdminUsersPage() {
         onClose={() => setModal(null)}
         width="max-w-3xl"
       >
-        <form onSubmit={handleSave} className="space-y-4">
+        <form onSubmit={handleSave} className="space-y-3.5">
           {/* Modal Section Switcher Tabs */}
-          <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-lg border border-[#d4e8dc]">
+          <div className="flex items-center gap-1 p-0.5 bg-slate-100 rounded-sm border border-[#d4e8dc]">
             <button
               type="button"
               onClick={() => setModalTab("info")}
               className={cn(
-                "flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-md text-xs font-semibold transition-all cursor-pointer",
+                "flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-sm text-xs font-semibold transition-all cursor-pointer",
                 modalTab === "info"
                   ? "bg-white text-[#145c3f] shadow-2xs font-bold"
                   : "text-slate-600 hover:text-slate-900"
@@ -762,7 +625,7 @@ export default function AdminUsersPage() {
               type="button"
               onClick={() => setModalTab("access")}
               className={cn(
-                "flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-md text-xs font-semibold transition-all cursor-pointer",
+                "flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-sm text-xs font-semibold transition-all cursor-pointer",
                 modalTab === "access"
                   ? "bg-white text-[#145c3f] shadow-2xs font-bold"
                   : "text-slate-600 hover:text-slate-900"
@@ -770,16 +633,16 @@ export default function AdminUsersPage() {
             >
               <ShieldCheck className="size-3.5" />
               <span>Module Permissions</span>
-              <span className="text-[10px] px-1.5 py-0.2 rounded-full font-bold bg-[#e8f5ee] text-[#145c3f] border border-[#d4e8dc]">
+              <span className="text-[10px] px-1.5 py-0.2 rounded-sm font-bold bg-[#e8f5ee] text-[#145c3f] border border-[#d4e8dc]">
                 {countGrantedParents(granted)}
               </span>
             </button>
           </div>
 
           {modalTab === "info" ? (
-            <div className="space-y-4 pt-1">
+            <div className="space-y-3 pt-1">
               {/* Profile Details */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="sm:col-span-2">
                   <FormField label="Full Name" required hint={modal === "create" ? "Staff ID will be auto-generated based on role" : `Staff ID: ${editing?.staff_id}`}>
                     <Input
@@ -787,7 +650,7 @@ export default function AdminUsersPage() {
                       value={form.name}
                       onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
                       required
-                      className="h-9 text-xs rounded-lg border-[#d4e8dc] focus-visible:ring-[#25a872]"
+                      className="h-8.5 text-xs rounded-sm border-[#d4e8dc] focus-visible:ring-[#25a872]"
                     />
                   </FormField>
                 </div>
@@ -798,7 +661,7 @@ export default function AdminUsersPage() {
                     placeholder="user@nhia.gov.ng"
                     value={form.email}
                     onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-                    className="h-9 text-xs rounded-lg border-[#d4e8dc] focus-visible:ring-[#25a872]"
+                    className="h-8.5 text-xs rounded-sm border-[#d4e8dc] focus-visible:ring-[#25a872]"
                   />
                 </FormField>
 
@@ -813,7 +676,7 @@ export default function AdminUsersPage() {
                     value={form.password}
                     onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
                     required={modal === "create"}
-                    className="h-9 text-xs rounded-lg border-[#d4e8dc] focus-visible:ring-[#25a872]"
+                    className="h-8.5 text-xs rounded-sm border-[#d4e8dc] focus-visible:ring-[#25a872]"
                   />
                 </FormField>
 
@@ -828,7 +691,7 @@ export default function AdminUsersPage() {
                     <SelectTrigger
                       size="sm"
                       displayValue={roleLabels[form.role] ?? form.role}
-                      className="h-9 text-xs rounded-lg border-[#d4e8dc] bg-white font-medium"
+                      className="h-8.5 text-xs rounded-sm border-[#d4e8dc] bg-white font-medium"
                     >
                       <SelectValue placeholder="Select role" />
                     </SelectTrigger>
@@ -848,7 +711,7 @@ export default function AdminUsersPage() {
                     <SelectTrigger
                       size="sm"
                       displayValue={form.is_active ? "Active" : "Inactive"}
-                      className="h-9 text-xs rounded-lg border-[#d4e8dc] bg-white font-medium"
+                      className="h-8.5 text-xs rounded-sm border-[#d4e8dc] bg-white font-medium"
                     >
                       <SelectValue placeholder="Select status" />
                     </SelectTrigger>
@@ -862,11 +725,11 @@ export default function AdminUsersPage() {
 
               {/* Scope & Office Placement Section */}
               <div className="pt-2 border-t border-[#e8f5ee]">
-                <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2.5">
+                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">
                   Organizational Scope & Assignment
                 </p>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <FormField label="Geopolitical Zone">
                     <SearchSelect
                       clearable
@@ -915,25 +778,25 @@ export default function AdminUsersPage() {
               </div>
             </div>
           ) : (
-            <div className="space-y-3 pt-1">
-              <div className="flex items-center justify-between p-2.5 rounded-lg bg-[#f8fbf9] border border-[#d4e8dc]">
+            <div className="space-y-2.5 pt-1">
+              <div className="flex items-center justify-between p-2 rounded-sm bg-[#f8fbf9] border border-[#d4e8dc]">
                 <div>
                   <p className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                     <ShieldCheck className="size-3.5 text-[#145c3f]" />
                     Granular Access Permissions
                   </p>
-                  <p className="text-[11px] text-slate-500 mt-0.5">
-                    Check modules and specific feature operations authorized for this staff member.
+                  <p className="text-[10px] text-slate-500 mt-0.5">
+                    Authorized module operations for this staff member.
                   </p>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
                   <Button
                     type="button"
                     variant="ghost"
                     size="sm"
                     onClick={() => setGranted(selectAllPrivilegeKeys())}
-                    className="h-7 text-xs text-[#145c3f] hover:bg-[#e8f5ee] font-medium"
+                    className="h-6 text-xs text-[#145c3f] hover:bg-[#e8f5ee] rounded-sm font-medium"
                   >
                     Select All
                   </Button>
@@ -943,7 +806,7 @@ export default function AdminUsersPage() {
                     variant="ghost"
                     size="sm"
                     onClick={() => setGranted(new Set())}
-                    className="h-7 text-xs text-rose-600 hover:bg-rose-50 font-medium"
+                    className="h-6 text-xs text-rose-600 hover:bg-rose-50 rounded-sm font-medium"
                   >
                     Clear All
                   </Button>
@@ -953,31 +816,30 @@ export default function AdminUsersPage() {
                     variant="ghost"
                     size="sm"
                     onClick={() => applyAccessTemplate(form.role, form.unit_id)}
-                    className="h-7 text-xs text-indigo-600 hover:bg-indigo-50 font-medium"
+                    className="h-6 text-xs text-indigo-600 hover:bg-indigo-50 rounded-sm font-medium"
                   >
                     Reset to Role
                   </Button>
                 </div>
               </div>
 
-              <div className="max-h-[50vh] overflow-y-auto pr-1 border border-[#d4e8dc] rounded-xl p-3 bg-white">
+              <div className="max-h-[48vh] overflow-y-auto pr-1 border border-[#d4e8dc] rounded-sm p-2.5 bg-white">
                 <ModuleAccessPicker granted={granted} onChange={setGranted} />
               </div>
             </div>
           )}
 
           {/* Modal Footer */}
-          <div className="flex items-center justify-between pt-3 mt-4 border-t border-[#e8f5ee]">
+          <div className="flex items-center justify-between pt-2.5 mt-3 border-t border-[#e8f5ee]">
             {modalTab === "info" ? (
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
                 onClick={() => setModalTab("access")}
-                className="text-xs rounded-lg border-[#d4e8dc] text-slate-700 gap-1.5 cursor-pointer"
+                className="text-xs rounded-sm border-[#d4e8dc] text-slate-700 h-8 px-2.5 cursor-pointer"
               >
                 Next: Module Permissions
-                <ChevronRight className="size-3.5" />
               </Button>
             ) : (
               <Button
@@ -985,9 +847,8 @@ export default function AdminUsersPage() {
                 variant="outline"
                 size="sm"
                 onClick={() => setModalTab("info")}
-                className="text-xs rounded-lg border-[#d4e8dc] text-slate-700 gap-1.5 cursor-pointer"
+                className="text-xs rounded-sm border-[#d4e8dc] text-slate-700 h-8 px-2.5 cursor-pointer"
               >
-                <ChevronLeft className="size-3.5" />
                 Back to Profile
               </Button>
             )}
@@ -998,7 +859,7 @@ export default function AdminUsersPage() {
                 variant="outline"
                 size="sm"
                 onClick={() => setModal(null)}
-                className="text-xs rounded-lg border-[#d4e8dc] text-slate-600 cursor-pointer"
+                className="text-xs rounded-sm border-[#d4e8dc] text-slate-600 h-8 px-3 cursor-pointer"
               >
                 Cancel
               </Button>
@@ -1006,7 +867,7 @@ export default function AdminUsersPage() {
                 type="submit"
                 size="sm"
                 disabled={saving}
-                className="bg-[#145c3f] hover:bg-[#0f442e] text-white text-xs rounded-lg font-medium shadow-2xs gap-1.5 cursor-pointer"
+                className="bg-[#145c3f] hover:bg-[#0f442e] text-white text-xs rounded-sm font-medium shadow-2xs gap-1.5 h-8 px-3 cursor-pointer"
               >
                 {saving ? (
                   <>

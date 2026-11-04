@@ -29,12 +29,12 @@ export default function AdminModal({
     <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) onClose(); }}>
       <DialogContent
         className={cn(
-          "w-full p-0 rounded-2xl border border-[#d4e8dc] bg-white shadow-2xl overflow-hidden flex flex-col max-h-[90vh]",
+          "w-full p-0 rounded-md border border-[#d4e8dc] bg-white shadow-xl overflow-hidden flex flex-col max-h-[90vh]",
           width
         )}
       >
-        <DialogHeader className="px-6 py-4 border-b border-[#e8f5ee] bg-[#f8fbf9] shrink-0 text-left pr-12">
-          <DialogTitle className="text-base font-bold text-slate-900 tracking-tight">
+        <DialogHeader className="px-5 py-3.5 border-b border-[#e8f5ee] bg-[#f8fbf9] shrink-0 text-left pr-12">
+          <DialogTitle className="text-sm font-bold text-slate-900 tracking-tight">
             {title}
           </DialogTitle>
           {description ? (
@@ -47,7 +47,7 @@ export default function AdminModal({
             </DialogDescription>
           )}
         </DialogHeader>
-        <div className="overflow-y-auto flex-1 px-6 py-5">
+        <div className="overflow-y-auto flex-1 px-5 py-4">
           {children}
         </div>
       </DialogContent>
