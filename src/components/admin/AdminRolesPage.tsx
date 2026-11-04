@@ -1,20 +1,18 @@
 import * as React from "react";
-import { Plus, Pencil, Trash2, Shield } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, X } from "lucide-react";
 import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Input } from "@/components/ui/input";
+import CustomTable, { type CustomTableField } from "@/components/CustomTable";
 import { rolesApi, type AppRole, type ReportScope } from "@/lib/adminApi";
 import AdminModal from "./AdminModal";
-
-const inputCls = "w-full pl-3 pr-3 h-11 rounded-xl border border-[#d4e8dc] bg-[#f4f7f5] text-sm text-slate-800 placeholder:text-slate-400 focus:ring-2 focus:ring-[#25a872] focus:border-[#25a872] outline-none transition-all";
+import { cn } from "@/lib/utils";
 
 const SCOPE_LABELS: Record<ReportScope, string> = {
   national: "National (all states)",
-  zonal:    "Zonal",
-  state:    "State",
-  none:     "No report scope",
+  zonal: "Zonal",
+  state: "State",
+  none: "No report scope",
 };
 
 const EMPTY = {
@@ -31,6 +29,7 @@ const EMPTY = {
 export default function AdminRolesPage() {
   const [roles, setRoles] = React.useState<AppRole[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [search, setSearch] = React.useState("");
   const [modal, setModal] = React.useState<"create" | "edit" | null>(null);
   const [editing, setEditing] = React.useState<AppRole | null>(null);
   const [form, setForm] = React.useState({ ...EMPTY });
@@ -38,14 +37,26 @@ export default function AdminRolesPage() {
 
   const load = async () => {
     setLoading(true);
-    try { const r = await rolesApi.list(); setRoles(r.data); }
-    catch (e: any) { toast.error(e.message); }
-    finally { setLoading(false); }
+    try {
+      const r = await rolesApi.list();
+      setRoles(r.data);
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  React.useEffect(() => { load(); }, []);
+  React.useEffect(() => {
+    load();
+  }, []);
 
-  const openCreate = () => { setForm({ ...EMPTY }); setEditing(null); setModal("create"); };
+  const openCreate = () => {
+    setForm({ ...EMPTY });
+    setEditing(null);
+    setModal("create");
+  };
+
   const openEdit = (role: AppRole) => {
     setEditing(role);
     setForm({
@@ -77,152 +88,326 @@ export default function AdminRolesPage() {
       };
       if (modal === "create") {
         await rolesApi.create(payload as Omit<AppRole, "id" | "is_system">);
-        toast.success("Role created");
+        toast.success("Role created successfully");
       } else if (editing) {
         await rolesApi.update(editing.id, payload);
-        toast.success("Role updated");
+        toast.success("Role updated successfully");
       }
       setModal(null);
       load();
-    } catch (e: any) { toast.error(e.message); }
-    finally { setSaving(false); }
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleDelete = async (role: AppRole) => {
     if (!confirm(`Delete role "${role.label}"?`)) return;
-    try { await rolesApi.delete(role.id); toast.success("Role deleted"); load(); }
-    catch (e: any) { toast.error(e.message); }
+    try {
+      await rolesApi.delete(role.id);
+      toast.success("Role deleted");
+      load();
+    } catch (e: any) {
+      toast.error(e.message);
+    }
   };
 
+  const filteredRoles = React.useMemo(() => {
+    if (!search.trim()) return roles;
+    const q = search.toLowerCase();
+    return roles.filter(
+      r => r.label.toLowerCase().includes(q) || r.key.toLowerCase().includes(q) || r.staff_id_prefix.toLowerCase().includes(q)
+    );
+  }, [roles, search]);
+
+  const fields: CustomTableField[] = React.useMemo(() => [
+    {
+      title: "Role Name",
+      value: "label",
+      className: "w-[24%] text-left",
+      custom: true,
+      component: (r: AppRole) => (
+        <div className="min-w-0 truncate">
+          <p className="font-semibold text-slate-900 text-xs truncate">{r.label}</p>
+          {r.description && (
+            <p className="text-[10px] text-slate-400 truncate mt-0.5">{r.description}</p>
+          )}
+        </div>
+      ),
+    },
+    {
+      title: "Key (Slug)",
+      value: "key",
+      className: "w-[15%] text-left",
+      custom: true,
+      component: (r: AppRole) => (
+        <span className="font-mono text-[11px] font-semibold px-1.5 py-0.5 rounded-sm bg-slate-100 text-slate-700 border border-slate-200">
+          {r.key}
+        </span>
+      ),
+    },
+    {
+      title: "Staff ID Prefix",
+      value: "staff_id_prefix",
+      className: "w-[12%] text-left",
+      custom: true,
+      component: (r: AppRole) => (
+        <span className="font-mono text-xs font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded-sm border border-indigo-100">
+          {r.staff_id_prefix || "—"}
+        </span>
+      ),
+    },
+    {
+      title: "Report Scope",
+      value: "report_scope",
+      className: "w-[16%] text-left",
+      custom: true,
+      component: (r: AppRole) => (
+        <span className="text-[11px] font-medium text-slate-700">
+          {SCOPE_LABELS[r.report_scope] || r.report_scope}
+        </span>
+      ),
+    },
+    {
+      title: "Monthly Engine",
+      value: "monthly",
+      className: "w-[15%] text-left",
+      custom: true,
+      component: (r: AppRole) => (
+        <div className="flex items-center gap-1 flex-wrap">
+          {r.can_create_monthly && (
+            <span className="text-[9px] font-bold px-1 py-0.2 rounded-sm bg-emerald-50 text-emerald-700 border border-emerald-100">
+              Create
+            </span>
+          )}
+          {r.can_review_monthly && (
+            <span className="text-[9px] font-bold px-1 py-0.2 rounded-sm bg-blue-50 text-blue-700 border border-blue-100">
+              Review
+            </span>
+          )}
+          {!r.can_create_monthly && !r.can_review_monthly && (
+            <span className="text-[10px] text-slate-400">None</span>
+          )}
+        </div>
+      ),
+    },
+    {
+      title: "Status",
+      value: "is_active",
+      className: "w-[10%] text-center",
+      custom: true,
+      component: (r: AppRole) => (
+        r.is_active ? (
+          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-sm text-[10px] font-semibold bg-[#e8f5ee] text-[#145c3f] border border-[#d4e8dc]">
+            <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            Active
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-sm text-[10px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">
+            <span className="size-1.5 rounded-full bg-rose-500" />
+            Inactive
+          </span>
+        )
+      ),
+    },
+    {
+      title: "Actions",
+      value: "actions",
+      className: "w-[8%] text-right",
+      custom: true,
+      component: (r: AppRole) => (
+        <div className="flex items-center gap-1 justify-end">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => openEdit(r)}
+            className="h-6 px-1.5 text-[11px] text-slate-600 hover:text-[#145c3f] hover:bg-[#e8f5ee] rounded-sm gap-1 font-medium cursor-pointer"
+          >
+            <Pencil className="size-3" />
+            <span>Edit</span>
+          </Button>
+          {!r.is_system && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => handleDelete(r)}
+              className="size-6 p-0 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-sm cursor-pointer"
+              title="Delete role"
+            >
+              <Trash2 className="size-3" />
+            </Button>
+          )}
+        </div>
+      ),
+    },
+  ], []);
+
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between gap-4">
-        <p className="text-xs text-slate-500">
-          Create roles here, then assign them when adding users. Report scope controls which monthly data each role sees.
-        </p>
-        <Button onClick={openCreate} className="bg-[#145c3f] hover:bg-[#0f3d2e] text-white rounded-xl h-10 gap-2 shadow-sm shrink-0">
-          <Plus className="w-4 h-4" /> Add Role
+    <div className="space-y-2.5">
+      {/* ── Toolbar (Unboxed - Not in a Card) ── */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 py-0.5">
+        <div className="relative min-w-[200px] flex-1 max-w-xs">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-slate-400 pointer-events-none" />
+          <Input
+            placeholder="Search roles or prefixes…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="h-8.5 pl-8 pr-7 text-xs rounded-sm border-[#d4e8dc] focus-visible:ring-[#25a872] bg-white shadow-2xs"
+          />
+          {search && (
+            <button
+              onClick={() => setSearch("")}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+            >
+              <X className="size-3" />
+            </button>
+          )}
+        </div>
+
+        <Button
+          size="sm"
+          onClick={openCreate}
+          className="h-8.5 bg-[#145c3f] hover:bg-[#0f442e] text-white rounded-sm text-xs font-semibold gap-1.5 shadow-2xs cursor-pointer px-3 shrink-0"
+        >
+          <Plus className="size-3.5" />
+          Add Role
         </Button>
       </div>
 
-      <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden">
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-[#f0fdf7] hover:bg-[#f0fdf7]">
-                <TableHead className="text-xs font-bold text-slate-600">Role</TableHead>
-                <TableHead className="text-xs font-bold text-slate-600">Key</TableHead>
-                <TableHead className="text-xs font-bold text-slate-600">Staff ID Prefix</TableHead>
-                <TableHead className="text-xs font-bold text-slate-600">Report Scope</TableHead>
-                <TableHead className="text-xs font-bold text-slate-600">Monthly</TableHead>
-                <TableHead className="text-xs font-bold text-slate-600">Status</TableHead>
-                <TableHead />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
-                <TableRow><TableCell colSpan={7} className="text-center py-10 text-slate-400">Loading...</TableCell></TableRow>
-              ) : roles.length === 0 ? (
-                <TableRow><TableCell colSpan={7} className="text-center py-10 text-slate-400">No roles yet</TableCell></TableRow>
-              ) : roles.map(role => (
-                <TableRow key={role.id} className="hover:bg-[#f0fdf7] transition-colors">
-                  <TableCell className="font-semibold text-slate-800">
-                    <span className="flex items-center gap-2">
-                      {role.is_system && <Shield className="w-3.5 h-3.5 text-[#25a872]" />}
-                      {role.label}
-                    </span>
-                  </TableCell>
-                  <TableCell><span className="font-mono text-xs text-slate-600">{role.key}</span></TableCell>
-                  <TableCell><span className="font-mono text-xs font-bold text-[#145c3f]">{role.staff_id_prefix}</span></TableCell>
-                  <TableCell className="text-xs text-slate-600">{SCOPE_LABELS[role.report_scope]}</TableCell>
-                  <TableCell>
-                    <div className="flex flex-wrap gap-1">
-                      {role.can_create_monthly && <Badge className="text-[10px] bg-blue-50 text-blue-700 border-blue-100">Create</Badge>}
-                      {role.can_review_monthly && <Badge className="text-[10px] bg-emerald-50 text-emerald-700 border-emerald-100">Review</Badge>}
-                      {!role.can_create_monthly && !role.can_review_monthly && <span className="text-xs text-slate-400">—</span>}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge className={`text-[10px] ${role.is_active ? "bg-emerald-50 text-emerald-700 border-emerald-100" : "bg-slate-100 text-slate-500 border-slate-200"}`}>
-                      {role.is_active ? "Active" : "Inactive"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-1">
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(role)}>
-                        <Pencil className="w-3.5 h-3.5" />
-                      </Button>
-                      {!role.is_system && (
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-rose-500 hover:text-rose-600" onClick={() => handleDelete(role)}>
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </Button>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      {/* ── CustomTable with fitViewport ── */}
+      <CustomTable
+        data={filteredRoles}
+        fields={fields}
+        loading={loading}
+        fitViewport={true}
+        pageSize={15}
+        message="No system roles found"
+      />
 
-      <AdminModal open={!!modal} onClose={() => setModal(null)} title={modal === "create" ? "Add Role" : "Edit Role"}>
-        <form onSubmit={handleSave} className="space-y-4">
+      {/* ── Role Modal ── */}
+      <AdminModal
+        open={modal !== null}
+        onClose={() => setModal(null)}
+        title={modal === "create" ? "Add System Role" : `Edit Role — ${editing?.label || ""}`}
+        description="Configure role nomenclature, Staff ID prefixing, and reporting governance boundaries."
+        width="max-w-lg"
+      >
+        <form onSubmit={handleSave} className="space-y-3">
           <div>
-            <label className="text-xs font-semibold text-slate-600 mb-1 block">Display Name *</label>
-            <input className={inputCls} value={form.label} onChange={e => setForm(f => ({ ...f, label: e.target.value }))} placeholder="e.g. Audit Officer" required />
+            <label className="text-xs font-semibold text-slate-700 mb-1 block">Role Name *</label>
+            <Input
+              value={form.label}
+              onChange={e => setForm(f => ({ ...f, label: e.target.value }))}
+              placeholder="e.g. Audit Officer"
+              required
+              className="h-8.5 text-xs rounded-sm border-[#d4e8dc] focus-visible:ring-[#25a872]"
+            />
           </div>
-          {modal === "create" && (
+
+          {modal === "create" ? (
             <div>
-              <label className="text-xs font-semibold text-slate-600 mb-1 block">Key (slug)</label>
-              <input className={inputCls} value={form.key} onChange={e => setForm(f => ({ ...f, key: e.target.value.toLowerCase() }))} placeholder="auto-generated from name if empty" />
-              <p className="text-[10px] text-slate-400 mt-1">Lowercase, hyphens only — e.g. audit-officer</p>
+              <label className="text-xs font-semibold text-slate-700 mb-1 block">Key (Slug)</label>
+              <Input
+                value={form.key}
+                onChange={e => setForm(f => ({ ...f, key: e.target.value.toLowerCase() }))}
+                placeholder="auto-generated from name if blank"
+                className="h-8.5 text-xs rounded-sm border-[#d4e8dc] focus-visible:ring-[#25a872]"
+              />
+              <p className="text-[10px] text-slate-400 mt-0.5">Lowercase and hyphens only (e.g. audit-officer)</p>
+            </div>
+          ) : editing && (
+            <div>
+              <label className="text-xs font-semibold text-slate-700 mb-1 block">Key</label>
+              <Input
+                value={editing.key}
+                disabled
+                className="h-8.5 text-xs rounded-sm border-[#d4e8dc] bg-slate-100 text-slate-500"
+              />
             </div>
           )}
-          {modal === "edit" && editing && (
-            <div>
-              <label className="text-xs font-semibold text-slate-600 mb-1 block">Key</label>
-              <input className={`${inputCls} bg-slate-100`} value={editing.key} disabled />
-            </div>
-          )}
+
           <div>
-            <label className="text-xs font-semibold text-slate-600 mb-1 block">Staff ID Prefix</label>
-            <input className={inputCls} value={form.staff_id_prefix} onChange={e => setForm(f => ({ ...f, staff_id_prefix: e.target.value.toUpperCase() }))} placeholder="e.g. AUD" />
+            <label className="text-xs font-semibold text-slate-700 mb-1 block">Staff ID Prefix</label>
+            <Input
+              value={form.staff_id_prefix}
+              onChange={e => setForm(f => ({ ...f, staff_id_prefix: e.target.value.toUpperCase() }))}
+              placeholder="e.g. AUD"
+              className="h-8.5 text-xs rounded-sm border-[#d4e8dc] focus-visible:ring-[#25a872]"
+            />
           </div>
+
           <div>
-            <label className="text-xs font-semibold text-slate-600 mb-1 block">Monthly Report Scope</label>
-            <select className={inputCls} value={form.report_scope} onChange={e => setForm(f => ({ ...f, report_scope: e.target.value as ReportScope }))}>
+            <label className="text-xs font-semibold text-slate-700 mb-1 block">Monthly Report Scope</label>
+            <select
+              value={form.report_scope}
+              onChange={e => setForm(f => ({ ...f, report_scope: e.target.value as ReportScope }))}
+              className="w-full h-8.5 px-2.5 rounded-sm border border-[#d4e8dc] bg-white text-xs text-slate-800 outline-none focus:ring-1 focus:ring-[#25a872]"
+            >
               {(Object.keys(SCOPE_LABELS) as ReportScope[]).map(s => (
                 <option key={s} value={s}>{SCOPE_LABELS[s]}</option>
               ))}
             </select>
           </div>
-          <div className="flex flex-col gap-2">
+
+          <div className="pt-2 border-t border-[#e8f5ee] space-y-2">
             <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer">
-              <input type="checkbox" checked={form.can_create_monthly} onChange={e => setForm(f => ({ ...f, can_create_monthly: e.target.checked }))} className="accent-[#145c3f]" />
-              Can create (forms only — no list)
+              <input
+                type="checkbox"
+                checked={form.can_create_monthly}
+                onChange={e => setForm(f => ({ ...f, can_create_monthly: e.target.checked }))}
+                className="accent-[#145c3f] rounded-sm size-3.5"
+              />
+              Can create monthly forms
             </label>
             <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer">
-              <input type="checkbox" checked={form.can_review_monthly} onChange={e => setForm(f => ({ ...f, can_review_monthly: e.target.checked }))} className="accent-[#145c3f]" />
-              Can review (list / view / forward — no create)
+              <input
+                type="checkbox"
+                checked={form.can_review_monthly}
+                onChange={e => setForm(f => ({ ...f, can_review_monthly: e.target.checked }))}
+                className="accent-[#145c3f] rounded-sm size-3.5"
+              />
+              Can review / endorse monthly submissions
             </label>
-            <p className="text-[11px] text-slate-400 leading-snug">
-              Applies across pages the user can open via Privileges. Privileges control which pages appear; these flags control create-only vs review-only behaviour. Anyone with page access can fill forms unless they are review-only.
-            </p>
             {modal === "edit" && (
               <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer">
-                <input type="checkbox" checked={form.is_active} onChange={e => setForm(f => ({ ...f, is_active: e.target.checked }))} className="accent-[#145c3f]" />
-                Active
+                <input
+                  type="checkbox"
+                  checked={form.is_active}
+                  onChange={e => setForm(f => ({ ...f, is_active: e.target.checked }))}
+                  className="accent-[#145c3f] rounded-sm size-3.5"
+                />
+                Active Status
               </label>
             )}
           </div>
+
           <div>
-            <label className="text-xs font-semibold text-slate-600 mb-1 block">Description</label>
-            <textarea className={`${inputCls} h-20 py-2 resize-none`} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Optional" />
+            <label className="text-xs font-semibold text-slate-700 mb-1 block">Description</label>
+            <textarea
+              className="w-full h-16 p-2 rounded-sm border border-[#d4e8dc] text-xs text-slate-800 outline-none focus:ring-1 focus:ring-[#25a872] resize-none"
+              value={form.description}
+              onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+              placeholder="Optional notes or operational mandate"
+            />
           </div>
-          <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="outline" onClick={() => setModal(null)}>Cancel</Button>
-            <Button type="submit" disabled={saving} className="bg-[#145c3f] hover:bg-[#0f3d2e] text-white">
+
+          <div className="flex justify-end gap-2 pt-2 border-t border-[#e8f5ee]">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setModal(null)}
+              className="h-8 text-xs rounded-sm border-[#d4e8dc] text-slate-600 px-3 cursor-pointer"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              size="sm"
+              disabled={saving}
+              className="h-8 bg-[#145c3f] hover:bg-[#0f442e] text-white text-xs rounded-sm font-medium shadow-2xs px-3 cursor-pointer"
+            >
               {saving ? "Saving..." : modal === "create" ? "Create Role" : "Save Changes"}
             </Button>
           </div>

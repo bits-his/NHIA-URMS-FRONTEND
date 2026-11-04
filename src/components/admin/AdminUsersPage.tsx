@@ -1,11 +1,10 @@
 import * as React from "react";
 import {
   Plus, Pencil, Search, ShieldCheck, UserX, UserCheck,
-  RefreshCw, RotateCcw, X, Mail, User, Shield
+  RefreshCw, RotateCcw, X, Mail
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { SearchSelect } from "@/components/ui/search-select";
@@ -92,7 +91,6 @@ export default function AdminUsersPage() {
   const [form, setForm] = React.useState({ ...EMPTY });
   const [saving, setSaving] = React.useState(false);
   const [granted, setGranted] = React.useState<Set<string>>(new Set());
-  const [modalTab, setModalTab] = React.useState<"info" | "access">("info");
 
   const roleLabels = React.useMemo(() => {
     const map: Record<string, string> = {};
@@ -166,7 +164,6 @@ export default function AdminUsersPage() {
     setForm({ ...EMPTY, role: defaultRole });
     setFormUnits([]);
     setGranted(new Set());
-    setModalTab("info");
     setEditing(null);
     setModal("create");
     if (defaultRole) {
@@ -214,7 +211,6 @@ export default function AdminUsersPage() {
       setFormUnits([]);
     }
 
-    setModalTab("info");
     setModal("edit");
   };
 
@@ -295,7 +291,6 @@ export default function AdminUsersPage() {
     setFilterStatus("all");
   };
 
-  // CustomTable fields configuration fitting viewport perfectly
   const tableFields: CustomTableField[] = React.useMemo(() => [
     {
       title: "Staff Member",
@@ -458,134 +453,132 @@ export default function AdminUsersPage() {
   ], [roleLabels]);
 
   return (
-    <div className="space-y-3">
-      {/* ── Toolbar & Filter Strip ── */}
-      <Card className="rounded-md border-[#d4e8dc] bg-white shadow-2xs p-2.5">
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
-          {/* Left search & filter controls */}
-          <div className="flex flex-1 flex-wrap items-center gap-2">
-            {/* Search Input */}
-            <div className="relative min-w-[180px] flex-1 max-w-xs">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-slate-400 pointer-events-none" />
-              <Input
-                placeholder="Search staff name or ID…"
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                className="h-8.5 pl-8 pr-7 text-xs rounded-sm border-[#d4e8dc] focus-visible:ring-[#25a872] bg-slate-50/50 hover:bg-white focus:bg-white"
-              />
-              {search && (
-                <button
-                  onClick={() => setSearch("")}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                >
-                  <X className="size-3" />
-                </button>
-              )}
-            </div>
-
-            {/* Role Filter */}
-            <div className="w-[140px]">
-              <Select
-                value={filterRole || "ALL"}
-                onValueChange={v => setFilterRole(v === "ALL" ? "" : v)}
+    <div className="space-y-2.5">
+      {/* ── Toolbar & Filter Strip (Unboxed - Not in a Card) ── */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 py-0.5">
+        {/* Left search & filter controls */}
+        <div className="flex flex-1 flex-wrap items-center gap-2">
+          {/* Search Input */}
+          <div className="relative min-w-[180px] flex-1 max-w-xs">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-slate-400 pointer-events-none" />
+            <Input
+              placeholder="Search staff name or ID…"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="h-8.5 pl-8 pr-7 text-xs rounded-sm border-[#d4e8dc] focus-visible:ring-[#25a872] bg-white shadow-2xs"
+            />
+            {search && (
+              <button
+                onClick={() => setSearch("")}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
               >
-                <SelectTrigger
-                  size="sm"
-                  displayValue={filterRole ? (roleLabels[filterRole] || filterRole) : "All Roles"}
-                  className="h-8.5 rounded-sm border-[#d4e8dc] bg-white text-xs font-medium"
-                >
-                  <SelectValue placeholder="All Roles" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ALL">All Roles</SelectItem>
-                  {activeRoles.map(r => (
-                    <SelectItem key={r.key} value={r.key}>{r.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Zone Filter */}
-            <div className="w-[130px]">
-              <Select
-                value={filterZone || "ALL"}
-                onValueChange={v => setFilterZone(v === "ALL" ? "" : v)}
-              >
-                <SelectTrigger
-                  size="sm"
-                  displayValue={filterZone ? `Zone: ${filterZone}` : "All Zones"}
-                  className="h-8.5 rounded-sm border-[#d4e8dc] bg-white text-xs font-medium"
-                >
-                  <SelectValue placeholder="All Zones" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ALL">All Zones</SelectItem>
-                  {zones.map(z => (
-                    <SelectItem key={z.zonal_code} value={z.zonal_code}>{z.zonal_code} ({z.description})</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Status Filter */}
-            <div className="w-[120px]">
-              <Select
-                value={filterStatus}
-                onValueChange={(v: "all" | "active" | "inactive") => setFilterStatus(v)}
-              >
-                <SelectTrigger
-                  size="sm"
-                  displayValue={filterStatus === "all" ? "All Status" : filterStatus === "active" ? "Active Only" : "Inactive Only"}
-                  className="h-8.5 rounded-sm border-[#d4e8dc] bg-white text-xs font-medium"
-                >
-                  <SelectValue placeholder="All Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="active">Active Only</SelectItem>
-                  <SelectItem value="inactive">Inactive Only</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Reset Filters */}
-            {hasActiveFilters && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={resetFilters}
-                className="h-8.5 text-xs text-slate-500 hover:text-slate-800 gap-1 rounded-sm px-2 cursor-pointer"
-              >
-                <RotateCcw className="size-3" />
-                Reset
-              </Button>
+                <X className="size-3" />
+              </button>
             )}
           </div>
 
-          {/* Right actions */}
-          <div className="flex items-center gap-1.5 shrink-0">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={load}
-              disabled={loading}
-              className="h-8.5 text-xs rounded-sm border-[#d4e8dc] hover:bg-[#e8f5ee] text-slate-700 font-medium px-2.5 cursor-pointer"
+          {/* Role Filter */}
+          <div className="w-[140px]">
+            <Select
+              value={filterRole || "ALL"}
+              onValueChange={v => setFilterRole(v === "ALL" ? "" : v)}
             >
-              <RefreshCw className={cn("size-3.5", loading && "animate-spin")} />
-              <span className="hidden sm:inline">Refresh</span>
-            </Button>
-
-            <Button
-              size="sm"
-              onClick={openCreate}
-              className="h-8.5 bg-[#145c3f] hover:bg-[#0f442e] text-white rounded-sm text-xs font-semibold gap-1.5 shadow-2xs cursor-pointer px-3"
-            >
-              <Plus className="size-3.5" />
-              Add Staff User
-            </Button>
+              <SelectTrigger
+                size="sm"
+                displayValue={filterRole ? (roleLabels[filterRole] || filterRole) : "All Roles"}
+                className="h-8.5 rounded-sm border-[#d4e8dc] bg-white text-xs font-medium shadow-2xs"
+              >
+                <SelectValue placeholder="All Roles" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">All Roles</SelectItem>
+                {activeRoles.map(r => (
+                  <SelectItem key={r.key} value={r.key}>{r.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
+
+          {/* Zone Filter */}
+          <div className="w-[130px]">
+            <Select
+              value={filterZone || "ALL"}
+              onValueChange={v => setFilterZone(v === "ALL" ? "" : v)}
+            >
+              <SelectTrigger
+                size="sm"
+                displayValue={filterZone ? `Zone: ${filterZone}` : "All Zones"}
+                className="h-8.5 rounded-sm border-[#d4e8dc] bg-white text-xs font-medium shadow-2xs"
+              >
+                <SelectValue placeholder="All Zones" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">All Zones</SelectItem>
+                {zones.map(z => (
+                  <SelectItem key={z.zonal_code} value={z.zonal_code}>{z.zonal_code} ({z.description})</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Status Filter */}
+          <div className="w-[120px]">
+            <Select
+              value={filterStatus}
+              onValueChange={(v: "all" | "active" | "inactive") => setFilterStatus(v)}
+            >
+              <SelectTrigger
+                size="sm"
+                displayValue={filterStatus === "all" ? "All Status" : filterStatus === "active" ? "Active Only" : "Inactive Only"}
+                className="h-8.5 rounded-sm border-[#d4e8dc] bg-white text-xs font-medium shadow-2xs"
+              >
+                <SelectValue placeholder="All Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="active">Active Only</SelectItem>
+                <SelectItem value="inactive">Inactive Only</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Reset Filters */}
+          {hasActiveFilters && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={resetFilters}
+              className="h-8.5 text-xs text-slate-500 hover:text-slate-800 gap-1 rounded-sm px-2 cursor-pointer"
+            >
+              <RotateCcw className="size-3" />
+              Reset
+            </Button>
+          )}
         </div>
-      </Card>
+
+        {/* Right actions */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={load}
+            disabled={loading}
+            className="h-8.5 text-xs rounded-sm border-[#d4e8dc] hover:bg-[#e8f5ee] text-slate-700 font-medium px-2.5 cursor-pointer shadow-2xs bg-white"
+          >
+            <RefreshCw className={cn("size-3.5", loading && "animate-spin")} />
+            <span className="hidden sm:inline">Refresh</span>
+          </Button>
+
+          <Button
+            size="sm"
+            onClick={openCreate}
+            className="h-8.5 bg-[#145c3f] hover:bg-[#0f442e] text-white rounded-sm text-xs font-semibold gap-1.5 shadow-2xs cursor-pointer px-3"
+          >
+            <Plus className="size-3.5" />
+            Add Staff User
+          </Button>
+        </div>
+      </div>
 
       {/* ── CustomTable Component fitting viewport without horizontal scroll ── */}
       <CustomTable
@@ -597,7 +590,7 @@ export default function AdminUsersPage() {
         message="No staff accounts match your current criteria"
       />
 
-      {/* ── Create / Edit Staff Modal ── */}
+      {/* ── Create / Edit Staff Modal (Single Continuous Form - No Separate Tabs) ── */}
       <AdminModal
         title={modal === "create" ? "Add New Staff User" : `Edit Staff — ${editing?.name || ""}`}
         description="Configure staff user profile, organizational placement, and granular platform module permissions."
@@ -605,282 +598,230 @@ export default function AdminUsersPage() {
         onClose={() => setModal(null)}
         width="max-w-3xl"
       >
-        <form onSubmit={handleSave} className="space-y-3.5">
-          {/* Modal Section Switcher Tabs */}
-          <div className="flex items-center gap-1 p-0.5 bg-slate-100 rounded-sm border border-[#d4e8dc]">
-            <button
-              type="button"
-              onClick={() => setModalTab("info")}
-              className={cn(
-                "flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-sm text-xs font-semibold transition-all cursor-pointer",
-                modalTab === "info"
-                  ? "bg-white text-[#145c3f] shadow-2xs font-bold"
-                  : "text-slate-600 hover:text-slate-900"
-              )}
-            >
-              <User className="size-3.5" />
-              <span>Profile & Placement</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setModalTab("access")}
-              className={cn(
-                "flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-sm text-xs font-semibold transition-all cursor-pointer",
-                modalTab === "access"
-                  ? "bg-white text-[#145c3f] shadow-2xs font-bold"
-                  : "text-slate-600 hover:text-slate-900"
-              )}
-            >
-              <ShieldCheck className="size-3.5" />
-              <span>Module Permissions</span>
-              <span className="text-[10px] px-1.5 py-0.2 rounded-sm font-bold bg-[#e8f5ee] text-[#145c3f] border border-[#d4e8dc]">
-                {countGrantedParents(granted)}
-              </span>
-            </button>
+        <form onSubmit={handleSave} className="space-y-4">
+          {/* Section 1: Personal & Account Details */}
+          <div>
+            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">
+              Staff Identity & Credentials
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="sm:col-span-2">
+                <FormField label="Full Name" required hint={modal === "create" ? "Staff ID will be auto-generated based on role" : `Staff ID: ${editing?.staff_id}`}>
+                  <Input
+                    placeholder="e.g. Amina Yusuf"
+                    value={form.name}
+                    onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                    required
+                    className="h-8.5 text-xs rounded-sm border-[#d4e8dc] focus-visible:ring-[#25a872]"
+                  />
+                </FormField>
+              </div>
+
+              <FormField label="Official Email Address">
+                <Input
+                  type="email"
+                  placeholder="user@nhia.gov.ng"
+                  value={form.email}
+                  onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+                  className="h-8.5 text-xs rounded-sm border-[#d4e8dc] focus-visible:ring-[#25a872]"
+                />
+              </FormField>
+
+              <FormField
+                label={modal === "create" ? "Temporary Password" : "Reset Password"}
+                required={modal === "create"}
+                hint={modal === "edit" ? "Leave blank to keep unchanged" : undefined}
+              >
+                <Input
+                  type="password"
+                  placeholder="••••••••"
+                  value={form.password}
+                  onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
+                  required={modal === "create"}
+                  className="h-8.5 text-xs rounded-sm border-[#d4e8dc] focus-visible:ring-[#25a872]"
+                />
+              </FormField>
+
+              <FormField label="System Role" required hint="Applies preset access rights">
+                <Select
+                  value={form.role || defaultRole}
+                  onValueChange={v => {
+                    setForm(f => ({ ...f, role: v }));
+                    void applyAccessTemplate(v);
+                  }}
+                >
+                  <SelectTrigger
+                    size="sm"
+                    displayValue={roleLabels[form.role] ?? form.role}
+                    className="h-8.5 text-xs rounded-sm border-[#d4e8dc] bg-white font-medium"
+                  >
+                    <SelectValue placeholder="Select role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {activeRoles.map(r => (
+                      <SelectItem key={r.key} value={r.key}>{r.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </FormField>
+
+              <FormField label="Account Status">
+                <Select
+                  value={form.is_active ? "1" : "0"}
+                  onValueChange={v => setForm(f => ({ ...f, is_active: v === "1" }))}
+                >
+                  <SelectTrigger
+                    size="sm"
+                    displayValue={form.is_active ? "Active" : "Inactive"}
+                    className="h-8.5 text-xs rounded-sm border-[#d4e8dc] bg-white font-medium"
+                  >
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1">Active</SelectItem>
+                    <SelectItem value="0">Inactive</SelectItem>
+                  </SelectContent>
+                </Select>
+              </FormField>
+            </div>
           </div>
 
-          {modalTab === "info" ? (
-            <div className="space-y-3 pt-1">
-              {/* Profile Details */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="sm:col-span-2">
-                  <FormField label="Full Name" required hint={modal === "create" ? "Staff ID will be auto-generated based on role" : `Staff ID: ${editing?.staff_id}`}>
-                    <Input
-                      placeholder="e.g. Amina Yusuf"
-                      value={form.name}
-                      onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                      required
-                      className="h-8.5 text-xs rounded-sm border-[#d4e8dc] focus-visible:ring-[#25a872]"
-                    />
-                  </FormField>
-                </div>
+          {/* Section 2: Scope & Office Placement */}
+          <div className="pt-2 border-t border-[#e8f5ee]">
+            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">
+              Organizational Scope & Assignment
+            </p>
 
-                <FormField label="Official Email Address">
-                  <Input
-                    type="email"
-                    placeholder="user@nhia.gov.ng"
-                    value={form.email}
-                    onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-                    className="h-8.5 text-xs rounded-sm border-[#d4e8dc] focus-visible:ring-[#25a872]"
-                  />
-                </FormField>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <FormField label="Geopolitical Zone">
+                <SearchSelect
+                  clearable
+                  value={form.zonal_code}
+                  onChange={v => setForm(f => ({ ...f, zonal_code: v, state_code: "" }))}
+                  placeholder="— Select Zone —"
+                  options={zones.map(z => ({ value: z.zonal_code, label: z.description, sub: z.zonal_code }))}
+                />
+              </FormField>
 
-                <FormField
-                  label={modal === "create" ? "Temporary Password" : "Reset Password"}
-                  required={modal === "create"}
-                  hint={modal === "edit" ? "Leave blank to keep unchanged" : undefined}
-                >
-                  <Input
-                    type="password"
-                    placeholder="••••••••"
-                    value={form.password}
-                    onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
-                    required={modal === "create"}
-                    className="h-8.5 text-xs rounded-sm border-[#d4e8dc] focus-visible:ring-[#25a872]"
-                  />
-                </FormField>
+              <FormField label="State Office">
+                <SearchSelect
+                  clearable
+                  value={form.state_code}
+                  onChange={v => setForm(f => ({ ...f, state_code: v }))}
+                  placeholder="— Select State —"
+                  options={filteredStates.map(s => ({ value: s.code, label: s.description, sub: s.code }))}
+                />
+              </FormField>
 
-                <FormField label="System Role" required hint="Applies preset access rights">
-                  <Select
-                    value={form.role || defaultRole}
-                    onValueChange={v => {
-                      setForm(f => ({ ...f, role: v }));
-                      void applyAccessTemplate(v);
-                    }}
-                  >
-                    <SelectTrigger
-                      size="sm"
-                      displayValue={roleLabels[form.role] ?? form.role}
-                      className="h-8.5 text-xs rounded-sm border-[#d4e8dc] bg-white font-medium"
-                    >
-                      <SelectValue placeholder="Select role" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {activeRoles.map(r => (
-                        <SelectItem key={r.key} value={r.key}>{r.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </FormField>
+              <FormField label="HQ Department">
+                <SearchSelect
+                  clearable
+                  value={form.department_id}
+                  onChange={v => handleDeptChange(v)}
+                  placeholder="— Select Department —"
+                  options={depts.map(d => ({ value: d.department_code, label: d.name, sub: d.department_code }))}
+                />
+              </FormField>
 
-                <FormField label="Account Status">
-                  <Select
-                    value={form.is_active ? "1" : "0"}
-                    onValueChange={v => setForm(f => ({ ...f, is_active: v === "1" }))}
-                  >
-                    <SelectTrigger
-                      size="sm"
-                      displayValue={form.is_active ? "Active" : "Inactive"}
-                      className="h-8.5 text-xs rounded-sm border-[#d4e8dc] bg-white font-medium"
-                    >
-                      <SelectValue placeholder="Select status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="1">Active</SelectItem>
-                      <SelectItem value="0">Inactive</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </FormField>
-              </div>
+              <FormField label="Operational Unit">
+                <SearchSelect
+                  clearable
+                  disabled={!form.department_id}
+                  value={form.unit_id}
+                  onChange={v => {
+                    setForm(f => ({ ...f, unit_id: v }));
+                    const unit = formUnits.find(u => u.unit_code === v);
+                    void applyAccessTemplate(form.role, unit?.unit_code, false);
+                  }}
+                  placeholder={form.department_id ? "— Select Unit —" : "Select department first"}
+                  options={formUnits.map(u => ({ value: u.unit_code, label: u.name, sub: u.unit_code }))}
+                />
+              </FormField>
+            </div>
+          </div>
 
-              {/* Scope & Office Placement Section */}
-              <div className="pt-2 border-t border-[#e8f5ee]">
-                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">
-                  Organizational Scope & Assignment
+          {/* Section 3: Module Permissions in Same View */}
+          <div className="pt-2 border-t border-[#e8f5ee] space-y-2">
+            <div className="flex items-center justify-between p-2 rounded-sm bg-[#f8fbf9] border border-[#d4e8dc]">
+              <div>
+                <p className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                  <ShieldCheck className="size-3.5 text-[#145c3f]" />
+                  Granular Access Permissions
+                  <span className="text-[10px] px-1.5 py-0.2 rounded-sm font-bold bg-[#e8f5ee] text-[#145c3f] border border-[#d4e8dc]">
+                    {countGrantedParents(granted)} modules
+                  </span>
                 </p>
+                <p className="text-[10px] text-slate-500 mt-0.5">
+                  Authorized operations for this staff member.
+                </p>
+              </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <FormField label="Geopolitical Zone">
-                    <SearchSelect
-                      clearable
-                      value={form.zonal_code}
-                      onChange={v => setForm(f => ({ ...f, zonal_code: v, state_code: "" }))}
-                      placeholder="— Select Zone —"
-                      options={zones.map(z => ({ value: z.zonal_code, label: z.description, sub: z.zonal_code }))}
-                    />
-                  </FormField>
-
-                  <FormField label="State Office">
-                    <SearchSelect
-                      clearable
-                      value={form.state_code}
-                      onChange={v => setForm(f => ({ ...f, state_code: v }))}
-                      placeholder="— Select State —"
-                      options={filteredStates.map(s => ({ value: s.code, label: s.description, sub: s.code }))}
-                    />
-                  </FormField>
-
-                  <FormField label="HQ Department">
-                    <SearchSelect
-                      clearable
-                      value={form.department_id}
-                      onChange={v => handleDeptChange(v)}
-                      placeholder="— Select Department —"
-                      options={depts.map(d => ({ value: d.department_code, label: d.name, sub: d.department_code }))}
-                    />
-                  </FormField>
-
-                  <FormField label="Operational Unit">
-                    <SearchSelect
-                      clearable
-                      disabled={!form.department_id}
-                      value={form.unit_id}
-                      onChange={v => {
-                        setForm(f => ({ ...f, unit_id: v }));
-                        const unit = formUnits.find(u => u.unit_code === v);
-                        void applyAccessTemplate(form.role, unit?.unit_code, false);
-                      }}
-                      placeholder={form.department_id ? "— Select Unit —" : "Select department first"}
-                      options={formUnits.map(u => ({ value: u.unit_code, label: u.name, sub: u.unit_code }))}
-                    />
-                  </FormField>
-                </div>
+              <div className="flex items-center gap-1.5">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setGranted(selectAllPrivilegeKeys())}
+                  className="h-6 text-xs text-[#145c3f] hover:bg-[#e8f5ee] rounded-sm font-medium"
+                >
+                  Select All
+                </Button>
+                <span className="text-slate-300">|</span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setGranted(new Set())}
+                  className="h-6 text-xs text-rose-600 hover:bg-rose-50 rounded-sm font-medium"
+                >
+                  Clear All
+                </Button>
+                <span className="text-slate-300">|</span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => applyAccessTemplate(form.role, form.unit_id)}
+                  className="h-6 text-xs text-indigo-600 hover:bg-indigo-50 rounded-sm font-medium"
+                >
+                  Reset to Role
+                </Button>
               </div>
             </div>
-          ) : (
-            <div className="space-y-2.5 pt-1">
-              <div className="flex items-center justify-between p-2 rounded-sm bg-[#f8fbf9] border border-[#d4e8dc]">
-                <div>
-                  <p className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                    <ShieldCheck className="size-3.5 text-[#145c3f]" />
-                    Granular Access Permissions
-                  </p>
-                  <p className="text-[10px] text-slate-500 mt-0.5">
-                    Authorized module operations for this staff member.
-                  </p>
-                </div>
 
-                <div className="flex items-center gap-1.5">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setGranted(selectAllPrivilegeKeys())}
-                    className="h-6 text-xs text-[#145c3f] hover:bg-[#e8f5ee] rounded-sm font-medium"
-                  >
-                    Select All
-                  </Button>
-                  <span className="text-slate-300">|</span>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setGranted(new Set())}
-                    className="h-6 text-xs text-rose-600 hover:bg-rose-50 rounded-sm font-medium"
-                  >
-                    Clear All
-                  </Button>
-                  <span className="text-slate-300">|</span>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => applyAccessTemplate(form.role, form.unit_id)}
-                    className="h-6 text-xs text-indigo-600 hover:bg-indigo-50 rounded-sm font-medium"
-                  >
-                    Reset to Role
-                  </Button>
-                </div>
-              </div>
-
-              <div className="max-h-[48vh] overflow-y-auto pr-1 border border-[#d4e8dc] rounded-sm p-2.5 bg-white">
-                <ModuleAccessPicker granted={granted} onChange={setGranted} />
-              </div>
+            <div className="max-h-[35vh] overflow-y-auto pr-1 border border-[#d4e8dc] rounded-sm p-2.5 bg-white">
+              <ModuleAccessPicker granted={granted} onChange={setGranted} />
             </div>
-          )}
+          </div>
 
           {/* Modal Footer */}
-          <div className="flex items-center justify-between pt-2.5 mt-3 border-t border-[#e8f5ee]">
-            {modalTab === "info" ? (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setModalTab("access")}
-                className="text-xs rounded-sm border-[#d4e8dc] text-slate-700 h-8 px-2.5 cursor-pointer"
-              >
-                Next: Module Permissions
-              </Button>
-            ) : (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setModalTab("info")}
-                className="text-xs rounded-sm border-[#d4e8dc] text-slate-700 h-8 px-2.5 cursor-pointer"
-              >
-                Back to Profile
-              </Button>
-            )}
-
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setModal(null)}
-                className="text-xs rounded-sm border-[#d4e8dc] text-slate-600 h-8 px-3 cursor-pointer"
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                size="sm"
-                disabled={saving}
-                className="bg-[#145c3f] hover:bg-[#0f442e] text-white text-xs rounded-sm font-medium shadow-2xs gap-1.5 h-8 px-3 cursor-pointer"
-              >
-                {saving ? (
-                  <>
-                    <RefreshCw className="size-3.5 animate-spin" />
-                    Saving...
-                  </>
-                ) : modal === "create" ? (
-                  "Create Staff User"
-                ) : (
-                  "Save Changes"
-                )}
-              </Button>
-            </div>
+          <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#e8f5ee]">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setModal(null)}
+              className="text-xs rounded-sm border-[#d4e8dc] text-slate-600 h-8 px-3 cursor-pointer"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              size="sm"
+              disabled={saving}
+              className="bg-[#145c3f] hover:bg-[#0f442e] text-white text-xs rounded-sm font-medium shadow-2xs gap-1.5 h-8 px-3 cursor-pointer"
+            >
+              {saving ? (
+                <>
+                  <RefreshCw className="size-3.5 animate-spin" />
+                  Saving...
+                </>
+              ) : modal === "create" ? (
+                "Create Staff User"
+              ) : (
+                "Save Changes"
+              )}
+            </Button>
           </div>
         </form>
       </AdminModal>

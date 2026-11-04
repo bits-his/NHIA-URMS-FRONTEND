@@ -1,18 +1,16 @@
 import * as React from "react";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, X } from "lucide-react";
 import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Input } from "@/components/ui/input";
+import CustomTable, { type CustomTableField } from "@/components/CustomTable";
 import { zonesApi, type ZonalOffice } from "@/lib/adminApi";
 import AdminModal from "./AdminModal";
-
-const inputCls = "w-full pl-3 pr-3 h-11 rounded-xl border border-[#d4e8dc] bg-[#f4f7f5] text-sm text-slate-800 placeholder:text-slate-400 focus:ring-2 focus:ring-[#25a872] focus:border-[#25a872] outline-none transition-all";
 
 export default function AdminZonesPage() {
   const [zones, setZones] = React.useState<ZonalOffice[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [search, setSearch] = React.useState("");
   const [modal, setModal] = React.useState<"create" | "edit" | null>(null);
   const [editing, setEditing] = React.useState<ZonalOffice | null>(null);
   const [form, setForm] = React.useState({ zonal_code: "", description: "" });
@@ -20,90 +18,226 @@ export default function AdminZonesPage() {
 
   const load = async () => {
     setLoading(true);
-    try { const r = await zonesApi.list(); setZones(r.data); }
-    catch (e: any) { toast.error(e.message); }
-    finally { setLoading(false); }
+    try {
+      const r = await zonesApi.list();
+      setZones(r.data);
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  React.useEffect(() => { load(); }, []);
+  React.useEffect(() => {
+    load();
+  }, []);
 
-  const openCreate = () => { setForm({ zonal_code: "", description: "" }); setEditing(null); setModal("create"); };
-  const openEdit = (z: ZonalOffice) => { setEditing(z); setForm({ zonal_code: z.zonal_code, description: z.description }); setModal("edit"); };
+  const openCreate = () => {
+    setForm({ zonal_code: "", description: "" });
+    setEditing(null);
+    setModal("create");
+  };
+
+  const openEdit = (z: ZonalOffice) => {
+    setEditing(z);
+    setForm({ zonal_code: z.zonal_code, description: z.description });
+    setModal("edit");
+  };
 
   const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault(); setSaving(true);
+    e.preventDefault();
+    setSaving(true);
     try {
-      if (modal === "create") { await zonesApi.create(form); toast.success("Zone created"); }
-      else if (editing) { await zonesApi.update(editing.zonal_code, { description: form.description }); toast.success("Zone updated"); }
-      setModal(null); load();
-    } catch (e: any) { toast.error(e.message); }
-    finally { setSaving(false); }
+      if (modal === "create") {
+        await zonesApi.create(form);
+        toast.success("Zonal office created successfully");
+      } else if (editing) {
+        await zonesApi.update(editing.zonal_code, { description: form.description });
+        toast.success("Zonal office updated successfully");
+      }
+      setModal(null);
+      load();
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleDelete = async (z: ZonalOffice) => {
     if (!confirm(`Delete zone "${z.zonal_code}"?`)) return;
-    try { await zonesApi.delete(z.zonal_code); toast.success("Zone deleted"); load(); }
-    catch (e: any) { toast.error(e.message); }
+    try {
+      await zonesApi.delete(z.zonal_code);
+      toast.success("Zonal office deleted");
+      load();
+    } catch (e: any) {
+      toast.error(e.message);
+    }
   };
 
+  const filteredZones = React.useMemo(() => {
+    if (!search.trim()) return zones;
+    const q = search.toLowerCase();
+    return zones.filter(
+      z => z.zonal_code.toLowerCase().includes(q) || z.description.toLowerCase().includes(q)
+    );
+  }, [zones, search]);
+
+  const fields: CustomTableField[] = React.useMemo(() => [
+    {
+      title: "Zone Code",
+      value: "zonal_code",
+      className: "w-[20%] text-left",
+      custom: true,
+      component: (z: ZonalOffice) => (
+        <span className="font-mono text-xs font-bold text-sky-700 bg-sky-50 px-2 py-0.5 rounded-sm border border-sky-100">
+          {z.zonal_code}
+        </span>
+      ),
+    },
+    {
+      title: "Geopolitical Description",
+      value: "description",
+      className: "w-[45%] text-left",
+      custom: true,
+      component: (z: ZonalOffice) => (
+        <span className="font-semibold text-slate-800 text-xs">
+          {z.description}
+        </span>
+      ),
+    },
+    {
+      title: "State Offices Under Zone",
+      value: "states",
+      className: "w-[25%] text-left",
+      custom: true,
+      component: (z: ZonalOffice) => (
+        <span className="text-[11px] font-medium text-slate-600">
+          {Array.isArray(z.states) ? `${z.states.length} state branches` : "—"}
+        </span>
+      ),
+    },
+    {
+      title: "Actions",
+      value: "actions",
+      className: "w-[10%] text-right",
+      custom: true,
+      component: (z: ZonalOffice) => (
+        <div className="flex items-center gap-1 justify-end">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => openEdit(z)}
+            className="h-6 px-1.5 text-[11px] text-slate-600 hover:text-[#145c3f] hover:bg-[#e8f5ee] rounded-sm gap-1 font-medium cursor-pointer"
+          >
+            <Pencil className="size-3" />
+            <span>Edit</span>
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => handleDelete(z)}
+            className="size-6 p-0 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-sm cursor-pointer"
+            title="Delete zone"
+          >
+            <Trash2 className="size-3" />
+          </Button>
+        </div>
+      ),
+    },
+  ], []);
+
   return (
-    <div className="space-y-4">
-      <div className="flex justify-end">
-        <Button onClick={openCreate} className="bg-[#145c3f] hover:bg-[#0f3d2e] text-white rounded-xl h-10 gap-2 shadow-sm">
-          <Plus className="w-4 h-4" /> Add Zone
+    <div className="space-y-2.5">
+      {/* ── Toolbar (Unboxed - Not in a Card) ── */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 py-0.5">
+        <div className="relative min-w-[200px] flex-1 max-w-xs">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-slate-400 pointer-events-none" />
+          <Input
+            placeholder="Search geopolitical zones…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="h-8.5 pl-8 pr-7 text-xs rounded-sm border-[#d4e8dc] focus-visible:ring-[#25a872] bg-white shadow-2xs"
+          />
+          {search && (
+            <button
+              onClick={() => setSearch("")}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+            >
+              <X className="size-3" />
+            </button>
+          )}
+        </div>
+
+        <Button
+          size="sm"
+          onClick={openCreate}
+          className="h-8.5 bg-[#145c3f] hover:bg-[#0f442e] text-white rounded-sm text-xs font-semibold gap-1.5 shadow-2xs cursor-pointer px-3 shrink-0"
+        >
+          <Plus className="size-3.5" />
+          Add Zonal Office
         </Button>
       </div>
 
-      <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden">
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-[#f0fdf7] hover:bg-[#f0fdf7]">
-                <TableHead className="text-xs font-bold text-slate-600">Code</TableHead>
-                <TableHead className="text-xs font-bold text-slate-600">Description</TableHead>
-                <TableHead className="text-xs font-bold text-slate-600">States</TableHead>
-                <TableHead />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
-                <TableRow><TableCell colSpan={4} className="text-center py-10 text-slate-400">Loading...</TableCell></TableRow>
-              ) : zones.length === 0 ? (
-                <TableRow><TableCell colSpan={4} className="text-center py-10 text-slate-400">No zones yet</TableCell></TableRow>
-              ) : zones.map(z => (
-                <TableRow key={z.zonal_code} className="hover:bg-[#f0fdf7] transition-colors">
-                  <TableCell><span className="font-mono text-xs font-bold text-[#145c3f]">{z.zonal_code}</span></TableCell>
-                  <TableCell className="font-medium text-slate-800">{z.description}</TableCell>
-                  <TableCell>
-                    <Badge className="bg-blue-50 text-blue-700 border-blue-100 text-[10px]">{z.states?.length ?? 0} states</Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center gap-1 justify-end">
-                      <Button variant="ghost" size="sm" onClick={() => openEdit(z)} className="h-7 w-7 p-0 hover:bg-[#e8f5ee] hover:text-[#145c3f]"><Pencil className="w-3.5 h-3.5" /></Button>
-                      <Button variant="ghost" size="sm" onClick={() => handleDelete(z)} className="h-7 w-7 p-0 hover:bg-rose-50 hover:text-rose-600"><Trash2 className="w-3.5 h-3.5" /></Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      {/* ── CustomTable with fitViewport ── */}
+      <CustomTable
+        data={filteredZones}
+        fields={fields}
+        loading={loading}
+        fitViewport={true}
+        pageSize={15}
+        message="No zonal offices found"
+      />
 
-      <AdminModal title={modal === "create" ? "Add Zonal Office" : "Edit Zonal Office"} open={modal !== null} onClose={() => setModal(null)}>
-        <form onSubmit={handleSave} className="space-y-4">
+      {/* ── Zone Modal ── */}
+      <AdminModal
+        title={modal === "create" ? "Add Zonal Office" : "Edit Zonal Office"}
+        description="Configure geopolitical zone routing codes and administrative designations."
+        open={modal !== null}
+        onClose={() => setModal(null)}
+        width="max-w-md"
+      >
+        <form onSubmit={handleSave} className="space-y-3">
           <div>
-            <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">Zonal Code <span className="text-rose-500">*</span></label>
-            <input className={inputCls} placeholder="e.g. NW" value={form.zonal_code} onChange={e => setForm(f => ({ ...f, zonal_code: e.target.value }))} required disabled={modal === "edit"} />
+            <label className="text-xs font-semibold text-slate-700 mb-1 block">Zonal Code *</label>
+            <Input
+              value={form.zonal_code}
+              onChange={e => setForm(f => ({ ...f, zonal_code: e.target.value.toUpperCase() }))}
+              placeholder="e.g. NW"
+              disabled={modal === "edit"}
+              required
+              className="h-8.5 text-xs rounded-sm border-[#d4e8dc] focus-visible:ring-[#25a872]"
+            />
           </div>
+
           <div>
-            <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">Description <span className="text-rose-500">*</span></label>
-            <input className={inputCls} placeholder="e.g. Northwest" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} required />
+            <label className="text-xs font-semibold text-slate-700 mb-1 block">Description *</label>
+            <Input
+              value={form.description}
+              onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+              placeholder="e.g. North West"
+              required
+              className="h-8.5 text-xs rounded-sm border-[#d4e8dc] focus-visible:ring-[#25a872]"
+            />
           </div>
-          <div className="flex justify-end gap-3 pt-2">
-            <Button type="button" variant="ghost" onClick={() => setModal(null)} className="rounded-xl text-slate-600">Cancel</Button>
-            <Button type="submit" disabled={saving} className="bg-[#145c3f] hover:bg-[#0f3d2e] text-white rounded-xl">
-              {saving ? "Saving..." : modal === "create" ? "Create" : "Save"}
+
+          <div className="flex justify-end gap-2 pt-2 border-t border-[#e8f5ee]">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setModal(null)}
+              className="h-8 text-xs rounded-sm border-[#d4e8dc] text-slate-600 px-3 cursor-pointer"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              size="sm"
+              disabled={saving}
+              className="h-8 bg-[#145c3f] hover:bg-[#0f442e] text-white text-xs rounded-sm font-medium shadow-2xs px-3 cursor-pointer"
+            >
+              {saving ? "Saving..." : modal === "create" ? "Create Zone" : "Save Changes"}
             </Button>
           </div>
         </form>
