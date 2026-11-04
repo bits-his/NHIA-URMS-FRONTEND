@@ -14,6 +14,9 @@ import {
   RefreshCw,
   MoreHorizontal,
   XCircle,
+  Layers,
+  CheckCircle2,
+  Loader2,
   type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -156,6 +159,10 @@ export default function OfficeProfileWorkspace({
   const [accommodations, setAccommodations] = React.useState<any[]>([]);
   const [utilities, setUtilities] = React.useState<any[]>([]);
   const [focalPersons, setFocalPersons] = React.useState<any[]>([]);
+
+  // Zonal Consolidation multi-select state
+  const [selectedUtilityIds, setSelectedUtilityIds] = React.useState<number[]>([]);
+  const [consolidatingBatch, setConsolidatingBatch] = React.useState(false);
 
   // Profile Form state when creating/editing
   const [profileForm, setProfileForm] = React.useState<any>(null);
@@ -319,6 +326,33 @@ export default function OfficeProfileWorkspace({
       toast.error(err.message || "Failed to save profile");
     } finally {
       setSaving(false);
+    }
+  };
+
+  // Batch consolidate utility claims for Zonal Coordinator
+  const handleConsolidateUtilities = async () => {
+    if (!selectedUtilityIds.length) {
+      toast.error("Please select at least one utility claim to consolidate");
+      return;
+    }
+    setConsolidatingBatch(true);
+    try {
+      const zCode = selectedZoneId !== "all" ? selectedZoneId : defaultZoneId || undefined;
+      const res = await utilityServiceReportApi.consolidate(selectedUtilityIds, zCode);
+      if (res.success) {
+        toast.success(
+          `Consolidation Successful! Batch Reference: ${res.batch_id}`,
+          {
+            description: `${selectedUtilityIds.length} utility claims consolidated for HQ payment clearance.`,
+          }
+        );
+        setSelectedUtilityIds([]);
+        await loadData();
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to consolidate claims");
+    } finally {
+      setConsolidatingBatch(false);
     }
   };
 
@@ -738,6 +772,49 @@ export default function OfficeProfileWorkspace({
   // Utility Columns matching Solvix Table
   const utilityColumns: ColumnDef<any>[] = [
     {
+      id: "select",
+      header: () => (
+        <Checkbox
+          checked={
+            utilities.length > 0 &&
+            utilities.filter((u) => u.id && u.status !== "consolidated").length > 0 &&
+            selectedUtilityIds.length === utilities.filter((u) => u.id && u.status !== "consolidated").length
+          }
+          onCheckedChange={() => {
+            const eligible = utilities.filter((u) => u.id && u.status !== "consolidated");
+            if (selectedUtilityIds.length === eligible.length) {
+              setSelectedUtilityIds([]);
+            } else {
+              setSelectedUtilityIds(eligible.map((u) => u.id));
+            }
+          }}
+          aria-label="Select all eligible claims"
+        />
+      ),
+      cell: ({ row }) => {
+        const isConsolidated = row.original.status === "consolidated" || !!row.original.consolidated_batch_id;
+        const isSelected = row.original.id ? selectedUtilityIds.includes(row.original.id) : false;
+        if (isConsolidated) {
+          return <CheckCircle2 className="size-4 text-emerald-600 inline-block" title="Consolidated" />;
+        }
+        return (
+          <div onClick={(e) => e.stopPropagation()}>
+            <Checkbox
+              checked={isSelected}
+              onCheckedChange={() => {
+                const id = row.original.id;
+                if (!id) return;
+                setSelectedUtilityIds((prev) =>
+                  prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+                );
+              }}
+              aria-label="Select claim"
+            />
+          </div>
+        );
+      },
+    },
+    {
       id: "code",
       header: "Claim Ref",
       cell: ({ row }) => (
@@ -790,6 +867,19 @@ export default function OfficeProfileWorkspace({
         <span className="font-bold text-slate-900 text-xs tabular-nums">
           {formatCurrency(row.original.amount_claimed)}
         </span>
+      ),
+    },
+    {
+      accessorKey: "consolidated_batch_id",
+      header: "Batch ID",
+      cell: ({ row }) => (
+        row.original.consolidated_batch_id ? (
+          <span className="inline-flex items-center px-1.5 py-0.5 rounded-xs font-mono text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+            {row.original.consolidated_batch_id}
+          </span>
+        ) : (
+          <span className="text-slate-400 text-xs italic">Unconsolidated</span>
+        )
       ),
     },
     {
@@ -1158,6 +1248,51 @@ export default function OfficeProfileWorkspace({
                       )}
                     </CardContent>
                   </Card>
+
+                  {/* Zonal Utility Batch Consolidation Banner */}
+                  {activeTab === "utilities" && selectedUtilityIds.length > 0 && (
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-gradient-to-r from-emerald-50 via-white to-emerald-50/60 border-2 border-[#1a7a52] p-3.5 rounded-sm shadow-xs animate-in fade-in-50 duration-150">
+                      <div className="flex items-center gap-3">
+                        <div className="size-9 rounded-sm bg-[#1a7a52] text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-xs">
+                          <Layers className="size-5" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <p className="text-xs font-bold text-[#0f3d2e]">
+                              {selectedUtilityIds.length} Claim{selectedUtilityIds.length > 1 ? "s" : ""} Selected for Consolidation
+                            </p>
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded-xs font-bold text-[10px] bg-[#1a7a52] text-white">
+                              Zonal Consolidation
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-600 mt-0.5">
+                            Consolidate monthly security and cleaning claims into one official HQ payment request.
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 self-end sm:self-auto">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setSelectedUtilityIds([])}
+                          className="h-8 text-xs border-slate-300 text-slate-700 rounded-sm"
+                        >
+                          Clear
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={handleConsolidateUtilities}
+                          disabled={consolidatingBatch}
+                          className="h-8.5 text-xs bg-[#1a7a52] hover:bg-[#145c3f] text-white font-bold rounded-sm gap-1.5 shadow-xs border border-[#145c3f]"
+                        >
+                          {consolidatingBatch ? <Loader2 className="size-3.5 animate-spin" /> : <Layers className="size-3.5" />}
+                          Consolidate into HQ Payment Request
+                        </Button>
+                      </div>
+                    </div>
+                  )}
 
                   {/* 3. Solvix Unified Table Card matching media_1793556834379_9ddcebf0.jpg */}
                   <ShadcnDataTable

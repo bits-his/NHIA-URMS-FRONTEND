@@ -3,7 +3,7 @@
  * Spec: volume, sources, issue patterns, resolution performance, SLA, escalation.
  */
 import * as React from "react";
-import { RefreshCw, Loader2, Filter as FilterIcon, X, Calendar, Tag } from "lucide-react";
+import { RefreshCw, Loader2, Filter as FilterIcon, X, Calendar, Tag, ChevronRight, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -27,8 +27,15 @@ interface Props {
   defaultStateId?: string | null;
   defaultZoneId?: string | null;
   lockLocation?: boolean;
-  /** When true, omit outer card chrome (used as a section inside SERVICOM dashboard). */
+  /** When true, omit outer card chrome (used as a section inside SERVICOM dashboard or State Office). */
   embedded?: boolean;
+  /** When true, exclude SERVICOM complaints and hide SERVICOM channel from filters (for State Office). */
+  excludeServicom?: boolean;
+  /** When true, restrict to SERVICOM-only channel. */
+  servicomOnly?: boolean;
+  /** Optional custom title for header */
+  title?: string;
+  subtitle?: string;
 }
 
 const currentYear = new Date().getFullYear();
@@ -54,8 +61,56 @@ function volumeLabel(row: { name?: string; count?: number } | null | undefined) 
   return `${row.name} (${row.count})`;
 }
 
+function KpiCard({
+  label,
+  value,
+  detail,
+  onClick,
+  accent = "border-l-slate-300",
+}: {
+  label: string;
+  value: string | number;
+  detail?: string;
+  onClick?: () => void;
+  accent?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`group relative text-left rounded-sm border border-slate-200/90 bg-white p-4 transition-all hover:shadow-md hover:border-[#1a7a52] hover:bg-emerald-50/20 border-l-4 ${accent} flex flex-col justify-between min-h-[96px] w-full`}
+    >
+      <div className="flex items-center justify-between gap-1.5 w-full">
+        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 truncate leading-none">
+          {label}
+        </span>
+        {onClick && (
+          <ChevronRight className="w-3.5 h-3.5 text-slate-400 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all shrink-0" />
+        )}
+      </div>
+      <div className="mt-2 w-full">
+        <p className="text-xl sm:text-2xl font-black text-slate-900 tabular-nums leading-tight truncate">
+          {value}
+        </p>
+        {detail && (
+          <p className="text-xs text-slate-500 truncate leading-none mt-1.5">
+            {detail}
+          </p>
+        )}
+      </div>
+    </button>
+  );
+}
+
 export default function ComplaintRegisterDashboard({
-  defaultStateId, defaultZoneId, lockLocation = false, embedded = false,
+  defaultStateId,
+  defaultZoneId,
+  lockLocation = false,
+  embedded = false,
+  excludeServicom = false,
+  servicomOnly = false,
+  title,
+  subtitle,
 }: Props) {
   const zoneLocked = lockLocation && !!defaultZoneId && !defaultStateId;
   const stateLocked = lockLocation && !!defaultStateId;
@@ -75,12 +130,24 @@ export default function ComplaintRegisterDashboard({
   const [priority, setPriority] = React.useState("all");
   const [category, setCategory] = React.useState("all");
   const [type, setType] = React.useState("all");
-  const [route, setRoute] = React.useState("all");
+  const [route, setRoute] = React.useState(servicomOnly ? "SERVICOM" : "all");
   const [status, setStatus] = React.useState("all");
 
+  const availableRoutes = React.useMemo(() => {
+    if (excludeServicom) {
+      return TRANSMISSION_ROUTES.filter((r) => r.value.toUpperCase() !== "SERVICOM");
+    }
+    if (servicomOnly) {
+      return TRANSMISSION_ROUTES.filter((r) => r.value.toUpperCase() === "SERVICOM");
+    }
+    return TRANSMISSION_ROUTES;
+  }, [excludeServicom, servicomOnly]);
+
   React.useEffect(() => {
-    if (stateLocked) return;
-    zonesApi.list().then((r) => setZones(r.data || [])).catch(() => setZones([]));
+    statesApi.list().then((r) => setStates(r.data || [])).catch(() => setStates([]));
+    if (!stateLocked) {
+      zonesApi.list().then((r) => setZones(r.data || [])).catch(() => setZones([]));
+    }
   }, [stateLocked]);
 
   React.useEffect(() => {
@@ -92,10 +159,10 @@ export default function ComplaintRegisterDashboard({
   const scope = React.useMemo(() => {
     const isHq = locationLevel === "hq";
     const zonal = !isHq
-      ? (defaultZoneId || (filterZone !== "all" ? filterZone : undefined))
+      ? (zoneLocked ? defaultZoneId : (filterZone !== "all" ? filterZone : undefined))
       : undefined;
     const state = !isHq
-      ? (defaultStateId || (filterState !== "all" ? filterState : undefined))
+      ? (stateLocked ? defaultStateId : (filterState !== "all" ? filterState : undefined))
       : undefined;
 
     return {
@@ -111,12 +178,16 @@ export default function ComplaintRegisterDashboard({
       priority: priority === "all" ? undefined : priority,
       category: category === "all" ? undefined : category,
       type: type === "all" ? undefined : type,
-      route: route === "all" ? undefined : route,
+      route: servicomOnly ? "SERVICOM" : (route === "all" ? undefined : route),
+      exclude_servicom: excludeServicom ? "1" : undefined,
+      exclude_route: excludeServicom ? "SERVICOM" : undefined,
+      channel: servicomOnly ? "servicom" : (excludeServicom ? "state" : undefined),
       status: status === "all" ? undefined : status,
     };
   }, [
     locationLevel, defaultStateId, defaultZoneId, filterState, filterZone,
     year, month, date, domain, priority, category, type, route, status,
+    excludeServicom, servicomOnly, stateLocked, zoneLocked,
   ]);
 
   const drill = useDashboardDrill(
@@ -135,14 +206,17 @@ export default function ComplaintRegisterDashboard({
       category: scope.category,
       type: scope.type,
       route: scope.route,
+      exclude_servicom: scope.exclude_servicom,
+      exclude_route: scope.exclude_route,
+      channel: scope.channel,
       status: scope.status,
     },
   );
 
   const drillCtx = React.useMemo(() => ({
-    subtitle: "Complaint register",
-    breadcrumbs: ["SERVICOM", "Complaint register"],
-  }), []);
+    subtitle: excludeServicom ? "State Complaints register" : "Complaint register",
+    breadcrumbs: [excludeServicom ? "State Office" : "SERVICOM", "Complaint register"],
+  }), [excludeServicom]);
 
   const openComplaints = React.useCallback((title: string, extra?: Record<string, string>) => {
     const crumbs = [...drillCtx.breadcrumbs, title];
@@ -187,6 +261,10 @@ export default function ComplaintRegisterDashboard({
     ? "All states"
     : (states.find((s) => String(s.code) === filterState)?.description || filterState);
 
+  const activeStateObj = states.find((s) => String(s.code) === defaultStateId || String(s.id) === defaultStateId);
+  const activeStateName = activeStateObj?.description || defaultStateId || "State Office";
+  const isSingleState = stateLocked || (filterState !== "all" && filterState !== "");
+
   const clearFilters = () => {
     setYear(String(currentYear));
     setMonth("all");
@@ -223,178 +301,222 @@ export default function ComplaintRegisterDashboard({
     return count;
   }, [year, month, date, locationLevel, filterZone, filterState, domain, priority, category, type, route, status, stateLocked, zoneLocked]);
 
-  const filters = (
-    <div className="p-3.5 space-y-3.5 bg-white">
-      {/* Row 1: Timeframe & Location Scope */}
-      <div>
-        <div className="flex items-center gap-1.5 mb-2">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-[#1a7a52] flex items-center gap-1">
-            <Calendar className="w-3 h-3" /> Timeframe & Location Scope
-          </span>
-        </div>
+  const filters = stateLocked ? (
+    <div className="p-3.5 bg-white">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-9 gap-2.5">
+        <Filter label="Reporting Year">
+          <Select
+            value={year}
+            onValueChange={(v) => { setYear(v); if (v !== "all") setDate(""); }}
+          >
+            <SelectTrigger className="h-8.5 text-xs bg-slate-50/60 hover:bg-slate-50 border-slate-200 rounded-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {YEARS.map((y) => (
+                <SelectItem key={y} value={y}>{y === "all" ? "All Years" : y}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Filter>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
-          {/* Year */}
-          <Filter label="Reporting Year">
+        <Filter label="Month">
+          <Select
+            value={month}
+            onValueChange={(v) => { setMonth(v); if (v !== "all") setDate(""); }}
+          >
+            <SelectTrigger className="h-8.5 text-xs bg-slate-50/60 hover:bg-slate-50 border-slate-200 rounded-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {MONTHS.map((m) => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </Filter>
+
+        <Filter label="Specific Date">
+          <Input
+            className="h-8.5 text-xs bg-slate-50/60 border-slate-200 rounded-sm"
+            type="date"
+            value={date}
+            onChange={(e) => {
+              setDate(e.target.value);
+              if (e.target.value) {
+                setYear("all");
+                setMonth("all");
+              }
+            }}
+          />
+        </Filter>
+
+        <Filter label="Program">
+          <Choice value={domain} onChange={setDomain} allLabel="All Programs" options={COMPLAINT_DOMAINS} />
+        </Filter>
+        <Filter label="Priority">
+          <Choice value={priority} onChange={setPriority} allLabel="All Priorities" options={PRIORITY_RATINGS} />
+        </Filter>
+        <Filter label="Category">
+          <Choice value={category} onChange={setCategory} allLabel="All Categories" options={COMPLAINT_CATEGORIES} />
+        </Filter>
+        <Filter label="Type">
+          <Choice value={type} onChange={setType} allLabel="All Types" options={COMPLAINT_TYPES} />
+        </Filter>
+        <Filter label="Route">
+          <Choice value={route} onChange={setRoute} allLabel={servicomOnly ? "SERVICOM" : "All Routes"} options={availableRoutes} />
+        </Filter>
+        <Filter label="Status">
+          <Choice value={status} onChange={setStatus} allLabel="All Statuses" options={COMPLAINT_STATUSES} />
+        </Filter>
+      </div>
+    </div>
+  ) : (
+    <div className="p-3.5 space-y-3 bg-white">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+        <Filter label="Reporting Year">
+          <Select
+            value={year}
+            onValueChange={(v) => { setYear(v); if (v !== "all") setDate(""); }}
+          >
+            <SelectTrigger className="h-8.5 text-xs bg-slate-50/60 hover:bg-slate-50 border-slate-200 rounded-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {YEARS.map((y) => (
+                <SelectItem key={y} value={y}>{y === "all" ? "All Years" : y}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Filter>
+
+        <Filter label="Month">
+          <Select
+            value={month}
+            onValueChange={(v) => { setMonth(v); if (v !== "all") setDate(""); }}
+          >
+            <SelectTrigger className="h-8.5 text-xs bg-slate-50/60 hover:bg-slate-50 border-slate-200 rounded-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {MONTHS.map((m) => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </Filter>
+
+        <Filter label="Specific Date">
+          <Input
+            className="h-8.5 text-xs bg-slate-50/60 border-slate-200 rounded-sm"
+            type="date"
+            value={date}
+            onChange={(e) => {
+              setDate(e.target.value);
+              if (e.target.value) {
+                setYear("all");
+                setMonth("all");
+              }
+            }}
+          />
+        </Filter>
+
+        {!zoneLocked ? (
+          <Filter label="Location Level">
             <Select
-              value={year}
-              onValueChange={(v) => { setYear(v); if (v !== "all") setDate(""); }}
+              value={locationLevel}
+              onValueChange={(v: "all" | "hq" | "zone" | "state") => {
+                setLocationLevel(v);
+                if (v === "hq" || v === "all") {
+                  setFilterZone("all");
+                  setFilterState("all");
+                }
+                if (v === "zone") setFilterState("all");
+              }}
             >
               <SelectTrigger className="h-8.5 text-xs bg-slate-50/60 hover:bg-slate-50 border-slate-200 rounded-sm">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {YEARS.map((y) => (
-                  <SelectItem key={y} value={y}>{y === "all" ? "All Years" : y}</SelectItem>
+                <SelectItem value="all">All Locations</SelectItem>
+                <SelectItem value="hq">HQ</SelectItem>
+                <SelectItem value="zone">Zone</SelectItem>
+                <SelectItem value="state">State</SelectItem>
+              </SelectContent>
+            </Select>
+          </Filter>
+        ) : (
+          <Filter label="Location Level">
+            <div className="h-8.5 px-3 flex items-center text-xs bg-slate-100/70 border border-slate-200 rounded-sm text-slate-600 font-medium">
+              Zone Locked
+            </div>
+          </Filter>
+        )}
+
+        {locationLevel !== "hq" ? (
+          <Filter label={`Zone ${zoneLocked ? "• Locked" : ""}`}>
+            <Select
+              value={filterZone}
+              onValueChange={(v) => { setFilterZone(v); setFilterState("all"); }}
+              disabled={zoneLocked}
+            >
+              <SelectTrigger className="h-8.5 text-xs bg-slate-50/60 hover:bg-slate-50 border-slate-200 rounded-sm" displayValue={zoneLabel}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Zones</SelectItem>
+                {zones.map((z) => (
+                  <SelectItem key={z.zonal_code} value={String(z.zonal_code)}>{z.description}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </Filter>
+        ) : (
+          <Filter label="Zone">
+            <div className="h-8.5 px-3 flex items-center text-xs bg-slate-100/70 border border-slate-200 rounded-sm text-slate-400">
+              HQ (N/A)
+            </div>
+          </Filter>
+        )}
 
-          {/* Month */}
-          <Filter label="Month">
-            <Select
-              value={month}
-              onValueChange={(v) => { setMonth(v); if (v !== "all") setDate(""); }}
-            >
-              <SelectTrigger className="h-8.5 text-xs bg-slate-50/60 hover:bg-slate-50 border-slate-200 rounded-sm">
+        {locationLevel !== "hq" ? (
+          <Filter label="State">
+            <Select value={filterState} onValueChange={setFilterState}>
+              <SelectTrigger className="h-8.5 text-xs bg-slate-50/60 hover:bg-slate-50 border-slate-200 rounded-sm" displayValue={stateLabel}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {MONTHS.map((m) => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
+                <SelectItem value="all">All States</SelectItem>
+                {states.map((s) => (
+                  <SelectItem key={s.code} value={String(s.code)}>{s.description}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </Filter>
-
-          {/* Date */}
-          <Filter label="Specific Date">
-            <Input
-              className="h-8.5 text-xs bg-slate-50/60 border-slate-200 rounded-sm"
-              type="date"
-              value={date}
-              onChange={(e) => {
-                setDate(e.target.value);
-                if (e.target.value) {
-                  setYear("all");
-                  setMonth("all");
-                }
-              }}
-            />
+        ) : (
+          <Filter label="State">
+            <div className="h-8.5 px-3 flex items-center text-xs bg-slate-100/70 border border-slate-200 rounded-sm text-slate-400">
+              HQ (N/A)
+            </div>
           </Filter>
-
-          {/* Location Level */}
-          {!stateLocked && !zoneLocked ? (
-            <Filter label="Location Level">
-              <Select
-                value={locationLevel}
-                onValueChange={(v: "all" | "hq" | "zone" | "state") => {
-                  setLocationLevel(v);
-                  if (v === "hq" || v === "all") {
-                    setFilterZone("all");
-                    setFilterState("all");
-                  }
-                  if (v === "zone") setFilterState("all");
-                }}
-              >
-                <SelectTrigger className="h-8.5 text-xs bg-slate-50/60 hover:bg-slate-50 border-slate-200 rounded-sm">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Locations</SelectItem>
-                  <SelectItem value="hq">HQ</SelectItem>
-                  <SelectItem value="zone">Zone</SelectItem>
-                  <SelectItem value="state">State</SelectItem>
-                </SelectContent>
-              </Select>
-            </Filter>
-          ) : (
-            <Filter label="Location Level">
-              <div className="h-8.5 px-3 flex items-center text-xs bg-slate-100/70 border border-slate-200 rounded-sm text-slate-600 font-medium">
-                {stateLocked ? "State Locked" : "Zone Locked"}
-              </div>
-            </Filter>
-          )}
-
-          {/* Zone */}
-          {!stateLocked && locationLevel !== "hq" ? (
-            <Filter label={`Zone ${zoneLocked ? "• Locked" : ""}`}>
-              <Select
-                value={filterZone}
-                onValueChange={(v) => { setFilterZone(v); setFilterState("all"); }}
-                disabled={zoneLocked}
-              >
-                <SelectTrigger className="h-8.5 text-xs bg-slate-50/60 hover:bg-slate-50 border-slate-200 rounded-sm" displayValue={zoneLabel}>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Zones</SelectItem>
-                  {zones.map((z) => (
-                    <SelectItem key={z.zonal_code} value={String(z.zonal_code)}>{z.description}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Filter>
-          ) : (
-            <Filter label="Zone">
-              <div className="h-8.5 px-3 flex items-center text-xs bg-slate-100/70 border border-slate-200 rounded-sm text-slate-400">
-                {locationLevel === "hq" ? "HQ (N/A)" : zoneLabel}
-              </div>
-            </Filter>
-          )}
-
-          {/* State */}
-          {locationLevel !== "hq" ? (
-            <Filter label={`State ${stateLocked ? "• Locked" : ""}`}>
-              <Select value={filterState} onValueChange={setFilterState} disabled={stateLocked}>
-                <SelectTrigger className="h-8.5 text-xs bg-slate-50/60 hover:bg-slate-50 border-slate-200 rounded-sm" displayValue={stateLabel}>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All States</SelectItem>
-                  {states.map((s) => (
-                    <SelectItem key={s.code} value={String(s.code)}>{s.description}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Filter>
-          ) : (
-            <Filter label="State">
-              <div className="h-8.5 px-3 flex items-center text-xs bg-slate-100/70 border border-slate-200 rounded-sm text-slate-400">
-                HQ (N/A)
-              </div>
-            </Filter>
-          )}
-        </div>
+        )}
       </div>
 
-      {/* Row 2: Case Attributes & Classification */}
-      <div className="border-t border-slate-100 pt-3">
-        <div className="flex items-center gap-1.5 mb-2">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-[#1a7a52] flex items-center gap-1">
-            <Tag className="w-3 h-3" /> Case Attributes & Classification
-          </span>
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
-          <Filter label="Program">
-            <Choice value={domain} onChange={setDomain} allLabel="All Programs" options={COMPLAINT_DOMAINS} />
-          </Filter>
-          <Filter label="Priority">
-            <Choice value={priority} onChange={setPriority} allLabel="All Priorities" options={PRIORITY_RATINGS} />
-          </Filter>
-          <Filter label="Category">
-            <Choice value={category} onChange={setCategory} allLabel="All Categories" options={COMPLAINT_CATEGORIES} />
-          </Filter>
-          <Filter label="Type">
-            <Choice value={type} onChange={setType} allLabel="All Types" options={COMPLAINT_TYPES} />
-          </Filter>
-          <Filter label="Route">
-            <Choice value={route} onChange={setRoute} allLabel="All Routes" options={TRANSMISSION_ROUTES} />
-          </Filter>
-          <Filter label="Status">
-            <Choice value={status} onChange={setStatus} allLabel="All Statuses" options={COMPLAINT_STATUSES} />
-          </Filter>
-        </div>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 pt-1">
+        <Filter label="Program">
+          <Choice value={domain} onChange={setDomain} allLabel="All Programs" options={COMPLAINT_DOMAINS} />
+        </Filter>
+        <Filter label="Priority">
+          <Choice value={priority} onChange={setPriority} allLabel="All Priorities" options={PRIORITY_RATINGS} />
+        </Filter>
+        <Filter label="Category">
+          <Choice value={category} onChange={setCategory} allLabel="All Categories" options={COMPLAINT_CATEGORIES} />
+        </Filter>
+        <Filter label="Type">
+          <Choice value={type} onChange={setType} allLabel="All Types" options={COMPLAINT_TYPES} />
+        </Filter>
+        <Filter label="Route">
+          <Choice value={route} onChange={setRoute} allLabel={servicomOnly ? "SERVICOM" : "All Routes"} options={availableRoutes} />
+        </Filter>
+        <Filter label="Status">
+          <Choice value={status} onChange={setStatus} allLabel="All Statuses" options={COMPLAINT_STATUSES} />
+        </Filter>
       </div>
     </div>
   );
@@ -405,120 +527,141 @@ export default function ComplaintRegisterDashboard({
     </div>
   ) : (
     <>
-      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 items-stretch">
-        <DashKpi
-          label="Complaints received"
+      {/* 5-Column Responsive KPI Grid (Spacious, comfortably padded, high visual clarity) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3.5">
+        <KpiCard
+          label="Received"
           value={data?.received ?? 0}
-          detail="In the current filter"
+          detail="In current filter"
+          accent="border-l-[#1a7a52]"
           onClick={() => openComplaints("Complaints received")}
         />
-        <DashKpi
-          label="Average resolution"
-          value={data?.average_resolution != null ? `${data.average_resolution} days` : "—"}
+        <KpiCard
+          label="Avg Resolution"
+          value={data?.average_resolution != null ? `${data.average_resolution}d` : "—"}
           detail="Mean days to close"
+          accent="border-l-blue-500"
           onClick={() => openComplaints("Closed complaints — resolution time", { kpi: "closed" })}
         />
-        <DashKpi
-          label="Resolved within SLA"
+        <KpiCard
+          label="Within SLA"
           value={data?.resolved_within_sla != null ? `${data.resolved_within_sla}%` : "—"}
-          detail={`${data?.resolved_within_sla_count ?? 0} cases met the target`}
+          detail={`${data?.resolved_within_sla_count ?? 0} met target`}
+          accent="border-l-emerald-600"
           onClick={() => openComplaints("Resolved within SLA", { kpi: "within_sla" })}
         />
-        <DashKpi
-          label="Pending complaints"
+        <KpiCard
+          label="Pending"
           value={data?.pending ?? 0}
-          detail="Not resolved, closed, or withdrawn"
+          detail="Active / open"
+          accent="border-l-amber-500"
           onClick={() => openComplaints("Pending complaints", { kpi: "pending" })}
         />
-        <DashKpi
-          label="Top complaint category"
+        <KpiCard
+          label="Overdue"
+          value={data?.overdue_percent != null ? `${data.overdue_percent}%` : "—"}
+          detail="Past target date"
+          accent="border-l-rose-500"
+          onClick={() => openComplaints("Overdue / open complaints", { kpi: "overdue" })}
+        />
+        <KpiCard
+          label="Beyond SLA"
+          value={data?.beyond_sla_percent != null ? `${data.beyond_sla_percent}%` : "—"}
+          detail="Closed past target"
+          accent="border-l-orange-500"
+          onClick={() => openComplaints("Resolved beyond SLA", { kpi: "beyond_sla" })}
+        />
+        <KpiCard
+          label="Repeat Rate"
+          value={data?.repeat_rate != null ? `${data.repeat_rate}%` : "—"}
+          detail="Recurring issues"
+          accent="border-l-purple-500"
+          onClick={() => openComplaints("Repeat complaints", { kpi: "repeat" })}
+        />
+        <KpiCard
+          label="Top Category"
           value={data?.top_category || "—"}
-          detail="Most common category"
+          detail="Most frequent"
+          accent="border-l-indigo-400"
           onClick={() => openComplaints(
             data?.top_category ? `Category: ${data.top_category}` : "Complaints by category",
             data?.top_category ? { category: data.top_category } : undefined,
           )}
         />
-        <DashKpi
-          label="Top complaint type"
+        <KpiCard
+          label="Top Complainant"
           value={data?.top_type || "—"}
-          detail="HCF, HMO, or enrollee"
+          detail="Respondent type"
+          accent="border-l-cyan-500"
           onClick={() => openComplaints(
             data?.top_type ? `Type: ${data.top_type}` : "Complaints by type",
             data?.top_type ? { type: data.top_type } : undefined,
           )}
         />
-        <DashKpi
-          label="Top transmission route"
+        <KpiCard
+          label="Top Route"
           value={data?.top_route || "—"}
-          detail="How the complaint arrived"
+          detail="Intake channel"
+          accent="border-l-teal-500"
           onClick={() => openComplaints(
             data?.top_route ? `Route: ${data.top_route}` : "Complaints by route",
             data?.top_route ? { route: data.top_route } : undefined,
           )}
         />
-        <DashKpi
-          label="% overdue complaints"
-          value={data?.overdue_percent != null ? `${data.overdue_percent}%` : "—"}
-          detail="Open past the resolution target"
-          onClick={() => openComplaints("Overdue / open complaints", { kpi: "overdue" })}
-        />
-        <DashKpi
-          label="% resolution beyond SLA"
-          value={data?.beyond_sla_percent != null ? `${data.beyond_sla_percent}%` : "—"}
-          detail="Closed cases past the target"
-          onClick={() => openComplaints("Resolved beyond SLA", { kpi: "beyond_sla" })}
-        />
-        <DashKpi
-          label="Highest volume state"
-          value={volumeLabel(data?.highest_state)}
-          detail="Most complaints"
-          onClick={() => openComplaints(
-            data?.highest_state?.name ? `State: ${data.highest_state.name}` : "Complaints by state",
-            data?.highest_state?.code
-              ? { state_id: String(data.highest_state.code), state_code: String(data.highest_state.code) }
-              : undefined,
-          )}
-        />
-        <DashKpi
-          label="Lowest volume state"
-          value={volumeLabel(data?.lowest_state)}
-          detail="Fewest complaints"
-          onClick={() => openComplaints(
-            data?.lowest_state?.name ? `State: ${data.lowest_state.name}` : "Complaints by state",
-            data?.lowest_state?.code
-              ? { state_id: String(data.lowest_state.code), state_code: String(data.lowest_state.code) }
-              : undefined,
-          )}
-        />
-        <DashKpi
-          label="Highest volume zone"
-          value={volumeLabel(data?.highest_zone)}
-          detail="Most complaints"
-          onClick={() => openComplaints(
-            data?.highest_zone?.name ? `Zone: ${data.highest_zone.name}` : "Complaints by zone",
-            data?.highest_zone?.code
-              ? { zone_id: String(data.highest_zone.code), zonal_code: String(data.highest_zone.code) }
-              : undefined,
-          )}
-        />
-        <DashKpi
-          label="Lowest volume zone"
-          value={volumeLabel(data?.lowest_zone)}
-          detail="Fewest complaints"
-          onClick={() => openComplaints(
-            data?.lowest_zone?.name ? `Zone: ${data.lowest_zone.name}` : "Complaints by zone",
-            data?.lowest_zone?.code
-              ? { zone_id: String(data.lowest_zone.code), zonal_code: String(data.lowest_zone.code) }
-              : undefined,
-          )}
-        />
-        <DashKpi
-          label="Repeat complaint rate"
-          value={data?.repeat_rate != null ? `${data.repeat_rate}%` : "—"}
-          detail="Same complainant and facility or category"
-          onClick={() => openComplaints("Repeat complaints", { kpi: "repeat" })}
-        />
+
+        {/* National / Multi-State comparison cards — hidden for single state view */}
+        {!isSingleState && (
+          <>
+            <KpiCard
+              label="Highest State"
+              value={volumeLabel(data?.highest_state)}
+              detail="Max volume"
+              accent="border-l-emerald-500"
+              onClick={() => openComplaints(
+                data?.highest_state?.name ? `State: ${data.highest_state.name}` : "Complaints by state",
+                data?.highest_state?.code
+                  ? { state_id: String(data.highest_state.code), state_code: String(data.highest_state.code) }
+                  : undefined,
+              )}
+            />
+            <KpiCard
+              label="Lowest State"
+              value={volumeLabel(data?.lowest_state)}
+              detail="Min volume"
+              accent="border-l-slate-400"
+              onClick={() => openComplaints(
+                data?.lowest_state?.name ? `State: ${data.lowest_state.name}` : "Complaints by state",
+                data?.lowest_state?.code
+                  ? { state_id: String(data.lowest_state.code), state_code: String(data.lowest_state.code) }
+                  : undefined,
+              )}
+            />
+            <KpiCard
+              label="Highest Zone"
+              value={volumeLabel(data?.highest_zone)}
+              detail="Max volume"
+              accent="border-l-blue-400"
+              onClick={() => openComplaints(
+                data?.highest_zone?.name ? `Zone: ${data.highest_zone.name}` : "Complaints by zone",
+                data?.highest_zone?.code
+                  ? { zone_id: String(data.highest_zone.code), zonal_code: String(data.highest_zone.code) }
+                  : undefined,
+              )}
+            />
+            <KpiCard
+              label="Lowest Zone"
+              value={volumeLabel(data?.lowest_zone)}
+              detail="Min volume"
+              accent="border-l-slate-400"
+              onClick={() => openComplaints(
+                data?.lowest_zone?.name ? `Zone: ${data.lowest_zone.name}` : "Complaints by zone",
+                data?.lowest_zone?.code
+                  ? { zone_id: String(data.lowest_zone.code), zonal_code: String(data.lowest_zone.code) }
+                  : undefined,
+              )}
+            />
+          </>
+        )}
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 items-stretch">
@@ -526,10 +669,10 @@ export default function ComplaintRegisterDashboard({
         <CountChart title="Complaints by respondent (complainant type)" data={data?.by_complainant} empty="No complainant types recorded." />
         <CountChart title="Complaints by resolution" data={data?.by_outcome} empty="No closed complaints in this filter." />
         <CountChart title="Top recurring issues" data={data?.top_issues} empty="No issue categories yet." />
-        <CountChart title="Complaints by state" data={data?.by_state} empty="No state volumes yet." />
-        <CountChart title="Complaints by zone" data={data?.by_zone} empty="No zone volumes yet." />
-        <DaysChart title="Average resolution time by state" data={data?.avg_resolution_by_state} />
-        <DaysChart title="Average resolution time by zone" data={data?.avg_resolution_by_zone} />
+        {!isSingleState && <CountChart title="Complaints by state" data={data?.by_state} empty="No state volumes yet." />}
+        {!isSingleState && <CountChart title="Complaints by zone" data={data?.by_zone} empty="No zone volumes yet." />}
+        {!isSingleState && <DaysChart title="Average resolution time by state" data={data?.avg_resolution_by_state} />}
+        {!isSingleState && <DaysChart title="Average resolution time by zone" data={data?.avg_resolution_by_zone} />}
         <CountChart title="Open complaints by status" data={data?.open_by_status} empty="No open complaints." className="xl:col-span-2" />
       </div>
     </>
@@ -548,21 +691,58 @@ export default function ComplaintRegisterDashboard({
     />
   );
 
+  const displayTitle = title || (excludeServicom ? "State Office Complaints Analytics" : "Complaint Register Analytics");
+  const displaySubtitle = subtitle || (excludeServicom
+    ? "Volume, sources, issue patterns, and resolution performance for state-level complaints"
+    : "Volume, sources, issue patterns, resolution performance, SLA compliance and escalation");
+
+  const stateCoordinatorBanner = stateLocked ? (
+    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-gradient-to-r from-emerald-50 via-white to-emerald-50/50 border border-[#d4e8dc] px-4 py-3 rounded-sm shadow-2xs">
+      <div className="flex items-center gap-3">
+        <div className="w-9 h-9 rounded-sm bg-[#1a7a52] text-white flex items-center justify-center font-bold text-xs shadow-xs shrink-0">
+          <MapPin className="w-4 h-4" />
+        </div>
+        <div>
+          <div className="flex items-center gap-2">
+            <h3 className="text-sm font-black text-[#0f3d2e] tracking-tight">
+              {activeStateName} State Complaints Dashboard
+            </h3>
+            <Badge variant="outline" className="border-[#1a7a52] text-[#1a7a52] bg-emerald-50 text-[10px] font-bold">
+              State Office
+            </Badge>
+          </div>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Resolution performance, SLA tracking, and complaint patterns for {activeStateName} State
+          </p>
+        </div>
+      </div>
+      <Badge className="bg-[#1a7a52] text-white font-bold text-xs px-2.5 py-1 rounded-sm shrink-0">
+        {activeStateName} State
+      </Badge>
+    </div>
+  ) : null;
+
   if (embedded) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-4">
+        {stateCoordinatorBanner}
         <div className="rounded-sm border border-slate-200/80 bg-white shadow-xs overflow-hidden">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 px-4 py-2.5 bg-[#f8faf9] border-b border-slate-200/80">
             <div className="flex items-center gap-2.5">
               <FilterIcon className="w-4 h-4 text-[#1a7a52]" />
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-slate-800 uppercase tracking-wide">
-                  Complaint Register Filters
-                </span>
-                {activeFiltersCount > 0 && (
-                  <Badge className="bg-[#1a7a52] text-white text-[10px] font-bold px-1.5 py-0 rounded-full">
-                    {activeFiltersCount} Active
-                  </Badge>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-slate-800 uppercase tracking-wide">
+                    {displayTitle}
+                  </span>
+                  {activeFiltersCount > 0 && (
+                    <Badge className="bg-[#1a7a52] text-white text-[10px] font-bold px-1.5 py-0 rounded-full">
+                      {activeFiltersCount} Active
+                    </Badge>
+                  )}
+                </div>
+                {subtitle && (
+                  <p className="text-[11px] text-slate-500 mt-0.5">{displaySubtitle}</p>
                 )}
               </div>
             </div>
@@ -598,7 +778,8 @@ export default function ComplaintRegisterDashboard({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
+      {stateCoordinatorBanner}
       <div className="rounded-sm border border-slate-200/80 bg-white shadow-xs overflow-hidden">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 px-4 py-2.5 bg-[#f8faf9] border-b border-slate-200/80">
           <div className="flex items-center gap-2.5">
@@ -606,7 +787,7 @@ export default function ComplaintRegisterDashboard({
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-xs font-bold text-slate-800 uppercase tracking-wide">
-                  Complaint Register Analytics
+                  {displayTitle}
                 </span>
                 {activeFiltersCount > 0 && (
                   <Badge className="bg-[#1a7a52] text-white text-[10px] font-bold px-1.5 py-0 rounded-full">
@@ -615,7 +796,7 @@ export default function ComplaintRegisterDashboard({
                 )}
               </div>
               <p className="text-[11px] text-slate-500">
-                Volume, sources, issue patterns, resolution performance, SLA compliance and escalation
+                {displaySubtitle}
               </p>
             </div>
           </div>

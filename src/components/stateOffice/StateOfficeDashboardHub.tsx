@@ -1,5 +1,6 @@
 import * as React from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { useSelector } from "react-redux";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -7,21 +8,27 @@ import {
   LayoutDashboard,
   Megaphone,
   RefreshCw,
+  Scale,
   Stethoscope,
   UserPlus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import type { RootState } from "@/src/store/store";
+import { isDeptStateCoordinator } from "@/src/access/departmentRoles";
 import EnrolmentDriveDashboard from "./EnrolmentDriveDashboard";
 import ProviderManagementDashboard from "./ProviderManagementDashboard";
 import ChallengesSupportDashboard from "./ChallengesSupportDashboard";
+import ComplaintRegisterDashboard from "../servicom/ComplaintRegisterDashboard";
 import { STAKEHOLDER_MANAGEMENT_PATH } from "./enrolmentPillarTypes";
+import { canAccessEnrolmentDriveDashboard } from "./enrolmentDriveTypes";
 
 export type StateOfficeDashTab =
   | "enrolment"
   | "enrolment-drives"
   | "stakeholder"
   | "provider"
+  | "complaints"
   | "challenges";
 
 const TABS: { key: StateOfficeDashTab; label: string; icon: React.ReactNode }[] = [
@@ -29,16 +36,16 @@ const TABS: { key: StateOfficeDashTab; label: string; icon: React.ReactNode }[] 
   { key: "enrolment-drives", label: "Enrolment Drives", icon: <Megaphone className="size-4 shrink-0" /> },
   { key: "stakeholder", label: "Stakeholder", icon: <Handshake className="size-4 shrink-0" /> },
   { key: "provider", label: "Provider Management", icon: <Stethoscope className="size-4 shrink-0" /> },
+  { key: "complaints", label: "Complaints", icon: <Scale className="size-4 shrink-0" /> },
   { key: "challenges", label: "Challenges & Support", icon: <AlertTriangle className="size-4 shrink-0" /> },
 ];
-
-const TAB_KEYS = new Set<StateOfficeDashTab>(TABS.map((t) => t.key));
 
 interface Props {
   onBack: () => void;
   defaultZoneId?: string | null;
   defaultStateId?: string | null;
   userRole?: string;
+  user?: any;
 }
 
 function UnavailablePanel({
@@ -76,24 +83,59 @@ export default function StateOfficeDashboardHub({
   onBack,
   defaultZoneId,
   defaultStateId,
+  userRole,
+  user,
 }: Props) {
-  const navigate = useNavigate();
+  const authUser = useSelector((s: RootState) => s.auth.user);
+  const canEdDash = canAccessEnrolmentDriveDashboard(authUser?.role || userRole, {
+    reportScope: authUser?.role_config?.report_scope ?? user?.role_config?.report_scope ?? null,
+    stateCode: authUser?.state_code || (authUser as any)?.state?.code || user?.state_code || defaultStateId || null,
+    zonalCode: authUser?.zonal_code || (authUser as any)?.zone?.zonal_code || user?.zonal_code || defaultZoneId || null,
+  });
+  const visibleTabs = React.useMemo(
+    () => TABS.filter((tab) => tab.key !== "enrolment-drives" || canEdDash),
+    [canEdDash],
+  );
+
   const [searchParams, setSearchParams] = useSearchParams();
   const tabParam = searchParams.get("tab") as StateOfficeDashTab | null;
+  const fallbackTab: StateOfficeDashTab = visibleTabs[0]?.key || "enrolment";
   const initialTab: StateOfficeDashTab =
-    tabParam && TAB_KEYS.has(tabParam) ? tabParam : "enrolment-drives";
+    tabParam && visibleTabs.some((t) => t.key === tabParam)
+      ? tabParam
+      : (canEdDash ? "enrolment-drives" : fallbackTab);
+
+  const isStateCoordinator =
+    userRole === "state-coordinator" ||
+    isDeptStateCoordinator(userRole || "") ||
+    userRole === "state-officer" ||
+    user?.role_config?.report_scope === "state";
+
+  const isAdminOrNational =
+    userRole === "admin" ||
+    userRole === "sdo" ||
+    userRole === "dg-ceo" ||
+    userRole === "hq-department" ||
+    user?.role_config?.report_scope === "national";
+
+  // State coordinator sees his own state locked. Admin can select any state.
+  const isStateLocked = isStateCoordinator && !isAdminOrNational && !!defaultStateId;
 
   const [activeTab, setActiveTab] = React.useState<StateOfficeDashTab>(initialTab);
   const [refreshKey, setRefreshKey] = React.useState(0);
   const [syncing, setSyncing] = React.useState(false);
 
   React.useEffect(() => {
-    if (tabParam && TAB_KEYS.has(tabParam) && tabParam !== activeTab) {
+    if (tabParam && visibleTabs.some((t) => t.key === tabParam) && tabParam !== activeTab) {
       setActiveTab(tabParam);
+    } else if (activeTab === "enrolment-drives" && !canEdDash) {
+      setActiveTab(fallbackTab);
+      setSearchParams({ tab: fallbackTab }, { replace: true });
     }
-  }, [tabParam]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [tabParam, canEdDash, visibleTabs, fallbackTab]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const selectTab = (key: StateOfficeDashTab) => {
+    if (key === "enrolment-drives" && !canEdDash) return;
     setActiveTab(key);
     setSearchParams({ tab: key }, { replace: true });
   };
@@ -141,7 +183,7 @@ export default function StateOfficeDashboardHub({
 
       <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 sticky top-[57px] z-20">
         <div className="flex gap-4 overflow-x-auto -mb-px" role="tablist">
-          {TABS.map((tab) => (
+          {visibleTabs.map((tab) => (
             <button
               key={tab.key}
               type="button"
@@ -165,19 +207,16 @@ export default function StateOfficeDashboardHub({
         <UnavailablePanel moduleLabel="Enrolment" registerPath="/zonal/enrolment" />
       )}
 
-      {activeTab === "enrolment-drives" && (
+      {activeTab === "enrolment-drives" && canEdDash && (
         <EnrolmentDriveDashboard
           key={`ed-dash-${refreshKey}`}
           embedded
           onBack={onBack}
           {...shared}
-          onRecordAction={(stateCode, issue) => {
-            const params = new URLSearchParams({ tab: "actions" });
-            if (stateCode) params.set("state", stateCode);
-            if (issue) params.set("issue", issue);
-            navigate(`/zonal/enrolment-drives?${params.toString()}`);
-          }}
         />
+      )}
+      {activeTab === "enrolment-drives" && !canEdDash && (
+        <UnavailablePanel moduleLabel="Enrolment Drives" registerPath="/zonal/enrolment-drives" />
       )}
 
       {activeTab === "stakeholder" && (
@@ -191,6 +230,31 @@ export default function StateOfficeDashboardHub({
           onBack={onBack}
           {...shared}
         />
+      )}
+
+      {activeTab === "complaints" && (
+        <ScrollArea className="flex-1">
+          <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-4">
+            <ComplaintRegisterDashboard
+              key={`state-comp-dash-${refreshKey}`}
+              embedded
+              defaultStateId={isStateLocked ? defaultStateId : undefined}
+              defaultZoneId={isStateLocked ? defaultZoneId : undefined}
+              lockLocation={isStateLocked}
+              excludeServicom
+              title={
+                isStateLocked
+                  ? "State Complaints Dashboard"
+                  : "State Office Complaints Analytics"
+              }
+              subtitle={
+                isStateLocked
+                  ? `Complaint resolution, SLA tracking, and trends for ${defaultStateId || "your state"}`
+                  : "State-level complaint resolution, SLA performance, and trends across states"
+              }
+            />
+          </div>
+        </ScrollArea>
       )}
 
       {activeTab === "challenges" && (

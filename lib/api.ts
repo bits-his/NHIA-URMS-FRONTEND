@@ -54,7 +54,7 @@ const driveRequest = (path: string, method = "GET", payload?: unknown) => reques
 export const enrolmentDrivesApi = {
   catalogue: () => driveRequest("/catalogue"),
   batches: (filters: Record<string, string> = {}) => driveRequest(`/batches?${new URLSearchParams(filters)}`),
-  createBatch: (payload: unknown) => driveRequest("/batches", "POST", payload),
+  createBatch: (payload: unknown) => request<{ success: boolean; created?: boolean; data: any }>(`${DRIVE_ROOT}/batches`, { method: "POST", body: JSON.stringify(payload) }),
   batch: (id: string) => driveRequest(`/batches/${encodeURIComponent(id)}`),
   updateBatch: (id: string, payload: unknown) => driveRequest(`/batches/${encodeURIComponent(id)}`, "PUT", payload),
   transition: (id: string, payload: unknown) => driveRequest(`/batches/${encodeURIComponent(id)}/transition`, "POST", payload),
@@ -75,8 +75,29 @@ export const enrolmentDrivesApi = {
   analytics: (filters: Record<string, string> = {}) => driveRequest(`/analytics?${new URLSearchParams(filters)}`),
   actions: () => driveRequest("/actions"),
   saveAction: (id: string | undefined, payload: unknown) => driveRequest(id ? `/actions/${encodeURIComponent(id)}` : "/actions", id ? "PUT" : "POST", payload),
-  legacy: () => driveRequest("/legacy"),
-  attachLegacy: (batchId: string, id: string) => driveRequest(`/batches/${encodeURIComponent(batchId)}/legacy/${encodeURIComponent(id)}`, "POST"),
+};
+
+const MC_ROOT = "/state-office/meetings";
+export const meetingsApi = {
+  catalogue: () => request<{ success: boolean; data: any }>(`${MC_ROOT}/catalogue`),
+  meetings: (filters: Record<string, string> = {}) => request<{ success: boolean; data: any[] }>(`${MC_ROOT}/meetings?${new URLSearchParams(filters)}`),
+  createMeeting: (payload: unknown) => request<{ success: boolean; data: any }>(`${MC_ROOT}/meetings`, { method: "POST", body: JSON.stringify(payload) }),
+  meeting: (id: string) => request<{ success: boolean; data: any }>(`${MC_ROOT}/meetings/${encodeURIComponent(id)}`),
+  updateMeeting: (id: string, payload: unknown) => request<{ success: boolean; data: any }>(`${MC_ROOT}/meetings/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(payload) }),
+  transitionMeeting: (id: string, payload: unknown) => request<{ success: boolean; data: any }>(`${MC_ROOT}/meetings/${encodeURIComponent(id)}/transition`, { method: "POST", body: JSON.stringify(payload) }),
+  uploadMeetingDocuments: (id: string, files: File[]) => {
+    const form = new FormData();
+    files.forEach((f) => form.append("files", f));
+    return requestForm<{ success: boolean; data: any }>(`${MC_ROOT}/meetings/${encodeURIComponent(id)}/documents`, "POST", form);
+  },
+  deleteMeetingDocument: (id: string, sn: number | string) =>
+    request<{ success: boolean }>(`${MC_ROOT}/meetings/${encodeURIComponent(id)}/documents/${encodeURIComponent(String(sn))}`, { method: "DELETE" }),
+  openActionPoints: () => request<{ success: boolean; data: any[] }>(`${MC_ROOT}/meetings/open-action-points`),
+  etmcList: (filters: Record<string, string> = {}) => request<{ success: boolean; data: any[] }>(`${MC_ROOT}/etmc?${new URLSearchParams(filters)}`),
+  createEtmc: (payload: unknown) => request<{ success: boolean; data: any }>(`${MC_ROOT}/etmc`, { method: "POST", body: JSON.stringify(payload) }),
+  etmc: (id: string) => request<{ success: boolean; data: any }>(`${MC_ROOT}/etmc/${encodeURIComponent(id)}`),
+  updateEtmc: (id: string, payload: unknown) => request<{ success: boolean; data: any }>(`${MC_ROOT}/etmc/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(payload) }),
+  transitionEtmc: (id: string, payload: unknown) => request<{ success: boolean; data: any }>(`${MC_ROOT}/etmc/${encodeURIComponent(id)}/transition`, { method: "POST", body: JSON.stringify(payload) }),
 };
 
 const CH_ROOT = "/state-office/challenges";

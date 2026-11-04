@@ -32,6 +32,7 @@ import StockVerificationsList from "./StockVerificationsList";
 import StockAssetManager from "./StockAssetManager";
 import StateOfficeReportsList from "./stateOffice/StateOfficeReportsList";
 import ChallengesSupportWorkspace from "./stateOffice/ChallengesSupportWorkspace";
+import MeetingsWorkspace from "./stateOffice/MeetingsWorkspace";
 import FinanceWorkspace from "./stateOffice/FinanceWorkspace";
 import { ENROLMENT_DRIVE_TYPES, enrolmentDrivePath } from "./stateOffice/enrolmentDriveTypes";
 import EnrolmentActivityPage from "./stateOffice/EnrolmentActivityPage";
@@ -671,8 +672,8 @@ export default function Dashboard({ role, user, access = [], functionalities = "
             />
             <Route path="/sdo/servicom/visits" element={<ServicomVisitsPage onBack={() => setView("home")} defaultStateId={monthlyCtx.defaultStateId} defaultZoneId={monthlyCtx.defaultZoneId} canCreate={monthlyCtx.canCreateMonthly && !isCoordinator} canReview={monthlyCtx.canReviewMonthly} />} />
             <Route path="/sdo/servicom/complaints/dashboard" element={<ComplaintsDashboardPage onBack={() => setView("home")} defaultStateId={isDeptZonalCoordinator(role) ? null : (user?.state_code ? String(user.state_code) : monthlyCtx.defaultStateId)} defaultZoneId={user?.zonal_code ? String(user.zonal_code) : (user?.zone?.zonal_code ? String(user.zone.zonal_code) : monthlyCtx.defaultZoneId)} lockLocation={!!(user?.state_code || monthlyCtx.defaultStateId) && !isDeptZonalCoordinator(role)} />} />
-            <Route path="/sdo/servicom/complaints" element={<ServicomComplaintsPage onBack={() => setView("home")} defaultStateId={isDeptZonalCoordinator(role) ? null : (user?.state_code ? String(user.state_code) : monthlyCtx.defaultStateId)} defaultZoneId={user?.zonal_code ? String(user.zonal_code) : (user?.zone?.zonal_code ? String(user.zone.zonal_code) : monthlyCtx.defaultZoneId)} userName={user?.name} userStaffId={user?.staff_id} userRole={user?.role} userDepartment={user?.department ?? null} canCreate={monthlyCtx.canCreateMonthly} canReview={monthlyCtx.canReviewMonthly} />} />
-            <Route path="/zonal/complaints-register/dashboard" element={<Navigate to="/zonal/compliance-hub?tab=complaints" replace />} />
+            <Route path="/sdo/servicom/complaints" element={<ServicomComplaintsPage onBack={() => setView("home")} channelScope="servicom-only" defaultStateId={isDeptZonalCoordinator(role) ? null : (user?.state_code ? String(user.state_code) : monthlyCtx.defaultStateId)} defaultZoneId={user?.zonal_code ? String(user.zonal_code) : (user?.zone?.zonal_code ? String(user.zone.zonal_code) : monthlyCtx.defaultZoneId)} userName={user?.name} userStaffId={user?.staff_id} userRole={user?.role} userDepartment={user?.department ?? null} canCreate={monthlyCtx.canCreateMonthly} canReview={monthlyCtx.canReviewMonthly} />} />
+            <Route path="/zonal/complaints-register/dashboard" element={<Navigate to="/zonal/dashboard?tab=complaints" replace />} />
             <Route path="/zonal/complaints-register" element={<Navigate to="/zonal/compliance-hub?tab=complaints" replace />} />
             <Route path="/sdo/servicom/satisfaction/dashboard" element={<SatisfactionSurveyDashboard onBack={() => setView("home")} defaultStateId={user?.state_code ? String(user.state_code) : monthlyCtx.defaultStateId} defaultZoneId={user?.zonal_code ? String(user.zonal_code) : monthlyCtx.defaultZoneId} registerPath="/sdo/servicom/satisfaction" />} />
             <Route path="/sdo/servicom/satisfaction" element={<ServicomSatisfactionSurveyPage onBack={() => setView("home")} defaultStateId={user?.state_code ? String(user.state_code) : monthlyCtx.defaultStateId} defaultZoneId={user?.zonal_code ? String(user.zonal_code) : monthlyCtx.defaultZoneId} defaultStateName={user?.state?.description} defaultZoneName={user?.zone?.description} canCreate={monthlyCtx.canCreateMonthly && !isCoordinator} canReview={monthlyCtx.canReviewMonthly} />} />
@@ -832,7 +833,8 @@ export default function Dashboard({ role, user, access = [], functionalities = "
                       ? String(user.state_code)
                       : (user?.state?.code ? String(user.state.code) : monthlyCtx.defaultStateId)
                   }
-                  userRole={user?.role}
+                  userRole={role || user?.role}
+                  user={user}
                 />
               }
             />
@@ -890,6 +892,8 @@ export default function Dashboard({ role, user, access = [], functionalities = "
             <Route path="/zonal/beneficiary/hcf-change" element={<BeneficiaryManagementLegacyRedirect />} />
             <Route path="/zonal/challenges/dashboard" element={<Navigate to="/zonal/dashboard?tab=challenges" replace />} />
             <Route path="/zonal/challenges" element={<ChallengesSupportWorkspace onBack={() => setView("home")} />} />
+            <Route path="/zonal/meetings" element={<MeetingsWorkspace onBack={() => setView("home")} />} />
+            <Route path="/zonal/meetings/etmc" element={<MeetingsWorkspace key="etmc" onBack={() => setView("home")} initialTab="etmc" />} />
             <Route path="/zonal/challenges/legacy" element={<StateOfficeReportsList key="state-challenges" reportType="challenges" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
             <Route path="/zonal/servicom/comment-card" element={<ServicomCommentCardPage onBack={() => setView("home")} defaultStateId={user?.state_code ? String(user.state_code) : monthlyCtx.defaultStateId} defaultZoneId={user?.zonal_code ? String(user.zonal_code) : monthlyCtx.defaultZoneId} defaultStateName={user?.state?.description} defaultZoneName={user?.zone?.description} canCreate={monthlyCtx.canCreateMonthly && !isCoordinator} canReview={monthlyCtx.canReviewMonthly} />} />
             <Route path="/zonal/servicom/satisfaction/dashboard" element={<SatisfactionSurveyDashboard onBack={() => setView("home")} defaultStateId={user?.state_code ? String(user.state_code) : monthlyCtx.defaultStateId} defaultZoneId={user?.zonal_code ? String(user.zonal_code) : monthlyCtx.defaultZoneId} registerPath="/zonal/servicom/satisfaction" />} />
@@ -903,14 +907,14 @@ export default function Dashboard({ role, user, access = [], functionalities = "
             <Route path="/zonal/expenditure-profile/dashboard" element={<Navigate to="/zonal/finance/records?tab=expenditure" replace />} />
             <Route path="/zonal/expenditure-profile" element={<Navigate to="/zonal/finance/records?tab=expenditure" replace />} />
             <Route path="/zonal/ict/support" element={<StateOfficeReportsList key="state-ict-support" reportType="ict-support-register" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
-            <Route path="/zonal/admin-hr/office-meeting" element={<AdminHrReportsList key="office-meeting" reportType="office-meeting" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
-            <Route path="/zonal/admin-hr/etmc-cascading" element={<AdminHrReportsList key="etmc-cascading" reportType="etmc-cascading" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
+            <Route path="/zonal/admin-hr/office-meeting" element={<Navigate to="/zonal/meetings" replace />} />
+            <Route path="/zonal/admin-hr/etmc-cascading" element={<Navigate to="/zonal/meetings/etmc" replace />} />
             <Route path="/zonal/admin-hr/office-accommodation" element={<AdminHrReportsList key="office-accommodation" reportType="office-accommodation" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
             <Route path="/zonal/admin-hr/utility-services" element={<AdminHrReportsList key="utility-services" reportType="utility-services" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
             <Route path="/zonal/admin-hr/vehicle-maintenance" element={<AdminHrReportsList key="vehicle-maintenance" reportType="vehicle-maintenance" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
             <Route path="/zonal/admin-hr/conflict-infraction" element={<AdminHrReportsList key="conflict-infraction" reportType="conflict-infraction" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
             <Route path="/zonal/admin-hr/enrollee-feedback" element={<AdminHrReportsList key="enrollee-feedback" reportType="enrollee-feedback" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
-            <Route path="/zonal/admin-hr/meetings" element={<Navigate to="/zonal/admin-hr/office-meeting" replace />} />
+            <Route path="/zonal/admin-hr/meetings" element={<Navigate to="/zonal/meetings" replace />} />
             <Route path="/zonal/admin-hr/accommodation" element={<Navigate to="/zonal/admin-hr/office-accommodation" replace />} />
             <Route path="/zonal/admin-hr/utilities" element={<Navigate to="/zonal/admin-hr/utility-services" replace />} />
             <Route path="/zonal/admin-hr/vehicles" element={<Navigate to="/zonal/admin-hr/vehicle-maintenance" replace />} />
