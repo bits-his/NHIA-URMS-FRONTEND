@@ -125,7 +125,7 @@ export default function FinanceDashboard({
 
       {activeTab === "overview" ? (
         <ScrollArea className="flex-1">
-          <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-4">
+          <div className="w-full p-3 sm:p-4 space-y-3.5">
             <FinanceDashboardTab
               key={`executive-dash-${refreshKey}`}
               userRole={userRole}

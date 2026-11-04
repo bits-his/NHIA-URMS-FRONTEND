@@ -101,11 +101,7 @@ export default function PrepaymentAnalysisDetailView() {
 
   return (
     <PageLayout
-      title={
-        <span className="flex items-center gap-2">
-          <FileSpreadsheet className="w-5 h-5 text-[#25a872]" /> Stock Prepayment Register Entry
-        </span>
-      }
+      title="Stock Prepayment Register Entry"
       description={`Register record ${row.controlNumber || ""}`}
       back
       backTo="/store-management/prepayment-analysis"

@@ -10,6 +10,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
 } from "recharts";
 import { toast } from "sonner";
+import PageLayout from "@/components/PageLayout";
 import { stockApi } from "@/lib/api";
 import { DashKpi, DashChartCard } from "@/components/dashboard/dashboardUi";
 import { pickGeoLabel } from "@/src/components/servicom/servicomConstants";
@@ -38,7 +39,7 @@ function ChartEmpty({ message }: { message: string }) {
   );
 }
 
-export default function StockVerificationDashboard({ defaultStateId, defaultZoneId }: Props) {
+export default function StockVerificationDashboard({ onBack, defaultStateId, defaultZoneId }: Props) {
   const navigate = useNavigate();
   const geoLocked = !!(defaultStateId || defaultZoneId);
   const [data, setData] = React.useState<any | null>(null);
@@ -106,17 +107,14 @@ export default function StockVerificationDashboard({ defaultStateId, defaultZone
   const stateLabel = filterState === "all" ? "All states" : pickGeoLabel(states, filterState, "State");
 
   return (
-    <div className="flex flex-col h-full bg-slate-50/40">
-      <div className="bg-white border-b border-slate-200 px-4 md:px-6 py-4 sticky top-0 z-30 space-y-3">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h1 className="text-lg font-semibold text-slate-900">Stock Verification Unit</h1>
-            <p className="text-xs text-slate-500">Fixed asset register and prepayment register</p>
-          </div>
-          <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
-          </Button>
-        </div>
+    <PageLayout
+      title="Stock Verification Unit"
+      actions={
+        <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">
+          <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
+        </Button>
+      }
+      filters={
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-2">
           <Filter label="Year">
             <Select value={year} onValueChange={setYear}>
@@ -167,11 +165,11 @@ export default function StockVerificationDashboard({ defaultStateId, defaultZone
             </>
           )}
         </div>
-      </div>
-
-      <ScrollArea className="flex-1">
-        <div className="px-4 md:px-6 py-5 space-y-8 max-w-[1400px]">
-          {loading ? (
+      }
+      contentClassName="space-y-4 w-full pb-8"
+    >
+      <div className="w-full space-y-4">
+        {loading ? (
             <div className="flex items-center justify-center py-24 gap-3 text-slate-400">
               <Loader2 className="w-5 h-5 animate-spin" /> Loading dashboard…
             </div>
@@ -264,7 +262,7 @@ export default function StockVerificationDashboard({ defaultStateId, defaultZone
                   </DashChartCard>
                 </div>
 
-                <div className="rounded-xl border border-[#d4e8dc] bg-white p-4 space-y-4">
+                <div className="rounded-lg border border-[#d4e8dc] bg-white p-3.5 space-y-3.5 shadow-2xs">
                   <div className="flex items-start justify-between gap-3 flex-wrap">
                     <div>
                       <p className="text-sm font-semibold text-slate-800">Assets by office</p>
@@ -305,7 +303,7 @@ export default function StockVerificationDashboard({ defaultStateId, defaultZone
                   )}
                 </div>
 
-                <div className="rounded-xl border border-[#d4e8dc] bg-white p-4">
+                <div className="rounded-lg border border-[#d4e8dc] bg-white p-3.5 shadow-2xs">
                   <div className="flex items-center justify-between mb-1">
                     <p className="text-sm font-semibold text-slate-800">
                       {conditionFocus ? `${conditionFocus} assets` : "Condition drill-down"}
@@ -342,7 +340,7 @@ export default function StockVerificationDashboard({ defaultStateId, defaultZone
                     </Table>
                   </div>
                 </div>
-                <div className="rounded-xl border border-rose-200 bg-white overflow-hidden">
+                <div className="rounded-lg border border-rose-200 bg-white overflow-hidden shadow-2xs">
                   <div className="px-4 py-3 border-b border-rose-100">
                     <p className="text-sm font-semibold text-slate-800">Priority red-flag register</p>
                     <p className="text-[11px] text-slate-500">Maintenance overdue, poor or defective, no custodian, unverified or missing.</p>
@@ -421,8 +419,7 @@ export default function StockVerificationDashboard({ defaultStateId, defaultZone
             </>
           )}
         </div>
-      </ScrollArea>
-    </div>
+    </PageLayout>
   );
 }
 

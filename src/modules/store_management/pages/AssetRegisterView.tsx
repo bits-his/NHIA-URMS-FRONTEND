@@ -425,11 +425,7 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
 
   return (
     <PageLayout
-      title={
-        <span className="flex items-center gap-2">
-          <ShieldCheck className="w-5 h-5 text-[#25a872]" /> {capitaliseState ? "Capitalise Store Item" : fromSupply ? "Capitalise Verified Supply" : "Asset Registration Form"}
-        </span>
-      }
+      title={capitaliseState ? "Capitalise Store Item" : fromSupply ? "Capitalise Verified Supply" : "Asset Registration Form"}
       description={
         capitaliseState
           ? "Complete asset details  stock will be deducted from the store on save"

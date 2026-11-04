@@ -201,20 +201,20 @@ function KPICard({ title, value, trend, trendUp, icon, tint, sub }: {
   icon: React.ReactNode; tint: string; sub?: string;
 }) {
   return (
-    <div className={`${tint} rounded-2xl p-5 border border-white/60 shadow-sm hover:shadow-md transition-all`}>
-      <div className="flex items-start justify-between mb-4">
-        <div className="w-10 h-10 rounded-xl bg-white/70 flex items-center justify-center shadow-sm">
+    <div className="rounded-lg p-3.5 border border-[#d4e8dc] bg-white shadow-2xs hover:border-[#1a7a52] transition-colors">
+      <div className="flex items-start justify-between mb-2">
+        <div className="w-8 h-8 rounded-md bg-[#e8f5ee] flex items-center justify-center text-[#145c3f] shrink-0">
           {icon}
         </div>
-        <span className={`flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full ${
+        <span className={`flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
           trendUp ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"
         }`}>
           <TrendingUp className={`w-3 h-3 ${!trendUp ? "rotate-180" : ""}`} />
           {trend}
         </span>
       </div>
-      <p className="text-3xl font-black text-slate-900 tracking-tight">{value}</p>
-      <p className="text-sm font-semibold text-slate-700 mt-1">{title}</p>
+      <p className="text-2xl font-black text-slate-900 tracking-tight tabular-nums">{value}</p>
+      <p className="text-xs font-bold uppercase tracking-wider text-slate-600 mt-1">{title}</p>
       {sub && <p className="text-[11px] text-slate-500 mt-0.5">{sub}</p>}
     </div>
   );
@@ -515,7 +515,7 @@ export default function Dashboard({ role, user, access = [], functionalities = "
                   />
                 </div>
               ) : (
-              <div className="relative z-10 p-6 max-w-7xl mx-auto space-y-6">
+              <div className="relative z-10 w-full p-3 sm:p-4 md:p-5 space-y-4">
                 {!isDg && role !== "sdo" && !isDeptZonalCoordinator(role) && role !== "state-officer" && !isDeptReportingOfficer(role) && !isDeptStateCoordinator(role) && role !== "department-officer" && role !== "admin" && role !== "hq-department" && (
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                     <KPICard title="Reports Submitted" value="124" trend="+12%" trendUp icon={<FileText className="w-5 h-5 text-blue-600" />} tint="kpi-blue" sub="This month" />

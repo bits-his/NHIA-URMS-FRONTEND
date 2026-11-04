@@ -61,6 +61,7 @@ import {
 import HmoProviderSelect from "./HmoProviderSelect";
 import HcfFacilitySelect from "./HcfFacilitySelect";
 import { SubmitConfirmModal, useReportingOfficerSubmitConfirm } from "@/src/components/SubmitConfirmModal";
+import PageLayout from "@/src/components/PageLayout";
 
 interface Props {
   onBack?: () => void;
@@ -4034,43 +4035,18 @@ export default function ServicomComplaintsPage({
   ];
 
   return (
-    <div className={`${embedded ? "" : "bg-[#f4f7f5]"} min-h-full h-full overflow-auto`}>
-      <div className={`bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sticky top-0 ${embedded ? "z-10" : "z-30"}`}>
-        <div className="flex items-center gap-3 min-w-0">
-          {!embedded && onBack && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={onBack}
-              className="rounded-sm hover:bg-[#e8f5ee] text-slate-700"
-              aria-label="Back"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
-          )}
-          <div className="min-w-0">
-            {!embedded ? (
-              <>
-                <div className="flex items-center gap-2">
-                  <h2 className="text-xl font-black tracking-tight text-slate-900 truncate">
-                    Complaints Management
-                  </h2>
-                  <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
-                    {listStats.total} {listStats.total === 1 ? "complaint" : "complaints"}
-                  </span>
-                </div>
-                <p className="text-xs text-slate-500 truncate">
-                  SERVICOM dispute resolution, investigations, SLA tracking & escalation workflow
-                </p>
-              </>
-            ) : (
-              <p className="text-xs text-slate-500 truncate">
-                {listStats.total} complaint{listStats.total === 1 ? "" : "s"} in register
-              </p>
-            )}
-          </div>
-        </div>
-
+    <PageLayout
+      showHeader={!embedded}
+      title={embedded ? undefined : "Complaints Management"}
+      badge={
+        !embedded ? (
+          <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+            {listStats.total} {listStats.total === 1 ? "complaint" : "complaints"}
+          </span>
+        ) : null
+      }
+      showBack={false}
+      actions={
         <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
           <Button
             variant="outline"
@@ -4093,9 +4069,9 @@ export default function ServicomComplaintsPage({
             </Button>
           )}
         </div>
-      </div>
-
-      <div className="w-full px-4 md:px-5 py-3 space-y-3">
+      }
+    >
+      <div className="w-full space-y-3">
         {!isReportingOfficer && (
           <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-2">
             {[
@@ -4299,6 +4275,6 @@ export default function ServicomComplaintsPage({
           getRowClassName={(c) => slaRowClass(c.sla?.color)}
         />
       </div>
-    </div>
+    </PageLayout>
   );
 }

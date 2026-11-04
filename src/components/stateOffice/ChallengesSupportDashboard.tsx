@@ -67,7 +67,7 @@ export default function ChallengesSupportDashboard({ onBack, embedded = false }:
         </div>
       )}
       <ScrollArea className="flex-1">
-        <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-4">
+        <div className="w-full p-3 sm:p-4 space-y-3.5">
           {error && (
             <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700" role="alert">
               {error}

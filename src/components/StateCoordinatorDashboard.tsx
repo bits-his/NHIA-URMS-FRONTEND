@@ -121,7 +121,7 @@ function Segmented<T extends string>({
   ariaLabel: string;
 }) {
   return (
-    <div role="group" aria-label={ariaLabel} className="inline-flex flex-wrap items-center gap-0.5 rounded-xl border border-slate-200 bg-slate-50 p-1">
+    <div role="group" aria-label={ariaLabel} className="inline-flex flex-wrap items-center gap-0.5 rounded-lg border border-[#d4e8dc] bg-slate-50 p-1">
       {options.map((opt) => {
         const Icon = opt.icon;
         const on = value === opt.id;
@@ -165,13 +165,13 @@ function AccentKpi({
     <button
       type="button"
       onClick={onClick}
-      className={`h-full min-h-[108px] rounded-xl border border-slate-200 border-l-4 ${border} bg-white p-4 flex flex-col text-left hover:shadow-sm transition-shadow ${
+      className={`h-full min-h-[96px] rounded-lg border border-[#d4e8dc] border-l-4 ${border} bg-white p-3.5 flex flex-col text-left hover:border-[#145c3f] hover:shadow-xs transition-colors shadow-2xs ${
         active ? "ring-2 ring-teal-600/30" : ""
       }`}
     >
       <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 leading-tight min-h-[28px]">{label}</p>
-      <p className="mt-1 text-2xl font-semibold tabular-nums text-slate-900 leading-tight">{value}</p>
-      <p className="mt-auto pt-2 text-xs text-slate-500 leading-snug">{detail || " "}</p>
+      <p className="mt-1 text-2xl font-bold tabular-nums text-slate-900 leading-tight">{value}</p>
+      <p className="mt-auto pt-1.5 text-xs text-slate-500 leading-snug">{detail || " "}</p>
     </button>
   );
 }
@@ -185,7 +185,7 @@ function ChartShell({
   height?: number;
 }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_8px_30px_rgba(15,23,42,0.04)]">
+    <div className="rounded-lg border border-[#d4e8dc] bg-white p-3.5 shadow-2xs">
       <div className="mb-2">
         <p className="text-sm font-semibold text-slate-800">{title}</p>
         {hint ? <p className="text-xs text-slate-500">{hint}</p> : null}
@@ -494,7 +494,7 @@ export default function StateCoordinatorDashboard({
   );
 
   const actionQueue = (
-    <div className="h-full flex flex-col rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_8px_30px_rgba(15,23,42,0.04)]">
+    <div className="h-full flex flex-col rounded-lg border border-[#d4e8dc] bg-white p-3.5 shadow-2xs">
       <p className="text-sm font-semibold text-slate-800">What needs my action?</p>
       <p className="mb-3 text-xs text-slate-500">Immediate items for {stateName}</p>
       <div className="space-y-2 flex-1">
@@ -506,9 +506,9 @@ export default function StateCoordinatorDashboard({
               if (item.drill && typeof item.value === "number" && item.value > 0) item.drill();
               else if (item.path) onNavigate?.(item.path);
             }}
-            className="w-full flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-2.5 text-left hover:border-teal-300/60 transition-colors"
+            className="w-full flex items-center gap-2.5 rounded-md border border-slate-100 bg-slate-50/80 p-2 text-left hover:border-[#145c3f] transition-colors"
           >
-            <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: `${item.color}18` }}>
+            <div className="w-8 h-8 rounded-md flex items-center justify-center shrink-0" style={{ background: `${item.color}18` }}>
               <item.icon className="w-4 h-4" style={{ color: item.color }} />
             </div>
             <div className="flex-1 min-w-0">
@@ -527,7 +527,7 @@ export default function StateCoordinatorDashboard({
   );
 
   const offTrack = (
-    <div className="h-full flex flex-col rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_8px_30px_rgba(15,23,42,0.04)]">
+    <div className="h-full flex flex-col rounded-lg border border-[#d4e8dc] bg-white p-3.5 shadow-2xs">
       <div className="mb-3 flex items-start justify-between gap-2">
         <div>
           <p className="text-sm font-semibold text-slate-800">Off-track & attention</p>
@@ -556,7 +556,7 @@ export default function StateCoordinatorDashboard({
                 else if (item.key === "challenges") drillReportType("challenges", "Challenges");
                 else drillReports(item.label);
               }}
-              className="w-full flex items-start gap-3 rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-3 text-left hover:border-teal-300/60"
+              className="w-full flex items-start gap-2.5 rounded-md border border-slate-100 bg-slate-50/80 p-2.5 text-left hover:border-[#145c3f] transition-colors"
             >
               <Badge variant="outline" className={`text-[10px] shrink-0 ${severityCls(item.severity)}`}>
                 {item.severity}
@@ -659,7 +659,7 @@ export default function StateCoordinatorDashboard({
   ) : null;
 
   return (
-    <div className="flex flex-col h-full min-h-0 bg-[#f7fafc] -m-1 md:-m-2 rounded-xl overflow-hidden">
+    <div className="flex flex-col h-full min-h-0 bg-[#f7fafc] rounded-lg overflow-hidden w-full">
       <div className="bg-white border-b border-slate-200 px-4 md:px-5 py-2 sticky top-0 z-20">
         <div className="flex items-center gap-3">
           <div className="min-w-0 flex-1">
@@ -698,7 +698,7 @@ export default function StateCoordinatorDashboard({
       </div>
 
       <ScrollArea className="flex-1">
-        <div className="px-4 md:px-5 py-4 space-y-4 pb-12 max-w-[1400px] mx-auto w-full">
+        <div className="px-3 md:px-4 py-3.5 space-y-3.5 pb-8 w-full">
 
           {(pinnedMonth || pinnedStatus || pinnedPack) ? (
             <div className="flex flex-wrap items-center gap-2 text-xs">
@@ -727,7 +727,7 @@ export default function StateCoordinatorDashboard({
               <span className="text-sm">Loading performance overview…</span>
             </div>
           ) : !data || !op || !current || !needs ? (
-            <div className="rounded-2xl border border-dashed border-slate-200 bg-white py-16 text-center text-sm text-slate-500">
+            <div className="rounded-lg border border-dashed border-slate-200 bg-white py-12 text-center text-sm text-slate-500">
               No operational data available for this state yet. Approved packs will appear here as reports are submitted.
             </div>
           ) : design === "cards" ? (
@@ -751,7 +751,7 @@ export default function StateCoordinatorDashboard({
             </div>
           ) : design === "ledger" ? (
             <div className="space-y-4">
-              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+              <div className="overflow-hidden rounded-lg border border-[#d4e8dc] bg-white shadow-2xs">
                 <table className="w-full text-sm">
                   <thead className="bg-slate-50">
                     <tr>

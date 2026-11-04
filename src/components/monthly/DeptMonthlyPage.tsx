@@ -23,6 +23,7 @@ import {
   type MonthlyListColumn,
 } from "./monthlyListColumns";
 import { reviewChainFromConfig } from "@/src/access/departmentRoles";
+import PageLayout from "@/src/components/PageLayout";
 import { ALL_STATES, useMonthlyStateFilter } from "./useMonthlyStateFilter";
 
 type ReportStatus = "draft" | "submitted" | "under_review" | "zonal_review" | "approved" | "rejected";
@@ -228,21 +229,21 @@ function ReviewDetail({
   const sc = SC[(report.status as ReportStatus) || "draft"] ?? SC.draft;
 
   return (
-    <div className="flex flex-col h-full bg-slate-50/30">
-      <div className="bg-white border-b border-border/50 px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30">
-        <Button variant="ghost" size="sm" className="gap-2" onClick={onBack}>
-          <ArrowLeft className="w-4 h-4" /> Back to list
-        </Button>
+    <PageLayout
+      title={report.reference_id}
+      badge={
         <Badge className={`text-[10px] px-2 py-0.5 flex items-center gap-1 w-fit border ${sc.cls}`}>
           {sc.icon} {sc.label}
         </Badge>
-      </div>
-
-      <ScrollArea className="flex-1">
-        <div className="w-full max-w-4xl mx-auto px-4 md:px-6 py-6 space-y-4">
-          <Card className="rounded-2xl border-[#d4e8dc]">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base font-black text-slate-900">{report.reference_id}</CardTitle>
+      }
+      onBack={onBack}
+      backLabel="Back to list"
+      maxWidth="4xl"
+    >
+      <div className="w-full space-y-4">
+        <Card className="rounded-2xl border-[#d4e8dc]">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-black text-slate-900">{report.reference_id}</CardTitle>
               <p className="text-xs text-slate-500 mt-1">
                 {report.state?.description ?? "—"} · {monthLabel(report.reporting_month)} {report.reporting_year}
                 {report.submitted_by ? ` · by ${report.submitted_by}` : ""}
@@ -317,7 +318,6 @@ function ReviewDetail({
             </p>
           )}
         </div>
-      </ScrollArea>
 
       {showReject && (
         <RejectModal
@@ -327,7 +327,7 @@ function ReviewDetail({
           onConfirm={handleReject}
         />
       )}
-    </div>
+    </PageLayout>
   );
 }
 
@@ -454,26 +454,25 @@ export default function DeptMonthlyPage({
 
   // ── List view ───────────────────────────────────────────────────────────────
   return (
-    <div className="flex flex-col h-full bg-slate-50/30">
-      <div className="bg-white border-b border-border/50 px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30">
-        <p className="text-sm font-bold text-slate-800 hidden md:block">{title}</p>
-        <div className="flex items-center gap-3 ml-auto">
+    <PageLayout
+      title={title}
+      actions={
+        <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
           </Button>
           {canCreate && (
             <Button
-              className="bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20"
+              className="bg-[#145c3f] hover:bg-[#0f3d2e] text-white gap-2 shadow-sm"
               onClick={() => setMode("form")}
             >
               <Plus className="w-4 h-4" /> New Report
             </Button>
           )}
         </div>
-      </div>
-
-      <ScrollArea className="flex-1">
-        <div className="w-full px-4 md:px-6 py-4 space-y-4">
+      }
+    >
+      <div className="w-full space-y-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
               { label: "Total", value: counts.total, color: "bg-slate-50 border-slate-200", text: "text-slate-700" },
@@ -661,7 +660,6 @@ export default function DeptMonthlyPage({
             </CardContent>
           </Card>
         </div>
-      </ScrollArea>
-    </div>
+    </PageLayout>
   );
 }

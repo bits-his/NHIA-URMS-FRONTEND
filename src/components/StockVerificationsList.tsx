@@ -10,6 +10,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import { stockApi } from "@/lib/api";
 import StockVerificationPage from "./StockVerificationPage";
+import PageLayout from "@/src/components/PageLayout";
 import { useCreateReviewAccess } from "@/src/access/createReviewAccess";
 
 interface Verification {
@@ -114,22 +115,25 @@ export default function StockVerificationsList({ onBack }: Props) {
   }
 
   return (
-    <div className="flex flex-col h-full bg-slate-50/30">
-      <div className="bg-white border-b border-border/50 px-4 md:px-6 py-3 flex items-center justify-end sticky top-0 z-30">
-        <div className="flex items-center gap-3">
+    <PageLayout
+      title="Stock & Asset Verifications"
+      actions={
+        <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
           </Button>
           {canCreate && (
-          <Button className="bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20" onClick={openNew}>
-            <Plus className="w-4 h-4" /> New Verification
-          </Button>
+            <Button
+              className="bg-[#145c3f] hover:bg-[#0f3d2e] text-white gap-2 shadow-sm"
+              onClick={openNew}
+            >
+              <Plus className="w-4 h-4" /> New Verification
+            </Button>
           )}
         </div>
-      </div>
-
-      <ScrollArea className="flex-1">
-        <div className="w-full px-4 md:px-6 py-4 space-y-4">
+      }
+    >
+      <div className="w-full space-y-4">
 
           {/* Summary */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -268,7 +272,6 @@ export default function StockVerificationsList({ onBack }: Props) {
             </CardContent>
           </Card>
         </div>
-      </ScrollArea>
-    </div>
+    </PageLayout>
   );
 }

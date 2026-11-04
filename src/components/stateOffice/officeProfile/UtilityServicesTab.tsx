@@ -188,18 +188,18 @@ export default function UtilityServicesTab({
   const [rows, setRows] = React.useState<UtilityFormRow[]>([
     initialItem
       ? {
-          tempId: `edit-${initialItem.id || 1}`,
-          id: initialItem.id,
-          service_location: initialItem.service_location || "state_office",
-          service_category: initialItem.service_category || "generator",
-          contractor_name: initialItem.contractor_name || "",
-          amount_claimed: initialItem.amount_claimed != null ? String(initialItem.amount_claimed) : "",
-          payment_request_ref: initialItem.invoice_number || initialItem.payment_request_ref || "",
-          status: initialItem.status || "draft",
-          remarks: initialItem.service_description || initialItem.remarks || "",
-          supporting_doc: null,
-          supporting_doc_name: initialItem.job_completion_cert_name || "",
-        }
+        tempId: `edit-${initialItem.id || 1}`,
+        id: initialItem.id,
+        service_location: initialItem.service_location || "state_office",
+        service_category: initialItem.service_category || "generator",
+        contractor_name: initialItem.contractor_name || "",
+        amount_claimed: initialItem.amount_claimed != null ? String(initialItem.amount_claimed) : "",
+        payment_request_ref: initialItem.invoice_number || initialItem.payment_request_ref || "",
+        status: initialItem.status || "draft",
+        remarks: initialItem.service_description || initialItem.remarks || "",
+        supporting_doc: null,
+        supporting_doc_name: initialItem.job_completion_cert_name || "",
+      }
       : createBlankRow(1, "state_office", "generator"),
   ]);
 
@@ -894,9 +894,8 @@ export default function UtilityServicesTab({
                     Signed by State Coordinator / Zonal Facility Officer.
                   </p>
                 </div>
-                <span className={`px-2 py-0.5 rounded-sm text-[10px] font-bold shrink-0 ${
-                  certFile ? "bg-emerald-100 text-emerald-800" : "bg-slate-200/60 text-slate-600"
-                }`}>
+                <span className={`px-2 py-0.5 rounded-sm text-[10px] font-bold shrink-0 ${certFile ? "bg-emerald-100 text-emerald-800" : "bg-slate-200/60 text-slate-600"
+                  }`}>
                   {certFile ? "Attached" : "Pending"}
                 </span>
               </div>
@@ -926,9 +925,8 @@ export default function UtilityServicesTab({
                     Formal firm payment request letter on official letterhead.
                   </p>
                 </div>
-                <span className={`px-2 py-0.5 rounded-sm text-[10px] font-bold shrink-0 ${
-                  contractorLetterFile ? "bg-emerald-100 text-emerald-800" : "bg-slate-200/60 text-slate-600"
-                }`}>
+                <span className={`px-2 py-0.5 rounded-sm text-[10px] font-bold shrink-0 ${contractorLetterFile ? "bg-emerald-100 text-emerald-800" : "bg-slate-200/60 text-slate-600"
+                  }`}>
                   {contractorLetterFile ? "Attached" : "Pending"}
                 </span>
               </div>
@@ -958,9 +956,8 @@ export default function UtilityServicesTab({
                     Original stamped invoice with bank details and tax ID.
                   </p>
                 </div>
-                <span className={`px-2 py-0.5 rounded-sm text-[10px] font-bold shrink-0 ${
-                  invoiceFile ? "bg-emerald-100 text-emerald-800" : "bg-slate-200/60 text-slate-600"
-                }`}>
+                <span className={`px-2 py-0.5 rounded-sm text-[10px] font-bold shrink-0 ${invoiceFile ? "bg-emerald-100 text-emerald-800" : "bg-slate-200/60 text-slate-600"
+                  }`}>
                   {invoiceFile ? "Attached" : "Pending"}
                 </span>
               </div>
@@ -1134,9 +1131,8 @@ export default function UtilityServicesTab({
                     return (
                       <TableRow
                         key={r.id || idx}
-                        className={`border-b border-slate-100 hover:bg-slate-50 text-xs transition-colors ${
-                          isSelected ? "bg-emerald-50/40" : ""
-                        }`}
+                        className={`border-b border-slate-100 hover:bg-slate-50 text-xs transition-colors ${isSelected ? "bg-emerald-50/40" : ""
+                          }`}
                       >
                         {/* Multi-select Checkbox */}
                         <TableCell className="text-center p-2">
@@ -1180,13 +1176,12 @@ export default function UtilityServicesTab({
                         {/* Reporting Status */}
                         <TableCell>
                           <span
-                            className={`inline-flex items-center px-2 py-0.5 rounded-sm text-[10px] font-semibold ${
-                              isConsolidated
+                            className={`inline-flex items-center px-2 py-0.5 rounded-sm text-[10px] font-semibold ${isConsolidated
                                 ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
                                 : r.status === "submitted"
-                                ? "bg-blue-50 text-blue-700 border border-blue-200"
-                                : "bg-slate-100 text-slate-600 border border-slate-200"
-                            }`}
+                                  ? "bg-blue-50 text-blue-700 border border-blue-200"
+                                  : "bg-slate-100 text-slate-600 border border-slate-200"
+                              }`}
                           >
                             {isConsolidated ? "Consolidated" : r.status === "submitted" ? "Submitted" : "Draft"}
                           </span>

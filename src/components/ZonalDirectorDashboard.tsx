@@ -142,25 +142,25 @@ function QuarterlyZoneModal({ title, kpi, states, onClose, onStateClick }: Quart
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
         transition={{ duration: 0.2 }}
-        className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl max-h-[88vh] overflow-hidden flex flex-col"
+        className="bg-white rounded-lg border border-[#d4e8dc] shadow-xl w-full max-w-3xl max-h-[88vh] overflow-hidden flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[#d4e8dc] bg-gradient-to-r from-[#f0fdf7] to-white">
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#d4e8dc] bg-gradient-to-r from-[#f0fdf7] to-white">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-[#145c3f] flex items-center justify-center text-white">
+            <div className="w-8 h-8 rounded-md bg-[#145c3f] flex items-center justify-center text-white">
               <BarChart3 className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-base font-black text-slate-900">{title} · Quarterly Breakdown</h3>
+              <h3 className="text-base font-bold text-slate-900">{title} · Quarterly Breakdown</h3>
               <p className="text-xs text-slate-500">Select a quarter to see state-level data</p>
             </div>
           </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-xl flex items-center justify-center hover:bg-[#e8f5ee] text-slate-400 hover:text-slate-700 transition-colors">
+          <button onClick={onClose} className="w-8 h-8 rounded-md flex items-center justify-center hover:bg-[#e8f5ee] text-slate-400 hover:text-slate-700 transition-colors">
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        <div className="overflow-y-auto flex-1 p-6 space-y-5">
+        <div className="overflow-y-auto flex-1 p-5 space-y-4">
           {/* Quarter tabs */}
           <div className="grid grid-cols-4 gap-2">
             {zoneQuarterly.map((q) => {
@@ -169,8 +169,8 @@ function QuarterlyZoneModal({ title, kpi, states, onClose, onStateClick }: Quart
                 <button
                   key={q.quarter}
                   onClick={() => setSelectedQ(q.quarter)}
-                  className={`rounded-2xl p-3 border text-left transition-all ${
-                    isActive ? "bg-[#145c3f] border-transparent text-white shadow-md" : "border-[#d4e8dc] bg-white hover:border-[#25a872] hover:shadow-sm"
+                  className={`rounded-md p-2.5 border text-left transition-all ${
+                    isActive ? "bg-[#145c3f] border-transparent text-white shadow-xs" : "border-[#d4e8dc] bg-white hover:border-[#145c3f] hover:shadow-2xs"
                   }`}
                 >
                   <p className={`text-xs font-black ${isActive ? "text-white" : "text-slate-900"}`}>{q.quarter}</p>
@@ -266,39 +266,39 @@ function DeptUnitDrillModal({ dept, units, color, onClose }: DeptUnitDrillModalP
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
         transition={{ duration: 0.2 }}
-        className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[88vh] overflow-hidden flex flex-col"
+        className="bg-white rounded-lg border border-[#d4e8dc] shadow-xl w-full max-w-2xl max-h-[88vh] overflow-hidden flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[#d4e8dc]"
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#d4e8dc]"
           style={{ background: `linear-gradient(135deg, ${color}15, ${color}05)` }}>
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white" style={{ backgroundColor: color }}>
+            <div className="w-8 h-8 rounded-md flex items-center justify-center text-white" style={{ backgroundColor: color }}>
               <Layers className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-base font-black text-slate-900">{dept.name}</h3>
+              <h3 className="text-base font-bold text-slate-900">{dept.name}</h3>
               <p className="text-xs text-slate-500">Quarterly · Unit breakdown</p>
             </div>
           </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-xl flex items-center justify-center hover:bg-[#e8f5ee] text-slate-400 hover:text-slate-700 transition-colors">
+          <button onClick={onClose} className="w-8 h-8 rounded-md flex items-center justify-center hover:bg-[#e8f5ee] text-slate-400 hover:text-slate-700 transition-colors">
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        <div className="overflow-y-auto flex-1 p-6 space-y-5">
+        <div className="overflow-y-auto flex-1 p-5 space-y-4">
           {/* Quarter tabs */}
           <div className="grid grid-cols-4 gap-2">
             {quarterly.map((q) => {
               const isActive = selectedQ === q.quarter;
               return (
                 <button key={q.quarter} onClick={() => { setSelectedQ(q.quarter); setExpandedUnit(null); }}
-                  className={`rounded-2xl p-3 border text-left transition-all ${
-                    isActive ? "border-transparent text-white shadow-md" : "border-[#d4e8dc] bg-white hover:border-[#25a872]"
+                  className={`rounded-md p-2.5 border text-left transition-all ${
+                    isActive ? "border-transparent text-white shadow-xs" : "border-[#d4e8dc] bg-white hover:border-[#145c3f]"
                   }`}
                   style={isActive ? { backgroundColor: color } : {}}>
-                  <p className={`text-xs font-black ${isActive ? "text-white" : "text-slate-900"}`}>{q.quarter}</p>
-                  <p className={`text-xl font-black mt-0.5 ${isActive ? "text-white" : "text-slate-900"}`}>{q.reports}</p>
-                  <p className={`text-[9px] mt-0.5 ${isActive ? "text-white/70" : "text-slate-500"}`}>Reports</p>
+                  <p className={`text-xs font-bold ${isActive ? "text-white" : "text-slate-900"}`}>{q.quarter}</p>
+                  <p className={`text-xl font-bold mt-0.5 ${isActive ? "text-white" : "text-slate-900"}`}>{q.reports}</p>
+                  <p className={`text-[9px] mt-0.5 ${isActive ? "text-white/70" : "text-slate-500"}`}>{title}</p>
                 </button>
               );
             })}
@@ -314,10 +314,11 @@ function DeptUnitDrillModal({ dept, units, color, onClose }: DeptUnitDrillModalP
                 const isOpen = expandedUnit === unit.id;
                 const pct = Math.round((us.completed / Math.max(1, us.tasks)) * 100);
                 return (
-                  <div key={unit.id} className="rounded-xl border border-[#d4e8dc] overflow-hidden">
+                  <div key={unit.id} className="rounded-lg border border-[#d4e8dc] overflow-hidden">
                     <button onClick={() => setExpandedUnit(isOpen ? null : unit.id)}
-                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-[#f0fdf7] transition-colors text-left group">
-                      <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+                      className="w-full flex items-center gap-3 px-3.5 py-2.5 hover:bg-[#f0fdf7] transition-colors text-left group"
+                    >
+                      <div className="w-7 h-7 rounded-md flex items-center justify-center shrink-0"
                         style={{ backgroundColor: color + "20", color }}>
                         <Layers className="w-3.5 h-3.5" />
                       </div>
@@ -326,7 +327,7 @@ function DeptUnitDrillModal({ dept, units, color, onClose }: DeptUnitDrillModalP
                         <p className="text-[10px] text-slate-400 font-mono">{unit.unit_code}</p>
                       </div>
                       <div className="flex items-center gap-3 shrink-0">
-                        <span className="text-sm font-black" style={{ color }}>{qd.reports}</span>
+                        <span className="text-sm font-bold" style={{ color }}>{qd.reports}</span>
                         <span className="text-[10px] text-slate-400">reports</span>
                         <Progress value={pct} className="w-14 h-1.5 bg-[#e8f5ee]" />
                         <ChevronRight className={`w-3.5 h-3.5 text-slate-400 transition-transform ${isOpen ? "rotate-90" : ""}`} />
@@ -336,8 +337,8 @@ function DeptUnitDrillModal({ dept, units, color, onClose }: DeptUnitDrillModalP
                       {isOpen && (
                         <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }}
                           exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.18 }} className="overflow-hidden">
-                          <div className="px-4 pb-4 pt-2 bg-[#f8fdfb] border-t border-[#e8f5ee]">
-                            {unit.description && <p className="text-xs text-slate-500 mb-3 leading-relaxed">{unit.description}</p>}
+                          <div className="px-4 pb-3.5 pt-2 bg-[#f8fdfb] border-t border-[#e8f5ee]">
+                            {unit.description && <p className="text-xs text-slate-500 mb-2.5 leading-relaxed">{unit.description}</p>}
                             <div className="grid grid-cols-4 gap-2">
                               {[
                                 { label: "Reports",  val: qd.reports,  cls: "text-blue-700"    },
@@ -345,8 +346,8 @@ function DeptUnitDrillModal({ dept, units, color, onClose }: DeptUnitDrillModalP
                                 { label: "Pending",  val: qd.pending,  cls: "text-amber-700"   },
                                 { label: "IGR (₦M)", val: qd.igr,      cls: "text-purple-700"  },
                               ].map((s) => (
-                                <div key={s.label} className="rounded-xl bg-white border border-[#d4e8dc] p-2.5 text-center">
-                                  <p className={`text-base font-black ${s.cls}`}>{s.val}</p>
+                                <div key={s.label} className="rounded-md bg-white border border-[#d4e8dc] p-2 text-center">
+                                  <p className={`text-base font-bold ${s.cls}`}>{s.val}</p>
                                   <p className="text-[9px] text-slate-500 mt-0.5">{s.label}</p>
                                 </div>
                               ))}
@@ -413,17 +414,17 @@ function StateDetailPanel({ state, zoneName, departments, onBack }: StateDetailP
       {/* Header */}
       <div className="flex items-center gap-3 flex-wrap">
         <button onClick={onBack}
-          className="w-9 h-9 rounded-xl flex items-center justify-center border border-[#d4e8dc] hover:bg-[#e8f5ee] text-slate-600 hover:text-[#145c3f] transition-colors shrink-0">
+          className="w-8 h-8 rounded-md flex items-center justify-center border border-[#d4e8dc] hover:bg-[#e8f5ee] text-slate-600 hover:text-[#145c3f] transition-colors shrink-0">
           <ArrowLeft className="w-4 h-4" />
         </button>
         <div className="flex-1 min-w-0">
-          <h2 className="text-lg font-black text-slate-900 truncate">{state.description} State</h2>
+          <h2 className="text-lg font-bold text-slate-900 truncate">{state.description} State</h2>
           <p className="text-xs text-slate-500 flex items-center gap-1">
             <MapPin className="w-3 h-3" /> {zoneName} Zone
             <span className="font-mono ml-1 text-slate-400">{state.code}</span>
           </p>
         </div>
-        <Badge className={`text-xs px-3 py-1 font-bold shrink-0 ${complianceBadgeCls(stats.compliance)}`}>
+        <Badge className={`text-xs px-2.5 py-0.5 font-bold shrink-0 ${complianceBadgeCls(stats.compliance)}`}>
           {stats.compliance}% Compliance
         </Badge>
       </div>
@@ -433,7 +434,7 @@ function StateDetailPanel({ state, zoneName, departments, onBack }: StateDetailP
         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
           Click a card to see quarterly breakdown
         </p>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
             { kpi: "reports"  as const, label: "Reports",  value: stats.reports,  sub: "This year",       icon: <FileText    className="w-4 h-4 text-blue-600"    />, tint: "kpi-blue"   },
             { kpi: "approved" as const, label: "Approved", value: stats.approved, sub: "Verified",        icon: <CheckSquare className="w-4 h-4 text-emerald-600" />, tint: "kpi-green"  },
@@ -441,23 +442,23 @@ function StateDetailPanel({ state, zoneName, departments, onBack }: StateDetailP
             { kpi: "reports"  as const, label: "Enrollees",value: stats.enrollees.toLocaleString(), sub: "Active", icon: <Users className="w-4 h-4 text-purple-600" />, tint: "kpi-purple" },
           ].map((k, idx) => (
             <button key={idx} onClick={() => setStateKpiModal({ kpi: k.kpi, label: k.label })}
-              className={`${k.tint} rounded-2xl p-4 border border-white/60 shadow-sm text-left group hover:shadow-md hover:scale-[1.02] transition-all cursor-pointer`}>
-              <div className="flex items-start justify-between mb-3">
-                <div className="w-9 h-9 rounded-xl bg-white/70 flex items-center justify-center shadow-sm">{k.icon}</div>
+              className="rounded-lg p-3.5 border border-[#d4e8dc] bg-white shadow-2xs text-left group hover:border-[#145c3f] transition-all cursor-pointer">
+              <div className="flex items-start justify-between mb-2">
+                <div className="w-8 h-8 rounded-md bg-[#e8f5ee] flex items-center justify-center shadow-2xs">{k.icon}</div>
                 <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-[#145c3f] transition-colors" />
               </div>
-              <p className="text-2xl font-black text-slate-900 tracking-tight">{k.value}</p>
+              <p className="text-2xl font-bold text-slate-900 tracking-tight">{k.value}</p>
               <p className="text-xs font-semibold text-slate-700 mt-0.5">{k.label}</p>
               <p className="text-[10px] text-slate-500 mt-0.5">{k.sub}</p>
-              <p className="text-[9px] text-slate-400 mt-1.5 group-hover:text-[#145c3f] transition-colors">View quarterly →</p>
+              <p className="text-[9px] text-slate-400 mt-1 group-hover:text-[#145c3f] transition-colors">View quarterly →</p>
             </button>
           ))}
         </div>
       </div>
 
       {/* Charts — clickable */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card className="rounded-2xl border-[#d4e8dc] shadow-sm">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card className="rounded-lg border-[#d4e8dc] shadow-2xs">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-bold">Quarterly Reports</CardTitle>
             <CardDescription className="text-xs">Click chart to drill down</CardDescription>
@@ -469,15 +470,15 @@ function StateDetailPanel({ state, zoneName, departments, onBack }: StateDetailP
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e8f5ee" />
                 <XAxis dataKey="quarter" tick={{ fontSize: 11, fill: "#5a7a6a" }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fontSize: 11, fill: "#5a7a6a" }} axisLine={false} tickLine={false} />
-                <RTooltip contentStyle={{ borderRadius: 12, border: "1px solid #d4e8dc", fontSize: 12 }} />
-                <Bar dataKey="reports"  fill="#d1f5e4" radius={[6,6,0,0]} name="Submitted" />
-                <Bar dataKey="approved" fill="#25a872" radius={[6,6,0,0]} name="Approved" />
+                <RTooltip contentStyle={{ borderRadius: 6, border: "1px solid #d4e8dc", fontSize: 12 }} />
+                <Bar dataKey="reports"  fill="#d1f5e4" radius={[3,3,0,0]} name="Submitted" />
+                <Bar dataKey="approved" fill="#25a872" radius={[3,3,0,0]} name="Approved" />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
 
-        <Card className="rounded-2xl border-[#d4e8dc] shadow-sm">
+        <Card className="rounded-lg border-[#d4e8dc] shadow-2xs">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-bold">IGR Trend (₦M)</CardTitle>
             <CardDescription className="text-xs">Internally Generated Revenue</CardDescription>
@@ -494,7 +495,7 @@ function StateDetailPanel({ state, zoneName, departments, onBack }: StateDetailP
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e8f5ee" />
                 <XAxis dataKey="quarter" tick={{ fontSize: 11, fill: "#5a7a6a" }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fontSize: 11, fill: "#5a7a6a" }} axisLine={false} tickLine={false} />
-                <RTooltip contentStyle={{ borderRadius: 12, border: "1px solid #d4e8dc", fontSize: 12 }} />
+                <RTooltip contentStyle={{ borderRadius: 6, border: "1px solid #d4e8dc", fontSize: 12 }} />
                 <Area type="monotone" dataKey="igr" stroke="#25a872" strokeWidth={2}
                   fill={`url(#igrGrad-${state.id})`} name="IGR (₦M)" />
               </AreaChart>
@@ -505,13 +506,13 @@ function StateDetailPanel({ state, zoneName, departments, onBack }: StateDetailP
 
       {/* Departments — real data, all clickable */}
       <div>
-        <h3 className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
+        <h3 className="text-sm font-bold text-slate-700 mb-2.5 flex items-center gap-2">
           <Building2 className="w-4 h-4 text-[#25a872]" />
           Departments
           <span className="text-[10px] font-normal text-slate-400 ml-1">— click to see quarterly unit breakdown</span>
         </h3>
         {departments.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-[#d4e8dc] p-8 text-center">
+          <div className="rounded-lg border border-dashed border-[#d4e8dc] p-6 text-center">
             <Building2 className="w-8 h-8 text-slate-300 mx-auto mb-2" />
             <p className="text-sm text-slate-400">No departments found</p>
           </div>
@@ -522,8 +523,8 @@ function StateDetailPanel({ state, zoneName, departments, onBack }: StateDetailP
               const { color, icon } = getDeptVisual(dept.department_code);
               return (
                 <button key={dept.id} onClick={() => setDeptDrillModal(dept)}
-                  className="flex items-start gap-3 p-4 rounded-2xl border border-[#d4e8dc] bg-white hover:border-[#25a872] hover:shadow-md transition-all text-left group">
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white shrink-0 mt-0.5"
+                  className="flex items-start gap-3 p-3.5 rounded-lg border border-[#d4e8dc] bg-white hover:border-[#145c3f] hover:shadow-2xs transition-all text-left group cursor-pointer">
+                  <div className="w-9 h-9 rounded-md flex items-center justify-center text-white shrink-0 mt-0.5"
                     style={{ backgroundColor: color }}>{icon}</div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2">
@@ -602,39 +603,39 @@ function StateQuarterlyModal({ state, kpi, kpiLabel, onClose }: StateQuarterlyMo
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={onClose}>
       <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }} transition={{ duration: 0.2 }}
-        className="bg-white rounded-3xl shadow-2xl w-full max-w-lg max-h-[80vh] overflow-hidden flex flex-col"
+        className="bg-white rounded-lg border border-[#d4e8dc] shadow-xl w-full max-w-lg max-h-[80vh] overflow-hidden flex flex-col"
         onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[#d4e8dc] bg-gradient-to-r from-[#f0fdf7] to-white">
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#d4e8dc] bg-gradient-to-r from-[#f0fdf7] to-white">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-[#145c3f] flex items-center justify-center text-white">
+            <div className="w-8 h-8 rounded-md bg-[#145c3f] flex items-center justify-center text-white">
               <BarChart3 className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-base font-black text-slate-900">{kpiLabel} · {state.description}</h3>
+              <h3 className="text-base font-bold text-slate-900">{kpiLabel} · {state.description}</h3>
               <p className="text-xs text-slate-500">Quarterly breakdown — 2025</p>
             </div>
           </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-xl flex items-center justify-center hover:bg-[#e8f5ee] text-slate-400 hover:text-slate-700 transition-colors">
+          <button onClick={onClose} className="w-8 h-8 rounded-md flex items-center justify-center hover:bg-[#e8f5ee] text-slate-400 hover:text-slate-700 transition-colors">
             <X className="w-4 h-4" />
           </button>
         </div>
-        <div className="overflow-y-auto flex-1 p-6 space-y-5">
+        <div className="overflow-y-auto flex-1 p-5 space-y-4">
           <div className="h-[180px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={rows} barSize={32}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e8f5ee" />
                 <XAxis dataKey="quarter" tick={{ fontSize: 11, fill: "#5a7a6a" }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fontSize: 11, fill: "#5a7a6a" }} axisLine={false} tickLine={false} />
-                <RTooltip contentStyle={{ borderRadius: 10, border: "1px solid #d4e8dc", fontSize: 11 }} />
-                <Bar dataKey="value" fill="#25a872" radius={[6,6,0,0]} name={kpiLabel} />
+                <RTooltip contentStyle={{ borderRadius: 6, border: "1px solid #d4e8dc", fontSize: 11 }} />
+                <Bar dataKey="value" fill="#25a872" radius={[3,3,0,0]} name={kpiLabel} />
               </BarChart>
             </ResponsiveContainer>
           </div>
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-4 gap-2.5">
             {rows.map((r) => (
-              <div key={r.quarter} className="rounded-2xl bg-[#f0fdf7] border border-[#d4e8dc] p-3 text-center">
+              <div key={r.quarter} className="rounded-md bg-[#f0fdf7] border border-[#d4e8dc] p-2.5 text-center">
                 <p className="text-xs font-bold text-slate-500">{r.quarter}</p>
-                <p className="text-2xl font-black text-[#145c3f] mt-1">{r.value}</p>
+                <p className="text-2xl font-bold text-[#145c3f] mt-0.5">{r.value}</p>
                 <p className="text-[9px] text-slate-400 mt-0.5">{kpiLabel}</p>
               </div>
             ))}
@@ -762,20 +763,20 @@ export default function ZonalDirectorDashboard({
   return (
     <AnimatePresence mode="wait">
       <motion.div key="zonal-dashboard" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0 }} className="space-y-6">
+        exit={{ opacity: 0 }} className="w-full space-y-3.5">
 
         {/* Zone header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div>
             <div className="flex items-center gap-2 mb-1">
               <MapPin className="w-4 h-4 text-[#25a872]" />
               <span className="text-xs font-bold text-[#25a872] uppercase tracking-wider">{zoneName} Zone</span>
             </div>
-            <h1 className="text-xl font-black text-slate-900 tracking-tight">Zonal Performance Dashboard</h1>
+            <h1 className="text-xl font-bold text-slate-900 tracking-tight">Zonal Performance Dashboard</h1>
           </div>
           {onReviewReports && (
             <Button onClick={onReviewReports}
-              className="h-9 text-xs rounded-xl bg-[#145c3f] hover:bg-[#0f3d2e] text-white gap-1.5 shadow-md shadow-[#145c3f]/20">
+              className="h-8 text-xs rounded-md bg-[#145c3f] hover:bg-[#0f3d2e] text-white gap-1.5 shadow-xs">
               <CheckSquare className="w-3.5 h-3.5" /> Review Reports
             </Button>
           )}
@@ -786,7 +787,7 @@ export default function ZonalDirectorDashboard({
           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
             Click a card to see quarterly breakdown by state
           </p>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             {[
               { kpi: "reports"  as const, title: "Total Reports",  value: totalReports,  sub: "All states · 2025",    icon: <FileText    className="w-4 h-4 text-blue-600"    />, tint: "kpi-blue"   },
               { kpi: "pending"  as const, title: "Pending Review", value: totalPending,  sub: "Awaiting action",      icon: <Clock       className="w-4 h-4 text-amber-600"   />, tint: "kpi-amber"  },
@@ -794,16 +795,15 @@ export default function ZonalDirectorDashboard({
               { kpi: "reports"  as const, title: "Avg Compliance", value: `${avgCompliance}%`, sub: "Zone average",  icon: <Activity    className="w-4 h-4 text-purple-600"  />, tint: "kpi-purple" },
             ].map((k, idx) => (
               <button key={idx} onClick={() => setKpiModal({ kpi: k.kpi, title: k.title })}
-                className={`${k.tint} rounded-2xl p-4 border border-white/60 shadow-sm text-left group
-                  hover:shadow-md hover:scale-[1.02] transition-all cursor-pointer`}>
-                <div className="flex items-start justify-between mb-3">
-                  <div className="w-9 h-9 rounded-xl bg-white/70 flex items-center justify-center shadow-sm">{k.icon}</div>
+                className="rounded-lg p-3.5 border border-[#d4e8dc] bg-white shadow-2xs text-left group hover:border-[#145c3f] transition-all cursor-pointer">
+                <div className="flex items-start justify-between mb-2">
+                  <div className="w-8 h-8 rounded-md bg-[#e8f5ee] flex items-center justify-center shadow-2xs">{k.icon}</div>
                   <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-[#145c3f] transition-colors" />
                 </div>
-                <p className="text-2xl font-black text-slate-900 tracking-tight">{k.value}</p>
+                <p className="text-2xl font-bold text-slate-900 tracking-tight">{k.value}</p>
                 <p className="text-xs font-semibold text-slate-700 mt-0.5">{k.title}</p>
                 <p className="text-[10px] text-slate-500 mt-0.5">{k.sub}</p>
-                <p className="text-[9px] text-slate-400 mt-1.5 group-hover:text-[#145c3f] transition-colors">
+                <p className="text-[9px] text-slate-400 mt-1 group-hover:text-[#145c3f] transition-colors">
                   View quarterly → states →
                 </p>
               </button>
@@ -811,12 +811,12 @@ export default function ZonalDirectorDashboard({
           </div>
         </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-3.5">
           {/* Left: chart + states table */}
-          <div className="xl:col-span-2 space-y-6">
+          <div className="xl:col-span-2 space-y-3.5">
 
             {/* Zone trend chart — clickable */}
-            <Card className="rounded-2xl border-[#d4e8dc] shadow-sm">
+            <Card className="rounded-lg border-[#d4e8dc] shadow-2xs">
               <CardHeader className="pb-2 flex flex-row items-center justify-between">
                 <div>
                   <CardTitle className="text-sm font-bold text-slate-800">Zonal Report Trend</CardTitle>
@@ -834,16 +834,16 @@ export default function ZonalDirectorDashboard({
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e8f5ee" />
                     <XAxis dataKey="quarter" tick={{ fontSize: 11, fill: "#5a7a6a" }} axisLine={false} tickLine={false} />
                     <YAxis tick={{ fontSize: 11, fill: "#5a7a6a" }} axisLine={false} tickLine={false} />
-                    <RTooltip contentStyle={{ borderRadius: 12, border: "1px solid #d4e8dc", fontSize: 12 }} />
-                    <Bar dataKey="reports"  fill="#d1f5e4" radius={[6,6,0,0]} name="Submitted" />
-                    <Bar dataKey="approved" fill="#25a872" radius={[6,6,0,0]} name="Approved" />
+                    <RTooltip contentStyle={{ borderRadius: 6, border: "1px solid #d4e8dc", fontSize: 12 }} />
+                    <Bar dataKey="reports"  fill="#d1f5e4" radius={[3,3,0,0]} name="Submitted" />
+                    <Bar dataKey="approved" fill="#25a872" radius={[3,3,0,0]} name="Approved" />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
             </Card>
 
             {/* States table — all rows clickable */}
-            <Card className="rounded-2xl border-[#d4e8dc] shadow-sm">
+            <Card className="rounded-lg border-[#d4e8dc] shadow-2xs">
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-bold text-slate-800">
                   State Breakdown
@@ -911,27 +911,27 @@ export default function ZonalDirectorDashboard({
           </div>
 
           {/* Right column */}
-          <div className="space-y-5">
+          <div className="space-y-3.5">
             {/* Compliance ranking */}
-            <Card className="rounded-2xl border-[#d4e8dc] shadow-sm">
+            <Card className="rounded-lg border-[#d4e8dc] shadow-2xs">
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-bold text-slate-800">Compliance Ranking</CardTitle>
                 <CardDescription className="text-xs">Click a state to drill down</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-2.5">
+              <CardContent className="space-y-2">
                 {[...allStateStats]
                   .sort((a, b) => b.compliance - a.compliance)
                   .slice(0, 7)
                   .map(({ state, compliance }, i) => (
                     <button key={state.id} onClick={() => setSelectedState(state)}
-                      className="w-full flex items-center gap-3 p-2.5 rounded-xl bg-[#f0fdf7] border border-[#d4e8dc] hover:border-[#25a872] hover:bg-[#e8f5ee] transition-all group">
+                      className="w-full flex items-center gap-2.5 p-2 rounded-md bg-[#f0fdf7] border border-[#d4e8dc] hover:border-[#145c3f] hover:bg-[#e8f5ee] transition-all group cursor-pointer">
                       <span className={`w-5 h-5 rounded-full text-white text-[10px] font-black flex items-center justify-center shrink-0 ${
                         i === 0 ? "bg-[#25a872]" : i === 1 ? "bg-[#3b82f6]" : i === 2 ? "bg-[#f59e0b]" : "bg-slate-300"
                       }`}>{i + 1}</span>
                       <p className="text-xs font-semibold text-slate-800 flex-1 text-left truncate group-hover:text-[#145c3f]">
                         {state.description}
                       </p>
-                      <span className={`text-xs font-black ${complianceColor(compliance)}`}>{compliance}%</span>
+                      <span className={`text-xs font-bold ${complianceColor(compliance)}`}>{compliance}%</span>
                       <ChevronRight className="w-3 h-3 text-slate-300 group-hover:text-[#25a872]" />
                     </button>
                   ))}
@@ -939,19 +939,19 @@ export default function ZonalDirectorDashboard({
             </Card>
 
             {/* Needs attention */}
-            <Card className="rounded-2xl border-[#d4e8dc] shadow-sm">
+            <Card className="rounded-lg border-[#d4e8dc] shadow-2xs">
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-bold text-slate-800 flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 text-rose-500" /> Attention Required
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-2.5">
+              <CardContent className="space-y-2">
                 {allStateStats
                   .filter((s) => s.compliance < 80 || s.pending > 5)
                   .slice(0, 4)
                   .map(({ state, compliance, pending }) => (
                     <button key={state.id} onClick={() => setSelectedState(state)}
-                      className="w-full flex items-start gap-2.5 p-2.5 rounded-xl bg-rose-50 border border-rose-100 hover:border-rose-300 transition-all text-left group">
+                      className="w-full flex items-start gap-2.5 p-2 rounded-md bg-rose-50 border border-rose-100 hover:border-rose-300 transition-all text-left group cursor-pointer">
                       <AlertCircle className="w-3.5 h-3.5 text-rose-500 shrink-0 mt-0.5" />
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-bold text-slate-800 group-hover:text-rose-700">{state.description}</p>

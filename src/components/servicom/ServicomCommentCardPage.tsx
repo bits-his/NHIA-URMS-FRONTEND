@@ -17,6 +17,7 @@ import {
   COMMENT_CARD_QUESTIONS, computeCommentCardScore, commentCardScaleOptions, commentCardResponseLabel,
 } from "./servicomSurveyConstants";
 import { SubmitConfirmModal, useReportingOfficerSubmitConfirm } from "@/src/components/SubmitConfirmModal";
+import PageLayout from "@/src/components/PageLayout";
 
 interface Props {
   onBack: () => void;
@@ -558,37 +559,16 @@ export default function ServicomCommentCardPage({
     const responses = mode === "view" ? parseStoredResponses(row?.responses) : f.responses;
 
     return (
-      <div key={formKey} className="flex flex-col h-full bg-slate-50/30">
-        <div className="bg-white border-b px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30">
-          <div className="flex items-center gap-3">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={createOnly && mode === "form" ? onBack : closeSub}
-              className="rounded-full"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
-            <h2 className="text-xl font-bold tracking-tight">
-              {mode === "view" ? "View Comment Card" : "New Comment Card"}
-            </h2>
-          </div>
+      <PageLayout
+        key={formKey}
+        title={mode === "view" ? "View Comment Card" : "New Comment Card"}
+        onBack={createOnly && mode === "form" ? onBack : closeSub}
+        maxWidth="5xl"
+      >
+        <div className="w-full pb-20 space-y-4">
+          {renderDetailsCard(mode === "view", row ?? undefined)}
+          {renderQuestions(responses, mode === "view", row ?? undefined)}
         </div>
-
-        <ScrollArea className="flex-1">
-          <div className="w-full px-4 md:px-6 py-4 pb-24 space-y-4">
-            {renderDetailsCard(mode === "view", row ?? undefined)}
-            {renderQuestions(responses, mode === "view", row ?? undefined)}
-            {mode === "form" && (
-          <div>
-            <p className="text-xs text-slate-500 hidden sm:block">
-            
-            </p>
-           
-          </div>
-        )}
-          </div>
-        </ScrollArea>
 
         <SubmitConfirmModal
           open={submitConfirm.open}
@@ -596,33 +576,28 @@ export default function ServicomCommentCardPage({
           onConfirm={submitConfirm.confirm}
           onCancel={submitConfirm.cancel}
         />
-      </div>
+      </PageLayout>
     );
   }
 
   return (
-    <div className="flex flex-col h-full bg-slate-50/30">
-      <div className="bg-white border-b px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30">
-        
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={onBack} className="rounded-full"><ArrowLeft className="w-5 h-5" /></Button>
-         <h2 className="text-xl font-bold tracking-tight">Citizens&apos; Comment Card</h2>
-         </div>
-       
-         <div className="flex items-center gap-3"> <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">
+    <PageLayout
+      title="Citizens' Comment Card"
+      maxWidth="7xl"
+      actions={
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
           </Button>
           {canCreate && (
-          <Button className="bg-orange-action hover:bg-orange-600 gap-2" onClick={openForm}>
-            <Plus className="w-4 h-4" /> New Comment Card
-          </Button>
-          )}</div>
-         
-        
-      </div>
-
-      <ScrollArea className="flex-1">
-        <div className="w-full px-4 md:px-6 py-4 space-y-4">
+            <Button className="bg-[#145c3f] hover:bg-[#0f3d2e] text-white gap-2 shadow-sm" onClick={openForm}>
+              <Plus className="w-4 h-4" /> New Comment Card
+            </Button>
+          )}
+        </div>
+      }
+    >
+      <div className="w-full space-y-4">
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
             {questionKpis.map((kpi) => {
               const pct = kpi.total ? Math.round((kpi.answered / kpi.total) * 100) : 0;
@@ -745,7 +720,6 @@ export default function ServicomCommentCardPage({
             </CardContent>
           </Card>
         </div>
-      </ScrollArea>
-    </div>
+    </PageLayout>
   );
 }

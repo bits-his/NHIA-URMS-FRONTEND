@@ -10,6 +10,7 @@ import { stockApi } from "@/lib/api";
 
 import { buildReportingYearOptions } from "./reportingYears";
 import { SubmitConfirmModal, useReportingOfficerSubmitConfirm } from "@/src/components/SubmitConfirmModal";
+import PageLayout from "@/src/components/PageLayout";
 
 export const MONTHS = [
   { v: "1", l: "January" }, { v: "2", l: "February" }, { v: "3", l: "March" },
@@ -76,28 +77,29 @@ export default function MonthlyFormShell({
   }, [defaultStateId]);
 
   return (
-    <div className="flex flex-col h-full bg-slate-50/30">
-      <div className="bg-white border-b border-border/50 px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30">
-        <Button variant="ghost" size="icon" onClick={onBack} className="rounded-full">
-          <ArrowLeft className="w-5 h-5" />
-        </Button>
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" onClick={onSave} disabled={isSaving} className="gap-2">
+    <PageLayout
+      title={title}
+      onBack={onBack}
+      maxWidth="5xl"
+      actions={
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={onSave} disabled={isSaving} className="gap-2">
             {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             {isSaving ? "Saving..." : "Save Draft"}
           </Button>
-          <Separator orientation="vertical" className="h-6" />
-          <Button className="bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20"
-            onClick={() => submitConfirm.requestSubmit(onSubmit)} disabled={isSubmitting}>
+          <Button
+            className="bg-[#145c3f] hover:bg-[#0f3d2e] text-white gap-2 shadow-sm"
+            onClick={() => submitConfirm.requestSubmit(onSubmit)}
+            disabled={isSubmitting}
+          >
             {isSubmitting
               ? <><Loader2 className="w-4 h-4 animate-spin" /> Submitting...</>
-              : <><Send className="w-4 h-4" /> Submit</>}
+              : <><Send className="w-4 h-4" /> Submit Report</>}
           </Button>
         </div>
-      </div>
-
-      <ScrollArea className="flex-1">
-        <div className="w-full px-4 md:px-6 py-4 space-y-4">
+      }
+    >
+      <div className="w-full space-y-4">
           {/* Period + Location selector */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-4 bg-white rounded-2xl border border-[#d4e8dc]">
             <div className="space-y-2">
@@ -161,13 +163,12 @@ export default function MonthlyFormShell({
             </div>
           </div>
         </div>
-      </ScrollArea>
       <SubmitConfirmModal
         open={submitConfirm.open}
         busy={submitConfirm.busy || isSubmitting}
         onConfirm={submitConfirm.confirm}
         onCancel={submitConfirm.cancel}
       />
-    </div>
+    </PageLayout>
   );
 }

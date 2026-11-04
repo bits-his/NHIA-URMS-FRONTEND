@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dialog";
 import { enrolmentDrivesApi as api } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import PageLayout from "../PageLayout";
 import EnrolmentActivityForm, { Field, FieldSection } from "./EnrolmentActivityForm";
 import { MultiSelectField } from "./EnrolmentDriveForm";
 import StateOfficeFormSteps from "./StateOfficeFormSteps";
@@ -681,60 +682,69 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
     );
   };
 
-  return <div className="flex flex-col h-full bg-[#f4f7f5]">
-    <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3.5 flex items-center justify-between sticky top-0 z-30 gap-3">
-      <div className="flex items-center gap-3 min-w-0">
-        <Button variant="ghost" size="icon" onClick={handleBack} className="rounded-full shrink-0" aria-label="Back"><ArrowLeft className="w-5 h-5" /></Button>
-        <div className="min-w-0"><h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">{pageTitle}</h2><p className="text-xs text-slate-500 truncate">{batch && ["batch", "activity", "view"].includes(mode) ? `${stateName(batch.state_code)} · ${monthLabel(batch.reporting_month)} ${batch.reporting_year} · ${statusLabel(batch.status)}` : permissions.review ? "Review and endorse enrolment drive reports" : "Record activities, register beneficiaries and submit reports"}</p></div>
-      </div>
-      <div className="flex items-center gap-2 shrink-0">
-        {mode === "view" && batch && (
-          <>
-            <StatusBadge status={batch.status} />
-            {canEdit && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-2 border-[#1a7a52] text-[#0f3d2e] hover:bg-[#eef6f1]"
-                onClick={() => { setBatchStep(1); setMode("batch"); }}
-              >
-                <Pencil className="w-4 h-4" /> {batch.status === "returned" ? "Edit & Resubmit" : "Edit Report"}
-              </Button>
-            )}
-          </>
-        )}
-        {(listMode || mode === "batch" || mode === "view") && (
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={busy || loading}
-            className="gap-2 border-[#d4e8dc]"
-            onClick={() => void run(async () => {
-              if (mode === "view" && batch) await openBatch(batch.reference_id);
-              else if (mode === "batch" && batch) await openBatch(batch.reference_id, batchStep);
-              else {
-                await refresh();
-                if (mode === "actions") setActions((await api.actions()).data);
-                if (mode === "legacy") setHistorical((await api.legacy()).data);
-              }
-            })}
-          >
-            <RefreshCw className={`w-4 h-4 ${busy ? "animate-spin" : ""}`} />Refresh
-          </Button>
-        )}
-        {mode === "register" && !showCreate && permissions.create && <Button disabled={busy} className={ACTION} onClick={() => setShowCreate(true)}><Plus className="w-4 h-4" />New Enrolment Drive Report</Button>}
-        {mode === "batch" && canEdit && batchStep === 1 && (
-          <Button variant="outline" size="sm" className="gap-2 border-[#d4e8dc] text-[#145c3f]" disabled={busy} onClick={() => void saveReportDraft()}>
-            <Save className="w-4 h-4" />Save Report Draft
-          </Button>
-        )}
-        {mode === "actions" && !actionDraft && permissions.manage && <Button className={ACTION} disabled={busy} onClick={() => { setActionDraft(blankAction()); setActionFiles([]); }}><Plus className="w-4 h-4" />Record Action</Button>}
-      </div>
-    </div>
-    {listMode && <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 sticky top-[57px] z-20"><div className="flex gap-0 overflow-x-auto -mb-px" role="tablist" aria-label="Enrolment Drive sections">
-      {[{ key: "register", label: "Enrolment Drives", icon: ClipboardList }, { key: "actions", label: "Management Follow-up", icon: Users }, { key: "legacy", label: "Historical Activities", icon: History }].map(({ key, label, icon: Icon }) => <button key={key} type="button" role="tab" aria-selected={mode === key} disabled={busy} onClick={() => void navigate(key as typeof mode)} className={`group relative shrink-0 inline-flex items-center gap-2 px-4 py-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors outline-none focus-visible:bg-[#f4f7f5] ${mode === key ? "border-[#145c3f] text-[#145c3f]" : "border-transparent text-slate-500 hover:text-[#0f3d2e] hover:border-[#c5ddd0]"}`}><Icon className={`h-4 w-4 shrink-0 ${mode === key ? "text-[#145c3f]" : "text-slate-400 group-hover:text-[#145c3f]"}`} />{label}{key === "register" && <span className={`inline-flex min-w-[1.25rem] h-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold tabular-nums ${mode === key ? "bg-[#e8f6ee] text-[#145c3f]" : "bg-slate-100 text-slate-500"}`}>{batches.length}</span>}</button>)}
-    </div></div>}
-    <ScrollArea className="flex-1"><div className="w-full px-4 md:px-6 py-4 space-y-4 pb-8">
+  return (
+    <PageLayout
+      title={pageTitle}
+      onBack={listMode ? undefined : handleBack}
+      actions={
+        <>
+          {mode === "view" && batch && (
+            <>
+              <StatusBadge status={batch.status} />
+              {canEdit && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2 border-[#1a7a52] text-[#0f3d2e] hover:bg-[#eef6f1]"
+                  onClick={() => { setBatchStep(1); setMode("batch"); }}
+                >
+                  <Pencil className="w-4 h-4" /> {batch.status === "returned" ? "Edit & Resubmit" : "Edit Report"}
+                </Button>
+              )}
+            </>
+          )}
+          {(listMode || mode === "batch" || mode === "view") && (
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={busy || loading}
+              className="gap-2 border-[#d4e8dc]"
+              onClick={() => void run(async () => {
+                if (mode === "view" && batch) await openBatch(batch.reference_id);
+                else if (mode === "batch" && batch) await openBatch(batch.reference_id, batchStep);
+                else {
+                  await refresh();
+                  if (mode === "actions") setActions((await api.actions()).data);
+                  if (mode === "legacy") setHistorical((await api.legacy()).data);
+                }
+              })}
+            >
+              <RefreshCw className={`w-4 h-4 ${busy ? "animate-spin" : ""}`} />Refresh
+            </Button>
+          )}
+          {mode === "register" && !showCreate && permissions.create && <Button disabled={busy} className={ACTION} onClick={() => setShowCreate(true)}><Plus className="w-4 h-4" />New Enrolment Drive Report</Button>}
+          {mode === "batch" && canEdit && batchStep === 1 && (
+            <Button variant="outline" size="sm" className="gap-2 border-[#d4e8dc] text-[#145c3f]" disabled={busy} onClick={() => void saveReportDraft()}>
+              <Save className="w-4 h-4" />Save Report Draft
+            </Button>
+          )}
+          {mode === "actions" && !actionDraft && permissions.manage && <Button className={ACTION} disabled={busy} onClick={() => { setActionDraft(blankAction()); setActionFiles([]); }}><Plus className="w-4 h-4" />Record Action</Button>}
+        </>
+      }
+      filters={listMode ? (
+        <div className="flex gap-0 overflow-x-auto -mb-px" role="tablist" aria-label="Enrolment Drive sections">
+          {[{ key: "register", label: "Enrolment Drives", icon: ClipboardList }, { key: "actions", label: "Management Follow-up", icon: Users }, { key: "legacy", label: "Historical Activities", icon: History }].map(({ key, label, icon: Icon }) => (
+            <button key={key} type="button" role="tab" aria-selected={mode === key} disabled={busy} onClick={() => void navigate(key as typeof mode)} className={`group relative shrink-0 inline-flex items-center gap-2 px-4 py-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors outline-none focus-visible:bg-[#f4f7f5] ${mode === key ? "border-[#145c3f] text-[#145c3f]" : "border-transparent text-slate-500 hover:text-[#0f3d2e] hover:border-[#c5ddd0]"}`}>
+              <Icon className={`h-4 w-4 shrink-0 ${mode === key ? "text-[#145c3f]" : "text-slate-400 group-hover:text-[#145c3f]"}`} />
+              {label}
+              {key === "register" && <span className={`inline-flex min-w-[1.25rem] h-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold tabular-nums ${mode === key ? "bg-[#e8f6ee] text-[#145c3f]" : "bg-slate-100 text-slate-500"}`}>{batches.length}</span>}
+            </button>
+          ))}
+        </div>
+      ) : undefined}
+      contentClassName="space-y-4 pb-8"
+    >
+      <div className="w-full space-y-4">
     {error && <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700" role="alert">{error}</div>}
     {loading ? <div className="flex items-center justify-center py-16 gap-3 text-slate-400"><Loader2 className="w-5 h-5 animate-spin" /><span className="text-sm">Loading reports...</span></div> : !catalogue ? <Button onClick={() => void run(async () => { await refresh(); })}>Retry</Button> : <>
       {mode === "register" && <>
@@ -1497,7 +1507,7 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
         </TableBody></Table></div>{!historical.filter((activity) => matchesSearch([activity, stateName(activity.state_code), monthLabel(activity.reporting_month)])).length && <div className="py-16 text-center text-sm text-slate-400">No historical activities found.</div>}</CardContent></Card>
       </>}
     </>}
-    </div></ScrollArea>
+    </div>
 
     <Dialog open={Boolean(link?.reference_id && batch)} onOpenChange={(open) => { if (!open) closeEnrolmentModal(); }}>
       <DialogContent
@@ -1530,5 +1540,6 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
         </div>
       </DialogContent>
     </Dialog>
-  </div>;
+  </PageLayout>
+  );
 }

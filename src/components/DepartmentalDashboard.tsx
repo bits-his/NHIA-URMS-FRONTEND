@@ -1,4 +1,4 @@
-﻿import * as React from "react";
+import * as React from "react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RTooltip,
   ResponsiveContainer, LineChart, Line,
@@ -125,29 +125,29 @@ function KpiModal({ title, kpi, dept, units, color, onClose, onUnitClick }: KpiM
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
         transition={{ duration: 0.2 }}
-        className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col"
+        className="bg-white rounded-lg border border-[#d4e8dc] shadow-xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div
-          className="flex items-center justify-between px-6 py-4 border-b border-[#d4e8dc]"
+          className="flex items-center justify-between px-5 py-3.5 border-b border-[#d4e8dc]"
           style={{ background: `linear-gradient(135deg, ${color}15, ${color}05)` }}
         >
           <div className="flex items-center gap-3">
             <div
-              className="w-9 h-9 rounded-xl flex items-center justify-center text-white"
+              className="w-8 h-8 rounded-md flex items-center justify-center text-white"
               style={{ backgroundColor: color }}
             >
               <BarChart3 className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-base font-black text-slate-900">{title}</h3>
+              <h3 className="text-base font-bold text-slate-900">{title}</h3>
               <p className="text-xs text-slate-500">{dept.name} · Unit breakdown</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-xl flex items-center justify-center hover:bg-[#e8f5ee] text-slate-400 hover:text-slate-700 transition-colors"
+            className="w-8 h-8 rounded-md flex items-center justify-center hover:bg-[#e8f5ee] text-slate-400 hover:text-slate-700 transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
@@ -274,28 +274,28 @@ function QuarterlyModal({ quarter, dept, units, color, onClose, onUnitClick }: Q
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
         transition={{ duration: 0.2 }}
-        className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col"
+        className="bg-white rounded-lg border border-[#d4e8dc] shadow-xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         <div
-          className="flex items-center justify-between px-6 py-4 border-b border-[#d4e8dc]"
+          className="flex items-center justify-between px-5 py-3.5 border-b border-[#d4e8dc]"
           style={{ background: `linear-gradient(135deg, ${color}15, ${color}05)` }}
         >
           <div className="flex items-center gap-3">
             <div
-              className="w-9 h-9 rounded-xl flex items-center justify-center text-white"
+              className="w-8 h-8 rounded-md flex items-center justify-center text-white"
               style={{ backgroundColor: color }}
             >
               <BarChart3 className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-base font-black text-slate-900">{quarter} Activities</h3>
+              <h3 className="text-base font-bold text-slate-900">{quarter} Activities</h3>
               <p className="text-xs text-slate-500">{dept.name} · Unit breakdown</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-xl flex items-center justify-center hover:bg-[#e8f5ee] text-slate-400 hover:text-slate-700 transition-colors"
+            className="w-8 h-8 rounded-md flex items-center justify-center hover:bg-[#e8f5ee] text-slate-400 hover:text-slate-700 transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
@@ -396,54 +396,54 @@ function UnitModal({
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
         transition={{ duration: 0.2 }}
-        className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col"
+        className="bg-white rounded-lg border border-[#d4e8dc] shadow-xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         <div
-          className="flex items-center justify-between px-6 py-4 border-b border-[#d4e8dc]"
+          className="flex items-center justify-between px-5 py-3.5 border-b border-[#d4e8dc]"
           style={{ background: `linear-gradient(135deg, ${color}15, ${color}05)` }}
         >
           <div className="flex items-center gap-3">
             <div
-              className="w-9 h-9 rounded-xl flex items-center justify-center text-white"
+              className="w-8 h-8 rounded-md flex items-center justify-center text-white"
               style={{ backgroundColor: color }}
             >
               <Layers className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-base font-black text-slate-900">{unit.name}</h3>
+              <h3 className="text-base font-bold text-slate-900">{unit.name}</h3>
               <p className="text-xs text-slate-500 font-mono">{unit.unit_code} · {dept.name}</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-xl flex items-center justify-center hover:bg-[#e8f5ee] text-slate-400 hover:text-slate-700 transition-colors"
+            className="w-8 h-8 rounded-md flex items-center justify-center hover:bg-[#e8f5ee] text-slate-400 hover:text-slate-700 transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        <div className="overflow-y-auto flex-1 p-6 space-y-5">
+        <div className="overflow-y-auto flex-1 p-5 space-y-4">
           {/* KPI mini-cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
             {[
               { label: "Reports",  val: us.reports,  tint: "kpi-blue",   icon: <FileText    className="w-4 h-4 text-blue-600"    /> },
               { label: "Approved", val: us.approved, tint: "kpi-green",  icon: <CheckSquare className="w-4 h-4 text-emerald-600" /> },
               { label: "Pending",  val: us.pending,  tint: "kpi-amber",  icon: <Clock       className="w-4 h-4 text-amber-600"   /> },
               { label: "Staff",    val: us.staff,    tint: "kpi-purple", icon: <Users       className="w-4 h-4 text-purple-600"  /> },
             ].map((k) => (
-              <div key={k.label} className={`${k.tint} rounded-2xl p-3 border border-white/60`}>
-                <div className="w-7 h-7 rounded-lg bg-white/70 flex items-center justify-center mb-2">
+              <div key={k.label} className="rounded-md p-2.5 border border-[#d4e8dc] bg-white shadow-2xs">
+                <div className="w-7 h-7 rounded-md bg-[#e8f5ee] flex items-center justify-center mb-1.5">
                   {k.icon}
                 </div>
-                <p className="text-xl font-black text-slate-900">{k.val}</p>
+                <p className="text-xl font-bold text-slate-900">{k.val}</p>
                 <p className="text-[10px] font-semibold text-slate-600">{k.label}</p>
               </div>
             ))}
           </div>
 
           {/* Task progress */}
-          <div className="rounded-2xl bg-[#f8fdfb] border border-[#d4e8dc] p-4">
+          <div className="rounded-md bg-[#f8fdfb] border border-[#d4e8dc] p-3.5">
             <div className="flex justify-between text-xs text-slate-600 mb-2">
               <span className="font-bold">Task Completion</span>
               <span className="font-black">{us.completed}/{us.tasks} · {pct}%</span>
@@ -693,20 +693,20 @@ export default function DepartmentalDashboard({ user }: Props) {
   ];
 
   return (
-    <div className="space-y-6 p-1">
+    <div className="w-full space-y-3.5 p-1">
       {/* ── Department header ── */}
       <div
-        className="rounded-3xl p-6 flex items-center gap-4 shadow-sm border border-white/60"
+        className="rounded-lg p-3.5 flex items-center gap-3.5 shadow-2xs border border-[#d4e8dc]"
         style={{ background: `linear-gradient(135deg, ${color}18, ${color}08)` }}
       >
         <div
-          className="w-14 h-14 rounded-2xl flex items-center justify-center text-white shadow-md shrink-0"
+          className="w-11 h-11 rounded-md flex items-center justify-center text-white shadow-xs shrink-0"
           style={{ backgroundColor: color }}
         >
           {deptIcon}
         </div>
         <div className="flex-1 min-w-0">
-          <h1 className="text-xl font-black text-slate-900 truncate">{dept.name}</h1>
+          <h1 className="text-xl font-bold text-slate-900 truncate">{dept.name}</h1>
         </div>
         <div className="flex flex-col items-end gap-1 shrink-0">
           <Badge
@@ -720,7 +720,7 @@ export default function DepartmentalDashboard({ user }: Props) {
 
       {/* ── KPI Cards (all clickable) ── */}
       <div>
-        <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">
+        <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2.5">
           Key Performance Indicators · click to drill down
         </p>
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
@@ -728,10 +728,10 @@ export default function DepartmentalDashboard({ user }: Props) {
             <button
               key={k.kpi}
               onClick={() => openKpi(k.kpi, k.title)}
-              className={`${k.tint} rounded-2xl p-4 border border-white/60 shadow-sm hover:shadow-md hover:scale-[1.02] transition-all text-left group`}
+              className="rounded-lg p-3.5 border border-[#d4e8dc] bg-white shadow-2xs hover:border-[#145c3f] transition-all text-left group cursor-pointer"
             >
-              <div className="flex items-start justify-between mb-3">
-                <div className="w-9 h-9 rounded-xl bg-white/70 flex items-center justify-center shadow-sm">
+              <div className="flex items-start justify-between mb-2">
+                <div className="w-8 h-8 rounded-md bg-[#e8f5ee] flex items-center justify-center shadow-2xs">
                   {k.icon}
                 </div>
                 <span
@@ -747,10 +747,10 @@ export default function DepartmentalDashboard({ user }: Props) {
                   {k.trend}
                 </span>
               </div>
-              <p className="text-2xl font-black text-slate-900 tracking-tight">{k.value}</p>
+              <p className="text-2xl font-bold text-slate-900 tracking-tight">{k.value}</p>
               <p className="text-xs font-semibold text-slate-700 mt-0.5">{k.title}</p>
               {k.sub && <p className="text-[10px] text-slate-500 mt-0.5">{k.sub}</p>}
-              <p className="text-[9px] text-slate-400 mt-1.5 group-hover:text-[#145c3f] transition-colors">
+              <p className="text-[9px] text-slate-400 mt-1 group-hover:text-[#145c3f] transition-colors">
                 View unit breakdown →
               </p>
             </button>
@@ -760,7 +760,7 @@ export default function DepartmentalDashboard({ user }: Props) {
 
       {/* ── Quarterly Activities (each quarter clickable) ── */}
       <div>
-        <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">
+        <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2.5">
           Quarterly Activities · click a quarter to drill down by unit
         </p>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -768,11 +768,11 @@ export default function DepartmentalDashboard({ user }: Props) {
             <button
               key={q.quarter}
               onClick={() => openQuarterly(q.quarter)}
-              className="bg-white rounded-2xl p-4 border border-[#d4e8dc] shadow-sm hover:shadow-md hover:border-[#25a872] hover:scale-[1.02] transition-all text-left group"
+              className="bg-white rounded-lg p-3.5 border border-[#d4e8dc] shadow-2xs hover:border-[#145c3f] transition-all text-left group cursor-pointer"
             >
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center justify-between mb-2.5">
                 <span
-                  className="text-xs font-black px-2 py-0.5 rounded-lg text-white"
+                  className="text-xs font-bold px-2 py-0.5 rounded-md text-white"
                   style={{ backgroundColor: color }}
                 >
                   {q.quarter}
@@ -782,20 +782,20 @@ export default function DepartmentalDashboard({ user }: Props) {
               <div className="space-y-1.5">
                 <div className="flex justify-between text-xs">
                   <span className="text-slate-500">Reports</span>
-                  <span className="font-black text-slate-900">{q.reports}</span>
+                  <span className="font-bold text-slate-900">{q.reports}</span>
                 </div>
                 <div className="flex justify-between text-xs">
                   <span className="text-slate-500">Approved</span>
-                  <span className="font-black text-emerald-700">{q.approved}</span>
+                  <span className="font-bold text-emerald-700">{q.approved}</span>
                 </div>
                 <div className="flex justify-between text-xs">
                   <span className="text-slate-500">IGR</span>
-                  <span className="font-black text-blue-700">{q.igr}M</span>
+                  <span className="font-bold text-blue-700">{q.igr}M</span>
                 </div>
               </div>
               <Progress
                 value={Math.round((q.approved / Math.max(1, q.reports)) * 100)}
-                className="h-1.5 mt-3 bg-[#e8f5ee]"
+                className="h-1.5 mt-2.5 bg-[#e8f5ee]"
               />
               <p className="text-[9px] text-slate-400 mt-1.5 group-hover:text-[#145c3f] transition-colors">
                 View by unit →
@@ -807,11 +807,11 @@ export default function DepartmentalDashboard({ user }: Props) {
 
       {/* ── Units Grid (each unit clickable) ── */}
       <div>
-        <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">
+        <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2.5">
           Department Units · click to view unit details
         </p>
         {units.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-[#d4e8dc] p-8 text-center">
+          <div className="rounded-lg border border-dashed border-[#d4e8dc] p-6 text-center">
             <Layers className="w-8 h-8 text-slate-300 mx-auto mb-2" />
             <p className="text-sm text-slate-400">No units found for this department</p>
           </div>
@@ -824,9 +824,9 @@ export default function DepartmentalDashboard({ user }: Props) {
                 <button
                   key={unit.id}
                   onClick={() => openUnit(unit)}
-                  className="bg-white rounded-2xl p-4 border border-[#d4e8dc] shadow-sm hover:shadow-md hover:border-[#25a872] hover:scale-[1.01] transition-all text-left group"
+                  className="bg-white rounded-lg p-3.5 border border-[#d4e8dc] shadow-2xs hover:border-[#145c3f] transition-all text-left group cursor-pointer"
                 >
-                  <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-start justify-between mb-2.5">
                     <div>
                       <p className="text-sm font-bold text-slate-900 group-hover:text-[#145c3f] transition-colors">
                         {unit.name}
@@ -838,14 +838,14 @@ export default function DepartmentalDashboard({ user }: Props) {
                     </Badge>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-2 mb-3">
+                  <div className="grid grid-cols-3 gap-2 mb-2.5">
                     {[
                       { label: "Reports", val: us.reports,  color: "text-blue-700"    },
                       { label: "Pending", val: us.pending,  color: "text-amber-700"   },
                       { label: "Staff",   val: us.staff,    color: "text-purple-700"  },
                     ].map((s) => (
                       <div key={s.label} className="text-center">
-                        <p className={`text-base font-black ${s.color}`}>{s.val}</p>
+                        <p className={`text-base font-bold ${s.color}`}>{s.val}</p>
                         <p className="text-[9px] text-slate-500">{s.label}</p>
                       </div>
                     ))}

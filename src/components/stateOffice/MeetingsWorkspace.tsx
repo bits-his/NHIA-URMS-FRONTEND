@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import PageLayout from "../PageLayout";
 import { meetingsApi as api } from "@/lib/api";
 import { Field, FieldSection } from "./EnrolmentActivityForm";
 import { useListSearch } from "./useListSearch";
@@ -235,37 +236,30 @@ export default function MeetingsWorkspace({ onBack, initialTab = "meetings" }: {
   const meetingRows = meetings.filter((m) => matchesSearch([m, stateName(m.state_code), m.meeting_type]));
   const etmcRows = etmcs.filter((e) => matchesSearch([e, stateName(e.state_code)]));
 
-  const header = (
-    <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3.5 flex items-center justify-between sticky top-0 z-30 gap-3">
-      <div className="flex items-center gap-3 min-w-0">
-        <Button variant="ghost" size="icon" className="rounded-full shrink-0" aria-label="Back"
-          onClick={() => { if (mode.endsWith("-form") || mode.endsWith("-detail")) setMode(mode.startsWith("meeting") ? "meetings" : "etmc"); else if (mode === "etmc") setMode("meetings"); else onBack(); }}>
-          <ArrowLeft className="w-5 h-5" />
-        </Button>
-        <div className="min-w-0">
-          <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">Meetings &amp; Coordination</h2>
-          <p className="text-xs text-slate-500 truncate">Meeting reports and ETMC cascade reporting</p>
-        </div>
-      </div>
-      <div className="flex items-center gap-2 shrink-0">
-        {["meetings", "etmc"].includes(mode) && <Button variant="outline" size="sm" className="gap-2 border-[#d4e8dc]" disabled={busy || loading} onClick={() => void run(refresh)}><RefreshCw className={`w-4 h-4 ${busy ? "animate-spin" : ""}`} />Refresh</Button>}
-        {mode === "meetings" && permissions.create && <Button className={ACTION} disabled={busy} onClick={() => void startMeetingForm()}><Plus className="w-4 h-4" />New Meeting Report</Button>}
-        {mode === "etmc" && permissions.create && <Button className={ACTION} disabled={busy} onClick={() => startEtmcForm()}><Plus className="w-4 h-4" />New ETMC Report</Button>}
-      </div>
-    </div>
+  const handleBack = () => {
+    if (mode.endsWith("-form") || mode.endsWith("-detail")) setMode(mode.startsWith("meeting") ? "meetings" : "etmc");
+    else if (mode === "etmc") setMode("meetings");
+    else onBack();
+  };
+
+  const actions = (
+    <>
+      {["meetings", "etmc"].includes(mode) && <Button variant="outline" size="sm" className="gap-2 border-[#d4e8dc]" disabled={busy || loading} onClick={() => void run(refresh)}><RefreshCw className={`w-4 h-4 ${busy ? "animate-spin" : ""}`} />Refresh</Button>}
+      {mode === "meetings" && permissions.create && <Button className={ACTION} disabled={busy} onClick={() => void startMeetingForm()}><Plus className="w-4 h-4" />New Meeting Report</Button>}
+      {mode === "etmc" && permissions.create && <Button className={ACTION} disabled={busy} onClick={() => startEtmcForm()}><Plus className="w-4 h-4" />New ETMC Report</Button>}
+    </>
   );
-  const tabs = ["meetings", "etmc"].includes(mode) && (
-    <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 sticky top-[57px] z-20">
-      <div className="flex gap-0 overflow-x-auto -mb-px" role="tablist">
-        {[{ key: "meetings", label: "Meeting Reports", count: meetings.length }, { key: "etmc", label: "ETMC Cascading", count: etmcs.length }].map(({ key, label, count }) => (
-          <button key={key} type="button" role="tab" aria-selected={mode === key} onClick={() => setMode(key as any)}
-            className={`group relative shrink-0 inline-flex items-center gap-2 px-4 py-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors outline-none focus-visible:bg-[#f4f7f5] ${mode === key ? "border-[#145c3f] text-[#145c3f]" : "border-transparent text-slate-500 hover:text-[#0f3d2e] hover:border-[#c5ddd0]"}`}>
-            {label}<span className={`inline-flex min-w-[1.25rem] h-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold tabular-nums ${mode === key ? "bg-[#e8f6ee] text-[#145c3f]" : "bg-slate-100 text-slate-500"}`}>{count}</span>
-          </button>
-        ))}
-      </div>
+
+  const tabs = ["meetings", "etmc"].includes(mode) ? (
+    <div className="flex gap-0 overflow-x-auto -mb-px" role="tablist">
+      {[{ key: "meetings", label: "Meeting Reports", count: meetings.length }, { key: "etmc", label: "ETMC Cascading", count: etmcs.length }].map(({ key, label, count }) => (
+        <button key={key} type="button" role="tab" aria-selected={mode === key} onClick={() => setMode(key as any)}
+          className={`group relative shrink-0 inline-flex items-center gap-2 px-4 py-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors outline-none focus-visible:bg-[#f4f7f5] ${mode === key ? "border-[#145c3f] text-[#145c3f]" : "border-transparent text-slate-500 hover:text-[#0f3d2e] hover:border-[#c5ddd0]"}`}>
+          {label}<span className={`inline-flex min-w-[1.25rem] h-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold tabular-nums ${mode === key ? "bg-[#e8f6ee] text-[#145c3f]" : "bg-slate-100 text-slate-500"}`}>{count}</span>
+        </button>
+      ))}
     </div>
-  );
+  ) : undefined;
   const steps = (labels: string[], active: number) => (
     <div className="flex items-center gap-0 overflow-x-auto">
       {labels.map((l, i) => (
@@ -582,13 +576,23 @@ export default function MeetingsWorkspace({ onBack, initialTab = "meetings" }: {
     </div>
   );
 
-  if (loading) return <div className="flex flex-col h-full bg-[#f4f7f5]">{header}<div className="flex items-center justify-center py-16 gap-3 text-slate-400"><Loader2 className="w-5 h-5 animate-spin" /><span className="text-sm">Loading...</span></div></div>;
-
   return (
-    <div className="flex flex-col h-full bg-[#f4f7f5]">
-      {header}{tabs}
-      <ScrollArea className="flex-1"><div className="w-full px-4 md:px-6 py-4 space-y-4 pb-8">
-        {error && <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700" role="alert">{error}</div>}
+    <PageLayout
+      title={
+        mode === "meeting-form" ? (editingId ? "Edit Meeting Report" : "New Meeting Report")
+        : mode === "etmc-form" ? (editingId ? "Edit ETMC Cascading Report" : "New ETMC Cascading Report")
+        : mode === "meeting-detail" ? `Meeting Report ${detail?.meeting_id || ""}`
+        : mode === "etmc-detail" ? `ETMC Cascading Report ${detail?.etmc_id || ""}`
+        : "Meetings & Coordination"
+      }
+      onBack={(mode.endsWith("-form") || mode.endsWith("-detail")) ? handleBack : undefined}
+      actions={actions}
+      filters={tabs}
+      loading={loading}
+      error={error}
+      contentClassName="space-y-4 pb-8"
+    >
+      <div className="w-full space-y-4">
         {mode === "meetings" && <>
           {searchInput}
           <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden">
@@ -633,7 +637,7 @@ export default function MeetingsWorkspace({ onBack, initialTab = "meetings" }: {
         {etmcForm}
         {meetingDetail}
         {etmcDetail}
-      </div></ScrollArea>
-    </div>
+      </div>
+    </PageLayout>
   );
 }

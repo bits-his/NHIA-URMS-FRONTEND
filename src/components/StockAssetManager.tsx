@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
+import PageLayout from "./PageLayout";
 import { stockApi } from "@/lib/api";
 import { useCreateReviewAccess } from "@/src/access/createReviewAccess";
 
@@ -384,19 +385,20 @@ export default function StockAssetManager({ onBack }: Props) {
   );
 
   return (
-    <div className="flex flex-col h-full bg-slate-50/30">
-      <div className="bg-white border-b border-border/50 px-4 md:px-6 py-3 flex items-center justify-end sticky top-0 z-30">
-        {!showForm && canCreate && (
+    <PageLayout
+      title={showForm ? (editId ? "Edit Asset" : "New Asset") : "Stock & Asset Register"}
+      onBack={showForm ? cancelForm : undefined}
+      actions={
+        !showForm && canCreate ? (
           <Button className="bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20" onClick={openCreate}>
             <Plus className="w-4 h-4" /> New Asset
           </Button>
-        )}
-      </div>
-
-      <ScrollArea className="flex-1">
-        <div className="w-full px-4 md:px-6 py-4 space-y-4">
-
-          {showForm || createOnly ? formCard : (
+        ) : undefined
+      }
+      contentClassName="space-y-4 pb-8"
+    >
+      <div className="w-full space-y-4">
+        {showForm || createOnly ? formCard : (
             <>
               <Card className="rounded-2xl border-[#d4e8dc]">
                 <CardContent className="pt-5 pb-4">
@@ -535,7 +537,6 @@ export default function StockAssetManager({ onBack }: Props) {
           )}
 
         </div>
-      </ScrollArea>
-    </div>
+    </PageLayout>
   );
 }

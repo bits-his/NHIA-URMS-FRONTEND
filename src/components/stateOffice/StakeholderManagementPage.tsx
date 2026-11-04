@@ -19,6 +19,7 @@ import {
   STAKEHOLDER_MANAGEMENT_NAV_TITLE,
   STAKEHOLDER_MANAGEMENT_PATH,
 } from "./enrolmentPillarTypes";
+import PageLayout from "@/src/components/PageLayout";
 import { useStateOfficeAccess } from "@/src/access/createReviewAccess";
 import StakeholderEngagementForm from "./StakeholderEngagementForm";
 import StakeholderReportDetail from "./StakeholderReportDetail";
@@ -119,40 +120,25 @@ export default function StakeholderManagementPage({ onBack, defaultZoneId, defau
   }
 
   return (
-    <div className="flex flex-col h-full bg-[#f4f7f5]">
-      <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3.5 flex items-center justify-between sticky top-0 z-30 gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <Button variant="ghost" size="icon" onClick={onBack} className="rounded-full shrink-0" aria-label="Back">
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-          <div className="min-w-0">
-            <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">
-              {STAKEHOLDER_MANAGEMENT_NAV_TITLE}
-            </h2>
-            <p className="text-xs text-slate-500 truncate">
-              {canReview
-                ? "Review and endorse engagement reports"
-                : "Draft, send for review, then final-submit after endorsement"}
-            </p>
-          </div>
-        </div>
+    <PageLayout
+      title={STAKEHOLDER_MANAGEMENT_NAV_TITLE}
+      actions={
         <div className="flex items-center gap-2 shrink-0">
           <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2 border-[#d4e8dc]">
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
           </Button>
           {canCreate && (
             <Button
-              className="bg-orange-action hover:bg-orange-600 gap-2 shadow-md shadow-orange-500/15"
+              className="bg-[#145c3f] hover:bg-[#0f3d2e] text-white gap-2 shadow-sm"
               onClick={() => { setSelectedId(null); setMode("create"); }}
             >
-              <Plus className="w-4 h-4" /> New Stakeholder Engagement Report
+              <Plus className="w-4 h-4" /> New Stakeholder Report
             </Button>
           )}
         </div>
-      </div>
-
-      <ScrollArea className="flex-1">
-        <div className="w-full px-4 md:px-6 py-5 space-y-4">
+      }
+    >
+      <div className="w-full space-y-4">
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
             {[
               { label: "Total", value: counts.total, tone: "text-[#0f3d2e] bg-white border-[#d4e8dc]" },
@@ -302,8 +288,7 @@ export default function StakeholderManagementPage({ onBack, defaultZoneId, defau
             </CardContent>
           </Card>
         </div>
-      </ScrollArea>
-    </div>
+    </PageLayout>
   );
 }
 

@@ -1,4 +1,4 @@
-﻿import * as React from "react";
+import * as React from "react";
 import {
   CheckCircle2, XCircle, Clock, Send, FileText, Eye,
   Search, Filter, ChevronRight, ArrowLeft, AlertCircle,
@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
+import PageLayout from "./PageLayout";
 import { annualReportApi } from "@/lib/api";
 import { useSelector } from "react-redux";
 import type { RootState } from "@/src/store/store";
@@ -78,12 +79,12 @@ const ROLE_CONFIG: Record<string, {
 
 //  Status badge config 
 const STATUS_CONFIG: Record<ReportStatus, { label: string; className: string; icon: React.ReactNode }> = {
-  draft:        { label: "Draft",         className: "bg-slate-100 text-slate-600 border-slate-200",       icon: <FileText className="w-3 h-3" /> },
-  submitted:    { label: "Submitted",     className: "bg-blue-100 text-blue-700 border-blue-200",          icon: <Send className="w-3 h-3" /> },
-  under_review: { label: "State Approved",className: "bg-amber-100 text-amber-700 border-amber-200",       icon: <Clock className="w-3 h-3" /> },
-  zonal_review: { label: "Zonal Approved",className: "bg-purple-100 text-purple-700 border-purple-200",    icon: <CheckSquare className="w-3 h-3" /> },
-  approved:     { label: "Approved",      className: "bg-emerald-100 text-emerald-700 border-emerald-200", icon: <CheckCircle2 className="w-3 h-3" /> },
-  rejected:     { label: "Rejected",      className: "bg-rose-100 text-rose-700 border-rose-200",          icon: <XCircle className="w-3 h-3" /> },
+  draft: { label: "Draft", className: "bg-slate-100 text-slate-600 border-slate-200", icon: <FileText className="w-3 h-3" /> },
+  submitted: { label: "Submitted", className: "bg-blue-100 text-blue-700 border-blue-200", icon: <Send className="w-3 h-3" /> },
+  under_review: { label: "State Approved", className: "bg-amber-100 text-amber-700 border-amber-200", icon: <Clock className="w-3 h-3" /> },
+  zonal_review: { label: "Zonal Approved", className: "bg-purple-100 text-purple-700 border-purple-200", icon: <CheckSquare className="w-3 h-3" /> },
+  approved: { label: "Approved", className: "bg-emerald-100 text-emerald-700 border-emerald-200", icon: <CheckCircle2 className="w-3 h-3" /> },
+  rejected: { label: "Rejected", className: "bg-rose-100 text-rose-700 border-rose-200", icon: <XCircle className="w-3 h-3" /> },
 };
 
 //  Reject modal 
@@ -154,11 +155,11 @@ function ReportDetailPanel({ report, roleConfig, onApprove, onReject, onBack, ap
   const canAct = report.status === roleConfig.inboxStatus;
 
   const timeline = [
-    report.submitted_by    && { label: "Submitted",      by: report.submitted_by,    at: report.createdAt,           color: "#3b82f6" },
+    report.submitted_by && { label: "Submitted", by: report.submitted_by, at: report.createdAt, color: "#3b82f6" },
     report.state_reviewed_by && { label: "State Approved", by: report.state_reviewed_by, at: report.state_reviewed_at!, color: "#f59e0b" },
     report.zonal_reviewed_by && { label: "Zonal Approved", by: report.zonal_reviewed_by, at: report.zonal_reviewed_at!, color: "#8b5cf6" },
-    report.sdo_reviewed_by   && { label: "SDO Approved",   by: report.sdo_reviewed_by,   at: report.sdo_reviewed_at!,   color: "#25a872" },
-    report.rejected_by       && { label: "Rejected",       by: report.rejected_by,        at: report.rejected_at!,       color: "#ef4444" },
+    report.sdo_reviewed_by && { label: "SDO Approved", by: report.sdo_reviewed_by, at: report.sdo_reviewed_at!, color: "#25a872" },
+    report.rejected_by && { label: "Rejected", by: report.rejected_by, at: report.rejected_at!, color: "#ef4444" },
   ].filter(Boolean) as { label: string; by: string; at: string; color: string }[];
 
   return (
@@ -182,8 +183,8 @@ function ReportDetailPanel({ report, roleConfig, onApprove, onReject, onBack, ap
       {/* KPI row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: "State",   value: report.state },
-          { label: "Year",    value: String(report.reporting_year) },
+          { label: "State", value: report.state },
+          { label: "Year", value: String(report.reporting_year) },
           { label: "Submitted By", value: report.submitted_by ?? "" },
           { label: "Last Updated", value: new Date(report.updatedAt).toLocaleDateString() },
         ].map(k => (
@@ -272,15 +273,15 @@ interface ReportReviewPageProps {
 export default function ReportReviewPage({ role, onBack }: ReportReviewPageProps) {
   const roleConfig = ROLE_CONFIG[role] ?? ROLE_CONFIG["state-coordinator"];
 
-  const [reports, setReports]           = React.useState<Report[]>([]);
-  const [loading, setLoading]           = React.useState(true);
-  const [selected, setSelected]         = React.useState<Report | null>(null);
+  const [reports, setReports] = React.useState<Report[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [selected, setSelected] = React.useState<Report | null>(null);
   const [rejectTarget, setRejectTarget] = React.useState<Report | null>(null);
-  const [approving, setApproving]       = React.useState(false);
-  const [rejecting, setRejecting]       = React.useState(false);
-  const [yearFilter, setYearFilter]     = React.useState("all");
+  const [approving, setApproving] = React.useState(false);
+  const [rejecting, setRejecting] = React.useState(false);
+  const [yearFilter, setYearFilter] = React.useState("all");
   const [statusFilter, setStatusFilter] = React.useState("inbox");
-  const [search, setSearch]             = React.useState("");
+  const [search, setSearch] = React.useState("");
 
   const load = React.useCallback(async () => {
     setLoading(true);
@@ -337,192 +338,165 @@ export default function ReportReviewPage({ role, onBack }: ReportReviewPageProps
   const inboxCount = reports.filter(r => r.status === roleConfig.inboxStatus).length;
 
   return (
-    <div className="relative z-10 p-6 max-w-7xl mx-auto space-y-6">
-      {/* Page header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          {onBack && (
-            <button onClick={onBack}
-              className="w-9 h-9 rounded-xl flex items-center justify-center border border-[#d4e8dc] hover:bg-[#e8f5ee] text-slate-600 hover:text-[#145c3f] transition-colors shrink-0">
-              <ArrowLeft className="w-4 h-4" />
-            </button>
-          )}
-          <div>
-            <h1 className="text-xl font-black text-slate-900 tracking-tight">{roleConfig.title}</h1>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          {inboxCount > 0 && (
-            <span className="text-xs font-bold px-3 py-1.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200">
-              {inboxCount} pending action
-            </span>
-          )}
-          <Button variant="outline" size="sm" onClick={load} disabled={loading}
-            className="h-9 text-xs rounded-xl border-[#d4e8dc] hover:bg-[#e8f5ee] gap-1.5">
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh
-          </Button>
-        </div>
-      </div>
-
-      <AnimatePresence mode="wait">
-        {selected ? (
-          <ReportDetailPanel
-            key="detail"
-            report={selected}
-            roleConfig={roleConfig}
-            onApprove={() => handleApprove(selected)}
-            onReject={() => setRejectTarget(selected)}
-            onBack={() => setSelected(null)}
-            approving={approving}
-            rejecting={rejecting}
-          />
-        ) : (
-          <motion.div key="list" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-            className="space-y-4">
-
-            {/* Filters */}
-            <div className="flex flex-wrap items-center gap-3">
-              {/* Search */}
-              <div className="relative flex-1 min-w-[200px]">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-                <input value={search} onChange={e => setSearch(e.target.value)}
-                  placeholder="Search state or reference..."
-                  className="w-full pl-9 pr-4 h-9 rounded-xl border border-[#d4e8dc] bg-[#f4f7f5] text-xs focus:ring-2 focus:ring-[#25a872] outline-none transition-all placeholder:text-slate-400" />
-              </div>
-
-              {/* Status filter pills */}
-              <div className="flex items-center gap-1 p-1 rounded-xl bg-[#e8f5ee] border border-[#d4e8dc]">
-                {[
-                  { value: "inbox", label: "Inbox" },
-                  { value: "all",   label: "All" },
-                ].map(o => (
-                  <button key={o.value} onClick={() => setStatusFilter(o.value)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                      statusFilter === o.value ? "bg-[#145c3f] text-white shadow-sm" : "text-[#5a7a6a] hover:text-[#145c3f]"
-                    }`}>{o.label}</button>
-                ))}
-              </div>
-
-              {/* Year filter */}
-              <Select value={yearFilter} onValueChange={setYearFilter}>
-                <SelectTrigger className="h-9 w-32 rounded-xl border-[#d4e8dc] text-xs">
-                  <SelectValue placeholder="Year" />
-                </SelectTrigger>
-                <SelectContent className="rounded-xl border-[#d4e8dc]">
-                  <SelectItem value="all" className="text-xs">All Years</SelectItem>
-                  {["2025","2024","2023"].map(y => (
-                    <SelectItem key={y} value={y} className="text-xs">{y}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+    <PageLayout
+      title={selected ? `Review Report — ${selected.state} (${selected.reporting_year})` : roleConfig.title}
+      onBack={selected ? () => setSelected(null) : undefined}
+      badge={inboxCount > 0 ? `${inboxCount} pending action` : undefined}
+      actions={
+        <Button variant="outline" size="sm" onClick={load} disabled={loading}
+          className="h-9 text-xs rounded-xl border-[#d4e8dc] hover:bg-[#e8f5ee] gap-1.5">
+          <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh
+        </Button>
+      }
+      filters={
+        !selected ? (
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Search */}
+            <div className="relative flex-1 min-w-[200px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+              <input value={search} onChange={e => setSearch(e.target.value)}
+                placeholder="Search state or reference..."
+                className="w-full pl-9 pr-4 h-9 rounded-xl border border-[#d4e8dc] bg-[#f4f7f5] text-xs focus:ring-2 focus:ring-[#25a872] outline-none transition-all placeholder:text-slate-400" />
             </div>
 
-            {/* Table */}
-            <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden">
-              {loading ? (
-                <div className="flex items-center justify-center py-16 gap-3 text-slate-400">
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  <span className="text-sm">Loading reports...</span>
-                </div>
-              ) : filtered.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-16 gap-3 text-slate-400">
-                  <FileText className="w-8 h-8 opacity-40" />
-                  <p className="text-sm font-semibold">No reports found</p>
-                  <p className="text-xs">
-                    {statusFilter === "inbox"
-                      ? `No reports awaiting your review`
-                      : "Try adjusting your filters"}
-                  </p>
-                </div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-[#f0fdf7]">
-                      <TableHead className="text-xs font-bold text-slate-600">Reference</TableHead>
-                      <TableHead className="text-xs font-bold text-slate-600">State</TableHead>
-                      <TableHead className="text-xs font-bold text-slate-600">Year</TableHead>
-                      <TableHead className="text-xs font-bold text-slate-600">Submitted By</TableHead>
-                      <TableHead className="text-xs font-bold text-slate-600">Status</TableHead>
-                      <TableHead className="text-xs font-bold text-slate-600">Updated</TableHead>
-                      <TableHead className="text-right text-xs font-bold text-slate-600">Action</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filtered.map(r => {
-                      const sc = STATUS_CONFIG[r.status];
-                      const canAct = r.status === roleConfig.inboxStatus;
-                      return (
-                        <TableRow key={r.reference_id}
-                          className="hover:bg-[#f0fdf7] transition-colors cursor-pointer group"
-                          onClick={() => setSelected(r)}>
-                          <TableCell className="font-mono text-xs font-bold text-[#145c3f]">
-                            {r.reference_id}
-                            <ChevronRight className="w-3 h-3 inline ml-1 text-[#25a872] opacity-0 group-hover:opacity-100 transition-opacity" />
-                          </TableCell>
-                          <TableCell className="text-sm font-semibold text-slate-800">{r.state}</TableCell>
-                          <TableCell className="text-sm text-slate-600">{r.reporting_year}</TableCell>
-                          <TableCell className="text-xs text-slate-500">{r.submitted_by ?? ""}</TableCell>
-                          <TableCell>
-                            <Badge className={`${sc.className} flex items-center gap-1 text-[10px] w-fit`}>
-                              {sc.icon} {sc.label}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-xs text-slate-400">
-                            {new Date(r.updatedAt).toLocaleDateString()}
-                          </TableCell>
-                          <TableCell className="text-right" onClick={e => e.stopPropagation()}>
-                            {canAct ? (
-                              <div className="flex items-center justify-end gap-1.5">
-                                <Button size="sm" variant="outline"
-                                  onClick={() => setRejectTarget(r)}
-                                  className="h-7 text-[10px] rounded-lg border-rose-200 text-rose-600 hover:bg-rose-50 px-2">
-                                  <XCircle className="w-3 h-3 mr-1" /> Reject
-                                </Button>
-                                <Button size="sm"
-                                  onClick={() => handleApprove(r)}
-                                  disabled={approving}
-                                  className="h-7 text-[10px] rounded-lg bg-[#145c3f] hover:bg-[#0f3d2e] text-white px-2 gap-1">
-                                  {approving ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
-                                  Approve
-                                </Button>
-                              </div>
-                            ) : (
-                              <Button size="sm" variant="ghost"
-                                onClick={() => setSelected(r)}
-                                className="h-7 text-[10px] rounded-lg text-slate-500 hover:text-[#145c3f] hover:bg-[#e8f5ee] px-2">
-                                <Eye className="w-3 h-3 mr-1" /> View
-                              </Button>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              )}
-            </Card>
+            {/* Status filter pills */}
+            <div className="flex items-center gap-1 p-1 rounded-xl bg-[#e8f5ee] border border-[#d4e8dc]">
+              {[
+                { value: "inbox", label: "Inbox" },
+                { value: "all", label: "All" },
+              ].map(o => (
+                <button key={o.value} onClick={() => setStatusFilter(o.value)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${statusFilter === o.value ? "bg-[#145c3f] text-white shadow-sm" : "text-[#5a7a6a] hover:text-[#145c3f]"
+                    }`}>{o.label}</button>
+              ))}
+            </div>
 
-            {/* Summary footer */}
-            {!loading && filtered.length > 0 && (
-              <p className="text-xs text-slate-400 text-right">
-                Showing {filtered.length} report{filtered.length !== 1 ? "s" : ""}
+            {/* Year filter */}
+            <Select value={yearFilter} onValueChange={setYearFilter}>
+              <SelectTrigger className="h-9 w-32 rounded-xl border-[#d4e8dc] text-xs">
+                <SelectValue placeholder="Year" />
+              </SelectTrigger>
+              <SelectContent className="rounded-xl border-[#d4e8dc]">
+                <SelectItem value="all" className="text-xs">All Years</SelectItem>
+                {["2025", "2024", "2023"].map(y => (
+                  <SelectItem key={y} value={y} className="text-xs">{y}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        ) : undefined
+      }
+      contentClassName="space-y-6 pb-12"
+    >
+      <div className="w-full space-y-6">
+
+        {/* Table */}
+        <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden">
+          {loading ? (
+            <div className="flex items-center justify-center py-16 gap-3 text-slate-400">
+              <Loader2 className="w-5 h-5 animate-spin" />
+              <span className="text-sm">Loading reports...</span>
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 gap-3 text-slate-400">
+              <FileText className="w-8 h-8 opacity-40" />
+              <p className="text-sm font-semibold">No reports found</p>
+              <p className="text-xs">
+                {statusFilter === "inbox"
+                  ? `No reports awaiting your review`
+                  : "Try adjusting your filters"}
               </p>
-            )}
-          </motion.div>
-        )}
-      </AnimatePresence>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-[#f0fdf7]">
+                  <TableHead className="text-xs font-bold text-slate-600">Reference</TableHead>
+                  <TableHead className="text-xs font-bold text-slate-600">State</TableHead>
+                  <TableHead className="text-xs font-bold text-slate-600">Year</TableHead>
+                  <TableHead className="text-xs font-bold text-slate-600">Submitted By</TableHead>
+                  <TableHead className="text-xs font-bold text-slate-600">Status</TableHead>
+                  <TableHead className="text-xs font-bold text-slate-600">Updated</TableHead>
+                  <TableHead className="text-right text-xs font-bold text-slate-600">Action</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filtered.map(r => {
+                  const sc = STATUS_CONFIG[r.status];
+                  const canAct = r.status === roleConfig.inboxStatus;
+                  return (
+                    <TableRow key={r.reference_id}
+                      className="hover:bg-[#f0fdf7] transition-colors cursor-pointer group"
+                      onClick={() => setSelected(r)}>
+                      <TableCell className="font-mono text-xs font-bold text-[#145c3f]">
+                        {r.reference_id}
+                        <ChevronRight className="w-3 h-3 inline ml-1 text-[#25a872] opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </TableCell>
+                      <TableCell className="text-sm font-semibold text-slate-800">{r.state}</TableCell>
+                      <TableCell className="text-sm text-slate-600">{r.reporting_year}</TableCell>
+                      <TableCell className="text-xs text-slate-500">{r.submitted_by ?? ""}</TableCell>
+                      <TableCell>
+                        <Badge className={`${sc.className} flex items-center gap-1 text-[10px] w-fit`}>
+                          {sc.icon} {sc.label}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-xs text-slate-400">
+                        {new Date(r.updatedAt).toLocaleDateString()}
+                      </TableCell>
+                      <TableCell className="text-right" onClick={e => e.stopPropagation()}>
+                        {canAct ? (
+                          <div className="flex items-center justify-end gap-1.5">
+                            <Button size="sm" variant="outline"
+                              onClick={() => setRejectTarget(r)}
+                              className="h-7 text-[10px] rounded-lg border-rose-200 text-rose-600 hover:bg-rose-50 px-2">
+                              <XCircle className="w-3 h-3 mr-1" /> Reject
+                            </Button>
+                            <Button size="sm"
+                              onClick={() => handleApprove(r)}
+                              disabled={approving}
+                              className="h-7 text-[10px] rounded-lg bg-[#145c3f] hover:bg-[#0f3d2e] text-white px-2 gap-1">
+                              {approving ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
+                              Approve
+                            </Button>
+                          </div>
+                        ) : (
+                          <Button size="sm" variant="ghost"
+                            onClick={() => setSelected(r)}
+                            className="h-7 text-[10px] rounded-lg text-slate-500 hover:text-[#145c3f] hover:bg-[#e8f5ee] px-2">
+                            <Eye className="w-3 h-3 mr-1" /> View
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
+        </Card>
 
-      {/* Reject modal */}
-      <AnimatePresence>
-        {rejectTarget && (
-          <RejectModal
-            report={rejectTarget}
-            onConfirm={(reason) => handleReject(rejectTarget, reason)}
-            onCancel={() => setRejectTarget(null)}
-            loading={rejecting}
-          />
+        {/* Summary footer */}
+        {!loading && filtered.length > 0 && (
+          <p className="text-xs text-slate-400 text-right">
+            Showing {filtered.length} report{filtered.length !== 1 ? "s" : ""}
+          </p>
         )}
-      </AnimatePresence>
-    </div>
+      </motion.div>
+        )}
+    </AnimatePresence>
+
+      {/* Reject modal */ }
+  <AnimatePresence>
+    {rejectTarget && (
+      <RejectModal
+        report={rejectTarget}
+        onConfirm={(reason) => handleReject(rejectTarget, reason)}
+        onCancel={() => setRejectTarget(null)}
+        loading={rejecting}
+      />
+    )}
+  </AnimatePresence>
+      </div >
+    </PageLayout >
   );
 }

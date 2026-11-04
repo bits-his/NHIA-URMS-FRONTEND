@@ -281,11 +281,7 @@ export default function PrepaymentAnalysisListView() {
 
   return (
     <PageLayout
-      title={
-        <span className="flex items-center gap-2">
-          <FileSpreadsheet className="w-5 h-5 text-[#25a872]" /> Stock Prepayment Register
-        </span>
-      }
+      title="Stock Prepayment Register"
       description="Stock Verification — Stock Prepayment Register"
       actions={
         canCreate ? (

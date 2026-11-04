@@ -16,11 +16,7 @@ export default function AssetReportsView() {
 
   return (
     <PageLayout
-      title={
-        <span className="flex items-center gap-2">
-          <FileSpreadsheet className="w-5 h-5 text-[#25a872]" /> Store & Asset Analytics
-        </span>
-      }
+      title="Store & Asset Analytics"
       description="Executive summaries, depreciation reports, and store inventory metrics"
       actions={
         <Button size="sm" className="bg-[#145c3f] hover:bg-[#0f3d2e] text-white text-xs h-9 font-semibold">

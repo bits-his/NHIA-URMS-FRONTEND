@@ -42,6 +42,7 @@ import OfficeAccommodationTab from "./OfficeAccommodationTab";
 import UtilityServicesTab from "./UtilityServicesTab";
 import FocalPersonsTab from "./FocalPersonsTab";
 import OfficeProfileDetailView from "./OfficeProfileDetailView";
+import PageLayout from "../../PageLayout";
 import { ShadcnDataTable } from "@/components/common/ShadcnDataTable";
 import {
   SolvixStatCards,
@@ -965,29 +966,10 @@ export default function OfficeProfileWorkspace({
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#f4f7f5]">
-      {/* 1. Sticky Navigation Header */}
-      <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3.5 flex items-center justify-between sticky top-0 z-30 gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={mode === "list" ? (onBack || (() => window.history.back())) : handleBackToList}
-            className="rounded-full shrink-0 size-8 text-slate-600 hover:bg-slate-100"
-            aria-label="Back"
-          >
-            <ArrowLeft className="size-4" />
-          </Button>
-          <div className="min-w-0">
-            <h1 className="text-lg font-bold tracking-tight text-slate-900 truncate">
-              {getHeaderTitle()}
-            </h1>
-            <p className="text-xs text-slate-500 truncate mt-0.5">
-              {getHeaderSubtitle()}
-            </p>
-          </div>
-        </div>
-
+    <PageLayout
+      title={getHeaderTitle()}
+      onBack={mode === "list" ? undefined : handleBackToList}
+      actions={
         <div className="flex items-center gap-2 shrink-0">
           <Button
             variant="outline"
@@ -1025,10 +1007,8 @@ export default function OfficeProfileWorkspace({
             </Button>
           )}
         </div>
-      </div>
-
-      {/* 2. Solvix-style Clean Tab Underline Navigation Bar */}
-      <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 sticky top-[57px] z-20">
+      }
+      filters={
         <div className="flex gap-2 overflow-x-auto -mb-px" role="tablist">
           {TAB_CONFIG.map((tab) => {
             const active = activeTab === tab.key;
@@ -1072,11 +1052,10 @@ export default function OfficeProfileWorkspace({
             );
           })}
         </div>
-      </div>
-
-      {/* 3. Main Content View Area */}
-      <ScrollArea className="flex-1">
-        <div className="w-full px-4 md:px-6 py-5 space-y-5">
+      }
+      contentClassName="space-y-5 pb-8"
+    >
+      <div className="w-full space-y-5">
           {/* FOCAL PERSONS TAB DELEGATION */}
           {activeTab === "focal_persons" ? (
             <FocalPersonsTab
@@ -1275,7 +1254,6 @@ export default function OfficeProfileWorkspace({
             </>
           )}
         </div>
-      </ScrollArea>
-    </div>
+    </PageLayout>
   );
 }

@@ -121,11 +121,7 @@ export default function StockIssuesView() {
 
   return (
     <PageLayout
-      title={
-        <span className="flex items-center gap-2">
-          <Send className="w-5 h-5 text-[#25a872]" aria-hidden="true" /> Issuance
-        </span>
-      }
+      title="Issuance"
       description="Issue store stock to departments"
       actions={
         <Button

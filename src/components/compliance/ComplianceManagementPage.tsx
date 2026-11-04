@@ -39,6 +39,7 @@ import {
 } from "./complianceDrill";
 import { useCreateReviewAccess } from "@/src/access/createReviewAccess";
 import { SubmitConfirmModal, useReportingOfficerSubmitConfirm } from "@/src/components/SubmitConfirmModal";
+import PageLayout from "@/src/components/PageLayout";
 
 const MODULE_NAME = "Facility Compliance Report";
 
@@ -682,27 +683,21 @@ export default function ComplianceManagementPage({ onBack, defaultZoneId, defaul
     const categories = parseComplaintCategories(v.complaint_categories);
 
     return (
-      <div className="flex flex-col h-full bg-slate-50/30">
-        <div className="bg-white border-b border-border/50 px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30 gap-3">
-          <div className="flex items-center gap-3 min-w-0">
-            <Button variant="ghost" size="icon" onClick={() => { setMode(createOnly ? "form" : "list"); setViewReport(null); }} className="rounded-full shrink-0">
-              <ArrowLeft className="w-5 h-5" />
+      <PageLayout
+        title="Facility Compliance Report"
+        description={`Q${v.reporting_quarter ?? quarterFromWeek(Number(v.reporting_week))} · ${v.reporting_year} · ${v.facility_name || ""}`}
+        badge={<Badge className={`text-[10px] border gap-1 ${st.cls}`}>{st.icon}{st.label}</Badge>}
+        onBack={() => { setMode(createOnly ? "form" : "list"); setViewReport(null); }}
+        maxWidth="5xl"
+        actions={
+          canCreate && v.status !== "approved" ? (
+            <Button variant="outline" size="sm" onClick={() => { applyReport(v); setViewReport(null); setMode("form"); }} className="gap-2">
+              <Pencil className="w-4 h-4" /> {v.status === "draft" ? "Edit Draft" : "Edit"}
             </Button>
-            <div className="min-w-0">
-              <h2 className="text-xl font-bold tracking-tight truncate">Facility Compliance Report</h2>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <Badge className={`text-[10px] border gap-1 ${st.cls}`}>{st.icon}{st.label}</Badge>
-            {canCreate && v.status !== "approved" && (
-              <Button variant="outline" size="sm" onClick={() => { applyReport(v); setViewReport(null); setMode("form"); }} className="gap-2">
-                <Pencil className="w-4 h-4" /> {v.status === "draft" ? "Edit Draft" : "Edit"}
-              </Button>
-            )}
-          </div>
-        </div>
-        <ScrollArea className="flex-1">
-        <div className="w-full px-4 md:px-6 py-4 space-y-4 pb-16">
+          ) : null
+        }
+      >
+        <div className="w-full space-y-4 pb-16">
           <Card className="rounded-2xl border-[#d4e8dc]">
             <CardHeader>
               <CardTitle className="text-base">Report Header</CardTitle>
@@ -850,8 +845,7 @@ export default function ComplianceManagementPage({ onBack, defaultZoneId, defaul
             </CardContent>
           </Card>
         </div>
-        </ScrollArea>
-      </div>
+      </PageLayout>
     );
   }
 
@@ -1009,26 +1003,25 @@ export default function ComplianceManagementPage({ onBack, defaultZoneId, defaul
   }
 
   return (
-    <div className="flex flex-col h-full bg-slate-50/30">
-      <div className="bg-white border-b border-border/50 px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30 gap-3">
-        <h2 className="text-xl font-bold tracking-tight truncate">Facility Compliance Report</h2>
-        <div className="flex items-center gap-3 shrink-0">
+    <PageLayout
+      title="Facility Compliance Report"
+      actions={
+        <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
           </Button>
           {canCreate && (
-          <Button
-            className="bg-[#145c3f] hover:bg-[#0f3d2e] gap-2 shadow-lg shadow-emerald-500/20"
-            onClick={() => { resetForm(); setMode("form"); }}
-          >
-            <Plus className="w-4 h-4" /> New Report
-          </Button>
+            <Button
+              className="bg-[#145c3f] hover:bg-[#0f3d2e] text-white gap-2 shadow-sm"
+              onClick={() => { resetForm(); setMode("form"); }}
+            >
+              <Plus className="w-4 h-4" /> New Report
+            </Button>
           )}
         </div>
-      </div>
-
-      <ScrollArea className="flex-1">
-        <div className="w-full px-4 md:px-6 py-4 space-y-4">
+      }
+    >
+      <div className="w-full space-y-4">
           <Card className="rounded-2xl border-[#d4e8dc]">
             <CardContent className="pt-4 pb-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
               <div className="space-y-1">
@@ -1209,7 +1202,6 @@ export default function ComplianceManagementPage({ onBack, defaultZoneId, defaul
             </>
           )}
         </div>
-      </ScrollArea>
 
       <DashboardDrillPanel
         open={drillOpen}
@@ -1220,6 +1212,6 @@ export default function ComplianceManagementPage({ onBack, defaultZoneId, defaul
         onRowClick={handleDrillRowClick}
         onStatClick={handleDrillStatClick}
       />
-    </div>
+    </PageLayout>
   );
 }

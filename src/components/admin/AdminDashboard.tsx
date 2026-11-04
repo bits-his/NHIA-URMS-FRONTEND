@@ -1,4 +1,4 @@
-﻿import * as React from "react";
+import * as React from "react";
 import {
   Users, MapPin, Building2, Layers, ShieldCheck, Activity,
   TrendingUp, TrendingDown, RefreshCw, Zap, Database,
@@ -107,15 +107,15 @@ export default function AdminDashboard({ onNavigate }: { onNavigate?: (tab: stri
   ];
 
   return (
-    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="w-full space-y-3.5">
 
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-black text-slate-900 tracking-tight">Admin Overview</h1>
+          <h1 className="text-xl font-bold text-slate-900 tracking-tight">Admin Overview</h1>
         </div>
         <Button variant="outline" size="sm" onClick={load} disabled={loading}
-          className="border-[#d4e8dc] hover:bg-[#e8f5ee] gap-1.5 text-xs rounded-xl">
+          className="border-[#d4e8dc] hover:bg-[#e8f5ee] gap-1.5 text-xs rounded-md h-8">
           <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
           Refresh
         </Button>
@@ -124,14 +124,14 @@ export default function AdminDashboard({ onNavigate }: { onNavigate?: (tab: stri
       {/* KPI Stats Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3">
         {STAT_CARDS.map(({ key, label, icon: Icon, tint, iconCls, desc }) => (
-          <div key={key} className={`${tint} rounded-2xl p-4 border border-white/60 shadow-sm hover:shadow-md transition-all`}>
-            <div className={`w-9 h-9 rounded-xl bg-white/70 flex items-center justify-center shadow-sm mb-3 ${iconCls}`}>
+          <div key={key} className="rounded-lg p-3.5 border border-[#d4e8dc] bg-white shadow-2xs hover:border-[#145c3f] transition-all">
+            <div className={`w-8 h-8 rounded-md bg-[#e8f5ee] flex items-center justify-center shadow-2xs mb-2.5 ${iconCls}`}>
               <Icon className="w-4 h-4" />
             </div>
             {loading ? (
-              <div className="h-8 w-12 bg-white/50 rounded-lg animate-pulse mb-1" />
+              <div className="h-7 w-12 bg-white/50 rounded-md animate-pulse mb-1" />
             ) : (
-              <p className="text-2xl font-black text-slate-900 tracking-tight">
+              <p className="text-2xl font-bold text-slate-900 tracking-tight">
                 {stats ? (stats as any)[key] : 0}
               </p>
             )}
@@ -142,13 +142,13 @@ export default function AdminDashboard({ onNavigate }: { onNavigate?: (tab: stri
       </div>
 
       {/* Main content */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-3.5">
 
         {/* Left: Role breakdown chart + Quick nav */}
-        <div className="xl:col-span-2 space-y-5">
+        <div className="xl:col-span-2 space-y-3.5">
 
           {/* Role Breakdown Chart */}
-          <Card className="rounded-2xl border-[#d4e8dc] shadow-sm">
+          <Card className="rounded-lg border-[#d4e8dc] shadow-2xs">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-bold">Users by Role</CardTitle>
               <CardDescription className="text-xs">Distribution of registered users across all roles</CardDescription>
@@ -162,8 +162,8 @@ export default function AdminDashboard({ onNavigate }: { onNavigate?: (tab: stri
                     <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e8f5ee" />
                     <XAxis type="number" tick={{ fontSize: 10, fill: "#5a7a6a" }} axisLine={false} tickLine={false} />
                     <YAxis type="category" dataKey="role" tick={{ fontSize: 10, fill: "#5a7a6a" }} axisLine={false} tickLine={false} width={110} />
-                    <RTooltip contentStyle={{ borderRadius: 12, border: "1px solid #d4e8dc", fontSize: 12 }} />
-                    <Bar dataKey="count" name="Users" radius={[0,6,6,0]}
+                    <RTooltip contentStyle={{ borderRadius: 6, border: "1px solid #d4e8dc", fontSize: 12 }} />
+                    <Bar dataKey="count" name="Users" radius={[0,3,3,0]}
                       fill="#25a872"
                       label={{ position: "right", fontSize: 10, fill: "#5a7a6a" }}
                     />
@@ -175,12 +175,12 @@ export default function AdminDashboard({ onNavigate }: { onNavigate?: (tab: stri
 
           {/* Quick Navigation Cards */}
           <div>
-            <p className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-3">Quick Access</p>
+            <p className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2.5">Quick Access</p>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {navCards.map(n => (
                 <button key={n.tab} onClick={() => onNavigate?.(n.tab)}
-                  className="flex flex-col items-start p-4 rounded-2xl border border-[#d4e8dc] bg-white hover:border-[#25a872] hover:shadow-md transition-all text-left group">
-                  <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white mb-3 transition-transform group-hover:scale-110"
+                  className="flex flex-col items-start p-3.5 rounded-lg border border-[#d4e8dc] bg-white hover:border-[#145c3f] hover:shadow-2xs transition-all text-left group cursor-pointer">
+                  <div className="w-8 h-8 rounded-md flex items-center justify-center text-white mb-2.5 transition-colors"
                     style={{ backgroundColor: n.color }}>
                     {n.icon}
                   </div>
@@ -193,14 +193,14 @@ export default function AdminDashboard({ onNavigate }: { onNavigate?: (tab: stri
         </div>
 
         {/* Right: System Health + Stats summary */}
-        <div className="space-y-5">
+        <div className="space-y-3.5">
 
           {/* System Health */}
-          <div className="rounded-2xl p-5 overflow-hidden relative" style={{ background: "linear-gradient(135deg,#145c3f 0%,#0f3d2e 100%)" }}>
+          <div className="rounded-lg p-4 overflow-hidden relative shadow-2xs" style={{ background: "linear-gradient(135deg,#145c3f 0%,#0f3d2e 100%)" }}>
             <div className="absolute top-0 right-0 w-28 h-28 bg-white/5 rounded-full -mr-10 -mt-10 blur-2xl" />
             <div className="relative z-10">
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-8 h-8 rounded-xl bg-white/15 flex items-center justify-center">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-8 h-8 rounded-md bg-white/15 flex items-center justify-center">
                   <Zap className="w-4 h-4 text-[#6ddba8]" />
                 </div>
                 <div>
@@ -208,7 +208,7 @@ export default function AdminDashboard({ onNavigate }: { onNavigate?: (tab: stri
                   <p className="text-[10px] text-white/50">All systems operational</p>
                 </div>
               </div>
-              <div className="space-y-3">
+              <div className="space-y-2.5">
                 {systemHealth.map(s => (
                   <div key={s.label}>
                     <div className="flex justify-between items-center text-[10px] text-white/70 mb-1">
@@ -227,16 +227,16 @@ export default function AdminDashboard({ onNavigate }: { onNavigate?: (tab: stri
                   </div>
                 ))}
               </div>
-              <p className="text-[10px] text-white/40 mt-4">Last sync: just now</p>
+              <p className="text-[10px] text-white/40 mt-3">Last sync: just now</p>
             </div>
           </div>
 
           {/* Data Summary */}
-          <Card className="rounded-2xl border-[#d4e8dc] shadow-sm">
-            <CardHeader className="pb-3">
+          <Card className="rounded-lg border-[#d4e8dc] shadow-2xs">
+            <CardHeader className="pb-2.5">
               <CardTitle className="text-sm font-bold">Data Summary</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-2.5">
               {[
                 { label: "Total Users",   val: stats?.users,       icon: <Users className="w-3.5 h-3.5 text-[#145c3f]" />,      badge: "bg-[#e8f5ee] text-[#145c3f]" },
                 { label: "Active Users",  val: stats?.activeUsers, icon: <Activity className="w-3.5 h-3.5 text-blue-600" />,     badge: "bg-blue-50 text-blue-700" },
@@ -246,9 +246,9 @@ export default function AdminDashboard({ onNavigate }: { onNavigate?: (tab: stri
                 { label: "Departments",   val: stats?.departments, icon: <Layers className="w-3.5 h-3.5 text-purple-600" />,     badge: "bg-purple-50 text-purple-700" },
                 { label: "Units",         val: stats?.units,       icon: <Database className="w-3.5 h-3.5 text-emerald-600" />,  badge: "bg-emerald-50 text-emerald-700" },
               ].map(r => (
-                <div key={r.label} className="flex items-center justify-between py-1.5 border-b border-[#f0fdf7] last:border-0">
+                <div key={r.label} className="flex items-center justify-between py-1 border-b border-[#f0fdf7] last:border-0">
                   <span className="flex items-center gap-2 text-xs text-slate-600">{r.icon}{r.label}</span>
-                  <span className={`text-xs font-black px-2 py-0.5 rounded-lg ${r.badge}`}>
+                  <span className={`text-xs font-bold px-2 py-0.5 rounded-md ${r.badge}`}>
                     {loading ? "" : r.val ?? 0}
                   </span>
                 </div>
@@ -258,11 +258,11 @@ export default function AdminDashboard({ onNavigate }: { onNavigate?: (tab: stri
 
           {/* Active users ratio */}
           {stats && stats.users > 0 && (
-            <Card className="rounded-2xl border-[#d4e8dc] shadow-sm">
-              <CardContent className="p-4">
+            <Card className="rounded-lg border-[#d4e8dc] shadow-2xs">
+              <CardContent className="p-3.5">
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-xs font-bold text-slate-700">Active User Rate</p>
-                  <span className="text-xs font-black text-[#145c3f]">
+                  <span className="text-xs font-bold text-[#145c3f]">
                     {Math.round((stats.activeUsers / stats.users) * 100)}%
                   </span>
                 </div>

@@ -11,6 +11,7 @@ import { annualReportApi, stockApi, type OperationalDataRow } from "@/lib/api";
 import { AnnualReportDetailView } from "./AnnualReportDetailView";
 import { formatMetricValue } from "./annualReportConfig";
 import { downloadAnnualReport } from "@/src/utils/annualReportExport";
+import PageLayout from "@/src/components/PageLayout";
 import {
   REPORT_TYPES,
   buildSections,
@@ -367,13 +368,9 @@ export default function AnnualReportsList({
   };
 
   return (
-    <div className="flex flex-col h-full bg-slate-50/30">
-      <div className="bg-white border-b border-border/50 px-6 py-4 flex items-center justify-between sticky top-0 z-30 shrink-0">
-        <div className="flex items-center gap-4 min-w-0">
-          <Button variant="ghost" size="icon" onClick={onBack} className="rounded-full shrink-0">
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-        </div>
+    <PageLayout
+      title="Annual Performance Reports"
+      actions={
         <div className="flex items-center gap-2 shrink-0">
           <div className="flex rounded-lg border border-slate-200 p-0.5 bg-slate-50">
             <Button
@@ -434,9 +431,10 @@ export default function AnnualReportsList({
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
           </Button>
         </div>
-      </div>
-
-      <div className="px-6 py-4 border-b bg-white shrink-0 space-y-3">
+      }
+    >
+      <div className="w-full space-y-4">
+        <div className="p-4 border rounded-xl bg-white space-y-3 shadow-2xs">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-end">
           <div className="space-y-1.5">
             <Label className="text-xs font-semibold text-slate-600">Year</Label>
@@ -563,7 +561,8 @@ export default function AnnualReportsList({
             />
           </>
         )}
+        </div>
       </div>
-    </div>
+    </PageLayout>
   );
 }

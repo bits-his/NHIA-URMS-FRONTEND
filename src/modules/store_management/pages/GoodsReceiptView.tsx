@@ -36,11 +36,7 @@ export default function GoodsReceiptView({ onNavigate }: { onNavigate?: (view: s
 
   return (
     <PageLayout
-      title={
-        <span className="flex items-center gap-2">
-          <Receipt className="w-5 h-5 text-[#25a872]" /> Goods Receipt Notes (GRN)
-        </span>
-      }
+      title="Goods Receipt Notes (GRN)"
       description="Verification and recording of supplies delivered to NHIA stores"
       actions={
         <>

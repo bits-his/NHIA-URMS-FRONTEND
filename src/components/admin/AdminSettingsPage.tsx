@@ -1,5 +1,6 @@
 import * as React from "react";
 import { Users, MapPin, Building2, Layers, ShieldCheck, Shield } from "lucide-react";
+import PageLayout from "@/src/components/PageLayout";
 import AdminUsersPage from "./AdminUsersPage";
 import AdminRolesPage from "./AdminRolesPage";
 import AdminZonesPage from "./AdminZonesPage";
@@ -24,29 +25,29 @@ export default function AdminSettingsPage() {
   const [tab, setTab] = React.useState<Tab>("users");
 
   return (
-    <div className="relative z-10 p-6 max-w-7xl mx-auto space-y-5">
-      <div>
-        <h1 className="text-xl font-black text-slate-900 tracking-tight">Staff Management</h1>
-      </div>
-
-      <div className="flex items-center gap-1 bg-white border border-[#d4e8dc] rounded-2xl p-1.5 w-fit flex-wrap">
-        {TABS.map(t => (
-          <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
-              tab === t.id
-                ? "bg-[#145c3f] text-white shadow-md shadow-[#145c3f]/20"
-                : "text-slate-500 hover:bg-[#e8f5ee] hover:text-[#145c3f]"
-            }`}
-          >
-            {t.icon}
-            {t.label}
-          </button>
-        ))}
-      </div>
-
-      <div>
+    <PageLayout
+      title="Staff Management"
+      maxWidth="7xl"
+      filters={
+        <div className="flex items-center gap-1.5 p-1 w-full flex-wrap">
+          {TABS.map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                tab === t.id
+                  ? "bg-[#145c3f] text-white shadow-2xs"
+                  : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+              }`}
+            >
+              {t.icon}
+              {t.label}
+            </button>
+          ))}
+        </div>
+      }
+    >
+      <div className="w-full">
         {tab === "users"       && <AdminUsersPage />}
         {tab === "roles"       && <AdminRolesPage />}
         {tab === "privileges"  && <AdminPrivilegesPage />}
@@ -55,6 +56,6 @@ export default function AdminSettingsPage() {
         {tab === "departments" && <AdminDepartmentsPage />}
         {tab === "units"       && <AdminUnitsPage />}
       </div>
-    </div>
+    </PageLayout>
   );
 }

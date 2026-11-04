@@ -9,6 +9,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { ColumnDef } from "@tanstack/react-table";
+import PageLayout from "../PageLayout";
 import { ShadcnDataTable } from "@/components/common/ShadcnDataTable";
 import { challengesSupportApi as api } from "@/lib/api";
 import { Field, FieldSection } from "./EnrolmentActivityForm";
@@ -408,91 +409,79 @@ export default function ChallengesSupportWorkspace({ onBack }: Props) {
     },
   ], [busy, catalogue]);
 
-  const header = (
-    <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3.5 flex items-center justify-between sticky top-0 z-30 gap-3">
-      <div className="flex items-center gap-3 min-w-0">
-        <Button variant="ghost" size="icon" className="rounded-full shrink-0" aria-label="Back" onClick={handleBack}>
-          <ArrowLeft className="w-5 h-5" />
+  const actions = (
+    <>
+      {["challenges", "support"].includes(mode) && (
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-8.5 gap-1.5 border border-slate-300 text-slate-700 bg-white hover:bg-[#f4f7f5] text-xs font-bold rounded-sm shadow-2xs"
+          disabled={busy || loading}
+          onClick={() => void run(refresh)}
+        >
+          <RefreshCw className={`w-3.5 h-3.5 ${busy ? "animate-spin" : ""}`} />
+          <span>Sync</span>
         </Button>
-        <div className="min-w-0">
-          <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">Challenges &amp; Support</h2>
-          <p className="text-xs text-slate-500 truncate">Operational challenges, departmental support requests, and action queue</p>
-        </div>
-      </div>
-      <div className="flex items-center gap-2 shrink-0">
-        {["challenges", "support"].includes(mode) && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8.5 gap-1.5 border border-slate-300 text-slate-700 bg-white hover:bg-[#f4f7f5] text-xs font-bold rounded-sm shadow-2xs"
-            disabled={busy || loading}
-            onClick={() => void run(refresh)}
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${busy ? "animate-spin" : ""}`} />
-            <span>Sync</span>
-          </Button>
-        )}
-        {permissions.create && (
-          <Button
-            size="sm"
-            className="h-8.5 bg-[#1a7a52] hover:bg-[#145c3f] text-white border border-[#145c3f] font-bold text-xs gap-1.5 rounded-sm shadow-xs"
-            disabled={busy}
-            onClick={() => startChallengeForm()}
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Record Challenge</span>
-          </Button>
-        )}
-        {permissions.create && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8.5 bg-white hover:bg-[#f4f7f5] text-[#1a7a52] border-2 border-[#1a7a52] font-bold text-xs gap-1.5 rounded-sm shadow-xs"
-            disabled={busy}
-            onClick={() => startSupportForm(null)}
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Request Support</span>
-          </Button>
-        )}
-      </div>
-    </div>
+      )}
+      {permissions.create && (
+        <Button
+          size="sm"
+          className="h-8.5 bg-[#1a7a52] hover:bg-[#145c3f] text-white border border-[#145c3f] font-bold text-xs gap-1.5 rounded-sm shadow-xs"
+          disabled={busy}
+          onClick={() => startChallengeForm()}
+        >
+          <Plus className="w-3.5 h-3.5" />
+          <span>Record Challenge</span>
+        </Button>
+      )}
+      {permissions.create && (
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-8.5 bg-white hover:bg-[#f4f7f5] text-[#1a7a52] border-2 border-[#1a7a52] font-bold text-xs gap-1.5 rounded-sm shadow-xs"
+          disabled={busy}
+          onClick={() => startSupportForm(null)}
+        >
+          <Plus className="w-3.5 h-3.5" />
+          <span>Request Support</span>
+        </Button>
+      )}
+    </>
   );
-  const tabs = ["challenges", "support"].includes(mode) && (
-    <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 sticky top-[57px] z-20">
-      <div className="flex gap-0 overflow-x-auto -mb-px" role="tablist" aria-label="Challenges and Support">
-        {[
-          { key: "challenges", label: "Challenges Register", count: challenges.length, icon: AlertTriangle },
-          { key: "support", label: "Support Requests", count: supportList.length, icon: HandHelping },
-        ].map(({ key, label, count, icon: Icon }) => (
-          <button
-            key={key}
-            type="button"
-            role="tab"
-            aria-selected={mode === key}
-            onClick={() => setMode(key as any)}
-            className={`group relative shrink-0 inline-flex items-center gap-2 px-4 py-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors outline-none focus-visible:bg-[#f4f7f5] ${
-              mode === key
-                ? "border-[#145c3f] text-[#145c3f]"
-                : "border-transparent text-slate-500 hover:text-[#0f3d2e] hover:border-[#c5ddd0]"
-            }`}
-          >
-            <Icon className="w-4 h-4" />
-            <span>{label}</span>
-            {count !== null && (
-              <span
-                className={`inline-flex min-w-[1.25rem] h-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold tabular-nums ${
-                  mode === key ? "bg-[#e8f6ee] text-[#145c3f]" : "bg-slate-100 text-slate-500"
-                }`}
-              >
-                {count}
-              </span>
-            )}
-          </button>
-        ))}
-      </div>
+
+  const tabs = ["challenges", "support"].includes(mode) ? (
+    <div className="flex gap-0 overflow-x-auto -mb-px" role="tablist" aria-label="Challenges and Support">
+      {[
+        { key: "challenges", label: "Challenges Register", count: challenges.length, icon: AlertTriangle },
+        { key: "support", label: "Support Requests", count: supportList.length, icon: HandHelping },
+      ].map(({ key, label, count, icon: Icon }) => (
+        <button
+          key={key}
+          type="button"
+          role="tab"
+          aria-selected={mode === key}
+          onClick={() => setMode(key as any)}
+          className={`group relative shrink-0 inline-flex items-center gap-2 px-4 py-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors outline-none focus-visible:bg-[#f4f7f5] ${
+            mode === key
+              ? "border-[#145c3f] text-[#145c3f]"
+              : "border-transparent text-slate-500 hover:text-[#0f3d2e] hover:border-[#c5ddd0]"
+          }`}
+        >
+          <Icon className="w-4 h-4" />
+          <span>{label}</span>
+          {count !== null && (
+            <span
+              className={`inline-flex min-w-[1.25rem] h-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold tabular-nums ${
+                mode === key ? "bg-[#e8f6ee] text-[#145c3f]" : "bg-slate-100 text-slate-500"
+              }`}
+            >
+              {count}
+            </span>
+          )}
+        </button>
+      ))}
     </div>
-  );
+  ) : undefined;
 
   if (loading) return <div className="flex flex-col h-full bg-[#f4f7f5]">{header}<div className="flex items-center justify-center py-16 gap-3 text-slate-400"><Loader2 className="w-5 h-5 animate-spin" /><span className="text-sm">Loading...</span></div></div>;
 
@@ -703,11 +692,24 @@ export default function ChallengesSupportWorkspace({ onBack }: Props) {
     </div>
   );
 
+  const isViewOrForm = ["challenge-form", "support-form", "challenge-detail", "support-detail"].includes(mode);
+
   return (
-    <div className="flex flex-col h-full bg-[#f4f7f5]">
-      {header}{tabs}
-      <ScrollArea className="flex-1"><div className="w-full px-3 md:px-5 py-2.5 space-y-3 pb-6">
-        {error && <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700" role="alert">{error}</div>}
+    <PageLayout
+      title={
+        mode === "challenge-form" ? (editingId ? "Edit Challenge" : "Record Challenge")
+        : mode === "support-form" ? (editingId ? "Edit Support Request" : "Request Support")
+        : mode === "challenge-detail" ? `Challenge ${detail?.challenge_id || ""}`
+        : mode === "support-detail" ? `Support Request ${detail?.support_id || ""}`
+        : "Challenges & Support"
+      }
+      onBack={isViewOrForm ? handleBack : undefined}
+      actions={actions}
+      filters={tabs}
+      error={error}
+      contentClassName="space-y-3 pb-6"
+    >
+      <div className="w-full space-y-3">
         {mode === "challenges" && (
           <ShadcnDataTable
             title="CHALLENGES REGISTER"
@@ -742,7 +744,7 @@ export default function ChallengesSupportWorkspace({ onBack }: Props) {
         {mode === "support-form" && supportForm}
         {mode === "challenge-detail" && challengeDetail}
         {mode === "support-detail" && supportDetail}
-      </div></ScrollArea>
-    </div>
+      </div>
+    </PageLayout>
   );
 }

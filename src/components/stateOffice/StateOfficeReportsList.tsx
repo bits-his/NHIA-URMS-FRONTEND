@@ -23,6 +23,7 @@ import IgrReportPage from "./IgrReportPage";
 import IgrReportDetail from "./IgrReportDetail";
 import SshiaFinancialReportPage from "./SshiaFinancialReportPage";
 import SshiaFinancialReportDetail from "./SshiaFinancialReportDetail";
+import PageLayout from "@/src/components/PageLayout";
 import ExpenditureProfileReportPage from "./ExpenditureProfileReportPage";
 import ExpenditureProfileReportDetail from "./ExpenditureProfileReportDetail";
 import {
@@ -611,37 +612,24 @@ export default function StateOfficeReportsList({
   }
 
   return (
-    <div className="flex flex-col h-full bg-slate-50/30">
-        <div className="bg-white border-b border-border/50 px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30">
-        <div className="flex items-center gap-3 min-w-0">
-          <Button variant="ghost" size="icon" onClick={onBack} className="rounded-full shrink-0" aria-label="Back">
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-          <div className="min-w-0">
-            <h2 className="text-xl font-bold tracking-tight truncate">{listTitle ?? cfg.title}</h2>
-            {providerWorkflow && !isFinanceList && (
-              <p className="text-xs text-slate-500 truncate">
-                {canReview
-                  ? "Review and endorse reports awaiting your action"
-                  : "Your reports — draft, send for review, then final-submit after endorsement"}
-              </p>
-            )}
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
+    <PageLayout
+      title={listTitle ?? cfg.title}
+      actions={
+        <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
           </Button>
           {canCreate && (
-          <Button
-            className="bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20"
-            onClick={() => { setSelectedId(null); setSelectedReportType(reportType); setMode("create"); setFormKey((k) => k + 1); }}
-          >
-            <Plus className="w-4 h-4" /> {newButtonLabel}
-          </Button>
+            <Button
+              className="bg-[#145c3f] hover:bg-[#0f3d2e] text-white gap-2 shadow-sm"
+              onClick={() => { setSelectedId(null); setSelectedReportType(reportType); setMode("create"); setFormKey((k) => k + 1); }}
+            >
+              <Plus className="w-4 h-4" /> {newButtonLabel}
+            </Button>
           )}
         </div>
-      </div>
+      }
+    >
 
       {hasActivityTabs && (
         <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 sticky top-[57px] z-20">
@@ -1362,6 +1350,8 @@ export default function StateOfficeReportsList({
           onCancel={submitConfirm.cancel}
         />
       )}
-    </div>
+
+      
+    </PageLayout>
   );
 }

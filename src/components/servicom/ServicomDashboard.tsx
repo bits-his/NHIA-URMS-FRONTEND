@@ -25,6 +25,7 @@ import { servicomApi } from "@/lib/api";
 import { zonesApi, statesApi } from "@/lib/adminApi";
 import { DashKpi, DashChartCard } from "@/components/dashboard/dashboardUi";
 import DashboardDrillPanel from "@/components/dashboard/DashboardDrillPanel";
+import PageLayout from "../PageLayout";
 import { useDashboardDrill } from "@/components/dashboard/useDashboardDrill";
 import { satisfactionCategoryLabel } from "./servicomSurveyConstants";
 import ComplaintRegisterDashboard from "./ComplaintRegisterDashboard";
@@ -227,47 +228,23 @@ export default function ServicomDashboard({ onBack, defaultStateId, defaultZoneI
     : (states.find((s) => String(s.code) === filterState)?.description || filterState);
 
   return (
-    <div className="flex flex-col h-full bg-slate-50/40">
-      {/* 1. Master Header */}
-      <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sticky top-0 z-30">
-        <div className="flex items-center gap-3 min-w-0">
-          {onBack && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={onBack}
-              className="rounded-sm hover:bg-[#e8f5ee] text-slate-700"
-              aria-label="Back"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
-          )}
-          <div className="min-w-0">
-            <h1 className="text-xl font-black tracking-tight text-slate-900 truncate">
-              SERVICOM Dashboard
-            </h1>
-            <p className="text-xs text-slate-500 truncate">
-              Unified service delivery intelligence across Customer Satisfaction Surveys, Complaints Management &amp; Citizens' Comment Cards
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => { void load(); void loadSurveys(); }}
-            disabled={loading || surveysLoading}
-            className="h-8.5 gap-1.5 border border-slate-300 text-slate-700 bg-white hover:bg-[#f4f7f5] text-xs font-bold rounded-sm shadow-2xs"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading || surveysLoading ? "animate-spin" : ""}`} />
-            <span>Sync</span>
-          </Button>
-        </div>
-      </div>
-
-      {/* 2. Unified Tab Navigation Bar (in sidebar order: Citizens' Comment Card, Complaints, Satisfaction Survey) */}
-      <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 sticky top-[57px] z-20">
+    <PageLayout
+      title="SERVICOM Dashboard"
+      showBack={false}
+      maxWidth="full"
+      actions={
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => { void load(); void loadSurveys(); }}
+          disabled={loading || surveysLoading}
+          className="h-8.5 gap-1.5 border border-slate-300 text-slate-700 bg-white hover:bg-[#f4f7f5] text-xs font-bold rounded-sm shadow-2xs"
+        >
+          <RefreshCw className={`w-3.5 h-3.5 ${loading || surveysLoading ? "animate-spin" : ""}`} />
+          <span>Sync</span>
+        </Button>
+      }
+      filters={
         <div className="flex gap-4 overflow-x-auto -mb-px" role="tablist">
           <button
             type="button"
@@ -341,11 +318,10 @@ export default function ServicomDashboard({ onBack, defaultStateId, defaultZoneI
             </span>
           </button>
         </div>
-      </div>
-
-      {/* 3. Main Body Content */}
-      <ScrollArea className="flex-1">
-        <div className="w-full px-4 md:px-6 py-5 max-w-7xl mx-auto space-y-6">
+      }
+      contentClassName="space-y-4 pb-6"
+    >
+      <div className="w-full space-y-4">
           {/* TAB 1: Citizens' Comment Card */}
           {activeTab === "comment-card" && (
             <div className="space-y-6">
@@ -531,7 +507,6 @@ export default function ServicomDashboard({ onBack, defaultStateId, defaultZoneI
             />
           )}
         </div>
-      </ScrollArea>
 
       <DashboardDrillPanel
         open={drill.open}
@@ -543,7 +518,7 @@ export default function ServicomDashboard({ onBack, defaultStateId, defaultZoneI
         onRowClick={drill.handleNestedRow}
         onStatClick={drill.handleStatClick}
       />
-    </div>
+    </PageLayout>
   );
 }
 
@@ -736,11 +711,11 @@ function StateComparePanel({
   className?: string;
 }) {
   return (
-    <div className={`grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch ${className}`}>
-      <div className="rounded-xl border border-[#d4e8dc] bg-white p-4 space-y-3">
+    <div className={`grid grid-cols-1 md:grid-cols-2 gap-3.5 items-stretch ${className}`}>
+      <div className="rounded-lg border border-[#d4e8dc] bg-white p-3.5 space-y-3 shadow-2xs">
         <div className="flex items-center gap-2">
           <TrendingUp className="w-4 h-4 text-[#145c3f]" />
-          <p className="text-sm font-semibold text-slate-800">Top performing states</p>
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-800">Top performing states</p>
         </div>
         {topStates.length === 0 ? (
           <ChartEmpty message="No ranked states yet." />
@@ -757,15 +732,15 @@ function StateComparePanel({
               <XAxis dataKey="name" tick={{ fontSize: 10 }} interval={0} angle={-20} textAnchor="end" height={48} />
               <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} />
               <Tooltip />
-              <Bar dataKey="score" fill="#1a7a52" radius={[4, 4, 0, 0]} maxBarSize={32} />
+              <Bar dataKey="score" fill="#1a7a52" radius={[3, 3, 0, 0]} maxBarSize={32} />
             </BarChart>
           </ResponsiveContainer>
         )}
       </div>
-      <div className="rounded-xl border border-rose-200 bg-rose-50/40 p-4 space-y-3">
+      <div className="rounded-lg border border-rose-200 bg-rose-50/40 p-3.5 space-y-3 shadow-2xs">
         <div className="flex items-center gap-2">
           <TrendingDown className="w-4 h-4 text-rose-700" />
-          <p className="text-sm font-semibold text-slate-800">Priority states (corrective action)</p>
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-800">Priority states (corrective action)</p>
         </div>
         {lowStates.length === 0 ? (
           <p className="text-xs text-slate-500 py-8 text-center">No low-performing states in this period.</p>

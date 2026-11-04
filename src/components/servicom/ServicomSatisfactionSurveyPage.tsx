@@ -26,6 +26,7 @@ import { servicomApi } from "@/lib/api";
 import { zonesApi, statesApi } from "@/lib/adminApi";
 import { pickGeoLabel } from "./servicomConstants";
 import AccreditedProviderSelect from "@/src/components/stateOffice/AccreditedProviderSelect";
+import PageLayout from "@/src/components/PageLayout";
 import {
   SATISFACTION_QUESTIONS,
   SATISFACTION_CATEGORIES,
@@ -691,46 +692,31 @@ export default function ServicomSatisfactionSurveyPage({
     );
 
     return (
-      <div key={formKey} className="flex flex-col h-full bg-[#f4f7f5]">
-        <div className="bg-white border-b-2 border-[#1a7a52] px-4 md:px-6 py-3.5 flex items-center justify-between sticky top-0 z-30">
-          <div className="flex items-center gap-3 min-w-0">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={leaveForm}
-              className="rounded-sm shrink-0 hover:bg-[#e8f5ee] text-slate-700"
-              aria-label="Back"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
-            <div className="min-w-0">
-              <h2 className="text-lg font-black tracking-tight text-slate-900 truncate">
-                New HCF Customer Satisfaction Survey
-              </h2>
-              <p className="text-xs text-slate-500">Record enrollee feedback across core healthcare service dimensions</p>
-            </div>
-          </div>
+      <PageLayout
+        key={formKey}
+        title="New HCF Customer Satisfaction Survey"
+        onBack={leaveForm}
+        maxWidth="5xl"
+        actions={
           <Badge variant="outline" className="text-xs font-bold border border-[#1a7a52] text-[#1a7a52] shrink-0 bg-[#f4f7f5] rounded-sm">
             {scoreSummary.answered} / {SATISFACTION_QUESTIONS.length} answered
           </Badge>
-        </div>
-
-        <ScrollArea className="flex-1">
-          <div className="w-full px-4 md:px-6 py-4 pb-8 space-y-4 max-w-5xl mx-auto">
-            {renderDetailsCard(false)}
-            {renderAllQuestions(f.responses, false)}
-            <div className="flex flex-wrap items-center justify-end gap-3 pt-2">
-              {formActions}
-            </div>
+        }
+      >
+        <div className="w-full space-y-4 pb-8">
+          {renderDetailsCard(false)}
+          {renderAllQuestions(f.responses, false)}
+          <div className="flex flex-wrap items-center justify-end gap-3 pt-2">
+            {formActions}
           </div>
-        </ScrollArea>
+        </div>
         <SubmitConfirmModal
           open={submitConfirm.open}
           busy={submitConfirm.busy || saving}
           onConfirm={submitConfirm.confirm}
           onCancel={submitConfirm.cancel}
         />
-      </div>
+      </PageLayout>
     );
   }
 
@@ -740,28 +726,11 @@ export default function ServicomSatisfactionSurveyPage({
     const responses = parseStoredResponses(row?.responses);
 
     return (
-      <div className="flex flex-col h-full bg-[#f4f7f5]">
-        <div className="bg-white border-b-2 border-[#1a7a52] px-4 md:px-6 py-3.5 flex items-center justify-between sticky top-0 z-30">
-          <div className="flex items-center gap-3 min-w-0">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={closeSub}
-              className="rounded-sm hover:bg-[#e8f5ee] shrink-0 text-slate-700"
-              aria-label="Back to table"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
-            <div className="min-w-0">
-              <h2 className="text-lg font-black tracking-tight text-slate-900">
-                HCF Customer Satisfaction Survey Detail
-              </h2>
-              {row?.provider_name && (
-                <p className="text-xs text-[#1a7a52] font-semibold truncate">{row.provider_name}</p>
-              )}
-            </div>
-          </div>
-
+      <PageLayout
+        title="HCF Customer Satisfaction Survey Detail"
+        onBack={closeSub}
+        maxWidth="5xl"
+        actions={
           <Button
             variant="outline"
             size="sm"
@@ -770,44 +739,23 @@ export default function ServicomSatisfactionSurveyPage({
           >
             Back to Register
           </Button>
+        }
+      >
+        <div className="w-full space-y-4 pb-8">
+          {renderDetailsCard(true, row ?? undefined)}
+          {renderAllQuestions(responses, true)}
         </div>
-
-        <ScrollArea className="flex-1">
-          <div className="w-full px-4 md:px-6 py-4 pb-8 space-y-4 max-w-5xl mx-auto">
-            {renderDetailsCard(true, row ?? undefined)}
-            {renderAllQuestions(responses, true)}
-          </div>
-        </ScrollArea>
-      </div>
+      </PageLayout>
     );
   }
 
   // MAIN WORKSPACE VIEW (Register)
   return (
-    <div className="flex flex-col h-full bg-[#f4f7f5]">
-      {/* 1. Master Workspace Header */}
-      <div className="bg-white border-b px-4 md:px-6 py-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sticky top-0 z-30">
-        <div className="flex items-center gap-3">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onBack}
-            className="rounded-sm hover:bg-[#e8f5ee] text-slate-700"
-            aria-label="Back"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-          <div>
-            <h2 className="text-xl font-black tracking-tight text-slate-900">
-              HCF Customer Satisfaction Survey
-            </h2>
-            <p className="text-xs text-slate-500">
-              Enrollee Feedback & Healthcare Provider Satisfaction Analytics
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2.5 self-end sm:self-center">
+    <PageLayout
+      title="HCF Customer Satisfaction Survey"
+      maxWidth="7xl"
+      actions={
+        <div className="flex items-center gap-2">
           <Button
             variant="outline"
             size="sm"
@@ -826,12 +774,10 @@ export default function ServicomSatisfactionSurveyPage({
             </Button>
           )}
         </div>
-      </div>
-
-      {/* 2. Main Register Content */}
-      <ScrollArea className="flex-1">
-        <div className="w-full px-4 md:px-6 py-5 max-w-7xl mx-auto space-y-6">
-          <div className="space-y-4">
+      }
+    >
+      <div className="w-full space-y-6">
+        <div className="space-y-4">
             {/* Filter Bar with Zone, State, Date matching Select styling */}
             <Card className="rounded-sm border border-slate-200/80 bg-white shadow-xs">
               <CardContent className="p-3.5">
@@ -928,7 +874,6 @@ export default function ServicomSatisfactionSurveyPage({
               />
           </div>
         </div>
-      </ScrollArea>
-    </div>
+    </PageLayout>
   );
 }

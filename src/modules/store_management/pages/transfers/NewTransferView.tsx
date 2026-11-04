@@ -137,11 +137,7 @@ export function NewTransferView() {
 
   return (
     <PageLayout
-      title={
-        <span className="flex items-center gap-2">
-          <ArrowRightLeft className="w-5 h-5 text-[#25a872]" /> New Asset Transfer
-        </span>
-      }
+      title="New Asset Transfer"
       description="Request custody handoff between offices — submitted for approval"
       actions={
         <Button
