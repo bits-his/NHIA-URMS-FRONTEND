@@ -294,8 +294,6 @@ export const MODULE_CONFIG: ParentModule[] = [
           { title: "IGR, SSHIA & Expenditure", view: "state-finance", path: "/zonal/finance/records", navLabel: "Finance" },
         ]},
         { type: "group", label: "Admin / Human Resource", children: [
-          { title: "State Office Meeting Report", view: "state-office-meeting", path: "/zonal/admin-hr/office-meeting" },
-          { title: "ETMC Cascading Report", view: "state-etmc-cascading", path: "/zonal/admin-hr/etmc-cascading" },
           { title: "Office Accommodation", view: "state-office-accommodation", path: "/zonal/admin-hr/office-accommodation" },
           { title: "Utility Services", view: "state-utility-services", path: "/zonal/admin-hr/utility-services" },
           { title: "Vehicle Maintenance", view: "state-vehicle-maintenance", path: "/zonal/admin-hr/vehicle-maintenance" },

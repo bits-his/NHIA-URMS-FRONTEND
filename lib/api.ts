@@ -75,8 +75,6 @@ export const enrolmentDrivesApi = {
   analytics: (filters: Record<string, string> = {}) => driveRequest(`/analytics?${new URLSearchParams(filters)}`),
   actions: () => driveRequest("/actions"),
   saveAction: (id: string | undefined, payload: unknown) => driveRequest(id ? `/actions/${encodeURIComponent(id)}` : "/actions", id ? "PUT" : "POST", payload),
-  legacy: () => driveRequest("/legacy"),
-  attachLegacy: (batchId: string, id: string) => driveRequest(`/batches/${encodeURIComponent(batchId)}/legacy/${encodeURIComponent(id)}`, "POST"),
 };
 
 const MC_ROOT = "/state-office/meetings";

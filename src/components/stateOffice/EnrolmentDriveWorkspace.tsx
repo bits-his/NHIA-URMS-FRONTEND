@@ -1,6 +1,6 @@
 import * as React from "react";
-import { useSearchParams } from "react-router-dom";
-import { ArrowLeft, ArrowRight, ChevronDown, Plus, RefreshCw, Save, Send, Download, Users, Pencil, Trash2, Eye, FileText, Clock, CheckCircle2, ClipboardList, History, Loader2 } from "lucide-react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { ArrowLeft, ArrowRight, ChevronDown, Plus, RefreshCw, Save, Send, Download, Users, Pencil, Trash2, Eye, FileText, Clock, CheckCircle2, ClipboardList, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -90,10 +90,6 @@ type Batch = {
   activities?: Activity[]; summary?: Record<string, number>;
   reviews?: { reference_id: string; action: string; actor_name: string; note: string; createdAt?: string; created_at?: string; revision: number }[];
 };
-type FollowUp = {
-  reference_id?: string; state_code: string; reporting_year: string; reporting_month: string; issue: string; agreed_action: string;
-  source_dashboard: string; accountable_owner: string; owner_user_id: string; deadline: string; status: string; outcome: string; evidence?: Evidence[]; can_update?: boolean; closure_date?: string;
-};
 const emptyActivity = (): Activity => ({ drive_type: "", activity_date: "", activity_category: "", specific_activity: "", location_category: "", location_name: "", exact_location: "", programs_supported: [], target_audience: [], other_audience: "", planned_target_audience: "", target_audience_reached: "", leads_generated: "", activity_status: "", status_reason: "", funding_option: "", activity_budget: "", approved_amount: "", activity_details: "", evidence_type: "", remarks: "" });
 const toDraft = (row: Activity): Activity => Object.fromEntries(Object.entries({ ...emptyActivity(), ...row }).map(([key, value]) => [key, value ?? ""])) as Activity;
 const editable = (batch: Batch | null) => !!batch && ["draft", "returned"].includes(batch.status);
@@ -134,11 +130,12 @@ function EvidenceFiles({ files }: { files: Evidence[] }) {
   }}><Download className="mr-1 h-3 w-3" />{file.original_name}</Button>)}</div>;
 }
 export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaultZoneId }: { onBack: () => void; defaultZoneId?: string | null; defaultStateId?: string | null }) {
+  const routerNavigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [catalogue, setCatalogue] = React.useState<Catalogue | null>(null);
   const [batches, setBatches] = React.useState<Batch[]>([]);
   const [batch, setBatch] = React.useState<Batch | null>(null);
-  const [mode, setMode] = React.useState<"register" | "batch" | "view" | "activity" | "actions" | "legacy">("register");
+  const [mode, setMode] = React.useState<"register" | "batch" | "view" | "activity">("register");
   const [busy, setBusy] = React.useState(false);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState("");
@@ -161,24 +158,6 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
   const [reportingDeadline, setReportingDeadline] = React.useState("");
   const [analytics, setAnalytics] = React.useState<any>(null);
   const [reportFilter, setReportFilter] = React.useState({ year: String(new Date().getFullYear()), month: String(new Date().getMonth() + 1) });
-  const [actions, setActions] = React.useState<FollowUp[]>([]);
-  const blankAction = (seed?: { state_code?: string; issue?: string }): FollowUp => ({
-    state_code: seed?.state_code || batch?.state_code || period.state_code,
-    reporting_year: String(batch?.reporting_year || period.reporting_year),
-    reporting_month: String(batch?.reporting_month || period.reporting_month),
-    issue: seed?.issue || "",
-    agreed_action: "",
-    source_dashboard: "Enrolment Drives",
-    accountable_owner: "",
-    owner_user_id: "",
-    deadline: "",
-    status: "Open",
-    outcome: "",
-  });
-  const [actionDraft, setActionDraft] = React.useState<FollowUp | null>(null);
-  const [actionFiles, setActionFiles] = React.useState<File[]>([]);
-  const [actionEvidenceType, setActionEvidenceType] = React.useState("Field Report");
-  const [historical, setHistorical] = React.useState<any[]>([]);
   const [activityErrors, setActivityErrors] = React.useState<Record<string, string>>({});
   const [expandedActivityId, setExpandedActivityId] = React.useState<string | null>(null);
   const activityFormRef = React.useRef<HTMLDivElement>(null);
@@ -247,21 +226,15 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
     if (catalogue?.states.length === 1) setPeriod((current) => current.state_code ? current : { ...current, state_code: catalogue.states[0].code });
   }, [catalogue]);
   React.useEffect(() => {
-    const tab = searchParams.get("tab");
-    if (tab !== "actions" || !catalogue) return;
+    // Legacy Management Follow-up links now live on the Enrolment Drives Dashboard.
+    if (searchParams.get("tab") !== "actions") return;
+    const params = new URLSearchParams({ tab: "enrolment-drives", face: "followup" });
     const stateCode = searchParams.get("state") || defaultStateId || "";
     const issue = searchParams.get("issue") || "";
-    void run(async () => {
-      setActions((await api.actions()).data);
-      setMode("actions");
-      if (catalogue.permissions?.manage) {
-        setActionDraft(blankAction({ state_code: stateCode || undefined, issue: issue || undefined }));
-        setActionFiles([]);
-      }
-      setSearchParams({}, { replace: true });
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [catalogue, searchParams]);
+    if (stateCode) params.set("state", stateCode);
+    if (issue) params.set("issue", issue);
+    routerNavigate(`/zonal/dashboard?${params.toString()}`, { replace: true });
+  }, [searchParams, defaultStateId, routerNavigate]);
   const openBatch = async (id: string, preferredStep?: number) => {
     const response = await api.batch(id);
     const locked = ["awaiting_review", "endorsed", "submitted"].includes(response.data.status);
@@ -278,8 +251,6 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
   const navigate = (next: typeof mode) => run(async () => {
     setSearch(""); setShowCreate(false);
     if (next === "register") await refresh();
-    if (next === "actions") { setActions((await api.actions()).data); setActionDraft(null); }
-    if (next === "legacy") setHistorical((await api.legacy()).data);
     setMode(next);
   });
   const persistActivity = async (complete: boolean, clearAfter: boolean) => {
@@ -393,7 +364,7 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
   const monthOptions = Array.from({ length: 12 }, (_, index) => ({ value: String(index + 1), label: monthLabel(index + 1) }));
   const periodFiltered = batches.filter((row) => (filterYear === "all" || String(row.reporting_year) === filterYear) && (filterMonth === "all" || String(row.reporting_month) === filterMonth) && (filterState === "all" || row.state_code === filterState));
   const filteredBatches = periodFiltered.filter((row) => (filterStatus === "all" || row.status === filterStatus) && matchesSearch([row, stateName(row.state_code), monthLabel(row.reporting_month), statusLabel(row.status)]));
-  const listMode = ["register", "actions", "legacy"].includes(mode) && !showCreate && !actionDraft;
+  const listMode = mode === "register" && !showCreate;
   const handleBack = () => {
     if (link) {
       closeEnrolmentModal();
@@ -405,11 +376,10 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
       setBatchStep(batchStep - 1);
     }
     else if (mode === "batch") setMode("register");
-    else if (actionDraft) setActionDraft(null);
     else if (mode === "register") onBack();
     else void navigate("register");
   };
-  const pageTitle = showCreate ? "New Enrolment Drive Report" : mode === "actions" && actionDraft ? "Management Follow-up" : "Enrolment Drives";
+  const pageTitle = showCreate ? "New Enrolment Drive Report" : "Enrolment Drives";
   const existingPeriodBatch = React.useMemo(() => {
     if (!period.state_code || !period.reporting_year || !period.reporting_month) return null;
     return batches.find((row) =>
@@ -714,8 +684,6 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
               else if (mode === "batch" && batch) await openBatch(batch.reference_id, batchStep);
               else {
                 await refresh();
-                if (mode === "actions") setActions((await api.actions()).data);
-                if (mode === "legacy") setHistorical((await api.legacy()).data);
               }
             })}
           >
@@ -728,11 +696,10 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
             <Save className="w-4 h-4" />Save Report Draft
           </Button>
         )}
-        {mode === "actions" && !actionDraft && permissions.manage && <Button className={ACTION} disabled={busy} onClick={() => { setActionDraft(blankAction()); setActionFiles([]); }}><Plus className="w-4 h-4" />Record Action</Button>}
       </div>
     </div>
     {listMode && <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 sticky top-[57px] z-20"><div className="flex gap-0 overflow-x-auto -mb-px" role="tablist" aria-label="Enrolment Drive sections">
-      {[{ key: "register", label: "Enrolment Drives", icon: ClipboardList }, { key: "actions", label: "Management Follow-up", icon: Users }, { key: "legacy", label: "Historical Activities", icon: History }].map(({ key, label, icon: Icon }) => <button key={key} type="button" role="tab" aria-selected={mode === key} disabled={busy} onClick={() => void navigate(key as typeof mode)} className={`group relative shrink-0 inline-flex items-center gap-2 px-4 py-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors outline-none focus-visible:bg-[#f4f7f5] ${mode === key ? "border-[#145c3f] text-[#145c3f]" : "border-transparent text-slate-500 hover:text-[#0f3d2e] hover:border-[#c5ddd0]"}`}><Icon className={`h-4 w-4 shrink-0 ${mode === key ? "text-[#145c3f]" : "text-slate-400 group-hover:text-[#145c3f]"}`} />{label}{key === "register" && <span className={`inline-flex min-w-[1.25rem] h-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold tabular-nums ${mode === key ? "bg-[#e8f6ee] text-[#145c3f]" : "bg-slate-100 text-slate-500"}`}>{batches.length}</span>}</button>)}
+      <button type="button" role="tab" aria-selected={mode === "register"} disabled={busy} onClick={() => void navigate("register")} className="group relative shrink-0 inline-flex items-center gap-2 px-4 py-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors outline-none focus-visible:bg-[#f4f7f5] border-[#145c3f] text-[#145c3f]"><ClipboardList className="h-4 w-4 shrink-0 text-[#145c3f]" />Enrolment Drives<span className="inline-flex min-w-[1.25rem] h-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold tabular-nums bg-[#e8f6ee] text-[#145c3f]">{batches.length}</span></button>
     </div></div>}
     <ScrollArea className="flex-1"><div className="w-full px-4 md:px-6 py-4 space-y-4 pb-8">
     {error && <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700" role="alert">{error}</div>}
@@ -1461,40 +1428,6 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
           <Button variant="ghost" disabled={busy} onClick={() => batchStep ? void goToBatchStep(batchStep - 1) : void navigate("register")}><ArrowLeft className="w-4 h-4 mr-2" />Back</Button>
           {batchStep < 3 && <Button className={ACTION} disabled={busy || (batchStep === 1 && !batch.activities?.length)} onClick={() => void goToBatchStep(batchStep + 1)}>{batchStep === 1 ? "Register beneficiaries" : batchStep === 2 ? "Review & endorse" : "Continue"}<ArrowRight className="w-4 h-4" /></Button>}
         </div>
-      </>}
-      {mode === "actions" && <>
-        {actionDraft && <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-visible"><CardContent className="p-4 md:p-5"><Section title={actionDraft.reference_id || "New management action"}>
-          <Field label="State" required><Dropdown value={actionDraft.state_code} options={stateOptions} disabled={!!actionDraft.reference_id} onChange={(value) => setActionDraft({ ...actionDraft, state_code: value })} /></Field>
-          <Field label="Reporting month" required><Dropdown value={actionDraft.reporting_month} options={monthOptions} disabled={!!actionDraft.reference_id} onChange={(value) => setActionDraft({ ...actionDraft, reporting_month: value })} /></Field>
-          <Field label="Reporting year" required><Input type="number" min={2000} max={2100} disabled={!!actionDraft.reference_id} value={actionDraft.reporting_year} onChange={(event) => setActionDraft({ ...actionDraft, reporting_year: event.target.value })} /></Field>
-          <Field label="Source dashboard" required><Input value={actionDraft.source_dashboard} disabled={!permissions.manage} onChange={(event) => setActionDraft({ ...actionDraft, source_dashboard: event.target.value })} /></Field>
-          <Field label="Issue" required className="sm:col-span-2"><textarea className={inputClass} value={actionDraft.issue} disabled={!permissions.manage} onChange={(event) => setActionDraft({ ...actionDraft, issue: event.target.value })} /></Field>
-          <Field label="Agreed action" required className="sm:col-span-2"><textarea className={inputClass} value={actionDraft.agreed_action} disabled={!permissions.manage} onChange={(event) => setActionDraft({ ...actionDraft, agreed_action: event.target.value })} /></Field>
-          <Field label="Accountable owner" required>{catalogue.owners?.length ? <Dropdown value={String(actionDraft.owner_user_id || "")} options={catalogue.owners.filter((owner) => !owner.state_code || owner.state_code === actionDraft.state_code).map((owner) => ({ value: String(owner.id), label: owner.name }))} disabled={!permissions.manage} onChange={(value) => setActionDraft({ ...actionDraft, owner_user_id: value, accountable_owner: catalogue.owners?.find((owner) => String(owner.id) === value)?.name || "" })} /> : <Input value={actionDraft.accountable_owner} disabled={!permissions.manage} onChange={(event) => setActionDraft({ ...actionDraft, accountable_owner: event.target.value })} />}</Field>
-          <Field label="Due date" required><Input type="date" value={actionDraft.deadline} disabled={!permissions.manage} onChange={(event) => setActionDraft({ ...actionDraft, deadline: event.target.value })} /></Field>
-          <Field label="Status" required><Dropdown value={actionDraft.status} options={["Open", "In progress", "Closed"]} onChange={(value) => setActionDraft({ ...actionDraft, status: value })} /></Field>
-          <Field label="Outcome / closure explanation"><textarea className={inputClass} value={actionDraft.outcome} onChange={(event) => setActionDraft({ ...actionDraft, outcome: event.target.value })} /></Field>
-          <Field label="Evidence type"><Dropdown value={actionEvidenceType} options={catalogue.evidence_types} onChange={setActionEvidenceType} /></Field><Field label="Action evidence"><Input type="file" multiple onChange={(event) => setActionFiles(Array.from(event.target.files || []))} /></Field>
-          <div className="sm:col-span-2"><EvidenceFiles files={actionDraft.evidence || []} /></div>
-          <div className="flex justify-end gap-2 sm:col-span-2"><Button variant="ghost" onClick={() => setActionDraft(null)}>Cancel</Button><Button className={ACTION} disabled={busy} onClick={() => void run(async () => {
-            let id = actionDraft.reference_id;
-            if (actionFiles.length && actionDraft.status === "Closed" && !id) throw new Error("Save the action as Open, then upload closure evidence");
-            if (!id || actionDraft.status !== "Closed") { const response = await api.saveAction(id, actionDraft); id = response.data.reference_id; setActionDraft({ ...actionDraft, reference_id: id }); }
-            if (actionFiles.length && id) { await api.evidence("actions", id, actionEvidenceType, actionFiles); setActionFiles([]); }
-            if (actionDraft.status === "Closed") await api.saveAction(id, actionDraft);
-            setActions((await api.actions()).data); setActionDraft(null); toast.success("Management action saved");
-          })}>Save action</Button></div>
-        </Section></CardContent></Card>}
-        {!actionDraft && <>{searchInput}<Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden"><CardHeader className="pb-3 border-b border-[#d4e8dc]"><CardTitle className="text-sm font-bold">Management actions</CardTitle></CardHeader><CardContent className="p-0"><div className="overflow-x-auto"><Table><TableHeader><TableRow className="bg-[#f0fdf7] hover:bg-[#f0fdf7]">{["Issue / Agreed action", "State", "Owner", "Due date", "Status", "Closed", "Action"].map((label) => <TableHead className={`text-xs font-bold text-slate-600 whitespace-nowrap ${label === "Action" ? "text-right" : ""}`} key={label}>{label}</TableHead>)}</TableRow></TableHeader><TableBody>
-          {actions.filter((action) => matchesSearch([action, stateName(action.state_code)])).map((action) => <TableRow key={action.reference_id} className="hover:bg-[#f8fdfb] border-b border-[#e8f3ec] last:border-0"><TableCell className="min-w-[220px] space-y-1"><p className="text-sm font-semibold text-[#0f3d2e]">{action.issue}</p><p className="text-xs text-slate-500">{action.agreed_action}</p>{action.outcome && <p className="text-xs text-slate-600">{action.outcome}</p>}<p className="text-[10px] text-slate-400 font-mono">{action.reference_id}</p><EvidenceFiles files={action.evidence || []} /></TableCell><TableCell className="text-sm whitespace-nowrap">{stateName(action.state_code)}</TableCell><TableCell className="text-sm">{action.accountable_owner}</TableCell><TableCell className="text-xs whitespace-nowrap">{action.deadline}</TableCell><TableCell><Badge className={`text-[10px] border ${action.status === "Closed" ? STATUS_TONES.submitted : action.status === "In progress" ? STATUS_TONES.awaiting_review : STATUS_TONES.draft}`}>{action.status}</Badge></TableCell><TableCell className="text-xs whitespace-nowrap">{action.closure_date ? new Date(action.closure_date).toLocaleDateString() : "—"}</TableCell><TableCell className="text-right">{action.can_update && <Button size="sm" variant="ghost" className="h-8 gap-1.5 text-[#145c3f] hover:bg-[#eef6f1]" onClick={() => { setActionDraft({ ...action, owner_user_id: String(action.owner_user_id || "") }); setActionFiles([]); }}><Pencil className="w-3.5 h-3.5" />Update</Button>}</TableCell></TableRow>)}
-        </TableBody></Table></div>{!actions.filter((action) => matchesSearch([action, stateName(action.state_code)])).length && <div className="py-16 text-center text-sm text-slate-400">No management actions found.</div>}</CardContent></Card></>}
-      </>}
-      {mode === "legacy" && <>
-        {permissions.create && <Card className="rounded-2xl border-[#d4e8dc] shadow-sm"><CardContent className="p-4"><Field label="Add historical activities to report"><Dropdown value={batch?.reference_id || ""} placeholder="Select reporting period" options={batches.filter((row) => editable(row)).map((row) => ({ value: row.reference_id, label: `${stateName(row.state_code)} · ${monthLabel(row.reporting_month)} ${row.reporting_year}` }))} onChange={(value) => void run(async () => { const response = await api.batch(value); setBatch(response.data); })} /></Field></CardContent></Card>}
-        {searchInput}
-        <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden"><CardHeader className="pb-3 border-b border-[#d4e8dc]"><CardTitle className="text-sm font-bold">Historical activities</CardTitle></CardHeader><CardContent className="p-0"><div className="overflow-x-auto"><Table><TableHeader><TableRow className="bg-[#f0fdf7] hover:bg-[#f0fdf7]">{["Period", "State", "Activity", "Reported enrolments", "Evidence", "Action"].map((label) => <TableHead className={`text-xs font-bold text-slate-600 whitespace-nowrap ${label === "Action" ? "text-right" : ""}`} key={label}>{label}</TableHead>)}</TableRow></TableHeader><TableBody>
-          {historical.filter((activity) => matchesSearch([activity, stateName(activity.state_code), monthLabel(activity.reporting_month)])).map((activity) => <TableRow key={activity.reference_id} className="hover:bg-[#f8fdfb] border-b border-[#e8f3ec] last:border-0"><TableCell className="text-sm font-semibold text-[#0f3d2e] whitespace-nowrap">{monthLabel(activity.reporting_month)} {activity.reporting_year}</TableCell><TableCell className="text-sm whitespace-nowrap">{stateName(activity.state_code)}</TableCell><TableCell><p className="text-sm font-medium">{activity.activity_category}</p><p className="text-[10px] font-mono text-slate-400">{activity.reference_id}</p></TableCell><TableCell className="text-sm font-semibold text-[#145c3f] tabular-nums">{activity.enrolment_count ?? activity.new_enrolments ?? "—"}</TableCell><TableCell><EvidenceFiles files={activity.evidence || []} /></TableCell><TableCell className="text-right">{canEdit && batch && batch.state_code === activity.state_code && Number(batch.reporting_year) === Number(activity.reporting_year) && Number(batch.reporting_month) === Number(activity.reporting_month) && <Button disabled={busy} variant="ghost" size="sm" className="h-8 gap-1.5 text-[#145c3f] hover:bg-[#eef6f1]" onClick={() => void run(async () => { await api.attachLegacy(batch.reference_id, activity.reference_id); setHistorical((await api.legacy()).data); setBatch((await api.batch(batch.reference_id)).data); toast.success("Activity added to the report"); })}><Plus className="w-3.5 h-3.5" />Add to report</Button>}</TableCell></TableRow>)}
-        </TableBody></Table></div>{!historical.filter((activity) => matchesSearch([activity, stateName(activity.state_code), monthLabel(activity.reporting_month)])).length && <div className="py-16 text-center text-sm text-slate-400">No historical activities found.</div>}</CardContent></Card>
       </>}
     </>}
     </div></ScrollArea>

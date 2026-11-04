@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useSelector } from "react-redux";
 import {
   ArrowLeft,
@@ -29,6 +29,7 @@ import { enrolmentDrivesApi as api, stockApi } from "@/lib/api";
 import type { RootState } from "@/src/store/store";
 import { isDeptStateCoordinator, isDeptZonalCoordinator } from "@/src/access/departmentRoles";
 import { canAccessEnrolmentDriveDashboard } from "./enrolmentDriveTypes";
+import EnrolmentDriveFollowUp, { type FollowUpSeed } from "./EnrolmentDriveFollowUp";
 import { formatCount, monthLabel } from "./constants";
 
 const BRAND = "#145c3f";
@@ -46,12 +47,12 @@ export interface EnrolmentDriveDashboardProps {
 }
 
 type DashRole = "sc" | "zd" | "sdo" | "dg";
-type Face = "action" | "analysis";
+type Face = "action" | "analysis" | "followup";
 
 function resolveRole(role: string, reportScope?: string | null): DashRole | null {
   const r = String(role || "").trim().toLowerCase();
   if (r === "dg-ceo") return "dg";
-  if (r === "sdo") return "sdo";
+  if (r === "sdo" || r === "admin") return "sdo";
   if (isDeptZonalCoordinator(role) && reportScope !== "national") return "zd";
   if (r === "state-coordinator" || (isDeptStateCoordinator(role) && reportScope === "state")) return "sc";
   return null;
@@ -111,6 +112,7 @@ export default function EnrolmentDriveDashboard({
   onRecordAction,
 }: EnrolmentDriveDashboardProps) {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const user = useSelector((s: RootState) => s.auth.user);
   const roleName = user?.role || "";
   const reportScope = user?.role_config?.report_scope ?? null;
@@ -140,6 +142,7 @@ export default function EnrolmentDriveDashboard({
   const [activityCategory, setActivityCategory] = React.useState("all");
   const [status, setStatus] = React.useState("all");
   const [face, setFace] = React.useState<Face>("action");
+  const [followUpSeed, setFollowUpSeed] = React.useState<FollowUpSeed | null>(null);
 
   const [zones, setZones] = React.useState<any[]>([]);
   const [states, setStates] = React.useState<any[]>([]);
@@ -248,16 +251,38 @@ export default function EnrolmentDriveDashboard({
   const showCategoryFilter = dashRole === "sdo" || dashRole === "zd";
   const showStatusFilter = dashRole === "zd";
 
-  const openFollowUp = (stateCode?: string, issue?: string) => {
-    if (onRecordAction) {
-      onRecordAction(stateCode, issue);
-      return;
-    }
-    const params = new URLSearchParams({ tab: "actions" });
-    if (stateCode) params.set("state", stateCode);
-    if (issue) params.set("issue", issue);
-    navigate(`/zonal/enrolment-drives?${params.toString()}`);
+  const openFollowUp = (stateCode?: string, issue?: string, agreedAction?: string) => {
+    setFollowUpSeed({
+      state_code: stateCode,
+      issue,
+      agreed_action: agreedAction,
+      reporting_year: year,
+      reporting_month: month !== "all" ? month : undefined,
+    });
+    setFace("followup");
+    onRecordAction?.(stateCode, issue);
   };
+
+  React.useEffect(() => {
+    const faceParam = searchParams.get("face");
+    if (faceParam === "followup" || searchParams.get("issue") || searchParams.get("record") === "1") {
+      setFace("followup");
+      setFollowUpSeed({
+        state_code: searchParams.get("state") || resolvedStateCode || undefined,
+        issue: searchParams.get("issue") || undefined,
+        agreed_action: searchParams.get("action") || undefined,
+        reporting_year: year,
+        reporting_month: month !== "all" ? month : undefined,
+      });
+      const next = new URLSearchParams(searchParams);
+      next.delete("face");
+      next.delete("state");
+      next.delete("issue");
+      next.delete("action");
+      next.delete("record");
+      setSearchParams(next, { replace: true });
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const openActivity = (row: any) => {
     if (row?.batch_reference_id) {
@@ -541,6 +566,7 @@ export default function EnrolmentDriveDashboard({
             {([
               { id: "action", label: dashRole === "dg" ? "Executive" : "Action" },
               { id: "analysis", label: "Analysis" },
+              { id: "followup", label: "Follow-up" },
             ] as const).map((item) => (
               <button
                 key={item.id}
@@ -569,6 +595,16 @@ export default function EnrolmentDriveDashboard({
               transition={{ duration: 0.28 }}
               className="space-y-4"
             >
+              {face === "followup" ? (
+                <EnrolmentDriveFollowUp
+                  seed={followUpSeed}
+                  defaultStateId={resolvedStateCode}
+                  defaultYear={year}
+                  defaultMonth={month}
+                  onSeedConsumed={() => setFollowUpSeed(null)}
+                />
+              ) : (
+              <>
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                 {(face === "action" ? actionKpis : sharedKpis).map((kpi) => (
                   <div
@@ -615,8 +651,8 @@ export default function EnrolmentDriveDashboard({
                           size="sm"
                           variant="ghost"
                           className="h-7 text-xs text-[#145c3f] hover:bg-[#e8f5ee] px-2"
-                          onClick={() => openFollowUp(ex.state_code, ex.issue)}
-                        >
+                        onClick={() => openFollowUp(ex.state_code, ex.issue, ex.action)}
+                      >
                           {ex.action || "Follow up"}
                         </Button>,
                       ])}
@@ -703,7 +739,7 @@ export default function EnrolmentDriveDashboard({
                           size="sm"
                           variant="ghost"
                           className="h-7 text-xs text-[#145c3f] hover:bg-[#e8f5ee] px-2"
-                          onClick={() => openFollowUp(row.state_code, row.issue)}
+                          onClick={() => openFollowUp(row.state_code, row.issue, row.next_step)}
                         >
                           {row.next_step}
                         </Button>,
@@ -739,11 +775,24 @@ export default function EnrolmentDriveDashboard({
                     subtitle="Renewal/expiry is shown only where applicable and where reliable dates exist."
                   >
                     <SimpleTable
-                      headers={["Issue", "Decision required", "Owner"]}
+                      headers={["Issue", "Decision required", "Owner", "Action"]}
                       rows={(managementIssues.length
                         ? managementIssues
-                        : [{ issue: "No open management issues", decision_required: "—", owner: "—" }]
-                      ).map((row, i) => [row.issue, row.decision_required, row.owner])}
+                        : []
+                      ).map((row) => [
+                        row.issue,
+                        row.decision_required,
+                        row.owner,
+                        <Button
+                          key={row.issue}
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 text-xs text-[#145c3f] hover:bg-[#e8f5ee] px-2"
+                          onClick={() => openFollowUp(undefined, row.issue, row.decision_required)}
+                        >
+                          Record action
+                        </Button>,
+                      ])}
                       empty="No management issues for this period"
                     />
                   </Panel>
@@ -894,6 +943,8 @@ export default function EnrolmentDriveDashboard({
                     )}
                   </div>
                 </div>
+              )}
+              </>
               )}
             </motion.div>
           )}

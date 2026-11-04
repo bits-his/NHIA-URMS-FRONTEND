@@ -87,7 +87,6 @@ export default function StateOfficeDashboardHub({
   userRole,
   user,
 }: Props) {
-  const navigate = useNavigate();
   const authUser = useSelector((s: RootState) => s.auth.user);
   const canEdDash = canAccessEnrolmentDriveDashboard(authUser?.role || userRole, {
     reportScope: authUser?.role_config?.report_scope ?? user?.role_config?.report_scope ?? null,
@@ -218,12 +217,6 @@ export default function StateOfficeDashboardHub({
           embedded
           onBack={onBack}
           {...shared}
-          onRecordAction={(stateCode, issue) => {
-            const params = new URLSearchParams({ tab: "actions" });
-            if (stateCode) params.set("state", stateCode);
-            if (issue) params.set("issue", issue);
-            navigate(`/zonal/enrolment-drives?${params.toString()}`);
-          }}
         />
       )}
       {activeTab === "enrolment-drives" && !canEdDash && (

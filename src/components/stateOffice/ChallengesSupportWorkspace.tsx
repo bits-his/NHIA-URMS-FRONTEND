@@ -127,6 +127,27 @@ export default function ChallengesSupportWorkspace({ onBack }: Props) {
     return () => { cancelled = true; };
   }, []);
 
+  // Prefill from Meetings & Coordination handoff (?from=meeting&meeting_id=&related_activity=&note=)
+  React.useEffect(() => {
+    if (loading || !catalogue) return;
+    try {
+      const q = new URLSearchParams(window.location.search);
+      if (q.get("from") !== "meeting") return;
+      const related = q.get("related_activity") || "Meetings & Coordination";
+      const note = q.get("note") || "";
+      const meetingId = q.get("meeting_id") || "";
+      const seed = blankChallenge(catalogue);
+      seed.related_activity = related;
+      seed.description = [note, meetingId ? `Source meeting: ${meetingId}` : ""].filter(Boolean).join("\n");
+      setEditingId(null);
+      setDraft(seed);
+      setMode("challenge-form");
+      const url = new URL(window.location.href);
+      ["from", "meeting_id", "related_activity", "note"].forEach((k) => url.searchParams.delete(k));
+      window.history.replaceState({}, "", url.pathname + (url.search ? url.search : ""));
+    } catch { /* ignore */ }
+  }, [loading, catalogue]);
+
   const stateName = (code: string) => catalogue?.states.find((s) => s.code === code)?.description || code;
   const zoneName = (code: string) => catalogue?.zones.find((z) => z.zonal_code === code)?.description || code;
 
