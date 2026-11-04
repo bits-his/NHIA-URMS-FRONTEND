@@ -125,19 +125,19 @@ export default function AdminZonesPage() {
       component: (z: ZonalOffice) => (
         <div className="flex items-center gap-1 justify-end">
           <Button
-            variant="ghost"
+            variant="outline"
             size="sm"
             onClick={() => openEdit(z)}
-            className="h-6 px-1.5 text-[11px] text-slate-600 hover:text-[#145c3f] hover:bg-[#e8f5ee] rounded-sm gap-1 font-medium cursor-pointer"
+            className="h-6 px-2 text-[11px] font-semibold text-[#145c3f] bg-[#e8f5ee]/70 border border-[#d4e8dc] hover:bg-[#e8f5ee] hover:border-[#145c3f] rounded-sm gap-1 cursor-pointer transition-colors"
           >
             <Pencil className="size-3" />
             <span>Edit</span>
           </Button>
           <Button
-            variant="ghost"
+            variant="outline"
             size="sm"
             onClick={() => handleDelete(z)}
-            className="size-6 p-0 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-sm cursor-pointer"
+            className="size-6 p-0 text-rose-600 bg-rose-50/70 border border-rose-200 hover:bg-rose-100 hover:border-rose-300 rounded-sm cursor-pointer transition-colors"
             title="Delete zone"
           >
             <Trash2 className="size-3" />

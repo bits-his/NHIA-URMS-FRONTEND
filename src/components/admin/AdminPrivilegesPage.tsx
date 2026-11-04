@@ -165,10 +165,10 @@ export default function AdminPrivilegesPage() {
       custom: true,
       component: (u: AdminUser) => (
         <Button
-          variant="ghost"
+          variant="outline"
           size="sm"
           onClick={() => openPrivileges(u)}
-          className="h-6 px-2 text-[11px] text-slate-600 hover:text-[#145c3f] hover:bg-[#e8f5ee] rounded-sm gap-1 font-medium cursor-pointer"
+          className="h-6 px-2 text-[11px] font-semibold text-purple-700 bg-purple-50/70 border border-purple-200 hover:bg-purple-100 hover:border-purple-300 rounded-sm gap-1 cursor-pointer transition-colors"
         >
           <ShieldCheck className="size-3" />
           <span>Privileges</span>
@@ -228,20 +228,19 @@ export default function AdminPrivilegesPage() {
               <div className="flex items-center gap-1.5">
                 <Button
                   type="button"
-                  variant="ghost"
+                  variant="outline"
                   size="sm"
                   onClick={() => setGranted(selectAllPrivilegeKeys())}
-                  className="h-6 text-xs text-[#145c3f] hover:bg-[#e8f5ee] rounded-sm font-medium"
+                  className="h-6 text-xs text-[#145c3f] bg-white border border-[#d4e8dc] hover:bg-[#e8f5ee] rounded-sm font-medium"
                 >
                   Select All
                 </Button>
-                <span className="text-slate-300">|</span>
                 <Button
                   type="button"
-                  variant="ghost"
+                  variant="outline"
                   size="sm"
                   onClick={() => setGranted(new Set())}
-                  className="h-6 text-xs text-rose-600 hover:bg-rose-50 rounded-sm font-medium"
+                  className="h-6 text-xs text-rose-600 bg-white border border-rose-200 hover:bg-rose-50 rounded-sm font-medium"
                 >
                   Clear All
                 </Button>

@@ -221,7 +221,7 @@ export function PageLayout({
               >
                 <CardContent
                   className={cn(
-                    "flex flex-1 flex-col gap-3 p-3 md:p-4 min-h-0",
+                    "flex flex-1 flex-col gap-3 p-2 md:p-3 min-h-0",
                     contentClassName
                   )}
                 >
@@ -242,7 +242,7 @@ export function PageLayout({
           ) : (
             <div
               className={cn(
-                "w-full flex-1 p-3 md:p-5 flex flex-col gap-3 min-h-0",
+                "w-full flex-1 p-3 md:p-3 flex flex-col gap-3 min-h-0",
                 maxWidthClass,
                 contentClassName
               )}

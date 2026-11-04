@@ -3,6 +3,7 @@ import { Plus, Pencil, Trash2, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import CustomTable, { type CustomTableField } from "@/components/CustomTable";
 import { rolesApi, type AppRole, type ReportScope } from "@/lib/adminApi";
 import AdminModal from "./AdminModal";
@@ -219,20 +220,20 @@ export default function AdminRolesPage() {
       component: (r: AppRole) => (
         <div className="flex items-center gap-1 justify-end">
           <Button
-            variant="ghost"
+            variant="outline"
             size="sm"
             onClick={() => openEdit(r)}
-            className="h-6 px-1.5 text-[11px] text-slate-600 hover:text-[#145c3f] hover:bg-[#e8f5ee] rounded-sm gap-1 font-medium cursor-pointer"
+            className="h-6 px-2 text-[11px] font-semibold text-[#145c3f] bg-[#e8f5ee]/70 border border-[#d4e8dc] hover:bg-[#e8f5ee] hover:border-[#145c3f] rounded-sm gap-1 cursor-pointer transition-colors"
           >
             <Pencil className="size-3" />
             <span>Edit</span>
           </Button>
           {!r.is_system && (
             <Button
-              variant="ghost"
+              variant="outline"
               size="sm"
               onClick={() => handleDelete(r)}
-              className="size-6 p-0 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-sm cursor-pointer"
+              className="size-6 p-0 text-rose-600 bg-rose-50/70 border border-rose-200 hover:bg-rose-100 hover:border-rose-300 rounded-sm cursor-pointer transition-colors"
               title="Delete role"
             >
               <Trash2 className="size-3" />
@@ -285,7 +286,7 @@ export default function AdminRolesPage() {
         message="No system roles found"
       />
 
-      {/* ── Role Modal ── */}
+      {/* ── Role Modal (Normal Code Select - Not Native) ── */}
       <AdminModal
         open={modal !== null}
         onClose={() => setModal(null)}
@@ -339,15 +340,23 @@ export default function AdminRolesPage() {
 
           <div>
             <label className="text-xs font-semibold text-slate-700 mb-1 block">Monthly Report Scope</label>
-            <select
+            <Select
               value={form.report_scope}
-              onChange={e => setForm(f => ({ ...f, report_scope: e.target.value as ReportScope }))}
-              className="w-full h-8.5 px-2.5 rounded-sm border border-[#d4e8dc] bg-white text-xs text-slate-800 outline-none focus:ring-1 focus:ring-[#25a872]"
+              onValueChange={v => setForm(f => ({ ...f, report_scope: v as ReportScope }))}
             >
-              {(Object.keys(SCOPE_LABELS) as ReportScope[]).map(s => (
-                <option key={s} value={s}>{SCOPE_LABELS[s]}</option>
-              ))}
-            </select>
+              <SelectTrigger
+                size="sm"
+                displayValue={SCOPE_LABELS[form.report_scope] || form.report_scope}
+                className="h-8.5 text-xs rounded-sm border-[#d4e8dc] bg-white font-medium"
+              >
+                <SelectValue placeholder="Select scope" />
+              </SelectTrigger>
+              <SelectContent>
+                {(Object.keys(SCOPE_LABELS) as ReportScope[]).map(s => (
+                  <SelectItem key={s} value={s}>{SCOPE_LABELS[s]}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="pt-2 border-t border-[#e8f5ee] space-y-2">

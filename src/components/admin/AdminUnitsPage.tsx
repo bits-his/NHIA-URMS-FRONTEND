@@ -140,19 +140,19 @@ export default function AdminUnitsPage() {
       component: (u: Unit) => (
         <div className="flex items-center gap-1 justify-end">
           <Button
-            variant="ghost"
+            variant="outline"
             size="sm"
             onClick={() => openEdit(u)}
-            className="h-6 px-1.5 text-[11px] text-slate-600 hover:text-[#145c3f] hover:bg-[#e8f5ee] rounded-sm gap-1 font-medium cursor-pointer"
+            className="h-6 px-2 text-[11px] font-semibold text-[#145c3f] bg-[#e8f5ee]/70 border border-[#d4e8dc] hover:bg-[#e8f5ee] hover:border-[#145c3f] rounded-sm gap-1 cursor-pointer transition-colors"
           >
             <Pencil className="size-3" />
             <span>Edit</span>
           </Button>
           <Button
-            variant="ghost"
+            variant="outline"
             size="sm"
             onClick={() => handleDelete(u)}
-            className="size-6 p-0 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-sm cursor-pointer"
+            className="size-6 p-0 text-rose-600 bg-rose-50/70 border border-rose-200 hover:bg-rose-100 hover:border-rose-300 rounded-sm cursor-pointer transition-colors"
             title="Delete unit"
           >
             <Trash2 className="size-3" />
@@ -238,17 +238,25 @@ export default function AdminUnitsPage() {
         <form onSubmit={handleSave} className="space-y-3">
           <div>
             <label className="text-xs font-semibold text-slate-700 mb-1 block">Parent Department *</label>
-            <select
+            <Select
               value={form.department_code}
-              onChange={e => setForm(f => ({ ...f, department_code: e.target.value }))}
-              className="w-full h-8.5 px-2.5 rounded-sm border border-[#d4e8dc] bg-white text-xs text-slate-800 outline-none focus:ring-1 focus:ring-[#25a872]"
-              required
+              onValueChange={v => setForm(f => ({ ...f, department_code: v }))}
             >
-              <option value="">— Select Department —</option>
-              {depts.map(d => (
-                <option key={d.department_code} value={d.department_code}>{d.name}</option>
-              ))}
-            </select>
+              <SelectTrigger
+                size="sm"
+                displayValue={depts.find(d => d.department_code === form.department_code)?.name || (form.department_code ? form.department_code : "— Select Department —")}
+                className="h-8.5 text-xs rounded-sm border-[#d4e8dc] bg-white font-medium"
+              >
+                <SelectValue placeholder="— Select Department —" />
+              </SelectTrigger>
+              <SelectContent>
+                {depts.map(d => (
+                  <SelectItem key={d.department_code} value={d.department_code}>
+                    {d.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div>

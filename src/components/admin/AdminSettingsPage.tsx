@@ -72,7 +72,9 @@ export default function AdminSettingsPage() {
       title="Staff Management"
       description="Administer user credentials, access privileges, geopolitical zones, and organizational directories."
       maxWidth="full"
-      filters={
+    >
+      <div className="w-full space-y-3">
+        {/* ── Tabs Strip Under the Header (Not in it) ── */}
         <div className="flex items-center gap-1 overflow-x-auto lg:overflow-x-visible -mb-px border-b border-[#d4e8dc]/70 w-full" role="tablist">
           {TABS.map((t) => {
             const active = tab === t.id;
@@ -111,16 +113,17 @@ export default function AdminSettingsPage() {
             );
           })}
         </div>
-      }
-    >
-      <div className="w-full">
-        {tab === "users"       && <AdminUsersPage />}
-        {tab === "roles"       && <AdminRolesPage />}
-        {tab === "privileges"  && <AdminPrivilegesPage />}
-        {tab === "zones"       && <AdminZonesPage />}
-        {tab === "states"      && <AdminStatesPage />}
-        {tab === "departments" && <AdminDepartmentsPage />}
-        {tab === "units"       && <AdminUnitsPage />}
+
+        {/* ── Active Tab View ── */}
+        <div className="w-full">
+          {tab === "users"       && <AdminUsersPage />}
+          {tab === "roles"       && <AdminRolesPage />}
+          {tab === "privileges"  && <AdminPrivilegesPage />}
+          {tab === "zones"       && <AdminZonesPage />}
+          {tab === "states"      && <AdminStatesPage />}
+          {tab === "departments" && <AdminDepartmentsPage />}
+          {tab === "units"       && <AdminUnitsPage />}
+        </div>
       </div>
     </PageLayout>
   );

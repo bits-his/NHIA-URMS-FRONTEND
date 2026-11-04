@@ -7,7 +7,6 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
-import { SearchSelect } from "@/components/ui/search-select";
 import CustomTable, { type CustomTableField } from "@/components/CustomTable";
 import { cn } from "@/lib/utils";
 import {
@@ -418,31 +417,31 @@ export default function AdminUsersPage() {
       component: (u: AdminUser) => (
         <div className="flex items-center gap-1 justify-end">
           <Button
-            variant="ghost"
+            variant="outline"
             size="sm"
             onClick={() => openEdit(u)}
-            className="h-6 px-1.5 text-[11px] text-slate-600 hover:text-[#145c3f] hover:bg-[#e8f5ee] rounded-sm gap-1 font-medium cursor-pointer"
+            className="h-6 px-2 text-[11px] font-semibold text-[#145c3f] bg-[#e8f5ee]/70 border border-[#d4e8dc] hover:bg-[#e8f5ee] hover:border-[#145c3f] rounded-sm gap-1 cursor-pointer transition-colors"
           >
             <Pencil className="size-3" />
             <span>Edit</span>
           </Button>
           {u.is_active ? (
             <Button
-              variant="ghost"
+              variant="outline"
               size="sm"
               onClick={() => handleDeactivate(u)}
               title="Deactivate user"
-              className="size-6 p-0 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-sm cursor-pointer"
+              className="size-6 p-0 text-amber-700 bg-amber-50/70 border border-amber-200 hover:bg-amber-100 hover:border-amber-300 rounded-sm cursor-pointer transition-colors"
             >
               <UserX className="size-3" />
             </Button>
           ) : (
             <Button
-              variant="ghost"
+              variant="outline"
               size="sm"
               onClick={() => handleActivate(u)}
               title="Reactivate user"
-              className="size-6 p-0 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-sm cursor-pointer"
+              className="size-6 p-0 text-emerald-700 bg-emerald-50/70 border border-emerald-200 hover:bg-emerald-100 hover:border-emerald-300 rounded-sm cursor-pointer transition-colors"
             >
               <UserCheck className="size-3" />
             </Button>
@@ -590,7 +589,7 @@ export default function AdminUsersPage() {
         message="No staff accounts match your current criteria"
       />
 
-      {/* ── Create / Edit Staff Modal (Single Continuous Form - No Separate Tabs) ── */}
+      {/* ── Create / Edit Staff Modal (All Normal Selects - Single Unified Form) ── */}
       <AdminModal
         title={modal === "create" ? "Add New Staff User" : `Edit Staff — ${editing?.name || ""}`}
         description="Configure staff user profile, organizational placement, and granular platform module permissions."
@@ -686,7 +685,7 @@ export default function AdminUsersPage() {
             </div>
           </div>
 
-          {/* Section 2: Scope & Office Placement */}
+          {/* Section 2: Scope & Office Placement (Normal Code Selects) */}
           <div className="pt-2 border-t border-[#e8f5ee]">
             <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">
               Organizational Scope & Assignment
@@ -694,48 +693,101 @@ export default function AdminUsersPage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <FormField label="Geopolitical Zone">
-                <SearchSelect
-                  clearable
-                  value={form.zonal_code}
-                  onChange={v => setForm(f => ({ ...f, zonal_code: v, state_code: "" }))}
-                  placeholder="— Select Zone —"
-                  options={zones.map(z => ({ value: z.zonal_code, label: z.description, sub: z.zonal_code }))}
-                />
+                <Select
+                  value={form.zonal_code || "NONE"}
+                  onValueChange={v => setForm(f => ({ ...f, zonal_code: v === "NONE" ? "" : v, state_code: "" }))}
+                >
+                  <SelectTrigger
+                    size="sm"
+                    displayValue={zones.find(z => z.zonal_code === form.zonal_code)?.description || (form.zonal_code ? form.zonal_code : "— Select Zone —")}
+                    className="h-8.5 text-xs rounded-sm border-[#d4e8dc] bg-white font-medium"
+                  >
+                    <SelectValue placeholder="— Select Zone —" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="NONE">— None (National/HQ) —</SelectItem>
+                    {zones.map(z => (
+                      <SelectItem key={z.zonal_code} value={z.zonal_code}>
+                        {z.description} ({z.zonal_code})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </FormField>
 
               <FormField label="State Office">
-                <SearchSelect
-                  clearable
-                  value={form.state_code}
-                  onChange={v => setForm(f => ({ ...f, state_code: v }))}
-                  placeholder="— Select State —"
-                  options={filteredStates.map(s => ({ value: s.code, label: s.description, sub: s.code }))}
-                />
+                <Select
+                  value={form.state_code || "NONE"}
+                  onValueChange={v => setForm(f => ({ ...f, state_code: v === "NONE" ? "" : v }))}
+                >
+                  <SelectTrigger
+                    size="sm"
+                    displayValue={filteredStates.find(s => s.code === form.state_code)?.description || (form.state_code ? form.state_code : "— Select State —")}
+                    className="h-8.5 text-xs rounded-sm border-[#d4e8dc] bg-white font-medium"
+                  >
+                    <SelectValue placeholder="— Select State —" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="NONE">— None —</SelectItem>
+                    {filteredStates.map(s => (
+                      <SelectItem key={s.code} value={s.code}>
+                        {s.description} ({s.code})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </FormField>
 
               <FormField label="HQ Department">
-                <SearchSelect
-                  clearable
-                  value={form.department_id}
-                  onChange={v => handleDeptChange(v)}
-                  placeholder="— Select Department —"
-                  options={depts.map(d => ({ value: d.department_code, label: d.name, sub: d.department_code }))}
-                />
+                <Select
+                  value={form.department_id || "NONE"}
+                  onValueChange={v => handleDeptChange(v === "NONE" ? "" : v)}
+                >
+                  <SelectTrigger
+                    size="sm"
+                    displayValue={depts.find(d => d.department_code === form.department_id)?.name || (form.department_id ? form.department_id : "— Select Department —")}
+                    className="h-8.5 text-xs rounded-sm border-[#d4e8dc] bg-white font-medium"
+                  >
+                    <SelectValue placeholder="— Select Department —" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="NONE">— None —</SelectItem>
+                    {depts.map(d => (
+                      <SelectItem key={d.department_code} value={d.department_code}>
+                        {d.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </FormField>
 
               <FormField label="Operational Unit">
-                <SearchSelect
-                  clearable
+                <Select
+                  value={form.unit_id || "NONE"}
                   disabled={!form.department_id}
-                  value={form.unit_id}
-                  onChange={v => {
-                    setForm(f => ({ ...f, unit_id: v }));
-                    const unit = formUnits.find(u => u.unit_code === v);
+                  onValueChange={v => {
+                    const nextUnit = v === "NONE" ? "" : v;
+                    setForm(f => ({ ...f, unit_id: nextUnit }));
+                    const unit = formUnits.find(u => u.unit_code === nextUnit);
                     void applyAccessTemplate(form.role, unit?.unit_code, false);
                   }}
-                  placeholder={form.department_id ? "— Select Unit —" : "Select department first"}
-                  options={formUnits.map(u => ({ value: u.unit_code, label: u.name, sub: u.unit_code }))}
-                />
+                >
+                  <SelectTrigger
+                    size="sm"
+                    displayValue={formUnits.find(u => u.unit_code === form.unit_id)?.name || (form.unit_id ? form.unit_id : form.department_id ? "— Select Unit —" : "Select department first")}
+                    className="h-8.5 text-xs rounded-sm border-[#d4e8dc] bg-white font-medium"
+                  >
+                    <SelectValue placeholder={form.department_id ? "— Select Unit —" : "Select department first"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="NONE">— None —</SelectItem>
+                    {formUnits.map(u => (
+                      <SelectItem key={u.unit_code} value={u.unit_code}>
+                        {u.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </FormField>
             </div>
           </div>
@@ -759,30 +811,28 @@ export default function AdminUsersPage() {
               <div className="flex items-center gap-1.5">
                 <Button
                   type="button"
-                  variant="ghost"
+                  variant="outline"
                   size="sm"
                   onClick={() => setGranted(selectAllPrivilegeKeys())}
-                  className="h-6 text-xs text-[#145c3f] hover:bg-[#e8f5ee] rounded-sm font-medium"
+                  className="h-6 text-xs text-[#145c3f] bg-white border border-[#d4e8dc] hover:bg-[#e8f5ee] rounded-sm font-medium"
                 >
                   Select All
                 </Button>
-                <span className="text-slate-300">|</span>
                 <Button
                   type="button"
-                  variant="ghost"
+                  variant="outline"
                   size="sm"
                   onClick={() => setGranted(new Set())}
-                  className="h-6 text-xs text-rose-600 hover:bg-rose-50 rounded-sm font-medium"
+                  className="h-6 text-xs text-rose-600 bg-white border border-rose-200 hover:bg-rose-50 rounded-sm font-medium"
                 >
                   Clear All
                 </Button>
-                <span className="text-slate-300">|</span>
                 <Button
                   type="button"
-                  variant="ghost"
+                  variant="outline"
                   size="sm"
                   onClick={() => applyAccessTemplate(form.role, form.unit_id)}
-                  className="h-6 text-xs text-indigo-600 hover:bg-indigo-50 rounded-sm font-medium"
+                  className="h-6 text-xs text-indigo-600 bg-white border border-indigo-200 hover:bg-indigo-50 rounded-sm font-medium"
                 >
                   Reset to Role
                 </Button>
