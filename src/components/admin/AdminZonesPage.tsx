@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import CustomTable, { type CustomTableField } from "@/components/CustomTable";
 import { zonesApi, type ZonalOffice } from "@/lib/adminApi";
 import AdminModal from "./AdminModal";
+import AdminConfirmDialog from "./AdminConfirmDialog";
 
 export default function AdminZonesPage() {
   const [zones, setZones] = React.useState<ZonalOffice[]>([]);
@@ -15,6 +16,8 @@ export default function AdminZonesPage() {
   const [editing, setEditing] = React.useState<ZonalOffice | null>(null);
   const [form, setForm] = React.useState({ zonal_code: "", description: "" });
   const [saving, setSaving] = React.useState(false);
+  const [deleteTarget, setDeleteTarget] = React.useState<ZonalOffice | null>(null);
+  const [deleting, setDeleting] = React.useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -64,14 +67,18 @@ export default function AdminZonesPage() {
     }
   };
 
-  const handleDelete = async (z: ZonalOffice) => {
-    if (!confirm(`Delete zone "${z.zonal_code}"?`)) return;
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
     try {
-      await zonesApi.delete(z.zonal_code);
-      toast.success("Zonal office deleted");
+      await zonesApi.delete(deleteTarget.zonal_code);
+      toast.success("Zonal office deleted successfully");
+      setDeleteTarget(null);
       load();
     } catch (e: any) {
       toast.error(e.message);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -87,7 +94,7 @@ export default function AdminZonesPage() {
     {
       title: "Zone Code",
       value: "zonal_code",
-      className: "w-[20%] text-left",
+      className: "w-[18%] text-left",
       custom: true,
       component: (z: ZonalOffice) => (
         <span className="font-mono text-xs font-bold text-sky-700 bg-sky-50 px-2 py-0.5 rounded-sm border border-sky-100">
@@ -109,7 +116,7 @@ export default function AdminZonesPage() {
     {
       title: "State Offices Under Zone",
       value: "states",
-      className: "w-[25%] text-left",
+      className: "w-[23%] text-left",
       custom: true,
       component: (z: ZonalOffice) => (
         <span className="text-[11px] font-medium text-slate-600">
@@ -120,10 +127,10 @@ export default function AdminZonesPage() {
     {
       title: "Actions",
       value: "actions",
-      className: "w-[10%] text-right",
+      className: "w-[14%] text-right",
       custom: true,
       component: (z: ZonalOffice) => (
-        <div className="flex items-center gap-1 justify-end">
+        <div className="flex items-center gap-1.5 justify-end">
           <Button
             variant="outline"
             size="sm"
@@ -136,11 +143,11 @@ export default function AdminZonesPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => handleDelete(z)}
-            className="size-6 p-0 text-rose-600 bg-rose-50/70 border border-rose-200 hover:bg-rose-100 hover:border-rose-300 rounded-sm cursor-pointer transition-colors"
-            title="Delete zone"
+            onClick={() => setDeleteTarget(z)}
+            className="h-6 px-2 text-[11px] font-semibold text-rose-600 bg-rose-50/70 border border-rose-200 hover:bg-rose-100 hover:border-rose-300 rounded-sm gap-1 cursor-pointer transition-colors"
           >
             <Trash2 className="size-3" />
+            <span>Delete</span>
           </Button>
         </div>
       ),
@@ -242,6 +249,18 @@ export default function AdminZonesPage() {
           </div>
         </form>
       </AdminModal>
+
+      {/* ── Delete Confirmation Dialog ── */}
+      <AdminConfirmDialog
+        open={deleteTarget !== null}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={confirmDelete}
+        title="Delete Geopolitical Zone"
+        description={`Are you sure you want to delete zone "${deleteTarget?.zonal_code}" (${deleteTarget?.description})? This action cannot be undone.`}
+        confirmText="Delete Zone"
+        loading={deleting}
+        variant="danger"
+      />
     </div>
   );
 }

@@ -7,6 +7,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@
 import CustomTable, { type CustomTableField } from "@/components/CustomTable";
 import { rolesApi, type AppRole, type ReportScope } from "@/lib/adminApi";
 import AdminModal from "./AdminModal";
+import AdminConfirmDialog from "./AdminConfirmDialog";
 import { cn } from "@/lib/utils";
 
 const SCOPE_LABELS: Record<ReportScope, string> = {
@@ -35,6 +36,8 @@ export default function AdminRolesPage() {
   const [editing, setEditing] = React.useState<AppRole | null>(null);
   const [form, setForm] = React.useState({ ...EMPTY });
   const [saving, setSaving] = React.useState(false);
+  const [deleteTarget, setDeleteTarget] = React.useState<AppRole | null>(null);
+  const [deleting, setDeleting] = React.useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -103,14 +106,18 @@ export default function AdminRolesPage() {
     }
   };
 
-  const handleDelete = async (role: AppRole) => {
-    if (!confirm(`Delete role "${role.label}"?`)) return;
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
     try {
-      await rolesApi.delete(role.id);
-      toast.success("Role deleted");
+      await rolesApi.delete(deleteTarget.id);
+      toast.success("Role deleted successfully");
+      setDeleteTarget(null);
       load();
     } catch (e: any) {
       toast.error(e.message);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -126,7 +133,7 @@ export default function AdminRolesPage() {
     {
       title: "Role Name",
       value: "label",
-      className: "w-[24%] text-left",
+      className: "w-[21%] text-left",
       custom: true,
       component: (r: AppRole) => (
         <div className="min-w-0 truncate">
@@ -140,7 +147,7 @@ export default function AdminRolesPage() {
     {
       title: "Key (Slug)",
       value: "key",
-      className: "w-[15%] text-left",
+      className: "w-[14%] text-left",
       custom: true,
       component: (r: AppRole) => (
         <span className="font-mono text-[11px] font-semibold px-1.5 py-0.5 rounded-sm bg-slate-100 text-slate-700 border border-slate-200">
@@ -151,7 +158,7 @@ export default function AdminRolesPage() {
     {
       title: "Staff ID Prefix",
       value: "staff_id_prefix",
-      className: "w-[12%] text-left",
+      className: "w-[11%] text-left",
       custom: true,
       component: (r: AppRole) => (
         <span className="font-mono text-xs font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded-sm border border-indigo-100">
@@ -162,7 +169,7 @@ export default function AdminRolesPage() {
     {
       title: "Report Scope",
       value: "report_scope",
-      className: "w-[16%] text-left",
+      className: "w-[15%] text-left",
       custom: true,
       component: (r: AppRole) => (
         <span className="text-[11px] font-medium text-slate-700">
@@ -215,10 +222,10 @@ export default function AdminRolesPage() {
     {
       title: "Actions",
       value: "actions",
-      className: "w-[8%] text-right",
+      className: "w-[14%] text-right",
       custom: true,
       component: (r: AppRole) => (
-        <div className="flex items-center gap-1 justify-end">
+        <div className="flex items-center gap-1.5 justify-end">
           <Button
             variant="outline"
             size="sm"
@@ -232,11 +239,11 @@ export default function AdminRolesPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => handleDelete(r)}
-              className="size-6 p-0 text-rose-600 bg-rose-50/70 border border-rose-200 hover:bg-rose-100 hover:border-rose-300 rounded-sm cursor-pointer transition-colors"
-              title="Delete role"
+              onClick={() => setDeleteTarget(r)}
+              className="h-6 px-2 text-[11px] font-semibold text-rose-600 bg-rose-50/70 border border-rose-200 hover:bg-rose-100 hover:border-rose-300 rounded-sm gap-1 cursor-pointer transition-colors"
             >
               <Trash2 className="size-3" />
+              <span>Delete</span>
             </Button>
           )}
         </div>
@@ -422,6 +429,18 @@ export default function AdminRolesPage() {
           </div>
         </form>
       </AdminModal>
+
+      {/* ── Delete Confirmation Dialog ── */}
+      <AdminConfirmDialog
+        open={deleteTarget !== null}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={confirmDelete}
+        title="Delete Role"
+        description={`Are you sure you want to delete role "${deleteTarget?.label}"? This action cannot be undone.`}
+        confirmText="Delete Role"
+        loading={deleting}
+        variant="danger"
+      />
     </div>
   );
 }

@@ -73,45 +73,47 @@ export default function AdminSettingsPage() {
       description="Administer user credentials, access privileges, geopolitical zones, and organizational directories."
       maxWidth="full"
     >
-      <div className="w-full space-y-3">
-        {/* ── Tabs Strip Under the Header (Not in it) ── */}
-        <div className="flex items-center gap-1 overflow-x-auto lg:overflow-x-visible -mb-px border-b border-[#d4e8dc]/70 w-full" role="tablist">
-          {TABS.map((t) => {
-            const active = tab === t.id;
-            const Icon = t.icon;
-            const count = counts[t.id];
+      <div className="w-full">
+        {/* ── Tabs Strip Under the Header (Pure White Background, Flush & Spaced from Filters) ── */}
+        <div className="bg-white border-b border-[#d4e8dc]/80 px-4 md:px-6 -mx-3 md:-mx-3 -mt-3 mb-5 shadow-2xs">
+          <div className="flex items-center gap-1 overflow-x-auto lg:overflow-x-visible -mb-px w-full" role="tablist">
+            {TABS.map((t) => {
+              const active = tab === t.id;
+              const Icon = t.icon;
+              const count = counts[t.id];
 
-            return (
-              <button
-                key={t.id}
-                type="button"
-                role="tab"
-                aria-selected={active}
-                onClick={() => handleTabChange(t.id)}
-                className={`group relative shrink-0 inline-flex items-center gap-1.5 px-2.5 py-2 text-xs font-semibold whitespace-nowrap border-b-2 transition-all outline-none cursor-pointer ${
-                  active
-                    ? "border-[#145c3f] text-[#145c3f]"
-                    : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300"
-                }`}
-              >
-                <Icon
-                  className={`size-3.5 shrink-0 ${active ? "text-[#145c3f]" : "text-slate-400 group-hover:text-slate-600"}`}
-                />
-                <span>{t.label}</span>
-                {count !== undefined && (
-                  <span
-                    className={`inline-flex min-w-[1.15rem] h-4 items-center justify-center rounded-full px-1 text-[10px] font-bold tabular-nums leading-none ${
-                      active
-                        ? "bg-[#e8f5ee] text-[#145c3f]"
-                        : "bg-slate-100 text-slate-500 group-hover:bg-slate-200"
-                    }`}
-                  >
-                    {count}
-                  </span>
-                )}
-              </button>
-            );
-          })}
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => handleTabChange(t.id)}
+                  className={`group relative shrink-0 inline-flex items-center gap-1.5 px-3 py-2.5 text-xs font-semibold whitespace-nowrap border-b-2 transition-all outline-none cursor-pointer ${
+                    active
+                      ? "border-[#145c3f] text-[#145c3f]"
+                      : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300"
+                  }`}
+                >
+                  <Icon
+                    className={`size-3.5 shrink-0 ${active ? "text-[#145c3f]" : "text-slate-400 group-hover:text-slate-600"}`}
+                  />
+                  <span>{t.label}</span>
+                  {count !== undefined && (
+                    <span
+                      className={`inline-flex min-w-[1.15rem] h-4 items-center justify-center rounded-full px-1 text-[10px] font-bold tabular-nums leading-none ${
+                        active
+                          ? "bg-[#e8f5ee] text-[#145c3f]"
+                          : "bg-slate-100 text-slate-500 group-hover:bg-slate-200"
+                      }`}
+                    >
+                      {count}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* ── Active Tab View ── */}

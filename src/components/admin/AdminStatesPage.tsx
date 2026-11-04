@@ -7,6 +7,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@
 import CustomTable, { type CustomTableField } from "@/components/CustomTable";
 import { statesApi, zonesApi, type StateOffice, type ZonalOffice } from "@/lib/adminApi";
 import AdminModal from "./AdminModal";
+import AdminConfirmDialog from "./AdminConfirmDialog";
 
 export default function AdminStatesPage() {
   const [states, setStates] = React.useState<StateOffice[]>([]);
@@ -24,6 +25,8 @@ export default function AdminStatesPage() {
     is_zonal_office: false,
   });
   const [saving, setSaving] = React.useState(false);
+  const [deleteTarget, setDeleteTarget] = React.useState<StateOffice | null>(null);
+  const [deleting, setDeleting] = React.useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -93,14 +96,18 @@ export default function AdminStatesPage() {
     }
   };
 
-  const handleDelete = async (s: StateOffice) => {
-    if (!confirm(`Delete state office "${s.description}" (${s.code})?`)) return;
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
     try {
-      await statesApi.delete(s.code);
-      toast.success("State office deleted");
+      await statesApi.delete(deleteTarget.code);
+      toast.success("State office deleted successfully");
+      setDeleteTarget(null);
       load();
     } catch (e: any) {
       toast.error(e.message);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -138,7 +145,7 @@ export default function AdminStatesPage() {
     {
       title: "Geopolitical Zone",
       value: "zonal_code",
-      className: "w-[20%] text-left",
+      className: "w-[18%] text-left",
       custom: true,
       component: (s: StateOffice) => (
         <span className="text-[11px] font-semibold text-sky-700 bg-sky-50 px-1.5 py-0.2 rounded-sm border border-sky-100">
@@ -149,7 +156,7 @@ export default function AdminStatesPage() {
     {
       title: "Office Designation",
       value: "is_hq",
-      className: "w-[20%] text-left",
+      className: "w-[18%] text-left",
       custom: true,
       component: (s: StateOffice) => (
         <div className="flex items-center gap-1 flex-wrap">
@@ -172,10 +179,10 @@ export default function AdminStatesPage() {
     {
       title: "Actions",
       value: "actions",
-      className: "w-[10%] text-right",
+      className: "w-[14%] text-right",
       custom: true,
       component: (s: StateOffice) => (
-        <div className="flex items-center gap-1 justify-end">
+        <div className="flex items-center gap-1.5 justify-end">
           <Button
             variant="outline"
             size="sm"
@@ -188,11 +195,11 @@ export default function AdminStatesPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => handleDelete(s)}
-            className="size-6 p-0 text-rose-600 bg-rose-50/70 border border-rose-200 hover:bg-rose-100 hover:border-rose-300 rounded-sm cursor-pointer transition-colors"
-            title="Delete state office"
+            onClick={() => setDeleteTarget(s)}
+            className="h-6 px-2 text-[11px] font-semibold text-rose-600 bg-rose-50/70 border border-rose-200 hover:bg-rose-100 hover:border-rose-300 rounded-sm gap-1 cursor-pointer transition-colors"
           >
             <Trash2 className="size-3" />
+            <span>Delete</span>
           </Button>
         </div>
       ),
@@ -361,6 +368,18 @@ export default function AdminStatesPage() {
           </div>
         </form>
       </AdminModal>
+
+      {/* ── Delete Confirmation Dialog ── */}
+      <AdminConfirmDialog
+        open={deleteTarget !== null}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={confirmDelete}
+        title="Delete State Office"
+        description={`Are you sure you want to delete state office "${deleteTarget?.description}" (${deleteTarget?.code})? This action cannot be undone.`}
+        confirmText="Delete State Office"
+        loading={deleting}
+        variant="danger"
+      />
     </div>
   );
 }

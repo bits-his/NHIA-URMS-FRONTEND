@@ -14,6 +14,7 @@ import {
   type AdminUser, type AppRole, type ZonalOffice, type StateOffice, type Department, type Unit
 } from "@/lib/adminApi";
 import AdminModal from "./AdminModal";
+import AdminConfirmDialog from "./AdminConfirmDialog";
 import ModuleAccessPicker from "./ModuleAccessPicker";
 import { buildAccessPayload, countGrantedParents, selectAllPrivilegeKeys } from "@/src/access/privilegeTree";
 import { normalizeFunctionalityTitle, normalizeModuleTitle } from "@/src/access/accessUtils";
@@ -89,6 +90,8 @@ export default function AdminUsersPage() {
   const [editing, setEditing] = React.useState<AdminUser | null>(null);
   const [form, setForm] = React.useState({ ...EMPTY });
   const [saving, setSaving] = React.useState(false);
+  const [confirmDeactivate, setConfirmDeactivate] = React.useState<AdminUser | null>(null);
+  const [deactivating, setDeactivating] = React.useState(false);
   const [granted, setGranted] = React.useState<Set<string>>(new Set());
 
   const roleLabels = React.useMemo(() => {
@@ -254,14 +257,18 @@ export default function AdminUsersPage() {
     }
   };
 
-  const handleDeactivate = async (u: AdminUser) => {
-    if (!confirm(`Deactivate user "${u.name}"? They will no longer be able to log in.`)) return;
+  const confirmDeactivateUser = async () => {
+    if (!confirmDeactivate) return;
+    setDeactivating(true);
     try {
-      await usersApi.deactivate(u.id);
-      toast.success("User deactivated");
+      await usersApi.deactivate(confirmDeactivate.id);
+      toast.success("User deactivated successfully");
+      setConfirmDeactivate(null);
       load();
     } catch (e: any) {
       toast.error(e.message);
+    } finally {
+      setDeactivating(false);
     }
   };
 
@@ -294,7 +301,7 @@ export default function AdminUsersPage() {
     {
       title: "Staff Member",
       value: "name",
-      className: "w-[24%] text-left",
+      className: "w-[22%] text-left",
       custom: true,
       component: (u: AdminUser) => (
         <div className="flex items-center gap-2 min-w-0">
@@ -316,7 +323,7 @@ export default function AdminUsersPage() {
     {
       title: "Staff ID",
       value: "staff_id",
-      className: "w-[12%] text-left",
+      className: "w-[10%] text-left",
       custom: true,
       component: (u: AdminUser) => (
         <span className="font-mono text-[11px] font-semibold px-1.5 py-0.5 rounded-sm bg-slate-100 text-slate-700 border border-slate-200">
@@ -412,10 +419,10 @@ export default function AdminUsersPage() {
     {
       title: "Actions",
       value: "actions",
-      className: "w-[10%] text-right",
+      className: "w-[15%] text-right",
       custom: true,
       component: (u: AdminUser) => (
-        <div className="flex items-center gap-1 justify-end">
+        <div className="flex items-center gap-1.5 justify-end">
           <Button
             variant="outline"
             size="sm"
@@ -429,21 +436,21 @@ export default function AdminUsersPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => handleDeactivate(u)}
-              title="Deactivate user"
-              className="size-6 p-0 text-amber-700 bg-amber-50/70 border border-amber-200 hover:bg-amber-100 hover:border-amber-300 rounded-sm cursor-pointer transition-colors"
+              onClick={() => setConfirmDeactivate(u)}
+              className="h-6 px-2 text-[11px] font-semibold text-amber-700 bg-amber-50/70 border border-amber-200 hover:bg-amber-100 hover:border-amber-300 rounded-sm gap-1 cursor-pointer transition-colors"
             >
               <UserX className="size-3" />
+              <span>Deactivate</span>
             </Button>
           ) : (
             <Button
               variant="outline"
               size="sm"
               onClick={() => handleActivate(u)}
-              title="Reactivate user"
-              className="size-6 p-0 text-emerald-700 bg-emerald-50/70 border border-emerald-200 hover:bg-emerald-100 hover:border-emerald-300 rounded-sm cursor-pointer transition-colors"
+              className="h-6 px-2 text-[11px] font-semibold text-emerald-700 bg-emerald-50/70 border border-emerald-200 hover:bg-emerald-100 hover:border-emerald-300 rounded-sm gap-1 cursor-pointer transition-colors"
             >
               <UserCheck className="size-3" />
+              <span>Reactivate</span>
             </Button>
           )}
         </div>
@@ -875,6 +882,18 @@ export default function AdminUsersPage() {
           </div>
         </form>
       </AdminModal>
+
+      {/* ── Deactivate Confirmation Dialog ── */}
+      <AdminConfirmDialog
+        open={confirmDeactivate !== null}
+        onClose={() => setConfirmDeactivate(null)}
+        onConfirm={confirmDeactivateUser}
+        title="Deactivate Staff Account"
+        description={`Are you sure you want to deactivate ${confirmDeactivate?.name} (${confirmDeactivate?.staff_id})? They will no longer be able to log in to the NHIA portal.`}
+        confirmText="Deactivate Account"
+        loading={deactivating}
+        variant="warning"
+      />
     </div>
   );
 }

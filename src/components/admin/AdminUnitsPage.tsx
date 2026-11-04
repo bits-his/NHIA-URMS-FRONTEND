@@ -7,6 +7,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@
 import CustomTable, { type CustomTableField } from "@/components/CustomTable";
 import { unitsApi, departmentsApi, type Unit, type Department } from "@/lib/adminApi";
 import AdminModal from "./AdminModal";
+import AdminConfirmDialog from "./AdminConfirmDialog";
 
 export default function AdminUnitsPage() {
   const [units, setUnits] = React.useState<Unit[]>([]);
@@ -18,6 +19,8 @@ export default function AdminUnitsPage() {
   const [editing, setEditing] = React.useState<Unit | null>(null);
   const [form, setForm] = React.useState({ name: "", description: "", department_code: "" });
   const [saving, setSaving] = React.useState(false);
+  const [deleteTarget, setDeleteTarget] = React.useState<Unit | null>(null);
+  const [deleting, setDeleting] = React.useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -76,14 +79,18 @@ export default function AdminUnitsPage() {
     }
   };
 
-  const handleDelete = async (u: Unit) => {
-    if (!confirm(`Delete unit "${u.name}"?`)) return;
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
     try {
-      await unitsApi.delete(u.unit_code);
-      toast.success("Operational unit deleted");
+      await unitsApi.delete(deleteTarget.unit_code);
+      toast.success("Operational unit deleted successfully");
+      setDeleteTarget(null);
       load();
     } catch (e: any) {
       toast.error(e.message);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -110,7 +117,7 @@ export default function AdminUnitsPage() {
     {
       title: "Unit Name & Scope",
       value: "name",
-      className: "w-[42%] text-left",
+      className: "w-[40%] text-left",
       custom: true,
       component: (u: Unit) => (
         <div className="min-w-0 truncate">
@@ -124,7 +131,7 @@ export default function AdminUnitsPage() {
     {
       title: "Parent Department",
       value: "department_code",
-      className: "w-[30%] text-left",
+      className: "w-[28%] text-left",
       custom: true,
       component: (u: Unit) => (
         <span className="text-[11px] font-medium text-slate-700 truncate block">
@@ -135,10 +142,10 @@ export default function AdminUnitsPage() {
     {
       title: "Actions",
       value: "actions",
-      className: "w-[10%] text-right",
+      className: "w-[14%] text-right",
       custom: true,
       component: (u: Unit) => (
-        <div className="flex items-center gap-1 justify-end">
+        <div className="flex items-center gap-1.5 justify-end">
           <Button
             variant="outline"
             size="sm"
@@ -151,11 +158,11 @@ export default function AdminUnitsPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => handleDelete(u)}
-            className="size-6 p-0 text-rose-600 bg-rose-50/70 border border-rose-200 hover:bg-rose-100 hover:border-rose-300 rounded-sm cursor-pointer transition-colors"
-            title="Delete unit"
+            onClick={() => setDeleteTarget(u)}
+            className="h-6 px-2 text-[11px] font-semibold text-rose-600 bg-rose-50/70 border border-rose-200 hover:bg-rose-100 hover:border-rose-300 rounded-sm gap-1 cursor-pointer transition-colors"
           >
             <Trash2 className="size-3" />
+            <span>Delete</span>
           </Button>
         </div>
       ),
@@ -301,6 +308,18 @@ export default function AdminUnitsPage() {
           </div>
         </form>
       </AdminModal>
+
+      {/* ── Delete Confirmation Dialog ── */}
+      <AdminConfirmDialog
+        open={deleteTarget !== null}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={confirmDelete}
+        title="Delete Operational Unit"
+        description={`Are you sure you want to delete unit "${deleteTarget?.name}" (${deleteTarget?.unit_code})? This action cannot be undone.`}
+        confirmText="Delete Unit"
+        loading={deleting}
+        variant="danger"
+      />
     </div>
   );
 }

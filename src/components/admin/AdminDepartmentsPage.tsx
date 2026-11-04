@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import CustomTable, { type CustomTableField } from "@/components/CustomTable";
 import { departmentsApi, type Department } from "@/lib/adminApi";
 import AdminModal from "./AdminModal";
+import AdminConfirmDialog from "./AdminConfirmDialog";
 
 export default function AdminDepartmentsPage() {
   const [depts, setDepts] = React.useState<Department[]>([]);
@@ -15,6 +16,8 @@ export default function AdminDepartmentsPage() {
   const [editing, setEditing] = React.useState<Department | null>(null);
   const [form, setForm] = React.useState({ name: "", description: "" });
   const [saving, setSaving] = React.useState(false);
+  const [deleteTarget, setDeleteTarget] = React.useState<Department | null>(null);
+  const [deleting, setDeleting] = React.useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -64,14 +67,18 @@ export default function AdminDepartmentsPage() {
     }
   };
 
-  const handleDelete = async (d: Department) => {
-    if (!confirm(`Delete department "${d.name}"?`)) return;
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
     try {
-      await departmentsApi.delete(d.department_code);
-      toast.success("Department deleted");
+      await departmentsApi.delete(deleteTarget.department_code);
+      toast.success("Department deleted successfully");
+      setDeleteTarget(null);
       load();
     } catch (e: any) {
       toast.error(e.message);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -87,7 +94,7 @@ export default function AdminDepartmentsPage() {
     {
       title: "Department Code",
       value: "department_code",
-      className: "w-[20%] text-left",
+      className: "w-[18%] text-left",
       custom: true,
       component: (d: Department) => (
         <span className="font-mono text-xs font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded-sm border border-rose-100">
@@ -112,7 +119,7 @@ export default function AdminDepartmentsPage() {
     {
       title: "Operational Units",
       value: "units",
-      className: "w-[25%] text-left",
+      className: "w-[23%] text-left",
       custom: true,
       component: (d: Department) => (
         <span className="text-[11px] font-medium text-slate-600">
@@ -123,10 +130,10 @@ export default function AdminDepartmentsPage() {
     {
       title: "Actions",
       value: "actions",
-      className: "w-[10%] text-right",
+      className: "w-[14%] text-right",
       custom: true,
       component: (d: Department) => (
-        <div className="flex items-center gap-1 justify-end">
+        <div className="flex items-center gap-1.5 justify-end">
           <Button
             variant="outline"
             size="sm"
@@ -139,11 +146,11 @@ export default function AdminDepartmentsPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => handleDelete(d)}
-            className="size-6 p-0 text-rose-600 bg-rose-50/70 border border-rose-200 hover:bg-rose-100 hover:border-rose-300 rounded-sm cursor-pointer transition-colors"
-            title="Delete department"
+            onClick={() => setDeleteTarget(d)}
+            className="h-6 px-2 text-[11px] font-semibold text-rose-600 bg-rose-50/70 border border-rose-200 hover:bg-rose-100 hover:border-rose-300 rounded-sm gap-1 cursor-pointer transition-colors"
           >
             <Trash2 className="size-3" />
+            <span>Delete</span>
           </Button>
         </div>
       ),
@@ -243,6 +250,18 @@ export default function AdminDepartmentsPage() {
           </div>
         </form>
       </AdminModal>
+
+      {/* ── Delete Confirmation Dialog ── */}
+      <AdminConfirmDialog
+        open={deleteTarget !== null}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={confirmDelete}
+        title="Delete Department"
+        description={`Are you sure you want to delete department "${deleteTarget?.name}" (${deleteTarget?.department_code})? This action cannot be undone.`}
+        confirmText="Delete Department"
+        loading={deleting}
+        variant="danger"
+      />
     </div>
   );
 }
