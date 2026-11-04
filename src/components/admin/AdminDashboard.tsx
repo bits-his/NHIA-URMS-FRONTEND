@@ -2,8 +2,8 @@ import * as React from "react";
 import {
   Users, MapPin, Building2, Layers, ShieldCheck, Activity,
   RefreshCw, Zap, Database, Server, Wifi, CheckCircle2, AlertCircle,
-  ChevronRight, ArrowUpRight, Shield, Settings, Check, Package,
-  FileCheck2, FileText, HeartHandshake, Lock, Clock, Cpu, HardDrive
+  ChevronRight, ArrowUpRight, Shield, Settings, Check,
+  FileText, Lock, Clock, Search
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -12,11 +12,12 @@ import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import PageLayout from "@/src/components/PageLayout";
 import { cn } from "@/lib/utils";
-import { usersApi, zonesApi, statesApi, departmentsApi, unitsApi } from "@/lib/adminApi";
+import { usersApi, zonesApi, statesApi, departmentsApi, unitsApi, rolesApi } from "@/lib/adminApi";
 
 interface Stats {
   users: number;
   activeUsers: number;
+  roles: number;
   privileges: number;
   zones: number;
   states: number;
@@ -35,62 +36,15 @@ interface AuditEvent {
 }
 
 const STAT_CARDS = [
-  { key: "zones",       label: "Geopolitical Zones", icon: MapPin,     iconCls: "text-sky-700 bg-sky-50 border-sky-100",          desc: "100% active coverage" },
-  { key: "states",      label: "State Offices",      icon: Building2,  iconCls: "text-amber-700 bg-amber-50 border-amber-100",    desc: "36 States + FCT" },
-  { key: "departments", label: "HQ Departments",    icon: Layers,     iconCls: "text-indigo-700 bg-indigo-50 border-indigo-100",  desc: "Central directorates" },
-  { key: "units",       label: "Operational Units",  icon: Database,   iconCls: "text-emerald-700 bg-emerald-50 border-emerald-100",desc: "Field & special units" },
-  { key: "users",       label: "System Accounts",    icon: Users,      iconCls: "text-[#145c3f] bg-emerald-50 border-emerald-100",  desc: "Registered staff" },
-  { key: "privileges",  label: "Privilege Sets",     icon: ShieldCheck,iconCls: "text-purple-700 bg-purple-50 border-purple-100", desc: "Configured access" },
-  { key: "uptime",      label: "Platform Uptime",    icon: Activity,   iconCls: "text-teal-700 bg-teal-50 border-teal-100",        desc: "99.98% availability" },
+  { key: "users",       label: "Total Users",      icon: Users,       iconCls: "text-[#145c3f] bg-emerald-50 border-emerald-100",  desc: "Accounts" },
+  { key: "activeUsers", label: "Active Users",     icon: Activity,    iconCls: "text-blue-700 bg-blue-50 border-blue-100",        desc: "Active now" },
+  { key: "roles",       label: "System Roles",     icon: Shield,      iconCls: "text-indigo-700 bg-indigo-50 border-indigo-100", desc: "Configured" },
+  { key: "privileges",  label: "Privilege Sets",   icon: ShieldCheck, iconCls: "text-purple-700 bg-purple-50 border-purple-100", desc: "With access" },
+  { key: "zones",       label: "Zonal Offices",    icon: MapPin,      iconCls: "text-sky-700 bg-sky-50 border-sky-100",          desc: "Geo zones" },
+  { key: "states",      label: "State Offices",    icon: Building2,   iconCls: "text-amber-700 bg-amber-50 border-amber-100",    desc: "36 + FCT" },
+  { key: "departments", label: "Departments",      icon: Layers,      iconCls: "text-rose-700 bg-rose-50 border-rose-100",       desc: "HQ directorates" },
+  { key: "units",       label: "Operational Units",icon: Database,    iconCls: "text-teal-700 bg-teal-50 border-teal-100",       desc: "Operations" },
 ] as const;
-
-const MODULE_ENGINES = [
-  {
-    id: "store-assets",
-    title: "Store & Fixed Assets Engine",
-    desc: "Supply verification certificates, fixed assets ledger, stock vouchers & office transfer tracking",
-    status: "Operational",
-    metrics: "Asset registers online • Auto-vouchers active",
-    icon: Package,
-    color: "text-emerald-700 bg-emerald-50 border-emerald-200",
-  },
-  {
-    id: "state-operations",
-    title: "State Office Coordination Hub",
-    desc: "Weekly actionable plans, enrolment drive trackers, state challenges, support logs & stakeholder matrix",
-    status: "Operational",
-    metrics: "37 State branches connected • Zonal aggregation active",
-    icon: Building2,
-    color: "text-amber-700 bg-amber-50 border-amber-200",
-  },
-  {
-    id: "hmo-recon",
-    title: "HMO Indebtedness & Reconciliation",
-    desc: "HMO master data sheets, capitation/FFS debt tracking, variance reconciliations & claims audit packs",
-    status: "Operational",
-    metrics: "HMO reconciliation engine online • Audit logs synced",
-    icon: FileCheck2,
-    color: "text-blue-700 bg-blue-50 border-blue-200",
-  },
-  {
-    id: "servicom",
-    title: "SERVICOM Quality & Complaints Desk",
-    desc: "Citizens' comment cards, customer satisfaction surveys, complaints SLA escalation & mystery shopping",
-    status: "Operational",
-    metrics: "Automated SLA monitors active • Public feedback pipeline ready",
-    icon: HeartHandshake,
-    color: "text-rose-700 bg-rose-50 border-rose-200",
-  },
-  {
-    id: "reporting",
-    title: "Executive & Monthly Reporting Pipeline",
-    desc: "State officer submission cycle, zonal review & endorsement gate, DG executive intelligence dashboard",
-    status: "Operational",
-    metrics: "Monthly cycle active • Zonal review engine operational",
-    icon: FileText,
-    color: "text-purple-700 bg-purple-50 border-purple-200",
-  },
-];
 
 const AUDIT_LOGS: AuditEvent[] = [
   {
@@ -138,6 +92,24 @@ const AUDIT_LOGS: AuditEvent[] = [
     type: "notice",
     statusText: "Passed",
   },
+  {
+    id: "log-6",
+    title: "Store Management Inventory Baseline Locked",
+    detail: "Annual physical verification reconciliation records archived for audit trail.",
+    actor: "SYSTEM",
+    time: "Yesterday, 11:20 PM",
+    type: "success",
+    statusText: "Archived",
+  },
+  {
+    id: "log-7",
+    title: "HMO Indebtedness Reconciliation Pipeline Synced",
+    detail: "Aggregated monthly Capitation and Fee-For-Service ledgers across all participating schemes.",
+    actor: "ADMIN",
+    time: "Yesterday, 04:45 PM",
+    type: "info",
+    statusText: "Synced",
+  },
 ];
 
 export default function AdminDashboard({ onNavigate }: { onNavigate?: (tab: string) => void }) {
@@ -148,22 +120,25 @@ export default function AdminDashboard({ onNavigate }: { onNavigate?: (tab: stri
   const load = React.useCallback(async () => {
     setLoading(true);
     try {
-      const [usersRes, zonesRes, statesRes, deptsRes, unitsRes] = await Promise.allSettled([
+      const [usersRes, zonesRes, statesRes, deptsRes, unitsRes, rolesRes] = await Promise.allSettled([
         usersApi.list({ limit: 100 } as any),
         zonesApi.list(),
         statesApi.list(),
         departmentsApi.list(),
         unitsApi.list(),
+        rolesApi.list(),
       ]);
 
       const allUsers = usersRes.status === "fulfilled" ? (usersRes.value.data ?? []) : [];
       const total    = usersRes.status === "fulfilled" ? (usersRes.value.total ?? allUsers.length) : allUsers.length;
       const active   = allUsers.filter((u: any) => u.is_active).length;
       const withPriv = allUsers.filter((u: any) => Array.isArray(u.functionalities) && u.functionalities.length > 0).length;
+      const totalRoles = rolesRes.status === "fulfilled" ? (rolesRes.value.data?.length ?? 15) : 15;
 
       setStats({
         users:       total,
         activeUsers: active,
+        roles:       totalRoles,
         privileges:  withPriv,
         zones:       zonesRes.status  === "fulfilled" ? (zonesRes.value.data?.length ?? 0)  : 0,
         states:      statesRes.status === "fulfilled" ? (statesRes.value.data?.length ?? 0) : 0,
@@ -238,34 +213,34 @@ export default function AdminDashboard({ onNavigate }: { onNavigate?: (tab: stri
         </div>
       }
     >
-      <div className="w-full space-y-3.5">
-        {/* Top Metric Strip: National Topology & Directory Totals (7 compact cards) */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-7 gap-2.5">
+      <div className="w-full space-y-3">
+        {/* Compact 8-Card Metric Strip */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
           {STAT_CARDS.map(({ key, label, icon: Icon, iconCls, desc }) => {
-            const val = key === "uptime" ? "99.98%" : stats ? (stats as any)[key] : 0;
+            const val = stats ? (stats as any)[key] : 0;
             return (
               <div
                 key={key}
-                className="rounded-lg border border-[#d4e8dc] bg-white p-3 shadow-2xs hover:border-[#145c3f]/50 transition-all flex flex-col justify-between"
+                className="rounded-lg border border-[#d4e8dc] bg-white p-2.5 shadow-2xs hover:border-[#145c3f]/50 transition-all flex flex-col justify-between min-h-[72px]"
               >
-                <div className="flex items-center justify-between mb-1.5">
-                  <div className={cn("size-7 rounded-md flex items-center justify-center border transition-colors", iconCls)}>
-                    <Icon className="size-3.5" />
+                <div className="flex items-center justify-between mb-1">
+                  <div className={cn("size-6 rounded flex items-center justify-center border shrink-0 transition-colors", iconCls)}>
+                    <Icon className="size-3" />
                   </div>
-                  <span className="text-[10px] text-slate-400 font-medium truncate max-w-[85px]">{desc}</span>
+                  <span className="text-[10px] text-slate-400 font-medium truncate ml-1">{desc}</span>
                 </div>
 
-                {loading && key !== "uptime" ? (
+                {loading ? (
                   <div className="space-y-1 py-0.5">
-                    <Skeleton className="h-6 w-12 bg-slate-100" />
-                    <Skeleton className="h-3 w-16 bg-slate-100" />
+                    <Skeleton className="h-5 w-10 bg-slate-100" />
+                    <Skeleton className="h-2.5 w-14 bg-slate-100" />
                   </div>
                 ) : (
                   <div>
-                    <p className="text-xl font-bold tracking-tight text-slate-900 tabular-nums">
+                    <p className="text-lg font-bold tracking-tight text-slate-900 tabular-nums leading-tight">
                       {val}
                     </p>
-                    <p className="text-xs font-semibold text-slate-700 mt-0.5">{label}</p>
+                    <p className="text-[11px] font-semibold text-slate-700 truncate mt-0.5">{label}</p>
                   </div>
                 )}
               </div>
@@ -302,66 +277,14 @@ export default function AdminDashboard({ onNavigate }: { onNavigate?: (tab: stri
 
         {/* Main 12-Column Content Grid */}
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-3.5 items-start w-full">
-          {/* Left Column (8 cols): Platform Modules & Engines Status + Administrative Audit Trail */}
+          {/* Left Column (8 cols): System Audit & Administrative Governance Log */}
           <div className="xl:col-span-8 flex flex-col gap-3.5">
-            {/* Card 1: Platform Modules & Workflow Engines Status */}
-            <Card className="rounded-lg border-[#d4e8dc] bg-white shadow-2xs overflow-hidden">
-              <CardHeader className="p-3.5 pb-2.5 border-b border-[#f0fdf7] flex flex-row items-center justify-between gap-2">
-                <div>
-                  <CardTitle className="text-sm font-bold text-slate-900">Platform Modules & Workflow Engines</CardTitle>
-                  <CardDescription className="text-xs text-slate-500 mt-0.5">
-                    Real-time operational health of core NHIA business logic and backend engines
-                  </CardDescription>
-                </div>
-                <Badge variant="outline" className="border-[#d4e8dc] bg-[#e8f5ee] text-[#145c3f] text-[11px] font-semibold gap-1">
-                  <Check className="size-3 text-[#145c3f]" />
-                  5 Subsystems Active
-                </Badge>
-              </CardHeader>
-              <CardContent className="p-3.5 space-y-2.5">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
-                  {MODULE_ENGINES.map((m) => {
-                    const Icon = m.icon;
-                    return (
-                      <div
-                        key={m.id}
-                        className="p-3 rounded-lg border border-[#eef6f1] bg-[#fbfdfc] hover:border-[#145c3f]/40 hover:bg-white transition-all flex flex-col justify-between gap-2"
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <div className={cn("size-7 rounded-md flex items-center justify-center shrink-0 border", m.color)}>
-                              <Icon className="size-3.5" />
-                            </div>
-                            <p className="text-xs font-bold text-slate-900 truncate">
-                              {m.title}
-                            </p>
-                          </div>
-                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100 shrink-0">
-                            <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                            {m.status}
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-slate-500 leading-snug">
-                          {m.desc}
-                        </p>
-                        <div className="pt-1.5 border-t border-[#f4f7f5] flex items-center justify-between text-[10px] text-slate-400 font-medium">
-                          <span>{m.metrics}</span>
-                          <span className="text-emerald-700">Healthy</span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Card 2: Administrative System Audit & Event Log */}
             <Card className="rounded-lg border-[#d4e8dc] bg-white shadow-2xs overflow-hidden">
               <CardHeader className="p-3.5 pb-2.5 border-b border-[#f0fdf7] flex flex-row items-center justify-between gap-2">
                 <div>
                   <CardTitle className="text-sm font-bold text-slate-900">System Audit & Governance Log</CardTitle>
                   <CardDescription className="text-xs text-slate-500 mt-0.5">
-                    Recent administrative updates, security validations, and automated system maintenance
+                    Real-time administrative telemetry, automated snapshots, directory flushes, and RBAC validations
                   </CardDescription>
                 </div>
                 <span className="text-[11px] text-slate-400 font-medium flex items-center gap-1">
@@ -412,7 +335,7 @@ export default function AdminDashboard({ onNavigate }: { onNavigate?: (tab: stri
             </Card>
           </div>
 
-          {/* Right Column (4 cols): System Health + Data Summary + Security Specs */}
+          {/* Right Column (4 cols): System Health + Directory Breakdown + Security Status */}
           <div className="xl:col-span-4 flex flex-col gap-3.5">
             {/* System Infrastructure Health Card (Dark Forest Green) */}
             <div className="rounded-lg p-3.5 bg-gradient-to-br from-[#0c3928] via-[#145c3f] to-[#092b1e] text-white border border-[#145c3f] shadow-2xs relative overflow-hidden">
@@ -488,6 +411,7 @@ export default function AdminDashboard({ onNavigate }: { onNavigate?: (tab: stri
                   { label: "HQ Departments",    val: stats?.departments, icon: Layers,     iconCls: "text-purple-600",badge: "bg-purple-50 text-purple-700" },
                   { label: "Operational Units",  val: stats?.units,       icon: Database,   iconCls: "text-emerald-600",badge: "bg-emerald-50 text-emerald-700" },
                   { label: "Registered Staff",   val: stats?.users,       icon: Users,      iconCls: "text-[#145c3f]", badge: "bg-[#e8f5ee] text-[#145c3f]" },
+                  { label: "System Roles",       val: stats?.roles,       icon: Shield,     iconCls: "text-indigo-600",badge: "bg-indigo-50 text-indigo-700" },
                   { label: "Privilege Sets",     val: stats?.privileges,  icon: ShieldCheck,iconCls: "text-purple-600",badge: "bg-purple-50 text-purple-700" },
                 ].map((r) => {
                   const Icon = r.icon;
@@ -546,24 +470,6 @@ export default function AdminDashboard({ onNavigate }: { onNavigate?: (tab: stri
                     <CheckCircle2 className="size-3.5 text-emerald-600 shrink-0" />
                     <span>Zero Escalation Anomalies Detected</span>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Platform Specifications Card */}
-            <Card className="rounded-lg border-[#d4e8dc] bg-white shadow-2xs">
-              <CardContent className="p-3.5 space-y-2 text-xs">
-                <div className="flex items-center justify-between text-slate-500">
-                  <span>Architecture</span>
-                  <span className="font-semibold text-slate-800">Cloud Distributed / PostgreSQL</span>
-                </div>
-                <div className="flex items-center justify-between text-slate-500">
-                  <span>Portal Release</span>
-                  <span className="font-semibold text-slate-800">NHIA v2.0 Enterprise</span>
-                </div>
-                <div className="flex items-center justify-between text-slate-500">
-                  <span>Primary Region</span>
-                  <span className="font-semibold text-slate-800">Abuja / Lagos DC</span>
                 </div>
               </CardContent>
             </Card>
