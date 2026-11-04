@@ -288,6 +288,7 @@ export const MODULE_CONFIG: ParentModule[] = [
         path: COMPLIANCE_HUB_PATH,
       },
       { type: "group", label: "Internal Management", children: [
+        { title: "Meetings & Coordination", view: "state-meetings", path: "/zonal/meetings" },
         { type: "group", label: "Finance", children: [
           { title: "Finance Dashboard", view: "state-finance-dashboard", path: "/zonal/finance/dashboard", navLabel: "Dashboard" },
           { title: "IGR, SSHIA & Expenditure", view: "state-finance", path: "/zonal/finance/records", navLabel: "Finance" },

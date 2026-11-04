@@ -9,6 +9,13 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from "@/components/ui/table";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { enrolmentDrivesApi as api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import EnrolmentActivityForm, { Field, FieldSection } from "./EnrolmentActivityForm";
@@ -93,7 +100,12 @@ const editable = (batch: Batch | null) => !!batch && ["draft", "returned"].inclu
 const statusLabel = (value: string) => ({ awaiting_review: "Awaiting review", final_submit: "Final submission", send_for_review: "Sent for review", returned: "Returned", endorsed: "Endorsed", submitted: "Submitted", draft: "Draft", endorse: "Endorsed", return: "Returned" }[value] || value);
 const inputClass = "w-full min-h-[4.5rem] rounded-xl px-3.5 py-2 text-sm bg-[#f4f7f5] border-2 border-[#1a7a52] text-slate-800 shadow-xs outline-none hover:border-[#0f3d2e] hover:bg-white focus-visible:border-[#0f3d2e] focus-visible:bg-white focus-visible:ring-3 focus-visible:ring-[#1a7a52]/25";
 const ACTION = "bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20";
-const WORKFLOW_STEPS = [{ id: "period", label: "Reporting period" }, { id: "activities", label: "Record activities" }, { id: "beneficiaries", label: "Register beneficiaries" }, { id: "review", label: "Review" }];
+const WORKFLOW_STEPS = [
+  { id: "period", label: "Reporting period" },
+  { id: "activities", label: "Record activities" },
+  { id: "beneficiaries", label: "Register beneficiaries" },
+  { id: "review", label: "Review & endorse" },
+];
 const STATUS_TONES: Record<string, string> = { draft: "bg-slate-100 text-slate-600 border-slate-200", returned: "bg-rose-100 text-rose-700 border-rose-200", awaiting_review: "bg-amber-100 text-amber-800 border-amber-200", endorsed: "bg-teal-100 text-teal-800 border-teal-200", submitted: "bg-emerald-100 text-emerald-700 border-emerald-200" };
 function StatusBadge({ status }: { status: string }) {
   return <Badge className={`text-[10px] px-2 py-0.5 inline-flex items-center gap-1 w-fit border ${STATUS_TONES[status] || STATUS_TONES.draft}`}>{status === "awaiting_review" ? <Clock className="w-3.5 h-3.5" /> : ["submitted", "endorsed"].includes(status) ? <CheckCircle2 className="w-3.5 h-3.5" /> : <FileText className="w-3.5 h-3.5" />}{statusLabel(status)}</Badge>;
@@ -121,16 +133,12 @@ function EvidenceFiles({ files }: { files: Evidence[] }) {
     finally { setLoading(""); }
   }}><Download className="mr-1 h-3 w-3" />{file.original_name}</Button>)}</div>;
 }
-function Metrics({ values }: { values: Record<string, number> }) {
-  return <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">{[["planned", "Planned activities"], ["recorded", "Recorded activities"], ["conducted", "Completed activities"], ["reached", "Audience reached"], ["leads", "Leads"], ["enrolled", "Linked enrolments"]].map(([key, label]) => <div className="rounded-xl border border-[#d4e8dc] bg-white px-4 py-3" key={key}><p className="text-2xl font-bold tabular-nums text-[#0f3d2e]">{Number(values[key] || 0).toLocaleString()}</p><p className="text-[11px] font-semibold text-slate-500 mt-0.5">{label}</p></div>)}</div>;
-}
-
 export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaultZoneId }: { onBack: () => void; defaultZoneId?: string | null; defaultStateId?: string | null }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const [catalogue, setCatalogue] = React.useState<Catalogue | null>(null);
   const [batches, setBatches] = React.useState<Batch[]>([]);
   const [batch, setBatch] = React.useState<Batch | null>(null);
-  const [mode, setMode] = React.useState<"register" | "batch" | "view" | "activity" | "enrolment" | "actions" | "legacy">("register");
+  const [mode, setMode] = React.useState<"register" | "batch" | "view" | "activity" | "actions" | "legacy">("register");
   const [busy, setBusy] = React.useState(false);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState("");
@@ -364,6 +372,22 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
       activityFormRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   };
+  const openEnrolmentModal = (activity: Activity, reportId: string | null = null) => {
+    if (!activity.reference_id) {
+      toast.error("Save the activity before registering beneficiaries");
+      return;
+    }
+    setLink(activity);
+    setLinkedReportId(reportId);
+    setBatchStep(2);
+    setMode("batch");
+  };
+  const closeEnrolmentModal = () => {
+    const batchId = batch?.reference_id;
+    setLink(null);
+    setLinkedReportId(null);
+    if (batchId) void run(() => openBatch(batchId, 2));
+  };
   const stateOptions = catalogue?.states.map((state) => ({ value: state.code, label: state.description })) || [];
   const stateName = (code: string) => catalogue?.states.find((state) => state.code === code)?.description || code;
   const monthOptions = Array.from({ length: 12 }, (_, index) => ({ value: String(index + 1), label: monthLabel(index + 1) }));
@@ -371,6 +395,10 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
   const filteredBatches = periodFiltered.filter((row) => (filterStatus === "all" || row.status === filterStatus) && matchesSearch([row, stateName(row.state_code), monthLabel(row.reporting_month), statusLabel(row.status)]));
   const listMode = ["register", "actions", "legacy"].includes(mode) && !showCreate && !actionDraft;
   const handleBack = () => {
+    if (link) {
+      closeEnrolmentModal();
+      return;
+    }
     if (showCreate) setShowCreate(false);
     else if (mode === "view") setMode("register");
     else if (mode === "batch" && batchStep > 0) {
@@ -382,16 +410,56 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
     else void navigate("register");
   };
   const pageTitle = showCreate ? "New Enrolment Drive Report" : mode === "actions" && actionDraft ? "Management Follow-up" : "Enrolment Drives";
+  const existingPeriodBatch = React.useMemo(() => {
+    if (!period.state_code || !period.reporting_year || !period.reporting_month) return null;
+    return batches.find((row) =>
+      row.state_code === period.state_code
+      && String(row.reporting_year) === String(period.reporting_year)
+      && String(row.reporting_month) === String(Number(period.reporting_month))
+    ) || null;
+  }, [batches, period.state_code, period.reporting_year, period.reporting_month]);
+  const existingPeriodLocked = !!existingPeriodBatch && ["awaiting_review", "endorsed", "submitted"].includes(existingPeriodBatch.status);
   const geoInfo = (current?: Batch) => {
     const stateCode = current?.state_code || period.state_code;
     const zoneCode = current?.zonal_code || catalogue?.states.find((state) => state.code === stateCode)?.zonal_code || "";
     const zoneName = catalogue?.zones?.find((zone) => zone.zonal_code === zoneCode)?.description || zoneCode;
-    return <Section title="Reporting information">
-      <Field label="State / FCT" required><Dropdown value={stateCode} options={stateOptions} onChange={(value) => setPeriod((previous) => ({ ...previous, state_code: value }))} disabled={!!current || catalogue?.states.length === 1} placeholder="Select State / FCT" /></Field>
-      <Field label="Zone"><Input value={zoneName} readOnly placeholder="Auto-derived from State" /></Field>
-      <Field label="Reporting month" required><Input type="month" min="2000-01" max="2100-12" disabled={!!current} value={driveReportingMonth(current?.reporting_year ?? period.reporting_year, current?.reporting_month ?? period.reporting_month)} onChange={(event) => setPeriod((previous) => ({ ...previous, ...driveReportingPeriod(event.target.value) }))} /></Field>
-      <Field label="Number of planned activities"><Input type="number" min={0} step={1} value={current ? planned : period.planned_activities} disabled={!!current && (!canEdit || batchStep !== 0 || mode !== "batch")} onChange={(event) => current ? setPlanned(event.target.value) : setPeriod((previous) => ({ ...previous, planned_activities: event.target.value }))} placeholder="Enter once" /></Field>
-    </Section>;
+    return (
+      <Section title="Reporting information">
+        <Field label="State / FCT" required>
+          <Dropdown
+            value={stateCode}
+            options={stateOptions}
+            onChange={(value) => setPeriod((previous) => ({ ...previous, state_code: value }))}
+            disabled={!!current || catalogue?.states.length === 1}
+            placeholder="Select State / FCT"
+          />
+        </Field>
+        <Field label="Zone">
+          <Input value={zoneName} readOnly placeholder="Auto-derived from State" />
+        </Field>
+        <Field label="Reporting month" required>
+          <Input
+            type="month"
+            min="2000-01"
+            max="2100-12"
+            disabled={!!current}
+            value={driveReportingMonth(current?.reporting_year ?? period.reporting_year, current?.reporting_month ?? period.reporting_month)}
+            onChange={(event) => setPeriod((previous) => ({ ...previous, ...driveReportingPeriod(event.target.value) }))}
+          />
+        </Field>
+        <Field label="Number of planned activities">
+          <Input
+            type="number"
+            min={0}
+            step={1}
+            value={current ? planned : period.planned_activities}
+            disabled={!!current && (!canEdit || batchStep !== 0 || mode !== "batch")}
+            onChange={(event) => current ? setPlanned(event.target.value) : setPeriod((previous) => ({ ...previous, planned_activities: event.target.value }))}
+            placeholder="Enter once"
+          />
+        </Field>
+      </Section>
+    );
   };
 
   const activityTable = (inline = false) => {
@@ -458,7 +526,7 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
                           variant="outline"
                           className="h-7 gap-1.5 border-[#d4e8dc] text-[#145c3f] text-xs"
                           disabled={busy}
-                          onClick={() => { setLink(activity); setLinkedReportId(null); setMode("enrolment"); }}
+                          onClick={() => openEnrolmentModal(activity)}
                         >
                           <Users className="w-3.5 h-3.5" />
                           Register beneficiaries
@@ -546,7 +614,7 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
                     <TableCell>{record.status}</TableCell>
                     <TableCell className="text-right" colSpan={2}>
                       {canEdit && record.status === "draft" && (
-                        <Button size="sm" variant="ghost" className="h-7 text-[#145c3f]" onClick={() => { setLink(activity); setLinkedReportId(record.reference_id); setMode("enrolment"); }}>
+                        <Button size="sm" variant="ghost" className="h-7 text-[#145c3f]" onClick={() => openEnrolmentModal(activity, record.reference_id)}>
                           Resume draft
                         </Button>
                       )}
@@ -613,14 +681,6 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
     );
   };
 
-  if (mode === "enrolment" && link?.reference_id && batch) return <EnrolmentActivityForm
-    reportId={linkedReportId} initialCategory="enrolment" defaultStateId={batch.state_code} defaultZoneId={batch.zonal_code}
-    driveContext={{ reference_id: link.reference_id, programs_supported: link.programs_supported }}
-    onBack={() => { setMode("batch"); void run(() => openBatch(batch.reference_id, 2)); }}
-    onCancel={() => { setMode("batch"); void run(() => openBatch(batch.reference_id, 2)); }}
-    onSubmitted={() => { setMode("batch"); void run(() => openBatch(batch.reference_id, 2)); }}
-  />;
-
   return <div className="flex flex-col h-full bg-[#f4f7f5]">
     <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3.5 flex items-center justify-between sticky top-0 z-30 gap-3">
       <div className="flex items-center gap-3 min-w-0">
@@ -681,22 +741,104 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
         {showCreate ? <>
           <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-visible"><CardContent className="p-4 md:p-5 space-y-5">
             <StateOfficeFormSteps steps={WORKFLOW_STEPS} activeIndex={0} onStepChange={() => {}} />
-            <div className="border-t border-[#e8f3ec] pt-4">{geoInfo()}</div>
+            <div className="border-t border-[#e8f3ec] pt-4 space-y-4">
+              {geoInfo()}
+              {existingPeriodBatch && (
+                <div
+                  className={`rounded-xl border px-4 py-3 text-sm ${
+                    existingPeriodLocked
+                      ? "border-amber-200 bg-amber-50 text-amber-950"
+                      : "border-[#d4e8dc] bg-[#f8fbf9] text-[#0f3d2e]"
+                  }`}
+                  role="status"
+                >
+                  <p className="font-semibold">
+                    {existingPeriodLocked
+                      ? "This month is already reported"
+                      : "A draft already exists for this month"}
+                  </p>
+                  <p className="mt-1 text-[13px] opacity-90">
+                    {stateName(existingPeriodBatch.state_code)} · {monthLabel(existingPeriodBatch.reporting_month)} {existingPeriodBatch.reporting_year}
+                    {" · "}
+                    Status: <strong>{statusLabel(existingPeriodBatch.status)}</strong>
+                    {existingPeriodLocked
+                      ? ". You cannot start a new report for this period. Open the existing one, or choose another month."
+                      : ". Continuing will open that draft instead of creating a new report."}
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      className={ACTION}
+                      disabled={busy}
+                      onClick={() => void run(async () => {
+                        setShowCreate(false);
+                        await openBatch(
+                          existingPeriodBatch.reference_id,
+                          existingPeriodLocked ? 3 : 1,
+                        );
+                      })}
+                    >
+                      Open existing report
+                    </Button>
+                    {existingPeriodLocked && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setPeriod((previous) => ({ ...previous, reporting_month: "", reporting_year: "" }))}
+                      >
+                        Choose another month
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
           </CardContent></Card>
           <div className="flex items-center justify-between gap-3">
             <Button variant="ghost" onClick={() => setShowCreate(false)}>Cancel</Button>
             <Button
               className={ACTION}
-              disabled={busy || !period.state_code || !driveReportingMonth(period.reporting_year, period.reporting_month)}
+              disabled={
+                busy
+                || !period.state_code
+                || !driveReportingMonth(period.reporting_year, period.reporting_month)
+                || existingPeriodLocked
+              }
               onClick={() => void run(async () => {
+                if (existingPeriodBatch && !existingPeriodLocked) {
+                  setShowCreate(false);
+                  toast.message("Opening existing draft for this period");
+                  await openBatch(existingPeriodBatch.reference_id, 1);
+                  return;
+                }
+                if (existingPeriodLocked) {
+                  toast.error("This month is already reported. Open the existing report or pick another month.");
+                  return;
+                }
                 const response = await api.createBatch(period);
                 setShowCreate(false);
                 await refresh();
-                const locked = ["awaiting_review", "endorsed", "submitted"].includes(response.data.status);
-                await openBatch(response.data.reference_id, locked ? 3 : 1);
+                const status = response.data.status as string;
+                const locked = ["awaiting_review", "endorsed", "submitted"].includes(status);
+                if (response.created) {
+                  toast.success("Reporting period opened — continue with activities");
+                  await openBatch(response.data.reference_id, 1);
+                  return;
+                }
+                if (locked) {
+                  toast.message("A report for this period already exists", {
+                    description: `Status: ${statusLabel(status)}. Open it from the register, or pick another month.`,
+                  });
+                  await openBatch(response.data.reference_id, 3);
+                  return;
+                }
+                toast.message("Continuing existing draft for this period");
+                await openBatch(response.data.reference_id, 1);
               })}
             >
-              Continue
+              {existingPeriodBatch && !existingPeriodLocked ? "Open draft" : "Continue"}
               <ArrowRight className="w-4 h-4" />
             </Button>
           </div>
@@ -855,8 +997,6 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
             </div>
           )}
         </CardContent></Card>
-        {permissions.manage && batchStep === 3 && <div className="flex flex-wrap items-end gap-3 rounded-xl border border-[#d4e8dc] bg-white p-4"><Field label="Reporting deadline"><Input type="date" value={reportingDeadline} onChange={(event) => setReportingDeadline(event.target.value)} /></Field><Button variant="outline" disabled={busy || !reportingDeadline} onClick={() => void run(async () => { const response = await api.deadline(batch.reference_id, { reporting_deadline: reportingDeadline, revision: batch.revision }); setBatch(response.data); toast.success("Reporting deadline saved"); })}>Save deadline</Button></div>}
-        {batchStep === 3 && <Metrics values={batch.summary || {}} />}
         {batchStep === 1 && canEdit && (
           <div ref={activityFormRef} className="space-y-4">
             <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-visible">
@@ -1005,7 +1145,22 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
                     <Field label="Remarks" className="sm:col-span-2 lg:col-span-3">
                       <textarea className={inputClass} rows={2} value={draft.remarks} onChange={(event) => set("remarks", event.target.value)} placeholder="Enter any additional remarks" />
                     </Field>
-                    <div className="rounded-lg bg-[#eef6f1] p-3 text-sm text-[#145c3f] sm:col-span-2 lg:col-span-3">Linked enrolments: <strong>{draft.enrolment_count || 0}</strong></div>
+                    <div className="rounded-lg bg-[#eef6f1] p-3 text-sm text-[#145c3f] sm:col-span-2 lg:col-span-3 flex flex-wrap items-center justify-between gap-3">
+                      <span>Linked enrolments: <strong>{draft.enrolment_count || 0}</strong></span>
+                      {canEdit && draft.reference_id ? (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="h-8 gap-1.5 border-[#1a7a52] text-[#0f3d2e]"
+                          disabled={busy}
+                          onClick={() => openEnrolmentModal(draft)}
+                        >
+                          <Users className="w-3.5 h-3.5" />
+                          Register beneficiaries
+                        </Button>
+                      ) : null}
+                    </div>
                     {!!draft.evidence?.length && (
                       <div className="sm:col-span-2 lg:col-span-3">
                         <p className="text-xs font-semibold text-slate-600 mb-2">Existing evidence files</p>
@@ -1016,7 +1171,7 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
                 </fieldset>
 
                 <div className="flex flex-wrap items-center justify-between gap-2 pt-4 border-t border-[#e8f3ec]">
-                  <div>
+                  <div className="flex flex-wrap items-center gap-2">
                     {draft.reference_id ? (
                       <Button
                         variant="ghost"
@@ -1028,15 +1183,36 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
                         <ArrowLeft className="w-4 h-4" /> Cancel edit
                       </Button>
                     ) : null}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="gap-2 border-[#d4e8dc] text-[#0f3d2e]"
+                      disabled={busy || !canEdit}
+                      onClick={() => void run(() => persistActivity(false, false))}
+                    >
+                      <Save className="w-4 h-4" /> Save Draft
+                    </Button>
                   </div>
-                  <Button
-                    type="button"
-                    className="bg-[#145c3f] hover:bg-[#0f3d2e] text-white gap-2 text-xs font-semibold shadow-xs"
-                    disabled={busy || !canEdit}
-                    onClick={() => void addToList()}
-                  >
-                    <Plus className="w-4 h-4" /> {draft.reference_id ? "Update list" : "Add to list"}
-                  </Button>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="border-[#1a7a52] text-[#0f3d2e] gap-2 text-xs font-semibold"
+                      disabled={busy || !canEdit}
+                      onClick={() => void run(() => persistActivity(true, false))}
+                    >
+                      <Save className="w-4 h-4" /> Save Activity
+                    </Button>
+                    <Button
+                      type="button"
+                      className="bg-[#145c3f] hover:bg-[#0f3d2e] text-white gap-2 text-xs font-semibold shadow-xs"
+                      disabled={busy || !canEdit}
+                      onClick={() => void addToList()}
+                    >
+                      <Plus className="w-4 h-4" /> {draft.reference_id ? "Update & add another" : "Add Another Activity"}
+                    </Button>
+                  </div>
                 </div>
 
                 <div className="pt-2 border-t border-[#e8f3ec]">
@@ -1048,15 +1224,242 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
         )}
         {/* Read-only / locked reports: still show the activity register on this step */}
         {batchStep === 1 && !canEdit && activityTable()}
-        {batchStep > 1 && activityTable()}
-        {batchStep === 3 && <Card className="rounded-2xl border-[#d4e8dc] shadow-sm"><CardContent className="p-4 md:p-5"><Section title="Review and sign-off">
-          {permissions.review && batch.status === "awaiting_review" && <Field label="Review comment" required className="sm:col-span-2"><textarea className={inputClass} rows={3} value={reviewNote} onChange={(event) => setReviewNote(event.target.value)} placeholder="Enter your review comment" /></Field>}
-          <div className="flex flex-wrap justify-end gap-2 sm:col-span-2">{canEdit && <Button className={ACTION} disabled={busy} onClick={() => void transition("send_for_review")}><Send className="mr-2 h-4 w-4" />Send for review</Button>}{permissions.review && batch.status === "awaiting_review" && <><Button variant="outline" disabled={busy || !reviewNote.trim()} onClick={() => void transition("return")}>Return for correction</Button><Button className={ACTION} disabled={busy || !reviewNote.trim()} onClick={() => void transition("endorse")}>Endorse report</Button></>}{permissions.create && batch.status === "endorsed" && <Button className={ACTION} disabled={busy} onClick={() => void transition("final_submit")}>Final submit</Button>}</div>
-          <div className="space-y-2 sm:col-span-2">{batch.reviews?.map((review) => <div key={review.reference_id} className="rounded-lg bg-slate-50 p-3 text-sm"><strong>{statusLabel(review.action)}</strong> · {review.actor_name} · Revision {review.revision}<p className="text-slate-600">{review.note}</p></div>)}</div>
-        </Section></CardContent></Card>}
+        {batchStep === 2 && (() => {
+          const activities = batch.activities || [];
+          const enrolledTotal = activities.reduce((sum, activity) => sum + Number(activity.enrolment_count || 0), 0);
+          const driveTitle = (key: string) => catalogue?.drive_types.find((type) => type.key === key)?.title || key || "Activity";
+          return (
+            <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden">
+              <div className="flex flex-wrap items-center justify-between gap-3 bg-[#e8f5ee] px-4 py-3 border-b border-[#d4e8dc]">
+                <div>
+                  <h3 className="text-sm font-bold text-[#0f3d2e]">Register beneficiaries</h3>
+                  <p className="text-xs text-slate-600 mt-0.5">
+                    Choose an activity, then enter how many people were enrolled from it.
+                  </p>
+                </div>
+                <p className="text-xs font-semibold text-[#145c3f]">
+                  {formatCount(enrolledTotal)} enrolled so far · {activities.length} activit{activities.length === 1 ? "y" : "ies"}
+                </p>
+              </div>
+              <CardContent className="p-4 space-y-3">
+                {activities.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-[#d4e8dc] bg-[#f8fbf9] px-4 py-8 text-center">
+                    <p className="text-sm font-medium text-slate-600">No activities to enrol against yet.</p>
+                    <Button className={`${ACTION} mt-3`} onClick={() => void goToBatchStep(1)}>
+                      <ArrowLeft className="w-4 h-4 mr-2" />Back to activities
+                    </Button>
+                  </div>
+                ) : (
+                  activities.map((activity) => {
+                    const enrolled = Number(activity.enrolment_count || 0);
+                    const canRegister = canEdit && (activity.programs_supported?.length || 0) > 0;
+                    return (
+                      <div key={activity.reference_id} className="rounded-xl border border-[#d4e8dc] bg-white p-4 space-y-3">
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="text-sm font-bold text-[#0f3d2e]">
+                              {activity.activity_category || "Untitled activity"}
+                            </p>
+                            <p className="text-xs text-slate-500 mt-0.5">
+                              {driveTitle(activity.drive_type)}
+                              {activity.activity_date ? ` · ${activity.activity_date}` : ""}
+                              {activity.specific_activity ? ` · ${activity.specific_activity}` : ""}
+                            </p>
+                          </div>
+                          <Badge
+                            variant="outline"
+                            className={`text-[10px] px-2 py-0.5 border shrink-0 ${activity.activity_status === "Completed" ? STATUS_TONES.submitted : STATUS_TONES.draft}`}
+                          >
+                            {activity.activity_status || "Draft"}
+                          </Badge>
+                        </div>
+
+                        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-[#f8fbf9] border border-[#e8f3ec] px-3 py-2.5">
+                          <div>
+                            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Linked enrolments</p>
+                            <p className="text-xl font-bold tabular-nums text-[#0f3d2e]">{formatCount(enrolled)}</p>
+                          </div>
+                          {canRegister ? (
+                            <Button
+                              className={ACTION}
+                              disabled={busy}
+                              onClick={() => openEnrolmentModal(activity)}
+                            >
+                              <Users className="w-4 h-4 mr-2" />
+                              {enrolled > 0 ? "Add more enrolments" : "Register beneficiaries"}
+                            </Button>
+                          ) : !canEdit ? (
+                            <p className="text-xs text-slate-500">View only</p>
+                          ) : (
+                            <p className="text-xs text-amber-700">Add programmes on the activity first</p>
+                          )}
+                        </div>
+
+                        {!!activity.enrolment_records?.length && (
+                          <div className="space-y-1.5">
+                            {activity.enrolment_records.map((record) => (
+                              <div
+                                key={record.reference_id}
+                                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[#eef3ef] px-3 py-2 text-xs"
+                              >
+                                <p className="text-slate-600">
+                                  <span className="font-semibold text-[#0f3d2e]">{record.enrolment_count}</span>
+                                  {" beneficiaries · "}
+                                  {statusLabel(record.status)}
+                                </p>
+                                {canEdit && record.status === "draft" && (
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-7 text-[#145c3f]"
+                                    onClick={() => openEnrolmentModal(activity, record.reference_id)}
+                                  >
+                                    Resume draft
+                                  </Button>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </CardContent>
+            </Card>
+          );
+        })()}
+        {batchStep === 3 && (() => {
+          const activities = batch.activities || [];
+          const enrolledTotal = activities.reduce((sum, activity) => sum + Number(activity.enrolment_count || 0), 0);
+          const completedCount = activities.filter((activity) => activity.activity_status === "Completed").length;
+          const driveTitle = (key: string) => catalogue?.drive_types.find((type) => type.key === key)?.title || key || "Other";
+          const byType = activities.reduce<Record<string, number>>((acc, activity) => {
+            const key = activity.drive_type || "other";
+            acc[key] = (acc[key] || 0) + 1;
+            return acc;
+          }, {});
+
+          return (
+            <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden">
+              <div className="flex flex-wrap items-center justify-between gap-3 bg-[#e8f5ee] px-4 py-3 border-b border-[#d4e8dc]">
+                <div>
+                  <h3 className="text-sm font-bold text-[#0f3d2e]">Summary before submission</h3>
+                  <p className="text-xs text-slate-600">
+                    {stateName(batch.state_code)} · {monthLabel(batch.reporting_month)} {batch.reporting_year}
+                  </p>
+                </div>
+                <StatusBadge status={batch.status} />
+              </div>
+
+              <CardContent className="p-4 space-y-4">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
+                  <div className="rounded-lg bg-[#f8fbf9] border border-[#e8f3ec] px-2 py-2.5">
+                    <p className="text-lg font-bold tabular-nums text-[#0f3d2e]">{activities.length}</p>
+                    <p className="text-[10px] text-slate-500">Activities</p>
+                  </div>
+                  <div className="rounded-lg bg-[#f8fbf9] border border-[#e8f3ec] px-2 py-2.5">
+                    <p className="text-lg font-bold tabular-nums text-[#0f3d2e]">{completedCount}</p>
+                    <p className="text-[10px] text-slate-500">Completed</p>
+                  </div>
+                  <div className="rounded-lg bg-[#f8fbf9] border border-[#e8f3ec] px-2 py-2.5">
+                    <p className="text-lg font-bold tabular-nums text-[#0f3d2e]">{formatCount(enrolledTotal)}</p>
+                    <p className="text-[10px] text-slate-500">Enrolments</p>
+                  </div>
+                  <div className="rounded-lg bg-[#f8fbf9] border border-[#e8f3ec] px-2 py-2.5">
+                    <p className="text-lg font-bold tabular-nums text-[#0f3d2e]">{batch.planned_activities != null ? formatCount(batch.planned_activities) : "—"}</p>
+                    <p className="text-[10px] text-slate-500">Planned</p>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-[#e8f3ec] divide-y divide-[#eef3ef] overflow-hidden">
+                  {activities.length === 0 ? (
+                    <p className="px-3 py-4 text-sm text-slate-500 text-center">No activities yet. Go back and add some.</p>
+                  ) : (
+                    activities.map((activity) => (
+                      <div key={activity.reference_id} className="px-3 py-2.5 flex items-center justify-between gap-3 text-sm">
+                        <div className="min-w-0">
+                          <p className="font-medium text-[#0f3d2e] truncate">
+                            {activity.activity_category || "Activity"}
+                            {activity.specific_activity ? ` — ${activity.specific_activity}` : ""}
+                          </p>
+                          <p className="text-[11px] text-slate-500 truncate">
+                            {driveTitle(activity.drive_type)} · {activity.activity_date || "No date"} · {activity.activity_status || "Draft"}
+                          </p>
+                        </div>
+                        <p className="shrink-0 text-xs font-semibold text-[#145c3f] tabular-nums">
+                          {formatCount(activity.enrolment_count || 0)} enrolled
+                        </p>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                {Object.keys(byType).length > 1 && (
+                  <p className="text-[11px] text-slate-500">
+                    By type: {Object.entries(byType).map(([key, count]) => `${driveTitle(key)} (${count})`).join(" · ")}
+                  </p>
+                )}
+
+                {canEdit && (
+                  <div className="flex flex-wrap gap-2">
+                    <Button type="button" variant="ghost" size="sm" className="h-8 text-[#145c3f]" onClick={() => void goToBatchStep(1)}>
+                      Edit activities
+                    </Button>
+                    <Button type="button" variant="ghost" size="sm" className="h-8 text-[#145c3f]" onClick={() => void goToBatchStep(2)}>
+                      Edit enrolments
+                    </Button>
+                  </div>
+                )}
+
+                {permissions.review && batch.status === "awaiting_review" && (
+                  <Field label="Review comment" required>
+                    <textarea
+                      className={inputClass}
+                      rows={2}
+                      value={reviewNote}
+                      onChange={(event) => setReviewNote(event.target.value)}
+                      placeholder="Comment for the reporting officer"
+                    />
+                  </Field>
+                )}
+
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-[#e8f3ec]">
+                  <p className="text-xs text-slate-500">
+                    {batch.status === "draft" || batch.status === "returned"
+                      ? "Looks correct? Send for review."
+                      : batch.status === "awaiting_review"
+                        ? permissions.review
+                          ? "Endorse or return with a comment."
+                          : "Waiting for the State Coordinator to review this report."
+                        : batch.status === "endorsed"
+                          ? "Ready for final submission."
+                          : statusLabel(batch.status)}
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {canEdit && (batch.status === "draft" || batch.status === "returned") && (
+                      <Button className={ACTION} disabled={busy || !activities.length} onClick={() => void transition("send_for_review")}>
+                        <Send className="mr-2 h-4 w-4" />Send for review
+                      </Button>
+                    )}
+                    {permissions.review && batch.status === "awaiting_review" && (
+                      <>
+                        <Button variant="outline" disabled={busy || !reviewNote.trim()} onClick={() => void transition("return")}>Return</Button>
+                        <Button className={ACTION} disabled={busy || !reviewNote.trim()} onClick={() => void transition("endorse")}>Endorse</Button>
+                      </>
+                    )}
+                    {permissions.create && batch.status === "endorsed" && (
+                      <Button className={ACTION} disabled={busy} onClick={() => void transition("final_submit")}>Final submit</Button>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })()}
         <div className="flex items-center justify-between gap-3">
           <Button variant="ghost" disabled={busy} onClick={() => batchStep ? void goToBatchStep(batchStep - 1) : void navigate("register")}><ArrowLeft className="w-4 h-4 mr-2" />Back</Button>
-          {batchStep < 3 && <Button className={ACTION} disabled={busy || (batchStep === 1 && !batch.activities?.length)} onClick={() => void goToBatchStep(batchStep + 1)}>{batchStep === 1 ? "Register beneficiaries" : batchStep === 2 ? "Review" : "Continue"}<ArrowRight className="w-4 h-4" /></Button>}
+          {batchStep < 3 && <Button className={ACTION} disabled={busy || (batchStep === 1 && !batch.activities?.length)} onClick={() => void goToBatchStep(batchStep + 1)}>{batchStep === 1 ? "Register beneficiaries" : batchStep === 2 ? "Review & endorse" : "Continue"}<ArrowRight className="w-4 h-4" /></Button>}
         </div>
       </>}
       {mode === "actions" && <>
@@ -1095,5 +1498,37 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
       </>}
     </>}
     </div></ScrollArea>
+
+    <Dialog open={Boolean(link?.reference_id && batch)} onOpenChange={(open) => { if (!open) closeEnrolmentModal(); }}>
+      <DialogContent
+        showCloseButton
+        className="max-w-5xl w-[min(96vw,72rem)] max-h-[92vh] overflow-hidden p-0 flex flex-col"
+      >
+        <DialogHeader className="px-6 pt-5 pb-3 border-b border-[#d4e8dc] shrink-0">
+          <DialogTitle>Register beneficiaries</DialogTitle>
+          <DialogDescription>
+            Existing Enrolment Form · Drive ID{" "}
+            <span className="font-mono font-semibold text-[#145c3f]">{link?.reference_id}</span>
+            {link?.activity_category ? ` · ${link.activity_category}` : ""}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          {link?.reference_id && batch ? (
+            <EnrolmentActivityForm
+              key={`${link.reference_id}:${linkedReportId || "new"}`}
+              reportId={linkedReportId}
+              initialCategory="enrolment"
+              defaultStateId={batch.state_code}
+              defaultZoneId={batch.zonal_code}
+              driveContext={{ reference_id: link.reference_id, programs_supported: link.programs_supported }}
+              embedded
+              onBack={closeEnrolmentModal}
+              onCancel={closeEnrolmentModal}
+              onSubmitted={closeEnrolmentModal}
+            />
+          ) : null}
+        </div>
+      </DialogContent>
+    </Dialog>
   </div>;
 }
