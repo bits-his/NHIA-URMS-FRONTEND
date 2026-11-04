@@ -481,22 +481,19 @@ export default function ReportReviewPage({ role, onBack }: ReportReviewPageProps
             Showing {filtered.length} report{filtered.length !== 1 ? "s" : ""}
           </p>
         )}
-      </motion.div>
-        )}
-    </AnimatePresence>
 
-      {/* Reject modal */ }
-  <AnimatePresence>
-    {rejectTarget && (
-      <RejectModal
-        report={rejectTarget}
-        onConfirm={(reason) => handleReject(rejectTarget, reason)}
-        onCancel={() => setRejectTarget(null)}
-        loading={rejecting}
-      />
-    )}
-  </AnimatePresence>
-      </div >
-    </PageLayout >
+        {/* Reject modal */}
+        <AnimatePresence>
+          {rejectTarget && (
+            <RejectModal
+              report={rejectTarget}
+              onConfirm={(reason) => handleReject(rejectTarget, reason)}
+              onCancel={() => setRejectTarget(null)}
+              loading={rejecting}
+            />
+          )}
+        </AnimatePresence>
+      </div>
+    </PageLayout>
   );
 }

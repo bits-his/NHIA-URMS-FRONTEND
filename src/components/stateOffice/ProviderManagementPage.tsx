@@ -1,6 +1,6 @@
 import * as React from "react";
 import {
-  ArrowLeft, Award, CheckCircle2, ClipboardCheck, Clock, Eye, FileText,
+  Award, CheckCircle2, ClipboardCheck, Clock, Eye, FileText,
   Plus, RefreshCw, Stethoscope, type LucideIcon, XCircle,
 } from "lucide-react";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -77,6 +77,7 @@ export default function ProviderManagementPage({ onBack, defaultZoneId, defaultS
   const { showStateFilter, filterState, setFilterState, states, apiStateId } = useMonthlyStateFilter(defaultStateId);
 
   const activeMeta = PROVIDER_FORM_TYPES.find((f) => f.key === activeTab) ?? PROVIDER_FORM_TYPES[0];
+  const newButtonLabel = activeMeta.newLabel;
 
   const load = React.useCallback(async () => {
     setLoading(true);
