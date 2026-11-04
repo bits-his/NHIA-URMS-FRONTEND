@@ -85,6 +85,13 @@ export const meetingsApi = {
   meeting: (id: string) => request<{ success: boolean; data: any }>(`${MC_ROOT}/meetings/${encodeURIComponent(id)}`),
   updateMeeting: (id: string, payload: unknown) => request<{ success: boolean; data: any }>(`${MC_ROOT}/meetings/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(payload) }),
   transitionMeeting: (id: string, payload: unknown) => request<{ success: boolean; data: any }>(`${MC_ROOT}/meetings/${encodeURIComponent(id)}/transition`, { method: "POST", body: JSON.stringify(payload) }),
+  uploadMeetingDocuments: (id: string, files: File[]) => {
+    const form = new FormData();
+    files.forEach((f) => form.append("files", f));
+    return requestForm<{ success: boolean; data: any }>(`${MC_ROOT}/meetings/${encodeURIComponent(id)}/documents`, "POST", form);
+  },
+  deleteMeetingDocument: (id: string, sn: number | string) =>
+    request<{ success: boolean }>(`${MC_ROOT}/meetings/${encodeURIComponent(id)}/documents/${encodeURIComponent(String(sn))}`, { method: "DELETE" }),
   openActionPoints: () => request<{ success: boolean; data: any[] }>(`${MC_ROOT}/meetings/open-action-points`),
   etmcList: (filters: Record<string, string> = {}) => request<{ success: boolean; data: any[] }>(`${MC_ROOT}/etmc?${new URLSearchParams(filters)}`),
   createEtmc: (payload: unknown) => request<{ success: boolean; data: any }>(`${MC_ROOT}/etmc`, { method: "POST", body: JSON.stringify(payload) }),

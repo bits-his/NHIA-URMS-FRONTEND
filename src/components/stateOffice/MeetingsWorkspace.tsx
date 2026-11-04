@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { meetingsApi as api } from "@/lib/api";
+import { apiFileUrl, meetingsApi as api } from "@/lib/api";
 import { Field, FieldSection } from "./EnrolmentActivityForm";
 import StateOfficeFormSteps from "./StateOfficeFormSteps";
 import { useListSearch } from "./useListSearch";
@@ -101,13 +101,31 @@ function AutoField({ value }: { value: string }) {
     </div>
   );
 }
+function RadioYesNo({ name, value, options, onChange }: { name: string; value: string; options: string[]; onChange: (v: string) => void }) {
+  return (
+    <div className="flex flex-wrap gap-4 pt-1" role="radiogroup" aria-label={name}>
+      {options.map((opt) => (
+        <label key={opt} className="inline-flex items-center gap-2 cursor-pointer text-sm text-slate-700">
+          <input
+            type="radio"
+            className="h-4 w-4 accent-[#145c3f]"
+            name={name}
+            checked={value === opt}
+            onChange={() => onChange(opt)}
+          />
+          {opt}
+        </label>
+      ))}
+    </div>
+  );
+}
 function ItemsTable({ rows, kind, onEdit, onRemove }: { rows: any[]; kind: string; onEdit?: (r: any) => void; onRemove?: (r: any) => void }) {
   if (!rows.length) return null;
   return (
     <div className="overflow-x-auto rounded-lg border border-[#d4e8dc]"><Table>
       <TableHeader><TableRow className="bg-[#f0fdf7] hover:bg-[#f0fdf7]">
         {(kind === "agenda" ? ["#", "Agenda / Subject", "Key issue", "Outcome", "Further action", ""]
-        : kind === "decision" ? ["Ref", "Decision", "Action point", "Responsible", "Deadline", "Expected output", "Status", ""]
+        : kind === "decision" ? ["Decision", "Responsible", "Deadline", "Expected output", "Status", ""]
         : ["Action point", "Officer", "Due", "Progress", "Status", "Remarks", ""]).map((h) => <TableHead key={h} className="text-xs font-bold whitespace-nowrap">{h}</TableHead>)}
       </TableRow></TableHeader>
       <TableBody>{rows.map((r, i) => (
@@ -120,9 +138,7 @@ function ItemsTable({ rows, kind, onEdit, onRemove }: { rows: any[]; kind: strin
             <TableCell className="text-xs">{r.requires_action || "—"}</TableCell>
           </>}
           {kind === "decision" && <>
-            <TableCell className="text-xs font-mono whitespace-nowrap">{r.action_ref || "On save"}</TableCell>
-            <TableCell className="text-sm font-medium max-w-[200px] truncate">{r.subject || "—"}</TableCell>
-            <TableCell className="text-xs max-w-[200px] truncate">{r.detail || "—"}</TableCell>
+            <TableCell className="text-sm font-medium max-w-[240px] truncate">{r.subject || "—"}</TableCell>
             <TableCell className="text-xs">{r.responsible_officer || "—"}</TableCell>
             <TableCell className="text-xs whitespace-nowrap">{r.due_date || "—"}</TableCell>
             <TableCell className="text-xs max-w-[160px] truncate">{r.expected_output || "—"}</TableCell>
@@ -155,7 +171,7 @@ const blankMeeting = (cat: Catalogue | null) => ({
   eff_prev_reviewed: "", eff_issues_discussed: "", eff_decisions_documented: "", eff_officers_assigned: "",
   eff_deadlines_assigned: "", eff_escalations_identified: "", eff_attendance_adequate: "",
   prepared_by: cat?.user_name || "", designation: cat?.role_label || "", submission_date: new Date().toISOString().slice(0, 10),
-  evidence_note: "", endorsed_by: "",
+  endorsed_by: "", documents: [] as any[],
   agenda_items: [] as any[], decisions: [] as any[], followups: [] as any[],
 });
 const blankEtmc = (cat: Catalogue | null) => ({
@@ -190,6 +206,12 @@ export default function MeetingsWorkspace({ onBack, initialTab = "meetings" }: {
   const [decisionForm, setDecisionForm] = React.useState(blankDecision());
   const [followupForm, setFollowupForm] = React.useState(blankFollowup());
   const [openActionCount, setOpenActionCount] = React.useState(0);
+  const [evidenceFiles, setEvidenceFiles] = React.useState<File[]>([]);
+  const [evidenceInputKey, setEvidenceInputKey] = React.useState(0);
+  const clearEvidenceSelection = () => {
+    setEvidenceFiles([]);
+    setEvidenceInputKey((k) => k + 1);
+  };
   const { matchesSearch, searchInput } = useListSearch();
   const permissions = cat?.permissions || { create: false, review: false, assign: false, national: false };
 
@@ -220,7 +242,7 @@ export default function MeetingsWorkspace({ onBack, initialTab = "meetings" }: {
 
   const backToList = () => {
     setMode("list"); setDraft(null); setDetail(null); setStep(0); setMaxStep(0);
-    setLine(null); setLineKind("");
+    setLine(null); setLineKind(""); clearEvidenceSelection();
     setAgendaForm(blankAgenda()); setDecisionForm(blankDecision()); setFollowupForm(blankFollowup());
   };
   const validateMeetingStep = (from: number): string | null => {
@@ -266,8 +288,6 @@ export default function MeetingsWorkspace({ onBack, initialTab = "meetings" }: {
   };
   const continueMeeting = () => goStep(step + 1);
   const continueEtmc = () => goStep(step + 1);
-  const provisionalRef = (index: number) =>
-    `TAR-MMR-${draft?.reporting_year}-${String(draft?.reporting_month).padStart(2, "0")}-${String(index + 1).padStart(3, "0")}`;
   const pushAgendaFromForm = () => {
     const row = { ...blankAgenda(), ...agendaForm, _key: uid() };
     if (!row.subject?.trim() && !row.detail?.trim() && !row.outcome?.trim()) {
@@ -308,10 +328,12 @@ export default function MeetingsWorkspace({ onBack, initialTab = "meetings" }: {
   const startMeetingForm = async (row?: any) => {
     setEditingId(row?.meeting_id || null); setStep(0); setMaxStep(0); setLine(null); setLineKind(""); setEditingLine(null);
     setAgendaForm(blankAgenda()); setDecisionForm(blankDecision()); setFollowupForm(blankFollowup());
+    clearEvidenceSelection();
     if (row) {
       const r = (await api.meeting(row.meeting_id)).data;
       setDraft({
         ...blankMeeting(cat), ...r,
+        documents: r.documents || [],
         agenda_items: (r.items || []).filter((i: any) => i.item_kind === "agenda"),
         decisions: (r.items || []).filter((i: any) => i.item_kind === "decision"),
         followups: (r.items || []).filter((i: any) => i.item_kind === "followup"),
@@ -389,7 +411,14 @@ export default function MeetingsWorkspace({ onBack, initialTab = "meetings" }: {
         }
       : { ...draft, status };
     if (kind === "meeting") {
-      if (editingId) await api.updateMeeting(editingId, payload); else await api.createMeeting(payload);
+      const saved = editingId
+        ? await api.updateMeeting(editingId, payload)
+        : await api.createMeeting(payload);
+      const meetingId = editingId || saved.data?.meeting_id;
+      if (meetingId && evidenceFiles.length) {
+        await api.uploadMeetingDocuments(meetingId, evidenceFiles);
+        clearEvidenceSelection();
+      }
     } else {
       if (editingId) await api.updateEtmc(editingId, payload); else await api.createEtmc(payload);
     }
@@ -397,6 +426,16 @@ export default function MeetingsWorkspace({ onBack, initialTab = "meetings" }: {
     toast.success(status === "submitted" ? "Report submitted" : "Draft saved");
     setTab(kind === "meeting" ? "meetings" : "etmc");
     backToList();
+  });
+
+  const removeSavedEvidence = (doc: any) => run(async () => {
+    if (!editingId) return;
+    await api.deleteMeetingDocument(editingId, doc.sn);
+    setDraft((d: any) => ({
+      ...d,
+      documents: (d.documents || []).filter((x: any) => x.sn !== doc.sn),
+    }));
+    toast.success("Evidence removed");
   });
 
   const challengeHref = (meetingId?: string) => {
@@ -459,10 +498,10 @@ export default function MeetingsWorkspace({ onBack, initialTab = "meetings" }: {
   /* ── Meeting form ── */
   const meetingForm = draft && mode === "meeting-form" && (
     <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-visible"><CardContent className="p-4 md:p-5 space-y-5">
-      <StateOfficeFormSteps steps={MEETING_STEPS} activeIndex={step} maximumIndex={maxStep} onStepChange={(i) => goStep(i)} />
-      {step === 0 && <FieldSection title="1. Meeting information">
-        <Field label="State / FCT"><Input value={stateName(draft.state_code)} readOnly /></Field>
+      <StateOfficeFormSteps steps={MEETING_STEPS} activeIndex={step} maximumIndex={maxStep} onStepChange={(i) => goStep(i)} hideNumbers />
+      {step === 0 && <FieldSection title="Meeting information">
         <Field label="Zone"><Input value={zoneName(stateZone(draft.state_code))} readOnly /></Field>
+        <Field label="State / FCT"><Input value={stateName(draft.state_code)} readOnly /></Field>
         <Field label="Reporting month" required>
           <Dropdown value={String(draft.reporting_month)} options={MONTHS.map((m: any, i: number) => ({ value: String(i + 1), label: m.label || m }))} onChange={(v) => setDraft((d: any) => ({ ...d, reporting_month: Number(v) }))} />
         </Field>
@@ -479,11 +518,7 @@ export default function MeetingsWorkspace({ onBack, initialTab = "meetings" }: {
         <Field label="Purpose / objective" className="sm:col-span-2 lg:col-span-3"><textarea className={inputClass} rows={2} value={draft.purpose} onChange={(e) => setDraft((d: any) => ({ ...d, purpose: e.target.value }))} placeholder="Briefly state the purpose of the meeting" /></Field>
       </FieldSection>}
       {step === 1 && <>
-        <div className="space-y-1">
-          <h3 className="text-lg font-bold text-[#0f3d2e]">Meeting Report</h3>
-          <p className="text-xs text-slate-500">Capture the issues discussed and the decisions or actions arising from the meeting.</p>
-        </div>
-        <FieldSection title="2. Key issue items discussed">
+        <FieldSection title="Key issue items discussed">
           <div className="sm:col-span-2 lg:col-span-3 space-y-4">
             <div className="rounded-xl border border-[#d4e8dc] bg-[#f8fdfb] p-4 space-y-3">
               <span className="inline-flex rounded-full bg-[#e8f6ee] px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#145c3f]">
@@ -516,18 +551,12 @@ export default function MeetingsWorkspace({ onBack, initialTab = "meetings" }: {
             )}
           </div>
         </FieldSection>
-        <FieldSection title="3. Decisions / resolutions">
+        <FieldSection title="Decisions / resolutions">
           <div className="sm:col-span-2 lg:col-span-3 space-y-4">
             <div className="rounded-xl border border-[#d4e8dc] bg-[#f8fdfb] p-4 space-y-3">
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 <Field label="Decision / resolution" required>
                   <Input value={decisionForm.subject} onChange={(e) => setDecisionForm((f) => ({ ...f, subject: e.target.value }))} placeholder="Decision summary" />
-                </Field>
-                <Field label="Action point">
-                  <Input value={decisionForm.detail} onChange={(e) => setDecisionForm((f) => ({ ...f, detail: e.target.value }))} placeholder="Action required" />
-                </Field>
-                <Field label="Action point ref (auto)">
-                  <Input value={provisionalRef((draft.decisions || []).length)} readOnly className="font-mono text-xs bg-[#eef6f1] text-[#145c3f]" />
                 </Field>
                 <Field label="Responsible officer / unit">
                   <Dropdown value={decisionForm.responsible_officer || ""} options={deptOptions} onChange={(v) => setDecisionForm((f) => ({ ...f, responsible_officer: v }))} placeholder="Select officer / unit" />
@@ -558,14 +587,14 @@ export default function MeetingsWorkspace({ onBack, initialTab = "meetings" }: {
         </FieldSection>
       </>}
       {step === 2 && <>
-        <FieldSection title="4. Follow-up on previous action points">
+        <FieldSection title="Follow-up on previous action points">
           <div className="sm:col-span-2 lg:col-span-3 space-y-4">
             {openActionCount > 0 && !(draft.followups || []).length && (
               <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">Previous open action points must be followed up before submit.</p>
             )}
             <div className="rounded-xl border border-[#d4e8dc] bg-[#f8fdfb] p-4 space-y-3">
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                <Field label="Action point" required>
+                <Field label="Previous action" required>
                   <Input value={followupForm.subject} onChange={(e) => setFollowupForm((f) => ({ ...f, subject: e.target.value }))} placeholder="Previous action" />
                 </Field>
                 <Field label="Responsible officer / unit">
@@ -597,21 +626,54 @@ export default function MeetingsWorkspace({ onBack, initialTab = "meetings" }: {
             )}
           </div>
         </FieldSection>
-        <FieldSection title="5. Matters requiring Zonal / SDO attention">
+        <FieldSection title="Matters requiring Zonal / SDO attention">
           <div className="sm:col-span-2 lg:col-span-3">
             <a href={challengeHref(editingId || undefined)} className="inline-flex items-center gap-2 rounded-lg border border-[#d4e8dc] bg-[#f8fdfb] px-4 py-2.5 text-sm font-semibold text-[#145c3f] hover:bg-[#e8f6ee]">
               <FileText className="w-4 h-4" />Open Challenge &amp; Support
             </a>
           </div>
         </FieldSection>
-        <FieldSection title="6. Meeting effectiveness">
+        <FieldSection title="Meeting effectiveness">
           {([["eff_prev_reviewed", "Previous action points reviewed", true], ["eff_decisions_documented", "Decisions documented", false], ["eff_deadlines_assigned", "Deadlines assigned", false], ["eff_attendance_adequate", "Attendance adequate", true], ["eff_issues_discussed", "Key programme issues discussed", true], ["eff_officers_assigned", "Officers assigned to action points", false], ["eff_escalations_identified", "Escalation issues identified", false]] as const).map(([k, label, partial]) => (
-            <Field key={k} label={label}><Dropdown value={draft[k]} options={partial ? (cat?.yn || ["Yes", "No", "Partially"]) : ["Yes", "No"]} onChange={(v) => setDraft((d: any) => ({ ...d, [k]: v }))} /></Field>
+            <Field key={k} label={label}>
+              <RadioYesNo
+                name={k}
+                value={draft[k] || ""}
+                options={partial ? (cat?.yn || ["Yes", "No", "Partially"]) : ["Yes", "No"]}
+                onChange={(v) => setDraft((d: any) => ({ ...d, [k]: v }))}
+              />
+            </Field>
           ))}
         </FieldSection>
-        <FieldSection title="7. Supporting evidence & certification">
+        <FieldSection title="Supporting evidence & certification">
           <Field label="Supporting evidence" className="sm:col-span-2 lg:col-span-3">
-            <textarea className={inputClass} rows={2} value={draft.evidence_note || ""} onChange={(e) => setDraft((d: any) => ({ ...d, evidence_note: e.target.value }))} placeholder="Minutes, attendance sheet, or other evidence available" />
+            <div className="space-y-2">
+              <Input
+                key={evidenceInputKey}
+                type="file"
+                multiple
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.webp,application/pdf,image/*"
+                onChange={(e) => setEvidenceFiles(Array.from(e.target.files || []))}
+              />
+              <p className="text-xs text-slate-500">Upload minutes, attendance sheet, photos, or other evidence (PDF, Word, Excel, or image).</p>
+              {(draft.documents || []).length > 0 && (
+                <ul className="space-y-1.5">
+                  {(draft.documents as any[]).map((doc) => (
+                    <li key={`${doc.sn}-${doc.path}`} className="flex items-center gap-2 rounded-lg bg-[#f4f7f5] px-3 py-2 text-sm">
+                      <a href={apiFileUrl(doc.path)} target="_blank" rel="noreferrer" className="flex-1 truncate text-[#145c3f] font-medium hover:underline">
+                        {doc.name}
+                      </a>
+                      <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0 text-slate-300 hover:text-rose-500" onClick={() => void removeSavedEvidence(doc)}>
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {evidenceFiles.length > 0 && (
+                <p className="text-xs text-slate-500">Selected: {evidenceFiles.map((f) => f.name).join(", ")}</p>
+              )}
+            </div>
           </Field>
           <Field label="Prepared by"><Input value={draft.prepared_by || preparedFallback} onChange={(e) => setDraft((d: any) => ({ ...d, prepared_by: e.target.value }))} /></Field>
           <Field label="Designation"><Input value={draft.designation} onChange={(e) => setDraft((d: any) => ({ ...d, designation: e.target.value }))} /></Field>
@@ -635,11 +697,11 @@ export default function MeetingsWorkspace({ onBack, initialTab = "meetings" }: {
   /* ── ETMC form ── */
   const etmcForm = draft && mode === "etmc-form" && (
     <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-visible"><CardContent className="p-4 md:p-5 space-y-5">
-      <StateOfficeFormSteps steps={ETMC_STEPS} activeIndex={step} maximumIndex={maxStep} onStepChange={(i) => goStep(i)} />
+      <StateOfficeFormSteps steps={ETMC_STEPS} activeIndex={step} maximumIndex={maxStep} onStepChange={(i) => goStep(i)} hideNumbers />
       {step === 0 && <>
-        <FieldSection title="1. Cascade details">
-          <Field label="State / FCT"><Input value={stateName(draft.state_code)} readOnly /></Field>
+        <FieldSection title="Cascade details">
           <Field label="Zone"><Input value={zoneName(stateZone(draft.state_code))} readOnly /></Field>
+          <Field label="State / FCT"><Input value={stateName(draft.state_code)} readOnly /></Field>
           <Field label="Date of submission"><Input type="date" value={draft.submission_date} onChange={(e) => setDraft((d: any) => ({ ...d, submission_date: e.target.value }))} /></Field>
           <Field label="Reporting month" required>
             <Dropdown value={String(draft.reporting_month)} options={MONTHS.map((m: any, i: number) => ({ value: String(i + 1), label: m.label || m }))} onChange={(v) => setDraft((d: any) => ({ ...d, reporting_month: Number(v) }))} />
@@ -654,7 +716,7 @@ export default function MeetingsWorkspace({ onBack, initialTab = "meetings" }: {
           <Field label="Staff present"><Input type="number" value={draft.staff_present} onChange={(e) => setDraft((d: any) => ({ ...d, staff_present: e.target.value }))} /></Field>
           <Field label="Attendance rate"><AutoField value={rate(draft.staff_strength, draft.staff_present)} /></Field>
         </FieldSection>
-        <FieldSection title="2. ETMC highlights">
+        <FieldSection title="ETMC highlights">
           <div className="sm:col-span-2 lg:col-span-3 space-y-3">
             <div className="flex gap-2">
               <Input value={line?.detail || ""} onChange={(e) => setLine((l: any) => ({ detail: e.target.value }))} placeholder="Enter key highlight from the ETMC discussion" />
@@ -671,10 +733,10 @@ export default function MeetingsWorkspace({ onBack, initialTab = "meetings" }: {
         </FieldSection>
       </>}
       {step === 1 && ([
-        { key: "department_updates" as const, title: "3. Departmental updates", ph: "Department / unit", ph2: "Update / key information", dual: true },
-        { key: "resolutions" as const, title: "4. Decisions / resolutions / action points", ph: "Decision / resolution", ph2: "Action owner / deadline", dual: true, owner: true },
-        { key: "comments" as const, title: "5. Staff comments", ph2: "Capture comments or observations from staff", dual: false },
-        { key: "feedback" as const, title: "6. Feedback to HQ", ph2: "Feedback, clarification or issues for HQ", dual: false },
+        { key: "department_updates" as const, title: "Departmental updates", ph: "Department / unit", ph2: "Update / key information", dual: true },
+        { key: "resolutions" as const, title: "Decisions / resolutions / action points", ph: "Decision / resolution", ph2: "Action owner / deadline", dual: true, owner: true },
+        { key: "comments" as const, title: "Staff comments", ph2: "Capture comments or observations from staff", dual: false },
+        { key: "feedback" as const, title: "Feedback to HQ", ph2: "Feedback, clarification or issues for HQ", dual: false },
       ]).map((meta) => (
         <FieldSection key={meta.key} title={meta.title}>
           <div className="sm:col-span-2 lg:col-span-3 space-y-3">
@@ -719,16 +781,23 @@ export default function MeetingsWorkspace({ onBack, initialTab = "meetings" }: {
         </FieldSection>
       ))}
       {step === 2 && <>
-        <FieldSection title="7. Supporting evidence checklist">
+        <FieldSection title="Supporting evidence checklist" gridClassName="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {([["ev_attendance_list", "Attendance list"], ["ev_minutes", "Minutes"], ["ev_presentation", "Presentation"], ["ev_photographs", "Photographs"], ["ev_action_tracker", "Action tracker"], ["ev_escalations_documented", "Escalation issues documented"]] as const).map(([k, label]) => (
-            <Field key={k} label={label}><Dropdown value={draft[k]} options={["Yes", "No", "N/A"]} onChange={(v) => setDraft((d: any) => ({ ...d, [k]: v }))} /></Field>
+            <div key={k} className="rounded-xl border border-[#d4e8dc] bg-[#f8fdfb] p-3.5 space-y-2">
+              <p className="text-xs font-semibold text-slate-700">{label}</p>
+              <RadioYesNo
+                name={k}
+                value={draft[k] || ""}
+                options={["Yes", "No", "N/A"]}
+                onChange={(v) => setDraft((d: any) => ({ ...d, [k]: v }))}
+              />
+            </div>
           ))}
         </FieldSection>
-        <FieldSection title="8. Submission & certification">
+        <FieldSection title="Submission & certification">
           <Field label="Prepared by"><Input value={draft.prepared_by || preparedFallback} onChange={(e) => setDraft((d: any) => ({ ...d, prepared_by: e.target.value }))} /></Field>
           <Field label="Designation"><Input value={draft.designation} onChange={(e) => setDraft((d: any) => ({ ...d, designation: e.target.value }))} /></Field>
           <Field label="Date"><Input type="date" value={draft.submission_date} onChange={(e) => setDraft((d: any) => ({ ...d, submission_date: e.target.value }))} /></Field>
-          <Field label="Endorsed by"><Input value={draft.endorsed_by} onChange={(e) => setDraft((d: any) => ({ ...d, endorsed_by: e.target.value }))} placeholder="Completed on review" /></Field>
         </FieldSection>
       </>}
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#e8f3ec] pt-4">
@@ -749,8 +818,8 @@ export default function MeetingsWorkspace({ onBack, initialTab = "meetings" }: {
     <div className="space-y-4">
       <Card className="rounded-2xl border-[#d4e8dc] shadow-sm"><CardContent className="p-4 md:p-5 space-y-4">
         <ReviewSection title={`Meeting report ${detail.meeting_id}`}>
-          <ReviewRow label="State / FCT" value={stateName(detail.state_code)} />
           <ReviewRow label="Zone" value={zoneName(detail.zonal_code)} />
+          <ReviewRow label="State / FCT" value={stateName(detail.state_code)} />
           <ReviewRow label="Period" value={`${monthLabel(detail.reporting_month)} ${detail.reporting_year} · ${quarterFromMonth(detail.reporting_month)}`} />
           <ReviewRow label="Meeting date" value={detail.meeting_date} />
           <ReviewRow label="Type" value={detail.other_meeting_type || detail.meeting_type} />
@@ -761,7 +830,26 @@ export default function MeetingsWorkspace({ onBack, initialTab = "meetings" }: {
           <ReviewRow label="Prepared by" value={detail.prepared_by} />
           <ReviewRow label="Endorsed by" value={detail.endorsed_by} />
           <div className="sm:col-span-2 lg:col-span-3"><ReviewRow label="Purpose" value={detail.purpose} /></div>
-          <div className="sm:col-span-2 lg:col-span-3"><ReviewRow label="Supporting evidence" value={detail.evidence_note} /></div>
+          <div className="sm:col-span-2 lg:col-span-3">
+            <ReviewRow
+              label="Supporting evidence"
+              value={
+                (detail.documents || []).length
+                  ? (
+                    <ul className="space-y-1">
+                      {(detail.documents as any[]).map((doc) => (
+                        <li key={`${doc.sn}-${doc.path}`}>
+                          <a href={apiFileUrl(doc.path)} target="_blank" rel="noreferrer" className="text-[#145c3f] font-medium hover:underline">
+                            {doc.name}
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  )
+                  : "—"
+              }
+            />
+          </div>
         </ReviewSection>
         <div className="flex flex-wrap items-center justify-end gap-2 border-t border-[#e8f3ec] pt-4">
           {detail.status === "draft" && detail.created_by_user_id === permissions.user_id && <>
@@ -788,8 +876,8 @@ export default function MeetingsWorkspace({ onBack, initialTab = "meetings" }: {
     <div className="space-y-4">
       <Card className="rounded-2xl border-[#d4e8dc] shadow-sm"><CardContent className="p-4 md:p-5 space-y-4">
         <ReviewSection title={`ETMC cascading report ${detail.etmc_id}`}>
-          <ReviewRow label="State / FCT" value={stateName(detail.state_code)} />
           <ReviewRow label="Zone" value={zoneName(detail.zonal_code)} />
+          <ReviewRow label="State / FCT" value={stateName(detail.state_code)} />
           <ReviewRow label="Period" value={`${monthLabel(detail.reporting_month)} ${detail.reporting_year}`} />
           <ReviewRow label="ETMC meeting date" value={detail.etmc_meeting_date} />
           <ReviewRow label="Cascade session date" value={detail.cascade_session_date} />

@@ -1193,104 +1193,151 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
         {batchStep === 1 && !canEdit && activityTable()}
         {batchStep === 2 && (() => {
           const activities = batch.activities || [];
-          const enrolledTotal = activities.reduce((sum, activity) => sum + Number(activity.enrolment_count || 0), 0);
           const driveTitle = (key: string) => catalogue?.drive_types.find((type) => type.key === key)?.title || key || "Activity";
+          const statusTone = (status?: string) => {
+            if (status === "Completed") return "bg-emerald-100 text-emerald-800 border-emerald-200";
+            if (status === "In Progress") return "bg-sky-100 text-sky-800 border-sky-200";
+            if (status === "Delayed") return "bg-amber-100 text-amber-800 border-amber-200";
+            if (status === "Cancelled") return "bg-rose-100 text-rose-700 border-rose-200";
+            return "bg-slate-100 text-slate-600 border-slate-200";
+          };
           return (
             <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden">
-              <div className="flex flex-wrap items-center justify-between gap-3 bg-[#e8f5ee] px-4 py-3 border-b border-[#d4e8dc]">
-                <div>
-                  <h3 className="text-sm font-bold text-[#0f3d2e]">Register beneficiaries</h3>
-                  <p className="text-xs text-slate-600 mt-0.5">
-                    Choose an activity, then enter how many people were enrolled from it.
-                  </p>
+              <div className="relative overflow-hidden border-b border-[#d4e8dc] bg-gradient-to-r from-[#e8f5ee] via-[#f3faf6] to-white px-5 py-5">
+                <div className="flex items-start gap-3 min-w-0">
+                  <div className="mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#145c3f] text-white shadow-sm">
+                    <Users className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="text-lg font-bold tracking-tight text-[#0f3d2e]">Register beneficiaries</h3>
+                    <p className="mt-1 text-sm text-slate-600 max-w-xl">
+                      Pick an activity below and record how many people were enrolled from it.
+                    </p>
+                  </div>
                 </div>
-                <p className="text-xs font-semibold text-[#145c3f]">
-                  {formatCount(enrolledTotal)} enrolled so far · {activities.length} activit{activities.length === 1 ? "y" : "ies"}
-                </p>
               </div>
-              <CardContent className="p-4 space-y-3">
+
+              <CardContent className="p-4 md:p-5 space-y-4 bg-[#f7faf8]">
                 {activities.length === 0 ? (
-                  <div className="rounded-xl border border-dashed border-[#d4e8dc] bg-[#f8fbf9] px-4 py-8 text-center">
-                    <p className="text-sm font-medium text-slate-600">No activities to enrol against yet.</p>
-                    <Button className={`${ACTION} mt-3`} onClick={() => void goToBatchStep(1)}>
+                  <div className="rounded-2xl border border-dashed border-[#cfe6d8] bg-white px-6 py-14 text-center">
+                    <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[#e8f5ee] text-[#145c3f]">
+                      <ClipboardList className="h-6 w-6" />
+                    </div>
+                    <p className="text-sm font-semibold text-[#0f3d2e]">No activities to enrol against yet</p>
+                    <p className="mt-1 text-sm text-slate-500">Go back and add at least one activity first.</p>
+                    <Button className={`${ACTION} mt-4`} onClick={() => void goToBatchStep(1)}>
                       <ArrowLeft className="w-4 h-4 mr-2" />Back to activities
                     </Button>
                   </div>
                 ) : (
-                  activities.map((activity) => {
-                    const enrolled = Number(activity.enrolment_count || 0);
-                    const canRegister = canEdit && (activity.programs_supported?.length || 0) > 0;
-                    return (
-                      <div key={activity.reference_id} className="rounded-xl border border-[#d4e8dc] bg-white p-4 space-y-3">
-                        <div className="flex flex-wrap items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="text-sm font-bold text-[#0f3d2e]">
-                              {activity.activity_category || "Untitled activity"}
-                            </p>
-                            <p className="text-xs text-slate-500 mt-0.5">
-                              {driveTitle(activity.drive_type)}
-                              {activity.activity_date ? ` · ${activity.activity_date}` : ""}
-                              {activity.specific_activity ? ` · ${activity.specific_activity}` : ""}
-                            </p>
-                          </div>
-                          <Badge
-                            variant="outline"
-                            className={`text-[10px] px-2 py-0.5 border shrink-0 ${activity.activity_status === "Completed" ? STATUS_TONES.submitted : STATUS_TONES.draft}`}
-                          >
-                            {activity.activity_status || "Draft"}
-                          </Badge>
-                        </div>
-
-                        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-[#f8fbf9] border border-[#e8f3ec] px-3 py-2.5">
-                          <div>
-                            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Linked enrolments</p>
-                            <p className="text-xl font-bold tabular-nums text-[#0f3d2e]">{formatCount(enrolled)}</p>
-                          </div>
-                          {canRegister ? (
-                            <Button
-                              className={ACTION}
-                              disabled={busy}
-                              onClick={() => openEnrolmentModal(activity)}
-                            >
-                              <Users className="w-4 h-4 mr-2" />
-                              {enrolled > 0 ? "Add more enrolments" : "Register beneficiaries"}
-                            </Button>
-                          ) : !canEdit ? (
-                            <p className="text-xs text-slate-500">View only</p>
-                          ) : (
-                            <p className="text-xs text-amber-700">Add programmes on the activity first</p>
-                          )}
-                        </div>
-
-                        {!!activity.enrolment_records?.length && (
-                          <div className="space-y-1.5">
-                            {activity.enrolment_records.map((record) => (
-                              <div
-                                key={record.reference_id}
-                                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[#eef3ef] px-3 py-2 text-xs"
-                              >
-                                <p className="text-slate-600">
-                                  <span className="font-semibold text-[#0f3d2e]">{record.enrolment_count}</span>
-                                  {" beneficiaries · "}
-                                  {statusLabel(record.status)}
+                  <div className="grid gap-4">
+                    {activities.map((activity, index) => {
+                      const enrolled = Number(activity.enrolment_count || 0);
+                      const canRegister = canEdit && (activity.programs_supported?.length || 0) > 0;
+                      return (
+                        <div
+                          key={activity.reference_id}
+                          className="rounded-2xl border border-[#d4e8dc] bg-white p-4 md:p-5 shadow-sm hover:border-[#a8d4bc] hover:shadow-md transition-all"
+                        >
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div className="flex items-start gap-3 min-w-0">
+                              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#eef6f1] text-sm font-bold text-[#145c3f]">
+                                {String(index + 1).padStart(2, "0")}
+                              </div>
+                              <div className="min-w-0">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <h4 className="text-base font-bold text-[#0f3d2e]">
+                                    {activity.activity_category || "Untitled activity"}
+                                  </h4>
+                                  <Badge className={cn("text-[10px] px-2 py-0.5 border font-semibold", statusTone(activity.activity_status))}>
+                                    {activity.activity_status || "Draft"}
+                                  </Badge>
+                                </div>
+                                <p className="mt-1 text-xs text-slate-500 leading-relaxed">
+                                  <span className="font-medium text-slate-600">{driveTitle(activity.drive_type)}</span>
+                                  {activity.activity_date ? ` · ${activity.activity_date}` : ""}
+                                  {activity.specific_activity ? ` · ${activity.specific_activity}` : ""}
                                 </p>
-                                {canEdit && record.status === "draft" && (
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    className="h-7 text-[#145c3f]"
-                                    onClick={() => openEnrolmentModal(activity, record.reference_id)}
-                                  >
-                                    Resume draft
-                                  </Button>
+                                {!!activity.programs_supported?.length && (
+                                  <div className="mt-2 flex flex-wrap gap-1.5">
+                                    {activity.programs_supported.slice(0, 4).map((program) => (
+                                      <span key={program} className="rounded-full bg-[#f0f7f3] px-2 py-0.5 text-[10px] font-semibold text-[#145c3f]">
+                                        {program}
+                                      </span>
+                                    ))}
+                                    {activity.programs_supported.length > 4 && (
+                                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">
+                                        +{activity.programs_supported.length - 4}
+                                      </span>
+                                    )}
+                                  </div>
                                 )}
                               </div>
-                            ))}
+                            </div>
                           </div>
-                        )}
-                      </div>
-                    );
-                  })
+
+                          <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-[#e8f3ec] bg-[#f8fbf9] p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4">
+                            <div className="flex items-center gap-3">
+                              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white border border-[#d4e8dc] shadow-sm">
+                                <Users className="h-5 w-5 text-[#145c3f]" />
+                              </div>
+                              <div>
+                                <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">Linked enrolments</p>
+                                <p className="text-2xl font-bold tabular-nums text-[#0f3d2e] leading-none mt-1">{formatCount(enrolled)}</p>
+                              </div>
+                            </div>
+                            {canRegister ? (
+                              <Button
+                                className={`${ACTION} h-11 px-5 text-sm`}
+                                disabled={busy}
+                                onClick={() => openEnrolmentModal(activity)}
+                              >
+                                <Users className="w-4 h-4" />
+                                {enrolled > 0 ? "Add more enrolments" : "Register beneficiaries"}
+                              </Button>
+                            ) : !canEdit ? (
+                              <Badge variant="outline" className="border-slate-200 text-slate-500">View only</Badge>
+                            ) : (
+                              <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">
+                                Add programmes on the activity first
+                              </div>
+                            )}
+                          </div>
+
+                          {!!activity.enrolment_records?.length && (
+                            <div className="mt-3 space-y-2">
+                              <p className="text-[11px] font-bold uppercase tracking-wide text-slate-400 px-0.5">Enrolment records</p>
+                              {activity.enrolment_records.map((record) => (
+                                <div
+                                  key={record.reference_id}
+                                  className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[#eef3ef] bg-white px-3.5 py-2.5"
+                                >
+                                  <div className="flex items-center gap-2 text-sm">
+                                    <span className="inline-flex h-7 min-w-7 items-center justify-center rounded-lg bg-[#eef6f1] px-2 text-xs font-bold tabular-nums text-[#145c3f]">
+                                      {record.enrolment_count}
+                                    </span>
+                                    <span className="text-slate-600">
+                                      beneficiaries · <span className="font-medium text-slate-800">{statusLabel(record.status)}</span>
+                                    </span>
+                                  </div>
+                                  {canEdit && record.status === "draft" && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="h-8 border-[#d4e8dc] text-[#145c3f]"
+                                      onClick={() => openEnrolmentModal(activity, record.reference_id)}
+                                    >
+                                      Resume draft
+                                    </Button>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
                 )}
               </CardContent>
             </Card>
