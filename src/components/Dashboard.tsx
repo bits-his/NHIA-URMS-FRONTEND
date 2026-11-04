@@ -515,6 +515,15 @@ export default function Dashboard({ role, user, access = [], functionalities = "
                     }}
                   />
                 </div>
+              ) : role === "admin" ? (
+                <div className="relative z-10 w-full">
+                  <AdminDashboard
+                    onNavigate={(tab) => {
+                      setView("settings");
+                      navigate(`/settings${tab ? `?tab=${tab}` : ""}`);
+                    }}
+                  />
+                </div>
               ) : (
               <div className="relative z-10 w-full p-3 sm:p-4 md:p-5 space-y-4">
                 {!isDg && role !== "sdo" && !isDeptZonalCoordinator(role) && role !== "state-officer" && !isDeptReportingOfficer(role) && !isDeptStateCoordinator(role) && role !== "department-officer" && role !== "admin" && role !== "hq-department" && (
@@ -575,13 +584,6 @@ export default function Dashboard({ role, user, access = [], functionalities = "
                   />
                 ) : role === "department-officer" ? (
                   <DepartmentalDashboard user={user} onNewSubmission={(targetView) => setView(targetView as View)} />
-                ) : role === "admin" ? (
-                  <AdminDashboard
-                    onNavigate={() => {
-                      setView("settings");
-                      navigate("/settings");
-                    }}
-                  />
                 ) : (
                   <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
                     <div className="xl:col-span-2 space-y-6">

@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useSearchParams } from "react-router-dom";
 import { Users, MapPin, Building2, Layers, ShieldCheck, Shield } from "lucide-react";
 import PageLayout from "@/src/components/PageLayout";
 import AdminUsersPage from "./AdminUsersPage";
@@ -22,18 +23,32 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
 ];
 
 export default function AdminSettingsPage() {
-  const [tab, setTab] = React.useState<Tab>("users");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get("tab") as Tab | null;
+  const initialTab = tabParam && TABS.some((t) => t.id === tabParam) ? tabParam : "users";
+  const [tab, setTab] = React.useState<Tab>(initialTab);
+
+  React.useEffect(() => {
+    if (tabParam && TABS.some((t) => t.id === tabParam)) {
+      setTab(tabParam);
+    }
+  }, [tabParam]);
+
+  const handleTabChange = (nextTab: Tab) => {
+    setTab(nextTab);
+    setSearchParams({ tab: nextTab });
+  };
 
   return (
     <PageLayout
       title="Staff Management"
-      maxWidth="7xl"
+      maxWidth="full"
       filters={
         <div className="flex items-center gap-1.5 p-1 w-full flex-wrap">
           {TABS.map((t) => (
             <button
               key={t.id}
-              onClick={() => setTab(t.id)}
+              onClick={() => handleTabChange(t.id)}
               className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                 tab === t.id
                   ? "bg-[#145c3f] text-white shadow-2xs"
