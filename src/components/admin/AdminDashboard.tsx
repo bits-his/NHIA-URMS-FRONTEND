@@ -2,13 +2,12 @@ import * as React from "react";
 import {
   Users, MapPin, Building2, Layers, ShieldCheck, Activity,
   RefreshCw, Zap, Database, Server, Wifi, CheckCircle2, AlertCircle,
-  ChevronRight, ArrowUpRight, Shield, Settings, Check,
+  ChevronRight, ArrowUpRight, Shield, Check,
   FileText, Lock, Clock, Search
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import PageLayout from "@/src/components/PageLayout";
 import { cn } from "@/lib/utils";
@@ -174,7 +173,6 @@ export default function AdminDashboard({ onNavigate }: { onNavigate?: (tab: stri
   ];
 
   const activeRate = stats && stats.users > 0 ? Math.round((stats.activeUsers / stats.users) * 100) : 100;
-  const privRate = stats && stats.users > 0 ? Math.round((stats.privileges / stats.users) * 100) : 0;
 
   return (
     <PageLayout
@@ -182,40 +180,21 @@ export default function AdminDashboard({ onNavigate }: { onNavigate?: (tab: stri
       maxWidth="full"
       showHeader={true}
       actions={
-        <div className="flex items-center gap-2">
-          <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#e8f5ee] border border-[#d4e8dc] text-xs font-medium text-[#145c3f]">
-            <span className="relative flex size-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
-            </span>
-            <span>All Systems Operational</span>
-          </div>
-
-          <Button
-            size="sm"
-            onClick={() => onNavigate?.("users")}
-            className="bg-[#145c3f] hover:bg-[#0f442e] text-white gap-1.5 h-8 text-xs rounded-md shadow-2xs font-medium cursor-pointer"
-          >
-            <Settings className="size-3.5" />
-            Staff Management
-          </Button>
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={load}
-            disabled={loading}
-            className="gap-1.5 h-8 text-xs rounded-md border-[#d4e8dc] hover:bg-[#e8f5ee] text-slate-700 font-medium cursor-pointer"
-          >
-            <RefreshCw className={cn("size-3.5", loading && "animate-spin")} />
-            Refresh
-          </Button>
-        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={load}
+          disabled={loading}
+          className="gap-1.5 h-8 text-xs rounded-md border-[#d4e8dc] hover:bg-[#e8f5ee] text-slate-700 font-medium cursor-pointer"
+        >
+          <RefreshCw className={cn("size-3.5", loading && "animate-spin")} />
+          Refresh
+        </Button>
       }
     >
       <div className="w-full space-y-3">
-        {/* Compact 8-Card Metric Strip */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
+        {/* Compact 8-Card Metric Strip in 2 Rows of 4 */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 gap-2.5">
           {STAT_CARDS.map(({ key, label, icon: Icon, iconCls, desc }) => {
             const val = stats ? (stats as any)[key] : 0;
             return (
@@ -430,47 +409,6 @@ export default function AdminDashboard({ onNavigate }: { onNavigate?: (tab: stri
                     </div>
                   );
                 })}
-              </CardContent>
-            </Card>
-
-            {/* Security & Access Governance Card */}
-            <Card className="rounded-lg border-[#d4e8dc] bg-white shadow-2xs">
-              <CardHeader className="p-3.5 pb-2 border-b border-[#f0fdf7]">
-                <CardTitle className="text-xs font-bold text-slate-900 uppercase tracking-wide">
-                  Access Governance & Security
-                </CardTitle>
-                <CardDescription className="text-[11px] text-slate-500">
-                  Role-based access control compliance status
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="p-3.5 space-y-3">
-                <div>
-                  <div className="flex items-center justify-between text-xs mb-1">
-                    <span className="font-semibold text-slate-800">Privilege Coverage</span>
-                    <span className="font-bold text-purple-700 tabular-nums">
-                      {loading ? "…" : `${privRate}%`}
-                    </span>
-                  </div>
-                  <Progress value={privRate} className="h-1.5 bg-purple-50 [&>div]:bg-purple-600" />
-                  <p className="text-[10px] text-slate-400 mt-1">
-                    {stats?.privileges ?? 0} of {stats?.users ?? 0} accounts assigned granular permissions
-                  </p>
-                </div>
-
-                <div className="pt-2 border-t border-[#f0fdf7] space-y-1.5">
-                  <div className="flex items-center gap-2 text-xs text-slate-700 font-medium">
-                    <CheckCircle2 className="size-3.5 text-emerald-600 shrink-0" />
-                    <span>RBAC Multi-Level Policies Enforced</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-xs text-slate-700 font-medium">
-                    <CheckCircle2 className="size-3.5 text-emerald-600 shrink-0" />
-                    <span>Cryptographic Session Tokens Active</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-xs text-slate-700 font-medium">
-                    <CheckCircle2 className="size-3.5 text-emerald-600 shrink-0" />
-                    <span>Zero Escalation Anomalies Detected</span>
-                  </div>
-                </div>
               </CardContent>
             </Card>
           </div>
