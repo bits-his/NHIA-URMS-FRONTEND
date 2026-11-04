@@ -9,6 +9,9 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from "@/components/ui/table";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import type { ColumnDef } from "@tanstack/react-table";
+import { ShadcnDataTable } from "@/components/common/ShadcnDataTable";
+import { Label } from "@/components/ui/label";
 import { enrolmentDrivesApi as api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import EnrolmentActivityForm, { Field, FieldSection } from "./EnrolmentActivityForm";
@@ -368,7 +371,80 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
   const stateName = (code: string) => catalogue?.states.find((state) => state.code === code)?.description || code;
   const monthOptions = Array.from({ length: 12 }, (_, index) => ({ value: String(index + 1), label: monthLabel(index + 1) }));
   const periodFiltered = batches.filter((row) => (filterYear === "all" || String(row.reporting_year) === filterYear) && (filterMonth === "all" || String(row.reporting_month) === filterMonth) && (filterState === "all" || row.state_code === filterState));
-  const filteredBatches = periodFiltered.filter((row) => (filterStatus === "all" || row.status === filterStatus) && matchesSearch([row, stateName(row.state_code), monthLabel(row.reporting_month), statusLabel(row.status)]));
+  const filteredBatches = periodFiltered.filter((row) => filterStatus === "all" || row.status === filterStatus);
+  const registerColumns = React.useMemo<ColumnDef<any>[]>(
+    () => [
+      {
+        id: "period",
+        header: "Period",
+        accessorFn: (row) => `${monthLabel(row.reporting_month)} ${row.reporting_year}`,
+        cell: ({ row }) => (
+          <span className="text-sm font-semibold text-slate-900 whitespace-nowrap">
+            {monthLabel(row.original.reporting_month)} {row.original.reporting_year}
+          </span>
+        ),
+      },
+      {
+        id: "state",
+        header: "State",
+        accessorFn: (row) => stateName(row.state_code),
+        cell: ({ row }) => (
+          <span className="text-sm text-slate-700">{stateName(row.original.state_code)}</span>
+        ),
+      },
+      {
+        id: "quarter",
+        header: "Quarter",
+        accessorFn: (row) => `Q${quarterFromMonth(row.reporting_month)}`,
+        cell: ({ row }) => (
+          <span className="text-sm text-slate-500">Q{quarterFromMonth(row.original.reporting_month)}</span>
+        ),
+      },
+      {
+        id: "planned",
+        header: "Planned",
+        accessorFn: (row) => row.planned_activities ?? 0,
+        cell: ({ row }) => (
+          <span className="text-sm tabular-nums">{row.original.planned_activities ?? "—"}</span>
+        ),
+      },
+      {
+        id: "activities",
+        header: "Activities",
+        accessorFn: (row) => row.activity_count || 0,
+        cell: ({ row }) => (
+          <span className="text-sm font-semibold text-slate-900 tabular-nums">{row.original.activity_count || 0}</span>
+        ),
+      },
+      {
+        id: "status",
+        header: "Status",
+        accessorKey: "status",
+        cell: ({ row }) => <StatusBadge status={row.original.status} />,
+      },
+      {
+        id: "actions",
+        header: "Action",
+        enableSorting: false,
+        cell: ({ row }) => (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-8 gap-1.5 text-[#145c3f] hover:bg-[#eef6f1]"
+            disabled={busy}
+            onClick={(e) => {
+              e.stopPropagation();
+              void run(() => openBatch(row.original.reference_id));
+            }}
+          >
+            <Eye className="w-3.5 h-3.5" /> View
+          </Button>
+        ),
+      },
+    ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [catalogue, busy],
+  );
   const listMode = ["register", "actions", "legacy"].includes(mode) && !showCreate && !actionDraft;
   const handleBack = () => {
     if (showCreate) setShowCreate(false);
@@ -625,7 +701,7 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
     <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3.5 flex items-center justify-between sticky top-0 z-30 gap-3">
       <div className="flex items-center gap-3 min-w-0">
         <Button variant="ghost" size="icon" onClick={handleBack} className="rounded-full shrink-0" aria-label="Back"><ArrowLeft className="w-5 h-5" /></Button>
-        <div className="min-w-0"><h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">{pageTitle}</h2><p className="text-xs text-slate-500 truncate">{batch && ["batch", "activity", "view"].includes(mode) ? `${stateName(batch.state_code)} · ${monthLabel(batch.reporting_month)} ${batch.reporting_year} · ${statusLabel(batch.status)}` : permissions.review ? "Review and endorse enrolment drive reports" : "Record activities, register beneficiaries and submit reports"}</p></div>
+        <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">{pageTitle}</h2>
       </div>
       <div className="flex items-center gap-2 shrink-0">
         {mode === "view" && batch && (
@@ -704,18 +780,80 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
             {[{ label: "Total", count: periodFiltered.length, tone: "text-[#0f3d2e] bg-white border-[#d4e8dc]" }, { label: "Draft / Returned", count: periodFiltered.filter((row) => ["draft", "returned"].includes(row.status)).length, tone: "text-slate-600 bg-white border-slate-200" }, { label: "Awaiting review", count: periodFiltered.filter((row) => row.status === "awaiting_review").length, tone: "text-amber-800 bg-amber-50/80 border-amber-100" }, { label: "Endorsed", count: periodFiltered.filter((row) => row.status === "endorsed").length, tone: "text-teal-800 bg-teal-50/80 border-teal-100" }, { label: "Submitted", count: periodFiltered.filter((row) => row.status === "submitted").length, tone: "text-emerald-700 bg-emerald-50/80 border-emerald-100" }].map((item) => <div className={`rounded-xl border px-4 py-3 ${item.tone}`} key={item.label}><p className="text-2xl font-bold tabular-nums">{item.count}</p><p className="text-[11px] font-semibold text-slate-500 mt-0.5">{item.label}</p></div>)}
           </div>
-          <div className="flex flex-wrap items-center gap-3 rounded-xl border border-[#d4e8dc] bg-white px-4 py-4">
-            {catalogue.states.length > 1 && <div className="flex-1 min-w-[150px]"><Dropdown value={filterState} onChange={setFilterState} options={[{ value: "all", label: "All States" }, ...stateOptions]} /></div>}
-            <div className="flex-1 min-w-[130px]"><Dropdown value={filterYear} onChange={setFilterYear} options={[{ value: "all", label: "All Years" }, ...yearOptions.map((value) => ({ value, label: value }))]} /></div>
-            <div className="flex-1 min-w-[130px]"><Dropdown value={filterMonth} onChange={setFilterMonth} options={[{ value: "all", label: "All Months" }, ...monthOptions]} /></div>
-            <div className="flex-1 min-w-[150px]"><Dropdown value={filterStatus} onChange={setFilterStatus} options={[{ value: "all", label: "All Statuses" }, ...Object.keys(STATUS_TONES).map((value) => ({ value, label: statusLabel(value) }))]} /></div>
-          </div>
-          {searchInput}
-          <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden"><CardHeader className="pb-3 border-b border-[#d4e8dc]"><CardTitle className="text-sm font-bold">{filteredBatches.length} report{filteredBatches.length !== 1 ? "s" : ""}</CardTitle></CardHeader><CardContent className="p-0">
-            {filteredBatches.length ? <div className="overflow-x-auto"><Table><TableHeader><TableRow className="bg-[#f0fdf7] hover:bg-[#f0fdf7]">{["Period", "State", "Quarter", "Planned", "Activities", "Status", "Action"].map((label) => <TableHead key={label} className={`text-xs font-bold text-slate-600 whitespace-nowrap ${label === "Action" ? "text-right" : ""}`}>{label}</TableHead>)}</TableRow></TableHeader><TableBody>
-              {filteredBatches.map((row) => <TableRow key={row.reference_id} className="hover:bg-[#f8fdfb] border-b border-[#e8f3ec] last:border-0"><TableCell className="text-sm font-semibold text-[#0f3d2e] whitespace-nowrap">{monthLabel(row.reporting_month)} {row.reporting_year}</TableCell><TableCell className="text-sm text-slate-700">{stateName(row.state_code)}</TableCell><TableCell className="text-sm text-slate-500">Q{quarterFromMonth(row.reporting_month)}</TableCell><TableCell className="text-sm tabular-nums">{row.planned_activities ?? "—"}</TableCell><TableCell className="text-sm font-semibold text-[#145c3f] tabular-nums">{row.activity_count || 0}</TableCell><TableCell><StatusBadge status={row.status} /></TableCell><TableCell className="text-right"><Button size="sm" variant="ghost" className="h-8 gap-1.5 text-[#145c3f] hover:bg-[#eef6f1]" disabled={busy} onClick={() => void run(() => openBatch(row.reference_id))}><Eye className="w-3.5 h-3.5" />View</Button></TableCell></TableRow>)}
-            </TableBody></Table></div> : <div className="flex flex-col items-center justify-center py-16 gap-2 text-slate-400"><FileText className="w-8 h-8 opacity-30" /><p className="text-sm font-medium">No reports found for these filters.</p></div>}
-          </CardContent></Card>
+          <Card className="rounded-2xl border-[#d4e8dc]">
+            <CardContent className="pt-4 pb-4 grid grid-flow-col auto-cols-fr gap-3">
+              {catalogue.states.length > 1 && (
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">State</Label>
+                  <Select value={filterState} onValueChange={setFilterState}>
+                    <SelectTrigger displayValue={filterState === "all" ? "All States" : (stateOptions.find((s) => s.value === filterState)?.label || "State")}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All States</SelectItem>
+                      {stateOptions.map((s) => (
+                        <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Year</Label>
+                <Select value={filterYear} onValueChange={setFilterYear}>
+                  <SelectTrigger displayValue={filterYear === "all" ? "All Years" : filterYear}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Years</SelectItem>
+                    {yearOptions.map((y) => (
+                      <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Month</Label>
+                <Select value={filterMonth} onValueChange={setFilterMonth}>
+                  <SelectTrigger displayValue={filterMonth === "all" ? "All Months" : monthLabel(filterMonth)}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Months</SelectItem>
+                    {monthOptions.map((m) => (
+                      <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Status</Label>
+                <Select value={filterStatus} onValueChange={setFilterStatus}>
+                  <SelectTrigger displayValue={filterStatus === "all" ? "All Statuses" : statusLabel(filterStatus)}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    {Object.keys(STATUS_TONES).map((value) => (
+                      <SelectItem key={value} value={value}>{statusLabel(value)}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
+          <ShadcnDataTable
+            title="ENROLMENT DRIVES REGISTER"
+            infoTooltip="Enrolment drive reports by period, state, and submission status."
+            columns={registerColumns}
+            data={filteredBatches}
+            loading={loading}
+            searchPlaceholder="Search enrolment drive reports..."
+            emptyMessage="No reports found for these filters."
+            onRowClick={(row) => { if (!busy) void run(() => openBatch(row.reference_id)); }}
+            pageSize={50}
+            showTableOptions={false}
+          />
         </>}
       </>}
       {mode === "view" && batch && (

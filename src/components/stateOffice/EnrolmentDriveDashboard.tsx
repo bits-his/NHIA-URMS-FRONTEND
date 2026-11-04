@@ -49,12 +49,6 @@ export interface EnrolmentDriveDashboardProps {
 
 type TabKey = "overview" | "states" | "followups";
 
-function scopeLabel(role: string, lockState: boolean, lockZone: boolean) {
-  if (lockState || isDeptStateCoordinator(role)) return "Assigned state";
-  if (lockZone || isDeptZonalCoordinator(role) || /zonal/i.test(role)) return "Assigned zone";
-  return "National";
-}
-
 function pct(part: number, whole: number) {
   if (!whole) return null;
   return Math.round((part / whole) * 1000) / 10;
@@ -225,21 +219,16 @@ export default function EnrolmentDriveDashboard({
   return (
     <div className={`flex flex-col h-full bg-[#f4f7f5] ${embedded ? "" : ""}`}>
       {!embedded && (
-        <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3 sticky top-0 z-30 flex items-center justify-between gap-3">
+        <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3.5 sticky top-0 z-30 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
             {onBack && (
               <Button variant="ghost" size="icon" onClick={onBack} className="rounded-full shrink-0" aria-label="Back">
                 <ArrowLeft className="w-5 h-5 text-[#0f3d2e]" />
               </Button>
             )}
-            <div className="min-w-0">
-              <h1 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">
-                Enrolment Drives Dashboard
-              </h1>
-              <p className="text-xs text-slate-500 truncate">
-                Live reporting for {scopeLabel(role, lockState, lockZone).toLowerCase()} scope
-              </p>
-            </div>
+            <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">
+              Enrolment Drives Dashboard
+            </h2>
           </div>
           <Button
             variant="outline"

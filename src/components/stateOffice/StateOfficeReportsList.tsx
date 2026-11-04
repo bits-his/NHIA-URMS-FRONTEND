@@ -1,17 +1,17 @@
 import * as React from "react";
 import { useListSearch } from "./useListSearch";
 import {
-  Plus, Loader2, RefreshCw, Eye, ArrowLeft, Send,
+  Plus, Loader2, RefreshCw, ArrowLeft,
   FileText, Clock, CheckCircle2, XCircle,
   type LucideIcon,
 } from "lucide-react";
-import { motion } from "motion/react";
 import { useSelector } from "react-redux";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ShadcnDataTable } from "@/components/common/ShadcnDataTable";
+import { useStateOfficeReportsListTable } from "./StateOfficeReportsListTableConfig";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import { stateOfficeApi } from "@/lib/api";
@@ -26,9 +26,9 @@ import SshiaFinancialReportDetail from "./SshiaFinancialReportDetail";
 import ExpenditureProfileReportPage from "./ExpenditureProfileReportPage";
 import ExpenditureProfileReportDetail from "./ExpenditureProfileReportDetail";
 import {
-  REPORT_CONFIG, MONTHS, monthLabel, quarterFromMonth, formatCount, formatDate, formatDateShort, formatAmount, formatNaira,
-  labelOf, IGR_SERVICE_TYPES, SSHIA_SUB_HEADS,
-  reportLineTotal, reportLineCount, ENROLLEE_REGISTER_SCHEMES, type StateOfficeReportType,
+  REPORT_CONFIG, MONTHS, monthLabel,
+  labelOf, SSHIA_SUB_HEADS,
+  type StateOfficeReportType,
 } from "./constants";
 import { ENROLMENT_ACTIVITIES, enrolmentLineListSummary } from "./enrolmentPillarTypes";
 import { useStateOfficeAccess } from "@/src/access/createReviewAccess";
@@ -359,7 +359,7 @@ export default function StateOfficeReportsList({
     }
   }, [createOnly, refreshMyDrafts]);
 
-  const { search, setSearch, matchesSearch, searchInput } = useListSearch();
+  const { search, setSearch, matchesSearch } = useListSearch();
   const filteredReports = React.useMemo(() => {
     const matching = reports.filter((r) => matchesSearch([
       r, monthLabel(r.reporting_month),
@@ -455,6 +455,32 @@ export default function StateOfficeReportsList({
   };
 
   const showLocationCols = !defaultStateId || !defaultZoneId;
+
+  const {
+    columns: listColumns,
+    tableData: listTableData,
+    registerTitle: listRegisterTitle,
+    emptyMessage: listEmptyMessage,
+    onRowClick: listOnRowClick,
+  } = useStateOfficeReportsListTable({
+    reportType,
+    cfg,
+    filteredReports,
+    sshiaListRows,
+    showLocationCols,
+    hasActivityTabs,
+    multiType,
+    activityModuleColumn,
+    activityModuleLabels,
+    activityRows,
+    canCreate,
+    finalBusy,
+    openReport,
+    requestFinalSubmit,
+    listTitle,
+    activeActivityTab,
+    hasFilters,
+  });
 
   if (mode === "view" && selectedId) {
     if (selectedReportType === "igr") {
@@ -612,21 +638,14 @@ export default function StateOfficeReportsList({
 
   return (
     <div className="flex flex-col h-full bg-slate-50/30">
-        <div className="bg-white border-b border-border/50 px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30">
+        <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3.5 flex items-center justify-between sticky top-0 z-30 gap-3">
         <div className="flex items-center gap-3 min-w-0">
           <Button variant="ghost" size="icon" onClick={onBack} className="rounded-full shrink-0" aria-label="Back">
             <ArrowLeft className="w-5 h-5" />
           </Button>
-          <div className="min-w-0">
-            <h2 className="text-xl font-bold tracking-tight truncate">{listTitle ?? cfg.title}</h2>
-            {providerWorkflow && !isFinanceList && (
-              <p className="text-xs text-slate-500 truncate">
-                {canReview
-                  ? "Review and endorse reports awaiting your action"
-                  : "Your reports — draft, send for review, then final-submit after endorsement"}
-              </p>
-            )}
-          </div>
+          <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">
+            {activeActivityTab?.label ?? listTitle ?? cfg.title}
+          </h2>
         </div>
         <div className="flex items-center gap-3">
           <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">
@@ -700,654 +719,147 @@ export default function StateOfficeReportsList({
               <span><span className="font-semibold text-slate-800">{counts.approved}</span> approved</span>
             </div>
           ) : (
-          <div className={`grid grid-cols-2 gap-4 ${providerWorkflow ? "md:grid-cols-5" : "md:grid-cols-4"}`}>
-            {(providerWorkflow ? [
-              { label: "Total", value: counts.total, color: "bg-slate-50 border-slate-200", text: "text-slate-700" },
-              { label: "Draft / Returned", value: counts.draft, color: "bg-slate-50 border-slate-200", text: "text-slate-600" },
-              { label: "Awaiting review", value: counts.awaiting_review, color: "bg-amber-50 border-amber-200", text: "text-amber-800" },
-              { label: "Endorsed", value: counts.endorsed, color: "bg-teal-50 border-teal-200", text: "text-teal-800" },
-              { label: "Submitted", value: counts.submitted, color: "bg-emerald-50 border-emerald-200", text: "text-emerald-700" },
+          <div className={`grid grid-cols-2 gap-3 ${providerWorkflow || hasActivityTabs ? "md:grid-cols-5" : "md:grid-cols-4"}`}>
+            {(providerWorkflow || hasActivityTabs ? [
+              { label: "Total", value: counts.total, tone: "text-[#0f3d2e] bg-white border-[#d4e8dc]" },
+              { label: "Draft / Returned", value: counts.draft, tone: "text-slate-600 bg-white border-slate-200" },
+              { label: "Awaiting review", value: counts.awaiting_review, tone: "text-amber-800 bg-amber-50/80 border-amber-100" },
+              { label: "Endorsed", value: counts.endorsed, tone: "text-teal-800 bg-teal-50/80 border-teal-100" },
+              { label: "Submitted", value: counts.submitted, tone: "text-emerald-700 bg-emerald-50/80 border-emerald-100" },
             ] : [
-              { label: "Total",     value: counts.total,     color: "bg-slate-50 border-slate-200",     text: "text-slate-700"  },
-              { label: "Draft",     value: counts.draft,     color: "bg-slate-50 border-slate-200",     text: "text-slate-600"  },
-              { label: "Submitted", value: counts.submitted, color: "bg-blue-50 border-blue-200",       text: "text-blue-700"   },
-              { label: "Approved",  value: counts.approved,  color: "bg-emerald-50 border-emerald-200", text: "text-emerald-700" },
-            ]).map(c => (
-              <motion.div key={c.label} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
-                className={`rounded-2xl p-5 border ${c.color}`}>
-                <p className={`text-3xl font-black ${c.text}`}>{c.value}</p>
-                <p className="text-xs font-semibold text-slate-500 mt-1">{c.label}</p>
-              </motion.div>
+              { label: "Total", value: counts.total, tone: "text-[#0f3d2e] bg-white border-[#d4e8dc]" },
+              { label: "Draft", value: counts.draft, tone: "text-slate-600 bg-white border-slate-200" },
+              { label: "Submitted", value: counts.submitted, tone: "text-blue-700 bg-blue-50/80 border-blue-100" },
+              { label: "Approved", value: counts.approved, tone: "text-emerald-700 bg-emerald-50/80 border-emerald-100" },
+            ]).map((c) => (
+              <div key={c.label} className={`rounded-xl border px-4 py-3 ${c.tone}`}>
+                <p className="text-2xl font-bold tabular-nums">{loading ? "—" : c.value}</p>
+                <p className="text-[11px] font-semibold text-slate-500 mt-0.5">{c.label}</p>
+              </div>
             ))}
           </div>
           )}
 
-          {/* Filters */}
-          <div className="flex flex-row flex-wrap items-center gap-3 w-full bg-white rounded-2xl border border-[#d4e8dc] px-5 py-4">
-            {showStateFilter && (
-              <div className="flex-1 min-w-[140px]">
-                <Select value={filterState} onValueChange={setFilterState}>
-                  <SelectTrigger className="w-full"
-                    displayValue={filterState === ALL_STATES
-                      ? "All States"
-                      : (states.find(s => String(s.id) === filterState)?.description ?? filterState)}>
-                    <SelectValue placeholder="All States" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={ALL_STATES}>All States</SelectItem>
-                    {states.map(s => (
-                      <SelectItem key={s.id} value={String(s.id)}>{s.description}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
+          <Card className="rounded-2xl border-[#d4e8dc]">
+            <CardContent className="pt-4 pb-4 space-y-3">
+              <div className="grid grid-flow-col auto-cols-fr gap-3">
+                {showStateFilter && (
+                  <div className="space-y-1 min-w-0">
+                    <Label className="text-xs text-muted-foreground">State</Label>
+                    <Select value={filterState} onValueChange={setFilterState}>
+                      <SelectTrigger className="w-full"
+                        displayValue={filterState === ALL_STATES
+                          ? "All States"
+                          : (states.find(s => String(s.id) === filterState)?.description ?? filterState)}>
+                        <SelectValue placeholder="All States" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={ALL_STATES}>All States</SelectItem>
+                        {states.map(s => (
+                          <SelectItem key={s.id} value={String(s.id)}>{s.description}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
 
-            <div className="flex-1 min-w-[120px]">
-              <Select value={filterYear} onValueChange={setFilterYear}>
-                <SelectTrigger className="w-full" displayValue={filterYear === "all" ? "All Years" : filterYear}>
-                  <SelectValue placeholder="All Years" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Years</SelectItem>
-                  {yearOptions.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex-1 min-w-[140px]">
-              <Select value={filterMonth} onValueChange={setFilterMonth}>
-                <SelectTrigger className="w-full"
-                  displayValue={filterMonth === "all" ? "All Months" : monthLabel(filterMonth)}>
-                  <SelectValue placeholder="All Months" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Months</SelectItem>
-                  {MONTHS.map(m => (
-                    <SelectItem key={m.value} value={String(m.value)}>{m.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex-1 min-w-[130px]">
-              <Select value={filterStatus} onValueChange={setFilterStatus}>
-                <SelectTrigger className="w-full"
-                  displayValue={filterStatus === "all" ? "All Statuses" : STATUS_CONFIG[filterStatus as keyof typeof STATUS_CONFIG]?.label}>
-                  <SelectValue placeholder="All Statuses" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Statuses</SelectItem>
-                  <SelectItem value="draft">Draft</SelectItem>
-                  {providerWorkflow && (
-                    <>
-                      <SelectItem value="awaiting_review">Awaiting review</SelectItem>
-                      <SelectItem value="returned">Returned</SelectItem>
-                      <SelectItem value="endorsed">Endorsed</SelectItem>
-                    </>
-                  )}
-                  <SelectItem value="submitted">Submitted</SelectItem>
-                  <SelectItem value="approved">Approved</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {!hasActivityTabs && (reportType === "enrolment" || activityRows) && (
-              <div className="flex-1 min-w-[160px]">
-                <Select value={filterActivity} onValueChange={setFilterActivity}>
-                  <SelectTrigger className="w-full"
-                    displayValue={
-                      filterActivity === "all"
-                        ? "All Activities"
-                        : ((activityRows?.options ?? ENROLMENT_ACTIVITIES).find((a) => a.value === filterActivity)?.label ?? filterActivity)
-                    }>
-                    <SelectValue placeholder="All Activities" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Activities</SelectItem>
-                    {(activityRows?.options ?? ENROLMENT_ACTIVITIES).map((a) => (
-                      <SelectItem key={a.value} value={a.value}>{a.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-
-            {hasFilters && (
-              <Button variant="ghost" size="sm" className="text-slate-500 gap-1 shrink-0" onClick={clearFilters}>
-                <XCircle className="w-3.5 h-3.5" /> Clear
-              </Button>
-            )}
-          </div>
-
-          {searchInput}
-          <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden">
-            {!isFinanceList && (
-              <CardHeader className="pb-3 border-b border-[#d4e8dc]">
-                <CardTitle className="text-sm font-bold">
-                  {loading
-                    ? "Loading..."
-                    : reportType === "enrollee-register" || reportType === "etmc-tmc-action-point" || reportType === "ict-support-register" || reportType === "adhoc-special-assignment"
-                      ? `${filteredReports.length} register${filteredReports.length !== 1 ? "s" : ""}`
-                      : `${filteredReports.length} report${filteredReports.length !== 1 ? "s" : ""}`}
-                </CardTitle>
-              </CardHeader>
-            )}
-            <CardContent className="p-0">
-              {loading ? (
-                <div className="flex items-center justify-center py-16 gap-3 text-slate-400">
-                  <Loader2 className="w-5 h-5 animate-spin" /><span className="text-sm">Loading...</span>
+                <div className="space-y-1 min-w-0">
+                  <Label className="text-xs text-muted-foreground">Year</Label>
+                  <Select value={filterYear} onValueChange={setFilterYear}>
+                    <SelectTrigger className="w-full" displayValue={filterYear === "all" ? "All Years" : filterYear}>
+                      <SelectValue placeholder="All Years" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Years</SelectItem>
+                      {yearOptions.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
                 </div>
-              ) : filteredReports.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-16 gap-2 text-slate-400">
-                  <FileText className="w-8 h-8 opacity-30" />
-                  <p className="text-sm font-medium">
-                    {hasFilters
-                      ? "No reports match your filters"
-                      : hasActivityTabs && activeActivityTab
-                        ? `No ${activeActivityTab.label} reports yet`
-                        : "No reports found"}
-                  </p>
-                  {!hasFilters && canCreate && (
-                    <Button variant="outline" size="sm" className="mt-2 gap-2"
-                      onClick={() => { setSelectedId(null); setSelectedReportType(reportType); setMode("create"); setFormKey((k) => k + 1); }}>
-                      <Plus className="w-4 h-4" /> {newButtonLabel}
-                    </Button>
-                  )}
+
+                <div className="space-y-1 min-w-0">
+                  <Label className="text-xs text-muted-foreground">Month</Label>
+                  <Select value={filterMonth} onValueChange={setFilterMonth}>
+                    <SelectTrigger className="w-full"
+                      displayValue={filterMonth === "all" ? "All Months" : monthLabel(filterMonth)}>
+                      <SelectValue placeholder="All Months" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Months</SelectItem>
+                      {MONTHS.map(m => (
+                        <SelectItem key={m.value} value={String(m.value)}>{m.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-[#f0fdf7] hover:bg-[#f0fdf7]">
-                        {reportType === "igr" ? (
-                          <>
-                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Date</TableHead>
-                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">State</TableHead>
-                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Service Type</TableHead>
-                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Principal</TableHead>
-                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Receipt No.</TableHead>
-                            <TableHead className="text-xs font-bold text-slate-600 text-right whitespace-nowrap">Amount (₦)</TableHead>
-                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Payment Date</TableHead>
-                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Status</TableHead>
-                            <TableHead className="text-right text-xs font-bold text-slate-600 whitespace-nowrap">Actions</TableHead>
-                          </>
-                        ) : reportType === "sshia-financial" ? (
-                          <>
-                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Period</TableHead>
-                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">State</TableHead>
-                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Sub-heads filled</TableHead>
-                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Submitted by</TableHead>
-                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Status</TableHead>
-                            <TableHead className="text-right text-xs font-bold text-slate-600 whitespace-nowrap">Actions</TableHead>
-                          </>
-                        ) : reportType === "expenditure-profile" ? (
-                          <>
-                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Period</TableHead>
-                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">State</TableHead>
-                            <TableHead className="text-xs font-bold text-slate-600 text-right whitespace-nowrap">Total (₦)</TableHead>
-                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Status</TableHead>
-                            <TableHead className="text-right text-xs font-bold text-slate-600 whitespace-nowrap">Actions</TableHead>
-                          </>
-                        ) : reportType === "enrollee-register" ? (
-                          <>
-                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Year</TableHead>
-                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Month</TableHead>
-                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Zone ID</TableHead>
-                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Zone</TableHead>
-                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">State ID</TableHead>
-                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">State</TableHead>
-                            {ENROLLEE_REGISTER_SCHEMES.map((s) => (
-                              <TableHead key={s.key} className="text-xs font-bold text-slate-600 text-right whitespace-nowrap">{s.label}</TableHead>
-                            ))}
-                            <TableHead className="text-xs font-bold text-slate-600 text-right whitespace-nowrap">Total Lives</TableHead>
-                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Status</TableHead>
-                            <TableHead className="text-right text-xs font-bold text-slate-600 whitespace-nowrap">View</TableHead>
-                          </>
-                        ) : reportType === "ict-support-register" || reportType === "adhoc-special-assignment" ? (
-                          <>
-                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Date Submitted</TableHead>
-                            {showLocationCols && (
-                              <>
-                                <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Zone</TableHead>
-                                <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">State</TableHead>
-                              </>
-                            )}
-                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Year</TableHead>
-                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Month</TableHead>
-                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Quarter</TableHead>
-                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Submitted By</TableHead>
-                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Status</TableHead>
-                            <TableHead className="text-right text-xs font-bold text-slate-600 whitespace-nowrap">View</TableHead>
-                          </>
-                        ) : reportType === "enrolment" ? (
-                          <>
-                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Date</TableHead>
-                            {showLocationCols && (
-                              <>
-                                <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Zone</TableHead>
-                                <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">State</TableHead>
-                              </>
-                            )}
-                            {!hasActivityTabs && (
-                              <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Activity</TableHead>
-                            )}
-                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Program</TableHead>
-                            {hasActivityTabs && (
-                              <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Detail</TableHead>
-                            )}
-                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Outcome</TableHead>
-                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Status</TableHead>
-                            <TableHead className="text-right text-xs font-bold text-slate-600 whitespace-nowrap">View</TableHead>
-                          </>
-                        ) : reportType === "stakeholder" ? (
-                          <>
-                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Period</TableHead>
-                            {showLocationCols && (
-                              <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">State</TableHead>
-                            )}
-                            <TableHead className="text-xs font-bold text-slate-600 text-right whitespace-nowrap">Activities</TableHead>
-                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Status</TableHead>
-                            <TableHead className="text-right text-xs font-bold text-slate-600 whitespace-nowrap">View</TableHead>
-                          </>
-                        ) : (
-                          <>
-                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Reference</TableHead>
-                            {multiType && (
-                              <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Drive Type</TableHead>
-                            )}
-                            {activityModuleColumn && (
-                              <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Type</TableHead>
-                            )}
-                            {showLocationCols && (
-                              <>
-                                <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Zone</TableHead>
-                                <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">State</TableHead>
-                              </>
-                            )}
-                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Year</TableHead>
-                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Month</TableHead>
-                            {reportType === "weekly-actionable" && (
-                              <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Week</TableHead>
-                            )}
-                            {reportType === "etmc-tmc-action-point" && (
-                              <>
-                                <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Session</TableHead>
-                                <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Meeting Date</TableHead>
-                              </>
-                            )}
-                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Quarter</TableHead>
-                            <TableHead className="text-xs font-bold text-slate-600 text-right whitespace-nowrap">Entries</TableHead>
-                            <TableHead className="text-xs font-bold text-slate-600 text-right whitespace-nowrap">{cfg.totalLabel}</TableHead>
-                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Submitted By</TableHead>
-                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Date Submitted</TableHead>
-                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Status</TableHead>
-                            <TableHead className="text-right text-xs font-bold text-slate-600 whitespace-nowrap">View</TableHead>
-                          </>
-                        )}
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                    {reportType === "sshia-financial" ? sshiaListRows.map((row, i) => {
-                      const r = row.report;
-                      const sc = STATUS_CONFIG[r.status] || STATUS_CONFIG.draft;
-                      const quarter = (r as any).reporting_quarter || quarterFromMonth(r.reporting_month);
-                      return (
-                        <motion.tr
-                          key={String(r.id)}
-                          initial={{ opacity: 0, y: 4 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: i * 0.02 }}
-                          className="hover:bg-[#f8fdfb] transition-colors border-b border-slate-100 last:border-0"
-                        >
-                          <TableCell className="text-sm text-slate-700 whitespace-nowrap">
-                            <span className="font-medium">{monthLabel(r.reporting_month)} {r.reporting_year}</span>
-                            <span className="text-slate-400"> · Q{quarter}</span>
-                          </TableCell>
-                          <TableCell className="text-sm font-semibold text-slate-800 whitespace-nowrap">
-                            {r.state?.description || "—"}
-                          </TableCell>
-                          <TableCell className="py-2.5">
-                            {row.filledCount === 0 ? (
-                              <span className="text-sm text-slate-400">None yet</span>
-                            ) : (
-                              <div className="flex flex-wrap gap-1.5 max-w-[22rem]">
-                                {row.filledLabels.map((label) => (
-                                  <span
-                                    key={label}
-                                    className="inline-flex items-center rounded-md border border-[#d4e8dc] bg-[#f4faf7] px-2 py-0.5 text-[11px] font-medium text-[#145c3f]"
-                                  >
-                                    {label}
-                                  </span>
-                                ))}
-                                <span className="inline-flex items-center text-[11px] text-slate-400 px-0.5">
-                                  {row.filledCount} of 4
-                                </span>
-                              </div>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-sm text-slate-600 whitespace-nowrap">
-                            {r.submitted_by || "—"}
-                          </TableCell>
-                          <TableCell>
-                            <Badge className={`text-[10px] px-2 py-0.5 flex items-center gap-1 w-fit border ${sc.cls}`}>
-                              {sc.icon} {sc.label}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="inline-flex items-center justify-end gap-1">
-                              <Button variant="ghost" size="sm"
-                                className="h-7 gap-1 px-2 text-slate-500 hover:text-primary hover:bg-primary/10"
-                                onClick={() => openReport(r, "view")}>
-                                <Eye className="w-3.5 h-3.5" /> View
-                              </Button>
-                              {canCreate && (r.status === "draft" || r.status === "returned") && (
-                                <Button variant="ghost" size="sm"
-                                  className="h-7 gap-1 px-2 text-[#145c3f] hover:text-[#145c3f] hover:bg-[#145c3f]/10"
-                                  onClick={() => openReport(r, "edit")}>
-                                  Update
-                                </Button>
-                              )}
-                              {canCreate && r.status === "endorsed" && (
-                                <Button variant="ghost" size="sm"
-                                  className="h-7 gap-1 px-2 text-[#145c3f] hover:text-[#0f3d2e] hover:bg-[#145c3f]/10"
-                                  disabled={finalBusy}
-                                  onClick={() => requestFinalSubmit(r)}>
-                                  <Send className="w-3.5 h-3.5" /> Final Submit
-                                </Button>
-                              )}
-                            </div>
-                          </TableCell>
-                        </motion.tr>
-                      );
-                    }) : filteredReports.map((r, i) => {
-                      const sc = STATUS_CONFIG[r.status] || STATUS_CONFIG.draft;
-                      const rowType = r.__reportType ?? reportType;
-                      const typeLabel = REPORT_CONFIG[rowType]?.title ?? rowType;
-                      const enrolmentSummary = reportType === "enrolment"
-                        ? enrolmentLineListSummary(r.lines?.[0])
-                        : null;
-                      const activitySummary = activityRows ? activityRows.summarize(r) : null;
-                      return (
-                          <motion.tr key={`${rowType}-${r.id}`} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: i * 0.02 }}
-                            className="hover:bg-[#f8fdfb] transition-colors border-b border-slate-100 last:border-0">
-                            {reportType === "expenditure-profile" ? (
-                              <>
-                                <TableCell className="text-sm text-slate-700 whitespace-nowrap">
-                                  <span className="font-medium">{monthLabel(r.reporting_month)} {r.reporting_year}</span>
-                                  <span className="text-slate-400"> · Q{(r as any).reporting_quarter || quarterFromMonth(r.reporting_month)}</span>
-                                </TableCell>
-                                <TableCell className="text-sm font-semibold text-slate-800 whitespace-nowrap">
-                                  {r.state?.description || "—"}
-                                </TableCell>
-                                <TableCell className="text-sm font-semibold text-[#145c3f] text-right tabular-nums whitespace-nowrap">
-                                  {formatNaira(reportLineTotal("expenditure-profile", r))}
-                                </TableCell>
-                                <TableCell>
-                                  <Badge className={`text-[10px] px-2 py-0.5 flex items-center gap-1 w-fit border ${sc.cls}`}>
-                                    {sc.icon} {sc.label}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell className="text-right">
-                                  <div className="inline-flex items-center justify-end gap-1">
-                                    <Button variant="ghost" size="sm"
-                                      className="h-7 gap-1 px-2 text-slate-500 hover:text-primary hover:bg-primary/10"
-                                      onClick={() => openReport(r, "view")}>
-                                      <Eye className="w-3.5 h-3.5" /> View
-                                    </Button>
-                                    {canCreate && (r.status === "draft" || r.status === "returned") && (
-                                      <Button variant="ghost" size="sm"
-                                        className="h-7 gap-1 px-2 text-[#145c3f] hover:text-[#145c3f] hover:bg-[#145c3f]/10"
-                                        onClick={() => openReport(r, "edit")}>
-                                        Update
-                                      </Button>
-                                    )}
-                                    {canCreate && r.status === "endorsed" && (
-                                      <Button variant="ghost" size="sm"
-                                        className="h-7 gap-1 px-2 text-[#145c3f] hover:text-[#0f3d2e] hover:bg-[#145c3f]/10"
-                                        disabled={finalBusy}
-                                        onClick={() => requestFinalSubmit(r)}>
-                                        <Send className="w-3.5 h-3.5" /> Final Submit
-                                      </Button>
-                                    )}
-                                  </div>
-                                </TableCell>
-                              </>
-                            ) : reportType === "igr" ? (
-                              <>
-                                <TableCell className="text-sm text-slate-700 whitespace-nowrap tabular-nums">
-                                  {formatDateShort((r as any).entry_date || r.submission_date)}
-                                </TableCell>
-                                <TableCell className="text-sm font-semibold text-slate-800 whitespace-nowrap">
-                                  {r.state?.description || "—"}
-                                </TableCell>
-                                <TableCell className="text-sm text-slate-800 whitespace-nowrap">
-                                  {labelOf(IGR_SERVICE_TYPES, String((r as any).service_type || r.lines?.[0]?.service_type || ""))}
-                                </TableCell>
-                                <TableCell className="text-sm font-medium text-slate-800 whitespace-nowrap max-w-[160px] truncate"
-                                  title={String((r as any).principal_name || r.lines?.[0]?.principal_name || "")}>
-                                  {String((r as any).principal_name || r.lines?.[0]?.principal_name || "—")}
-                                </TableCell>
-                                <TableCell className="text-sm font-mono text-slate-700 whitespace-nowrap">
-                                  {String((r as any).receipt_no || r.lines?.[0]?.receipt_no || "—")}
-                                </TableCell>
-                                <TableCell className="text-sm font-semibold text-[#145c3f] text-right tabular-nums whitespace-nowrap">
-                                  {formatAmount((r as any).amount ?? r.lines?.[0]?.amount ?? 0)}
-                                </TableCell>
-                                <TableCell className="text-sm text-slate-600 whitespace-nowrap tabular-nums">
-                                  {formatDateShort((r as any).payment_date || r.lines?.[0]?.payment_date)}
-                                </TableCell>
-                                <TableCell>
-                                  <Badge className={`text-[10px] px-2 py-0.5 flex items-center gap-1 w-fit border ${sc.cls}`}>
-                                    {sc.icon} {sc.label}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell className="text-right">
-                                  <div className="inline-flex items-center justify-end gap-1">
-                                    <Button variant="ghost" size="sm"
-                                      className="h-7 gap-1 px-2 text-slate-500 hover:text-primary hover:bg-primary/10"
-                                      onClick={() => openReport(r, "view")}>
-                                      <Eye className="w-3.5 h-3.5" /> View
-                                    </Button>
-                                    {canCreate && (r.status === "draft" || r.status === "returned") && (
-                                      <Button variant="ghost" size="sm"
-                                        className="h-7 gap-1 px-2 text-[#145c3f] hover:text-[#145c3f] hover:bg-[#145c3f]/10"
-                                        onClick={() => openReport(r, "edit")}>
-                                        Update
-                                      </Button>
-                                    )}
-                                    {canCreate && r.status === "endorsed" && (
-                                      <Button variant="ghost" size="sm"
-                                        className="h-7 gap-1 px-2 text-[#145c3f] hover:text-[#0f3d2e] hover:bg-[#145c3f]/10"
-                                        disabled={finalBusy}
-                                        onClick={() => requestFinalSubmit(r)}>
-                                        <Send className="w-3.5 h-3.5" /> Final Submit
-                                      </Button>
-                                    )}
-                                  </div>
-                                </TableCell>
-                              </>
-                            ) : reportType === "enrollee-register" ? (
-                              <>
-                                <TableCell className="text-sm font-semibold text-slate-800 whitespace-nowrap">{r.reporting_year}</TableCell>
-                                <TableCell className="text-sm text-slate-600 whitespace-nowrap">{monthLabel(r.reporting_month)}</TableCell>
-                                <TableCell className="text-sm tabular-nums text-slate-500 whitespace-nowrap">{r.zone_id ?? r.zone?.id ?? "—"}</TableCell>
-                                <TableCell className="text-sm text-slate-600 whitespace-nowrap">{r.zone?.description || "—"}</TableCell>
-                                <TableCell className="text-sm tabular-nums text-slate-500 whitespace-nowrap">{r.state_id ?? r.state?.id ?? "—"}</TableCell>
-                                <TableCell className="text-sm font-semibold text-slate-800 whitespace-nowrap">{r.state?.description || "—"}</TableCell>
-                                {ENROLLEE_REGISTER_SCHEMES.map((s) => (
-                                  <TableCell key={s.key} className="text-sm text-right tabular-nums text-slate-700 whitespace-nowrap">
-                                    {formatCount(r[s.key] ?? 0)}
-                                  </TableCell>
-                                ))}
-                                <TableCell className="text-sm font-bold text-[#145c3f] text-right tabular-nums whitespace-nowrap">
-                                  {formatCount(r.total_lives ?? 0)}
-                                </TableCell>
-                                <TableCell>
-                                  <Badge className={`text-[10px] px-2 py-0.5 flex items-center gap-1 w-fit border ${sc.cls}`}>
-                                    {sc.icon} {sc.label}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell className="text-right">
-                                  <Button variant="ghost" size="sm"
-                                    className="h-7 gap-1 px-2 text-slate-500 hover:text-primary hover:bg-primary/10"
-                                    onClick={() => openReport(r, "view")}>
-                                    <Eye className="w-3.5 h-3.5" /> View
-                                  </Button>
-                                </TableCell>
-                              </>
-                            ) : reportType === "ict-support-register" || reportType === "adhoc-special-assignment" ? (
-                              <>
-                                <TableCell className="text-xs text-slate-500 whitespace-nowrap">{formatDate(r.submission_date)}</TableCell>
-                                {showLocationCols && (
-                                  <>
-                                    <TableCell className="text-sm text-slate-600 whitespace-nowrap">{r.zone?.description || "—"}</TableCell>
-                                    <TableCell className="text-sm font-semibold text-slate-800 whitespace-nowrap">{r.state?.description || "—"}</TableCell>
-                                  </>
-                                )}
-                                <TableCell className="text-sm font-semibold text-slate-800 whitespace-nowrap">{r.reporting_year}</TableCell>
-                                <TableCell className="text-sm text-slate-600 whitespace-nowrap">{monthLabel(r.reporting_month)}</TableCell>
-                                <TableCell className="text-sm text-slate-500 whitespace-nowrap">Q{quarterFromMonth(r.reporting_month)}</TableCell>
-                                <TableCell className="text-sm text-slate-500 whitespace-nowrap">{r.submitted_by || "—"}</TableCell>
-                                <TableCell>
-                                  <Badge className={`text-[10px] px-2 py-0.5 flex items-center gap-1 w-fit border ${sc.cls}`}>
-                                    {sc.icon} {sc.label}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell className="text-right">
-                                  <Button variant="ghost" size="sm"
-                                    className="h-7 gap-1 px-2 text-slate-500 hover:text-primary hover:bg-primary/10"
-                                    onClick={() => openReport(r, "view")}>
-                                    <Eye className="w-3.5 h-3.5" /> View
-                                  </Button>
-                                </TableCell>
-                              </>
-                            ) : reportType === "enrolment" && enrolmentSummary ? (
-                              <>
-                                <TableCell className="text-sm font-semibold text-slate-800 whitespace-nowrap">
-                                  {monthLabel(r.reporting_month)} {r.reporting_year}
-                                </TableCell>
-                                {showLocationCols && (
-                                  <>
-                                    <TableCell className="text-sm text-slate-600 whitespace-nowrap">{r.zone?.description || "—"}</TableCell>
-                                    <TableCell className="text-sm font-semibold text-slate-800 whitespace-nowrap">{r.state?.description || "—"}</TableCell>
-                                  </>
-                                )}
-                                {!hasActivityTabs && (
-                                  <TableCell className="text-sm font-semibold text-[#0f3d2e] whitespace-nowrap">{enrolmentSummary.activity}</TableCell>
-                                )}
-                                <TableCell className="text-sm text-slate-700 whitespace-nowrap">{enrolmentSummary.program}</TableCell>
-                                {hasActivityTabs && (
-                                  <TableCell className="text-sm text-slate-600 whitespace-nowrap max-w-[220px] truncate" title={enrolmentSummary.detail}>
-                                    {enrolmentSummary.detail}
-                                  </TableCell>
-                                )}
-                                <TableCell className="text-sm font-medium text-slate-800 whitespace-nowrap">{enrolmentSummary.outcome}</TableCell>
-                                <TableCell>
-                                  <Badge className={`text-[10px] px-2 py-0.5 flex items-center gap-1 w-fit border ${sc.cls}`}>
-                                    {sc.icon} {sc.label}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell className="text-right">
-                                  <Button variant="ghost" size="sm"
-                                    className="h-7 gap-1 px-2 text-slate-500 hover:text-primary hover:bg-primary/10"
-                                    onClick={() => openReport(r, "view")}>
-                                    <Eye className="w-3.5 h-3.5" /> View
-                                  </Button>
-                                </TableCell>
-                              </>
-                            ) : reportType === "stakeholder" ? (
-                              <>
-                                <TableCell className="text-sm font-semibold text-slate-800 whitespace-nowrap">
-                                  {monthLabel(r.reporting_month)} {r.reporting_year}
-                                </TableCell>
-                                {showLocationCols && (
-                                  <TableCell className="text-sm font-semibold text-slate-800 whitespace-nowrap">
-                                    {r.state?.description || "—"}
-                                  </TableCell>
-                                )}
-                                <TableCell className="text-sm font-semibold text-[#145c3f] text-right tabular-nums">
-                                  {formatCount(reportLineCount(rowType, r))}
-                                </TableCell>
-                                <TableCell>
-                                  <Badge className={`text-[10px] px-2 py-0.5 flex items-center gap-1 w-fit border ${sc.cls}`}>
-                                    {sc.icon} {sc.label}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell className="text-right">
-                                  <Button variant="ghost" size="sm"
-                                    className="h-7 gap-1 px-2 text-slate-500 hover:text-primary hover:bg-primary/10"
-                                    onClick={() => openReport(r, "view")}>
-                                    <Eye className="w-3.5 h-3.5" /> View
-                                  </Button>
-                                </TableCell>
-                              </>
-                            ) : (
-                              <>
-                            <TableCell>
-                              <span className="font-mono text-xs font-bold text-primary">{r.reference_id}</span>
-                            </TableCell>
-                            {multiType && (
-                              <TableCell className="text-sm text-slate-700 whitespace-nowrap max-w-[180px] truncate" title={typeLabel}>
-                                {typeLabel}
-                              </TableCell>
-                            )}
-                            {activityModuleColumn && (
-                              <TableCell className="text-sm text-slate-700 whitespace-nowrap max-w-[180px] truncate"
-                                title={activityModuleLabels?.[r.activity_module ?? ""] ?? r.activity_module ?? ""}>
-                                {activityModuleLabels?.[r.activity_module ?? ""]
-                                  ?? r.activity_module
-                                  ?? "—"}
-                              </TableCell>
-                            )}
-                            {showLocationCols && (
-                              <>
-                                <TableCell className="text-sm text-slate-600 whitespace-nowrap">{r.zone?.description || "—"}</TableCell>
-                                <TableCell className="text-sm font-semibold text-slate-800 whitespace-nowrap">{r.state?.description || "—"}</TableCell>
-                              </>
-                            )}
-                            <TableCell className="text-sm font-semibold text-slate-800 whitespace-nowrap">{r.reporting_year}</TableCell>
-                            <TableCell className="text-sm text-slate-600 whitespace-nowrap">{monthLabel(r.reporting_month)}</TableCell>
-                            {reportType === "weekly-actionable" && (
-                              <TableCell className="text-sm text-slate-600 whitespace-nowrap">
-                                {(r as any).reporting_week ? `Wk ${(r as any).reporting_week}` : "—"}
-                              </TableCell>
-                            )}
-                            {reportType === "etmc-tmc-action-point" && (
-                              <>
-                                <TableCell className="text-sm text-slate-600 whitespace-nowrap">{(r as any).etmc_session || "—"}</TableCell>
-                                <TableCell className="text-xs text-slate-500 whitespace-nowrap">{formatDate((r as any).meeting_date)}</TableCell>
-                              </>
-                            )}
-                            <TableCell className="text-sm text-slate-500 whitespace-nowrap">Q{quarterFromMonth(r.reporting_month)}</TableCell>
-                            <TableCell className="text-sm text-slate-500 text-right tabular-nums">{reportLineCount(rowType, r)}</TableCell>
-                            <TableCell className="text-sm font-semibold text-slate-800 text-right tabular-nums">{formatCount(reportLineTotal(rowType, r))}</TableCell>
-                            <TableCell className="text-sm text-slate-500 whitespace-nowrap">{r.submitted_by || "—"}</TableCell>
-                            <TableCell className="text-xs text-slate-500 whitespace-nowrap">{formatDate(r.submission_date)}</TableCell>
-                            <TableCell>
-                              <Badge className={`text-[10px] px-2 py-0.5 flex items-center gap-1 w-fit border ${sc.cls}`}>
-                                {sc.icon} {sc.label}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <Button variant="ghost" size="sm"
-                                className="h-7 gap-1 px-2 text-slate-500 hover:text-primary hover:bg-primary/10"
-                                onClick={() => openReport(r, "view")}>
-                                <Eye className="w-3.5 h-3.5" /> View
-                              </Button>
-                            </TableCell>
-                              </>
-                            )}
-                          </motion.tr>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
+
+                <div className="space-y-1 min-w-0">
+                  <Label className="text-xs text-muted-foreground">Status</Label>
+                  <Select value={filterStatus} onValueChange={setFilterStatus}>
+                    <SelectTrigger className="w-full"
+                      displayValue={filterStatus === "all" ? "All Statuses" : STATUS_CONFIG[filterStatus as keyof typeof STATUS_CONFIG]?.label}>
+                      <SelectValue placeholder="All Statuses" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Statuses</SelectItem>
+                      <SelectItem value="draft">Draft</SelectItem>
+                      {providerWorkflow && (
+                        <>
+                          <SelectItem value="awaiting_review">Awaiting review</SelectItem>
+                          <SelectItem value="returned">Returned</SelectItem>
+                          <SelectItem value="endorsed">Endorsed</SelectItem>
+                        </>
+                      )}
+                      <SelectItem value="submitted">Submitted</SelectItem>
+                      <SelectItem value="approved">Approved</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {!hasActivityTabs && (reportType === "enrolment" || activityRows) && (
+                  <div className="space-y-1 min-w-0">
+                    <Label className="text-xs text-muted-foreground">Activity</Label>
+                    <Select value={filterActivity} onValueChange={setFilterActivity}>
+                      <SelectTrigger className="w-full"
+                        displayValue={
+                          filterActivity === "all"
+                            ? "All Activities"
+                            : ((activityRows?.options ?? ENROLMENT_ACTIVITIES).find((a) => a.value === filterActivity)?.label ?? filterActivity)
+                        }>
+                        <SelectValue placeholder="All Activities" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Activities</SelectItem>
+                        {(activityRows?.options ?? ENROLMENT_ACTIVITIES).map((a) => (
+                          <SelectItem key={a.value} value={a.value}>{a.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
+              {hasFilters && (
+                <div className="flex justify-end">
+                  <Button variant="ghost" size="sm" className="text-slate-500 gap-1 shrink-0" onClick={clearFilters}>
+                    <XCircle className="w-3.5 h-3.5" /> Clear
+                  </Button>
                 </div>
               )}
             </CardContent>
           </Card>
+
+          <ShadcnDataTable
+            title={listRegisterTitle}
+            columns={listColumns}
+            data={listTableData}
+            loading={loading}
+            searchPlaceholder="Search reports..."
+            searchValue={search}
+            onSearchChange={setSearch}
+            emptyMessage={listEmptyMessage}
+            onRowClick={listOnRowClick}
+            pageSize={50}
+            showTableOptions={false}
+          />
         </div>
       </ScrollArea>
 

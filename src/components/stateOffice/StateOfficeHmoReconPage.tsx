@@ -1,8 +1,10 @@
 import * as React from "react";
+import type { ColumnDef } from "@tanstack/react-table";
 import {
-  ArrowLeft, Eye, Pencil, RefreshCw, Loader2, Save, Building2, Search,
+  ArrowLeft, Eye, Pencil, Plus, RefreshCw, Loader2, Save,
 } from "lucide-react";
-import { motion } from "motion/react";
+import { ShadcnDataTable } from "@/components/common/ShadcnDataTable";
+import { RegisterStatsCards } from "./RegisterStatsCards";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -26,6 +28,12 @@ interface Props {
   defaultZoneId?: string | null;
   /** When true, hide page chrome (hub provides header/tabs). */
   embedded?: boolean;
+  onChromeChange?: (chrome: {
+    mode: "list" | "form" | "detail";
+    title?: string;
+    onInnerBack?: () => void;
+    actions?: React.ReactNode;
+  } | null) => void;
 }
 
 type Geo = { id: number; description: string };
@@ -110,7 +118,7 @@ function hmoLabel(name: string, code?: string | null) {
 }
 
 export default function StateOfficeHmoReconPage({
-  stream, onBack, defaultStateId, defaultZoneId, embedded = false,
+  stream, onBack, defaultStateId, defaultZoneId, embedded = false, onChromeChange,
 }: Props) {
   const meta = HMO_RECON_STREAM_META[stream];
   const { canCreate, createOnly } = useStateOfficeAccess();
@@ -531,9 +539,111 @@ export default function StateOfficeHmoReconPage({
     void loadHcfsFromCollation(item.name, { preserve: false });
   };
 
+  const listColumns = React.useMemo((): ColumnDef<ListHmo>[] => [
+    {
+      id: "hmo",
+      header: "HMO",
+      cell: ({ row }) => <span className="text-sm font-semibold text-slate-800">{hmoLabel(row.original.name, row.original.code)}</span>,
+    },
+    { id: "state", header: "State", cell: ({ row }) => <span className="text-xs">{row.original.stateName}</span> },
+    { id: "hcfs", header: "HCFs", cell: ({ row }) => <span className="text-xs">{row.original.hcfCount}</span> },
+    {
+      id: "alleged",
+      header: allegedLabel,
+      cell: ({ row }) => <span className="text-xs font-mono">₦{naira(row.original.allegedTotal)}</span>,
+    },
+    {
+      id: "actual",
+      header: meta.actualLabel,
+      cell: ({ row }) => (
+        <span className="text-xs font-mono">{row.original.reconciled ? `₦${naira(row.original.actualTotal)}` : "—"}</span>
+      ),
+    },
+    {
+      id: "agreed",
+      header: "Agreed",
+      cell: ({ row }) => (
+        <span className="text-xs font-mono">{row.original.reconciled ? `₦${naira(row.original.agreedTotal)}` : "—"}</span>
+      ),
+    },
+    {
+      id: "paid",
+      header: "Paid",
+      cell: ({ row }) => (
+        <span className="text-xs font-mono">{row.original.reconciled ? `₦${naira(row.original.paidTotal)}` : "—"}</span>
+      ),
+    },
+    {
+      id: "status",
+      header: "Status",
+      cell: ({ row }) => (
+        <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+          row.original.reconciled
+            ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+            : "bg-amber-50 text-amber-800 border border-amber-200"
+        }`}>
+          {row.original.reconciled ? "Reconciled" : "Pending"}
+        </span>
+      ),
+    },
+    {
+      id: "action",
+      header: "Action",
+      cell: ({ row }) => {
+        const g = row.original;
+        return (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-8 gap-1.5 px-2 text-[#145c3f]"
+            onClick={(e) => { e.stopPropagation(); openHmoForRecon(g); }}
+          >
+            {g.reconciled ? (canCreate ? <><Pencil className="w-4 h-4" /> Edit</> : <><Eye className="w-4 h-4" /> View</>) : (canCreate ? "Key in" : "View")}
+          </Button>
+        );
+      },
+    },
+  ], [allegedLabel, meta.actualLabel, canCreate, openHmoForRecon]);
+
+  const reconListTitle = React.useMemo(
+    () => `${meta.pageTitle.toUpperCase()} REGISTER`,
+    [meta.pageTitle],
+  );
+
+  const reconEmptyMessage = React.useMemo(() => (
+    listHmos.length === 0
+      ? "No HMOs found in the Collation Sheet for this period. Capture collation first."
+      : "No HMOs match your search."
+  ), [listHmos.length]);
+
   const leaveForm = () => {
     setHmoLocked(false);
     setMode("list");
+  };
+
+  const openCreate = () => {
+    if (!canCreate) return;
+    setEditingId(null);
+    setRefId(null);
+    setLines([]);
+    setHmoName("");
+    setHmoCode("");
+    setHmoLocked(false);
+    setViewSheets([]);
+    setZoneId(
+      defaultZoneId
+      || (filterZone && filterZone !== "all" ? filterZone : "")
+      || "",
+    );
+    setStateId(
+      defaultStateId
+      || (filterState && filterState !== "all" ? filterState : "")
+      || "",
+    );
+    setPeriodYear(filterYear);
+    setPeriodMonth(filterMonth);
+    setFormKey((k) => k + 1);
+    setMode("create");
   };
 
   const handleSave = async () => {
@@ -740,9 +850,44 @@ export default function StateOfficeHmoReconPage({
     </Card>
   );
 
+  React.useEffect(() => {
+    if (!embedded || !onChromeChange) return;
+    if (mode === "list") {
+      onChromeChange({
+        mode: "list",
+        actions: (
+          <>
+            <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">
+              <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
+            </Button>
+            {canCreate && (
+              <Button className="bg-orange-action hover:bg-orange-600 gap-2" onClick={openCreate}>
+                <Plus className="w-4 h-4" /> {meta.newLabel}
+              </Button>
+            )}
+          </>
+        ),
+      });
+      return;
+    }
+    onChromeChange({
+      mode: mode === "view" ? "detail" : "form",
+      title: mode === "create" ? meta.newLabel : meta.pageTitle,
+      onInnerBack: mode === "view"
+        ? () => { setViewSheets([]); setHmoLocked(false); setMode("list"); }
+        : mode === "edit"
+          ? () => setMode("view")
+          : leaveForm,
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [embedded, onChromeChange, mode, loading, load, canCreate, meta.pageTitle, meta.newLabel]);
+
+  React.useEffect(() => () => onChromeChange?.(null), [onChromeChange]);
+
   if (mode === "view") {
     return (
       <div className="flex flex-col h-full bg-slate-50/30">
+        {!embedded && (
         <div className="bg-white border-b px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30">
           <div className="flex items-center gap-3 min-w-0">
             <Button
@@ -775,6 +920,7 @@ export default function StateOfficeHmoReconPage({
             </Button>
           )}
         </div>
+        )}
         <ScrollArea className="flex-1">
           <div className="w-full px-4 md:px-6 py-4 space-y-4 pb-16">
             <Card className="rounded-xl border border-[#d4e8dc]">
@@ -873,12 +1019,14 @@ export default function StateOfficeHmoReconPage({
   if (mode === "create" || mode === "edit") {
     return (
       <div key={formKey} className="flex flex-col h-full bg-slate-50/30">
-        <div className="bg-white border-b px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30">
-          <div className="flex items-center gap-3 min-w-0">
-            <Button variant="ghost" size="icon" onClick={mode === "edit" ? () => setMode("view") : leaveForm} className="rounded-full shrink-0"><ArrowLeft className="w-5 h-5" /></Button>
-            <h2 className="text-xl font-bold tracking-tight truncate">{meta.pageTitle}</h2>
+        {!embedded && (
+          <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3.5 flex items-center justify-between sticky top-0 z-30">
+            <div className="flex items-center gap-3 min-w-0">
+              <Button variant="ghost" size="icon" onClick={mode === "edit" ? () => setMode("view") : leaveForm} className="rounded-full shrink-0"><ArrowLeft className="w-5 h-5" /></Button>
+              <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">{meta.pageTitle}</h2>
+            </div>
           </div>
-        </div>
+        )}
         <ScrollArea className="flex-1">
           <div className="w-full px-4 md:px-6 py-4 space-y-4 pb-28">
             {headerCard}
@@ -898,24 +1046,48 @@ export default function StateOfficeHmoReconPage({
 
   return (
     <div className="flex flex-col h-full bg-slate-50/30">
-      <div className={`bg-white border-b px-4 md:px-6 py-3 flex items-center justify-between ${embedded ? "" : "sticky top-0 z-30"}`}>
-        {!embedded ? (
-          <div>
-            <h2 className="text-xl font-bold tracking-tight">{meta.pageTitle}</h2>
+      {!embedded && (
+        <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3.5 flex items-center justify-between sticky top-0 z-30">
+          <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">{meta.pageTitle}</h2>
+          <div className="flex items-center gap-3">
+            <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">
+              <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
+            </Button>
+            {canCreate && (
+              <Button className="bg-orange-action hover:bg-orange-600 gap-2" onClick={openCreate}>
+                <Plus className="w-4 h-4" /> {meta.newLabel}
+              </Button>
+            )}
           </div>
-        ) : (
-          <div className="text-sm font-semibold text-[#145c3f]">{meta.pageTitle}</div>
-        )}
-        <div className="flex items-center gap-3">
-          <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
-          </Button>
         </div>
-      </div>
+      )}
       <ScrollArea className="flex-1">
         <div className="w-full px-4 md:px-6 py-4 space-y-4">
+          <RegisterStatsCards
+            loading={loading}
+            className="grid grid-cols-2 md:grid-cols-4 gap-3"
+            stats={[
+              { label: "Total HMOs", value: listHmos.length, tone: "text-[#0f3d2e] bg-white border-[#d4e8dc]" },
+              {
+                label: "Reconciled",
+                value: listHmos.filter((h) => h.reconciled).length,
+                tone: "text-emerald-700 bg-emerald-50/80 border-emerald-100",
+              },
+              {
+                label: "Pending",
+                value: listHmos.filter((h) => !h.reconciled).length,
+                tone: "text-amber-800 bg-amber-50/80 border-amber-100",
+              },
+              {
+                label: "HCFs",
+                value: listHmos.reduce((sum, h) => sum + Number(h.hcfCount || 0), 0),
+                tone: "text-slate-600 bg-white border-slate-200",
+              },
+            ]}
+          />
+
           <Card className="rounded-2xl border-[#d4e8dc]">
-            <CardContent className="pt-4 pb-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
+            <CardContent className="pt-4 pb-4 grid grid-flow-col auto-cols-fr gap-3">
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">Zone</Label>
                 <Select value={filterZone} disabled={zoneLocked} onValueChange={(v) => { setFilterZone(v); if (!stateLocked) setFilterState("all"); }}>
@@ -954,106 +1126,23 @@ export default function StateOfficeHmoReconPage({
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">Search HMO</Label>
-                <div className="relative">
-                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                  <Input
-                    className="pl-8 h-9"
-                    placeholder="Search by HMO name or code…"
-                    value={hmoSearch}
-                    onChange={(e) => setHmoSearch(e.target.value)}
-                  />
-                </div>
-              </div>
             </CardContent>
           </Card>
 
-          <Card className="rounded-2xl border-[#d4e8dc] overflow-hidden">
-            <CardHeader className="pb-3 border-b">
-              <CardTitle className="text-sm font-bold flex items-center gap-2">
-                <Building2 className="w-4 h-4" />
-                {loading
-                  ? "Loading HMOs from collation…"
-                  : `${filteredListHmos.length} HMO${filteredListHmos.length === 1 ? "" : "s"} from Collation`}
-              </CardTitle>
-              <p className="text-xs text-slate-500 mt-1">
-                Click an HMO to load its HCFs and key in {meta.actualLabel.toLowerCase()}, agreed, paid, and remarks.
-              </p>
-            </CardHeader>
-            <CardContent className="p-0">
-              {loading ? (
-                <div className="flex justify-center py-16"><Loader2 className="w-5 h-5 animate-spin text-slate-400" /></div>
-              ) : filteredListHmos.length === 0 ? (
-                <div className="flex justify-center py-16 text-sm text-slate-400 px-4 text-center">
-                  {listHmos.length === 0
-                    ? "No HMOs found in the Collation Sheet for this period. Capture collation first."
-                    : "No HMOs match your search."}
-                </div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-[#f0fdf7]">
-                      <TableHead className="text-xs font-bold">HMO</TableHead>
-                      <TableHead className="text-xs font-bold">State</TableHead>
-                      <TableHead className="text-xs font-bold">HCFs</TableHead>
-                      <TableHead className="text-xs font-bold text-right">{allegedLabel}</TableHead>
-                      <TableHead className="text-xs font-bold text-right">{meta.actualLabel}</TableHead>
-                      <TableHead className="text-xs font-bold text-right">Agreed</TableHead>
-                      <TableHead className="text-xs font-bold text-right">Paid</TableHead>
-                      <TableHead className="text-xs font-bold">Status</TableHead>
-                      <TableHead className="text-xs font-bold w-28">Action</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredListHmos.map((g, i) => (
-                      <motion.tr
-                        key={g.key}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ delay: i * 0.02 }}
-                        className="border-b border-slate-100 cursor-pointer hover:bg-[#f0fdf7]/60"
-                        onClick={() => openHmoForRecon(g)}
-                      >
-                        <TableCell className="text-sm font-semibold text-slate-800">{hmoLabel(g.name, g.code)}</TableCell>
-                        <TableCell className="text-xs">{g.stateName}</TableCell>
-                        <TableCell className="text-xs">{g.hcfCount}</TableCell>
-                        <TableCell className="text-xs font-mono text-right">₦{naira(g.allegedTotal)}</TableCell>
-                        <TableCell className="text-xs font-mono text-right">
-                          {g.reconciled ? `₦${naira(g.actualTotal)}` : "—"}
-                        </TableCell>
-                        <TableCell className="text-xs font-mono text-right">
-                          {g.reconciled ? `₦${naira(g.agreedTotal)}` : "—"}
-                        </TableCell>
-                        <TableCell className="text-xs font-mono text-right">
-                          {g.reconciled ? `₦${naira(g.paidTotal)}` : "—"}
-                        </TableCell>
-                        <TableCell className="text-xs">
-                          <span className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${
-                            g.reconciled
-                              ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                              : "bg-amber-50 text-amber-800 border border-amber-200"
-                          }`}>
-                            {g.reconciled ? "Reconciled" : "Pending"}
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-8 gap-1.5 px-2 text-[#145c3f]"
-                            onClick={(e) => { e.stopPropagation(); openHmoForRecon(g); }}
-                          >
-                            {g.reconciled ? (canCreate ? <><Pencil className="w-4 h-4" /> Edit</> : <><Eye className="w-4 h-4" /> View</>) : (canCreate ? "Key in" : "View")}
-                          </Button>
-                        </TableCell>
-                      </motion.tr>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
+          <ShadcnDataTable
+            title={reconListTitle}
+            infoTooltip={`Click an HMO to load its HCFs and key in ${meta.actualLabel.toLowerCase()}, agreed, paid, and remarks.`}
+            columns={listColumns}
+            data={filteredListHmos}
+            loading={loading}
+            searchPlaceholder="Search by HMO name or code…"
+            searchValue={hmoSearch}
+            onSearchChange={setHmoSearch}
+            emptyMessage={reconEmptyMessage}
+            onRowClick={openHmoForRecon}
+            pageSize={50}
+            showTableOptions={false}
+          />
         </div>
       </ScrollArea>
     </div>

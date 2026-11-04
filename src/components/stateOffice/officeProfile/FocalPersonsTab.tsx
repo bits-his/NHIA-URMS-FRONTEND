@@ -19,6 +19,7 @@ import {
   Calendar,
   ShieldCheck,
   TrendingUp,
+  XCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -54,7 +55,6 @@ import { ShadcnDataTable } from "@/components/common/ShadcnDataTable";
 import {
   SolvixStatusPill,
 } from "@/components/common/SolvixStatCards";
-import { SolvixFilterBar } from "@/components/common/SolvixFilterBar";
 
 export const FOCAL_DOMAINS = [
   "ICT",
@@ -918,43 +918,100 @@ export default function FocalPersonsTab({
 
   return (
     <div className="w-full space-y-3.5 animate-in fade-in-50 duration-200">
-      {/* Solvix Filter Bar matching media_1793555167591_0eae438b.png (No duplicate button) */}
-      <SolvixFilterBar
-        filters={[
-          {
-            id: "state",
-            label: "State",
-            value: currentStateId ? String(currentStateId) : "all",
-            onChange: handleStateChange,
-            options: states.map((st) => ({ label: st.description, value: String(st.id) })),
-            allLabel: "All States",
-          },
-          {
-            id: "domain",
-            label: "Domain",
-            value: domainFilter,
-            onChange: setDomainFilter,
-            options: FOCAL_DOMAINS.map((d) => ({
-              label: `${d} ${records.filter((r) => r.domain === d).length > 0 ? `(${records.filter((r) => r.domain === d).length})` : ""}`,
-              value: d,
-            })),
-            allLabel: `All Domains (${records.length})`,
-          },
-          {
-            id: "year",
-            label: "Year",
-            value: currentYear ? String(currentYear) : "",
-            onChange: (v) => setCurrentYear(Number(v)),
-            options: yearOptions.map((y) => ({ label: y, value: y })),
-            allLabel: "All Years",
-          },
-        ]}
-        activeFilterCount={activeFilterCount}
-        onClearFilters={() => {
-          setCurrentStateId("");
-          setDomainFilter("all");
-        }}
-      />
+      <Card className="rounded-2xl border-[#d4e8dc]">
+        <CardContent className="pt-4 pb-4 space-y-3">
+          <div className="grid grid-flow-col auto-cols-fr gap-3">
+            <div className="space-y-1 min-w-0">
+              <Label className="text-xs text-muted-foreground">State</Label>
+              <Select
+                value={currentStateId ? String(currentStateId) : "all"}
+                onValueChange={handleStateChange}
+              >
+                <SelectTrigger
+                  className="w-full"
+                  displayValue={
+                    !currentStateId
+                      ? "All States"
+                      : states.find((st) => String(st.id) === String(currentStateId))?.description || "State"
+                  }
+                >
+                  <SelectValue placeholder="State" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All States</SelectItem>
+                  {states.map((st) => (
+                    <SelectItem key={st.id} value={String(st.id)}>
+                      {st.description}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1 min-w-0">
+              <Label className="text-xs text-muted-foreground">Domain</Label>
+              <Select value={domainFilter} onValueChange={setDomainFilter}>
+                <SelectTrigger
+                  className="w-full"
+                  displayValue={
+                    domainFilter === "all"
+                      ? `All Domains (${records.length})`
+                      : domainFilter
+                  }
+                >
+                  <SelectValue placeholder="Domain" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Domains ({records.length})</SelectItem>
+                  {FOCAL_DOMAINS.map((d) => {
+                    const count = records.filter((r) => r.domain === d).length;
+                    return (
+                      <SelectItem key={d} value={d}>
+                        {d}{count > 0 ? ` (${count})` : ""}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1 min-w-0">
+              <Label className="text-xs text-muted-foreground">Year</Label>
+              <Select
+                value={currentYear ? String(currentYear) : ""}
+                onValueChange={(v) => setCurrentYear(Number(v))}
+              >
+                <SelectTrigger
+                  className="w-full"
+                  displayValue={currentYear ? String(currentYear) : "Year"}
+                >
+                  <SelectValue placeholder="Year" />
+                </SelectTrigger>
+                <SelectContent>
+                  {yearOptions.map((y) => (
+                    <SelectItem key={y} value={y}>
+                      {y}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          {activeFilterCount > 0 && (
+            <div className="flex justify-end">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-slate-500 gap-1 shrink-0"
+                onClick={() => {
+                  setCurrentStateId("");
+                  setDomainFilter("all");
+                }}
+              >
+                <XCircle className="w-3.5 h-3.5" /> Clear
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* 3. Solvix Unified Table Card (Less rounded, no duplicate button) */}
       <ShadcnDataTable

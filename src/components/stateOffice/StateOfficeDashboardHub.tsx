@@ -3,7 +3,6 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   AlertTriangle,
   ArrowLeft,
-  Building2,
   Handshake,
   LayoutDashboard,
   Megaphone,
@@ -112,7 +111,7 @@ export default function StateOfficeDashboardHub({
 
   return (
     <div className="flex flex-col h-full bg-[#f4f7f5]">
-      <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30 gap-3">
+      <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3.5 flex items-center justify-between sticky top-0 z-30 gap-3">
         <div className="flex items-center gap-3 min-w-0">
           <Button
             variant="ghost"
@@ -123,12 +122,9 @@ export default function StateOfficeDashboardHub({
           >
             <ArrowLeft className="w-5 h-5" />
           </Button>
-          <div className="min-w-0 flex items-center gap-2">
-            <Building2 className="w-5 h-5 text-[#145c3f] shrink-0" />
-            <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">
-              State Office Dashboard
-            </h2>
-          </div>
+          <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">
+            State Office Dashboard
+          </h2>
         </div>
 
         <Button
@@ -139,7 +135,7 @@ export default function StateOfficeDashboardHub({
           onClick={handleSync}
         >
           <RefreshCw className={`w-3.5 h-3.5 ${syncing ? "animate-spin" : ""}`} />
-          <span>Sync</span>
+          <span>Refresh</span>
         </Button>
       </div>
 

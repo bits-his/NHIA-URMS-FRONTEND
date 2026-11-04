@@ -19,14 +19,38 @@ interface Props {
   userRole?: string;
 }
 
+export type FinanceChrome = {
+  mode: "list" | "form" | "detail";
+  title: string;
+  onInnerBack?: () => void;
+  actions?: React.ReactNode;
+  statusBadge?: React.ReactNode;
+};
+
 const TAB_META: {
   key: FinanceHubTabKey;
   label: string;
   icon: React.ReactNode;
+  listTitle: string;
 }[] = [
-  { key: "igr", label: "IGR", icon: <Landmark className="size-4 shrink-0" /> },
-  { key: "sshia", label: "SSHIA", icon: <ShieldCheck className="size-4 shrink-0" /> },
-  { key: "expenditure", label: "Expenditure", icon: <Receipt className="size-4 shrink-0" /> },
+  {
+    key: "igr",
+    label: "IGR",
+    icon: <Landmark className="size-4 shrink-0" />,
+    listTitle: "Internally Generated Revenue (IGR)",
+  },
+  {
+    key: "sshia",
+    label: "SSHIA",
+    icon: <ShieldCheck className="size-4 shrink-0" />,
+    listTitle: "SSHIA Progress Report",
+  },
+  {
+    key: "expenditure",
+    label: "Expenditure",
+    icon: <Receipt className="size-4 shrink-0" />,
+    listTitle: "Expenditure Profile",
+  },
 ];
 
 export default function FinanceWorkspace({
@@ -42,6 +66,14 @@ export default function FinanceWorkspace({
   const requested = params.get("tab") as FinanceHubTabKey | null;
   const activeTab: FinanceHubTabKey | null =
     requested && allowedKeys.has(requested) ? requested : defaultTab;
+
+  const activeMeta = TAB_META.find((t) => t.key === activeTab);
+
+  const [chrome, setChrome] = React.useState<FinanceChrome | null>(null);
+
+  React.useEffect(() => {
+    setChrome(null);
+  }, [activeTab]);
 
   React.useEffect(() => {
     if (!defaultTab) return;
@@ -64,14 +96,22 @@ export default function FinanceWorkspace({
     defaultStateId: params.get("state_id") || defaultStateId,
     userRole,
     embedded: true,
+    onChromeChange: setChrome,
   };
 
   const visibleTabs = TAB_META.filter((t) => allowedKeys.has(t.key));
+  const inLeaf = chrome?.mode === "form" || chrome?.mode === "detail";
+  const pageTitle = chrome?.title || activeMeta?.listTitle || FINANCE_HUB_NAV_TITLE;
+
+  const handleHeaderBack = () => {
+    if (inLeaf && chrome?.onInnerBack) chrome.onInnerBack();
+    else onBack();
+  };
 
   if (!activeTab || allowedTabs.length === 0) {
     return (
       <div className="flex flex-col h-full bg-[#f4f7f5]">
-        <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3 flex items-center gap-3 sticky top-0 z-30">
+        <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3.5 flex items-center gap-3 sticky top-0 z-30">
           <Button variant="ghost" size="icon" className="rounded-full shrink-0" aria-label="Back" onClick={onBack}>
             <ArrowLeft className="w-5 h-5" />
           </Button>
@@ -94,24 +134,26 @@ export default function FinanceWorkspace({
 
   return (
     <div className="flex flex-col h-full bg-[#f4f7f5]">
-      <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3 flex items-center sticky top-0 z-30 gap-3">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="rounded-full shrink-0"
-          aria-label="Back"
-          onClick={onBack}
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </Button>
-        <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">
-          {hideTabStrip
-            ? (visibleTabs.find((t) => t.key === activeTab)?.label ?? "Finance")
-            : "Finance"}
-        </h2>
+      <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3.5 flex items-center justify-between sticky top-0 z-30 gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="rounded-full shrink-0"
+            aria-label="Back"
+            onClick={handleHeaderBack}
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </Button>
+          <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">{pageTitle}</h2>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          {chrome?.statusBadge}
+          {chrome?.actions}
+        </div>
       </div>
 
-      {!hideTabStrip && (
+      {!hideTabStrip && !inLeaf && (
         <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 sticky top-[57px] z-20">
           <div className="flex gap-4 overflow-x-auto -mb-px" role="tablist">
             {visibleTabs.map((tab) => (

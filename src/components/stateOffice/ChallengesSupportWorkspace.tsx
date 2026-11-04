@@ -5,12 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { ColumnDef } from "@tanstack/react-table";
 import { ShadcnDataTable } from "@/components/common/ShadcnDataTable";
 import { challengesSupportApi as api } from "@/lib/api";
+import { RegisterStatsCards } from "./RegisterStatsCards";
 import { Field, FieldSection } from "./EnrolmentActivityForm";
 import {
   CHALLENGE_CATEGORIES, CHALLENGE_DEPARTMENTS, CHALLENGE_IMPACTS, CHALLENGE_PROGRAMS,
@@ -106,7 +108,33 @@ export default function ChallengesSupportWorkspace({ onBack }: Props) {
   const [detail, setDetail] = React.useState<any>(null);
   const [note, setNote] = React.useState("");
   const [newStatus, setNewStatus] = React.useState("");
+  const [filterStatus, setFilterStatus] = React.useState("all");
+  const [filterSeverity, setFilterSeverity] = React.useState("all");
+  const [filterPriority, setFilterPriority] = React.useState("all");
   const permissions = catalogue?.permissions || { create: false, comment: false, assign: false, national: false };
+
+  const filteredChallenges = React.useMemo(
+    () => challenges.filter((c) => {
+      if (filterStatus !== "all" && (c.status || "In-progress") !== filterStatus) return false;
+      if (filterSeverity !== "all" && c.severity !== filterSeverity) return false;
+      return true;
+    }),
+    [challenges, filterStatus, filterSeverity],
+  );
+  const filteredSupport = React.useMemo(
+    () => supportList.filter((s) => {
+      if (filterStatus !== "all" && (s.status || "Submitted") !== filterStatus) return false;
+      if (filterPriority !== "all" && s.priority !== filterPriority) return false;
+      return true;
+    }),
+    [supportList, filterStatus, filterPriority],
+  );
+
+  React.useEffect(() => {
+    setFilterStatus("all");
+    setFilterSeverity("all");
+    setFilterPriority("all");
+  }, [mode]);
 
   const run = async <T,>(op: () => Promise<T>): Promise<T | undefined> => {
     setBusy(true); setError("");
@@ -408,51 +436,45 @@ export default function ChallengesSupportWorkspace({ onBack }: Props) {
     },
   ], [busy, catalogue]);
 
+  const listTitle = mode === "support" ? "Support Requests" : "Challenges Register";
   const header = (
     <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3.5 flex items-center justify-between sticky top-0 z-30 gap-3">
       <div className="flex items-center gap-3 min-w-0">
         <Button variant="ghost" size="icon" className="rounded-full shrink-0" aria-label="Back" onClick={handleBack}>
           <ArrowLeft className="w-5 h-5" />
         </Button>
-        <div className="min-w-0">
-          <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">Challenges &amp; Support</h2>
-          <p className="text-xs text-slate-500 truncate">Operational challenges, departmental support requests, and action queue</p>
-        </div>
+        <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">
+          {["challenges", "support"].includes(mode) ? listTitle : "Challenges & Support"}
+        </h2>
       </div>
       <div className="flex items-center gap-2 shrink-0">
         {["challenges", "support"].includes(mode) && (
           <Button
             variant="outline"
             size="sm"
-            className="h-8.5 gap-1.5 border border-slate-300 text-slate-700 bg-white hover:bg-[#f4f7f5] text-xs font-bold rounded-sm shadow-2xs"
+            className="gap-2 border-[#d4e8dc]"
             disabled={busy || loading}
             onClick={() => void run(refresh)}
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${busy ? "animate-spin" : ""}`} />
-            <span>Sync</span>
+            <RefreshCw className={`w-4 h-4 ${busy ? "animate-spin" : ""}`} /> Refresh
           </Button>
         )}
-        {permissions.create && (
+        {permissions.create && mode === "challenges" && (
           <Button
-            size="sm"
-            className="h-8.5 bg-[#1a7a52] hover:bg-[#145c3f] text-white border border-[#145c3f] font-bold text-xs gap-1.5 rounded-sm shadow-xs"
+            className="bg-orange-action hover:bg-orange-600 gap-2 shadow-md shadow-orange-500/15"
             disabled={busy}
             onClick={() => startChallengeForm()}
           >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Record Challenge</span>
+            <Plus className="w-4 h-4" /> Record Challenge
           </Button>
         )}
-        {permissions.create && (
+        {permissions.create && mode === "support" && (
           <Button
-            variant="outline"
-            size="sm"
-            className="h-8.5 bg-white hover:bg-[#f4f7f5] text-[#1a7a52] border-2 border-[#1a7a52] font-bold text-xs gap-1.5 rounded-sm shadow-xs"
+            className="bg-orange-action hover:bg-orange-600 gap-2 shadow-md shadow-orange-500/15"
             disabled={busy}
             onClick={() => startSupportForm(null)}
           >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Request Support</span>
+            <Plus className="w-4 h-4" /> Request Support
           </Button>
         )}
       </div>
@@ -706,37 +728,132 @@ export default function ChallengesSupportWorkspace({ onBack }: Props) {
   return (
     <div className="flex flex-col h-full bg-[#f4f7f5]">
       {header}{tabs}
-      <ScrollArea className="flex-1"><div className="w-full px-3 md:px-5 py-2.5 space-y-3 pb-6">
+      <ScrollArea className="flex-1">
+        <div className="w-full px-4 md:px-6 py-5 space-y-4 pb-6">
         {error && <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700" role="alert">{error}</div>}
         {mode === "challenges" && (
+          <>
+          <RegisterStatsCards
+            loading={busy || loading}
+            className="grid grid-cols-2 md:grid-cols-4 gap-3"
+            stats={[
+              { label: "Total", value: filteredChallenges.length, tone: "text-[#0f3d2e] bg-white border-[#d4e8dc]" },
+              {
+                label: "In-progress",
+                value: filteredChallenges.filter((c: any) => (c.status || "In-progress") === "In-progress").length,
+                tone: "text-amber-800 bg-amber-50/80 border-amber-100",
+              },
+              {
+                label: "Resolved",
+                value: filteredChallenges.filter((c: any) => c.status === "Resolved" || c.status === "Closed").length,
+                tone: "text-emerald-700 bg-emerald-50/80 border-emerald-100",
+              },
+              {
+                label: "Escalated",
+                value: filteredChallenges.filter((c: any) => /escalat/i.test(String(c.status || ""))).length,
+                tone: "text-rose-700 bg-rose-50/80 border-rose-100",
+              },
+            ]}
+          />
+          <Card className="rounded-2xl border-[#d4e8dc]">
+            <CardContent className="pt-4 pb-4 grid grid-flow-col auto-cols-fr gap-3">
+              <div className="space-y-1 min-w-0">
+                <Label className="text-xs text-muted-foreground">Status</Label>
+                <Select value={filterStatus} onValueChange={setFilterStatus}>
+                  <SelectTrigger displayValue={filterStatus === "all" ? "All Statuses" : filterStatus}><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    {CHALLENGE_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1 min-w-0">
+                <Label className="text-xs text-muted-foreground">Severity</Label>
+                <Select value={filterSeverity} onValueChange={setFilterSeverity}>
+                  <SelectTrigger displayValue={filterSeverity === "all" ? "All Severities" : filterSeverity}><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Severities</SelectItem>
+                    {CHALLENGE_SEVERITIES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
           <ShadcnDataTable
             title="CHALLENGES REGISTER"
             infoTooltip="Operational and strategic challenges registered across NHIA state offices."
             columns={challengeColumns}
-            data={challenges}
+            data={filteredChallenges}
             loading={busy || loading}
             searchPlaceholder="Search challenges, categories, states..."
-            searchClassName="h-9 rounded-sm border-2 border-[#1a7a52] bg-[#f4f7f5] pl-8 pr-7 text-xs font-medium text-slate-800 placeholder:text-slate-400"
             emptyMessage="No challenges recorded for this view."
             onRowClick={(row) => void openChallengeDetail(row.challenge_id)}
             pageSize={50}
             showTableOptions={false}
           />
+          </>
         )}
         {mode === "support" && (
+          <>
+          <RegisterStatsCards
+            loading={busy || loading}
+            className="grid grid-cols-2 md:grid-cols-4 gap-3"
+            stats={[
+              { label: "Total", value: filteredSupport.length, tone: "text-[#0f3d2e] bg-white border-[#d4e8dc]" },
+              {
+                label: "In progress",
+                value: filteredSupport.filter((s: any) => ["Submitted", "Under Review", "Assigned", "In Progress"].includes(s.status || "Submitted")).length,
+                tone: "text-amber-800 bg-amber-50/80 border-amber-100",
+              },
+              {
+                label: "Resolved",
+                value: filteredSupport.filter((s: any) => s.status === "Resolved" || s.status === "Closed").length,
+                tone: "text-emerald-700 bg-emerald-50/80 border-emerald-100",
+              },
+              {
+                label: "Returned",
+                value: filteredSupport.filter((s: any) => /return/i.test(String(s.status || ""))).length,
+                tone: "text-rose-700 bg-rose-50/80 border-rose-100",
+              },
+            ]}
+          />
+          <Card className="rounded-2xl border-[#d4e8dc]">
+            <CardContent className="pt-4 pb-4 grid grid-flow-col auto-cols-fr gap-3">
+              <div className="space-y-1 min-w-0">
+                <Label className="text-xs text-muted-foreground">Status</Label>
+                <Select value={filterStatus} onValueChange={setFilterStatus}>
+                  <SelectTrigger displayValue={filterStatus === "all" ? "All Statuses" : filterStatus}><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    {SUPPORT_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1 min-w-0">
+                <Label className="text-xs text-muted-foreground">Priority</Label>
+                <Select value={filterPriority} onValueChange={setFilterPriority}>
+                  <SelectTrigger displayValue={filterPriority === "all" ? "All Priorities" : filterPriority}><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Priorities</SelectItem>
+                    {SUPPORT_PRIORITIES.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
           <ShadcnDataTable
             title="SUPPORT REQUESTS REGISTER"
             infoTooltip="Inter-departmental and executive support requests for resolution."
             columns={supportColumns}
-            data={supportList}
+            data={filteredSupport}
             loading={busy || loading}
             searchPlaceholder="Search support requests, owners, states..."
-            searchClassName="h-9 rounded-sm border-2 border-[#1a7a52] bg-[#f4f7f5] pl-8 pr-7 text-xs font-medium text-slate-800 placeholder:text-slate-400"
             emptyMessage="No support requests recorded for this view."
             onRowClick={(row) => void openSupportDetail(row.support_id)}
             pageSize={50}
             showTableOptions={false}
           />
+          </>
         )}
         {mode === "challenge-form" && challengeForm}
         {mode === "support-form" && supportForm}

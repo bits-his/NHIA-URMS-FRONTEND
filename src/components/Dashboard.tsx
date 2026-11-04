@@ -124,6 +124,7 @@ import OfficesView from "../modules/store_management/pages/admin/OfficesView";
 import AuditView from "../modules/store_management/pages/admin/AuditView";
 import AdjustmentsView from "../modules/store_management/pages/AdjustmentsView";
 import MovementLedgerView from "../modules/store_management/pages/MovementLedgerView";
+import StoreManagementWorkspace from "../modules/store_management/pages/StoreManagementWorkspace";
 import { getMonthlyReportContext } from "@/src/access/monthlyReportAccess";
 import { canAccessFunctionality, expandAccessEntries, getFirstAccessiblePath, canAccessHomeDashboard, isDgCeoUser, DASHBOARDS_ENABLED, ANNUAL_REPORTS_ENABLED } from "@/src/access/accessUtils";
 import { VIEW_MODULE_ACCESS } from "@/src/access/moduleConfig";
@@ -917,29 +918,23 @@ export default function Dashboard({ role, user, access = [], functionalities = "
             <Route path="/zonal/admin-hr/infractions" element={<Navigate to="/zonal/admin-hr/conflict-infraction" replace />} />
 
             {/* ── Store & Asset Management Module ── */}
-            <Route
-              path="/store-management"
-              element={
-                DASHBOARDS_ENABLED
-                  ? <DashboardView />
-                  : <Navigate to={getFirstAccessiblePath(access, role, user)} replace />
-              }
-            />
+            <Route path="/store-management" element={<StoreManagementWorkspace />} />
+            <Route path="/store-management/workspace" element={<StoreManagementWorkspace />} />
             <Route path="/store-management/assets/register" element={<AssetRegisterView />} />
             <Route path="/store-management/assets/list" element={<AssetListView />} />
             <Route path="/store-management/assets/detail/:id" element={<AssetDetailView />} />
             <Route path="/store-management/assets/detail/*" element={<AssetDetailView />} />
             <Route path="/store-management/assets/categories" element={<CategoriesView />} />
             <Route path="/store-management/assets/qr-labels" element={<QrLabelsView />} />
-            <Route path="/store-management/inventory/items" element={<InventoryItemsView />} />
+            <Route path="/store-management/inventory/items" element={<Navigate to="/store-management?tab=inventory" replace />} />
             <Route path="/store-management/inventory/items/new" element={<AddStockView />} />
             <Route path="/store-management/inventory/items/:id" element={<InventoryItemDetailView />} />
             <Route path="/store-management/inventory/receipts" element={<GoodsReceiptView />} />
-            <Route path="/store-management/stores/issues" element={<StockIssuesView />} />
+            <Route path="/store-management/stores/issues" element={<Navigate to="/store-management?tab=issuance" replace />} />
             <Route path="/store-management/stores/issues/new" element={<NewStockIssueView />} />
             <Route path="/store-management/stores/list" element={<StoreListView />} />
             <Route path="/store-management/stores/returns" element={<StockReturnsView />} />
-            <Route path="/store-management/transfers/requests" element={<StockIssuesView />} />
+            <Route path="/store-management/transfers/requests" element={<Navigate to="/store-management?tab=issuance" replace />} />
             <Route path="/store-management/transfers/new" element={<NewStockIssueView />} />
             <Route path="/transfers/requests" element={<StockIssuesView />} />
             <Route path="/transfers/new" element={<NewStockIssueView />} />
@@ -962,8 +957,8 @@ export default function Dashboard({ role, user, access = [], functionalities = "
             <Route path="/store-management/admin/offices" element={<OfficesView />} />
             <Route path="/store-management/admin/logs" element={<AuditView />} />
             <Route path="/store-management/adjustments" element={<AdjustmentsView />} />
-            <Route path="/store-management/conversion" element={<Navigate to="/store-management/transfers/requests" replace />} />
-            <Route path="/store-management/conversion/new" element={<Navigate to="/store-management/transfers/requests" replace />} />
+            <Route path="/store-management/conversion" element={<Navigate to="/store-management?tab=issuance" replace />} />
+            <Route path="/store-management/conversion/new" element={<Navigate to="/store-management?tab=issuance" replace />} />
             <Route path="/store-management/movement-ledger" element={<MovementLedgerView />} />
 
             {/* ── System Administration ── */}

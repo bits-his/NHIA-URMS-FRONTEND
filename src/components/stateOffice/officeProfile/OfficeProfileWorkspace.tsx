@@ -13,11 +13,15 @@ import {
   Trash2,
   RefreshCw,
   MoreHorizontal,
+  XCircle,
   type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -45,7 +49,6 @@ import {
   SolvixStatusPill,
   type SolvixStatItem,
 } from "@/components/common/SolvixStatCards";
-import { SolvixFilterBar } from "@/components/common/SolvixFilterBar";
 
 interface Props {
   onBack?: () => void;
@@ -855,25 +858,6 @@ export default function OfficeProfileWorkspace({
     return currentTabCfg.formTitle;
   };
 
-  const getHeaderSubtitle = () => {
-    if (activeTab === "focal_persons") {
-      if (mode === "new" || mode === "edit") {
-        return "Designate state focal officer responsibilities and verified official communication channels.";
-      }
-      return currentTabCfg.infoTooltip;
-    }
-    if (activeTab === "general" && (mode === "new" || mode === "edit")) {
-      return "Configure jurisdiction, operational leadership, contact credentials, and annual targets.";
-    }
-    if (activeTab === "accommodation" && (mode === "new" || mode === "edit")) {
-      return "Specify ownership type, tenancy terms, physical condition, and facility remarks.";
-    }
-    if (activeTab === "utilities" && (mode === "new" || mode === "edit")) {
-      return "Submit verified contractor claims for generator maintenance, security, cleaning, and facility operations.";
-    }
-    return currentTabCfg.infoTooltip;
-  };
-
   return (
     <div className="flex flex-col h-full bg-[#f4f7f5]">
       {/* 1. Sticky Navigation Header */}
@@ -888,14 +872,9 @@ export default function OfficeProfileWorkspace({
           >
             <ArrowLeft className="size-4" />
           </Button>
-          <div className="min-w-0">
-            <h1 className="text-lg font-bold tracking-tight text-slate-900 truncate">
-              {getHeaderTitle()}
-            </h1>
-            <p className="text-xs text-slate-500 truncate mt-0.5">
-              {getHeaderSubtitle()}
-            </p>
-          </div>
+          <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">
+            {getHeaderTitle()}
+          </h2>
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
@@ -1087,37 +1066,98 @@ export default function OfficeProfileWorkspace({
                   {/* 1. Solvix 4-Card Metric Grid with Sparklines matching media_1793556856351_c64fb296.jpg */}
                   <SolvixStatCards items={solvixStatItems} loading={loading} />
 
-                  {/* 2. Solvix Filter Bar matching media_1793555167591_0eae438b.png */}
-                  <SolvixFilterBar
-                    filters={[
-                      {
-                        id: "zone",
-                        label: "Zone",
-                        value: selectedZoneId,
-                        onChange: (val) => updateQueryParams({ zone: val, state: "all" }),
-                        options: zones.map((z) => ({ label: z.description, value: String(z.id) })),
-                        allLabel: "All Zones",
-                      },
-                      {
-                        id: "state",
-                        label: "State",
-                        value: selectedStateId,
-                        onChange: (val) => updateQueryParams({ state: val }),
-                        options: states.map((s) => ({ label: s.description, value: String(s.id) })),
-                        allLabel: "All States",
-                      },
-                      {
-                        id: "year",
-                        label: "Year",
-                        value: year,
-                        onChange: (val) => updateQueryParams({ year: val }),
-                        options: yearOptions.map((opt) => ({ label: opt, value: opt })),
-                        allLabel: "All Years",
-                      },
-                    ]}
-                    activeFilterCount={activeFilterCount}
-                    onClearFilters={handleClearAllFilters}
-                  />
+                  <Card className="rounded-2xl border-[#d4e8dc]">
+                    <CardContent className="pt-4 pb-4 space-y-3">
+                      <div className="grid grid-flow-col auto-cols-fr gap-3">
+                        <div className="space-y-1 min-w-0">
+                          <Label className="text-xs text-muted-foreground">Zone</Label>
+                          <Select
+                            value={selectedZoneId}
+                            onValueChange={(val) => updateQueryParams({ zone: val, state: "all" })}
+                          >
+                            <SelectTrigger
+                              className="w-full"
+                              displayValue={
+                                selectedZoneId === "all"
+                                  ? "All Zones"
+                                  : zones.find((z) => String(z.id) === selectedZoneId)?.description || "Zone"
+                              }
+                            >
+                              <SelectValue placeholder="Zone" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">All Zones</SelectItem>
+                              {zones.map((z) => (
+                                <SelectItem key={z.id} value={String(z.id)}>
+                                  {z.description}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-1 min-w-0">
+                          <Label className="text-xs text-muted-foreground">State</Label>
+                          <Select
+                            value={selectedStateId}
+                            onValueChange={(val) => updateQueryParams({ state: val })}
+                          >
+                            <SelectTrigger
+                              className="w-full"
+                              displayValue={
+                                selectedStateId === "all"
+                                  ? "All States"
+                                  : states.find((s) => String(s.id) === selectedStateId)?.description || "State"
+                              }
+                            >
+                              <SelectValue placeholder="State" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">All States</SelectItem>
+                              {states.map((s) => (
+                                <SelectItem key={s.id} value={String(s.id)}>
+                                  {s.description}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-1 min-w-0">
+                          <Label className="text-xs text-muted-foreground">Year</Label>
+                          <Select
+                            value={year}
+                            onValueChange={(val) => updateQueryParams({ year: val })}
+                          >
+                            <SelectTrigger
+                              className="w-full"
+                              displayValue={year === "all" ? "All Years" : year}
+                            >
+                              <SelectValue placeholder="Year" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">All Years</SelectItem>
+                              {yearOptions.map((opt) => (
+                                <SelectItem key={opt} value={opt}>
+                                  {opt}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      {activeFilterCount > 0 && (
+                        <div className="flex justify-end">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-slate-500 gap-1 shrink-0"
+                            onClick={handleClearAllFilters}
+                          >
+                            <XCircle className="w-3.5 h-3.5" /> Clear
+                          </Button>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
 
                   {/* 3. Solvix Unified Table Card matching media_1793556834379_9ddcebf0.jpg */}
                   <ShadcnDataTable

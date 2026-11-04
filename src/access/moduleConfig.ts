@@ -224,10 +224,7 @@ export const MODULE_CONFIG: ParentModule[] = [
         { title: "Stock Verification Dashboard", view: "stock-verification-dashboard", path: "/sdo/stock-dashboard", navLabel: "Dashboard" },
         { title: "Physical Asset Verification", view: "store-verification-verify", path: "/store-management/verification/verify", navLabel: "Asset Verification" },
         { title: "Stock Prepayment Register", view: "store-prepayment-analysis", path: "/store-management/prepayment-analysis", navLabel: "Prepayment Analysis" },
-        { type: "group", label: "Store Management", children: [
-          { title: "Inventory Register",          view: "store-inventory-catalog",   path: "/store-management/inventory/items", navLabel: "Inventory" },
-          { title: "Capitalisation & Issuance",   view: "store-asset-transfers",     path: "/store-management/transfers/requests", navLabel: "Issuance" },
-        ]},
+        { title: "Store Management", view: "store-inventory-catalog", path: "/store-management", navLabel: "Store Management" },
       ]},
       { type: "group", label: SDO_SOC_NAV_GROUP, children: [] },
       { type: "group", label: "Special Project", children: [

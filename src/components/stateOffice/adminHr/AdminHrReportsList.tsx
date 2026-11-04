@@ -6,7 +6,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { RegisterStatsCards } from "../RegisterStatsCards";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
@@ -156,11 +158,8 @@ export default function AdminHrReportsList({
 
   return (
     <div className="flex flex-col h-full bg-slate-50/30">
-      <div className="bg-white border-b border-border/50 px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30 gap-3">
-        <div className="min-w-0">
-          <h2 className="text-xl font-bold tracking-tight truncate">{cfg.title}</h2>
-          <p className="text-xs text-slate-500 truncate">{cfg.subtitle}</p>
-        </div>
+      <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3.5 flex items-center justify-between sticky top-0 z-30 gap-3">
+        <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">{cfg.title}</h2>
         <div className="flex items-center gap-2 shrink-0">
           <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
@@ -178,79 +177,86 @@ export default function AdminHrReportsList({
 
       <ScrollArea className="flex-1">
         <div className="w-full px-4 md:px-6 py-4 space-y-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {[
-              { label: "Total", value: counts.total, color: "bg-slate-50 border-slate-200", text: "text-slate-700" },
-              { label: "Draft", value: counts.draft, color: "bg-slate-50 border-slate-200", text: "text-slate-600" },
-              { label: "Submitted", value: counts.submitted, color: "bg-blue-50 border-blue-200", text: "text-blue-700" },
-              { label: "Approved", value: counts.approved, color: "bg-emerald-50 border-emerald-200", text: "text-emerald-700" },
-            ].map((c) => (
-              <div key={c.label} className={`rounded-2xl p-4 border ${c.color}`}>
-                <p className={`text-2xl font-black ${c.text}`}>{c.value}</p>
-                <p className="text-xs font-semibold text-slate-500 mt-0.5">{c.label}</p>
-              </div>
-            ))}
-          </div>
+          <RegisterStatsCards
+            loading={loading}
+            className="grid grid-cols-2 md:grid-cols-4 gap-3"
+            stats={[
+              { label: "Total", value: counts.total, tone: "text-[#0f3d2e] bg-white border-[#d4e8dc]" },
+              { label: "Draft", value: counts.draft, tone: "text-slate-600 bg-white border-slate-200" },
+              { label: "Submitted", value: counts.submitted, tone: "text-blue-700 bg-blue-50/80 border-blue-100" },
+              { label: "Approved", value: counts.approved, tone: "text-emerald-700 bg-emerald-50/80 border-emerald-100" },
+            ]}
+          />
 
-          <div className="flex flex-row flex-wrap items-center gap-3 w-full bg-white rounded-2xl border border-[#d4e8dc] px-5 py-4">
-            {showStateFilter && (
-              <div className="flex-1 min-w-[140px]">
-                <Select value={filterState} onValueChange={setFilterState}>
-                  <SelectTrigger className="w-full" displayValue={filterState === ALL_STATES ? "All States" : (states.find((s) => String(s.id) === filterState)?.description ?? filterState)}>
-                    <SelectValue placeholder="All States" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={ALL_STATES}>All States</SelectItem>
-                    {states.map((s) => (
-                      <SelectItem key={s.id} value={String(s.id)}>{s.description}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+          <Card className="rounded-2xl border-[#d4e8dc]">
+            <CardContent className="pt-4 pb-4 space-y-3">
+              <div className="grid grid-flow-col auto-cols-fr gap-3">
+                {showStateFilter && (
+                  <div className="space-y-1 min-w-0">
+                    <Label className="text-xs text-muted-foreground">State</Label>
+                    <Select value={filterState} onValueChange={setFilterState}>
+                      <SelectTrigger className="w-full" displayValue={filterState === ALL_STATES ? "All States" : (states.find((s) => String(s.id) === filterState)?.description ?? filterState)}>
+                        <SelectValue placeholder="All States" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={ALL_STATES}>All States</SelectItem>
+                        {states.map((s) => (
+                          <SelectItem key={s.id} value={String(s.id)}>{s.description}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                <div className="space-y-1 min-w-0">
+                  <Label className="text-xs text-muted-foreground">Year</Label>
+                  <Select value={filterYear} onValueChange={setFilterYear}>
+                    <SelectTrigger className="w-full" displayValue={filterYear === "all" ? "All Years" : filterYear}>
+                      <SelectValue placeholder="All Years" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Years</SelectItem>
+                      {yearOptions.map((y) => <SelectItem key={y} value={y}>{y}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1 min-w-0">
+                  <Label className="text-xs text-muted-foreground">Month</Label>
+                  <Select value={filterMonth} onValueChange={setFilterMonth}>
+                    <SelectTrigger className="w-full" displayValue={filterMonth === "all" ? "All Months" : monthLabel(filterMonth)}>
+                      <SelectValue placeholder="All Months" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Months</SelectItem>
+                      {MONTHS.map((m) => (
+                        <SelectItem key={m.value} value={String(m.value)}>{m.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1 min-w-0">
+                  <Label className="text-xs text-muted-foreground">Status</Label>
+                  <Select value={filterStatus} onValueChange={setFilterStatus}>
+                    <SelectTrigger className="w-full" displayValue={filterStatus === "all" ? "All Statuses" : STATUS_CONFIG[filterStatus as keyof typeof STATUS_CONFIG]?.label}>
+                      <SelectValue placeholder="All Statuses" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Statuses</SelectItem>
+                      <SelectItem value="draft">Draft</SelectItem>
+                      <SelectItem value="submitted">Submitted</SelectItem>
+                      <SelectItem value="approved">Approved</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-            )}
-            <div className="flex-1 min-w-[120px]">
-              <Select value={filterYear} onValueChange={setFilterYear}>
-                <SelectTrigger className="w-full" displayValue={filterYear === "all" ? "All Years" : filterYear}>
-                  <SelectValue placeholder="All Years" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Years</SelectItem>
-                  {yearOptions.map((y) => <SelectItem key={y} value={y}>{y}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex-1 min-w-[140px]">
-              <Select value={filterMonth} onValueChange={setFilterMonth}>
-                <SelectTrigger className="w-full" displayValue={filterMonth === "all" ? "All Months" : monthLabel(filterMonth)}>
-                  <SelectValue placeholder="All Months" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Months</SelectItem>
-                  {MONTHS.map((m) => (
-                    <SelectItem key={m.value} value={String(m.value)}>{m.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex-1 min-w-[130px]">
-              <Select value={filterStatus} onValueChange={setFilterStatus}>
-                <SelectTrigger className="w-full" displayValue={filterStatus === "all" ? "All Statuses" : STATUS_CONFIG[filterStatus as keyof typeof STATUS_CONFIG]?.label}>
-                  <SelectValue placeholder="All Statuses" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Statuses</SelectItem>
-                  <SelectItem value="draft">Draft</SelectItem>
-                  <SelectItem value="submitted">Submitted</SelectItem>
-                  <SelectItem value="approved">Approved</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {hasFilters && (
-              <Button variant="ghost" size="sm" className="text-slate-500 gap-1 shrink-0" onClick={clearFilters}>
-                <XCircle className="w-3.5 h-3.5" /> Clear
-              </Button>
-            )}
-          </div>
+              {hasFilters && (
+                <div className="flex justify-end">
+                  <Button variant="ghost" size="sm" className="text-slate-500 gap-1 shrink-0" onClick={clearFilters}>
+                    <XCircle className="w-3.5 h-3.5" /> Clear
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
           {searchInput}
           <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden">

@@ -93,21 +93,24 @@ export const HMO_INDEBTEDNESS_CHILDREN: HmoIndebtednessChild[] = [
 
 export const HMO_RECON_STREAM_META: Record<
   HmoReconStream,
-  { template: string; pageTitle: string; actualLabel: string }
+  { template: string; pageTitle: string; actualLabel: string; newLabel: string }
 > = {
   phi: {
     template: "2A",
     pageTitle: "Private Health Insurance Reconciliation",
     actualLabel: "Actual Indebtedness",
+    newLabel: "New PHI Reconciliation",
   },
   ffs: {
     template: "2B",
     pageTitle: "Fee For Service Reconciliation",
     actualLabel: "Actual Indebtedness",
+    newLabel: "New FFS Reconciliation",
   },
   cap: {
     template: "2C",
     pageTitle: "Capitation Reconciliation",
     actualLabel: "Returned Capitation",
+    newLabel: "New Capitation Reconciliation",
   },
 };
