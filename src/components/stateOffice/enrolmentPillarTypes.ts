@@ -185,7 +185,7 @@ export const ENROLMENT_RENEWABLE_PROGRAM_LABELS = new Set<string>(
   ENROLMENT_PROGRAMS.filter((p) => Boolean((p as { renewable?: boolean }).renewable)).map((p) => p.label),
 );
 
-/** Equity Program channel — enrolment types / programmes */
+/** Equity Program channel — programmes */
 export const ENROLMENT_EQUITY_PROGRAMS = [
   "CEmONC",
   "FFP",

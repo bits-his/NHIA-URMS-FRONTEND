@@ -92,7 +92,11 @@ export default function BeneficiaryManagementReportDetail({
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <div className="min-w-0">
-            <h2 className="text-xl font-bold tracking-tight truncate">Beneficiary Management</h2>
+            <h2 className="text-xl font-bold tracking-tight truncate">
+              {summary.activity && summary.activity !== "—"
+                ? `Beneficiary Management - ${summary.activity}`
+                : "Beneficiary Management"}
+            </h2>
             {report?.reference_id ? (
               <p className="text-xs font-mono font-semibold text-[#145c3f] truncate">{report.reference_id}</p>
             ) : null}

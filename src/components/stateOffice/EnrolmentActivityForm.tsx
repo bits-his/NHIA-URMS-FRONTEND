@@ -1,6 +1,6 @@
 import * as React from "react";
 import {
-  ArrowLeft, ArrowRight, Check, ChevronRight, ClipboardCheck, IdCard,
+  ArrowLeft, ChevronRight, ClipboardCheck, IdCard,
   Loader2, Save, Send, ShieldCheck, UserPlus, type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -13,7 +13,6 @@ import { cn } from "@/lib/utils";
 import StateOfficeFormShell from "./StateOfficeFormShell";
 import { UnderHeaderNavTabs } from "@/src/components/UnderHeaderNavTabs";
 import ReportBasicInfo from "./shared/ReportBasicInfo";
-import StateOfficeFormSteps from "./StateOfficeFormSteps";
 import AccreditedProviderSelect from "./AccreditedProviderSelect";
 import { NIGERIAN_STATE_NAMES, lgasForState } from "./nigeriaGeo";
 import { labelOf, monthLabel, quarterFromMonth } from "./constants";
@@ -64,6 +63,13 @@ function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
 
 const numStr = (v: unknown) => (v != null && v !== "" ? String(Number(v)) : "");
 const numOrNull = (v: string) => (v === "" ? null : Number(v));
+/** Match SelectTrigger size, green border, and fill on enrolment form inputs. */
+const controlClass = cn(
+  "h-11 text-sm font-medium",
+  "bg-[#f4f7f5] border-2 border-[#1a7a52] rounded-sm px-3.5 shadow-none",
+  "hover:border-[#0f3d2e] hover:bg-white",
+  "focus-visible:border-[#0f3d2e] focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-[#1a7a52]/20",
+);
 
 type ProgramDetails = Record<string, string>;
 
@@ -101,7 +107,7 @@ const blank = () => ({
 
 type Entry = ReturnType<typeof blank>;
 
-type StepId = "activity" | "channel" | "details" | "beneficiary";
+type StepId = "activity" | "channel" | "details";
 
 interface Props {
   reportId?: number | string | null;
@@ -115,6 +121,7 @@ interface Props {
   driveContext?: {
     reference_id: string;
     programs_supported: string[];
+    /** Display-only totals from the linked drive activity (unused by the form). */
     beneficiaries_recorded?: number;
     registration_count?: number;
   };
@@ -160,6 +167,7 @@ export function Field({
     </div>
   );
 }
+
 
 function renderProgramField(
   f: EnrolmentProgramFieldDef,
@@ -274,7 +282,7 @@ function renderProgramField(
           value={values[f.key] ?? ""}
           disabled={isAutoDate}
           readOnly={isAutoDate}
-          className={isAutoDate ? "bg-slate-50 text-slate-600" : undefined}
+          className={cn(controlClass, isAutoDate && "bg-slate-50 text-slate-600")}
           onChange={(e) => {
             const v = e.target.value;
             if (f.key === "registration_date") {
@@ -322,6 +330,7 @@ function mergeProgramFields(programFields: EnrolmentProgramFieldDef[]): Enrolmen
   return [...identity, ...rest];
 }
 
+/** Flat field list — no section headings / green card (one continuous form). */
 function ProgramFieldsGrid({
   fields,
   values,
@@ -337,51 +346,20 @@ function ProgramFieldsGrid({
   reportStateId: string;
   alwaysShowIdentity?: boolean;
 }) {
-  const locationKeys = new Set(["state_of_origin", "lga_of_origin", "state_of_residence", "lga_of_residence"]);
-  const providerKeys = new Set(["hmo", "hcf", "alternative_provider"]);
-  const identityKeys = new Set([
-    "surname", "first_name", "middle_name", "nin", "organization_mda", "entity_type",
-    "blood_group", "marital_status", "phone_number", "program_type",
-  ]);
-
   const merged = alwaysShowIdentity ? mergeProgramFields(fields) : fields;
   if (merged.length === 0) return null;
 
-  const identity = merged.filter((f) => identityKeys.has(f.key));
-  const location = merged.filter((f) => locationKeys.has(f.key));
-  const providers = merged.filter((f) => providerKeys.has(f.key));
-  const other = merged.filter(
-    (f) => !identityKeys.has(f.key) && !locationKeys.has(f.key) && !providerKeys.has(f.key),
-  );
-
-  const groups: { title: string; items: EnrolmentProgramFieldDef[] }[] = [
-    { title: "Identity", items: identity },
-    { title: "Location", items: location },
-    { title: "Providers", items: providers },
-    { title: "Program details", items: other },
-  ].filter((g) => g.items.length > 0);
-
   return (
-    <div className="space-y-4 rounded-sm border border-[#d4e8dc] bg-[#f8fbf9] p-3 md:p-4">
-      {groups.map((g) => (
-        <FieldSection key={g.title} title={g.title}>
-          {g.items.map((f) => renderProgramField(f, merged, values, onChange, onChangeMany, reportStateId))}
-        </FieldSection>
-      ))}
-    </div>
+    <>
+      {merged.map((f) => renderProgramField(f, merged, values, onChange, onChangeMany, reportStateId))}
+    </>
   );
 }
 
-/** Content steps after an activity is chosen (picker is separate). */
-function stepsForCategory(category: string, channel = ""): { id: StepId; label: string }[] {
+/** Single-form flow per activity (no multi-step / review). */
+function stepsForCategory(category: string, _channel = ""): { id: StepId; label: string }[] {
   if (category === "enrolment") {
-    if (isSshiaLikeChannel(channel)) {
-      return [{ id: "channel", label: "Enrolment Details" }];
-    }
-    return [
-      { id: "channel", label: "Enrolment Details" },
-      { id: "details", label: "Details" },
-    ];
+    return [{ id: "channel", label: "Enrolment" }];
   }
   if (category === "nin_validation") {
     return [{ id: "details", label: "NIN Validation" }];
@@ -468,7 +446,6 @@ export default function EnrolmentActivityForm({
   const currentStep = steps.length
     ? steps[Math.min(stepIndex, steps.length - 1)]
     : null;
-  const isLastStep = !!steps.length && stepIndex >= steps.length - 1;
 
   React.useEffect(() => {
     if (!steps.length) {
@@ -499,22 +476,6 @@ export default function EnrolmentActivityForm({
     () => driveContext ? ["Field Registration"] : modesOfRegistrationForProgram(entry.program_name),
     [entry.program_name, driveContext],
   );
-
-  React.useEffect(() => {
-    if (!driveContext) return;
-    // Enrolment drive beneficiary registration is NHIA-only (no SSHIA / Equity tabs).
-    setEntry((current) => {
-      if (current.enrolment_channel === "NHIA" && current.category === "enrolment") return current;
-      return {
-        ...current,
-        category: "enrolment",
-        enrolment_channel: "NHIA",
-        ...(isSshiaLikeChannel(current.enrolment_channel)
-          ? { enrolment_type: "", program_name: "", enrolment_category: "", program_details: {} }
-          : {}),
-      };
-    });
-  }, [driveContext]);
 
   React.useEffect(() => {
     if (!driveContext || isSshiaLikeChannel(entry.enrolment_channel) || !entry.program_name) return;
@@ -654,7 +615,10 @@ export default function EnrolmentActivityForm({
         organization_name: e.organization_name,
       };
     }
-    const fieldKeys = programSpecificFieldsFor(e.enrolment_channel, e.program_name).map((f) => f.key);
+    const fieldKeys = [
+      ...NHIA_IDENTITY_FIELDS.map((f) => f.key),
+      ...programSpecificFieldsFor(e.enrolment_channel, e.program_name).map((f) => f.key),
+    ];
     const allowed = new Set(fieldKeys.flatMap((k) => [k, `${k}_id`, `${k}_code`]));
     const filtered: ProgramDetails = {};
     Object.entries(e.program_details || {}).forEach(([k, v]) => {
@@ -699,29 +663,19 @@ export default function EnrolmentActivityForm({
         }
         return null;
       }
-      // NHIA: identity + count live on this same step
-      if (e.enrolment_count !== "" && Number(e.enrolment_count) < 0) {
-        return fail("enrolment_count", "Number enrolled must be a whole non-negative number");
-      }
+      // NHIA: identity + status/funding on the same form (no separate count field)
       if (!String(e.program_details?.surname ?? "").trim()) {
         return fail("surname", "Enter surname");
       }
       if (!String(e.program_details?.first_name ?? "").trim()) {
         return fail("first_name", "Enter first name");
       }
-      return null;
-    }
-
-    if (e.category === "enrolment" && stepId === "details") {
       if (!e.activity_status) return fail("activity_status", "Select the activity status");
       if (ENROLMENT_STATUS_NEEDS_REASON.has(e.activity_status) && !e.status_reason.trim()) {
         return fail("status_reason", "Enter a reason for Not Conducted / Cancelled");
       }
       if (budgeted && e.activity_budget === "") return fail("activity_budget", "Enter activity budget");
       if (budgeted && e.approved_amount === "") return fail("approved_amount", "Enter approved amount");
-      if (e.enrolment_count !== "" && Number(e.enrolment_count) < 0) {
-        return fail("enrolment_count", "Number enrolled must be a whole non-negative number");
-      }
       return null;
     }
 
@@ -767,19 +721,6 @@ export default function EnrolmentActivityForm({
       return null;
     }
 
-    if (stepId === "beneficiary") {
-      // Program-specific fields are conditional; no hard block unless surname/first_name present in schema
-      const requiredKeys = programSpecificFieldsFor(e.enrolment_channel, e.program_name)
-        .filter((f) => f.key === "surname" || f.key === "first_name")
-        .map((f) => f.key);
-      for (const key of requiredKeys) {
-        if (!String(e.program_details?.[key] ?? "").trim()) {
-          return fail(key, key === "surname" ? "Enter surname" : "Enter first name");
-        }
-      }
-      return null;
-    }
-
     return null;
   };
 
@@ -815,7 +756,9 @@ export default function EnrolmentActivityForm({
       supporting_evidence: isSshiaLikeChannel(e.enrolment_channel) ? null : (e.supporting_evidence || null),
       activity_budget: isSshiaLikeChannel(e.enrolment_channel) ? null : (budgeted ? numOrNull(e.activity_budget) : null),
       approved_amount: isSshiaLikeChannel(e.enrolment_channel) ? null : (budgeted ? numOrNull(e.approved_amount) : null),
-      enrolment_count: Number(e.enrolment_count) || 0,
+      enrolment_count: isSshiaLikeChannel(e.enrolment_channel)
+        ? (Number(e.enrolment_count) || 0)
+        : (Number(e.enrolment_count) || 1),
       enrollees_validated: numOrNull(e.enrollees_validated),
       activity_status: isSshiaLikeChannel(e.enrolment_channel)
         ? null
@@ -831,21 +774,12 @@ export default function EnrolmentActivityForm({
     [],
   );
 
-  const goNext = () => {
-    if (!currentStep) return;
-    const err = validateStep(currentStep.id);
-    if (err) return;
-    setStepIndex((i) => Math.min(i + 1, steps.length - 1));
-  };
-
-  const goBack = () => setStepIndex((i) => Math.max(i - 1, 0));
-
   const activityMeta = enrolmentActivityMeta(entry.category);
   const categoryLocked = Boolean(seededCategory) || Boolean(driveContext);
 
   const channelTabItems = ENROLMENT_CHANNELS.map((channel) => ({
     id: channel,
-    label: channel === "Equity Program" ? "Equity" : channel,
+    label: channel,
   }));
 
   const channelTabs = isEnrolment && entry.category && !embedded ? (
@@ -874,7 +808,17 @@ export default function EnrolmentActivityForm({
       showQuarter
       headerTabs={channelTabs}
       onLoaded={loadData}
-      validate={() => driveContext && (!Number.isSafeInteger(Number(entryRef.current.enrolment_count)) || Number(entryRef.current.enrolment_count) < 1) ? "Enter a whole number of at least one beneficiary" : validateEntry(entryRef.current)}
+      validate={() => {
+        const e = entryRef.current;
+        if (
+          driveContext
+          && isSshiaLikeChannel(e.enrolment_channel)
+          && (!Number.isSafeInteger(Number(e.enrolment_count)) || Number(e.enrolment_count) < 1)
+        ) {
+          return "Enter a whole number of at least one beneficiary";
+        }
+        return validateEntry(e);
+      }}
       buildPayload={(base) => ({
         ...base,
         ...(driveContext ? { drive_reference_id: driveContext.reference_id } : {}),
@@ -890,7 +834,7 @@ export default function EnrolmentActivityForm({
 
         return (
         <div className="m-0 space-y-3 pb-2">
-          {isEnrolment && entry.category && embedded && !driveContext ? (
+          {isEnrolment && entry.category && embedded ? (
             <div className="bg-white border border-[#d4e8dc] rounded-sm px-2">
               <UnderHeaderNavTabs
                 tabs={channelTabItems}
@@ -898,27 +842,6 @@ export default function EnrolmentActivityForm({
                 onChange={setEnrolmentChannel}
                 ariaLabel="Enrolment channel"
               />
-            </div>
-          ) : null}
-          {driveContext ? (
-            <div className="rounded-sm border border-[#d4e8dc] bg-[#f8fbf9] px-3 py-2.5 flex flex-wrap items-center justify-between gap-2">
-              <p className="text-sm text-[#0f3d2e]">
-                Beneficiaries already recorded for this drive activity:{" "}
-                <strong className="tabular-nums">
-                  {Number(driveContext.beneficiaries_recorded || 0).toLocaleString()}
-                </strong>
-                {(driveContext.registration_count || 0) > 0 ? (
-                  <span className="text-slate-500 font-normal">
-                    {" "}· {driveContext.registration_count} registration
-                    {driveContext.registration_count === 1 ? "" : "s"}
-                  </span>
-                ) : (
-                  <span className="text-slate-500 font-normal"> · none yet</span>
-                )}
-              </p>
-              <p className="text-[11px] text-slate-500">
-                New submissions below are added to this total.
-              </p>
             </div>
           ) : null}
           {fieldErrors.enrolment_channel ? (
@@ -935,211 +858,199 @@ export default function EnrolmentActivityForm({
               />
 
               {entry.category ? (
-                <div className="border-t border-[#e8f3ec] pt-3">
-                  <StateOfficeFormSteps steps={steps} activeIndex={stepIndex} onStepChange={setStepIndex} />
-                </div>
-              ) : null}
-
-              {entry.category ? (
               <div className="border-t border-[#e8f3ec] pt-4 space-y-5">
-              {/* STEP: Channel & Program (+ Beneficiary for NHIA) */}
+              {/* Enrolment — single form (NHIA includes identity + status; SSHIA/Equity keep count) */}
               {currentStep?.id === "channel" && isEnrolment && (
-                <div className="space-y-5">
-                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                    {!isSshiaChannel && (
-                      <Field label="Enrolment Date" required error={fieldErrors.activity_date}>
-                        <Input
-                          type="date"
-                          value={entry.activity_date}
-                          onChange={(e) => set("activity_date", e.target.value)}
-                        />
-                      </Field>
-                    )}
-                    {!isSshiaChannel && (
-                      <Field label="Enrolment Type" required error={fieldErrors.enrolment_type}>
-                        <Select
-                          value={entry.enrolment_type}
-                          onValueChange={(v) => setEntry((p) => ({
-                            ...p,
-                            enrolment_type: v,
-                            program_name: "",
-                            enrolment_category: "",
-                            program_details: {},
-                          }))}
-                          disabled={!entry.enrolment_channel}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder={!entry.enrolment_channel ? "Select channel first" : "Select type"} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {ENROLMENT_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
-                      </Field>
-                    )}
-                    <Field
-                      label={entry.enrolment_channel === "Equity Program" ? "Enrolment Type" : "Program"}
-                      required
-                      error={fieldErrors.program_name}
-                    >
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {!isSshiaChannel && (
+                    <Field label="Enrolment Date" required error={fieldErrors.activity_date}>
+                      <Input
+                        type="date"
+                        className={controlClass}
+                        value={entry.activity_date}
+                        onChange={(e) => set("activity_date", e.target.value)}
+                      />
+                    </Field>
+                  )}
+                  {!isSshiaChannel && (
+                    <Field label="Enrolment Type" required error={fieldErrors.enrolment_type}>
                       <Select
-                        value={entry.program_name}
+                        value={entry.enrolment_type}
                         onValueChange={(v) => setEntry((p) => ({
                           ...p,
-                          program_name: v,
+                          enrolment_type: v,
+                          program_name: "",
                           enrolment_category: "",
                           program_details: {},
                         }))}
-                        disabled={
-                          !entry.enrolment_channel
-                          || (entry.enrolment_channel === "NHIA" && !entry.enrolment_type)
-                        }
+                        disabled={!entry.enrolment_channel}
                       >
                         <SelectTrigger>
-                          <SelectValue
-                            placeholder={
-                              !entry.enrolment_channel
-                                ? "Select channel first"
-                                : entry.enrolment_channel === "NHIA" && !entry.enrolment_type
-                                  ? "Select enrolment type first"
-                                  : entry.enrolment_channel === "Equity Program"
-                                    ? "Select enrolment type"
-                                    : "Select program"
-                            }
-                          />
+                          <SelectValue placeholder={!entry.enrolment_channel ? "Select channel first" : "Select type"} />
                         </SelectTrigger>
                         <SelectContent>
-                          {programOptions.map((p) => (
-                            <SelectItem key={p.label} value={p.label}>{p.label}</SelectItem>
-                          ))}
+                          {ENROLMENT_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     </Field>
-                    {!isSshiaChannel && (
-                    <Field
-                      label="Enrolment Mode"
-                      required={modeOptions.length > 0}
-                      error={fieldErrors.enrolment_category}
-                    >
-                      <Select
-                        value={entry.enrolment_category}
-                        onValueChange={(v) => set("enrolment_category", v)}
-                        disabled={Boolean(driveContext) || !entry.program_name || modeOptions.length === 0}
-                      >
-                        <SelectTrigger>
-                          <SelectValue
-                            placeholder={
-                              !entry.program_name
-                                ? "Select program first"
-                                : modeOptions.length === 0
-                                  ? "No mode for this program"
-                                  : "Select mode"
-                            }
-                          />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {modeOptions.map((m) => (
-                            <SelectItem key={m} value={m}>{m}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </Field>
-                    )}
-                    <Field
-                      label={
-                        entry.enrolment_channel === "Equity Program"
-                          ? "Number of Beneficiaries"
-                          : entry.enrolment_channel === "SSHIA"
-                            ? "Number Enrolled"
-                            : "Number Enrolled / Beneficiaries"
-                      }
-                      required={isSshiaChannel || Boolean(driveContext)}
-                      error={fieldErrors.enrolment_count}
-                    >
-                      <Input
-                        type="number"
-                        min={isSshiaChannel ? 1 : 0}
-                        step={1}
-                        value={entry.enrolment_count}
-                        onChange={(e) => set("enrolment_count", e.target.value)}
-                        placeholder={
-                          entry.enrolment_channel === "Equity Program"
-                            ? "Enter number of beneficiaries"
-                            : "Enter number enrolled"
-                        }
-                      />
-                    </Field>
-                  </div>
-                  {!isSshiaChannel && (
-                    <ProgramFieldsGrid
-                      fields={programFields}
-                      values={entry.program_details}
-                      onChange={setDetail}
-                      onChangeMany={setDetails}
-                      reportStateId={stateId}
-                      alwaysShowIdentity
-                    />
                   )}
-                </div>
-              )}
-
-              {/* STEP: Details & Funding (NHIA Enrolment only) */}
-              {isEnrolment && !isSshiaChannel && currentStep?.id === "details" && (
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  <Field label="Activity Status" required error={fieldErrors.activity_status}>
+                  <Field
+                    label="Program"
+                    required
+                    error={fieldErrors.program_name}
+                  >
                     <Select
-                      value={entry.activity_status}
+                      value={entry.program_name}
                       onValueChange={(v) => setEntry((p) => ({
                         ...p,
-                        activity_status: v,
-                        status_reason: ENROLMENT_STATUS_NEEDS_REASON.has(v) ? p.status_reason : "",
+                        program_name: v,
+                        enrolment_category: "",
+                        program_details: {},
                       }))}
+                      disabled={
+                        !entry.enrolment_channel
+                        || (entry.enrolment_channel === "NHIA" && !entry.enrolment_type)
+                      }
                     >
-                      <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                      <SelectTrigger>
+                        <SelectValue
+                          placeholder={
+                            !entry.enrolment_channel
+                              ? "Select channel first"
+                              : entry.enrolment_channel === "NHIA" && !entry.enrolment_type
+                                ? "Select enrolment type first"
+                                : "Select program"
+                          }
+                        />
+                      </SelectTrigger>
                       <SelectContent>
-                        {ENROLMENT_ACTIVITY_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                        {programOptions.map((p) => (
+                          <SelectItem key={p.label} value={p.label}>{p.label}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </Field>
-                  {ENROLMENT_STATUS_NEEDS_REASON.has(entry.activity_status) && (
-                    <Field label="Reason" required error={fieldErrors.status_reason} className="sm:col-span-2 lg:col-span-3">
-                      <Textarea
-                        rows={2}
-                        value={entry.status_reason}
-                        onChange={(e) => set("status_reason", e.target.value)}
-                        placeholder="Required when status is Not Conducted or Cancelled"
-                      />
-                    </Field>
+                  {!isSshiaChannel && (
+                  <Field
+                    label="Enrolment Mode"
+                    required={modeOptions.length > 0}
+                    error={fieldErrors.enrolment_category}
+                  >
+                    <Select
+                      value={entry.enrolment_category}
+                      onValueChange={(v) => set("enrolment_category", v)}
+                      disabled={Boolean(driveContext) || !entry.program_name || modeOptions.length === 0}
+                    >
+                      <SelectTrigger>
+                        <SelectValue
+                          placeholder={
+                            !entry.program_name
+                              ? "Select program first"
+                              : modeOptions.length === 0
+                                ? "No mode for this program"
+                                : "Select mode"
+                          }
+                        />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {modeOptions.map((m) => (
+                          <SelectItem key={m} value={m}>{m}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
                   )}
-                  <Field label="Supporting Evidence">
-                    <Select value={entry.supporting_evidence} onValueChange={(v) => set("supporting_evidence", v)}>
-                      <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                      <SelectContent>
-                        {ENROLMENT_EVIDENCE_TYPES.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
+                  {isSshiaChannel && (
+                  <Field
+                    label={
+                      entry.enrolment_channel === "Equity Program"
+                        ? "Number of Beneficiaries"
+                        : "Number Enrolled"
+                    }
+                    required
+                    error={fieldErrors.enrolment_count}
+                  >
+                    <Input
+                      type="number"
+                      min={1}
+                      step={1}
+                      className={controlClass}
+                      value={entry.enrolment_count}
+                      onChange={(e) => set("enrolment_count", e.target.value)}
+                      placeholder={
+                        entry.enrolment_channel === "Equity Program"
+                          ? "Enter number of beneficiaries"
+                          : "Enter number enrolled"
+                      }
+                    />
                   </Field>
-                  <Field label="Funding Option">
-                    <Select value={entry.funding_option} onValueChange={(v) => set("funding_option", v)}>
-                      <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                      <SelectContent>
-                        {ENROLMENT_FUNDING_OPTIONS.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </Field>
-                  {isBudgeted && (
+                  )}
+                  {!isSshiaChannel && (
                     <>
-                      <Field label="Activity Budget (₦)" required error={fieldErrors.activity_budget}>
-                        <Input type="number" min={0} value={entry.activity_budget} onChange={(e) => set("activity_budget", e.target.value)} />
+                      <ProgramFieldsGrid
+                        fields={programFields}
+                        values={entry.program_details}
+                        onChange={setDetail}
+                        onChangeMany={setDetails}
+                        reportStateId={stateId}
+                        alwaysShowIdentity
+                      />
+                      <Field label="Activity Status" required error={fieldErrors.activity_status}>
+                        <Select
+                          value={entry.activity_status}
+                          onValueChange={(v) => setEntry((p) => ({
+                            ...p,
+                            activity_status: v,
+                            status_reason: ENROLMENT_STATUS_NEEDS_REASON.has(v) ? p.status_reason : "",
+                          }))}
+                        >
+                          <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                          <SelectContent>
+                            {ENROLMENT_ACTIVITY_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
                       </Field>
-                      <Field label="Approved Amount (₦)" required error={fieldErrors.approved_amount}>
-                        <Input type="number" min={0} value={entry.approved_amount} onChange={(e) => set("approved_amount", e.target.value)} />
+                      {ENROLMENT_STATUS_NEEDS_REASON.has(entry.activity_status) && (
+                        <Field label="Reason" required error={fieldErrors.status_reason} className="sm:col-span-2 lg:col-span-3">
+                          <Textarea
+                            rows={2}
+                            value={entry.status_reason}
+                            onChange={(e) => set("status_reason", e.target.value)}
+                            placeholder="Required when status is Not Conducted or Cancelled"
+                          />
+                        </Field>
+                      )}
+                      <Field label="Supporting Evidence">
+                        <Select value={entry.supporting_evidence} onValueChange={(v) => set("supporting_evidence", v)}>
+                          <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                          <SelectContent>
+                            {ENROLMENT_EVIDENCE_TYPES.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </Field>
+                      <Field label="Funding Option">
+                        <Select value={entry.funding_option} onValueChange={(v) => set("funding_option", v)}>
+                          <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                          <SelectContent>
+                            {ENROLMENT_FUNDING_OPTIONS.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </Field>
+                      {isBudgeted && (
+                        <>
+                          <Field label="Activity Budget (₦)" required error={fieldErrors.activity_budget}>
+                            <Input type="number" min={0} className={controlClass} value={entry.activity_budget} onChange={(e) => set("activity_budget", e.target.value)} />
+                          </Field>
+                          <Field label="Approved Amount (₦)" required error={fieldErrors.approved_amount}>
+                            <Input type="number" min={0} className={controlClass} value={entry.approved_amount} onChange={(e) => set("approved_amount", e.target.value)} />
+                          </Field>
+                        </>
+                      )}
+                      <Field label="Remarks" className="sm:col-span-2 lg:col-span-3">
+                        <Textarea rows={2} value={entry.remarks} onChange={(e) => set("remarks", e.target.value)} />
                       </Field>
                     </>
                   )}
-                  <Field label="Remarks" className="sm:col-span-2 lg:col-span-3">
-                    <Textarea rows={2} value={entry.remarks} onChange={(e) => set("remarks", e.target.value)} />
-                  </Field>
                 </div>
               )}
 
@@ -1149,6 +1060,7 @@ export default function EnrolmentActivityForm({
                   <Field label="Validation Date" required error={fieldErrors.validation_date}>
                     <Input
                       type="date"
+                      className={controlClass}
                       value={entry.validation_date || todayIsoDate()}
                       max={todayIsoDate()}
                       onChange={(e) => {
@@ -1162,10 +1074,10 @@ export default function EnrolmentActivityForm({
                     />
                   </Field>
                   <Field label="Enrollee Name" required error={fieldErrors.enrollee_name}>
-                    <Input value={entry.enrollee_name} onChange={(e) => set("enrollee_name", e.target.value)} />
+                    <Input className={controlClass} value={entry.enrollee_name} onChange={(e) => set("enrollee_name", e.target.value)} />
                   </Field>
                   <Field label="NIN" required error={fieldErrors.nin_number}>
-                    <Input value={entry.nin_number} onChange={(e) => set("nin_number", e.target.value)} />
+                    <Input className={controlClass} value={entry.nin_number} onChange={(e) => set("nin_number", e.target.value)} />
                   </Field>
                   <Field label="Program" required error={fieldErrors.program_name}>
                     <Select value={entry.program_name} onValueChange={(v) => set("program_name", v)}>
@@ -1179,6 +1091,7 @@ export default function EnrolmentActivityForm({
                   </Field>
                   <Field label="Organization">
                     <Input
+                      className={controlClass}
                       value={entry.organization_name}
                       onChange={(e) => set("organization_name", e.target.value)}
                       placeholder="Where applicable"
@@ -1214,7 +1127,7 @@ export default function EnrolmentActivityForm({
               {currentStep?.id === "details" && isValidation && (
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   <Field label="Activity Date" required error={fieldErrors.activity_date}>
-                    <Input type="date" value={entry.activity_date} onChange={(e) => set("activity_date", e.target.value)} />
+                    <Input type="date" className={controlClass} value={entry.activity_date} onChange={(e) => set("activity_date", e.target.value)} />
                   </Field>
                   <Field label="Program" required error={fieldErrors.program_name}>
                     <Select value={entry.program_name} onValueChange={(v) => set("program_name", v)}>
@@ -1227,7 +1140,7 @@ export default function EnrolmentActivityForm({
                     </Select>
                   </Field>
                   <Field label="Name of Organization">
-                    <Input value={entry.organization_name} onChange={(e) => set("organization_name", e.target.value)} />
+                    <Input className={controlClass} value={entry.organization_name} onChange={(e) => set("organization_name", e.target.value)} />
                   </Field>
                   <Field label="Funding Option">
                     <Select value={entry.funding_option} onValueChange={(v) => set("funding_option", v)}>
@@ -1240,15 +1153,15 @@ export default function EnrolmentActivityForm({
                   {isBudgeted && (
                     <>
                       <Field label="Activity Budget Amount (₦)" required error={fieldErrors.activity_budget}>
-                        <Input type="number" min={0} value={entry.activity_budget} onChange={(e) => set("activity_budget", e.target.value)} />
+                        <Input type="number" min={0} className={controlClass} value={entry.activity_budget} onChange={(e) => set("activity_budget", e.target.value)} />
                       </Field>
                       <Field label="Approved Budget (₦)" required error={fieldErrors.approved_amount}>
-                        <Input type="number" min={0} value={entry.approved_amount} onChange={(e) => set("approved_amount", e.target.value)} />
+                        <Input type="number" min={0} className={controlClass} value={entry.approved_amount} onChange={(e) => set("approved_amount", e.target.value)} />
                       </Field>
                     </>
                   )}
                   <Field label="Records Validated" required error={fieldErrors.enrollees_validated}>
-                    <Input type="number" min={0} value={entry.enrollees_validated} onChange={(e) => set("enrollees_validated", e.target.value)} />
+                    <Input type="number" min={0} className={controlClass} value={entry.enrollees_validated} onChange={(e) => set("enrollees_validated", e.target.value)} />
                   </Field>
                   <Field label="Supporting Evidence">
                     <Select value={entry.supporting_evidence} onValueChange={(v) => set("supporting_evidence", v)}>
@@ -1278,13 +1191,13 @@ export default function EnrolmentActivityForm({
                     </Select>
                   </Field>
                   <Field label="Date of Request" required error={fieldErrors.activity_date}>
-                    <Input type="date" value={entry.activity_date} onChange={(e) => set("activity_date", e.target.value)} />
+                    <Input type="date" className={controlClass} value={entry.activity_date} onChange={(e) => set("activity_date", e.target.value)} />
                   </Field>
                   <Field label="Enrollee Name" required error={fieldErrors.enrollee_name}>
-                    <Input value={entry.enrollee_name} onChange={(e) => set("enrollee_name", e.target.value)} />
+                    <Input className={controlClass} value={entry.enrollee_name} onChange={(e) => set("enrollee_name", e.target.value)} />
                   </Field>
                   <Field label="NHIA Number" required error={fieldErrors.nhia_number}>
-                    <Input value={entry.nhia_number} onChange={(e) => set("nhia_number", e.target.value)} />
+                    <Input className={controlClass} value={entry.nhia_number} onChange={(e) => set("nhia_number", e.target.value)} />
                   </Field>
                   <Field label="Program" required error={fieldErrors.program_name}>
                     <Select value={entry.program_name} onValueChange={(v) => set("program_name", v)}>
@@ -1301,7 +1214,7 @@ export default function EnrolmentActivityForm({
                     required={entry.request_category.startsWith("Replacement")}
                     error={fieldErrors.payment_reference}
                   >
-                    <Input value={entry.payment_reference} onChange={(e) => set("payment_reference", e.target.value)} />
+                    <Input className={controlClass} value={entry.payment_reference} onChange={(e) => set("payment_reference", e.target.value)} />
                   </Field>
                   <Field label="Status" required error={fieldErrors.id_card_status}>
                     <Select
@@ -1322,7 +1235,7 @@ export default function EnrolmentActivityForm({
                   </Field>
                   {entry.id_card_status === "Issued" && (
                     <Field label="Issue Date" required error={fieldErrors.issue_date}>
-                      <Input type="date" value={entry.issue_date} onChange={(e) => set("issue_date", e.target.value)} />
+                      <Input type="date" className={controlClass} value={entry.issue_date} onChange={(e) => set("issue_date", e.target.value)} />
                     </Field>
                   )}
                   <Field label="Remarks / notes" className="sm:col-span-2 lg:col-span-3">
@@ -1331,7 +1244,7 @@ export default function EnrolmentActivityForm({
                 </div>
               )}
 
-              {/* Footer nav — only after an activity is chosen */}
+              {/* Footer — single form: Save draft + Submit */}
               {entry.category ? (
                 <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-[#e8f3ec]">
                   <Button
@@ -1340,60 +1253,38 @@ export default function EnrolmentActivityForm({
                     className="gap-2"
                     disabled={saving || submitting}
                     onClick={() => {
-                      if (stepIndex === 0) {
-                        if (categoryLocked) {
-                          (onCancel ?? onBack)();
-                          return;
-                        }
-                        // Return to activity picker
-                        setEntry(fresh());
-                        setStepIndex(0);
-                        setFieldErrors({});
+                      if (categoryLocked) {
+                        (onCancel ?? onBack)();
                         return;
                       }
-                      goBack();
+                      setEntry(fresh());
+                      setStepIndex(0);
+                      setFieldErrors({});
                     }}
                   >
                     <ArrowLeft className="w-4 h-4" /> Back
                   </Button>
 
                   <div className="flex flex-wrap items-center gap-2">
-                    {isLastStep ? (
-                      <>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="gap-2"
-                          disabled={saving || submitting}
-                          onClick={() => {
-                            if (currentStep && validateStep(currentStep.id)) return;
-                            void persist("draft");
-                          }}
-                        >
-                          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                          Save draft
-                        </Button>
-                        <Button
-                          className="bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20"
-                          disabled={saving || submitting}
-                          onClick={() => {
-                            if (currentStep && validateStep(currentStep.id)) return;
-                            requestSubmit(() => persist("submitted"));
-                          }}
-                        >
-                          {submitting
-                            ? <><Loader2 className="w-4 h-4 animate-spin" /> Submitting...</>
-                            : <><Send className="w-4 h-4" /> Submit</>}
-                        </Button>
-                      </>
-                    ) : (
-                      <Button
-                        className="bg-[#145c3f] hover:bg-[#0f3d2e] gap-2 text-white"
-                        onClick={goNext}
-                      >
-                        Next <ArrowRight className="w-4 h-4" />
-                      </Button>
-                    )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="gap-2"
+                      disabled={saving || submitting}
+                      onClick={() => persist("draft")}
+                    >
+                      {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                      Save draft
+                    </Button>
+                    <Button
+                      className="bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20"
+                      disabled={saving || submitting}
+                      onClick={() => requestSubmit(() => persist("submitted"))}
+                    >
+                      {submitting
+                        ? <><Loader2 className="w-4 h-4 animate-spin" /> Submitting...</>
+                        : <><Send className="w-4 h-4" /> Submit</>}
+                    </Button>
                   </div>
                 </div>
               ) : null}
