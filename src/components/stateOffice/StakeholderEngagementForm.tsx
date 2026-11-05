@@ -40,7 +40,7 @@ function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return (
     <textarea
       {...props}
-      className="w-full min-h-[4rem] rounded-xl px-3.5 py-2 text-sm bg-[#f4f7f5] border-2 border-[#1a7a52] text-slate-800 shadow-xs outline-none hover:border-[#0f3d2e] hover:bg-white focus-visible:border-[#0f3d2e] focus-visible:bg-white focus-visible:ring-3 focus-visible:ring-[#1a7a52]/25"
+      className="w-full min-h-[4rem] rounded-sm px-3.5 py-2 text-sm bg-[#f4f7f5] border-2 border-[#1a7a52] text-slate-800 shadow-xs outline-none hover:border-[#0f3d2e] hover:bg-white focus-visible:border-[#0f3d2e] focus-visible:bg-white focus-visible:ring-3 focus-visible:ring-[#1a7a52]/25"
     />
   );
 }
@@ -163,7 +163,7 @@ function StakeholderReportInformation({ header }: { header: any }) {
     }
   }, [isAdmin, header, userStateCode, user]);
 
-  const inputClass = "bg-[#f4f7f5] border-2 border-[#1a7a52] shadow-xs hover:border-[#0f3d2e] hover:bg-white";
+  const inputClass = "h-10 rounded-sm bg-[#f4f7f5] border-2 border-[#1a7a52] text-sm text-slate-800 shadow-xs hover:border-[#0f3d2e] hover:bg-white focus-visible:border-[#0f3d2e] focus-visible:bg-white";
 
   const onStateChange = (v: string) => {
     const match = stateOptions.find((s) => s.id === v);
@@ -320,14 +320,14 @@ function MultiSelectField({
         ref={btnRef}
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="w-full flex items-center justify-between gap-2 min-h-10 px-3 py-1.5 rounded-xl text-sm text-left bg-[#f4f7f5] border-2 border-[#1a7a52] hover:border-[#0f3d2e] hover:bg-white outline-none shadow-xs"
+        className="w-full flex items-center justify-between gap-2 h-10 min-h-10 px-3 py-1.5 rounded-sm text-sm text-left bg-[#f4f7f5] border-2 border-[#1a7a52] hover:border-[#0f3d2e] hover:bg-white outline-none shadow-xs"
       >
         {value.length ? (
           <span className="flex-1 flex flex-wrap gap-1 min-w-0">
             {value.map((v) => (
               <span
                 key={v}
-                className="inline-flex items-center max-w-full truncate rounded-md bg-[#e8f5ee] px-1.5 py-0.5 text-[11px] font-medium text-[#0f3d2e]"
+                className="inline-flex items-center max-w-full truncate rounded-sm bg-[#e8f5ee] px-1.5 py-0.5 text-[11px] font-medium text-[#0f3d2e]"
                 title={v}
               >
                 {v}
@@ -343,10 +343,10 @@ function MultiSelectField({
         <div
           ref={menuRef}
           style={{ position: "fixed", top: pos.top, left: pos.left, width: pos.width, zIndex: 9999 }}
-          className="rounded-xl border-2 border-[#1a7a52] bg-white shadow-xl overflow-hidden"
+          className="rounded-sm border-2 border-[#1a7a52] bg-white shadow-xl overflow-hidden"
         >
           <div className="p-2 border-b border-[#d4e8dc]">
-            <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search…" className="h-8 text-xs" autoFocus />
+            <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search…" className="h-8 text-xs rounded-sm" autoFocus />
           </div>
           <div className="overflow-y-auto p-1" style={{ maxHeight: pos.maxHeight - 48 }}>
             {filtered.length === 0 ? (
@@ -358,13 +358,13 @@ function MultiSelectField({
                   key={o}
                   type="button"
                   className={cn(
-                    "w-full text-left px-3 py-2 rounded-md text-sm flex items-center gap-2",
+                    "w-full text-left px-3 py-2 rounded-sm text-sm flex items-center gap-2",
                     checked ? "bg-[#eef6f1] text-[#0f3d2e]" : "hover:bg-slate-50",
                   )}
                   onClick={() => onChange(checked ? value.filter((x) => x !== o) : [...value, o])}
                 >
                   <span className={cn(
-                    "h-4 w-4 rounded border flex items-center justify-center text-[10px] shrink-0",
+                    "h-4 w-4 rounded-sm border flex items-center justify-center text-[10px] shrink-0",
                     checked ? "bg-[#145c3f] border-[#145c3f] text-white" : "border-slate-300",
                   )}>
                     {checked ? "✓" : ""}
@@ -501,7 +501,10 @@ export default function StakeholderEngagementForm({
       return fail("location_name", "Please specify the location name");
     }
 
-    if (!e.outcomes.length) return fail("outcomes", "Add at least one outcome");
+    if (!e.outcomes.length && draftOutcome.outcome_category && draftOutcome.specific_outcome) {
+      e.outcomes = [{ outcome_category: draftOutcome.outcome_category, specific_outcome: draftOutcome.specific_outcome }];
+    }
+    if (!e.outcomes.length) return fail("outcomes", "Select outcome category and specific outcome");
     for (const o of e.outcomes) {
       if (!isValidStakeholderOutcome(e.engagement_category, o.outcome_category, o.specific_outcome)) {
         return fail("outcomes", "Outcome combination is not valid for this engagement category");
@@ -620,7 +623,14 @@ export default function StakeholderEngagementForm({
     } else {
       setOtherLocationName("");
     }
-    resetDraftOutcome();
+    if (loaded.outcomes && loaded.outcomes.length > 0) {
+      setDraftOutcome({
+        outcome_category: loaded.outcomes[0].outcome_category,
+        specific_outcome: loaded.outcomes[0].specific_outcome,
+      });
+    } else {
+      resetDraftOutcome();
+    }
     setFieldErrors({});
     setReportStatus(v.status || "draft");
     if (v.activity_module && allowModuleSelect) setModuleKey(v.activity_module);
@@ -687,7 +697,7 @@ export default function StakeholderEngagementForm({
     };
   };
 
-  const inputClass = "bg-[#f4f7f5] border-2 border-[#1a7a52] shadow-xs hover:border-[#0f3d2e] hover:bg-white";
+  const inputClass = "h-10 rounded-sm bg-[#f4f7f5] border-2 border-[#1a7a52] text-sm text-slate-800 shadow-xs hover:border-[#0f3d2e] hover:bg-white focus-visible:border-[#0f3d2e] focus-visible:bg-white";
 
   return (
     <StateOfficeFormShell
@@ -757,10 +767,10 @@ export default function StakeholderEngagementForm({
                 {fieldErrors.stakeholder_categories && (
                   <p className="text-[11px] font-medium text-rose-600 sm:col-span-3 -mt-1">{fieldErrors.stakeholder_categories}</p>
                 )}
-                <Field label="Specific engagement activity conducted" required error={fieldErrors.specific_activity} className="sm:col-span-2 lg:col-span-3">
+                <Field label="Specific engagement activity conducted" required error={fieldErrors.specific_activity}>
                   <Input className={inputClass} value={entry.specific_activity} onChange={(e) => set("specific_activity", e.target.value)} placeholder="Enter activity conducted" />
                 </Field>
-                <Field label="Engagement purpose" required error={fieldErrors.engagement_purpose} className="sm:col-span-2 lg:col-span-3">
+                <Field label="Engagement purpose" required error={fieldErrors.engagement_purpose}>
                   <Input className={inputClass} value={entry.engagement_purpose} onChange={(e) => set("engagement_purpose", e.target.value)} placeholder="Enter purpose" />
                 </Field>
                 <Field label="Planned audience number">
@@ -849,155 +859,6 @@ export default function StakeholderEngagementForm({
                   <Input className={inputClass} value={entry.location_specify} onChange={(e) => set("location_specify", e.target.value)} placeholder="Enter exact venue / location / address" />
                 </Field>
 
-                <div className="sm:col-span-2 lg:col-span-3 space-y-4">
-                  <div className="grid gap-4 md:grid-cols-2 items-start">
-                    <Field
-                      label="Outcome category"
-                      required
-                      className={draftOutcome.specific_outcome === STAKEHOLDER_OTHER_SPECIFIC_OUTCOME && draftOutcome.outcome_category !== STAKEHOLDER_OTHER_OUTCOME_CATEGORY ? "md:col-span-2" : undefined}
-                    >
-                      <Select
-                        value={draftOutcome.outcome_category}
-                        onValueChange={(v) => {
-                          setDraftOutcome({ outcome_category: v, specific_outcome: "" });
-                          setOtherOutcomeCategory("");
-                          setOtherSpecificOutcome("");
-                        }}
-                        disabled={!entry.engagement_category}
-                      >
-                        <SelectTrigger className={inputClass}>
-                          <SelectValue placeholder={!entry.engagement_category ? "Select an engagement category first" : "Select an outcome category"} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {outcomeCats.map((c) => (
-                            <SelectItem key={c} value={c}>{c}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </Field>
-                    {draftOutcome.outcome_category === STAKEHOLDER_OTHER_OUTCOME_CATEGORY && (
-                      <Field label="Specify outcome category" required>
-                        <Input
-                          className={inputClass}
-                          aria-label="Specify outcome category"
-                          placeholder="Please specify outcome category"
-                          value={otherOutcomeCategory}
-                          maxLength={160 - `${STAKEHOLDER_OTHER_OUTCOME_CATEGORY}: `.length}
-                          onChange={(e) => setOtherOutcomeCategory(e.target.value)}
-                          required
-                        />
-                      </Field>
-                    )}
-                    <Field
-                      label="Specific activity outcome"
-                      required
-                      className={draftOutcome.outcome_category === STAKEHOLDER_OTHER_OUTCOME_CATEGORY && draftOutcome.specific_outcome !== STAKEHOLDER_OTHER_SPECIFIC_OUTCOME ? "md:col-span-2" : undefined}
-                    >
-                      <Select
-                        value={draftOutcome.specific_outcome}
-                        onValueChange={(v) => {
-                          setDraftOutcome((d) => ({ ...d, specific_outcome: v }));
-                          setOtherSpecificOutcome("");
-                        }}
-                        disabled={!draftOutcome.outcome_category}
-                      >
-                        <SelectTrigger className={inputClass}>
-                          <SelectValue placeholder={!draftOutcome.outcome_category ? "Select an outcome category first" : "Select an outcome"} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {draftSpecifics.map((s) => (
-                            <SelectItem key={s} value={s}>{s}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </Field>
-                    {draftOutcome.specific_outcome === STAKEHOLDER_OTHER_SPECIFIC_OUTCOME && (
-                      <Field label="Specify activity outcome" required>
-                        <Input
-                          className={inputClass}
-                          aria-label="Specify activity outcome"
-                          placeholder="Please specify activity outcome"
-                          value={otherSpecificOutcome}
-                          maxLength={200 - `${STAKEHOLDER_OTHER_SPECIFIC_OUTCOME}: `.length}
-                          onChange={(e) => setOtherSpecificOutcome(e.target.value)}
-                          required
-                        />
-                      </Field>
-                    )}
-                  </div>
-                  <div className="flex justify-end border-t border-[#d4e8dc] pt-3">
-                    <Button
-                      type="button"
-                      className="w-full sm:w-auto gap-2 bg-[#145c3f] text-white hover:bg-[#0f3d2e] px-5"
-                      onClick={addOutcomeToTable}
-                    >
-                      <Plus className="w-4 h-4" /> Add Outcome
-                    </Button>
-                  </div>
-                </div>
-
-                {entry.outcomes.length > 0 && (
-                  <div className="sm:col-span-2 lg:col-span-3 rounded-xl border border-[#d4e8dc] overflow-hidden bg-white">
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="bg-[#eef6f1] hover:bg-[#eef6f1]">
-                          <TableHead className="text-[11px] font-bold text-[#0f3d2e]">Outcome category</TableHead>
-                          <TableHead className="text-[11px] font-bold text-[#0f3d2e]">Specific activity outcome</TableHead>
-                          <TableHead className="w-12" />
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {entry.outcomes.map((o, idx) => (
-                          <TableRow key={`${o.outcome_category}-${o.specific_outcome}-${idx}`}>
-                            <TableCell className="text-sm">{o.outcome_category}</TableCell>
-                            <TableCell className="text-sm">{o.specific_outcome}</TableCell>
-                            <TableCell>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7 text-rose-500"
-                                onClick={() => setEntry((p) => ({
-                                  ...p,
-                                  outcomes: p.outcomes.filter((_, i) => i !== idx),
-                                }))}
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                )}
-                {fieldErrors.outcomes && (
-                  <p className="text-[11px] font-medium text-rose-600 sm:col-span-3">{fieldErrors.outcomes}</p>
-                )}
-
-                <Field label="Supporting evidence" required error={fieldErrors.evidence} className="sm:col-span-2 lg:col-span-3">
-                  <div className="rounded-xl border-2 border-dashed border-[#1a7a52] bg-white px-3 py-3">
-                    <label className="flex flex-col gap-1.5 cursor-pointer">
-                      <span className="inline-flex items-center gap-1.5 text-sm font-medium text-[#0f3d2e]">
-                        <Upload className="w-4 h-4" /> Upload attachment (mandatory)
-                      </span>
-                      <Input
-                        ref={fileInputRef}
-                        type="file"
-                        multiple
-                        className="text-xs"
-                        onChange={(e) => set("supportingFiles", Array.from(e.target.files ?? []))}
-                      />
-                    </label>
-                    {(entry.supportingFiles.length > 0 || entry.supporting_documents.length > 0) && (
-                      <ul className="mt-2 text-xs text-slate-600 space-y-0.5">
-                        {entry.supporting_documents.map((d) => <li key={d.path}>{d.name}</li>)}
-                        {entry.supportingFiles.map((f) => <li key={f.name}>{f.name}</li>)}
-                      </ul>
-                    )}
-                  </div>
-                </Field>
-
                 <Field label="Funding option" required error={fieldErrors.funding_option}>
                   <Select value={entry.funding_option} onValueChange={(v) => set("funding_option", v)}>
                     <SelectTrigger className={inputClass}><SelectValue placeholder="Select funding option" /></SelectTrigger>
@@ -1019,6 +880,94 @@ export default function StakeholderEngagementForm({
                   </>
                 )}
 
+                {/* Row 5: Outcomes & Activity Status (3 on row) */}
+                <Field label="Outcome category" required error={fieldErrors.outcome_category || fieldErrors.outcomes}>
+                  <Select
+                    value={draftOutcome.outcome_category}
+                    onValueChange={(v) => {
+                      setDraftOutcome({ outcome_category: v, specific_outcome: "" });
+                      setOtherOutcomeCategory("");
+                      setOtherSpecificOutcome("");
+                      setEntry((p) => {
+                        const existing = p.outcomes.filter((o) => o.outcome_category !== draftOutcome.outcome_category);
+                        return {
+                          ...p,
+                          outcomes: v ? [...existing, { outcome_category: v, specific_outcome: "" }] : existing,
+                        };
+                      });
+                    }}
+                    disabled={!entry.engagement_category}
+                  >
+                    <SelectTrigger className={inputClass}>
+                      <SelectValue placeholder={!entry.engagement_category ? "Select engagement category first" : "Select an outcome category"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {outcomeCats.map((c) => (
+                        <SelectItem key={c} value={c}>{c}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+                {draftOutcome.outcome_category === STAKEHOLDER_OTHER_OUTCOME_CATEGORY && (
+                  <Field label="Specify outcome category" required>
+                    <Input
+                      className={inputClass}
+                      aria-label="Specify outcome category"
+                      placeholder="Please specify outcome category"
+                      value={otherOutcomeCategory}
+                      maxLength={160 - `${STAKEHOLDER_OTHER_OUTCOME_CATEGORY}: `.length}
+                      onChange={(e) => setOtherOutcomeCategory(e.target.value)}
+                      required
+                    />
+                  </Field>
+                )}
+
+                <Field label="Specific activity outcome" required error={fieldErrors.specific_outcome}>
+                  <Select
+                    value={draftOutcome.specific_outcome}
+                    onValueChange={(v) => {
+                      setDraftOutcome((d) => ({ ...d, specific_outcome: v }));
+                      setOtherSpecificOutcome("");
+                      const currentCat = draftOutcome.outcome_category;
+                      setEntry((p) => {
+                        if (!currentCat) return p;
+                        const existing = p.outcomes.filter((o) => o.outcome_category !== currentCat);
+                        return {
+                          ...p,
+                          outcomes: v ? [...existing, { outcome_category: currentCat, specific_outcome: v }] : existing,
+                        };
+                      });
+                      setFieldErrors((e) => {
+                        const { outcomes: _, ...rest } = e;
+                        return rest;
+                      });
+                    }}
+                    disabled={!draftOutcome.outcome_category}
+                  >
+                    <SelectTrigger className={inputClass}>
+                      <SelectValue placeholder={!draftOutcome.outcome_category ? "Select outcome category first" : "Select an outcome"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {draftSpecifics.map((s) => (
+                        <SelectItem key={s} value={s}>{s}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+                {draftOutcome.specific_outcome === STAKEHOLDER_OTHER_SPECIFIC_OUTCOME && (
+                  <Field label="Specify activity outcome" required>
+                    <Input
+                      className={inputClass}
+                      aria-label="Specify activity outcome"
+                      placeholder="Please specify activity outcome"
+                      value={otherSpecificOutcome}
+                      maxLength={200 - `${STAKEHOLDER_OTHER_SPECIFIC_OUTCOME}: `.length}
+                      onChange={(e) => setOtherSpecificOutcome(e.target.value)}
+                      required
+                    />
+                  </Field>
+                )}
+
                 <Field label="Original activity status" required error={fieldErrors.activity_status}>
                   <Select value={entry.activity_status} onValueChange={(v) => set("activity_status", v)}>
                     <SelectTrigger className={inputClass}><SelectValue placeholder="Select" /></SelectTrigger>
@@ -1029,6 +978,7 @@ export default function StakeholderEngagementForm({
                     </SelectContent>
                   </Select>
                 </Field>
+
                 <Field label="Follow-up required" required error={fieldErrors.follow_up_required}>
                   <Select value={entry.follow_up_required} onValueChange={(v) => set("follow_up_required", v)}>
                     <SelectTrigger className={inputClass}><SelectValue placeholder="Yes / No" /></SelectTrigger>
@@ -1039,6 +989,7 @@ export default function StakeholderEngagementForm({
                     </SelectContent>
                   </Select>
                 </Field>
+
                 {needsFollowUp && (
                   <>
                     <Field label="Follow-up priority">
@@ -1089,12 +1040,74 @@ export default function StakeholderEngagementForm({
                         ref={followUpFileRef}
                         type="file"
                         multiple
-                        className="text-xs bg-white"
+                        className="text-xs bg-white rounded-sm h-10"
                         onChange={(e) => set("follow_up_files", Array.from(e.target.files ?? []))}
                       />
                     </Field>
                   </>
                 )}
+
+                {entry.outcomes.length > 1 && (
+                  <div className="sm:col-span-2 lg:col-span-3 rounded-sm border border-[#d4e8dc] overflow-hidden bg-white">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-[#eef6f1] hover:bg-[#eef6f1]">
+                          <TableHead className="text-[11px] font-bold text-[#0f3d2e]">Outcome category</TableHead>
+                          <TableHead className="text-[11px] font-bold text-[#0f3d2e]">Specific activity outcome</TableHead>
+                          <TableHead className="w-12" />
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {entry.outcomes.map((o, idx) => (
+                          <TableRow key={`${o.outcome_category}-${o.specific_outcome}-${idx}`}>
+                            <TableCell className="text-sm">{o.outcome_category}</TableCell>
+                            <TableCell className="text-sm">{o.specific_outcome}</TableCell>
+                            <TableCell>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-rose-500 rounded-sm"
+                                onClick={() => setEntry((p) => ({
+                                  ...p,
+                                  outcomes: p.outcomes.filter((_, i) => i !== idx),
+                                }))}
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+                {fieldErrors.outcomes && (
+                  <p className="text-[11px] font-medium text-rose-600 sm:col-span-3">{fieldErrors.outcomes}</p>
+                )}
+
+                <Field label="Supporting evidence" required error={fieldErrors.evidence} className="sm:col-span-2 lg:col-span-3">
+                  <div className="rounded-sm border-2 border-dashed border-[#1a7a52] bg-white px-3 py-3">
+                    <label className="flex flex-col gap-1.5 cursor-pointer">
+                      <span className="inline-flex items-center gap-1.5 text-sm font-medium text-[#0f3d2e]">
+                        <Upload className="w-4 h-4" /> Upload attachment (mandatory)
+                      </span>
+                      <Input
+                        ref={fileInputRef}
+                        type="file"
+                        multiple
+                        className="text-xs rounded-sm h-10"
+                        onChange={(e) => set("supportingFiles", Array.from(e.target.files ?? []))}
+                      />
+                    </label>
+                    {(entry.supportingFiles.length > 0 || entry.supporting_documents.length > 0) && (
+                      <ul className="mt-2 text-xs text-slate-600 space-y-0.5">
+                        {entry.supporting_documents.map((d) => <li key={d.path}>{d.name}</li>)}
+                        {entry.supportingFiles.map((f) => <li key={f.name}>{f.name}</li>)}
+                      </ul>
+                    )}
+                  </div>
+                </Field>
 
                 <Field label="Remarks / Observations" className="sm:col-span-2 lg:col-span-3">
                   <Textarea

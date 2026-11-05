@@ -39,9 +39,9 @@ interface SelectProps {
 
 function Select({ value: ctrl, defaultValue = "", onValueChange, children, disabled }: SelectProps) {
   const [internal, setInternal] = React.useState(defaultValue);
-  const [open, setOpen]         = React.useState(false);
-  const [query, setQuery]       = React.useState("");
-  const triggerRef              = React.useRef<HTMLButtonElement>(null);
+  const [open, setOpen] = React.useState(false);
+  const [query, setQuery] = React.useState("");
+  const triggerRef = React.useRef<HTMLButtonElement>(null);
   const [itemLabels, setItemLabels] = React.useState<Map<string, string>>(() => new Map());
 
   const value = ctrl !== undefined ? ctrl : internal;
@@ -157,7 +157,7 @@ function SelectTrigger({ children, className, size = "default", id, displayValue
         "hover:border-[#0f3d2e] hover:bg-white",
         "focus-visible:border-[#0f3d2e] focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-[#1a7a52]/20",
         open && "border-[#0f3d2e] bg-white",
-        size === "default" ? "h-11 text-sm font-medium" : "h-9 text-xs",
+        size === "default" ? "h-10 text-sm font-medium" : "h-9 text-xs",
         isDisabled && "opacity-50 cursor-not-allowed hover:border-[#1a7a52] hover:bg-[#f4f7f5] pointer-events-none",
         className,
       )}
@@ -187,8 +187,8 @@ interface SelectContentProps {
 
 function SelectContent({ children, className }: SelectContentProps) {
   const { open, setOpen, query, setQuery, triggerRef } = useCtx();
-  const searchRef  = React.useRef<HTMLInputElement>(null);
-  const dropRef    = React.useRef<HTMLDivElement>(null);
+  const searchRef = React.useRef<HTMLInputElement>(null);
+  const dropRef = React.useRef<HTMLDivElement>(null);
   const [pos, setPos] = React.useState({
     top: 0,
     bottom: 0,
@@ -424,7 +424,7 @@ function SelectSeparator({ className }: { className?: string }) {
   return <div className={cn("my-1 h-px bg-slate-100 -mx-1", className)} />;
 }
 
-function SelectScrollUpButton()   { return null; }
+function SelectScrollUpButton() { return null; }
 function SelectScrollDownButton() { return null; }
 
 // ─── Exports ──────────────────────────────────────────────────────────────────
