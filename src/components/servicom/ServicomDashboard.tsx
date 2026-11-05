@@ -76,11 +76,11 @@ function Filter({ label, children }: { label: string; children: React.ReactNode 
   );
 }
 
-function SectionTitle({ title, note }: { title: string; note: string }) {
+function SectionTitle({ title, note }: { title: string; note?: string }) {
   return (
-    <div className="border-b border-[#d4e8dc] pb-2">
-      <h2 className="text-base font-semibold text-slate-900">{title}</h2>
-      <p className="text-xs text-slate-500 mt-0.5">{note}</p>
+    <div className="border-b border-[#d4e8dc] pb-1.5 mb-2">
+      <h2 className="text-sm font-bold text-slate-900 tracking-tight">{title}</h2>
+      {note && <p className="text-xs text-slate-500 mt-0.5">{note}</p>}
     </div>
   );
 }
@@ -244,8 +244,8 @@ export default function ServicomDashboard({ onBack, defaultStateId, defaultZoneI
           <span>Sync</span>
         </Button>
       }
-      filters={
-        <div className="flex gap-4 overflow-x-auto -mb-px" role="tablist">
+      tabs={
+        <div className="flex items-center gap-1 overflow-x-auto -mb-px w-full" role="tablist">
           <button
             type="button"
             role="tab"
@@ -321,91 +321,91 @@ export default function ServicomDashboard({ onBack, defaultStateId, defaultZoneI
       }
       contentClassName="space-y-4 pb-6"
     >
+      {/* Shared Filter Bar — applies to Comment Card tab (Complaints & Satisfaction have their own internal filters) */}
+      {activeTab === "comment-card" && (
+        <div className="flex flex-wrap items-end gap-3 px-0 pb-0">
+          <Filter label="Reporting year">
+            <Select value={year} onValueChange={setYear}>
+              <SelectTrigger className="h-8.5 text-xs rounded-sm border-[#d4e8dc] min-w-[110px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {YEARS.map((y) => (
+                  <SelectItem key={y} value={y}>{y === "all" ? "All years" : y}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Filter>
+          <Filter label="Quarter">
+            <Select value={quarter} onValueChange={setQuarter}>
+              <SelectTrigger className="h-8.5 text-xs rounded-sm border-[#d4e8dc] min-w-[110px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All quarters</SelectItem>
+                <SelectItem value="1">Q1</SelectItem>
+                <SelectItem value="2">Q2</SelectItem>
+                <SelectItem value="3">Q3</SelectItem>
+                <SelectItem value="4">Q4</SelectItem>
+              </SelectContent>
+            </Select>
+          </Filter>
+          {!zoneLocked && !stateLocked && (
+            <Filter label="Location">
+              <Select
+                value={locationLevel}
+                onValueChange={(v: "all" | "hq" | "zone" | "state") => {
+                  setLocationLevel(v);
+                  if (v === "hq" || v === "all") {
+                    setFilterZone("all");
+                    setFilterState("all");
+                  }
+                  if (v === "zone") setFilterState("all");
+                }}
+              >
+                <SelectTrigger className="h-8.5 text-xs rounded-sm border-[#d4e8dc] min-w-[120px]"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All locations</SelectItem>
+                  <SelectItem value="hq">HQ</SelectItem>
+                  <SelectItem value="zone">Zone</SelectItem>
+                  <SelectItem value="state">State</SelectItem>
+                </SelectContent>
+              </Select>
+            </Filter>
+          )}
+          {!stateLocked && locationLevel !== "hq" && (
+            <Filter label="Zone">
+              <Select
+                value={filterZone}
+                onValueChange={(v) => { setFilterZone(v); setFilterState("all"); }}
+                disabled={zoneLocked}
+              >
+                <SelectTrigger className="h-8.5 text-xs rounded-sm border-[#d4e8dc] min-w-[130px]" displayValue={zoneLabel}><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All zones</SelectItem>
+                  {zones.map((z) => (
+                    <SelectItem key={z.zonal_code} value={String(z.zonal_code)}>{z.description}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Filter>
+          )}
+          {locationLevel !== "hq" && (
+            <Filter label="State">
+              <Select value={filterState} onValueChange={setFilterState} disabled={stateLocked}>
+                <SelectTrigger className="h-8.5 text-xs rounded-sm border-[#d4e8dc] min-w-[130px]" displayValue={stateLabel}><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All states</SelectItem>
+                  {states.map((s) => (
+                    <SelectItem key={s.code} value={String(s.code)}>{s.description}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Filter>
+          )}
+        </div>
+      )}
+
       <div className="w-full space-y-4">
           {/* TAB 1: Citizens' Comment Card */}
           {activeTab === "comment-card" && (
             <div className="space-y-6">
-              {/* Comment Card Filter Bar */}
-              <div className="bg-white border border-slate-200/80 rounded-sm p-3 shadow-xs">
-                <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3">
-                  <Filter label="Reporting year">
-                    <Select value={year} onValueChange={setYear}>
-                      <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {YEARS.map((y) => (
-                          <SelectItem key={y} value={y}>{y === "all" ? "All years" : y}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </Filter>
-                  <Filter label="Reporting period">
-                    <Select value={quarter} onValueChange={setQuarter}>
-                      <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All quarters</SelectItem>
-                        <SelectItem value="1">Q1</SelectItem>
-                        <SelectItem value="2">Q2</SelectItem>
-                        <SelectItem value="3">Q3</SelectItem>
-                        <SelectItem value="4">Q4</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </Filter>
-                  {!zoneLocked && !stateLocked && (
-                    <Filter label="Location">
-                      <Select
-                        value={locationLevel}
-                        onValueChange={(v: "all" | "hq" | "zone" | "state") => {
-                          setLocationLevel(v);
-                          if (v === "hq" || v === "all") {
-                            setFilterZone("all");
-                            setFilterState("all");
-                          }
-                          if (v === "zone") setFilterState("all");
-                        }}
-                      >
-                        <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All locations</SelectItem>
-                          <SelectItem value="hq">HQ</SelectItem>
-                          <SelectItem value="zone">Zone</SelectItem>
-                          <SelectItem value="state">State</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </Filter>
-                  )}
-                  {!stateLocked && locationLevel !== "hq" && (
-                    <Filter label="Zone">
-                      <Select
-                        value={filterZone}
-                        onValueChange={(v) => { setFilterZone(v); setFilterState("all"); }}
-                        disabled={zoneLocked}
-                      >
-                        <SelectTrigger className="h-9" displayValue={zoneLabel}><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All zones</SelectItem>
-                          {zones.map((z) => (
-                            <SelectItem key={z.zonal_code} value={String(z.zonal_code)}>{z.description}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </Filter>
-                  )}
-                  {locationLevel !== "hq" && (
-                    <Filter label="State">
-                      <Select value={filterState} onValueChange={setFilterState} disabled={stateLocked}>
-                        <SelectTrigger className="h-9" displayValue={stateLabel}><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All states</SelectItem>
-                          {states.map((s) => (
-                            <SelectItem key={s.code} value={String(s.code)}>{s.description}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </Filter>
-                  )}
-                </div>
-              </div>
-
               {loading ? (
                 <div className="flex items-center justify-center py-24 gap-3 text-slate-400">
                   <Loader2 className="w-5 h-5 animate-spin" /> Loading Citizens' Comment Card analytics…
@@ -414,10 +414,7 @@ export default function ServicomDashboard({ onBack, defaultStateId, defaultZoneI
                 <div className="space-y-6">
                   {/* Citizens' Comment Card */}
                   <section className="space-y-4">
-                    <SectionTitle
-                      title="Citizens' Comment Card"
-                      note="Filters: reporting period (Q1–Q4) and location (HQ / Zone / State). Reception and overall use the 1–5 scale."
-                    />
+                    <SectionTitle title="Citizens' Comment Card" />
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-stretch">
                       <DashKpi
                         label="Count of responses"

@@ -27,7 +27,7 @@ export function DrillStatBar({
               key={stat.key}
               type={clickable ? "button" : undefined}
               onClick={clickable ? () => onStatClick(stat) : undefined}
-              className={`rounded-xl border border-[#d4e8dc] bg-white px-3 py-2 min-w-[88px] text-left transition-all ${
+              className={`rounded-none border border-[#d4e8dc] bg-white px-3 py-2 min-w-[88px] text-left transition-all ${
                 clickable
                   ? "cursor-pointer hover:border-[#25a872] hover:shadow-sm hover:-translate-y-0.5 group"
                   : "bg-[#f0fdf7]/60"

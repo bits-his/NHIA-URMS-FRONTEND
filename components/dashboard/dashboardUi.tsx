@@ -69,7 +69,7 @@ export function ClickableKpi({
       <Tag
         type={Tag === "button" ? "button" : undefined}
         onClick={onClick}
-        className={`rounded-lg p-3.5 border bg-white border-[#d4e8dc] text-left w-full h-full flex flex-col shadow-2xs ${
+        className={`rounded-sm p-3.5 border bg-white border-[#d4e8dc] text-left w-full h-full flex flex-col shadow-2xs ${
           drillable && onClick ? "cursor-pointer hover:border-[#1a7a52] hover:shadow-xs transition-colors group" : ""
         }`}
       >
@@ -105,7 +105,7 @@ export function DashKpi({
     <Tag
       type={Tag === "button" ? "button" : undefined}
       onClick={onClick}
-      className={`h-full min-h-[92px] rounded-lg border border-[#d4e8dc] bg-white p-3.5 text-left flex flex-col shadow-2xs ${
+      className={`h-full min-h-[92px] rounded-sm border border-[#d4e8dc] bg-white p-3.5 text-left flex flex-col shadow-2xs ${
         onClick ? "cursor-pointer hover:border-[#1a7a52] hover:shadow-xs transition-colors group" : ""
       }`}
     >
@@ -134,7 +134,7 @@ export function DashChartCard({
   minHeight?: string;
 }) {
   return (
-    <div className={`rounded-lg border border-[#d4e8dc] bg-white flex flex-col shadow-2xs overflow-hidden ${minHeight} ${className}`}>
+    <div className={`rounded-sm border border-[#d4e8dc] bg-white flex flex-col shadow-2xs overflow-hidden ${minHeight} ${className}`}>
       <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-slate-100 bg-white shrink-0">
         <div>
           <p className="text-xs font-bold uppercase tracking-wider text-slate-800">{title}</p>
