@@ -186,7 +186,7 @@ export default function ExtendedReportDetail({ reportType, reportId, onBack, onE
           ) : (
             <>
               {providerWorkflow && canReview ? (
-                <section className="rounded-2xl border border-[#d4e8dc] bg-white overflow-hidden shadow-sm">
+                <section className="rounded-sm border border-[#d4e8dc] bg-white overflow-hidden shadow-sm">
                   <div className="bg-[#e8f5ee] px-4 py-2.5 border-b border-[#d4e8dc]">
                     <h3 className="text-[12px] font-bold uppercase tracking-[0.06em] text-[#0f3d2e]">Report Review</h3>
                   </div>
@@ -207,7 +207,7 @@ export default function ExtendedReportDetail({ reportType, reportId, onBack, onE
                   </div>
                 </section>
               ) : (
-                <Card className="rounded-2xl border-[#d4e8dc]">
+                <Card className="rounded-sm border-[#d4e8dc]">
                   <CardHeader className="pb-3 flex flex-row items-start justify-between">
                     <div><CardTitle className="text-base">Report Summary</CardTitle><CardDescription>Basic information</CardDescription></div>
                     {statusCfg && !providerWorkflow && (
@@ -260,7 +260,7 @@ export default function ExtendedReportDetail({ reportType, reportId, onBack, onE
                   return (
                     <>
                       {(report.coordinator_reviewed_by || report.coordinator_review_note) && (
-                        <Card className="rounded-2xl border-[#d4e8dc]">
+                        <Card className="rounded-sm border-[#d4e8dc]">
                           <CardHeader className="pb-2">
                             <CardTitle className="text-base">Coordinator review</CardTitle>
                           </CardHeader>
@@ -484,11 +484,11 @@ export default function ExtendedReportDetail({ reportType, reportId, onBack, onE
                     ])} />
                 ) : (
                   <>
-                    <Card className="rounded-2xl border-[#d4e8dc]">
+                    <Card className="rounded-sm border-[#d4e8dc]">
                       <CardHeader><CardTitle className="text-base">Challenges</CardTitle></CardHeader>
                       <CardContent><p className="text-sm whitespace-pre-wrap text-slate-700">{report.challenges || "—"}</p></CardContent>
                     </Card>
-                    <Card className="rounded-2xl border-[#d4e8dc]">
+                    <Card className="rounded-sm border-[#d4e8dc]">
                       <CardHeader><CardTitle className="text-base">Recommendations</CardTitle></CardHeader>
                       <CardContent><p className="text-sm whitespace-pre-wrap text-slate-700">{report.recommendations || "—"}</p></CardContent>
                     </Card>
@@ -497,7 +497,7 @@ export default function ExtendedReportDetail({ reportType, reportId, onBack, onE
               )}
 
               {showDecisionBlock && (
-                <section className="rounded-2xl border border-[#d4e8dc] bg-white overflow-hidden shadow-sm">
+                <section className="rounded-sm border border-[#d4e8dc] bg-white overflow-hidden shadow-sm">
                   <div className="bg-[#e8f5ee] px-4 py-2.5 border-b border-[#d4e8dc]">
                     <h3 className="text-[12px] font-bold uppercase tracking-[0.06em] text-[#0f3d2e]">Coordinator Decision</h3>
                   </div>
@@ -636,7 +636,7 @@ export default function ExtendedReportDetail({ reportType, reportId, onBack, onE
 
 function DataCard({ title, headers, rows }: { title: string; headers: string[]; rows: React.ReactNode[][] }) {
   return (
-    <Card className="rounded-2xl border-[#d4e8dc] overflow-hidden">
+    <Card className="rounded-sm border-[#d4e8dc] overflow-hidden">
       <CardHeader className="pb-2 border-b border-[#d4e8dc] bg-[#f8fdfb]">
         <CardTitle className="text-base">{title}</CardTitle>
         <CardDescription>{rows.length} row(s)</CardDescription>

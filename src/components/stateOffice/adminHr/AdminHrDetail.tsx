@@ -201,7 +201,7 @@ export default function AdminHrDetail({ reportType, reportId, onBack, onEdit }: 
             <div className="text-center py-24 text-slate-400 text-sm">Report not found.</div>
           ) : (
             <>
-              <Card className="rounded-2xl border-[#d4e8dc]">
+              <Card className="rounded-sm border-[#d4e8dc]">
                 <CardHeader className="pb-3 flex flex-row items-start justify-between gap-3">
                   <CardTitle className="text-base">Report Header</CardTitle>
                   {statusCfg && (

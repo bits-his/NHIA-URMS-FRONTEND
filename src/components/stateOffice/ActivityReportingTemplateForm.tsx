@@ -361,7 +361,7 @@ export default function ActivityReportingTemplateForm({
         const typeLocked = !!reportId || !!savedId;
         return (
         <div className="space-y-4">
-          <Card className="rounded-2xl border-[#d4e8dc]">
+          <Card className="rounded-sm border-[#d4e8dc]">
             <CardHeader className="pb-2">
               <CardTitle className="text-base">Planned Activities</CardTitle>
             </CardHeader>
@@ -374,7 +374,7 @@ export default function ActivityReportingTemplateForm({
             </CardContent>
           </Card>
 
-          <Card className="rounded-2xl border-[#d4e8dc]">
+          <Card className="rounded-sm border-[#d4e8dc]">
             <CardHeader className="pb-2">
               <CardTitle className="text-base">{config.activitiesTitle}</CardTitle>
             </CardHeader>

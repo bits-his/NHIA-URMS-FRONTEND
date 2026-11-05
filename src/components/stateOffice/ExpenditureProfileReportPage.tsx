@@ -73,7 +73,7 @@ export default function ExpenditureProfileReportPage({
       }}
     >
       {({ saving, submitting, persist, requestSubmit }) => (
-        <div className="rounded-2xl border border-[#d4e8dc] bg-white overflow-hidden">
+        <div className="rounded-sm border border-[#d4e8dc] bg-white overflow-hidden">
           <div className="px-4 md:px-5 py-3 border-b border-[#e6f0ea] bg-[#f8fbf9]">
             <p className="text-sm font-bold text-slate-800">Quarterly expenses</p>
             <p className="text-xs text-slate-500 mt-0.5">

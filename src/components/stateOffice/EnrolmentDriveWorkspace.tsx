@@ -63,7 +63,7 @@ function ReviewSection({ title, children }: { title: string; children: React.Rea
 
 function SectionBand({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-2xl border border-[#d4e8dc] bg-white overflow-hidden shadow-sm">
+    <section className="rounded-sm border border-[#d4e8dc] bg-white overflow-hidden shadow-sm">
       <div className="bg-[#e8f5ee] px-4 py-2.5 border-b border-[#d4e8dc]">
         <h3 className="text-[12px] font-bold uppercase tracking-[0.06em] text-[#0f3d2e]">{title}</h3>
       </div>
@@ -822,7 +822,7 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
     {loading ? <div className="flex items-center justify-center py-16 gap-3 text-slate-400"><Loader2 className="w-5 h-5 animate-spin" /><span className="text-sm">Loading reports...</span></div> : !catalogue ? <Button onClick={() => void run(async () => { await refresh(); })}>Retry</Button> : <>
       {mode === "register" && <>
         {showCreate ? <>
-          <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-visible"><CardContent className="p-4 md:p-5 space-y-5">
+          <Card className="rounded-sm border-[#d4e8dc] shadow-sm overflow-visible"><CardContent className="p-4 md:p-5 space-y-5">
             <StateOfficeFormSteps steps={WORKFLOW_STEPS} activeIndex={0} onStepChange={() => {}} />
             <div className="border-t border-[#e8f3ec] pt-4 space-y-4">
               {geoInfo()}
@@ -929,7 +929,7 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
             {[{ label: "Total", count: periodFiltered.length, tone: "text-[#0f3d2e] bg-white border-[#d4e8dc]" }, { label: "Draft / Returned", count: periodFiltered.filter((row) => ["draft", "returned"].includes(row.status)).length, tone: "text-slate-600 bg-white border-slate-200" }, { label: "Awaiting review", count: periodFiltered.filter((row) => row.status === "awaiting_review").length, tone: "text-amber-800 bg-amber-50/80 border-amber-100" }, { label: "Endorsed", count: periodFiltered.filter((row) => row.status === "endorsed").length, tone: "text-teal-800 bg-teal-50/80 border-teal-100" }, { label: "Submitted", count: periodFiltered.filter((row) => row.status === "submitted").length, tone: "text-emerald-700 bg-emerald-50/80 border-emerald-100" }].map((item) => <div className={`rounded-xl border px-4 py-3 ${item.tone}`} key={item.label}><p className="text-2xl font-bold tabular-nums">{item.count}</p><p className="text-[11px] font-semibold text-slate-500 mt-0.5">{item.label}</p></div>)}
           </div>
-          <Card className="rounded-2xl border-[#d4e8dc]">
+          <Card className="rounded-sm border-[#d4e8dc]">
             <CardContent className="pt-4 pb-4 grid grid-flow-col auto-cols-fr gap-3">
               {catalogue.states.length > 1 && (
                 <div className="space-y-1">
@@ -1119,7 +1119,7 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
         </div>
       )}
       {mode === "batch" && batch && <>
-        <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-visible"><CardContent className="p-4 md:p-5 space-y-4">
+        <Card className="rounded-sm border-[#d4e8dc] shadow-sm overflow-visible"><CardContent className="p-4 md:p-5 space-y-4">
           <StateOfficeFormSteps steps={WORKFLOW_STEPS} activeIndex={batchStep} maximumIndex={3} onStepChange={(step) => void goToBatchStep(step)} />
           {batchStep === 0 && (
             <div className="border-t border-[#e8f3ec] pt-4 space-y-4">
@@ -1144,7 +1144,7 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
         </CardContent></Card>
         {batchStep === 1 && canEdit && (
           <div ref={activityFormRef} className="space-y-4">
-            <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-visible">
+            <Card className="rounded-sm border-[#d4e8dc] shadow-sm overflow-visible">
               <div className="bg-[#e8f5ee] px-4 py-3 border-b border-[#d4e8dc] flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <h3 className="text-sm font-bold text-[#0f3d2e]">
@@ -1380,10 +1380,10 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
             return "bg-slate-100 text-slate-600 border-slate-200";
           };
           return (
-            <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden">
+            <Card className="rounded-sm border-[#d4e8dc] shadow-sm overflow-hidden">
               <div className="relative overflow-hidden border-b border-[#d4e8dc] bg-gradient-to-r from-[#e8f5ee] via-[#f3faf6] to-white px-5 py-5">
                 <div className="flex items-start gap-3 min-w-0">
-                  <div className="mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#145c3f] text-white shadow-sm">
+                  <div className="mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-sm bg-[#145c3f] text-white shadow-sm">
                     <Users className="h-5 w-5" />
                   </div>
                   <div className="min-w-0">
@@ -1397,7 +1397,7 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
 
               <CardContent className="p-4 md:p-5 space-y-4 bg-[#f7faf8]">
                 {activities.length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-[#cfe6d8] bg-white px-6 py-14 text-center">
+                  <div className="rounded-sm border border-dashed border-[#cfe6d8] bg-white px-6 py-14 text-center">
                     <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[#e8f5ee] text-[#145c3f]">
                       <ClipboardList className="h-6 w-6" />
                     </div>
@@ -1415,7 +1415,7 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
                       return (
                         <div
                           key={activity.reference_id}
-                          className="rounded-2xl border border-[#d4e8dc] bg-white p-4 md:p-5 shadow-sm hover:border-[#a8d4bc] hover:shadow-md transition-all"
+                          className="rounded-sm border border-[#d4e8dc] bg-white p-4 md:p-5 shadow-sm hover:border-[#a8d4bc] hover:shadow-md transition-all"
                         >
                           <div className="flex flex-wrap items-start justify-between gap-3">
                             <div className="flex items-start gap-3 min-w-0">
@@ -1454,9 +1454,9 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
                             </div>
                           </div>
 
-                          <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-[#e8f3ec] bg-[#f8fbf9] p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4">
+                          <div className="mt-4 flex flex-col gap-3 rounded-sm border border-[#e8f3ec] bg-[#f8fbf9] p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4">
                             <div className="flex items-center gap-3">
-                              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white border border-[#d4e8dc] shadow-sm">
+                              <div className="flex h-12 w-12 items-center justify-center rounded-sm bg-white border border-[#d4e8dc] shadow-sm">
                                 <Users className="h-5 w-5 text-[#145c3f]" />
                               </div>
                               <div>
@@ -1533,7 +1533,7 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
           }, {});
 
           return (
-            <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden">
+            <Card className="rounded-sm border-[#d4e8dc] shadow-sm overflow-hidden">
               <div className="flex flex-wrap items-center justify-between gap-3 bg-[#e8f5ee] px-4 py-3 border-b border-[#d4e8dc]">
                 <div>
                   <h3 className="text-sm font-bold text-[#0f3d2e]">Summary before submission</h3>

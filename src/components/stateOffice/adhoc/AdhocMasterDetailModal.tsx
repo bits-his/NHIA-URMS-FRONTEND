@@ -164,7 +164,7 @@ export default function AdhocMasterDetailModal({
   return (
     <>
       <Dialog open={open} onOpenChange={onClose}>
-        <DialogContent className="w-[96vw] max-w-7xl max-h-[94vh] overflow-y-auto p-0 rounded-2xl border-[#d4e8dc]">
+        <DialogContent className="w-[96vw] max-w-7xl max-h-[94vh] overflow-y-auto p-0 rounded-sm border-[#d4e8dc]">
           {loading || !data ? (
             <div className="flex items-center justify-center py-24 gap-3 text-slate-400">
               <Loader2 className="w-6 h-6 animate-spin" />
@@ -464,7 +464,7 @@ export default function AdhocMasterDetailModal({
         open={clarificationModal.open}
         onOpenChange={(op) => !op && setClarificationModal({ reportId: 0, open: false })}
       >
-        <DialogContent className="max-w-md p-6 rounded-2xl">
+        <DialogContent className="max-w-md p-6 rounded-sm">
           <DialogHeader>
             <DialogTitle className="text-base font-bold text-slate-800">
               Return Report for Clarification

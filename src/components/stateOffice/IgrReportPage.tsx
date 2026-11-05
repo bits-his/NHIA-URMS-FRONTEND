@@ -97,7 +97,7 @@ export default function IgrReportPage({
       })}
     >
       {({ saving, submitting, persist, requestSubmit }) => (
-        <div className="rounded-2xl border border-[#d4e8dc] bg-white p-4 md:p-5 space-y-4">
+        <div className="rounded-sm border border-[#d4e8dc] bg-white p-4 md:p-5 space-y-4">
           <div>
             <h3 className="text-sm font-bold text-slate-800">Transaction details</h3>
           </div>

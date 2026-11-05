@@ -426,7 +426,7 @@ export default function StateOfficeHmoIndebtednessPage({ onBack, defaultStateId,
   };
 
   const headerFields = (
-    <Card className="rounded-2xl border-[#d4e8dc]">
+    <Card className="rounded-sm border-[#d4e8dc]">
       <CardHeader className="pb-2">
         <CardTitle className="text-base text-[#145c3f]">HMO Indebtedness Collation Sheet</CardTitle>
       </CardHeader>
@@ -470,7 +470,7 @@ export default function StateOfficeHmoIndebtednessPage({ onBack, defaultStateId,
   );
 
   const entryForm = (
-    <Card className="rounded-2xl border-[#d4e8dc]">
+    <Card className="rounded-sm border-[#d4e8dc]">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between gap-3">
           <div>
@@ -565,7 +565,7 @@ export default function StateOfficeHmoIndebtednessPage({ onBack, defaultStateId,
         const open = expandedHmos[hmo] !== false;
         const hmoTotal = hcfLines.reduce((s, l) => s + lineTotal(l), 0);
         return (
-          <Card key={hmo} className="rounded-2xl border-[#d4e8dc] overflow-hidden">
+          <Card key={hmo} className="rounded-sm border-[#d4e8dc] overflow-hidden">
             <button
               type="button"
               className="w-full flex items-center justify-between gap-3 px-4 py-3 bg-[#f0fdf7] text-left"
@@ -900,7 +900,7 @@ export default function StateOfficeHmoIndebtednessPage({ onBack, defaultStateId,
             ]}
           />
 
-          <Card className="rounded-2xl border-[#d4e8dc]">
+          <Card className="rounded-sm border-[#d4e8dc]">
             <CardContent className="pt-4 pb-4 grid grid-flow-col auto-cols-fr gap-3">
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">Zone</Label>

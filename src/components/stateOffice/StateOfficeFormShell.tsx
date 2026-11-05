@@ -66,6 +66,8 @@ interface Props {
   returnOnDraft?: boolean;
   /** Parent workspace owns Back + title — skip FormShell sticky header. */
   hidePageHeader?: boolean;
+  /** Under-header tabs (same strip as list pages). */
+  headerTabs?: React.ReactNode;
 }
 
 export default function StateOfficeFormShell({
@@ -87,6 +89,7 @@ export default function StateOfficeFormShell({
   submitDateLabel,
   returnOnDraft = false,
   hidePageHeader = false,
+  headerTabs,
 }: Props) {
   const preserveHeaderRef = React.useRef(preserveHeader);
   preserveHeaderRef.current = preserveHeader;
@@ -203,22 +206,19 @@ export default function StateOfficeFormShell({
     } finally { setter(false); }
   };
 
-  const contentPad = hidePageHeader
-    ? "px-4 md:px-5 py-3 space-y-3"
-    : compact
-      ? "px-4 md:px-5 py-3 space-y-3"
-      : "px-4 md:px-6 py-4 space-y-4";
-
   return (
     <PageLayout
       showHeader={!hidePageHeader}
       title={pageTitle || refId}
       onBack={handleCancel}
       backLabel={compact ? "Back" : undefined}
-      maxWidth="5xl"
+      maxWidth="full"
+      variant="fluid"
       loading={loadingRecord}
+      tabs={headerTabs}
+      contentClassName="p-0"
     >
-      <div className={`w-full ${contentPad} ${hideFooterActions ? "pb-8" : "pb-28"}`}>
+      <div className={`w-full px-3 md:px-4 py-3 ${hideFooterActions ? "pb-8" : "pb-28"}`}>
           {loadingRecord ? (
             <div className="flex items-center justify-center py-24 gap-3 text-slate-400">
               <Loader2 className="w-6 h-6 animate-spin" /><span className="text-sm">Loading report...</span>

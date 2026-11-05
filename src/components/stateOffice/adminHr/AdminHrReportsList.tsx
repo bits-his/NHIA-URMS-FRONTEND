@@ -188,7 +188,7 @@ export default function AdminHrReportsList({
             ]}
           />
 
-          <Card className="rounded-2xl border-[#d4e8dc]">
+          <Card className="rounded-sm border-[#d4e8dc]">
             <CardContent className="pt-4 pb-4 space-y-3">
               <div className="grid grid-flow-col auto-cols-fr gap-3">
                 {showStateFilter && (
@@ -259,7 +259,7 @@ export default function AdminHrReportsList({
           </Card>
 
           {searchInput}
-          <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden">
+          <Card className="rounded-sm border-[#d4e8dc] shadow-sm overflow-hidden">
             <CardHeader className="pb-3 border-b border-[#d4e8dc]">
               <CardTitle className="text-sm font-bold">
                 {loading ? "Loading…" : `${filteredReports.length} record${filteredReports.length !== 1 ? "s" : ""}`}

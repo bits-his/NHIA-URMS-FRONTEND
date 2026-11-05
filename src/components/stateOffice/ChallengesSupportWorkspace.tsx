@@ -606,7 +606,7 @@ export default function ChallengesSupportWorkspace({ onBack }: Props) {
   };
   const kindLabel = mode === "challenge-detail" ? "challenge" : "support";
   const historyPanel = detail && (
-    <Card className="rounded-2xl border-[#d4e8dc] shadow-sm"><CardContent className="p-4 md:p-5 space-y-5">
+    <Card className="rounded-sm border-[#d4e8dc] shadow-sm"><CardContent className="p-4 md:p-5 space-y-5">
       <div className="flex items-center gap-3">
         <h3 className="shrink-0 text-[11px] font-bold uppercase tracking-[0.08em] text-[#145c3f]">Updates &amp; comments</h3>
         <div className="h-px flex-1 bg-[#d4e8dc]" />
@@ -668,7 +668,7 @@ export default function ChallengesSupportWorkspace({ onBack }: Props) {
 
   const challengeDetail = detail && (
     <div className="space-y-4">
-      <Card className="rounded-2xl border-[#d4e8dc] shadow-sm"><CardContent className="p-4 md:p-5 space-y-4">
+      <Card className="rounded-sm border-[#d4e8dc] shadow-sm"><CardContent className="p-4 md:p-5 space-y-4">
         <ReviewSection title={`Challenge ${detail.challenge_id}`}>
           <ReviewRow label="State / FCT" value={stateName(detail.state_code)} />
           <ReviewRow label="Zone" value={zoneName(detail.zonal_code)} />
@@ -694,7 +694,7 @@ export default function ChallengesSupportWorkspace({ onBack }: Props) {
         </div>
       </CardContent></Card>
       {!!detail.support_requests?.length && (
-        <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden">
+        <Card className="rounded-sm border-[#d4e8dc] shadow-sm overflow-hidden">
           <CardHeader className="pb-3 border-b border-[#d4e8dc]"><CardTitle className="text-sm font-bold">Linked support requests ({detail.support_requests.length})</CardTitle></CardHeader>
           <CardContent className="p-0"><div className="overflow-x-auto"><Table>
             <TableHeader><TableRow className="bg-[#f0fdf7] hover:bg-[#f0fdf7]">{["Support", "Category", "Priority", "Status", "Required by", "Action"].map((l) => <TableHead key={l} className={`text-xs font-bold text-slate-600 whitespace-nowrap ${l === "Action" ? "text-right" : ""}`}>{l}</TableHead>)}</TableRow></TableHeader>
@@ -716,7 +716,7 @@ export default function ChallengesSupportWorkspace({ onBack }: Props) {
 
   const supportDetail = detail && (
     <div className="space-y-4">
-      <Card className="rounded-2xl border-[#d4e8dc] shadow-sm"><CardContent className="p-4 md:p-5 space-y-4">
+      <Card className="rounded-sm border-[#d4e8dc] shadow-sm"><CardContent className="p-4 md:p-5 space-y-4">
         <ReviewSection title={`Support request ${detail.support_id}`}>
           {detail.challenge && <div className="rounded-lg bg-[#eef6f1] p-3 text-sm text-[#145c3f] sm:col-span-2 lg:col-span-3">Linked challenge <strong>{detail.challenge.challenge_id}</strong> — {detail.challenge.category_label}{detail.challenge.specific_challenge ? ` · ${detail.challenge.specific_challenge}` : ""}</div>}
           <ReviewRow label="State / FCT" value={stateName(detail.state_code)} />
@@ -734,7 +734,7 @@ export default function ChallengesSupportWorkspace({ onBack }: Props) {
         </ReviewSection>
       </CardContent></Card>
       {!!detail.documents?.length && (
-        <Card className="rounded-2xl border-[#d4e8dc] shadow-sm"><CardContent className="p-4 space-y-2">
+        <Card className="rounded-sm border-[#d4e8dc] shadow-sm"><CardContent className="p-4 space-y-2">
           {detail.documents.map((d: any) => <div key={`${d.report_reference_id}-${d.sn}`} className="flex items-center gap-2 text-sm"><FileText className="w-4 h-4 text-slate-400" />{d.name}</div>)}
         </CardContent></Card>
       )}
@@ -786,7 +786,7 @@ export default function ChallengesSupportWorkspace({ onBack }: Props) {
               },
             ]}
           />
-          <Card className="rounded-2xl border-[#d4e8dc]">
+          <Card className="rounded-sm border-[#d4e8dc]">
             <CardContent className="pt-4 pb-4 grid grid-flow-col auto-cols-fr gap-3">
               <div className="space-y-1 min-w-0">
                 <Label className="text-xs text-muted-foreground">Status</Label>
@@ -848,7 +848,7 @@ export default function ChallengesSupportWorkspace({ onBack }: Props) {
               },
             ]}
           />
-          <Card className="rounded-2xl border-[#d4e8dc]">
+          <Card className="rounded-sm border-[#d4e8dc]">
             <CardContent className="pt-4 pb-4 grid grid-flow-col auto-cols-fr gap-3">
               <div className="space-y-1 min-w-0">
                 <Label className="text-xs text-muted-foreground">Status</Label>

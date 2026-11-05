@@ -397,7 +397,7 @@ export default function StateOfficeWeeklyCompliancePage({ onBack, defaultStateId
         )}
         <ScrollArea className="flex-1">
           <div className="w-full px-4 md:px-6 py-4 pb-24 space-y-4">
-            <Card className="rounded-2xl border-[#d4e8dc]">
+            <Card className="rounded-sm border-[#d4e8dc]">
               <CardHeader className="pb-2">
                 <CardTitle className="text-base">Section A: General Information</CardTitle>
               </CardHeader>
@@ -493,7 +493,7 @@ export default function StateOfficeWeeklyCompliancePage({ onBack, defaultStateId
             </Card>
 
             {WEEKLY_COMPLIANCE_SECTIONS.map((section) => (
-              <Card key={section.key} className="rounded-2xl border-[#d4e8dc] overflow-hidden">
+              <Card key={section.key} className="rounded-sm border-[#d4e8dc] overflow-hidden">
                 <CardHeader className="pb-2 border-b border-[#d4e8dc] bg-[#f8fdfb]">
                   <CardTitle className="text-base">{section.title}</CardTitle>
                 </CardHeader>
@@ -572,7 +572,7 @@ export default function StateOfficeWeeklyCompliancePage({ onBack, defaultStateId
             <div className="flex justify-center py-16"><Loader2 className="w-5 h-5 animate-spin text-slate-400" /></div>
           ) : (
             <div className="w-full px-4 md:px-6 py-4 space-y-4">
-              <Card className="rounded-2xl border-[#d4e8dc]">
+              <Card className="rounded-sm border-[#d4e8dc]">
                 <CardHeader className="pb-2 flex flex-row items-center justify-between">
                   <CardTitle className="text-base">Section A: General Information</CardTitle>
                   <ScoreBadge indicators={r.indicators} />
@@ -592,7 +592,7 @@ export default function StateOfficeWeeklyCompliancePage({ onBack, defaultStateId
               </Card>
 
               {breaches.length > 0 && (
-                <Card className="rounded-2xl border-rose-200 bg-rose-50/40">
+                <Card className="rounded-sm border-rose-200 bg-rose-50/40">
                   <CardHeader className="pb-2">
                     <CardTitle className="text-base text-rose-700">Non-compliance flagged ({breaches.length})</CardTitle>
                     <CardDescription>Indicators answered in a way that indicates a breach.</CardDescription>
@@ -606,7 +606,7 @@ export default function StateOfficeWeeklyCompliancePage({ onBack, defaultStateId
               )}
 
               {WEEKLY_COMPLIANCE_SECTIONS.map((section) => (
-                <Card key={section.key} className="rounded-2xl border-[#d4e8dc] overflow-hidden">
+                <Card key={section.key} className="rounded-sm border-[#d4e8dc] overflow-hidden">
                   <CardHeader className="pb-2 border-b border-[#d4e8dc] bg-[#f8fdfb]">
                     <CardTitle className="text-base">{section.title}</CardTitle>
                   </CardHeader>
@@ -696,7 +696,7 @@ export default function StateOfficeWeeklyCompliancePage({ onBack, defaultStateId
             ]}
           />
 
-          <Card className="rounded-2xl border-[#d4e8dc]">
+          <Card className="rounded-sm border-[#d4e8dc]">
             <CardContent className="pt-4 pb-4 grid grid-flow-col auto-cols-fr gap-3">
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">Zone</Label>

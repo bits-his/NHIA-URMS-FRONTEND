@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import StateOfficeFormShell from "./StateOfficeFormShell";
+import { UnderHeaderNavTabs } from "@/src/components/UnderHeaderNavTabs";
 import ReportBasicInfo from "./shared/ReportBasicInfo";
 import StateOfficeFormSteps from "./StateOfficeFormSteps";
 import AccreditedProviderSelect from "./AccreditedProviderSelect";
@@ -30,9 +31,11 @@ import {
   ENROLMENT_NIN_VALIDATION_STATUSES,
   ENROLMENT_PROGRAMS,
   ENROLMENT_RENEWABLE_PROGRAM_LABELS,
+  ENROLMENT_EQUITY_PROGRAMS,
   ENROLMENT_SSHIA_CHANNELS,
   ENROLMENT_STATUS_NEEDS_REASON,
   computeGifshipDates,
+  isSshiaLikeChannel,
   modesOfRegistrationForProgram,
   normalizeEnrolmentType,
   programSpecificFieldsFor,
@@ -51,7 +54,7 @@ function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return (
     <textarea
       {...props}
-      className="w-full min-h-[4.5rem] rounded-xl px-3.5 py-2 text-sm bg-[#f4f7f5] border-2 border-[#1a7a52] text-slate-800 shadow-xs outline-none hover:border-[#0f3d2e] hover:bg-white focus-visible:border-[#0f3d2e] focus-visible:bg-white focus-visible:ring-3 focus-visible:ring-[#1a7a52]/25"
+      className="w-full min-h-[4.5rem] rounded-sm px-3.5 py-2 text-sm bg-[#f4f7f5] border-2 border-[#1a7a52] text-slate-800 shadow-xs outline-none hover:border-[#0f3d2e] hover:bg-white focus-visible:border-[#0f3d2e] focus-visible:bg-white focus-visible:ring-3 focus-visible:ring-[#1a7a52]/25"
     />
   );
 }
@@ -368,7 +371,7 @@ function ProgramFieldsGrid({
   ].filter((g) => g.items.length > 0);
 
   return (
-    <div className="space-y-5 rounded-2xl border border-[#d4e8dc] bg-gradient-to-b from-[#f7fbf9] to-white p-4 md:p-5">
+    <div className="space-y-4 rounded-sm border border-[#d4e8dc] bg-[#f8fbf9] p-3 md:p-4">
       {groups.map((g) => (
         <FieldSection key={g.title} title={g.title}>
           {g.items.map((f) => renderProgramField(f, fields, values, onChange, onChangeMany, reportStateId))}
@@ -381,14 +384,14 @@ function ProgramFieldsGrid({
 /** Content steps after an activity is chosen (picker is separate). */
 function stepsForCategory(category: string, channel = ""): { id: StepId; label: string }[] {
   if (category === "enrolment") {
-    if (channel === "SSHIA") {
+    if (isSshiaLikeChannel(channel)) {
       return [
         { id: "channel", label: "Enrolment Details" },
         { id: "review", label: "Review" },
       ];
     }
     return [
-      { id: "channel", label: "Channel" },
+      { id: "channel", label: "Enrolment Details" },
       { id: "beneficiary", label: "Beneficiary" },
       { id: "details", label: "Details" },
       { id: "review", label: "Review" },
@@ -421,7 +424,35 @@ export default function EnrolmentActivityForm({
 }: Props) {
   const [savedDriveContext, setSavedDriveContext] = React.useState<Props["driveContext"]>();
   const driveContext = suppliedDriveContext || savedDriveContext;
-  const fresh = (category = ""): Entry => ({ ...blank(), category, program_details: {} });
+  const fresh = (category = ""): Entry => ({
+    ...blank(),
+    category,
+    enrolment_channel: category === "enrolment" ? "NHIA" : "",
+    program_details: {},
+  });
+
+  const setEnrolmentChannel = (channel: string) => {
+    setEntry((p) => ({
+      ...p,
+      enrolment_channel: channel,
+      enrolment_type: "",
+      program_name: "",
+      enrolment_category: "",
+      program_details: {},
+      ...(isSshiaLikeChannel(channel)
+        ? {
+            activity_status: "",
+            status_reason: "",
+            supporting_evidence: "",
+            funding_option: "",
+            activity_budget: "",
+            approved_amount: "",
+          }
+        : {}),
+    }));
+    setFieldErrors({});
+    setStepIndex(0);
+  };
   const seededCategory = !reportId && initialCategory
     && ENROLMENT_ACTIVITIES.some((a) => a.value === initialCategory)
     ? initialCategory
@@ -448,7 +479,7 @@ export default function EnrolmentActivityForm({
 
   const isBudgeted = entry.funding_option === ENROLMENT_BUDGETED;
   const isEnrolment = entry.category === "enrolment";
-  const isSshiaChannel = isEnrolment && entry.enrolment_channel === "SSHIA";
+  const isSshiaChannel = isEnrolment && isSshiaLikeChannel(entry.enrolment_channel);
   const isNin = entry.category === "nin_validation";
   const isIdCard = entry.category === "id_card_issuance";
   const isValidation = entry.category === "validation_of_enrolees";
@@ -474,6 +505,9 @@ export default function EnrolmentActivityForm({
     if (entry.enrolment_channel === "SSHIA") {
       return ENROLMENT_SSHIA_CHANNELS.map((label) => ({ code: null as string | null, label }));
     }
+    if (entry.enrolment_channel === "Equity Program") {
+      return ENROLMENT_EQUITY_PROGRAMS.map((label) => ({ code: null as string | null, label }));
+    }
     if (entry.enrolment_channel !== "NHIA" && !isNin && !isIdCard && !isValidation) return [];
     const nhia = ENROLMENT_PROGRAMS.map((p) => ({ code: p.code as string | null, label: p.label }));
     if (!isEnrolment) return nhia;
@@ -490,7 +524,7 @@ export default function EnrolmentActivityForm({
   );
 
   React.useEffect(() => {
-    if (!driveContext || entry.enrolment_channel === "SSHIA" || !entry.program_name) return;
+    if (!driveContext || isSshiaLikeChannel(entry.enrolment_channel) || !entry.program_name) return;
     setEntry((current) => current.enrolment_category === "Field Registration" ? current : { ...current, enrolment_category: "Field Registration" });
   }, [driveContext, entry.enrolment_channel, entry.program_name]);
 
@@ -509,6 +543,16 @@ export default function EnrolmentActivityForm({
         enrolment_channel: "SSHIA",
         program_name: programName || sshiaProgram,
       };
+    }
+    if (value.startsWith("Equity Program / ")) {
+      const equityProgram = value.slice("Equity Program / ".length).trim();
+      return {
+        enrolment_channel: "Equity Program",
+        program_name: programName || equityProgram,
+      };
+    }
+    if (value === "Equity" || value === "Equity Programs") {
+      return { enrolment_channel: "Equity Program", program_name: programName ?? "" };
     }
     return {
       enrolment_channel: value,
@@ -643,15 +687,20 @@ export default function EnrolmentActivityForm({
         return fail("enrolment_type", "Select enrolment type");
       }
       if (!e.program_name) return fail("program_name", "Select program");
-      if (e.enrolment_channel !== "SSHIA" && modes.length > 0 && !e.enrolment_category) {
+      if (!isSshiaLikeChannel(e.enrolment_channel) && modes.length > 0 && !e.enrolment_category) {
         return fail("enrolment_category", "Select enrolment mode");
       }
       if (e.enrolment_type === "Renewal" && !ENROLMENT_RENEWABLE_PROGRAM_LABELS.has(e.program_name)) {
         return fail("program_name", "Renewal is only allowed for GIFSHIP-G, GIFSHIP-C or GIFSHIP-R");
       }
-      if (e.enrolment_channel === "SSHIA") {
+      if (isSshiaLikeChannel(e.enrolment_channel)) {
         if (e.enrolment_count === "" || !Number.isSafeInteger(Number(e.enrolment_count)) || Number(e.enrolment_count) < 1) {
-          return fail("enrolment_count", "Enter the number enrolled");
+          return fail(
+            "enrolment_count",
+            e.enrolment_channel === "Equity Program"
+              ? "Enter the number of beneficiaries"
+              : "Enter the number enrolled",
+          );
         }
         return null;
       }
@@ -758,16 +807,16 @@ export default function EnrolmentActivityForm({
       enrolment_category: e.enrolment_category || null,
       beneficiary_category: e.beneficiary_category || null,
       beneficiary_status: e.beneficiary_status || null,
-      funding_option: e.enrolment_channel === "SSHIA" ? null : (e.funding_option || null),
-      supporting_evidence: e.enrolment_channel === "SSHIA" ? null : (e.supporting_evidence || null),
-      activity_budget: e.enrolment_channel === "SSHIA" ? null : (budgeted ? numOrNull(e.activity_budget) : null),
-      approved_amount: e.enrolment_channel === "SSHIA" ? null : (budgeted ? numOrNull(e.approved_amount) : null),
+      funding_option: isSshiaLikeChannel(e.enrolment_channel) ? null : (e.funding_option || null),
+      supporting_evidence: isSshiaLikeChannel(e.enrolment_channel) ? null : (e.supporting_evidence || null),
+      activity_budget: isSshiaLikeChannel(e.enrolment_channel) ? null : (budgeted ? numOrNull(e.activity_budget) : null),
+      approved_amount: isSshiaLikeChannel(e.enrolment_channel) ? null : (budgeted ? numOrNull(e.approved_amount) : null),
       enrolment_count: Number(e.enrolment_count) || 0,
       enrollees_validated: numOrNull(e.enrollees_validated),
-      activity_status: e.enrolment_channel === "SSHIA"
+      activity_status: isSshiaLikeChannel(e.enrolment_channel)
         ? null
         : (e.activity_status || e.id_card_status || e.validation_status || null),
-      status_reason: e.enrolment_channel === "SSHIA" ? null : (e.status_reason || null),
+      status_reason: isSshiaLikeChannel(e.enrolment_channel) ? null : (e.status_reason || null),
       remarks: e.remarks || null,
       program_details: details && Object.keys(details).length ? details : null,
     };
@@ -791,6 +840,20 @@ export default function EnrolmentActivityForm({
   const activityLabel = activityMeta?.label ?? "Select activity";
   const categoryLocked = Boolean(seededCategory) || Boolean(driveContext);
 
+  const channelTabItems = ENROLMENT_CHANNELS.map((channel) => ({
+    id: channel,
+    label: channel === "Equity Program" ? "Equity" : channel,
+  }));
+
+  const channelTabs = isEnrolment && entry.category && !embedded ? (
+    <UnderHeaderNavTabs
+      tabs={channelTabItems}
+      activeTab={(entry.enrolment_channel || "NHIA") as (typeof ENROLMENT_CHANNELS)[number]}
+      onChange={setEnrolmentChannel}
+      ariaLabel="Enrolment channel"
+    />
+  ) : undefined;
+
   return (
     <StateOfficeFormShell
       reportType="enrolment"
@@ -806,6 +869,7 @@ export default function EnrolmentActivityForm({
       hidePageHeader={embedded}
       compact={embedded}
       showQuarter
+      headerTabs={channelTabs}
       onLoaded={loadData}
       validate={() => driveContext && (!Number.isSafeInteger(Number(entryRef.current.enrolment_count)) || Number(entryRef.current.enrolment_count) < 1) ? "Enter a whole number of at least one beneficiary" : validateEntry(entryRef.current)}
       buildPayload={(base) => ({
@@ -822,9 +886,22 @@ export default function EnrolmentActivityForm({
         ].filter(Boolean).join(", ").replace(", (", " (");
 
         return (
-        <div className="space-y-4 pb-2">
-          <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-visible">
-            <CardContent className={cn("p-4 md:p-5", entry.category && "space-y-5")}>
+        <div className="m-0 space-y-3 pb-2">
+          {isEnrolment && entry.category && embedded ? (
+            <div className="bg-white border border-[#d4e8dc] rounded-sm px-2">
+              <UnderHeaderNavTabs
+                tabs={channelTabItems}
+                activeTab={(entry.enrolment_channel || "NHIA") as (typeof ENROLMENT_CHANNELS)[number]}
+                onChange={setEnrolmentChannel}
+                ariaLabel="Enrolment channel"
+              />
+            </div>
+          ) : null}
+          {fieldErrors.enrolment_channel ? (
+            <p className="text-xs text-rose-600 px-1">{fieldErrors.enrolment_channel}</p>
+          ) : null}
+          <Card className="rounded-sm border-[#d4e8dc] shadow-sm overflow-visible m-0">
+            <CardContent className={cn("p-3 md:p-4", entry.category && "space-y-4")}>
               <ReportBasicInfo
                 {...header}
                 lockZone={Boolean(driveContext) || header.lockZone}
@@ -834,7 +911,7 @@ export default function EnrolmentActivityForm({
               />
 
               {entry.category ? (
-                <div className="border-t border-[#e8f3ec] pt-4">
+                <div className="border-t border-[#e8f3ec] pt-3">
                   <StateOfficeFormSteps steps={steps} activeIndex={stepIndex} onStepChange={setStepIndex} />
                 </div>
               ) : null}
@@ -851,35 +928,7 @@ export default function EnrolmentActivityForm({
                       onChange={(e) => set("activity_date", e.target.value)}
                     />
                   </Field>
-                  <Field label="Enrolment Channel" required error={fieldErrors.enrolment_channel}>
-                    <Select
-                      value={entry.enrolment_channel}
-                      onValueChange={(v) => setEntry((p) => ({
-                        ...p,
-                        enrolment_channel: v,
-                        enrolment_type: "",
-                        program_name: "",
-                        enrolment_category: "",
-                        program_details: {},
-                        ...(v === "SSHIA"
-                          ? {
-                              activity_status: "",
-                              status_reason: "",
-                              supporting_evidence: "",
-                              funding_option: "",
-                              activity_budget: "",
-                              approved_amount: "",
-                            }
-                          : {}),
-                      }))}
-                    >
-                      <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                      <SelectContent>
-                        {ENROLMENT_CHANNELS.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </Field>
-                  {entry.enrolment_channel !== "SSHIA" && (
+                  {!isSshiaLikeChannel(entry.enrolment_channel) && (
                     <Field label="Enrolment Type" required error={fieldErrors.enrolment_type}>
                       <Select
                         value={entry.enrolment_type}
@@ -901,7 +950,11 @@ export default function EnrolmentActivityForm({
                       </Select>
                     </Field>
                   )}
-                  <Field label="Program" required error={fieldErrors.program_name}>
+                  <Field
+                    label={entry.enrolment_channel === "Equity Program" ? "Enrolment Type" : "Program"}
+                    required
+                    error={fieldErrors.program_name}
+                  >
                     <Select
                       value={entry.program_name}
                       onValueChange={(v) => setEntry((p) => ({
@@ -922,7 +975,9 @@ export default function EnrolmentActivityForm({
                               ? "Select channel first"
                               : entry.enrolment_channel === "NHIA" && !entry.enrolment_type
                                 ? "Select enrolment type first"
-                                : "Select program"
+                                : entry.enrolment_channel === "Equity Program"
+                                  ? "Select enrolment type"
+                                  : "Select program"
                           }
                         />
                       </SelectTrigger>
@@ -933,7 +988,7 @@ export default function EnrolmentActivityForm({
                       </SelectContent>
                     </Select>
                   </Field>
-                  {entry.enrolment_channel !== "SSHIA" && (
+                  {!isSshiaLikeChannel(entry.enrolment_channel) && (
                   <Field
                     label="Enrolment Mode"
                     required={modeOptions.length > 0}
@@ -963,16 +1018,24 @@ export default function EnrolmentActivityForm({
                     </Select>
                   </Field>
                   )}
-                  {/* SSHIA: only the count is required — no status, evidence, or funding */}
+                  {/* SSHIA / Equity: only the count is required — no status, evidence, or funding */}
                   {isSshiaChannel && !!entry.program_name && (
-                    <Field label="Number Enrolled" required error={fieldErrors.enrolment_count}>
+                    <Field
+                      label={entry.enrolment_channel === "Equity Program" ? "Number of Beneficiaries" : "Number Enrolled"}
+                      required
+                      error={fieldErrors.enrolment_count}
+                    >
                       <Input
                         type="number"
                         min={1}
                         step={1}
                         value={entry.enrolment_count}
                         onChange={(e) => set("enrolment_count", e.target.value)}
-                        placeholder="Enter number enrolled"
+                        placeholder={
+                          entry.enrolment_channel === "Equity Program"
+                            ? "Enter number of beneficiaries"
+                            : "Enter number enrolled"
+                        }
                       />
                     </Field>
                   )}
@@ -1250,7 +1313,7 @@ export default function EnrolmentActivityForm({
               {/* STEP: Review */}
               {currentStep?.id === "review" && (
                 <div className="space-y-5">
-                  <div className="rounded-2xl border border-[#d4e8dc] bg-[#f8fbf9] p-4 space-y-3">
+                  <div className="rounded-sm border border-[#d4e8dc] bg-[#f8fbf9] p-3 space-y-2">
                     <p className="text-[11px] font-bold uppercase tracking-wide text-[#145c3f]">Ready to submit</p>
                     <p className="text-sm text-slate-600">
                       Confirm every section below before saving or submitting this activity.
@@ -1262,7 +1325,10 @@ export default function EnrolmentActivityForm({
                     <ReviewRow label="Date" value={entry.activity_date || entry.validation_date} />
                     <ReviewRow label="Channel" value={entry.enrolment_channel} />
                     {!isSshiaChannel && <ReviewRow label="Enrolment type" value={entry.enrolment_type} />}
-                    <ReviewRow label="Program" value={entry.program_name} />
+                    <ReviewRow
+                      label={entry.enrolment_channel === "Equity Program" ? "Enrolment Type" : "Program"}
+                      value={entry.program_name}
+                    />
                     {!isSshiaChannel && <ReviewRow label="Enrolment mode" value={entry.enrolment_category} />}
                     {!isSshiaChannel && <ReviewRow label="Beneficiary category" value={entry.beneficiary_category} />}
                     {!isSshiaChannel && <ReviewRow label="Beneficiary status" value={entry.beneficiary_status} />}
@@ -1283,7 +1349,10 @@ export default function EnrolmentActivityForm({
                       <ReviewRow label="Activity status" value={entry.activity_status || entry.validation_status || entry.id_card_status} />
                     )}
                     {!isSshiaChannel && <ReviewRow label="Status reason" value={entry.status_reason} />}
-                    <ReviewRow label="Number enrolled" value={entry.enrolment_count} />
+                    <ReviewRow
+                      label={entry.enrolment_channel === "Equity Program" ? "Number of Beneficiaries" : "Number enrolled"}
+                      value={entry.enrolment_count}
+                    />
                     <ReviewRow label="Records validated" value={entry.enrollees_validated} />
                     {!isSshiaChannel && <ReviewRow label="Evidence" value={entry.supporting_evidence} />}
                     {!isSshiaChannel && <ReviewRow label="Remarks" value={entry.remarks} />}
@@ -1420,9 +1489,9 @@ export default function EnrolmentActivityForm({
                       key={a.value}
                       type="button"
                       onClick={() => selectActivity(a.value)}
-                      className="group flex items-center gap-4 rounded-2xl border border-[#d4e8dc] bg-white px-5 py-5 text-left shadow-sm transition-all hover:border-[#1a7a52] hover:bg-[#f7fcf9] hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1a7a52]/40"
+                      className="group flex items-center gap-4 rounded-sm border border-[#d4e8dc] bg-white px-4 py-4 text-left shadow-sm transition-all hover:border-[#1a7a52] hover:bg-[#f7fcf9] hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1a7a52]/40"
                     >
-                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#e8f6ee] text-[#145c3f]">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-sm bg-[#e8f6ee] text-[#145c3f]">
                         <Icon className="h-6 w-6" strokeWidth={1.75} />
                       </div>
                       <div className="min-w-0 flex-1">

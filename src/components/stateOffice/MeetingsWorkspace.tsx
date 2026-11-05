@@ -651,7 +651,7 @@ export default function MeetingsWorkspace({ onBack, initialTab = "meetings" }: {
 
   /* ── Meeting form ── */
   const meetingForm = draft && mode === "meeting-form" && (
-    <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-visible"><CardContent className="p-4 md:p-5 space-y-5">
+    <Card className="rounded-sm border-[#d4e8dc] shadow-sm overflow-visible"><CardContent className="p-4 md:p-5 space-y-5">
       <StateOfficeFormSteps steps={MEETING_STEPS} activeIndex={step} maximumIndex={maxStep} onStepChange={(i) => goStep(i)} hideNumbers />
       {step === 0 && <FieldSection title="Meeting information">
         <Field label="Zone"><Input value={zoneName(stateZone(draft.state_code))} readOnly /></Field>
@@ -850,7 +850,7 @@ export default function MeetingsWorkspace({ onBack, initialTab = "meetings" }: {
 
   /* ── ETMC form ── */
   const etmcForm = draft && mode === "etmc-form" && (
-    <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-visible"><CardContent className="p-4 md:p-5 space-y-5">
+    <Card className="rounded-sm border-[#d4e8dc] shadow-sm overflow-visible"><CardContent className="p-4 md:p-5 space-y-5">
       <StateOfficeFormSteps steps={ETMC_STEPS} activeIndex={step} maximumIndex={maxStep} onStepChange={(i) => goStep(i)} hideNumbers />
       {step === 0 && <>
         <FieldSection title="Cascade details">
@@ -970,7 +970,7 @@ export default function MeetingsWorkspace({ onBack, initialTab = "meetings" }: {
 
   const meetingDetail = detail && mode === "meeting-detail" && (
     <div className="space-y-4">
-      <Card className="rounded-2xl border-[#d4e8dc] shadow-sm"><CardContent className="p-4 md:p-5 space-y-4">
+      <Card className="rounded-sm border-[#d4e8dc] shadow-sm"><CardContent className="p-4 md:p-5 space-y-4">
         <ReviewSection title={`Meeting report ${detail.meeting_id}`}>
           <ReviewRow label="Zone" value={zoneName(detail.zonal_code)} />
           <ReviewRow label="State / FCT" value={stateName(detail.state_code)} />
@@ -1021,14 +1021,14 @@ export default function MeetingsWorkspace({ onBack, initialTab = "meetings" }: {
         const rows = (detail.items || []).filter((i: any) => i.item_kind === kind);
         if (!rows.length) return null;
         const title = kind === "agenda" ? "Key issues discussed" : kind === "decision" ? "Decisions / resolutions" : "Follow-up";
-        return <Card key={kind} className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden"><CardHeader className="pb-3 border-b border-[#d4e8dc]"><CardTitle className="text-sm font-bold">{title} ({rows.length})</CardTitle></CardHeader><CardContent className="p-0"><ItemsTable rows={rows} kind={kind} /></CardContent></Card>;
+        return <Card key={kind} className="rounded-sm border-[#d4e8dc] shadow-sm overflow-hidden"><CardHeader className="pb-3 border-b border-[#d4e8dc]"><CardTitle className="text-sm font-bold">{title} ({rows.length})</CardTitle></CardHeader><CardContent className="p-0"><ItemsTable rows={rows} kind={kind} /></CardContent></Card>;
       })}
     </div>
   );
 
   const etmcDetail = detail && mode === "etmc-detail" && (
     <div className="space-y-4">
-      <Card className="rounded-2xl border-[#d4e8dc] shadow-sm"><CardContent className="p-4 md:p-5 space-y-4">
+      <Card className="rounded-sm border-[#d4e8dc] shadow-sm"><CardContent className="p-4 md:p-5 space-y-4">
         <ReviewSection title={`ETMC cascading report ${detail.etmc_id}`}>
           <ReviewRow label="Zone" value={zoneName(detail.zonal_code)} />
           <ReviewRow label="State / FCT" value={stateName(detail.state_code)} />
@@ -1057,7 +1057,7 @@ export default function MeetingsWorkspace({ onBack, initialTab = "meetings" }: {
         if (!rows.length) return null;
         const titles: Record<string, string> = { highlight: "ETMC highlights", department_update: "Departmental updates", resolution: "Decisions / resolutions", comment: "Staff comments", feedback: "Feedback to HQ" };
         return (
-          <Card key={kind} className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden"><CardHeader className="pb-3 border-b border-[#d4e8dc]"><CardTitle className="text-sm font-bold">{titles[kind]} ({rows.length})</CardTitle></CardHeader>
+          <Card key={kind} className="rounded-sm border-[#d4e8dc] shadow-sm overflow-hidden"><CardHeader className="pb-3 border-b border-[#d4e8dc]"><CardTitle className="text-sm font-bold">{titles[kind]} ({rows.length})</CardTitle></CardHeader>
             <CardContent className="p-4 space-y-2">{rows.map((e: any) => (
               <div key={e.entry_id} className="rounded-lg bg-slate-50 p-3 text-sm">{e.subject && <strong className="mr-2">{e.subject}:</strong>}{e.detail}{e.owner_deadline && <em className="text-slate-500"> — {e.owner_deadline}</em>}</div>
             ))}</CardContent></Card>
@@ -1081,7 +1081,7 @@ export default function MeetingsWorkspace({ onBack, initialTab = "meetings" }: {
           </div>
         ))}
       </div>
-      <Card className="rounded-2xl border-[#d4e8dc]">
+      <Card className="rounded-sm border-[#d4e8dc]">
         <CardContent className="pt-4 pb-4 grid grid-flow-col auto-cols-fr gap-3">
           {stateOptions.length > 1 && (
             <div className="space-y-1">

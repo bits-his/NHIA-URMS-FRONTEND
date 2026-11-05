@@ -161,7 +161,7 @@ export default function StateOfficeComplianceVisitsPage({ onBack, defaultStateId
         </div>
         <ScrollArea className="flex-1">
           <div className="w-full px-4 md:px-6 py-4 pb-24">
-            <Card className="rounded-2xl border-[#d4e8dc]">
+            <Card className="rounded-sm border-[#d4e8dc]">
               <CardContent className="pt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Zone *</Label>
@@ -214,7 +214,7 @@ export default function StateOfficeComplianceVisitsPage({ onBack, defaultStateId
 
       <ScrollArea className="flex-1">
         <div className="w-full px-4 md:px-6 py-4 space-y-4">
-          <Card className="rounded-2xl border-[#d4e8dc]">
+          <Card className="rounded-sm border-[#d4e8dc]">
             <CardContent className="pt-4 pb-4 grid grid-flow-col auto-cols-fr gap-3">
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">Zone</Label>
@@ -262,7 +262,7 @@ export default function StateOfficeComplianceVisitsPage({ onBack, defaultStateId
           </Card>
 
           {searchInput}
-          <Card className="rounded-2xl border-[#d4e8dc] overflow-hidden">
+          <Card className="rounded-sm border-[#d4e8dc] overflow-hidden">
             <CardHeader className="pb-3 border-b">
               <CardTitle className="text-sm font-bold flex items-center gap-2">
                 <ClipboardList className="w-4 h-4" />

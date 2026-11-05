@@ -267,7 +267,7 @@ export default function StateZonalFocalPersonsPage({ onBack, defaultStateId, def
 
   const formBody = (
     <div className="space-y-4">
-      <Card className="rounded-2xl border-[#d4e8dc]">
+      <Card className="rounded-sm border-[#d4e8dc]">
         <CardContent className="pt-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div className="space-y-2">
@@ -307,7 +307,7 @@ export default function StateZonalFocalPersonsPage({ onBack, defaultStateId, def
         </CardContent>
       </Card>
 
-      <Card className="rounded-2xl border-[#d4e8dc]">
+      <Card className="rounded-sm border-[#d4e8dc]">
         <CardHeader className="pb-2">
           <CardTitle className="text-xl font-bold text-[#145c3f]">Focal Person Details</CardTitle>
           <CardDescription>One record per domain, state office, and reporting year</CardDescription>
@@ -375,7 +375,7 @@ export default function StateZonalFocalPersonsPage({ onBack, defaultStateId, def
         <ScrollArea className="flex-1">
           <div className="w-full px-4 md:px-6 py-4 space-y-4 pb-8">
             <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-              <Card className="rounded-2xl border-[#d4e8dc] overflow-hidden">
+              <Card className="rounded-sm border-[#d4e8dc] overflow-hidden">
                 <div className="bg-gradient-to-r from-[#145c3f] to-[#1a7a54] px-6 py-6 text-white">
                   <p className="text-xs font-semibold uppercase tracking-wider text-white/70">Reporting year {f.reporting_year}</p>
                   <h3 className="mt-1 text-2xl font-bold">{f.officer_name || "—"}</h3>
@@ -388,7 +388,7 @@ export default function StateZonalFocalPersonsPage({ onBack, defaultStateId, def
             </motion.div>
 
             <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
-              <Card className="rounded-2xl border-[#d4e8dc]">
+              <Card className="rounded-sm border-[#d4e8dc]">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base text-[#145c3f]">Location</CardTitle>
                   <CardDescription>State and zonal office assignment</CardDescription>
@@ -403,7 +403,7 @@ export default function StateZonalFocalPersonsPage({ onBack, defaultStateId, def
             </motion.div>
 
             <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-              <Card className="rounded-2xl border-[#d4e8dc]">
+              <Card className="rounded-sm border-[#d4e8dc]">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base text-[#145c3f]">Role & Contact</CardTitle>
                   <CardDescription>Domain, designation, and contact details</CardDescription>
@@ -482,14 +482,14 @@ export default function StateZonalFocalPersonsPage({ onBack, defaultStateId, def
               { label: "States covered", value: counts.states, color: "bg-slate-50 border-slate-200", text: "text-slate-600" },
             ].map((c) => (
               <motion.div key={c.label} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
-                className={`rounded-2xl p-5 border ${c.color}`}>
+                className={`rounded-sm p-5 border ${c.color}`}>
                 <p className={`text-3xl font-black ${c.text}`}>{c.value}</p>
                 <p className="text-xs font-semibold text-slate-500 mt-1">{c.label}</p>
               </motion.div>
             ))}
           </div>
 
-          <div className="flex flex-row flex-wrap items-center gap-3 w-full bg-white rounded-2xl border border-[#d4e8dc] px-5 py-4">
+          <div className="flex flex-row flex-wrap items-center gap-3 w-full bg-white rounded-sm border border-[#d4e8dc] px-5 py-4">
             {!zoneLocked && (
               <div className="flex-1 min-w-[140px]">
                 <Select value={filterZone} onValueChange={(v) => { setFilterZone(v); if (showStateFilter) setFilterState(ALL_STATES); }}>
@@ -543,7 +543,7 @@ export default function StateZonalFocalPersonsPage({ onBack, defaultStateId, def
           </div>
 
           {searchInput}
-          <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden">
+          <Card className="rounded-sm border-[#d4e8dc] shadow-sm overflow-hidden">
             <CardHeader className="pb-3 border-b border-[#d4e8dc]">
               <CardTitle className="text-sm font-bold">
                 {loading ? "Loading..." : `${rows.length} record${rows.length !== 1 ? "s" : ""}`}

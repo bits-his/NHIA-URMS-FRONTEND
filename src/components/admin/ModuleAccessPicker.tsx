@@ -87,6 +87,10 @@ function folderState(folder: PrivilegeFolderNode, granted: Set<string>) {
   };
 }
 
+function leafKey(leaf: PrivilegeLeafNode) {
+  return `${leaf.accessTo}::${leaf.title}`;
+}
+
 function LeafRow({
   leaf, granted, onChange, depth,
 }: {
@@ -98,18 +102,18 @@ function LeafRow({
   const checked = granted.has(leaf.title);
   return (
     <label
-      className={`flex items-center gap-2 rounded-lg px-1.5 py-1 cursor-pointer ${
+      className={`flex items-center gap-2 rounded-sm px-2 py-1.5 cursor-pointer ${
         checked ? "bg-[#e8f5ee]" : "hover:bg-slate-50"
       }`}
-      style={{ paddingLeft: 6 + depth * 10 }}
+      style={{ paddingLeft: 8 + depth * 12 }}
     >
       <input
         type="checkbox"
-        className="w-3 h-3 accent-[#145c3f] shrink-0"
+        className="w-3.5 h-3.5 accent-[#145c3f] shrink-0 rounded-sm"
         checked={checked}
         onChange={() => onChange(toggleLeaf(granted, leaf))}
       />
-      <span className={`text-xs min-w-0 leading-snug ${checked ? "text-[#145c3f] font-medium" : "text-slate-600"}`}>
+      <span className={`text-xs min-w-0 leading-snug ${checked ? "text-[#145c3f] font-medium" : "text-slate-700"}`}>
         {leaf.navLabel && leaf.navLabel !== leaf.title ? leaf.navLabel : leaf.title}
       </span>
     </label>
@@ -117,48 +121,64 @@ function LeafRow({
 }
 
 function NestedFolder({
-  folder, granted, onChange, depth,
+  folder, granted, onChange, depth, defaultOpen = false,
 }: {
   folder: PrivilegeFolderNode;
   granted: Set<string>;
   onChange: (next: Set<string>) => void;
   depth: number;
+  defaultOpen?: boolean;
 }) {
   const { checked, indeterminate } = folderState(folder, granted);
   const titles = privilegeLeafTitles(folder);
+  const [open, setOpen] = React.useState(defaultOpen || checked || indeterminate);
   const ref = React.useRef<HTMLInputElement>(null);
   React.useEffect(() => {
     if (ref.current) ref.current.indeterminate = indeterminate;
   }, [indeterminate]);
 
   return (
-    <div>
-      <div className="flex items-center gap-2 px-1.5 py-1" style={{ paddingLeft: 6 + depth * 10 }}>
+    <div className="border border-[#e8f3ec] rounded-sm bg-white">
+      <div
+        className={`flex items-center gap-2 px-2 py-2 ${checked || indeterminate ? "bg-[#f4faf7]" : "bg-white"}`}
+        style={{ paddingLeft: 8 + depth * 8 }}
+      >
         <input
           ref={ref}
           type="checkbox"
-          className="w-3 h-3 accent-[#145c3f] shrink-0 cursor-pointer"
+          className="w-3.5 h-3.5 accent-[#145c3f] shrink-0 cursor-pointer rounded-sm"
           checked={checked}
           onChange={() => onChange(toggleFolder(granted, folder))}
         />
-        <span className={`text-[10px] font-bold uppercase tracking-wider ${checked || indeterminate ? "text-[#145c3f]" : "text-slate-400"}`}>
-          {folder.label}
-          {titles.length > 0 ? (
-            <span className="ml-1 font-normal normal-case tracking-normal text-slate-400">
+        <button
+          type="button"
+          className="flex-1 flex items-center gap-2 text-left min-w-0"
+          onClick={() => setOpen((o) => !o)}
+        >
+          <span className={`text-[11px] font-bold tracking-wide truncate ${checked || indeterminate ? "text-[#145c3f]" : "text-slate-600"}`}>
+            {folder.label}
+          </span>
+          {titles.length > 0 && (
+            <span className="text-[10px] tabular-nums text-slate-400 shrink-0">
               {titles.filter((t) => granted.has(t)).length}/{titles.length}
             </span>
-          ) : null}
-        </span>
+          )}
+          {open ? <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" /> : <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />}
+        </button>
       </div>
-      {folder.children.map((child, i) => (
-        <InnerNode
-          key={`${child.kind}-${i}-${child.kind === "leaf" ? child.title : child.label}`}
-          node={child}
-          granted={granted}
-          onChange={onChange}
-          depth={depth + 1}
-        />
-      ))}
+      {open && folder.children.length > 0 && (
+        <div className="border-t border-[#e8f3ec] py-1">
+          {folder.children.map((child, i) => (
+            <InnerNode
+              key={`${child.kind}-${i}-${child.kind === "leaf" ? leafKey(child) : child.label}`}
+              node={child}
+              granted={granted}
+              onChange={onChange}
+              depth={depth + 1}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -177,7 +197,6 @@ function InnerNode({
   return <NestedFolder folder={node} granted={granted} onChange={onChange} depth={depth} />;
 }
 
-/** Top-level module card — same look as the previous 2-column access UI */
 function ModuleCard({
   node, granted, onChange,
 }: {
@@ -185,86 +204,62 @@ function ModuleCard({
   granted: Set<string>;
   onChange: (next: Set<string>) => void;
 }) {
-  const [open, setOpen] = React.useState(false);
-
   if (node.kind === "leaf") {
     const checked = granted.has(node.title);
     return (
-      <div className={`rounded-xl border transition-all ${checked ? "border-[#25a872]" : "border-[#d4e8dc]"}`}>
-        <label className={`flex items-center gap-2.5 px-3 py-2 rounded-xl cursor-pointer ${checked ? "bg-[#e8f5ee]" : "bg-white"}`}>
-          <input
-            type="checkbox"
-            className="w-3.5 h-3.5 accent-[#145c3f] shrink-0"
-            checked={checked}
-            onChange={() => onChange(toggleLeaf(granted, node))}
-          />
-          <span className={`text-xs font-semibold ${checked ? "text-[#145c3f]" : "text-slate-700"}`}>
-            {node.navLabel && node.navLabel !== node.title ? node.navLabel : node.title}
-          </span>
-        </label>
-      </div>
+      <label
+        className={`flex items-center gap-2.5 px-3 py-2.5 rounded-sm border cursor-pointer ${
+          checked ? "border-[#145c3f] bg-[#e8f5ee]" : "border-[#d4e8dc] bg-white"
+        }`}
+      >
+        <input
+          type="checkbox"
+          className="w-3.5 h-3.5 accent-[#145c3f] shrink-0 rounded-sm"
+          checked={checked}
+          onChange={() => onChange(toggleLeaf(granted, node))}
+        />
+        <span className={`text-xs font-semibold ${checked ? "text-[#145c3f]" : "text-slate-700"}`}>
+          {node.navLabel && node.navLabel !== node.title ? node.navLabel : node.title}
+        </span>
+      </label>
     );
   }
 
-  const { checked, indeterminate } = folderState(node, granted);
-  const titles = privilegeLeafTitles(node);
-  const ref = React.useRef<HTMLInputElement>(null);
-  React.useEffect(() => {
-    if (ref.current) ref.current.indeterminate = indeterminate;
-  }, [indeterminate]);
-
   return (
-    <div className={`rounded-xl border transition-all ${checked || indeterminate ? "border-[#25a872]" : "border-[#d4e8dc]"}`}>
-      <div className={`flex items-center gap-2.5 px-3 py-2 rounded-xl ${checked || indeterminate ? "bg-[#e8f5ee]" : "bg-white"}`}>
-        <input
-          ref={ref}
-          type="checkbox"
-          className="w-3.5 h-3.5 accent-[#145c3f] shrink-0 cursor-pointer"
-          checked={checked}
-          onChange={() => onChange(toggleFolder(granted, node))}
-        />
-        <span className={`text-xs font-semibold flex-1 truncate ${checked || indeterminate ? "text-[#145c3f]" : "text-slate-700"}`}>
-          {node.label}
-        </span>
-        {titles.length > 0 && (
-          <button type="button" onClick={() => setOpen((o) => !o)} className="p-0.5 text-slate-400 hover:text-slate-600">
-            {open ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-          </button>
-        )}
-      </div>
-      {open && node.children.length > 0 && (
-        <div className="border-t border-[#d4e8dc] px-2 py-1.5 space-y-0.5 bg-white rounded-b-xl max-h-56 overflow-y-auto">
-          {node.children.map((child, i) => (
-            <InnerNode
-              key={`${child.kind}-${i}-${child.kind === "leaf" ? child.title : child.label}`}
-              node={child}
-              granted={granted}
-              onChange={onChange}
-              depth={0}
-            />
-          ))}
-        </div>
-      )}
-    </div>
+    <NestedFolder
+      folder={node}
+      granted={granted}
+      onChange={onChange}
+      depth={0}
+      defaultOpen={node.label === "SERVICOM" || node.label === "State Office Coordination"}
+    />
   );
 }
 
-/** Module access checkboxes — 2-column cards, sidebar hierarchy when expanded. */
+/** Flat sectioned privilege list — distinct module paths stay independent. */
 export default function ModuleAccessPicker({ granted, onChange, className = "" }: Props) {
-  const topNodes = React.useMemo(
-    () => buildPrivilegeSections().flatMap((s) => s.nodes),
-    [],
-  );
+  const sections = React.useMemo(() => buildPrivilegeSections(), []);
 
   return (
-    <div className={`grid grid-cols-1 sm:grid-cols-2 gap-2 ${className}`}>
-      {topNodes.map((node, i) => (
-        <ModuleCard
-          key={`${node.kind}-${i}-${node.kind === "leaf" ? node.title : node.label}`}
-          node={node}
-          granted={granted}
-          onChange={onChange}
-        />
+    <div className={`space-y-4 ${className}`}>
+      {sections.map((section, si) => (
+        <div key={section.heading || `section-${si}`} className="space-y-2">
+          {section.heading ? (
+            <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400 px-0.5">
+              {section.heading}
+            </p>
+          ) : null}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {section.nodes.map((node, i) => (
+              <ModuleCard
+                key={`${node.kind}-${i}-${node.kind === "leaf" ? leafKey(node) : node.label}`}
+                node={node}
+                granted={granted}
+                onChange={onChange}
+              />
+            ))}
+          </div>
+        </div>
       ))}
     </div>
   );

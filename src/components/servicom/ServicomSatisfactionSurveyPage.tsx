@@ -413,17 +413,17 @@ export default function ServicomSatisfactionSurveyPage({
 
   const renderDetailsCard = (readOnly: boolean, row?: any, footer?: React.ReactNode) => (
     <Card className="rounded-sm border border-slate-200/80 shadow-xs bg-white overflow-hidden p-0 gap-0">
-      <CardHeader className="border-b border-slate-200 bg-[#f4f7f5] py-2.5 px-4 rounded-none m-0">
+      <CardHeader className="border-b border-slate-200 bg-[#f4f7f5] py-2 px-2 md:px-3 rounded-none m-0">
         <CardTitle className="text-sm font-bold text-slate-800">Survey Details</CardTitle>
       </CardHeader>
-      <CardContent className="pt-5 pb-5 px-4">
+      <CardContent className="p-2 md:p-3">
         {readOnly && row?.reference_id && (
-          <div className="mb-5 pb-4 border-b border-slate-100">
+          <div className="mb-3 pb-3 border-b border-slate-100">
             <p className="text-[10px] uppercase tracking-wide text-slate-400 font-bold">Survey Reference</p>
             <p className="text-base font-mono font-bold text-[#1a7a52] mt-0.5">#{row.reference_id}</p>
           </div>
         )}
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
           <div className="space-y-1.5">
             <Label className="text-xs font-bold text-slate-700">Survey Date *</Label>
             {readOnly ? (
@@ -571,13 +571,13 @@ export default function ServicomSatisfactionSurveyPage({
         return (
           <div
             key={q.id}
-            className={`rounded-sm border p-4 transition-colors ${
+            className={`rounded-sm border p-2 transition-colors ${
               val
                 ? "border-slate-300 bg-white shadow-xs"
                 : "border-slate-200 bg-[#f4f7f5]"
             }`}
           >
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between md:gap-6">
+            <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between md:gap-4">
               <div className="flex items-start gap-3 flex-1 min-w-0">
                 <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-sm bg-[#e8f5ee] text-xs font-bold text-[#1a7a52]">
                   {n}
@@ -658,14 +658,14 @@ export default function ServicomSatisfactionSurveyPage({
   const renderAllQuestions = (responses: Record<string, string>, readOnly = false) => {
     let questionNumber = 1;
     return (
-      <div className="space-y-4">
+      <div className="space-y-2">
         {SATISFACTION_CATEGORIES.map((category) => {
           const questions = questionsForCategory(category);
           const start = questionNumber;
           questionNumber += questions.length;
           return (
             <Card key={category} className="rounded-sm border border-slate-200/80 shadow-xs overflow-hidden bg-white p-0 gap-0">
-              <CardHeader className="border-b border-slate-200 bg-[#f4f7f5] py-2.5 px-4 rounded-none m-0">
+              <CardHeader className="border-b border-slate-200 bg-[#f4f7f5] py-2 px-2 md:px-3 rounded-none m-0">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <CardTitle className="text-sm font-bold text-slate-800 uppercase tracking-wide">
                     {satisfactionCategoryLabel(category)}
@@ -677,7 +677,7 @@ export default function ServicomSatisfactionSurveyPage({
                   )}
                 </div>
               </CardHeader>
-              <CardContent className="p-4 md:p-5">
+              <CardContent className="p-1 md:p-2">
                 {renderQuestionList(questions, responses, readOnly, start)}
               </CardContent>
             </Card>
@@ -710,14 +710,15 @@ export default function ServicomSatisfactionSurveyPage({
         key={formKey}
         title="New HCF Customer Satisfaction Survey"
         onBack={leaveForm}
-        maxWidth="5xl"
+        maxWidth="full"
+        contentClassName="px-3 md:px-4 py-3"
         actions={
           <Badge variant="outline" className="text-xs font-bold border border-[#1a7a52] text-[#1a7a52] shrink-0 bg-[#f4f7f5] rounded-sm">
             {scoreSummary.answered} / {SATISFACTION_QUESTIONS.length} answered
           </Badge>
         }
       >
-        <div className="w-full space-y-4 pb-8">
+        <div className="w-full space-y-3 pb-8">
           {renderDetailsCard(false)}
           {renderAllQuestions(f.responses, false)}
           <div className="flex flex-wrap items-center justify-end gap-3 pt-2">
@@ -743,7 +744,8 @@ export default function ServicomSatisfactionSurveyPage({
       <PageLayout
         title="HCF Customer Satisfaction Survey Detail"
         onBack={closeSub}
-        maxWidth="5xl"
+        maxWidth="full"
+        contentClassName="px-3 md:px-4 py-3"
         actions={
           <Button
             variant="outline"
@@ -755,7 +757,7 @@ export default function ServicomSatisfactionSurveyPage({
           </Button>
         }
       >
-        <div className="w-full space-y-4 pb-8">
+        <div className="w-full space-y-3 pb-8">
           {renderDetailsCard(true, row ?? undefined)}
           {renderAllQuestions(responses, true)}
         </div>

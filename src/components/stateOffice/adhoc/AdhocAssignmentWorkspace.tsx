@@ -616,7 +616,7 @@ export default function AdhocAssignmentWorkspace({ onBack, user, userRole }: Pro
           ]}
         />
 
-        <Card className="rounded-2xl border-[#d4e8dc]">
+        <Card className="rounded-sm border-[#d4e8dc]">
           <CardContent className="pt-4 pb-4 space-y-3">
             <div className="grid grid-flow-col auto-cols-fr gap-3">
               {activeTab === "sdo_register" && (

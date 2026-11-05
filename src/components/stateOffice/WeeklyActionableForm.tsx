@@ -137,7 +137,7 @@ export default function WeeklyActionableForm({ reportId, onBack, onCancel, onSub
       {() => (
         <div className="space-y-4">
           {/* ── Actionable items ── */}
-          <Card className="rounded-2xl border-[#d4e8dc]">
+          <Card className="rounded-sm border-[#d4e8dc]">
             <CardHeader className="pb-2">
               <CardTitle className="text-xl font-bold text-[#145c3f]">Actionable Points</CardTitle>
            
