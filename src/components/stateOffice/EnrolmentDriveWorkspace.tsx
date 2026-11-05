@@ -26,7 +26,14 @@ import EnrolmentActivityForm, { Field, FieldSection } from "./EnrolmentActivityF
 import { MultiSelectField } from "./EnrolmentDriveForm";
 import StateOfficeFormSteps from "./StateOfficeFormSteps";
 import { AddRowButton } from "./adminHr/ui";
-import { driveReportingMonth, driveReportingPeriod, hasPendingDriveActivity, shouldOpenDriveActivityForm } from "./enrolmentDriveTypes";
+import {
+  driveReportingMonth,
+  driveReportingPeriod,
+  hasPendingDriveActivity,
+  shouldOpenDriveActivityForm,
+  ENROLMENT_DRIVE_CATEGORIES,
+  CATEGORY_TO_DRIVE_KEY,
+} from "./enrolmentDriveTypes";
 import { useListSearch } from "./useListSearch";
 import { buildReportingYearOptions } from "../monthly/reportingYears";
 import { monthLabel, quarterFromMonth, formatAmount, formatCount, formatDate } from "./constants";
@@ -172,9 +179,12 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
 
   const validateActivity = (): boolean => {
     const errs: Record<string, string> = {};
-    if (!draft.drive_type) errs.drive_type = "Drive type is required";
+    if (!draft.activity_category) {
+      errs.activity_category = "Activity category is required";
+    } else if (!draft.drive_type) {
+      draft.drive_type = CATEGORY_TO_DRIVE_KEY[draft.activity_category] || "community-sensitization";
+    }
     if (!draft.activity_date) errs.activity_date = "Activity date is required";
-    if (!draft.activity_category) errs.activity_category = "Activity category is required";
     if (!draft.specific_activity.trim()) errs.specific_activity = "Specify activity is required";
     if (!draft.programs_supported || draft.programs_supported.length === 0) {
       errs.programs_supported = "Select at least one programme supported";
@@ -261,14 +271,15 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
   });
   const persistActivity = async (complete: boolean, clearAfter: boolean) => {
     if (!batch) return;
+    const effectiveDriveType = draft.drive_type || CATEGORY_TO_DRIVE_KEY[draft.activity_category] || "community-sensitization";
     if (complete) {
       if (!validateActivity()) return;
-      if (!catalogue?.drive_types.some((type) => type.key === draft.drive_type)) throw new Error("Select a drive type before saving the activity");
+      if (!catalogue?.drive_types.some((type) => type.key === effectiveDriveType)) throw new Error("Select an activity category before saving the activity");
       if (draft.activity_status === "Completed" && !files.length && !draft.evidence?.length) throw new Error("Select supporting evidence for the completed activity");
-    } else if (!draft.drive_type && !draft.activity_category && !draft.specific_activity.trim()) {
-      throw new Error("Enter at least a drive type or activity details before saving a draft");
+    } else if (!draft.activity_category && !draft.specific_activity.trim()) {
+      throw new Error("Enter at least an activity category or activity details before saving a draft");
     }
-    const response = await api.saveActivity(batch.reference_id, draft.reference_id, { ...draft, complete });
+    const response = await api.saveActivity(batch.reference_id, draft.reference_id, { ...draft, drive_type: effectiveDriveType, complete });
     const id = response.data.reference_id as string;
     if (files.length) {
       if (!draft.evidence_type) throw new Error("Select an evidence type before uploading files");
@@ -1180,23 +1191,29 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
                 <fieldset disabled={busy || !canEdit} className="space-y-6">
                   {/* Drive & Activity Details */}
                   <FieldSection title="Drive & Activity Details">
-                    <Field label="Drive type" required error={activityErrors.drive_type} className="sm:col-span-2 lg:col-span-3">
-                      <Dropdown
-                        value={draft.drive_type}
-                        options={catalogue?.drive_types.map((type) => ({ value: type.key, label: type.title })) || []}
-                        onChange={(value) => setDraft((current) => ({ ...current, drive_type: value, activity_category: "" }))}
-                        placeholder="Select drive type"
-                      />
-                    </Field>
                     <Field label="Activity date" required error={activityErrors.activity_date}>
                       <Input type="date" value={draft.activity_date} onChange={(event) => set("activity_date", event.target.value)} />
                     </Field>
-                    <Field label="Activity category" required error={activityErrors.activity_category}>
+                    <Field label="Activity Category" required error={activityErrors.activity_category}>
                       <Dropdown
                         value={draft.activity_category}
-                        options={catalogue?.drive_types.find((type) => type.key === draft.drive_type)?.categories.map((category) => category.label) || []}
-                        onChange={(value) => set("activity_category", value)}
-                        disabled={!draft.drive_type}
+                        options={ENROLMENT_DRIVE_CATEGORIES as unknown as string[]}
+                        onChange={(value) => {
+                          const mappedDriveType = CATEGORY_TO_DRIVE_KEY[value] || "community-sensitization";
+                          setDraft((current) => ({
+                            ...current,
+                            activity_category: value,
+                            drive_type: mappedDriveType,
+                          }));
+                          if (activityErrors.activity_category || activityErrors.drive_type) {
+                            setActivityErrors((prev) => {
+                              const next = { ...prev };
+                              delete next.activity_category;
+                              delete next.drive_type;
+                              return next;
+                            });
+                          }
+                        }}
                         placeholder="Select activity category"
                       />
                     </Field>

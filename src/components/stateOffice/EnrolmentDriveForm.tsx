@@ -24,6 +24,9 @@ import {
 import {
   enrolmentDriveConfig,
   enrolmentDriveReportType,
+  ENROLMENT_DRIVE_ACTIVITIES,
+  ENROLMENT_DRIVE_CATEGORIES,
+  CATEGORY_TO_DRIVE_KEY,
   ENROLMENT_DRIVE_TYPES,
   type EnrolmentDriveCategory,
   type EnrolmentDriveKey,
@@ -305,10 +308,10 @@ export default function EnrolmentDriveForm({ reportType, reportId, onBack, onCan
   const activeReportType = enrolmentDriveReportType(driveKey);
   const config = enrolmentDriveConfig(activeReportType) ?? ENROLMENT_DRIVE_TYPES[0];
   const categories = config.categories;
-  const activityCode = (label: string) => codeIn(categories, label);
+  const activityCode = (label: string) => codeIn(ENROLMENT_DRIVE_ACTIVITIES, label);
   const freshEntry = React.useCallback(
-    (): Entry => ({ ...blank(), activity_category: categories[0]?.label ?? "" }),
-    [categories],
+    (): Entry => ({ ...blank(), activity_category: "" }),
+    [],
   );
   const [plannedActivities, setPlannedActivities] = React.useState("");
   const [lines, setLines] = React.useState<(Entry & { _key: string })[]>([]);
@@ -385,7 +388,6 @@ export default function EnrolmentDriveForm({ reportType, reportId, onBack, onCan
 
   const validateLine = (): boolean => {
     const errs: Record<string, string> = {};
-    if (!driveKey) errs.drive_type = "Drive type is required";
     if (!entry.activity_category) errs.activity_category = "Activity category is required";
     if (!entry.activity_date) errs.activity_date = "Activity date is required";
     if (!entry.activity_status) errs.activity_status = "Activity status is required";
@@ -481,8 +483,7 @@ export default function EnrolmentDriveForm({ reportType, reportId, onBack, onCan
       onLoaded={loadData}
       afterPersist={afterPersist}
       validate={() => {
-        if (!driveKey) return "Select an enrolment drive type";
-        if (linesRef.current.length === 0) return `Add at least one ${config.title} activity`;
+        if (linesRef.current.length === 0) return "Add at least one activity";
         return null;
       }}
       buildPayload={(base) => ({
@@ -490,6 +491,7 @@ export default function EnrolmentDriveForm({ reportType, reportId, onBack, onCan
         planned_activities: numOrNull(plannedActivities) ?? linesRef.current.length,
         lines: linesRef.current.map(({ _key, supportingFiles, ...l }) => ({
           ...l,
+          drive_type: CATEGORY_TO_DRIVE_KEY[l.activity_category] || driveKey,
           drive_code: activityCode(l.activity_category) || null,
           activity_budget: numOrNull(l.activity_budget),
           approved_amount: numOrNull(l.approved_amount),
@@ -528,38 +530,29 @@ export default function EnrolmentDriveForm({ reportType, reportId, onBack, onCan
                   <CardContent className="p-4 md:p-5 space-y-6">
                     {/* 1. Drive & Activity Details */}
                     <FieldSection title="Drive & Activity Details">
-                      <Field label="Enrolment Drive Type" required error={fieldErrors.drive_type} className="sm:col-span-2 lg:col-span-3">
-                        <Select
-                          value={driveKey}
-                          onValueChange={(v) => changeDriveType(v as EnrolmentDriveKey)}
-                          disabled={typeLocked}
-                        >
-                          <SelectTrigger displayValue={config.title}>
-                            <SelectValue placeholder="Select drive type" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {ENROLMENT_DRIVE_TYPES.map((t) => (
-                              <SelectItem key={t.key} value={t.key}>{t.title}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </Field>
-                      <Field label="Activity Category" required error={fieldErrors.activity_category}>
-                        <Select value={entry.activity_category} onValueChange={(v) => set("activity_category", v)}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select activity" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {categories.map((a) => (
-                              <SelectItem key={a.label} value={a.label}>{a.label}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </Field>
                       <Field label="Activity Date" required error={fieldErrors.activity_date}>
                         <Input type="date" value={entry.activity_date} onChange={(e) => set("activity_date", e.target.value)} />
                       </Field>
-                      <Field label="Specific Activity Carried Out" className="sm:col-span-2 lg:col-span-1">
+                      <Field label="Activity Category" required error={fieldErrors.activity_category}>
+                        <Select
+                          value={entry.activity_category}
+                          onValueChange={(v) => {
+                            set("activity_category", v);
+                            const key = CATEGORY_TO_DRIVE_KEY[v] || "community-sensitization";
+                            setDriveKey(key as EnrolmentDriveKey);
+                          }}
+                        >
+                          <SelectTrigger displayValue={entry.activity_category}>
+                            <SelectValue placeholder="Select activity category" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {ENROLMENT_DRIVE_CATEGORIES.map((cat) => (
+                              <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </Field>
+                      <Field label="Specific Activity Carried Out">
                         <Input value={entry.specific_activity} placeholder="Describe specific activity" onChange={(e) => set("specific_activity", e.target.value)} />
                       </Field>
                       <MultiSelectField

@@ -47,6 +47,41 @@ export const ENROLMENT_DRIVE_ACTIVITIES: EnrolmentDriveCategory[] = [
   { code: "E-014", label: "Others (Specify)" },
 ];
 
+/** Standard Enrolment Drive Categories dropdown options */
+export const ENROLMENT_DRIVE_CATEGORIES = [
+  "Sensitization",
+  "Media Parley/Campaign",
+  "Advocacy",
+  "Informal Sector Mobilization",
+  "Enrolment Campaigns",
+  "Market Association Outreach",
+  "Religious Organisation Outreach",
+  "Courtesy Visit",
+  "NYSC Sensitization",
+  "Community Outreach",
+  "Door-to-Door Campaign",
+  "Workplace Outreach",
+  "Others (Specify)",
+] as const;
+
+export type EnrolmentDriveCategoryName = (typeof ENROLMENT_DRIVE_CATEGORIES)[number];
+
+export const CATEGORY_TO_DRIVE_KEY: Record<string, EnrolmentDriveKey> = {
+  "Sensitization": "community-sensitization",
+  "Media Parley/Campaign": "media-parley",
+  "Advocacy": "advocacy",
+  "Informal Sector Mobilization": "informal-sector",
+  "Enrolment Campaigns": "enrolment-campaigns",
+  "Market Association Outreach": "market-religious",
+  "Religious Organisation Outreach": "market-religious",
+  "Courtesy Visit": "advocacy",
+  "NYSC Sensitization": "community-sensitization",
+  "Community Outreach": "community-sensitization",
+  "Door-to-Door Campaign": "community-sensitization",
+  "Workplace Outreach": "mda-engagement",
+  "Others (Specify)": "community-sensitization",
+};
+
 const act = (...codes: string[]) =>
   codes.map((c) => ENROLMENT_DRIVE_ACTIVITIES.find((a) => a.code === c)!);
 const OTHERS = "E-014";
