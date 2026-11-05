@@ -403,7 +403,7 @@ export default function PhysicalAssetVerificationListView() {
                 key={c.label}
                 type="button"
                 onClick={c.onClick}
-                className={`rounded-xl border px-4 py-3 text-left transition-shadow ${c.tone} ${
+                className={`rounded-sm border px-3 py-2.5 text-left transition-shadow ${c.tone} ${
                   bucket === c.key ? "ring-2 ring-[#1a7a52] ring-offset-1" : ""
                 }`}
               >
@@ -413,11 +413,11 @@ export default function PhysicalAssetVerificationListView() {
             ))}
           </div>
 
-          <Card className="rounded-2xl border-[#d4e8dc]">
-            <CardContent className="pt-4 pb-4 space-y-3">
-              <div className="grid grid-flow-col auto-cols-fr gap-3">
-                <div className="space-y-1 min-w-0">
-                  <Label className="text-xs text-muted-foreground">Zone</Label>
+          <Card className="rounded-sm border border-[#d4e8dc] py-0 gap-0 shadow-2xs bg-white">
+            <CardContent className="py-1.5 px-3 space-y-1.5">
+              <div className="grid grid-flow-col auto-cols-fr gap-2.5 items-end">
+                <div className="space-y-0.5 min-w-0">
+                  <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Zone</Label>
                   <Select
                     value={zoneFilter || "ALL"}
                     onValueChange={(val) => {
@@ -425,7 +425,7 @@ export default function PhysicalAssetVerificationListView() {
                       setStateFilter("");
                     }}
                   >
-                    <SelectTrigger displayValue={zoneLabel || "All Zones"}>
+                    <SelectTrigger size="sm" displayValue={zoneLabel || "All Zones"}>
                       <SelectValue placeholder="All Zones" />
                     </SelectTrigger>
                     <SelectContent>
@@ -438,14 +438,15 @@ export default function PhysicalAssetVerificationListView() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-1 min-w-0">
-                  <Label className="text-xs text-muted-foreground">State</Label>
+                <div className="space-y-0.5 min-w-0">
+                  <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">State</Label>
                   <Select
                     value={stateFilter || "ALL"}
                     disabled={!zoneFilter && states.length === 0}
                     onValueChange={(val) => setStateFilter(val === "ALL" ? "" : val)}
                   >
                     <SelectTrigger
+                      size="sm"
                       displayValue={stateLabel || (zoneFilter ? "All States in Zone" : "All States")}
                     >
                       <SelectValue placeholder={zoneFilter ? "All States in Zone" : "All States"} />
@@ -460,13 +461,13 @@ export default function PhysicalAssetVerificationListView() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-1 min-w-0">
-                  <Label className="text-xs text-muted-foreground">Category</Label>
+                <div className="space-y-0.5 min-w-0">
+                  <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Category</Label>
                   <Select
                     value={categoryFilter || "ALL"}
                     onValueChange={(val) => setCategoryFilter(val === "ALL" ? "" : val)}
                   >
-                    <SelectTrigger displayValue={categoryFilter || "All Categories"}>
+                    <SelectTrigger size="sm" displayValue={categoryFilter || "All Categories"}>
                       <SelectValue placeholder="All Categories" />
                     </SelectTrigger>
                     <SelectContent>
@@ -481,8 +482,8 @@ export default function PhysicalAssetVerificationListView() {
                 </div>
               </div>
               {hasActiveFilters && (
-                <div className="flex justify-end">
-                  <Button variant="ghost" size="sm" className="text-slate-500 gap-1 shrink-0" onClick={resetFilters}>
+                <div className="flex justify-end pt-0.5">
+                  <Button variant="ghost" size="sm" className="h-7 text-xs text-slate-500 gap-1 shrink-0" onClick={resetFilters}>
                     <XCircle className="w-3.5 h-3.5" /> Clear
                   </Button>
                 </div>

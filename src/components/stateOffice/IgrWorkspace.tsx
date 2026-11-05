@@ -349,12 +349,12 @@ export default function IgrWorkspace({
           {mode === "tabs" && (
             <div className="space-y-4">
               <RegisterStatsCards stats={workflowRegisterStats(tableData)} loading={loading} />
-              <Card className="rounded-sm border-[#d4e8dc]">
-                <CardContent className="pt-4 pb-4 grid grid-flow-col auto-cols-fr gap-3">
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">Year</Label>
+              <Card className="rounded-sm border border-[#d4e8dc] py-0 gap-0 shadow-2xs bg-white">
+                <CardContent className="py-1.5 px-3 grid grid-flow-col auto-cols-fr gap-2.5 items-end">
+                  <div className="space-y-0.5 min-w-0">
+                    <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Year</Label>
                     <Select value={year} onValueChange={setYear}>
-                      <SelectTrigger displayValue={year === "all" ? "All Years" : year}><SelectValue /></SelectTrigger>
+                      <SelectTrigger size="sm" className="w-full" displayValue={year === "all" ? "All Years" : year}><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">All Years</SelectItem>
                         {[currentYear, currentYear - 1, currentYear - 2].map((y) => (
@@ -363,10 +363,10 @@ export default function IgrWorkspace({
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">Month</Label>
+                  <div className="space-y-0.5 min-w-0">
+                    <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Month</Label>
                     <Select value={month} onValueChange={setMonth}>
-                      <SelectTrigger displayValue={month === "all" ? "All Months" : (MONTHS.find((m) => String(m.value) === month)?.label || month)}><SelectValue /></SelectTrigger>
+                      <SelectTrigger size="sm" className="w-full" displayValue={month === "all" ? "All Months" : (MONTHS.find((m) => String(m.value) === month)?.label || month)}><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">All Months</SelectItem>
                         {MONTHS.map((m) => (
@@ -376,10 +376,10 @@ export default function IgrWorkspace({
                     </Select>
                   </div>
                   {!isZonalCoordinator && !isStateOffice && (
-                    <div className="space-y-1">
-                      <Label className="text-xs text-muted-foreground">Zone</Label>
+                    <div className="space-y-0.5 min-w-0">
+                      <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Zone</Label>
                       <Select value={zoneId} onValueChange={(v) => { setZoneId(v); if (!isStateOffice) setStateId("all"); }}>
-                        <SelectTrigger displayValue={zoneId === "all" ? "All Zones" : (zones.find((z) => z.id === zoneId)?.label || "Zone")}><SelectValue /></SelectTrigger>
+                        <SelectTrigger size="sm" className="w-full" displayValue={zoneId === "all" ? "All Zones" : (zones.find((z) => z.id === zoneId)?.label || "Zone")}><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="all">All Zones</SelectItem>
                           {zones.map((z) => (
@@ -390,10 +390,10 @@ export default function IgrWorkspace({
                     </div>
                   )}
                   {!isStateOffice && (
-                    <div className="space-y-1">
-                      <Label className="text-xs text-muted-foreground">State</Label>
+                    <div className="space-y-0.5 min-w-0">
+                      <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">State</Label>
                       <Select value={stateId} onValueChange={setStateId}>
-                        <SelectTrigger displayValue={stateId === "all" ? "All States" : (states.find((s) => s.id === stateId)?.label || "State")}><SelectValue /></SelectTrigger>
+                        <SelectTrigger size="sm" className="w-full" displayValue={stateId === "all" ? "All States" : (states.find((s) => s.id === stateId)?.label || "State")}><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="all">All States</SelectItem>
                           {states.map((s) => (
@@ -403,10 +403,10 @@ export default function IgrWorkspace({
                       </Select>
                     </div>
                   )}
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">Service</Label>
+                  <div className="space-y-0.5 min-w-0">
+                    <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Service</Label>
                     <Select value={service} onValueChange={setService}>
-                      <SelectTrigger displayValue={service === "all" ? "All Services" : labelOf(IGR_SERVICE_TYPES, service)}><SelectValue /></SelectTrigger>
+                      <SelectTrigger size="sm" className="w-full" displayValue={service === "all" ? "All Services" : labelOf(IGR_SERVICE_TYPES, service)}><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">All Services</SelectItem>
                         {IGR_SERVICE_TYPES.map((s) => (

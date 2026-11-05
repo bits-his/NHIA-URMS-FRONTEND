@@ -295,7 +295,7 @@ export default function PrepaymentAnalysisListView() {
                 key={c.label}
                 type="button"
                 onClick={c.onClick}
-                className={`rounded-xl border px-4 py-3 text-left transition-shadow ${c.tone} ${
+                className={`rounded-sm border px-3 py-2.5 text-left transition-shadow ${c.tone} ${
                   bucket === c.key ? "ring-2 ring-[#1a7a52] ring-offset-1" : ""
                 }`}
               >
@@ -305,13 +305,13 @@ export default function PrepaymentAnalysisListView() {
             ))}
           </div>
 
-          <Card className="rounded-lg border-[#d4e8dc] shadow-2xs">
-            <CardContent className="pt-4 pb-4 space-y-3">
-              <div className="grid grid-flow-col auto-cols-fr gap-3">
-                <div className="space-y-1 min-w-0">
-                  <Label className="text-xs text-muted-foreground">Bucket</Label>
+          <Card className="rounded-sm border border-[#d4e8dc] py-0 gap-0 shadow-2xs bg-white">
+            <CardContent className="py-1.5 px-3 space-y-1.5">
+              <div className="grid grid-flow-col auto-cols-fr gap-2.5 items-end">
+                <div className="space-y-0.5 min-w-0">
+                  <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Bucket</Label>
                   <Select value={bucket} onValueChange={(v) => setBucket(v as Bucket)}>
-                    <SelectTrigger displayValue={BUCKET_LABELS[bucket]}>
+                    <SelectTrigger size="sm" displayValue={BUCKET_LABELS[bucket]}>
                       <SelectValue placeholder="All" />
                     </SelectTrigger>
                     <SelectContent>
@@ -324,8 +324,8 @@ export default function PrepaymentAnalysisListView() {
                 </div>
               </div>
               {hasActiveFilters && (
-                <div className="flex justify-end">
-                  <Button variant="ghost" size="sm" className="text-slate-500 gap-1 shrink-0" onClick={resetFilters}>
+                <div className="flex justify-end pt-0.5">
+                  <Button variant="ghost" size="sm" className="h-7 text-xs text-slate-500 gap-1 shrink-0" onClick={resetFilters}>
                     <XCircle className="w-3.5 h-3.5" /> Clear
                   </Button>
                 </div>

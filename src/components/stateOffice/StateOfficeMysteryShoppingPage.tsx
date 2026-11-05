@@ -974,12 +974,12 @@ export default function StateOfficeMysteryShoppingPage({ onBack, defaultStateId,
             ]}
           />
 
-          <Card className="rounded-sm border-[#d4e8dc]">
-            <CardContent className="pt-4 pb-4 grid grid-flow-col auto-cols-fr gap-3">
-              <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">Zone</Label>
+          <Card className="rounded-sm border border-[#d4e8dc] py-0 gap-0 shadow-2xs bg-white">
+            <CardContent className="py-1.5 px-3 grid grid-flow-col auto-cols-fr gap-2.5 items-end">
+              <div className="space-y-0.5 min-w-0">
+                <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Zone</Label>
                 <Select value={filterZone} disabled={zoneLocked} onValueChange={(v) => { setFilterZone(v); if (!stateLocked) setFilterState("all"); }}>
-                  <SelectTrigger className="w-full" displayValue={filterZone === "all" ? "All Zones" : pickGeoLabel(zones, filterZone, "Zone")}>
+                  <SelectTrigger size="sm" className="w-full" displayValue={filterZone === "all" ? "All Zones" : pickGeoLabel(zones, filterZone, "Zone")}>
                     <SelectValue placeholder="Zone" />
                   </SelectTrigger>
                   <SelectContent>
@@ -991,10 +991,10 @@ export default function StateOfficeMysteryShoppingPage({ onBack, defaultStateId,
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">State</Label>
+              <div className="space-y-0.5 min-w-0">
+                <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">State</Label>
                 <Select value={filterState} disabled={stateLocked} onValueChange={setFilterState}>
-                  <SelectTrigger className="w-full" displayValue={
+                  <SelectTrigger size="sm" className="w-full" displayValue={
                     stateLocked
                       ? pickGeoLabel(dashboardStates, filterState, "State")
                       : (filterState === "all" ? "All States" : pickGeoLabel(dashboardStates, filterState, "State"))
@@ -1010,17 +1010,17 @@ export default function StateOfficeMysteryShoppingPage({ onBack, defaultStateId,
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">Year</Label>
+              <div className="space-y-0.5 min-w-0">
+                <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Year</Label>
                 <Select value={filterYear} onValueChange={setFilterYear}>
-                  <SelectTrigger displayValue={filterYear}><SelectValue /></SelectTrigger>
+                  <SelectTrigger size="sm" className="w-full" displayValue={filterYear}><SelectValue /></SelectTrigger>
                   <SelectContent>{buildReportingYearOptions().map((y) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">Month</Label>
+              <div className="space-y-0.5 min-w-0">
+                <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Month</Label>
                 <Select value={filterMonth} onValueChange={setFilterMonth}>
-                  <SelectTrigger displayValue={monthLabel(filterMonth)}><SelectValue /></SelectTrigger>
+                  <SelectTrigger size="sm" className="w-full" displayValue={monthLabel(filterMonth)}><SelectValue /></SelectTrigger>
                   <SelectContent>{MONTHS.map((m) => <SelectItem key={m.value} value={String(m.value)}>{m.label}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
