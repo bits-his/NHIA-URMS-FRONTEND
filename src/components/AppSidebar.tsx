@@ -187,6 +187,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
   "Enrolment Drives Management": Megaphone,
   "Challenges & Support Dashboard": LayoutDashboard,
   "Challenges & Support Management": AlertTriangle,
+  "Challenges & Support": AlertTriangle,
   "Satisfaction Survey Dashboard": LayoutDashboard,
   "Satisfaction Survey Management": MessageSquare,
   "Complaints Dashboard": LayoutDashboard,
@@ -286,6 +287,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
   "Monthly Report": FileText,
   "ICT Support Register": ClipboardList,
   "Ad-hoc / Special Assignment": FileSpreadsheet,
+  "Adhoc project": FileSpreadsheet,
   "ICT Support Desk": ClipboardList,
   "Systems & Network": PackageSearch,
   "Compliance Management": ShieldAlert,
@@ -379,7 +381,6 @@ type TreeNode =
  * without its group label (SERVICOM, Stock Verification, etc.).
  */
 const PRESERVE_FOLDER_TITLES = new Set<string>([
-  "Special Project",
   SDO_SOC_NAV_GROUP,
   "State Offices",
 ]);
