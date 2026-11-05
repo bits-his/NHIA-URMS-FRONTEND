@@ -29,6 +29,7 @@ export default function EnrolmentActivityPage({ onBack, defaultZoneId, defaultSt
       onBack={onBack}
       defaultZoneId={defaultZoneId}
       defaultStateId={defaultStateId}
+      officerOwnList
       activityTabs={ENROLMENT_ACTIVITIES.map((a) => ({
         value: a.value,
         label: a.tabLabel,

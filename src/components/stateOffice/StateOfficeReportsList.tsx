@@ -113,6 +113,11 @@ interface Props {
   renderForm?: (props: FormRenderProps) => React.ReactNode;
   /** Provider Management endorsement statuses on accreditation reports. */
   providerWorkflow?: boolean;
+  /**
+   * Reporting officers get a register of their own submissions (draft + submitted),
+   * not a form-only screen. Coordinators still see the full state list.
+   */
+  officerOwnList?: boolean;
 }
 
 const STATUS_CONFIG: Record<string, { label: string; cls: string; icon: React.ReactNode }> = {
@@ -125,7 +130,7 @@ const STATUS_CONFIG: Record<string, { label: string; cls: string; icon: React.Re
 };
 
 export default function StateOfficeReportsList({
-  reportType, reportTypes, onBack, defaultZoneId, defaultStateId, activityModule, activityModuleColumn, activityModuleLabels, listTitle, activityRows, activityTabs, createButtonLabel, renderForm, providerWorkflow,
+  reportType, reportTypes, onBack, defaultZoneId, defaultStateId, activityModule, activityModuleColumn, activityModuleLabels, listTitle, activityRows, activityTabs, createButtonLabel, renderForm, providerWorkflow, officerOwnList,
 }: Props) {
   const cfg = REPORT_CONFIG[reportType];
   const typesToLoad = React.useMemo(
@@ -139,7 +144,9 @@ export default function StateOfficeReportsList({
   const authUser = useSelector((s: RootState) => s.auth.user);
   // Match Stakeholder Management: officers with the endorsement workflow see their own list
   // (draft → awaiting review → endorsed → final submit), not a create-only form-first screen.
-  const createOnly = providerWorkflow ? false : baseCreateOnly;
+  // Enrolment Activity (officerOwnList): same — register of own submissions, not form-only.
+  const createOnly = (providerWorkflow || officerOwnList) ? false : baseCreateOnly;
+  const listMineOnly = !!officerOwnList && baseCreateOnly;
   const isFinanceList =
     reportType === "igr"
     || reportType === "sshia-financial"
@@ -179,10 +186,11 @@ export default function StateOfficeReportsList({
       : "New Report");
   const createInitialCategory = hasActivityTabs ? (activeActivityTab?.value ?? null) : null;
 
-  const isOwnDraft = React.useCallback((r: Report) => {
+  const isOwnDraft = React.useCallback((r: Report & { created_by_user_id?: number | null }) => {
     if (!authUser) return true;
+    if (authUser.id != null && r.created_by_user_id != null && Number(r.created_by_user_id) === Number(authUser.id)) return true;
     if (authUser.name && r.submitted_by && String(r.submitted_by) === String(authUser.name)) return true;
-    return !r.submitted_by;
+    return !r.submitted_by && r.created_by_user_id == null;
   }, [authUser]);
 
   const refreshMyDrafts = React.useCallback(async () => {
@@ -198,6 +206,7 @@ export default function StateOfficeReportsList({
               zone_id: defaultZoneId ?? undefined,
               state_id: apiStateId,
               activity_module: activityModule,
+              mine: 1,
             }),
           ),
         );
@@ -301,6 +310,7 @@ export default function StateOfficeReportsList({
         year: filterYear !== "all" ? filterYear : undefined,
         month: filterMonth !== "all" ? filterMonth : undefined,
         activity_module: activityModule,
+        ...(listMineOnly ? { mine: 1 as const } : {}),
       };
       const batches = await Promise.all(
         typesToLoad.map(async (t) => {
@@ -308,16 +318,17 @@ export default function StateOfficeReportsList({
           return (res.data as Report[]).map((r) => ({ ...r, __reportType: t }));
         }),
       );
-      const merged = batches.flat().sort((a, b) => {
+      let merged = batches.flat().sort((a, b) => {
         const da = a.submission_date || a.createdAt || "";
         const db = b.submission_date || b.createdAt || "";
         return db.localeCompare(da);
       });
+      if (listMineOnly) merged = merged.filter(isOwnDraft);
       setReports(merged);
     } catch (err: any) {
       toast.error("Failed to load", { description: err.message });
     } finally { setLoading(false); }
-  }, [typesToLoad, filterStatus, defaultZoneId, apiStateId, filterYear, filterMonth, createOnly, activityModule]);
+  }, [typesToLoad, filterStatus, defaultZoneId, apiStateId, filterYear, filterMonth, createOnly, activityModule, listMineOnly, isOwnDraft]);
 
   React.useEffect(() => { if (!createOnly) load(); }, [load, createOnly]);
 
