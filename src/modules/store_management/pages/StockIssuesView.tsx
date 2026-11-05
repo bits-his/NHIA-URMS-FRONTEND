@@ -11,6 +11,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import { matchesStore, storeNameFromState } from "../lib/storeOptions";
 import { ShadcnDataTable } from "@/components/common/ShadcnDataTable";
+import PageLayout from "@/src/components/PageLayout";
 
 type Option = { id: number; label: string };
 
@@ -168,13 +169,13 @@ export default function StockIssuesView({ embedded = false, refreshSignal = 0 }:
   const listBody = (
     <div className="space-y-4">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="rounded-xl border px-4 py-3 text-[#0f3d2e] bg-white border-[#d4e8dc]">
+        <div className="rounded-lg border px-4 py-3 text-[#0f3d2e] bg-white border-[#d4e8dc] shadow-2xs">
           <p className="text-2xl font-bold tabular-nums">{loading ? "—" : locationFiltered.length}</p>
           <p className="text-[11px] font-semibold text-slate-500 mt-0.5">Total issues</p>
         </div>
       </div>
 
-      <Card className="rounded-2xl border-[#d4e8dc]">
+      <Card className="rounded-lg border-[#d4e8dc] shadow-2xs">
         <CardContent className="pt-4 pb-4 space-y-3">
           <div className="grid grid-flow-col auto-cols-fr gap-3">
             <div className="space-y-1 min-w-0">
@@ -242,24 +243,25 @@ export default function StockIssuesView({ embedded = false, refreshSignal = 0 }:
   }
 
   return (
-    <div className="flex flex-col h-full bg-[#f4f7f5]">
-      <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3.5 flex items-center justify-between sticky top-0 z-30 gap-3">
-        <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">Issuance</h2>
+    <PageLayout
+      title="Issuance"
+      actions={
         <div className="flex items-center gap-2 shrink-0">
-          <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2 border-[#d4e8dc]">
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
+          <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-1.5 h-8 text-xs rounded-md border-[#d4e8dc]">
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh
           </Button>
           <Button
-            className="bg-orange-action hover:bg-orange-600 gap-2 shadow-md shadow-orange-500/15"
+            size="sm"
+            className="bg-orange-action hover:bg-orange-600 gap-1.5 shadow-md shadow-orange-500/15 h-8 text-xs rounded-md"
             onClick={() => navigate("/store-management/transfers/new")}
           >
-            <Plus className="w-4 h-4" /> New Issue
+            <Plus className="w-3.5 h-3.5" /> New Issue
           </Button>
         </div>
-      </div>
-      <ScrollArea className="flex-1">
-        <div className="w-full px-4 md:px-6 py-5">{listBody}</div>
-      </ScrollArea>
-    </div>
+      }
+      contentClassName="space-y-4 pb-8"
+    >
+      <div className="w-full space-y-4">{listBody}</div>
+    </PageLayout>
   );
 }

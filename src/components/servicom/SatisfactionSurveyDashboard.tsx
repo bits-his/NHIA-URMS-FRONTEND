@@ -1,10 +1,10 @@
 import * as React from "react";
-import { ArrowLeft, RefreshCw } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { useNavigate } from "react-router-dom";
 import { servicomApi } from "@/lib/api";
 import { zonesApi, statesApi } from "@/lib/adminApi";
+import PageLayout from "@/src/components/PageLayout";
 import SatisfactionDashboardTab from "./SatisfactionDashboardTab";
 
 interface Props {
@@ -50,16 +50,10 @@ export default function SatisfactionSurveyDashboard({
   }, [load]);
 
   return (
-    <div className="flex flex-col h-full bg-[#f4f7f5]">
-      <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3.5 flex items-center justify-between sticky top-0 z-30 gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <Button variant="ghost" size="icon" className="rounded-full shrink-0" aria-label="Back" onClick={onBack}>
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-          <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">
-            Satisfaction Survey Dashboard
-          </h2>
-        </div>
+    <PageLayout
+      title="Satisfaction Survey Dashboard"
+      maxWidth="full"
+      actions={
         <Button
           variant="outline"
           size="sm"
@@ -73,20 +67,19 @@ export default function SatisfactionSurveyDashboard({
           <RefreshCw className={`w-3.5 h-3.5 ${syncing ? "animate-spin" : ""}`} />
           <span>Sync</span>
         </Button>
+      }
+    >
+      <div className="space-y-4">
+        <SatisfactionDashboardTab
+          surveys={surveys}
+          zones={zones}
+          states={states}
+          loading={loading || syncing}
+          defaultZoneId={defaultZoneId}
+          defaultStateId={defaultStateId}
+          onDrillDownState={() => navigate(registerPath)}
+        />
       </div>
-      <ScrollArea className="flex-1">
-        <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-4">
-          <SatisfactionDashboardTab
-            surveys={surveys}
-            zones={zones}
-            states={states}
-            loading={loading || syncing}
-            defaultZoneId={defaultZoneId}
-            defaultStateId={defaultStateId}
-            onDrillDownState={() => navigate(registerPath)}
-          />
-        </div>
-      </ScrollArea>
-    </div>
+    </PageLayout>
   );
 }

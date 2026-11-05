@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
+import PageLayout from "./PageLayout";
 import { stockApi } from "@/lib/api";
 import { useCreateReviewAccess } from "@/src/access/createReviewAccess";
 import { RegisterStatsCards } from "@/src/components/stateOffice/RegisterStatsCards";
@@ -525,57 +526,45 @@ export default function StockAssetManager({ onBack }: Props) {
   );
 
   return (
-    <div className="flex flex-col h-full bg-slate-50/30">
-      <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3.5 flex items-center justify-between sticky top-0 z-30 gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={showForm && !createOnly ? cancelForm : onBack}
-            className="rounded-full shrink-0"
-            aria-label="Back"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-          <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">
-            {showForm || createOnly ? (editId ? "Edit Asset" : "New Asset") : "Stock Assets"}
-          </h2>
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
+    <PageLayout
+      title={showForm || createOnly ? (editId ? "Edit Asset" : "New Asset") : "Stock & Asset Register"}
+      onBack={showForm && !createOnly ? cancelForm : onBack}
+      actions={
+        <div className="flex items-center gap-2">
           {!showForm && !createOnly && (
-            <Button variant="outline" size="sm" onClick={loadFilteredAssets} disabled={loading} className="gap-2">
-              <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
+            <Button variant="outline" size="sm" onClick={loadFilteredAssets} disabled={loading} className="gap-1.5 h-8 text-xs rounded-md">
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh
             </Button>
           )}
           {!showForm && canCreate && (
             <Button
               size="sm"
-              className="bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20"
+              className="bg-orange-action hover:bg-orange-600 gap-1.5 shadow-md shadow-orange-500/20 h-8 text-xs rounded-md"
               onClick={openCreate}
             >
-              <Plus className="w-4 h-4" /> New Asset
+              <Plus className="w-3.5 h-3.5" /> New Asset
             </Button>
           )}
         </div>
-      </div>
+      }
+      contentClassName="space-y-4 pb-8"
+    >
+      <div className="w-full space-y-4">
+        {showForm || createOnly ? (
+          formCard
+        ) : (
+          <>
+            <RegisterStatsCards
+              loading={loading}
+              className="grid grid-cols-2 md:grid-cols-3 gap-3"
+              stats={[
+                { label: "Total", value: counts.total, tone: "text-[#0f3d2e] bg-white border-[#d4e8dc]" },
+                { label: "Active", value: counts.active, tone: "text-emerald-700 bg-emerald-50/80 border-emerald-100" },
+                { label: "Inactive", value: counts.inactive, tone: "text-slate-600 bg-white border-slate-200" },
+              ]}
+            />
 
-      <ScrollArea className="flex-1">
-        <div className="w-full px-4 md:px-6 py-4 space-y-4">
-          {showForm || createOnly ? (
-            formCard
-          ) : (
-            <>
-              <RegisterStatsCards
-                loading={loading}
-                className="grid grid-cols-2 md:grid-cols-3 gap-3"
-                stats={[
-                  { label: "Total", value: counts.total, tone: "text-[#0f3d2e] bg-white border-[#d4e8dc]" },
-                  { label: "Active", value: counts.active, tone: "text-emerald-700 bg-emerald-50/80 border-emerald-100" },
-                  { label: "Inactive", value: counts.inactive, tone: "text-slate-600 bg-white border-slate-200" },
-                ]}
-              />
-
-              <Card className="rounded-2xl border-[#d4e8dc]">
+            <Card className="rounded-lg border-[#d4e8dc] shadow-2xs">
                 <CardContent className="pt-4 pb-4 space-y-3">
                   <div className="grid grid-flow-col auto-cols-fr gap-3">
                     <div className="space-y-1 min-w-0">
@@ -658,7 +647,6 @@ export default function StockAssetManager({ onBack }: Props) {
             </>
           )}
         </div>
-      </ScrollArea>
-    </div>
+    </PageLayout>
   );
 }

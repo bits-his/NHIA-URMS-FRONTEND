@@ -10,6 +10,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useCreateReviewAccess } from "@/src/access/createReviewAccess";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ShadcnDataTable } from "@/components/common/ShadcnDataTable";
+import PageLayout from "@/src/components/PageLayout";
 
 const API_ORIGIN = ((import.meta.env?.VITE_API_URL as string) || "http://localhost:3001/api").replace(/\/api\/?$/, "");
 
@@ -261,25 +262,26 @@ export default function PrepaymentAnalysisListView() {
   if (createOnly) return null;
 
   return (
-    <div className="flex flex-col h-full bg-[#f4f7f5]">
-      <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3.5 flex items-center justify-between sticky top-0 z-30 gap-3">
-        <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">Stock Prepayment Register</h2>
+    <PageLayout
+      title="Stock Prepayment Register"
+      actions={
         <div className="flex items-center gap-2 shrink-0">
-          <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2 border-[#d4e8dc]">
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
+          <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-1.5 h-8 text-xs rounded-md border-[#d4e8dc]">
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh
           </Button>
           {canCreate && (
             <Button
-              className="bg-orange-action hover:bg-orange-600 gap-2 shadow-md shadow-orange-500/15"
+              size="sm"
+              className="bg-orange-action hover:bg-orange-600 gap-1.5 shadow-md shadow-orange-500/15 h-8 text-xs rounded-md"
               onClick={() => navigate("/store-management/prepayment-analysis/new")}
             >
-              <Plus className="w-4 h-4" /> New entry
+              <Plus className="w-3.5 h-3.5" /> New entry
             </Button>
           )}
         </div>
-      </div>
-
-      <ScrollArea className="flex-1">
+      }
+      contentClassName="space-y-4 pb-8"
+    >
         <div className="w-full px-4 md:px-6 py-5 space-y-4">
           {error && (
             <div role="alert" className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-800">
@@ -303,7 +305,7 @@ export default function PrepaymentAnalysisListView() {
             ))}
           </div>
 
-          <Card className="rounded-2xl border-[#d4e8dc]">
+          <Card className="rounded-lg border-[#d4e8dc] shadow-2xs">
             <CardContent className="pt-4 pb-4 space-y-3">
               <div className="grid grid-flow-col auto-cols-fr gap-3">
                 <div className="space-y-1 min-w-0">
@@ -349,7 +351,6 @@ export default function PrepaymentAnalysisListView() {
             showTableOptions={false}
           />
         </div>
-      </ScrollArea>
-    </div>
-  );
-}
+      </PageLayout>
+    );
+  }

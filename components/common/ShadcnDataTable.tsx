@@ -186,7 +186,7 @@ export function ShadcnDataTable<TData, TValue>({
 
         {/* Right Section: Compact Search + Action Button + More Menu */}
         <div className="flex items-center gap-2 self-end sm:self-center">
-          <div className={cn("relative w-48 sm:w-60", searchClassName && "w-56 sm:w-72")}>
+          <div className={cn("relative w-250 sm:w-200", searchClassName && "w-200 sm:w-200")}>
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-slate-400" />
             <Input
               value={currentSearch}

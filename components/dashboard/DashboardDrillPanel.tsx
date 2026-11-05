@@ -8,7 +8,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
 } from "@/components/ui/dialog";
 import { computeDrillStats, type DrillStatChip } from "./drillStats";
 import { DrillStatBar } from "./DrillStatBar";
@@ -73,8 +72,8 @@ export default function DashboardDrillPanel({
 
   return (
     <Dialog open={open && !!context} onOpenChange={(isOpen) => { if (!isOpen) onClose(); }}>
-      <DialogContent className="max-w-4xl max-h-[88vh] p-0 flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl">
-        <DialogHeader className="flex flex-row items-center justify-between px-6 py-3.5 border-b border-[#d4e8dc] bg-[#f4f7f5] space-y-0 rounded-t-xl shrink-0">
+      <DialogContent className="w-[95vw] max-w-6xl sm:max-w-6xl xl:max-w-7xl max-h-[90vh] p-0 flex flex-col overflow-hidden !rounded-none border border-slate-200 bg-white shadow-2xl">
+        <DialogHeader className="flex flex-row items-center justify-between px-6 py-3.5 border-b border-[#d4e8dc] bg-[#f4f7f5] space-y-0 !rounded-none shrink-0">
           <div className="flex items-center gap-3 min-w-0 pr-8">
             {onBack && (
               <Button
@@ -82,7 +81,7 @@ export default function DashboardDrillPanel({
                 size="icon"
                 type="button"
                 onClick={onBack}
-                className="w-8 h-8 rounded-sm hover:bg-[#d4e8dc] text-[#145c3f] shrink-0"
+                className="w-8 h-8 rounded-none hover:bg-[#d4e8dc] text-[#145c3f] shrink-0"
               >
                 <ArrowLeft className="w-4 h-4" />
               </Button>
@@ -96,11 +95,6 @@ export default function DashboardDrillPanel({
               <DialogTitle className="text-base font-black text-slate-900 truncate">
                 {context?.title || "Record Drill-down"}
               </DialogTitle>
-              {context?.subtitle && (
-                <DialogDescription className="text-xs text-slate-500 mt-0.5 truncate">
-                  {context.subtitle}
-                </DialogDescription>
-              )}
             </div>
           </div>
         </DialogHeader>
@@ -130,7 +124,7 @@ export default function DashboardDrillPanel({
           ) : (
             <>
               <DrillStatBar stats={stats} onStatClick={onStatClick} loading={loading} />
-              <div className="rounded-sm border border-slate-200 overflow-hidden">
+              <div className="rounded-none border border-slate-200 overflow-hidden">
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-[#f4f7f5]">

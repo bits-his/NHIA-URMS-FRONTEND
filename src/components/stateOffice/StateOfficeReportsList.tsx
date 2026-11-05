@@ -23,6 +23,8 @@ import IgrReportPage from "./IgrReportPage";
 import IgrReportDetail from "./IgrReportDetail";
 import SshiaFinancialReportPage from "./SshiaFinancialReportPage";
 import SshiaFinancialReportDetail from "./SshiaFinancialReportDetail";
+import PageLayout from "@/src/components/PageLayout";
+import { UnderHeaderNavTabs } from "@/src/components/UnderHeaderNavTabs";
 import ExpenditureProfileReportPage from "./ExpenditureProfileReportPage";
 import ExpenditureProfileReportDetail from "./ExpenditureProfileReportDetail";
 import {
@@ -637,78 +639,41 @@ export default function StateOfficeReportsList({
   }
 
   return (
-    <div className="flex flex-col h-full bg-slate-50/30">
-        <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3.5 flex items-center justify-between sticky top-0 z-30 gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <Button variant="ghost" size="icon" onClick={onBack} className="rounded-full shrink-0" aria-label="Back">
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-          <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">
-            {activeActivityTab?.label ?? listTitle ?? cfg.title}
-          </h2>
-        </div>
-        <div className="flex items-center gap-3">
-          <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
+    <PageLayout
+      title={listTitle ?? activeActivityTab?.label ?? cfg.title}
+      showBack={false}
+      actions={
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-1.5 h-8 text-xs rounded-md">
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh
           </Button>
           {canCreate && (
-          <Button
-            className="bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20"
-            onClick={() => { setSelectedId(null); setSelectedReportType(reportType); setMode("create"); setFormKey((k) => k + 1); }}
-          >
-            <Plus className="w-4 h-4" /> {newButtonLabel}
-          </Button>
+            <Button
+              size="sm"
+              className="bg-orange-action hover:bg-orange-600 gap-1.5 shadow-md shadow-orange-500/20 h-8 text-xs rounded-md"
+              onClick={() => { setSelectedId(null); setSelectedReportType(reportType); setMode("create"); setFormKey((k) => k + 1); }}
+            >
+              <Plus className="w-3.5 h-3.5" /> {newButtonLabel}
+            </Button>
           )}
         </div>
-      </div>
-
-      {hasActivityTabs && (
-        <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 sticky top-[57px] z-20">
-          <div
-            className="flex gap-0 overflow-x-auto -mb-px"
-            role="tablist"
-            aria-label="Enrolment activities"
-          >
-            {activityTabs!.map((tab) => {
-              const active = filterActivity === tab.value;
-              const Icon = tab.icon;
-              const count = activityTabCounts[tab.value] ?? 0;
-              return (
-                <button
-                  key={tab.value}
-                  type="button"
-                  role="tab"
-                  aria-selected={active}
-                  onClick={() => setFilterActivity(tab.value)}
-                  className={`group relative shrink-0 inline-flex items-center gap-2 px-4 py-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors outline-none focus-visible:bg-[#f4f7f5] ${
-                    active
-                      ? "border-[#145c3f] text-[#145c3f]"
-                      : "border-transparent text-slate-500 hover:text-[#0f3d2e] hover:border-[#c5ddd0]"
-                  }`}
-                >
-                  {Icon && (
-                    <Icon
-                      className={`h-4 w-4 shrink-0 ${active ? "text-[#145c3f]" : "text-slate-400 group-hover:text-[#145c3f]"}`}
-                      strokeWidth={2}
-                    />
-                  )}
-                  <span>{tab.label}</span>
-                  <span
-                    className={`inline-flex min-w-[1.25rem] h-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold tabular-nums ${
-                      active
-                        ? "bg-[#e8f6ee] text-[#145c3f]"
-                        : "bg-slate-100 text-slate-500 group-hover:bg-[#e8f6ee] group-hover:text-[#145c3f]"
-                    }`}
-                  >
-                    {count}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
+      }
+      tabs={
+        hasActivityTabs ? (
+          <UnderHeaderNavTabs
+            tabs={activityTabs!.map((tab) => ({
+              id: tab.value,
+              label: tab.label,
+              icon: tab.icon,
+              count: activityTabCounts[tab.value] ?? 0,
+            }))}
+            activeTab={filterActivity}
+            onChange={(val) => setFilterActivity(val as any)}
+            ariaLabel="Enrolment activities"
+          />
+        ) : undefined
+      }
+    >
       <ScrollArea className="flex-1">
         <div className="w-full px-4 md:px-6 py-4 space-y-4">
           {activityRows ? (
@@ -874,6 +839,8 @@ export default function StateOfficeReportsList({
           onCancel={submitConfirm.cancel}
         />
       )}
-    </div>
+
+      
+    </PageLayout>
   );
 }

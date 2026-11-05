@@ -23,6 +23,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import PageLayout from "@/src/components/PageLayout";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -138,25 +139,22 @@ export default function ReportEntry({ onBack, onPreview }: ReportEntryProps) {
   };
 
   return (
-    <div className="flex flex-col h-full bg-slate-50/30">
-      {/* Header */}
-      <div className="bg-white border-b border-border/50 px-8 py-4 flex items-center justify-between sticky top-0 z-30">
-        <Button variant="ghost" size="icon" onClick={handleBack} className="rounded-full">
-          <ArrowLeft className="w-5 h-5" />
-        </Button>
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" onClick={handleSaveDraft} disabled={isSaving} className="gap-2">
+    <PageLayout
+      title="Annual Report Entry"
+      onBack={handleBack}
+      maxWidth="5xl"
+      actions={
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={handleSaveDraft} disabled={isSaving} className="gap-2">
             <Save className="w-4 h-4" /> {isSaving ? "Saving..." : "Save Draft"}
           </Button>
-          <Separator orientation="vertical" className="h-6" />
-          <Button className="bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20" onClick={handleContinue}>
+          <Button className="bg-[#145c3f] hover:bg-[#0f3d2e] text-white gap-2 shadow-sm" onClick={handleContinue}>
             {currentStep === "review" ? "Submit Report" : "Continue"} <ArrowRight className="w-4 h-4" />
           </Button>
         </div>
-      </div>
-
-      <ScrollArea className="flex-1">
-        <div className="max-w-5xl mx-auto p-8 space-y-8">
+      }
+    >
+      <div className="w-full space-y-8">
           {/* Stepper */}
           <Stepper currentStep={currentStep} />
 
@@ -547,7 +545,6 @@ export default function ReportEntry({ onBack, onPreview }: ReportEntryProps) {
             </div>
           </div>
         </div>
-      </ScrollArea>
-    </div>
+    </PageLayout>
   );
 }

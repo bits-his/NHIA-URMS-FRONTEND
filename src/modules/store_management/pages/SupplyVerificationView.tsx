@@ -259,11 +259,7 @@ export default function SupplyVerificationView({ onNavigate }: { onNavigate?: (v
 
   return (
     <PageLayout
-      title={
-        <span className="flex items-center gap-2">
-          <PackageCheck className="w-5 h-5 text-[#25a872]" /> Verification of Supply
-        </span>
-      }
+      title="Verification of Supply"
       description="Inspection certificates — open a row to view full certificate details"
       actions={
         <>

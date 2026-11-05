@@ -1,4 +1,5 @@
 import * as React from "react";
+import type { ColumnDef } from "@tanstack/react-table";
 import {
   ArrowLeft, ArrowRight, ClipboardList, Eye, FileText, Loader2, Pencil, Plus, RefreshCw, Send, Trash2,
 } from "lucide-react";
@@ -9,13 +10,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import PageLayout from "../PageLayout";
+import { UnderHeaderNavTabs } from "@/src/components/UnderHeaderNavTabs";
+import { ShadcnDataTable } from "@/components/common/ShadcnDataTable";
 import { apiFileUrl, meetingsApi as api } from "@/lib/api";
 import { Field, FieldSection } from "./EnrolmentActivityForm";
 import StateOfficeFormSteps from "./StateOfficeFormSteps";
-import { useListSearch } from "./useListSearch";
 import { MONTHS, monthLabel } from "./constants";
 
 const inputClass = "w-full min-h-[4.5rem] rounded-xl px-3.5 py-2 text-sm bg-[#f4f7f5] border-2 border-[#1a7a52] text-slate-800 shadow-xs outline-none hover:border-[#0f3d2e] hover:bg-white focus-visible:border-[#0f3d2e] focus-visible:bg-white focus-visible:ring-3 focus-visible:ring-[#1a7a52]/25";
@@ -26,6 +30,11 @@ const STATUSES: Record<string, string> = {
   submitted: "bg-blue-100 text-blue-800 border-blue-200",
   approved: "bg-emerald-100 text-emerald-700 border-emerald-200",
 };
+const statusLabel = (value: string) =>
+  ({ draft: "Draft", submitted: "Submitted", approved: "Approved" }[value] || value);
+const StatusBadge = ({ status }: { status: string }) => (
+  <Badge className={`text-[10px] px-2 py-0.5 border ${STATUSES[status] || STATUSES.draft}`}>{statusLabel(status)}</Badge>
+);
 const ITEM_STATUS_TONE: Record<string, string> = {
   Pending: "bg-amber-100 text-amber-800 border-amber-200",
   "In Progress": "bg-blue-100 text-blue-800 border-blue-200",
@@ -208,11 +217,14 @@ export default function MeetingsWorkspace({ onBack, initialTab = "meetings" }: {
   const [openActionCount, setOpenActionCount] = React.useState(0);
   const [evidenceFiles, setEvidenceFiles] = React.useState<File[]>([]);
   const [evidenceInputKey, setEvidenceInputKey] = React.useState(0);
+  const [filterYear, setFilterYear] = React.useState("all");
+  const [filterMonth, setFilterMonth] = React.useState("all");
+  const [filterStatus, setFilterStatus] = React.useState("all");
+  const [filterState, setFilterState] = React.useState("all");
   const clearEvidenceSelection = () => {
     setEvidenceFiles([]);
     setEvidenceInputKey((k) => k + 1);
   };
-  const { matchesSearch, searchInput } = useListSearch();
   const permissions = cat?.permissions || { create: false, review: false, assign: false, national: false };
 
   const run = async <T,>(op: () => Promise<T>): Promise<T | undefined> => {
@@ -445,55 +457,197 @@ export default function MeetingsWorkspace({ onBack, initialTab = "meetings" }: {
     return `/zonal/challenges?${q.toString()}`;
   };
 
-  const meetingRows = meetings.filter((m) => matchesSearch([m, stateName(m.state_code), m.meeting_type]));
-  const etmcRows = etmcs.filter((e) => matchesSearch([e, stateName(e.state_code)]));
-  const header = (
-    <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3.5 flex items-center justify-between sticky top-0 z-30 gap-3">
-      <div className="flex items-center gap-3 min-w-0">
-        <Button variant="ghost" size="icon" className="rounded-full shrink-0" aria-label="Back"
-          onClick={() => { if (mode !== "list") backToList(); else onBack(); }}>
-          <ArrowLeft className="w-5 h-5" />
+  const stateOptions = (cat?.states || []).map((s) => ({ value: s.code, label: s.description }));
+  const yearOptions = React.useMemo(() => {
+    const years = new Set<number>();
+    const y = new Date().getFullYear();
+    for (let i = y + 1; i >= y - 5; i -= 1) years.add(i);
+    meetings.forEach((m) => { if (m.reporting_year) years.add(Number(m.reporting_year)); });
+    etmcs.forEach((e) => { if (e.reporting_year) years.add(Number(e.reporting_year)); });
+    return [...years].sort((a, b) => b - a);
+  }, [meetings, etmcs]);
+  const monthOptions = Array.from({ length: 12 }, (_, i) => ({ value: String(i + 1), label: monthLabel(i + 1) }));
+  const applyPeriodFilters = (rows: any[]) => rows.filter((row) =>
+    (filterYear === "all" || String(row.reporting_year) === filterYear)
+    && (filterMonth === "all" || String(row.reporting_month) === filterMonth)
+    && (filterState === "all" || row.state_code === filterState));
+  const periodMeetings = applyPeriodFilters(meetings);
+  const periodEtmcs = applyPeriodFilters(etmcs);
+  const meetingRows = periodMeetings.filter((m) => filterStatus === "all" || m.status === filterStatus);
+  const etmcRows = periodEtmcs.filter((e) => filterStatus === "all" || e.status === filterStatus);
+  const periodRows = tab === "meetings" ? periodMeetings : periodEtmcs;
+  const meetingColumns = React.useMemo<ColumnDef<any>[]>(() => [
+    {
+      id: "date",
+      header: "Date",
+      accessorKey: "meeting_date",
+      cell: ({ row }) => <span className="text-sm whitespace-nowrap">{row.original.meeting_date || "—"}</span>,
+    },
+    {
+      id: "type",
+      header: "Meeting type",
+      accessorFn: (row) => row.other_meeting_type || row.meeting_type,
+      cell: ({ row }) => (
+        <span className="text-sm font-semibold text-slate-900">{row.original.other_meeting_type || row.original.meeting_type}</span>
+      ),
+    },
+    {
+      id: "state",
+      header: "State",
+      accessorFn: (row) => stateName(row.state_code),
+      cell: ({ row }) => <span className="text-sm text-slate-700">{stateName(row.original.state_code)}</span>,
+    },
+    {
+      id: "period",
+      header: "Period",
+      accessorFn: (row) => `${monthLabel(row.reporting_month)} ${row.reporting_year}`,
+      cell: ({ row }) => (
+        <span className="text-sm whitespace-nowrap">{monthLabel(row.original.reporting_month)} {row.original.reporting_year}</span>
+      ),
+    },
+    {
+      id: "attendance",
+      header: "Attendance",
+      accessorKey: "attendance_rate",
+      cell: ({ row }) => (
+        <span className="text-sm tabular-nums">{row.original.attendance_rate != null ? `${row.original.attendance_rate}%` : "—"}</span>
+      ),
+    },
+    {
+      id: "status",
+      header: "Status",
+      accessorKey: "status",
+      cell: ({ row }) => <StatusBadge status={row.original.status} />,
+    },
+    {
+      id: "actions",
+      header: "Action",
+      enableSorting: false,
+      cell: ({ row }) => (
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-8 gap-1.5 text-[#145c3f] hover:bg-[#eef6f1]"
+          disabled={busy}
+          onClick={(e) => {
+            e.stopPropagation();
+            void openMeetingDetail(row.original.meeting_id);
+          }}
+        >
+          <Eye className="w-3.5 h-3.5" /> View
         </Button>
-        <div className="min-w-0">
-          <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">Meetings &amp; Coordination</h2>
-          <p className="text-xs text-slate-500 truncate">
-            {mode === "meeting-form" ? "Meeting Report" : mode === "etmc-form" ? "ETMC Cascading Report" : mode.endsWith("-detail") ? "Report detail" : "Meeting reports and ETMC cascading"}
-          </p>
-        </div>
-      </div>
-      <div className="flex items-center gap-2 shrink-0">
-        {mode === "list" && (
-          <Button variant="outline" size="sm" className="gap-2 border-[#d4e8dc]" disabled={busy || loading} onClick={() => void run(refresh)}>
-            <RefreshCw className={`w-4 h-4 ${busy ? "animate-spin" : ""}`} />Refresh
-          </Button>
-        )}
-        {mode === "list" && permissions.create && tab === "meetings" && (
-          <Button className={ACTION} disabled={busy} onClick={() => void startMeetingForm()}><Plus className="w-4 h-4" />New Meeting Report</Button>
-        )}
-        {mode === "list" && permissions.create && tab === "etmc" && (
-          <Button className={ACTION} disabled={busy} onClick={() => void startEtmcForm()}><Plus className="w-4 h-4" />New ETMC Report</Button>
-        )}
-      </div>
+      ),
+    },
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [cat, busy]);
+  const etmcColumns = React.useMemo<ColumnDef<any>[]>(() => [
+    {
+      id: "date",
+      header: "ETMC date",
+      accessorKey: "etmc_meeting_date",
+      cell: ({ row }) => <span className="text-sm whitespace-nowrap">{row.original.etmc_meeting_date || "—"}</span>,
+    },
+    {
+      id: "session",
+      header: "Session",
+      accessorKey: "etmc_session",
+      cell: ({ row }) => <span className="text-sm font-semibold text-slate-900">{row.original.etmc_session || "—"}</span>,
+    },
+    {
+      id: "state",
+      header: "State",
+      accessorFn: (row) => stateName(row.state_code),
+      cell: ({ row }) => <span className="text-sm text-slate-700">{stateName(row.original.state_code)}</span>,
+    },
+    {
+      id: "period",
+      header: "Period",
+      accessorFn: (row) => `${monthLabel(row.reporting_month)} ${row.reporting_year}`,
+      cell: ({ row }) => (
+        <span className="text-sm whitespace-nowrap">{monthLabel(row.original.reporting_month)} {row.original.reporting_year}</span>
+      ),
+    },
+    {
+      id: "attendance",
+      header: "Attendance",
+      accessorKey: "attendance_rate",
+      cell: ({ row }) => (
+        <span className="text-sm tabular-nums">{row.original.attendance_rate != null ? `${row.original.attendance_rate}%` : "—"}</span>
+      ),
+    },
+    {
+      id: "status",
+      header: "Status",
+      accessorKey: "status",
+      cell: ({ row }) => <StatusBadge status={row.original.status} />,
+    },
+    {
+      id: "actions",
+      header: "Action",
+      enableSorting: false,
+      cell: ({ row }) => (
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-8 gap-1.5 text-[#145c3f] hover:bg-[#eef6f1]"
+          disabled={busy}
+          onClick={(e) => {
+            e.stopPropagation();
+            void openEtmcDetail(row.original.etmc_id);
+          }}
+        >
+          <Eye className="w-3.5 h-3.5" /> View
+        </Button>
+      ),
+    },
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [cat, busy]);
+  const isViewOrForm = mode !== "list";
+
+  const handleBack = () => {
+    if (isViewOrForm) backToList();
+    else onBack();
+  };
+
+  const pageTitle =
+    mode === "meeting-form" ? (editingId ? "Edit Meeting Report" : "New Meeting Report")
+      : mode === "etmc-form" ? (editingId ? "Edit ETMC Cascading Report" : "New ETMC Cascading Report")
+        : mode === "meeting-detail" ? "Meeting Report"
+          : mode === "etmc-detail" ? "ETMC Cascading Report"
+            : "Meetings & Coordination";
+
+  const actions = (
+    <div className="flex items-center gap-2 shrink-0">
+      {mode === "list" && (
+        <Button variant="outline" size="sm" className="gap-2 border-[#d4e8dc]" disabled={busy || loading} onClick={() => void run(refresh)}>
+          <RefreshCw className={`w-4 h-4 ${busy ? "animate-spin" : ""}`} /> Refresh
+        </Button>
+      )}
+      {mode === "list" && permissions.create && tab === "meetings" && (
+        <Button className={ACTION} disabled={busy} onClick={() => void startMeetingForm()}>
+          <Plus className="w-4 h-4" /> New Meeting Report
+        </Button>
+      )}
+      {mode === "list" && permissions.create && tab === "etmc" && (
+        <Button className={ACTION} disabled={busy} onClick={() => void startEtmcForm()}>
+          <Plus className="w-4 h-4" /> New ETMC Report
+        </Button>
+      )}
     </div>
   );
 
-  const tabs = mode === "list" && (
-    <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 sticky top-[57px] z-20">
-      <div className="flex gap-0 overflow-x-auto -mb-px" role="tablist" aria-label="Meetings templates">
-        {([
-          { key: "meetings" as const, label: "Meeting Report", icon: ClipboardList, count: meetings.length },
-          { key: "etmc" as const, label: "ETMC Cascading Report", icon: FileText, count: etmcs.length },
-        ]).map(({ key, label, icon: Icon, count }) => (
-          <button key={key} type="button" role="tab" aria-selected={tab === key} onClick={() => setTab(key)}
-            className={`group relative shrink-0 inline-flex items-center gap-2 px-4 py-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors outline-none focus-visible:bg-[#f4f7f5] ${tab === key ? "border-[#145c3f] text-[#145c3f]" : "border-transparent text-slate-500 hover:text-[#0f3d2e] hover:border-[#c5ddd0]"}`}>
-            <Icon className={`h-4 w-4 shrink-0 ${tab === key ? "text-[#145c3f]" : "text-slate-400"}`} strokeWidth={2} />
-            <span>{label}</span>
-            <span className={`inline-flex min-w-[1.25rem] h-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold tabular-nums ${tab === key ? "bg-[#e8f6ee] text-[#145c3f]" : "bg-slate-100 text-slate-500"}`}>{count}</span>
-          </button>
-        ))}
-      </div>
-    </div>
-  );
+
+  const navTabs = mode === "list" ? (
+    <UnderHeaderNavTabs
+      tabs={[
+        { id: "meetings", label: "Meeting Report", icon: ClipboardList, count: meetings.length },
+        { id: "etmc", label: "ETMC Cascading Report", icon: FileText, count: etmcs.length },
+      ]}
+      activeTab={tab}
+      onChange={(k) => setTab(k as any)}
+      ariaLabel="Meetings templates"
+    />
+  ) : undefined;
 
   /* ── Meeting form ── */
   const meetingForm = draft && mode === "meeting-form" && (
@@ -914,93 +1068,128 @@ export default function MeetingsWorkspace({ onBack, initialTab = "meetings" }: {
 
   const listView = mode === "list" && (
     <>
-      {searchInput}
-      {tab === "meetings" && (
-        <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden">
-          <CardHeader className="pb-3 border-b border-[#d4e8dc]"><CardTitle className="text-sm font-bold">Meeting Reports ({meetings.length})</CardTitle></CardHeader>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto"><Table>
-              <TableHeader><TableRow className="bg-[#f0fdf7] hover:bg-[#f0fdf7]">
-                {["Date", "Meeting type", "State", "Period", "Attendance", "Status", ""].map((h) => <TableHead key={h} className={`text-xs font-bold whitespace-nowrap ${h === "" ? "text-right" : ""}`}>{h}</TableHead>)}
-              </TableRow></TableHeader>
-              <TableBody>{meetingRows.map((m) => (
-                <TableRow key={m.meeting_id} className="hover:bg-[#f8fdfb] border-b border-[#e8f3ec] last:border-0">
-                  <TableCell className="text-sm whitespace-nowrap">{m.meeting_date}</TableCell>
-                  <TableCell className="text-sm font-medium text-[#0f3d2e]">{m.other_meeting_type || m.meeting_type}</TableCell>
-                  <TableCell className="text-sm whitespace-nowrap">{stateName(m.state_code)}</TableCell>
-                  <TableCell className="text-sm">{monthLabel(m.reporting_month)} {m.reporting_year}</TableCell>
-                  <TableCell className="text-sm tabular-nums">{m.attendance_rate != null ? `${m.attendance_rate}%` : "—"}</TableCell>
-                  <TableCell><Badge className={`text-[10px] px-2 py-0.5 border ${STATUSES[m.status]}`}>{m.status}</Badge></TableCell>
-                  <TableCell className="text-right"><Button size="sm" variant="ghost" className="h-8 gap-1.5 text-[#145c3f] hover:bg-[#eef6f1]" disabled={busy} onClick={() => void openMeetingDetail(m.meeting_id)}><Eye className="w-3.5 h-3.5" />View</Button></TableCell>
-                </TableRow>
-              ))}</TableBody>
-            </Table></div>
-            {!meetingRows.length && (
-              <div className="flex flex-col items-center justify-center py-16 gap-2 text-slate-400">
-                <FileText className="w-8 h-8 opacity-30" />
-                <p className="text-sm font-medium">No meeting reports yet.</p>
-                {permissions.create && <Button variant="outline" size="sm" className="mt-2 gap-2" onClick={() => void startMeetingForm()}><Plus className="w-4 h-4" />New Meeting Report</Button>}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
-      {tab === "etmc" && (
-        <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden">
-          <CardHeader className="pb-3 border-b border-[#d4e8dc]"><CardTitle className="text-sm font-bold">ETMC Cascading Reports ({etmcs.length})</CardTitle></CardHeader>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto"><Table>
-              <TableHeader><TableRow className="bg-[#f0fdf7] hover:bg-[#f0fdf7]">
-                {["ETMC date", "Session", "State", "Period", "Attendance", "Status", ""].map((h) => <TableHead key={h} className={`text-xs font-bold whitespace-nowrap ${h === "" ? "text-right" : ""}`}>{h}</TableHead>)}
-              </TableRow></TableHeader>
-              <TableBody>{etmcRows.map((e) => (
-                <TableRow key={e.etmc_id} className="hover:bg-[#f8fdfb] border-b border-[#e8f3ec] last:border-0">
-                  <TableCell className="text-sm whitespace-nowrap">{e.etmc_meeting_date}</TableCell>
-                  <TableCell className="text-sm font-medium">{e.etmc_session || "—"}</TableCell>
-                  <TableCell className="text-sm whitespace-nowrap">{stateName(e.state_code)}</TableCell>
-                  <TableCell className="text-sm">{monthLabel(e.reporting_month)} {e.reporting_year}</TableCell>
-                  <TableCell className="text-sm tabular-nums">{e.attendance_rate != null ? `${e.attendance_rate}%` : "—"}</TableCell>
-                  <TableCell><Badge className={`text-[10px] px-2 py-0.5 border ${STATUSES[e.status]}`}>{e.status}</Badge></TableCell>
-                  <TableCell className="text-right"><Button size="sm" variant="ghost" className="h-8 gap-1.5 text-[#145c3f] hover:bg-[#eef6f1]" disabled={busy} onClick={() => void openEtmcDetail(e.etmc_id)}><Eye className="w-3.5 h-3.5" />View</Button></TableCell>
-                </TableRow>
-              ))}</TableBody>
-            </Table></div>
-            {!etmcRows.length && (
-              <div className="flex flex-col items-center justify-center py-16 gap-2 text-slate-400">
-                <FileText className="w-8 h-8 opacity-30" />
-                <p className="text-sm font-medium">No ETMC reports yet.</p>
-                {permissions.create && <Button variant="outline" size="sm" className="mt-2 gap-2" onClick={() => void startEtmcForm()}><Plus className="w-4 h-4" />New ETMC Report</Button>}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {[
+          { label: "Total", count: periodRows.length, tone: "text-[#0f3d2e] bg-white border-[#d4e8dc]" },
+          { label: "Draft", count: periodRows.filter((row) => row.status === "draft").length, tone: "text-slate-600 bg-white border-slate-200" },
+          { label: "Submitted", count: periodRows.filter((row) => row.status === "submitted").length, tone: "text-blue-800 bg-blue-50/80 border-blue-100" },
+          { label: "Approved", count: periodRows.filter((row) => row.status === "approved").length, tone: "text-emerald-700 bg-emerald-50/80 border-emerald-100" },
+        ].map((item) => (
+          <div className={`rounded-xl border px-4 py-3 ${item.tone}`} key={item.label}>
+            <p className="text-2xl font-bold tabular-nums">{item.count}</p>
+            <p className="text-[11px] font-semibold text-slate-500 mt-0.5">{item.label}</p>
+          </div>
+        ))}
+      </div>
+      <Card className="rounded-2xl border-[#d4e8dc]">
+        <CardContent className="pt-4 pb-4 grid grid-flow-col auto-cols-fr gap-3">
+          {stateOptions.length > 1 && (
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">State</Label>
+              <Select value={filterState} onValueChange={setFilterState}>
+                <SelectTrigger displayValue={filterState === "all" ? "All States" : (stateOptions.find((s) => s.value === filterState)?.label || "State")}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All States</SelectItem>
+                  {stateOptions.map((s) => (
+                    <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Year</Label>
+            <Select value={filterYear} onValueChange={setFilterYear}>
+              <SelectTrigger displayValue={filterYear === "all" ? "All Years" : filterYear}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Years</SelectItem>
+                {yearOptions.map((y) => (
+                  <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Month</Label>
+            <Select value={filterMonth} onValueChange={setFilterMonth}>
+              <SelectTrigger displayValue={filterMonth === "all" ? "All Months" : monthLabel(filterMonth)}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Months</SelectItem>
+                {monthOptions.map((m) => (
+                  <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Status</Label>
+            <Select value={filterStatus} onValueChange={setFilterStatus}>
+              <SelectTrigger displayValue={filterStatus === "all" ? "All Statuses" : statusLabel(filterStatus)}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Statuses</SelectItem>
+                {Object.keys(STATUSES).map((value) => (
+                  <SelectItem key={value} value={value}>{statusLabel(value)}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
+      {tab === "meetings" ? (
+        <ShadcnDataTable
+          title="MEETING REPORTS REGISTER"
+          infoTooltip="Meeting reports by period, state, type, and submission status."
+          columns={meetingColumns}
+          data={meetingRows}
+          loading={loading}
+          searchPlaceholder="Search meeting reports..."
+          emptyMessage="No meeting reports found for these filters."
+          onRowClick={(row) => { if (!busy) void openMeetingDetail(row.meeting_id); }}
+          pageSize={50}
+          showTableOptions={false}
+        />
+      ) : (
+        <ShadcnDataTable
+          title="ETMC CASCADING REPORTS REGISTER"
+          infoTooltip="ETMC cascading reports by period, state, session, and submission status."
+          columns={etmcColumns}
+          data={etmcRows}
+          loading={loading}
+          searchPlaceholder="Search ETMC reports..."
+          emptyMessage="No ETMC reports found for these filters."
+          onRowClick={(row) => { if (!busy) void openEtmcDetail(row.etmc_id); }}
+          pageSize={50}
+          showTableOptions={false}
+        />
       )}
     </>
   );
 
-  if (loading) {
-    return (
-      <div className="flex flex-col h-full bg-[#f4f7f5]">
-        {header}
-        <div className="flex items-center justify-center py-16 gap-3 text-slate-400"><Loader2 className="w-5 h-5 animate-spin" /><span className="text-sm">Loading...</span></div>
-      </div>
-    );
-  }
-
   return (
-    <div className="flex flex-col h-full bg-[#f4f7f5]">
-      {header}
-      {tabs}
-      <ScrollArea className="flex-1">
-        <div className="w-full px-4 md:px-6 py-4 space-y-4 pb-8">
-          {error && <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700" role="alert">{error}</div>}
-          {listView}
-          {meetingForm}
-          {etmcForm}
-          {meetingDetail}
-          {etmcDetail}
-        </div>
-      </ScrollArea>
-    </div>
+    <PageLayout
+      title={pageTitle}
+      onBack={isViewOrForm ? handleBack : undefined}
+      actions={actions}
+      tabs={navTabs}
+      loading={loading}
+      error={error}
+      contentClassName="space-y-4 pb-8"
+    >
+      <div className="w-full space-y-4">
+        {listView}
+        {meetingForm}
+        {etmcForm}
+        {meetingDetail}
+        {etmcDetail}
+      </div>
+    </PageLayout>
   );
 }

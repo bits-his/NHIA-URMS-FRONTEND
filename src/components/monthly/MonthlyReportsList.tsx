@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { monthlyApi, type MonthlyDept } from "@/lib/api";
 import { MONTHS } from "./MonthlyFormShell";
 import { buildReportingYearOptions } from "./reportingYears";
+import PageLayout from "@/src/components/PageLayout";
 import {
   columnAppliesToRecord,
   formatMonthlyCellValue,
@@ -99,23 +100,25 @@ export default function MonthlyReportsList({ onBack, onNew, defaultStateId, defa
   );
 
   return (
-    <div className="flex flex-col h-full bg-slate-50/30">
-      <div className="bg-white border-b border-border/50 px-8 py-4 flex items-center justify-end sticky top-0 z-30">
-        <div className="flex items-center gap-3">
+    <PageLayout
+      title="Monthly Departmental Reports"
+      actions={
+        <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
           </Button>
           {canCreate && (
-          <Button className="bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20"
-            onClick={() => onNew(dept)}>
-            <Plus className="w-4 h-4" /> New Report
-          </Button>
+            <Button
+              className="bg-[#145c3f] hover:bg-[#0f3d2e] text-white gap-2 shadow-sm"
+              onClick={() => onNew(dept)}
+            >
+              <Plus className="w-4 h-4" /> New Report
+            </Button>
           )}
         </div>
-      </div>
-
-      <ScrollArea className="flex-1">
-        <div className="w-full px-4 md:px-6 py-4 space-y-4">
+      }
+    >
+      <div className="w-full space-y-4">
 
           {/* Summary */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -297,7 +300,6 @@ export default function MonthlyReportsList({ onBack, onNew, defaultStateId, defa
             <p>The annual report auto-aggregates all 12 monthly submissions for a state. If you submit multiple records for the same month, <strong>all of them are summed</strong> — so only submit once per month per state.</p>
           </div>
         </div>
-      </ScrollArea>
-    </div>
+    </PageLayout>
   );
 }

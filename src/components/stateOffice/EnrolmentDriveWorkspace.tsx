@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/dialog";
 import { enrolmentDrivesApi as api } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import PageLayout from "../PageLayout";
 import EnrolmentActivityForm, { Field, FieldSection } from "./EnrolmentActivityForm";
 import { MultiSelectField } from "./EnrolmentDriveForm";
 import StateOfficeFormSteps from "./StateOfficeFormSteps";
@@ -39,6 +40,8 @@ function ReviewRow({ label, value }: { label: string; value?: React.ReactNode })
     </div>
   );
 }
+
+
 
 function ReviewSection({ title, children }: { title: string; children: React.ReactNode }) {
   const items = React.Children.toArray(children).filter(Boolean);
@@ -588,59 +591,98 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
                 {isExpanded && (
                   <TableRow className="hover:bg-transparent">
                     <TableCell colSpan={8} className="p-0">
-                      <div className="space-y-4 p-4 bg-[#f8fbf9] border-t border-[#e8f3ec]">
-                        <div>
-                          <p className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e] mb-2">Activity details</p>
-                          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                            <ReviewRow label="Drive Type" value={catalogue?.drive_types.find((t) => t.key === activity.drive_type)?.title || activity.drive_type} />
-                            <ReviewRow label="Category" value={activity.activity_category} />
-                            <ReviewRow label="Date" value={activity.activity_date} />
-                            <ReviewRow label="Specific activity" value={activity.specific_activity} />
-                            <ReviewRow label="Programmes" value={activity.programs_supported?.join(", ")} />
-                            <ReviewRow label="Status" value={activity.activity_status} />
-                            {activity.status_reason && <ReviewRow label="Reason" value={activity.status_reason} />}
-                          </div>
+                      <div className="border-t border-[#e8f3ec] bg-[#f4f7f5] p-3 md:p-4">
+                        <div className="overflow-hidden rounded-xl border border-[#d4e8dc] bg-white">
+                          <Table>
+                            <TableHeader>
+                              <TableRow className="bg-[#eef6f1] hover:bg-[#eef6f1]">
+                                <TableHead className="w-[220px] text-[11px] font-bold text-[#0f3d2e]">Field</TableHead>
+                                <TableHead className="text-[11px] font-bold text-[#0f3d2e]">Value</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {([
+                                {
+                                  title: "Activity details",
+                                  rows: [
+                                    ["Drive type", catalogue?.drive_types.find((t) => t.key === activity.drive_type)?.title || activity.drive_type],
+                                    ["Category", activity.activity_category],
+                                    ["Date", activity.activity_date],
+                                    ["Specific activity", activity.specific_activity],
+                                    ["Programmes", activity.programs_supported?.join(", ")],
+                                    ["Status", activity.activity_status],
+                                    ...(activity.status_reason ? [["Reason", activity.status_reason]] : []),
+                                    ...(activity.activity_details ? [["Description", activity.activity_details]] : []),
+                                  ],
+                                },
+                                {
+                                  title: "Audience & location reach",
+                                  rows: [
+                                    ["Location category", activity.location_category],
+                                    ["Location name", activity.location_name],
+                                    ["Exact location", activity.exact_location],
+                                    ["Target audience", activity.target_audience?.join(", ")],
+                                    ["Planned audience", activity.planned_target_audience != null ? formatCount(activity.planned_target_audience) : null],
+                                    ["Audience reached", activity.target_audience_reached != null ? formatCount(activity.target_audience_reached) : null],
+                                    ["Leads generated", activity.leads_generated != null ? formatCount(activity.leads_generated) : null],
+                                    ["New enrolments", activity.enrolment_count != null ? formatCount(activity.enrolment_count) : null],
+                                  ],
+                                },
+                                {
+                                  title: "Funding & evidence",
+                                  rows: [
+                                    ["Funding option", activity.funding_option],
+                                    ["Budget", activity.activity_budget ? `₦${formatAmount(activity.activity_budget)}` : null],
+                                    ["Approved amount", activity.approved_amount ? `₦${formatAmount(activity.approved_amount)}` : null],
+                                    ["Evidence type", activity.evidence_type],
+                                    ...(activity.remarks ? [["Remarks", activity.remarks]] : []),
+                                  ],
+                                },
+                              ] as { title: string; rows: [string, React.ReactNode][] }[]).map((section) => (
+                                <React.Fragment key={section.title}>
+                                  <TableRow className="hover:bg-transparent">
+                                    <TableCell
+                                      colSpan={2}
+                                      className="bg-[#e8f5ee] py-2 text-[11px] font-bold uppercase tracking-[0.06em] text-[#0f3d2e] border-y border-[#d4e8dc]"
+                                    >
+                                      {section.title}
+                                    </TableCell>
+                                  </TableRow>
+                                  {section.rows.map(([label, value]) => (
+                                    <TableRow key={`${section.title}-${label}`} className="hover:bg-[#f8fdfb]">
+                                      <TableCell className="align-top whitespace-nowrap text-xs font-semibold text-slate-500 bg-[#f8fbf9]">
+                                        {label}
+                                      </TableCell>
+                                      <TableCell className="align-top text-sm font-medium text-slate-800 whitespace-pre-wrap break-words">
+                                        {value == null || value === "" ? "—" : value}
+                                      </TableCell>
+                                    </TableRow>
+                                  ))}
+                                </React.Fragment>
+                              ))}
+                              {!!activity.evidence?.length && (
+                                <React.Fragment>
+                                  <TableRow className="hover:bg-transparent">
+                                    <TableCell
+                                      colSpan={2}
+                                      className="bg-[#e8f5ee] py-2 text-[11px] font-bold uppercase tracking-[0.06em] text-[#0f3d2e] border-y border-[#d4e8dc]"
+                                    >
+                                      Supporting evidence files
+                                    </TableCell>
+                                  </TableRow>
+                                  <TableRow className="hover:bg-[#f8fdfb]">
+                                    <TableCell className="align-top whitespace-nowrap text-xs font-semibold text-slate-500 bg-[#f8fbf9]">
+                                      Files
+                                    </TableCell>
+                                    <TableCell className="align-top">
+                                      <EvidenceFiles files={activity.evidence} />
+                                    </TableCell>
+                                  </TableRow>
+                                </React.Fragment>
+                              )}
+                            </TableBody>
+                          </Table>
                         </div>
-                        <div>
-                          <p className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e] mb-2">Audience & location reach</p>
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                            <ReviewRow label="Location category" value={activity.location_category} />
-                            <ReviewRow label="Location name" value={activity.location_name} />
-                            <ReviewRow label="Exact location" value={activity.exact_location} />
-                            <ReviewRow label="Target audience" value={activity.target_audience?.join(", ")} />
-                            <ReviewRow label="Planned audience" value={activity.planned_target_audience != null ? formatCount(activity.planned_target_audience) : null} />
-                            <ReviewRow label="Audience reached" value={activity.target_audience_reached != null ? formatCount(activity.target_audience_reached) : null} />
-                            <ReviewRow label="Leads generated" value={activity.leads_generated != null ? formatCount(activity.leads_generated) : null} />
-                            <ReviewRow label="New enrolments" value={activity.enrolment_count != null ? formatCount(activity.enrolment_count) : null} />
-                          </div>
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e] mb-2">Funding & evidence</p>
-                          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                            <ReviewRow label="Funding option" value={activity.funding_option} />
-                            {activity.activity_budget && <ReviewRow label="Budget" value={`₦${formatAmount(activity.activity_budget)}`} />}
-                            {activity.approved_amount && <ReviewRow label="Approved amount" value={`₦${formatAmount(activity.approved_amount)}`} />}
-                            <ReviewRow label="Evidence type" value={activity.evidence_type} />
-                          </div>
-                        </div>
-                        {activity.activity_details && (
-                          <div>
-                            <p className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e] mb-1">Activity details</p>
-                            <p className="text-sm text-slate-700 whitespace-pre-wrap">{activity.activity_details}</p>
-                          </div>
-                        )}
-                        {!!activity.evidence?.length && (
-                          <div>
-                            <p className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e] mb-1">Supporting evidence files</p>
-                            <EvidenceFiles files={activity.evidence} />
-                          </div>
-                        )}
-                        {activity.remarks && (
-                          <div>
-                            <p className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e] mb-1">Remarks</p>
-                            <p className="text-sm text-slate-700 whitespace-pre-wrap">{activity.remarks}</p>
-                          </div>
-                        )}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -727,57 +769,55 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
     );
   };
 
-  return <div className="flex flex-col h-full bg-[#f4f7f5]">
-    <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3.5 flex items-center justify-between sticky top-0 z-30 gap-3">
-      <div className="flex items-center gap-3 min-w-0">
-        <Button variant="ghost" size="icon" onClick={handleBack} className="rounded-full shrink-0" aria-label="Back"><ArrowLeft className="w-5 h-5" /></Button>
-        <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">{pageTitle}</h2>
-      </div>
-      <div className="flex items-center gap-2 shrink-0">
-        {mode === "view" && batch && (
-          <>
-            <StatusBadge status={batch.status} />
-            {canEdit && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-2 border-[#1a7a52] text-[#0f3d2e] hover:bg-[#eef6f1]"
-                onClick={() => { setBatchStep(1); setMode("batch"); }}
-              >
-                <Pencil className="w-4 h-4" /> {batch.status === "returned" ? "Edit & Resubmit" : "Edit Report"}
-              </Button>
-            )}
-          </>
-        )}
-        {(listMode || mode === "batch" || mode === "view") && (
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={busy || loading}
-            className="gap-2 border-[#d4e8dc]"
-            onClick={() => void run(async () => {
-              if (mode === "view" && batch) await openBatch(batch.reference_id);
-              else if (mode === "batch" && batch) await openBatch(batch.reference_id, batchStep);
-              else {
-                await refresh();
-              }
-            })}
-          >
-            <RefreshCw className={`w-4 h-4 ${busy ? "animate-spin" : ""}`} />Refresh
-          </Button>
-        )}
-        {mode === "register" && !showCreate && permissions.create && <Button disabled={busy} className={ACTION} onClick={() => setShowCreate(true)}><Plus className="w-4 h-4" />New Enrolment Drive Report</Button>}
-        {mode === "batch" && canEdit && batchStep === 1 && (
-          <Button variant="outline" size="sm" className="gap-2 border-[#d4e8dc] text-[#145c3f]" disabled={busy} onClick={() => void saveReportDraft()}>
-            <Save className="w-4 h-4" />Save Report Draft
-          </Button>
-        )}
-      </div>
-    </div>
-    {listMode && <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 sticky top-[57px] z-20"><div className="flex gap-0 overflow-x-auto -mb-px" role="tablist" aria-label="Enrolment Drive sections">
-      <button type="button" role="tab" aria-selected={mode === "register"} disabled={busy} onClick={() => void navigate("register")} className="group relative shrink-0 inline-flex items-center gap-2 px-4 py-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors outline-none focus-visible:bg-[#f4f7f5] border-[#145c3f] text-[#145c3f]"><ClipboardList className="h-4 w-4 shrink-0 text-[#145c3f]" />Enrolment Drives<span className="inline-flex min-w-[1.25rem] h-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold tabular-nums bg-[#e8f6ee] text-[#145c3f]">{batches.length}</span></button>
-    </div></div>}
-    <ScrollArea className="flex-1"><div className="w-full px-4 md:px-6 py-4 space-y-4 pb-8">
+  return (
+    <PageLayout
+      title={pageTitle}
+      onBack={listMode ? undefined : handleBack}
+      actions={
+        <>
+          {mode === "view" && batch && (
+            <>
+              <StatusBadge status={batch.status} />
+              {canEdit && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2 border-[#1a7a52] text-[#0f3d2e] hover:bg-[#eef6f1]"
+                  onClick={() => { setBatchStep(1); setMode("batch"); }}
+                >
+                  <Pencil className="w-4 h-4" /> {batch.status === "returned" ? "Edit & Resubmit" : "Edit Report"}
+                </Button>
+              )}
+            </>
+          )}
+          {(listMode || mode === "batch" || mode === "view") && (
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={busy || loading}
+              className="gap-2 border-[#d4e8dc]"
+              onClick={() => void run(async () => {
+                if (mode === "view" && batch) await openBatch(batch.reference_id);
+                else if (mode === "batch" && batch) await openBatch(batch.reference_id, batchStep);
+                else {
+                  await refresh();
+                }
+              })}
+            >
+              <RefreshCw className={`w-4 h-4 ${busy ? "animate-spin" : ""}`} />Refresh
+            </Button>
+          )}
+          {mode === "register" && !showCreate && permissions.create && <Button disabled={busy} className={ACTION} onClick={() => setShowCreate(true)}><Plus className="w-4 h-4" />New Enrolment Drive Report</Button>}
+          {mode === "batch" && canEdit && batchStep === 1 && (
+            <Button variant="outline" size="sm" className="gap-2 border-[#d4e8dc] text-[#145c3f]" disabled={busy} onClick={() => void saveReportDraft()}>
+              <Save className="w-4 h-4" />Save Report Draft
+            </Button>
+          )}
+        </>
+      }
+      contentClassName="space-y-4 pb-8"
+    >
+      <div className="w-full space-y-4">
     {error && <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700" role="alert">{error}</div>}
     {loading ? <div className="flex items-center justify-center py-16 gap-3 text-slate-400"><Loader2 className="w-5 h-5 animate-spin" /><span className="text-sm">Loading reports...</span></div> : !catalogue ? <Button onClick={() => void run(async () => { await refresh(); })}>Retry</Button> : <>
       {mode === "register" && <>
@@ -1615,7 +1655,7 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
         </div>
       </>}
     </>}
-    </div></ScrollArea>
+    </div>
 
     <Dialog open={Boolean(link?.reference_id && batch)} onOpenChange={(open) => { if (!open) closeEnrolmentModal(); }}>
       <DialogContent
@@ -1648,5 +1688,6 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
         </div>
       </DialogContent>
     </Dialog>
-  </div>;
+  </PageLayout>
+  );
 }

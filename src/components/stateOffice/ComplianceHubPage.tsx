@@ -22,6 +22,8 @@ import ServicomComplaintsPage from "../servicom/ServicomComplaintsPage";
 import StateOfficeWeeklyCompliancePage from "./StateOfficeWeeklyCompliancePage";
 import StateOfficeHmoIndebtednessHubPage from "./StateOfficeHmoIndebtednessHubPage";
 import StateOfficeMysteryShoppingPage from "./StateOfficeMysteryShoppingPage";
+import PageLayout from "@/src/components/PageLayout";
+import { UnderHeaderNavTabs } from "@/src/components/UnderHeaderNavTabs";
 
 interface Props {
   onBack: () => void;
@@ -81,11 +83,11 @@ export default function ComplianceHubPage({
   React.useEffect(() => {
     if (!defaultTab) return;
     if (!requested || !allowedKeys.has(requested)) {
-      const params = new URLSearchParams();
+      const params = new URLSearchParams(searchParams);
       params.set("tab", defaultTab);
       setSearchParams(params, { replace: true });
     }
-  }, [requested, defaultTab, allowedKeys, setSearchParams]);
+  }, [requested, defaultTab, allowedKeys, searchParams, setSearchParams]);
 
   const setActiveTab = (tab: ComplianceHubTabKey) => {
     const params = new URLSearchParams();
@@ -147,68 +149,39 @@ export default function ComplianceHubPage({
   }
 
   return (
-    <div className="flex flex-col h-full bg-[#f4f7f5]">
-      <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3.5 flex items-center justify-between sticky top-0 z-30 gap-3">
-        <div className="flex items-center gap-3 min-w-0">
+    <PageLayout
+      title={pageTitle}
+      onBack={inLeaf ? handleHeaderBack : undefined}
+      actions={
+        chrome?.actions ?? (
           <Button
-            variant="ghost"
-            size="icon"
-            className="rounded-full shrink-0"
-            aria-label="Back"
-            onClick={handleHeaderBack}
+            variant="outline"
+            size="sm"
+            className="h-8.5 gap-1.5 border border-slate-300 text-slate-700 bg-white hover:bg-[#f4f7f5] text-xs font-bold rounded-sm shadow-2xs"
+            disabled={refreshing}
+            onClick={handleRefresh}
           >
-            <ArrowLeft className="w-5 h-5" />
+            <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`} />
+            <span>Refresh</span>
           </Button>
-          <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">
-            {pageTitle}
-          </h2>
-        </div>
-
-        <div className="flex items-center gap-2 shrink-0">
-          {chrome?.actions ?? (
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8.5 gap-1.5 border border-slate-300 text-slate-700 bg-white hover:bg-[#f4f7f5] text-xs font-bold rounded-sm shadow-2xs"
-              disabled={refreshing}
-              onClick={handleRefresh}
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`} />
-              <span>Refresh</span>
-            </Button>
-          )}
-        </div>
-      </div>
-
-      {!hideTabStrip && !inLeaf && (
-        <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 sticky top-[57px] z-20">
-          <div className="flex gap-4 overflow-x-auto -mb-px" role="tablist" aria-label="Compliance modules">
-            {visibleTabMeta.map((tab) => {
-              const active = activeTab === tab.key;
-              const Icon = ICON_MAP[tab.key];
-              return (
-                <button
-                  key={tab.key}
-                  type="button"
-                  role="tab"
-                  aria-selected={active}
-                  onClick={() => setActiveTab(tab.key)}
-                  className={`group relative shrink-0 inline-flex items-center gap-2 px-3.5 py-3 text-xs font-bold whitespace-nowrap border-b-2 transition-all outline-none ${
-                    active
-                      ? "border-[#145c3f] text-[#145c3f]"
-                      : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300"
-                  }`}
-                >
-                  <Icon className="size-4 shrink-0" strokeWidth={2} />
-                  <span>{tab.tabLabel}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      <div className="flex-1 min-h-0 overflow-hidden">
+        )
+      }
+      tabs={
+        !hideTabStrip && !inLeaf ? (
+          <UnderHeaderNavTabs
+            tabs={visibleTabMeta.map((tab) => ({
+              id: tab.key,
+              label: tab.tabLabel,
+              icon: ICON_MAP[tab.key],
+            }))}
+            activeTab={activeTab}
+            onChange={(key) => setActiveTab(key as any)}
+            ariaLabel="Compliance modules"
+          />
+        ) : undefined
+      }
+    >
+      <div className="flex-1 min-h-0 w-full">
         {activeTab === "complaints" && (
           <ServicomComplaintsPage
             key={`complaints-${refreshKey}`}
@@ -247,7 +220,7 @@ export default function ComplianceHubPage({
           />
         )}
       </div>
-    </div>
+    </PageLayout>
   );
 }
 

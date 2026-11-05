@@ -15,6 +15,7 @@ import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
 import { stockApi } from "@/lib/api";
+import PageLayout from "@/src/components/PageLayout";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -332,17 +333,19 @@ export default function StockVerificationPage({ onBack, onSubmitted, verificatio
   };
 
   return (
-    <div className="flex flex-col h-full bg-slate-50/30">
-      {/* Header */}
-      <div className="bg-white border-b border-border/50 px-4 md:px-6 py-3 flex items-center justify-end sticky top-0 z-30">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" onClick={handleSave} disabled={saving} className="gap-2">
+    <PageLayout
+      title={verificationId ? "Edit Stock Verification" : "New Stock Verification"}
+      onBack={onBack}
+      loading={loadingRecord}
+      maxWidth="5xl"
+      actions={
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={handleSave} disabled={saving} className="gap-2">
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             {saving ? "Saving..." : "Save Draft"}
           </Button>
-          <Separator orientation="vertical" className="h-6" />
           <Button
-            className="bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20"
+            className="bg-[#145c3f] hover:bg-[#0f3d2e] text-white gap-2 shadow-sm"
             onClick={handleSubmit} disabled={submitting}
           >
             {submitting
@@ -351,17 +354,9 @@ export default function StockVerificationPage({ onBack, onSubmitted, verificatio
             }
           </Button>
         </div>
-      </div>
-
-      <ScrollArea className="flex-1">
-        <div className="w-full px-4 md:px-6 py-4 space-y-4">
-          {loadingRecord ? (
-            <div className="flex items-center justify-center py-24 gap-3 text-slate-400">
-              <Loader2 className="w-6 h-6 animate-spin" />
-              <span className="text-sm">Loading verification...</span>
-            </div>
-          ) : (
-          <>
+      }
+    >
+      <div className="w-full space-y-4">
 
           {/* ── Header form ── */}
           <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
@@ -661,11 +656,7 @@ export default function StockVerificationPage({ onBack, onSubmitted, verificatio
               </Button>
             </div>
           </div>
-
-          </>
-          )}
         </div>
-      </ScrollArea>
-    </div>
+    </PageLayout>
   );
 }

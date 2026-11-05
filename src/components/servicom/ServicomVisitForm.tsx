@@ -16,6 +16,7 @@ import {
   computeLiveScore, pickGeoLabel, pickLabel, pickScoreLabel, PRIORITY_OPTIONS,
 } from "./servicomConstants";
 import { SubmitConfirmModal, useReportingOfficerSubmitConfirm } from "@/src/components/SubmitConfirmModal";
+import PageLayout from "@/src/components/PageLayout";
 
 interface Props {
   visitId?: number | null;
@@ -216,21 +217,19 @@ export default function ServicomVisitForm({ visitId, onBack, onSubmitted, defaul
   }
 
   return (
-    <div className="flex flex-col h-full bg-slate-50/30">
-      <div className="bg-white border-b px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30">
-        <Button variant="ghost" size="icon" onClick={onBack} className="rounded-full">
-          <ArrowLeft className="w-5 h-5" />
-        </Button>
-        {live.percentage > 0 && (
-          <div className="text-right hidden md:block">
-            <p className="text-xs text-slate-500">Live Score</p>
-            <p className="text-sm font-bold text-[#25a872]">{live.percentage}% — {live.label}</p>
+    <PageLayout
+      title={visitId ? "Edit Monitoring Visit" : "New Monitoring Visit"}
+      onBack={onBack}
+      actions={
+        live.percentage > 0 ? (
+          <div className="text-right">
+            <span className="text-xs text-slate-500 mr-1.5">Live Score:</span>
+            <span className="text-sm font-bold text-[#145c3f]">{live.percentage}% — {live.label}</span>
           </div>
-        )}
-      </div>
-
-      <ScrollArea className="flex-1">
-        <div className="w-full px-4 md:px-6 py-4 space-y-4 pb-24">
+        ) : null
+      }
+    >
+      <div className="w-full space-y-4 pb-20">
           {/* Visit details */}
           <Card className="rounded-2xl border-[#d4e8dc]">
             <CardHeader className="pb-3">
@@ -452,7 +451,6 @@ export default function ServicomVisitForm({ visitId, onBack, onSubmitted, defaul
             </CardContent>
           </Card>
         </div>
-      </ScrollArea>
 
       <div className="sticky bottom-0 z-30 bg-white border-t border-border/50 px-4 md:px-6 py-3 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
         {live.percentage > 0 ? (
@@ -482,6 +480,6 @@ export default function ServicomVisitForm({ visitId, onBack, onSubmitted, defaul
         onConfirm={submitConfirm.confirm}
         onCancel={submitConfirm.cancel}
       />
-    </div>
+    </PageLayout>
   );
 }

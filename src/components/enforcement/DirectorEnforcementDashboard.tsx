@@ -14,6 +14,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import { complianceApi, servicomApi, stockApi } from "@/lib/api";
 import { storeManagementApi } from "@/src/services/storeManagementApi";
+import PageLayout from "../PageLayout";
 import { buildReportingYearOptions } from "../monthly/reportingYears";
 import { computeComplianceKpis } from "../compliance/complianceDrill";
 import DashboardDrillPanel, {
@@ -163,7 +164,7 @@ function QuietCard({
   className?: string;
 }) {
   return (
-    <div className={`rounded-2xl bg-white border border-slate-200/80 ${className}`}>
+    <div className={`rounded-lg bg-white border border-[#d4e8dc] shadow-2xs ${className}`}>
       {children}
     </div>
   );
@@ -171,9 +172,9 @@ function QuietCard({
 
 function DetailMetric({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="rounded-xl bg-slate-50/80 px-4 py-3.5">
-      <p className="text-xs text-slate-500">{label}</p>
-      <p className="mt-1 text-xl font-semibold text-slate-900 tabular-nums tracking-tight">{value}</p>
+    <div className="rounded-lg bg-slate-50/80 px-3.5 py-2.5 border border-slate-100">
+      <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">{label}</p>
+      <p className="mt-1 text-xl font-bold text-slate-900 tabular-nums tracking-tight">{value}</p>
     </div>
   );
 }
@@ -188,8 +189,8 @@ function ChartShell({
   height?: number;
 }) {
   return (
-    <QuietCard className="p-5 md:p-6">
-      <p className="text-sm font-medium text-slate-800 mb-4">{title}</p>
+    <QuietCard className="p-4">
+      <p className="text-xs font-bold uppercase tracking-wider text-slate-800 mb-3">{title}</p>
       <div style={{ height }}>{children}</div>
     </QuietCard>
   );
@@ -505,109 +506,98 @@ export default function DirectorEnforcementDashboard({ onNavigate }: Props) {
   }, [complaintKpis]);
 
   return (
-    <div className="flex flex-col h-full bg-[#f4f6f5]">
-      <div className="border-b border-slate-200/70 bg-[#f4f6f5]/95 backdrop-blur-sm sticky top-0 z-30">
-        <div className="px-5 md:px-8 py-5 space-y-5">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div className="max-w-2xl">
-              <p className="text-sm text-slate-500">{greetingForNow()}</p>
-              <h1 className="mt-0.5 text-2xl md:text-[1.75rem] font-semibold tracking-tight text-slate-900">
-                Enforcement Department
-              </h1>
-              <p className="mt-1.5 text-sm text-slate-500 leading-relaxed">
-                A quiet view of complaints, service quality, and stock for your office.
-              </p>
-            </div>
-            <div className="flex items-center gap-2 flex-wrap">
-              {onNavigate && (
-                <>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-9 text-slate-600 hover:text-[#1a6b4a] hover:bg-white"
-                    onClick={() => onNavigate("/sdo/servicom/complaints")}
-                  >
-                    Complaints <ArrowUpRight className="w-3.5 h-3.5 ml-1 opacity-60" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-9 text-slate-600 hover:text-[#1a6b4a] hover:bg-white"
-                    onClick={() => onNavigate("/store-management/prepayment-analysis")}
-                  >
-                    Stock prepayment <ArrowUpRight className="w-3.5 h-3.5 ml-1 opacity-60" />
-                  </Button>
-                </>
-              )}
+    <PageLayout
+      title="Enforcement Department"
+      actions={
+        <div className="flex items-center gap-2 flex-wrap">
+          {onNavigate && (
+            <>
               <Button
-                variant="outline"
+                variant="ghost"
                 size="sm"
-                onClick={load}
-                disabled={loading}
-                className="h-9 gap-1.5 bg-white border-slate-200"
+                className="h-9 text-slate-600 hover:text-[#1a6b4a] hover:bg-white"
+                onClick={() => onNavigate("/sdo/servicom/complaints")}
               >
-                <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
-                Refresh
+                Complaints <ArrowUpRight className="w-3.5 h-3.5 ml-1 opacity-60" />
               </Button>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <Select value={zoneId} onValueChange={setZoneId}>
-              <SelectTrigger className="w-[160px] h-9 text-sm bg-white border-slate-200" displayValue={zoneLabel}>
-                <SelectValue placeholder="Zone" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All zones</SelectItem>
-                {zones.map((z) => (
-                  <SelectItem key={z.id} value={String(z.id)}>{z.description}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={stateId} onValueChange={setStateId}>
-              <SelectTrigger className="w-[160px] h-9 text-sm bg-white border-slate-200" displayValue={stateLabel}>
-                <SelectValue placeholder="State" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All states</SelectItem>
-                {states.map((s) => (
-                  <SelectItem key={s.id} value={String(s.id)}>{s.description}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={year} onValueChange={setYear}>
-              <SelectTrigger className="w-[120px] h-9 text-sm bg-white border-slate-200" displayValue={year}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {years.map((y) => (
-                  <SelectItem key={y} value={String(y)}>{y}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <div className="ml-auto flex items-center gap-1 p-1 rounded-full bg-white border border-slate-200">
-              {TABS.map((t) => (
-                <button
-                  key={t.id}
-                  type="button"
-                  onClick={() => setTab(t.id)}
-                  className={`px-3.5 py-1.5 rounded-full text-sm transition-colors ${
-                    tab === t.id
-                      ? "bg-[#1a6b4a] text-white"
-                      : "text-slate-600 hover:text-slate-900"
-                  }`}
-                >
-                  {t.label}
-                </button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-9 text-slate-600 hover:text-[#1a6b4a] hover:bg-white"
+                onClick={() => onNavigate("/store-management/prepayment-analysis")}
+              >
+                Stock prepayment <ArrowUpRight className="w-3.5 h-3.5 ml-1 opacity-60" />
+              </Button>
+            </>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={load}
+            disabled={loading}
+            className="h-9 gap-1.5 bg-white border-slate-200"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+            Refresh
+          </Button>
+        </div>
+      }
+      filters={
+        <div className="flex flex-wrap items-center gap-2">
+          <Select value={zoneId} onValueChange={setZoneId}>
+            <SelectTrigger className="w-[160px] h-9 text-sm bg-white border-slate-200" displayValue={zoneLabel}>
+              <SelectValue placeholder="Zone" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All zones</SelectItem>
+              {zones.map((z) => (
+                <SelectItem key={z.id} value={String(z.id)}>{z.description}</SelectItem>
               ))}
-            </div>
+            </SelectContent>
+          </Select>
+          <Select value={stateId} onValueChange={setStateId}>
+            <SelectTrigger className="w-[160px] h-9 text-sm bg-white border-slate-200" displayValue={stateLabel}>
+              <SelectValue placeholder="State" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All states</SelectItem>
+              {states.map((s) => (
+                <SelectItem key={s.id} value={String(s.id)}>{s.description}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={year} onValueChange={setYear}>
+            <SelectTrigger className="w-[120px] h-9 text-sm bg-white border-slate-200" displayValue={year}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {years.map((y) => (
+                <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <div className="ml-auto flex items-center gap-1 p-1 rounded-full bg-white border border-slate-200">
+            {TABS.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setTab(t.id)}
+                className={`px-3.5 py-1.5 rounded-full text-sm transition-colors ${
+                  tab === t.id
+                    ? "bg-[#1a6b4a] text-white"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
           </div>
         </div>
-      </div>
-
-      <ScrollArea className="flex-1">
-        <div className="px-5 md:px-8 py-6 md:py-8 max-w-6xl mx-auto w-full pb-14">
+      }
+      contentClassName="max-w-6xl mx-auto w-full pb-14"
+    >
+      <div className="w-full">
           {loading ? (
             <div className="flex items-center justify-center py-32 gap-3 text-slate-400">
               <Loader2 className="w-5 h-5 animate-spin" />
@@ -763,9 +753,9 @@ export default function DirectorEnforcementDashboard({ onNavigate }: Props) {
                       key={area.id}
                       type="button"
                       onClick={() => setTab(area.id)}
-                      className="text-left rounded-2xl bg-white border border-slate-200/80 p-5 hover:border-[#1a6b4a]/40 hover:shadow-sm transition-all group"
+                      className="text-left rounded-lg bg-white border border-[#d4e8dc] p-3.5 hover:border-[#1a6b4a] hover:shadow-xs transition-colors group shadow-2xs"
                     >
-                      <div className="h-9 w-9 rounded-full bg-[#eef5f1] text-[#1a6b4a] flex items-center justify-center mb-4">
+                      <div className="h-8 w-8 rounded-md bg-[#eef5f1] text-[#1a6b4a] flex items-center justify-center mb-3">
                         {area.icon}
                       </div>
                       <p className="text-base font-semibold text-slate-900 group-hover:text-[#1a6b4a]">{area.title}</p>
@@ -955,7 +945,6 @@ export default function DirectorEnforcementDashboard({ onNavigate }: Props) {
             </div>
           )}
         </div>
-      </ScrollArea>
 
       <DashboardDrillPanel
         open={drillOpen}
@@ -966,7 +955,7 @@ export default function DirectorEnforcementDashboard({ onNavigate }: Props) {
         onRowClick={handleDrillRowClick}
         onStatClick={handleDrillStatClick}
       />
-    </div>
+    </PageLayout>
   );
 }
 

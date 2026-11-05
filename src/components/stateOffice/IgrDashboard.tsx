@@ -154,7 +154,7 @@ export default function IgrDashboard({
       )}
 
       <ScrollArea className="flex-1">
-        <div className="p-4 md:p-6 w-full space-y-4">
+        <div className="w-full p-3 sm:p-4 space-y-4">
           <div className="space-y-4">
               {/* Filters */}
               <div className="bg-white border border-slate-200/80 rounded-sm p-3 shadow-xs">

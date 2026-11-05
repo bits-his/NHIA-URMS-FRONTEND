@@ -168,29 +168,29 @@ function QuarterlyDrillModal({ dept, units, kpi, kpiLabel, color, onClose }: Qua
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
         transition={{ duration: 0.2 }}
-        className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[88vh] overflow-hidden flex flex-col"
+        className="bg-white rounded-lg border border-[#d4e8dc] shadow-xl w-full max-w-2xl max-h-[88vh] overflow-hidden flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div
-          className="flex items-center justify-between px-6 py-4 border-b border-[#d4e8dc]"
+          className="flex items-center justify-between px-5 py-3.5 border-b border-[#d4e8dc]"
           style={{ background: `linear-gradient(135deg, ${color}15, ${color}05)` }}
         >
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white" style={{ backgroundColor: color }}>
+            <div className="w-8 h-8 rounded-md flex items-center justify-center text-white" style={{ backgroundColor: color }}>
               <BarChart3 className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-base font-black text-slate-900">{kpiLabel} · Quarterly Breakdown</h3>
+              <h3 className="text-base font-bold text-slate-900">{kpiLabel} · Quarterly Breakdown</h3>
               <p className="text-xs text-slate-500">{dept.name} · select a quarter to see unit data</p>
             </div>
           </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-xl flex items-center justify-center hover:bg-[#e8f5ee] text-slate-400 hover:text-slate-700 transition-colors">
+          <button onClick={onClose} className="w-8 h-8 rounded-md flex items-center justify-center hover:bg-[#e8f5ee] text-slate-400 hover:text-slate-700 transition-colors">
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        <div className="overflow-y-auto flex-1 p-6 space-y-5">
+        <div className="overflow-y-auto flex-1 p-5 space-y-4">
           {/* Quarter selector tabs */}
           <div className="grid grid-cols-4 gap-2">
             {quarterly.map((q) => {
@@ -201,15 +201,15 @@ function QuarterlyDrillModal({ dept, units, kpi, kpiLabel, color, onClose }: Qua
                 <button
                   key={q.quarter}
                   onClick={() => { setSelectedQ(q.quarter); setExpandedUnit(null); }}
-                  className={`rounded-2xl p-3 border text-left transition-all ${
+                  className={`rounded-md p-2.5 border text-left transition-all ${
                     isActive
-                      ? "border-transparent text-white shadow-md"
-                      : "border-[#d4e8dc] bg-white hover:border-[#25a872] hover:shadow-sm"
+                      ? "border-transparent text-white shadow-xs"
+                      : "border-[#d4e8dc] bg-white hover:border-[#145c3f] hover:shadow-2xs"
                   }`}
                   style={isActive ? { backgroundColor: color } : {}}
                 >
-                  <p className={`text-xs font-black ${isActive ? "text-white" : "text-slate-900"}`}>{q.quarter}</p>
-                  <p className={`text-xl font-black mt-0.5 ${isActive ? "text-white" : "text-slate-900"}`}>
+                  <p className={`text-xs font-bold ${isActive ? "text-white" : "text-slate-900"}`}>{q.quarter}</p>
+                  <p className={`text-xl font-bold mt-0.5 ${isActive ? "text-white" : "text-slate-900"}`}>
                     {kpi === "staff" ? "—" : val}
                   </p>
                   <p className={`text-[9px] mt-0.5 ${isActive ? "text-white/70" : "text-slate-500"}`}>{kpiLabel}</p>
@@ -251,12 +251,12 @@ function QuarterlyDrillModal({ dept, units, kpi, kpiLabel, color, onClose }: Qua
                   const isOpen = expandedUnit === unit.id;
                   const pct    = Math.round((us.completed / Math.max(1, us.tasks)) * 100);
                   return (
-                    <div key={unit.id} className="rounded-xl border border-[#d4e8dc] overflow-hidden">
+                    <div key={unit.id} className="rounded-lg border border-[#d4e8dc] overflow-hidden">
                       <button
                         onClick={() => setExpandedUnit(isOpen ? null : unit.id)}
-                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-[#f0fdf7] transition-colors text-left group"
+                        className="w-full flex items-center gap-3 px-3.5 py-2.5 hover:bg-[#f0fdf7] transition-colors text-left group"
                       >
-                        <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+                        <div className="w-7 h-7 rounded-md flex items-center justify-center shrink-0"
                           style={{ backgroundColor: color + "20", color }}>
                           <Layers className="w-3.5 h-3.5" />
                         </div>
@@ -265,7 +265,7 @@ function QuarterlyDrillModal({ dept, units, kpi, kpiLabel, color, onClose }: Qua
                           <p className="text-[10px] text-slate-400 font-mono">{unit.unit_code}</p>
                         </div>
                         <div className="flex items-center gap-3 shrink-0">
-                          <span className="text-sm font-black" style={{ color }}>{val}</span>
+                          <span className="text-sm font-bold" style={{ color }}>{val}</span>
                           <span className="text-[10px] text-slate-400">{kpiLabel}</span>
                           <Progress value={pct} className="w-14 h-1.5 bg-[#e8f5ee]" />
                           <ChevronRight className={`w-3.5 h-3.5 text-slate-400 transition-transform ${isOpen ? "rotate-90" : ""}`} />
@@ -280,9 +280,9 @@ function QuarterlyDrillModal({ dept, units, kpi, kpiLabel, color, onClose }: Qua
                             transition={{ duration: 0.18 }}
                             className="overflow-hidden"
                           >
-                            <div className="px-4 pb-4 pt-2 bg-[#f8fdfb] border-t border-[#e8f5ee]">
+                            <div className="px-4 pb-3.5 pt-2 bg-[#f8fdfb] border-t border-[#e8f5ee]">
                               {unit.description && (
-                                <p className="text-xs text-slate-500 mb-3 leading-relaxed">{unit.description}</p>
+                                <p className="text-xs text-slate-500 mb-2.5 leading-relaxed">{unit.description}</p>
                               )}
                               <div className="grid grid-cols-4 gap-2">
                                 {[
@@ -291,8 +291,8 @@ function QuarterlyDrillModal({ dept, units, kpi, kpiLabel, color, onClose }: Qua
                                   { label: "Pending",  val: qd.pending,  color: "text-amber-700"   },
                                   { label: "IGR (₦M)", val: qd.igr,      color: "text-purple-700"  },
                                 ].map((s) => (
-                                  <div key={s.label} className="rounded-xl bg-white border border-[#d4e8dc] p-2.5 text-center">
-                                    <p className={`text-base font-black ${s.color}`}>{s.val}</p>
+                                  <div key={s.label} className="rounded-md bg-white border border-[#d4e8dc] p-2 text-center">
+                                    <p className={`text-base font-bold ${s.color}`}>{s.val}</p>
                                     <p className="text-[9px] text-slate-500 mt-0.5">{s.label}</p>
                                   </div>
                                 ))}
@@ -341,24 +341,24 @@ function OverviewKpiModal({ title, kpi, departments, onClose, onDeptClick }: Ove
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
         transition={{ duration: 0.2 }}
-        className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col"
+        className="bg-white rounded-lg border border-[#d4e8dc] shadow-xl w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[#d4e8dc] bg-gradient-to-r from-[#f0fdf7] to-white">
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#d4e8dc] bg-gradient-to-r from-[#f0fdf7] to-white">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-[#145c3f] flex items-center justify-center text-white">
+            <div className="w-8 h-8 rounded-md bg-[#145c3f] flex items-center justify-center text-white">
               <BarChart3 className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-base font-black text-slate-900">{title}</h3>
+              <h3 className="text-base font-bold text-slate-900">{title}</h3>
               <p className="text-xs text-slate-500">All departments · click a row to drill in</p>
             </div>
           </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-xl flex items-center justify-center hover:bg-[#e8f5ee] text-slate-400 hover:text-slate-700 transition-colors">
+          <button onClick={onClose} className="w-8 h-8 rounded-md flex items-center justify-center hover:bg-[#e8f5ee] text-slate-400 hover:text-slate-700 transition-colors">
             <X className="w-4 h-4" />
           </button>
         </div>
-        <div className="overflow-y-auto flex-1 p-6 space-y-5">
+        <div className="overflow-y-auto flex-1 p-5 space-y-4">
           <div className="h-[180px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={rows.map((r) => ({ name: r.dept.department_code, value: r.val }))} barSize={28}>
@@ -448,31 +448,31 @@ function DepartmentDetail({ dept, stateName, onBack, onNewSubmission }: DeptDeta
         {onBack && (
           <button
             onClick={onBack}
-            className="w-9 h-9 rounded-xl flex items-center justify-center border border-[#d4e8dc] hover:bg-[#e8f5ee] text-slate-600 hover:text-[#145c3f] transition-colors shrink-0"
+            className="w-8 h-8 rounded-md flex items-center justify-center border border-[#d4e8dc] hover:bg-[#e8f5ee] text-slate-600 hover:text-[#145c3f] transition-colors shrink-0"
           >
             <ArrowLeft className="w-4 h-4" />
           </button>
         )}
         <div
-          className="w-10 h-10 rounded-xl flex items-center justify-center text-white shrink-0"
+          className="w-9 h-9 rounded-md flex items-center justify-center text-white shrink-0"
           style={{ backgroundColor: color }}
         >
           {icon}
         </div>
         <div className="flex-1 min-w-0">
-          <h2 className="text-lg font-black text-slate-900 truncate">{dept.name}</h2>
+          <h2 className="text-lg font-bold text-slate-900 truncate">{dept.name}</h2>
           <p className="text-xs text-slate-500 flex items-center gap-1">
             <MapPin className="w-3 h-3" /> {stateName} State Office
             <span className="font-mono ml-1 text-slate-400">{dept.department_code}</span>
           </p>
         </div>
-        <Badge className={`text-xs px-3 py-1 font-bold shrink-0 ${complianceBadgeCls(stats.compliance)}`}>
+        <Badge className={`text-xs px-2.5 py-0.5 font-bold shrink-0 ${complianceBadgeCls(stats.compliance)}`}>
           {stats.compliance}% Compliance
         </Badge>
         {onNewSubmission && viewTarget && (
           <Button
             size="sm"
-            className="bg-[#145c3f] hover:bg-[#0f3d2e] text-white gap-1.5 shrink-0"
+            className="bg-[#145c3f] hover:bg-[#0f3d2e] text-white gap-1.5 shrink-0 rounded-md"
             onClick={() => onNewSubmission(viewTarget)}
           >
             <FileText className="w-3.5 h-3.5" /> New Submission
@@ -485,7 +485,7 @@ function DepartmentDetail({ dept, stateName, onBack, onNewSubmission }: DeptDeta
         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
           Click a card to see quarterly breakdown by unit
         </p>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
             { kpi: "reports"  as const, label: "Reports",  value: stats.reports,  sub: "This year",       icon: <FileText    className="w-4 h-4 text-blue-600"    />, tint: "kpi-blue"   },
             { kpi: "approved" as const, label: "Approved", value: stats.approved, sub: "Verified",        icon: <CheckSquare className="w-4 h-4 text-emerald-600" />, tint: "kpi-green"  },
@@ -495,14 +495,13 @@ function DepartmentDetail({ dept, stateName, onBack, onNewSubmission }: DeptDeta
             <button
               key={k.kpi}
               onClick={() => setDrillModal({ kpi: k.kpi, label: k.label })}
-              className={`${k.tint} rounded-2xl p-4 border border-white/60 shadow-sm text-left group
-                hover:shadow-md hover:scale-[1.02] transition-all cursor-pointer`}
+              className="rounded-lg p-3.5 border border-[#d4e8dc] bg-white shadow-2xs text-left group hover:border-[#145c3f] transition-all cursor-pointer"
             >
-              <div className="flex items-start justify-between mb-3">
-                <div className="w-9 h-9 rounded-xl bg-white/70 flex items-center justify-center shadow-sm">{k.icon}</div>
+              <div className="flex items-start justify-between mb-2">
+                <div className="w-8 h-8 rounded-md bg-[#e8f5ee] flex items-center justify-center shadow-2xs">{k.icon}</div>
                 <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-[#145c3f] transition-colors" />
               </div>
-              <p className="text-2xl font-black text-slate-900 tracking-tight">{k.value}</p>
+              <p className="text-2xl font-bold text-slate-900 tracking-tight">{k.value}</p>
               <p className="text-xs font-semibold text-slate-700 mt-0.5">{k.label}</p>
               <p className="text-[10px] text-slate-500 mt-0.5">{k.sub}</p>
               <p className="text-[9px] text-slate-400 mt-1.5 group-hover:text-[#145c3f] transition-colors">
@@ -514,8 +513,8 @@ function DepartmentDetail({ dept, stateName, onBack, onNewSubmission }: DeptDeta
       </div>
 
       {/* Charts — chart click also opens drill modal */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card className="rounded-2xl border-[#d4e8dc] shadow-sm">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card className="rounded-lg border-[#d4e8dc] shadow-2xs">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-bold">Quarterly Activity</CardTitle>
             <CardDescription className="text-xs">Reports submitted vs approved · click to drill down</CardDescription>
@@ -528,15 +527,15 @@ function DepartmentDetail({ dept, stateName, onBack, onNewSubmission }: DeptDeta
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e8f5ee" />
                 <XAxis dataKey="quarter" tick={{ fontSize: 11, fill: "#5a7a6a" }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fontSize: 11, fill: "#5a7a6a" }} axisLine={false} tickLine={false} />
-                <RTooltip contentStyle={{ borderRadius: 12, border: "1px solid #d4e8dc", fontSize: 12 }} />
-                <Bar dataKey="reports"  fill="#d1f5e4" radius={[6, 6, 0, 0]} name="Submitted" />
-                <Bar dataKey="approved" fill={color}   radius={[6, 6, 0, 0]} name="Approved" />
+                <RTooltip contentStyle={{ borderRadius: 6, border: "1px solid #d4e8dc", fontSize: 12 }} />
+                <Bar dataKey="reports"  fill="#d1f5e4" radius={[3, 3, 0, 0]} name="Submitted" />
+                <Bar dataKey="approved" fill={color}   radius={[3, 3, 0, 0]} name="Approved" />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
 
-        <Card className="rounded-2xl border-[#d4e8dc] shadow-sm">
+        <Card className="rounded-lg border-[#d4e8dc] shadow-2xs">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-bold">IGR Contribution (₦M)</CardTitle>
             <CardDescription className="text-xs">Quarterly internally generated revenue</CardDescription>
@@ -553,7 +552,7 @@ function DepartmentDetail({ dept, stateName, onBack, onNewSubmission }: DeptDeta
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e8f5ee" />
                 <XAxis dataKey="quarter" tick={{ fontSize: 11, fill: "#5a7a6a" }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fontSize: 11, fill: "#5a7a6a" }} axisLine={false} tickLine={false} />
-                <RTooltip contentStyle={{ borderRadius: 12, border: "1px solid #d4e8dc", fontSize: 12 }} />
+                <RTooltip contentStyle={{ borderRadius: 6, border: "1px solid #d4e8dc", fontSize: 12 }} />
                 <Area type="monotone" dataKey="igr" stroke={color} strokeWidth={2}
                   fill={`url(#grad-${dept.id})`} name="IGR (₦M)" />
               </AreaChart>
@@ -563,7 +562,7 @@ function DepartmentDetail({ dept, stateName, onBack, onNewSubmission }: DeptDeta
       </div>
 
       {/* Units breakdown — real data */}
-      <Card className="rounded-2xl border-[#d4e8dc] shadow-sm">
+      <Card className="rounded-lg border-[#d4e8dc] shadow-2xs">
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-bold text-slate-800 flex items-center gap-2">
             <Layers className="w-4 h-4 text-[#25a872]" />
@@ -581,7 +580,7 @@ function DepartmentDetail({ dept, stateName, onBack, onNewSubmission }: DeptDeta
             <div className="flex flex-col items-center gap-2 py-6 text-center">
               <AlertCircle className="w-6 h-6 text-rose-400" />
               <p className="text-xs text-slate-500">{unitError}</p>
-              <Button size="sm" variant="outline" className="rounded-xl text-xs border-[#d4e8dc]"
+              <Button size="sm" variant="outline" className="rounded-md text-xs border-[#d4e8dc]"
                 onClick={() => { setUnitError(null); setLoadingUnits(true); unitsApi.list(dept.id).then(r => setUnits(r.data)).catch(e => setUnitError(e?.message)).finally(() => setLoadingUnits(false)); }}>
                 <RefreshCw className="w-3 h-3 mr-1" /> Retry
               </Button>
@@ -598,13 +597,13 @@ function DepartmentDetail({ dept, stateName, onBack, onNewSubmission }: DeptDeta
                 const isOpen = activeUnit === unit.id;
                 const pct   = Math.round((us.completed / Math.max(1, us.tasks)) * 100);
                 return (
-                  <div key={unit.id} className="rounded-xl border border-[#d4e8dc] overflow-hidden">
+                  <div key={unit.id} className="rounded-lg border border-[#d4e8dc] overflow-hidden">
                     <button
                       onClick={() => setActiveUnit(isOpen ? null : unit.id)}
-                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-[#f0fdf7] transition-colors text-left group"
+                      className="w-full flex items-center gap-3 px-3.5 py-2.5 hover:bg-[#f0fdf7] transition-colors text-left group"
                     >
                       <div
-                        className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+                        className="w-7 h-7 rounded-md flex items-center justify-center shrink-0"
                         style={{ backgroundColor: color + "20", color }}
                       >
                         <Layers className="w-3.5 h-3.5" />
@@ -633,21 +632,21 @@ function DepartmentDetail({ dept, stateName, onBack, onNewSubmission }: DeptDeta
                           transition={{ duration: 0.2 }}
                           className="overflow-hidden"
                         >
-                          <div className="px-4 pb-4 pt-2 bg-[#f8fdfb] border-t border-[#e8f5ee] space-y-3">
+                          <div className="px-4 pb-3.5 pt-2 bg-[#f8fdfb] border-t border-[#e8f5ee] space-y-3">
                             {unit.description && (
                               <p className="text-xs text-slate-500 leading-relaxed">{unit.description}</p>
                             )}
-                            <div className="grid grid-cols-3 gap-3">
-                              <div className="rounded-xl bg-white border border-[#d4e8dc] p-3 text-center">
-                                <p className="text-lg font-black text-slate-900">{us.tasks}</p>
+                            <div className="grid grid-cols-3 gap-2.5">
+                              <div className="rounded-md bg-white border border-[#d4e8dc] p-2.5 text-center">
+                                <p className="text-lg font-bold text-slate-900">{us.tasks}</p>
                                 <p className="text-[10px] text-slate-500">Total Tasks</p>
                               </div>
-                              <div className="rounded-xl bg-white border border-[#d4e8dc] p-3 text-center">
-                                <p className="text-lg font-black text-emerald-600">{us.completed}</p>
+                              <div className="rounded-md bg-white border border-[#d4e8dc] p-2.5 text-center">
+                                <p className="text-lg font-bold text-emerald-600">{us.completed}</p>
                                 <p className="text-[10px] text-slate-500">Completed</p>
                               </div>
-                              <div className="rounded-xl bg-white border border-[#d4e8dc] p-3 text-center">
-                                <p className={`text-lg font-black ${us.overdue > 0 ? "text-rose-600" : "text-slate-400"}`}>
+                              <div className="rounded-md bg-white border border-[#d4e8dc] p-2.5 text-center">
+                                <p className={`text-lg font-bold ${us.overdue > 0 ? "text-rose-600" : "text-slate-400"}`}>
                                   {us.overdue}
                                 </p>
                                 <p className="text-[10px] text-slate-500">Overdue</p>
@@ -666,7 +665,7 @@ function DepartmentDetail({ dept, stateName, onBack, onNewSubmission }: DeptDeta
       </Card>
 
       {/* Directives */}
-      <Card className="rounded-2xl border-[#d4e8dc] shadow-sm">
+      <Card className="rounded-lg border-[#d4e8dc] shadow-2xs">
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-bold text-slate-800">Active Directives</CardTitle>
         </CardHeader>
@@ -870,10 +869,10 @@ export default function StateOfficeDashboard({
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0 }}
-        className="space-y-6"
+        className="w-full space-y-3.5"
       >
         {/* Page header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div>
             <div className="flex items-center gap-2 mb-1">
               <MapPin className="w-4 h-4 text-[#25a872]" />
@@ -881,24 +880,24 @@ export default function StateOfficeDashboard({
                 {stateName} State Office · {zoneName} Zone
               </span>
             </div>
-            <h1 className="text-xl font-black text-slate-900 tracking-tight">State Office Performance</h1>
+            <h1 className="text-xl font-bold text-slate-900 tracking-tight">State Office Performance</h1>
           </div>
           <div className="flex gap-2 flex-wrap">
             {onNewReport && (
               <Button onClick={onNewReport}
-                className="h-9 text-xs rounded-xl bg-[#145c3f] hover:bg-[#0f3d2e] text-white gap-1.5 shadow-md shadow-[#145c3f]/20">
+                className="h-8 text-xs rounded-md bg-[#145c3f] hover:bg-[#0f3d2e] text-white gap-1.5 shadow-xs">
                 <FileText className="w-3.5 h-3.5" /> New Report
               </Button>
             )}
             {onAnnualReport && (
               <Button onClick={onAnnualReport} variant="outline"
-                className="h-9 text-xs rounded-xl border-[#d4e8dc] hover:bg-[#e8f5ee] gap-1.5">
+                className="h-8 text-xs rounded-md border-[#d4e8dc] hover:bg-[#e8f5ee] gap-1.5">
                 <BookOpen className="w-3.5 h-3.5" /> Annual Report
               </Button>
             )}
             {onViewSubmissions && (
               <Button onClick={onViewSubmissions} variant="outline"
-                className="h-9 text-xs rounded-xl border-[#d4e8dc] hover:bg-[#e8f5ee] gap-1.5">
+                className="h-8 text-xs rounded-md border-[#d4e8dc] hover:bg-[#e8f5ee] gap-1.5">
                 <ClipboardList className="w-3.5 h-3.5" /> My Submissions
               </Button>
             )}
@@ -906,7 +905,7 @@ export default function StateOfficeDashboard({
         </div>
 
         {/* ── KPI cards — all clickable ── */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {[
             {
               label: "Total Reports", value: totalReports, sub: "All departments · 2025",
@@ -939,20 +938,20 @@ export default function StateOfficeDashboard({
             <button
               key={k.label}
               onClick={k.onClick}
-              className={`${k.tint} rounded-2xl p-4 border shadow-sm text-left w-full group transition-all
-                cursor-pointer hover:shadow-md hover:scale-[1.02]
-                ${k.active ? "ring-2 ring-[#145c3f] ring-offset-1 border-transparent" : "border-white/60"}`}
+              className={`rounded-lg p-3.5 border shadow-2xs text-left w-full group transition-all bg-white
+                cursor-pointer hover:border-[#145c3f]
+                ${k.active ? "ring-2 ring-[#145c3f] border-[#145c3f]" : "border-[#d4e8dc]"}`}
             >
-              <div className="flex items-start justify-between mb-3">
-                <div className="w-9 h-9 rounded-xl bg-white/70 flex items-center justify-center shadow-sm">
+              <div className="flex items-start justify-between mb-2">
+                <div className="w-8 h-8 rounded-md bg-[#e8f5ee] flex items-center justify-center shadow-2xs">
                   {k.icon}
                 </div>
                 <ChevronRight className={`w-4 h-4 transition-colors ${k.active ? "text-[#145c3f]" : "text-slate-300 group-hover:text-[#145c3f]"}`} />
               </div>
-              <p className="text-2xl font-black text-slate-900 tracking-tight">{k.value}</p>
+              <p className="text-2xl font-bold text-slate-900 tracking-tight">{k.value}</p>
               <p className="text-xs font-semibold text-slate-700 mt-0.5">{k.label}</p>
               <p className="text-[10px] text-slate-500 mt-0.5">{k.sub}</p>
-              <p className="text-[9px] text-slate-400 mt-1.5 group-hover:text-[#145c3f] transition-colors">
+              <p className="text-[9px] text-slate-400 mt-1 group-hover:text-[#145c3f] transition-colors">
                 View breakdown →
               </p>
             </button>
@@ -976,12 +975,12 @@ export default function StateOfficeDashboard({
           </div>
         )}
 
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-3.5">
           {/* Left: chart + department cards */}
-          <div className="xl:col-span-2 space-y-6">
+          <div className="xl:col-span-2 space-y-3.5">
 
             {/* Summary chart — bars are clickable */}
-            <Card className="rounded-2xl border-[#d4e8dc] shadow-sm">
+            <Card className="rounded-lg border-[#d4e8dc] shadow-2xs">
               <CardHeader className="pb-2 flex flex-row items-center justify-between">
                 <div>
                   <CardTitle className="text-sm font-bold text-slate-800">Departmental Report Activity</CardTitle>
@@ -1022,15 +1021,15 @@ export default function StateOfficeDashboard({
                     <XAxis dataKey="name" tick={{ fontSize: 10, fill: "#5a7a6a" }} axisLine={false} tickLine={false} />
                     <YAxis tick={{ fontSize: 10, fill: "#5a7a6a" }} axisLine={false} tickLine={false} />
                     <RTooltip
-                      contentStyle={{ borderRadius: 12, border: "1px solid #d4e8dc", fontSize: 12 }}
+                      contentStyle={{ borderRadius: 6, border: "1px solid #d4e8dc", fontSize: 12 }}
                       formatter={(value, name) => [value, name]}
                       labelFormatter={(label) => {
                         const dept = departments.find((d) => d.department_code === label);
                         return dept ? dept.name : label;
                       }}
                     />
-                    <Bar dataKey="reports"  fill="#d1f5e4" radius={[4, 4, 0, 0]} name="Submitted" />
-                    <Bar dataKey="approved" fill="#25a872" radius={[4, 4, 0, 0]} name="Approved" />
+                    <Bar dataKey="reports"  fill="#d1f5e4" radius={[3, 3, 0, 0]} name="Submitted" />
+                    <Bar dataKey="approved" fill="#25a872" radius={[3, 3, 0, 0]} name="Approved" />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -1038,7 +1037,7 @@ export default function StateOfficeDashboard({
 
             {/* Department cards grid */}
             <div>
-              <h3 className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
+              <h3 className="text-sm font-bold text-slate-700 mb-2.5 flex items-center gap-2">
                 <Building2 className="w-4 h-4 text-[#25a872]" />
                 Departments
                 <span className="text-[10px] font-normal text-slate-400 ml-1">
@@ -1047,7 +1046,7 @@ export default function StateOfficeDashboard({
               </h3>
 
               {departments.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-[#d4e8dc] p-8 text-center">
+                <div className="rounded-lg border border-dashed border-[#d4e8dc] p-6 text-center">
                   <Building2 className="w-8 h-8 text-slate-300 mx-auto mb-2" />
                   <p className="text-sm text-slate-400">No departments found</p>
                 </div>
@@ -1059,10 +1058,10 @@ export default function StateOfficeDashboard({
                       <button
                         key={dept.id}
                         onClick={() => setSelectedDept(dept)}
-                        className="flex items-start gap-3 p-4 rounded-2xl border border-[#d4e8dc] bg-white hover:border-[#25a872] hover:shadow-md transition-all text-left group"
+                        className="flex items-start gap-3 p-3.5 rounded-lg border border-[#d4e8dc] bg-white hover:border-[#145c3f] hover:shadow-2xs transition-all text-left group"
                       >
                         <div
-                          className="w-10 h-10 rounded-xl flex items-center justify-center text-white shrink-0 mt-0.5"
+                          className="w-9 h-9 rounded-md flex items-center justify-center text-white shrink-0 mt-0.5"
                           style={{ backgroundColor: color }}
                         >
                           {icon}
@@ -1130,9 +1129,9 @@ export default function StateOfficeDashboard({
           </div>
 
           {/* Right column */}
-          <div className="space-y-5">
+          <div className="space-y-3.5">
             {/* Pie chart */}
-            <Card className="rounded-2xl border-[#d4e8dc] shadow-sm">
+            <Card className="rounded-lg border-[#d4e8dc] shadow-2xs">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-bold text-slate-800">Report Status Split</CardTitle>
               </CardHeader>
@@ -1148,7 +1147,7 @@ export default function StateOfficeDashboard({
                         <Cell key={i} fill={entry.fill} />
                       ))}
                     </Pie>
-                    <RTooltip contentStyle={{ borderRadius: 10, fontSize: 12 }} />
+                    <RTooltip contentStyle={{ borderRadius: 6, fontSize: 12 }} />
                   </PieChart>
                 </div>
                 <div className="flex justify-center gap-4 mt-1">
@@ -1165,7 +1164,7 @@ export default function StateOfficeDashboard({
             </Card>
 
             {/* Compliance ranking */}
-            <Card className="rounded-2xl border-[#d4e8dc] shadow-sm">
+            <Card className="rounded-lg border-[#d4e8dc] shadow-2xs">
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-bold text-slate-800">Dept Compliance Ranking</CardTitle>
                 <CardDescription className="text-xs">Click to drill into department</CardDescription>
@@ -1180,7 +1179,7 @@ export default function StateOfficeDashboard({
                       <button
                         key={dept.id}
                         onClick={() => setSelectedDept(dept)}
-                        className="w-full flex items-center gap-2.5 p-2.5 rounded-xl bg-[#f0fdf7] border border-[#d4e8dc] hover:border-[#25a872] hover:bg-[#e8f5ee] transition-all group"
+                        className="w-full flex items-center gap-2.5 p-2 rounded-md bg-[#f0fdf7] border border-[#d4e8dc] hover:border-[#145c3f] hover:bg-[#e8f5ee] transition-all group"
                       >
                         <span className={`w-5 h-5 rounded-full text-white text-[10px] font-black flex items-center justify-center shrink-0 ${
                           i === 0 ? "bg-[#25a872]" : i === 1 ? "bg-[#3b82f6]" : i === 2 ? "bg-[#f59e0b]" : "bg-slate-300"
@@ -1194,7 +1193,7 @@ export default function StateOfficeDashboard({
                         <p className="text-xs font-semibold text-slate-800 flex-1 text-left truncate group-hover:text-[#145c3f]">
                           {dept.name}
                         </p>
-                        <span className={`text-xs font-black ${complianceColor(compliance)}`}>{compliance}%</span>
+                        <span className={`text-xs font-bold ${complianceColor(compliance)}`}>{compliance}%</span>
                         <ChevronRight className="w-3 h-3 text-slate-300 group-hover:text-[#25a872]" />
                       </button>
                     );
@@ -1203,7 +1202,7 @@ export default function StateOfficeDashboard({
             </Card>
 
             {/* Needs attention */}
-            <Card className="rounded-2xl border-[#d4e8dc] shadow-sm">
+            <Card className="rounded-lg border-[#d4e8dc] shadow-2xs">
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-bold text-slate-800 flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 text-rose-500" /> Needs Attention
@@ -1217,7 +1216,7 @@ export default function StateOfficeDashboard({
                     <button
                       key={dept.id}
                       onClick={() => setSelectedDept(dept)}
-                      className="w-full flex items-start gap-2.5 p-2.5 rounded-xl bg-rose-50 border border-rose-100 hover:border-rose-300 transition-all text-left group"
+                      className="w-full flex items-start gap-2.5 p-2 rounded-md bg-rose-50 border border-rose-100 hover:border-rose-300 transition-all text-left group"
                     >
                       <AlertCircle className="w-3.5 h-3.5 text-rose-500 shrink-0 mt-0.5" />
                       <div className="flex-1 min-w-0">

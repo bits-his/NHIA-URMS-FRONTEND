@@ -209,8 +209,8 @@ export default function SocZonesDashboard({ onBack, defaultStateId, defaultZoneI
                 />
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <Card className="rounded-2xl border-[#d4e8dc]">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3.5">
+                <Card className="rounded-lg border-[#d4e8dc] shadow-2xs">
                   <CardHeader className="pb-2 flex flex-row items-center justify-between">
                     <CardTitle className="text-sm font-bold">Monthly Report Activity</CardTitle>
                     <DrillHint label="All reports" onClick={() => drillReports("All Monthly Reports")} />
@@ -242,7 +242,7 @@ export default function SocZonesDashboard({ onBack, defaultStateId, defaultZoneI
                   </CardContent>
                 </Card>
 
-                <Card className="rounded-2xl border-[#d4e8dc]">
+                <Card className="rounded-lg border-[#d4e8dc] shadow-2xs">
                   <CardHeader className="pb-2 flex flex-row items-center justify-between">
                     <CardTitle className="text-sm font-bold">Reports by Type</CardTitle>
                     <DrillHint label="Browse types" onClick={openReportTypePicker} />
@@ -258,7 +258,7 @@ export default function SocZonesDashboard({ onBack, defaultStateId, defaultZoneI
                         <YAxis type="category" dataKey="label" tick={{ fontSize: 9 }} width={120} />
                         <Tooltip />
                         <Bar
-                          dataKey="total" fill="#25a872" radius={[0, 4, 4, 0]} style={{ cursor: "pointer" }}
+                          dataKey="total" fill="#25a872" radius={[0, 3, 3, 0]} style={{ cursor: "pointer" }}
                           onClick={(_: unknown, index: number) => {
                             const row = (data.reports_by_type ?? [])[index];
                             if (row?.key) drillReportType(row.key, row.label);
@@ -270,7 +270,7 @@ export default function SocZonesDashboard({ onBack, defaultStateId, defaultZoneI
                   </CardContent>
                 </Card>
 
-                <Card className="rounded-2xl border-[#d4e8dc]">
+                <Card className="rounded-lg border-[#d4e8dc] shadow-2xs">
                   <CardHeader className="pb-2"><CardTitle className="text-sm font-bold">Actionable Items by Status</CardTitle></CardHeader>
                   <CardContent className="h-[240px]">
                     {(data.actionable_by_status ?? []).length === 0 ? (
@@ -298,7 +298,7 @@ export default function SocZonesDashboard({ onBack, defaultStateId, defaultZoneI
 
                 <div className="lg:col-span-2">
                   {(data.state_activity ?? []).length === 0 ? (
-                    <Card className="rounded-2xl border-[#d4e8dc]">
+                    <Card className="rounded-lg border-[#d4e8dc] shadow-2xs">
                       <CardHeader className="pb-2 flex flex-row items-center justify-between">
                         <CardTitle className="text-sm font-bold">Top States by Reports</CardTitle>
                         <DrillHint label="All reports" onClick={() => drillReports("All Monthly Reports")} />

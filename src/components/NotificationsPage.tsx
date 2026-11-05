@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import { notificationsApi } from "@/lib/api";
+import PageLayout from "@/src/components/PageLayout";
 
 interface Notification {
   id: number;
@@ -89,22 +90,17 @@ export default function NotificationsPage({ onBack }: Props) {
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0 }}
-      className="relative z-10 flex flex-col h-full"
-    >
-      <div className="bg-white border-b border-[#d4e8dc] px-8 py-4 flex items-center justify-between sticky top-0 z-30">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={onBack} className="rounded-full">
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-          <div>
-            <h2 className="text-lg font-bold tracking-tight">Notifications</h2>
-            {unread > 0 && <p className="text-xs text-slate-500">{unread} unread</p>}
-          </div>
-        </div>
+    <PageLayout
+      title="Notifications"
+      badge={
+        unread > 0 ? (
+          <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-[#145c3f]">
+            {unread} unread
+          </span>
+        ) : null
+      }
+      maxWidth="3xl"
+      actions={
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={markAllRead} disabled={unread === 0} className="gap-2 text-xs">
             <CheckCircle2 className="w-3.5 h-3.5" /> Mark all read
@@ -113,10 +109,9 @@ export default function NotificationsPage({ onBack }: Props) {
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh
           </Button>
         </div>
-      </div>
-
-      <ScrollArea className="flex-1">
-        <div className="max-w-3xl mx-auto p-8 space-y-3">
+      }
+    >
+      <div className="w-full space-y-3">
           {loading ? (
             <div className="py-16 flex justify-center text-slate-400">
               <Loader2 className="w-6 h-6 animate-spin" />
@@ -167,7 +162,6 @@ export default function NotificationsPage({ onBack }: Props) {
             })
           )}
         </div>
-      </ScrollArea>
-    </motion.div>
+    </PageLayout>
   );
 }

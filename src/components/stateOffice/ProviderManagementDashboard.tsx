@@ -238,14 +238,14 @@ export default function ProviderManagementDashboard({
       )}
 
       <ScrollArea className="flex-1">
-        <div className="px-4 md:px-6 py-5 space-y-5 pb-12 max-w-[1400px] mx-auto w-full">
+        <div className="w-full px-3 py-3 md:px-4 md:py-3.5 space-y-3.5 pb-12">
           {embedded && (
             <p className="text-xs text-slate-500 -mt-1 mb-1">{displayBlurb}</p>
           )}
           <motion.div
-            initial={{ opacity: 0, y: 8 }}
+            initial={{ opacity: 0, y: 4 }}
             animate={{ opacity: 1, y: 0 }}
-            className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+            className="rounded-lg border border-[#d4e8dc] bg-white p-3.5 shadow-2xs"
           >
             <div className={`grid grid-cols-2 md:grid-cols-3 gap-3 ${level === 4 ? "xl:grid-cols-5" : "xl:grid-cols-6"}`}>
               {level === 4 ? (
@@ -509,13 +509,13 @@ export default function ProviderManagementDashboard({
             </div>
           </motion.div>
 
-          <div className="flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-sm w-full sm:w-fit">
+          <div className="flex items-center gap-1 rounded-lg border border-[#d4e8dc] bg-white p-1 shadow-2xs w-full sm:w-fit">
             <button
               type="button"
               onClick={() => setMainTab("overview")}
-              className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              className={`flex-1 sm:flex-none px-3.5 py-1.5 rounded-md text-xs font-bold transition-colors ${
                 mainTab === "overview"
-                  ? "bg-teal-700 text-white shadow-sm"
+                  ? "bg-[#145c3f] text-white shadow-xs"
                   : "text-slate-600 hover:bg-slate-50"
               }`}
             >
@@ -524,9 +524,9 @@ export default function ProviderManagementDashboard({
             <button
               type="button"
               onClick={() => setMainTab("analysis")}
-              className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              className={`flex-1 sm:flex-none px-3.5 py-1.5 rounded-md text-xs font-bold transition-colors ${
                 mainTab === "analysis"
-                  ? "bg-teal-700 text-white shadow-sm"
+                  ? "bg-[#145c3f] text-white shadow-xs"
                   : "text-slate-600 hover:bg-slate-50"
               }`}
             >
@@ -535,12 +535,12 @@ export default function ProviderManagementDashboard({
           </div>
 
           {loading ? (
-            <div className="flex items-center justify-center py-24 gap-3 text-slate-400">
-              <Loader2 className="w-6 h-6 animate-spin text-teal-700" />
-              <span className="text-sm">Loading analytics…</span>
+            <div className="flex items-center justify-center py-20 gap-3 text-slate-400">
+              <Loader2 className="w-6 h-6 animate-spin text-[#145c3f]" />
+              <span className="text-sm font-medium">Loading analytics…</span>
             </div>
           ) : !data ? (
-            <div className="rounded-xl border border-dashed border-slate-200 bg-white py-16 text-center text-sm text-slate-500">
+            <div className="rounded-lg border border-dashed border-slate-200 bg-white py-14 text-center text-sm text-slate-500">
               No dashboard data for this scope.
             </div>
           ) : mainTab === "analysis" ? (

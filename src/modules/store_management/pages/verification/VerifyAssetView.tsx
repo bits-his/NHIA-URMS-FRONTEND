@@ -208,11 +208,7 @@ export default function VerifyAssetView() {
 
   return (
     <PageLayout
-      title={
-        <span className="flex items-center gap-2">
-          <ClipboardCheck className="w-5 h-5 text-[#25a872]" /> Physical Asset Verification
-        </span>
-      }
+      title="Physical Asset Verification"
       description={`Conduct physical stocktaking and condition assessment for ${tag}`}
       actions={
         <Button

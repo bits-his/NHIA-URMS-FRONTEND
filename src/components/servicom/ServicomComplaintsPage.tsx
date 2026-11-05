@@ -61,6 +61,7 @@ import {
 import HmoProviderSelect from "./HmoProviderSelect";
 import HcfFacilitySelect from "./HcfFacilitySelect";
 import { SubmitConfirmModal, useReportingOfficerSubmitConfirm } from "@/src/components/SubmitConfirmModal";
+import PageLayout from "@/src/components/PageLayout";
 
 interface Props {
   onBack?: () => void;
@@ -801,15 +802,23 @@ export default function ServicomComplaintsPage({
     next: { mode?: Mode; id?: string | number | null; stage?: LifecycleStage | null },
     opts?: { replace?: boolean },
   ) => {
-    const params = new URLSearchParams();
+    // Keep hub params such as ?tab=complaints. Replacing the whole query
+    // drops the tab and the compliance hub snaps back to the register table.
+    const params = new URLSearchParams(searchParams);
     const m = next.mode ?? "list";
-    if (m !== "list") {
+    if (m === "list") {
+      params.delete("mode");
+      params.delete("id");
+      params.delete("stage");
+    } else {
       params.set("mode", m);
       if (next.id != null && next.id !== "") params.set("id", String(next.id));
+      else params.delete("id");
       if (m === "manage" && next.stage) params.set("stage", next.stage);
+      else params.delete("stage");
     }
     setSearchParams(params, { replace: !!opts?.replace });
-  }, [setSearchParams]);
+  }, [searchParams, setSearchParams]);
 
   const set = (key: string, value: string | boolean) => setF((p) => ({ ...p, [key]: value }));
 
@@ -4149,62 +4158,43 @@ export default function ServicomComplaintsPage({
   ];
 
   return (
-    <div className={`${embedded ? "" : "bg-[#f4f7f5]"} min-h-full h-full overflow-auto`}>
-      {!embedded && (
-        <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sticky top-0 z-30">
-          <div className="flex items-center gap-3 min-w-0">
-            {onBack && (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={onBack}
-                className="rounded-sm hover:bg-[#e8f5ee] text-slate-700"
-                aria-label="Back"
-              >
-                <ArrowLeft className="w-5 h-5" />
-              </Button>
-            )}
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <h2 className="text-xl font-black tracking-tight text-slate-900 truncate">
-                  Complaints Management
-                </h2>
-                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
-                  {listStats.total} {listStats.total === 1 ? "complaint" : "complaints"}
-                </span>
-              </div>
-              <p className="text-xs text-slate-500 truncate">
-                SERVICOM dispute resolution, investigations, SLA tracking & escalation workflow
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+    <PageLayout
+      showHeader={!embedded}
+      title={embedded ? undefined : "Complaints Management"}
+      badge={
+        !embedded ? (
+          <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+            {listStats.total} {listStats.total === 1 ? "complaint" : "complaints"}
+          </span>
+        ) : null
+      }
+      showBack={false}
+      actions={
+        <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={load}
+            disabled={loading}
+            className="h-8.5 gap-1.5 border border-slate-300 text-slate-700 bg-white hover:bg-[#f4f7f5] text-xs font-bold rounded-sm shadow-2xs"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+            <span>Refresh</span>
+          </Button>
+          {canRegister && (
             <Button
-              variant="outline"
               size="sm"
-              onClick={load}
-              disabled={loading}
-              className="h-8.5 gap-1.5 border border-slate-300 text-slate-700 bg-white hover:bg-[#f4f7f5] text-xs font-bold rounded-sm shadow-2xs"
+              className="h-8.5 bg-orange-action hover:bg-orange-600 text-white font-bold text-xs gap-1.5 rounded-sm shadow-md shadow-orange-500/15"
+              onClick={openRegister}
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
-              <span>Refresh</span>
+              <Plus className="w-3.5 h-3.5" />
+              <span>New Complaint</span>
             </Button>
-            {canRegister && (
-              <Button
-                size="sm"
-                className="h-8.5 bg-orange-action hover:bg-orange-600 text-white font-bold text-xs gap-1.5 rounded-sm shadow-md shadow-orange-500/15"
-                onClick={openRegister}
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>New Complaint</span>
-              </Button>
-            )}
-          </div>
+          )}
         </div>
-      )}
-
-      <div className="w-full px-4 md:px-5 py-3 space-y-3">
+      }
+    >
+      <div className="w-full space-y-3">
         {!isReportingOfficer && (
           <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-2">
             {[
@@ -4413,6 +4403,6 @@ export default function ServicomComplaintsPage({
           getRowClassName={(c) => slaRowClass(c.sla?.color)}
         />
       </div>
-    </div>
+    </PageLayout>
   );
 }

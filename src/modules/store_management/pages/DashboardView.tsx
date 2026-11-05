@@ -70,20 +70,19 @@ export function DashboardView() {
 
   return (
     <PageLayout
-      title="NHIA Asset & Inventory Platform Dashboard"
-      description="Enterprise Public Sector Control Dashboard for Assets, Stores Inventory, Verifications, and Field Audits"
+      title="Store & Asset Management Dashboard"
       actions={
         <div className="flex items-center gap-2">
           <Button
             onClick={() => navigate("/store-management/assets/register")}
-            className="bg-sky-600 hover:bg-sky-700 text-white font-semibold text-xs h-8"
+            className="bg-[#145c3f] hover:bg-[#0f3d2e] text-white font-semibold text-xs h-8 rounded-md"
           >
             <PlusCircle className="h-3.5 w-3.5 mr-1.5" />
             Register New Asset
           </Button>
           <Button
             onClick={() => navigate("/store-management/prepayment-analysis")}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs h-8"
+            className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs h-8 rounded-md"
           >
             <ClipboardList className="h-3.5 w-3.5 mr-1.5" />
             Prepayment Analysis
@@ -92,14 +91,14 @@ export function DashboardView() {
       }
     >
       {/* Quick Action Hub Bar */}
-      <div className="bg-slate-900 text-white p-3.5 rounded-lg shadow-md mb-4 flex items-center justify-between overflow-x-auto gap-3 text-xs">
+      <div className="bg-slate-900 text-white p-3 rounded-lg shadow-2xs mb-3.5 flex items-center justify-between overflow-x-auto gap-3 text-xs">
         <span className="font-bold text-sky-300 uppercase tracking-wider text-[11px] shrink-0">
           Quick Operations:
         </span>
         <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={() => setShowQuickTransferModal(true)}
-            className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white font-semibold rounded border border-slate-700 flex items-center gap-1.5"
+            className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-white font-medium rounded-md border border-slate-700 flex items-center gap-1.5"
           >
             <ArrowRightLeft className="h-3.5 w-3.5 text-sky-400" />
             Initiate Transfer
@@ -107,7 +106,7 @@ export function DashboardView() {
 
           <button
             onClick={() => setShowQuickMntModal(true)}
-            className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white font-semibold rounded border border-slate-700 flex items-center gap-1.5"
+            className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-white font-medium rounded-md border border-slate-700 flex items-center gap-1.5"
           >
             <Wrench className="h-3.5 w-3.5 text-amber-400" />
             Log Maintenance
@@ -115,7 +114,7 @@ export function DashboardView() {
 
           <button
             onClick={() => navigate("/store-management/verification/verify")}
-            className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white font-semibold rounded border border-slate-700 flex items-center gap-1.5"
+            className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-white font-medium rounded-md border border-slate-700 flex items-center gap-1.5"
           >
             <QrCode className="h-3.5 w-3.5 text-emerald-400" />
             Scan QR Code Audit
@@ -123,7 +122,7 @@ export function DashboardView() {
 
           <button
             onClick={() => navigate("/store-management/reports/analytics")}
-            className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white font-semibold rounded border border-slate-700 flex items-center gap-1.5"
+            className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-white font-medium rounded-md border border-slate-700 flex items-center gap-1.5"
           >
             <FileSpreadsheet className="h-3.5 w-3.5 text-purple-400" />
             Export Portfolio Report
@@ -132,8 +131,8 @@ export function DashboardView() {
       </div>
 
       {/* Overview Stat Cards */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 mb-4">
-        <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm flex items-center justify-between">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 mb-3.5">
+        <div className="rounded-lg border border-[#d4e8dc] bg-white p-3.5 shadow-2xs flex items-center justify-between">
           <div>
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
               Asset Portfolio Valuation
@@ -145,12 +144,12 @@ export function DashboardView() {
               {assets.length} Master Registered Assets
             </p>
           </div>
-          <div className="h-10 w-10 rounded-lg bg-sky-100 text-sky-600 flex items-center justify-center">
-            <Building2 className="h-5 w-5" />
+          <div className="h-9 w-9 rounded-md bg-sky-100 text-sky-600 flex items-center justify-center shrink-0">
+            <Building2 className="h-4.5 w-4.5" />
           </div>
         </div>
 
-        <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm flex items-center justify-between">
+        <div className="rounded-lg border border-[#d4e8dc] bg-white p-3.5 shadow-2xs flex items-center justify-between">
           <div>
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
               Verified Assets
@@ -162,12 +161,12 @@ export function DashboardView() {
               Marked verified on the asset register
             </p>
           </div>
-          <div className="h-10 w-10 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center">
-            <ShieldCheck className="h-5 w-5" />
+          <div className="h-9 w-9 rounded-md bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
+            <ShieldCheck className="h-4.5 w-4.5" />
           </div>
         </div>
 
-        <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm flex items-center justify-between">
+        <div className="rounded-lg border border-[#d4e8dc] bg-white p-3.5 shadow-2xs flex items-center justify-between">
           <div>
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
               Active Transfers
@@ -177,12 +176,12 @@ export function DashboardView() {
               Inter-Office Movements
             </p>
           </div>
-          <div className="h-10 w-10 rounded-lg bg-purple-100 text-purple-600 flex items-center justify-center">
-            <ArrowRightLeft className="h-5 w-5" />
+          <div className="h-9 w-9 rounded-md bg-purple-100 text-purple-600 flex items-center justify-center shrink-0">
+            <ArrowRightLeft className="h-4.5 w-4.5" />
           </div>
         </div>
 
-        <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm flex items-center justify-between">
+        <div className="rounded-lg border border-[#d4e8dc] bg-white p-3.5 shadow-2xs flex items-center justify-between">
           <div>
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
               Store SKUs in Stock
@@ -192,16 +191,16 @@ export function DashboardView() {
               Central & Regional Stores
             </p>
           </div>
-          <div className="h-10 w-10 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center">
-            <Warehouse className="h-5 w-5" />
+          <div className="h-9 w-9 rounded-md bg-indigo-100 text-indigo-600 flex items-center justify-center shrink-0">
+            <Warehouse className="h-4.5 w-4.5" />
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 flex-1">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3.5 flex-1">
         {/* Active Asset Register List */}
-        <div className="lg:col-span-2 rounded-lg border border-gray-200 bg-white p-4 shadow-sm flex flex-col">
-          <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+        <div className="lg:col-span-2 rounded-lg border border-[#d4e8dc] bg-white p-3.5 shadow-2xs flex flex-col">
+          <div className="flex items-center justify-between pb-2.5 border-b border-gray-100">
             <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
               <Building2 className="h-4 w-4 text-sky-600" />
               Active Master Asset Register Items
@@ -232,7 +231,7 @@ export function DashboardView() {
                     </p>
                   </div>
                   <div className="text-right">
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">
                       <CheckCircle2 className="h-3 w-3 mr-1" />
                       {asset.status || "Active"}
                     </span>
@@ -247,8 +246,8 @@ export function DashboardView() {
         </div>
 
         {/* Real-Time Movement Feed */}
-        <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm flex flex-col">
-          <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+        <div className="rounded-lg border border-[#d4e8dc] bg-white p-3.5 shadow-2xs flex flex-col">
+          <div className="flex items-center justify-between pb-2.5 border-b border-gray-100">
             <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
               <FileCheck className="h-4 w-4 text-slate-600" />
               Real-Time Movement Feed
@@ -284,10 +283,10 @@ export function DashboardView() {
       {/* Quick Transfer Modal */}
       {showQuickTransferModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="bg-white rounded-lg shadow-xl border border-gray-200 w-full max-w-lg p-5">
+          <div className="bg-white rounded-lg shadow-xl border border-[#d4e8dc] w-full max-w-lg p-5">
             <div className="flex items-center justify-between border-b pb-3 mb-4">
               <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <ArrowRightLeft className="h-4 w-4 text-sky-600" />
+                <ArrowRightLeft className="h-4 w-4 text-[#145c3f]" />
                 Quick Asset Transfer Request
               </h3>
               <button
@@ -360,7 +359,7 @@ export function DashboardView() {
       {/* Quick Maintenance Modal */}
       {showQuickMntModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="bg-white rounded-lg shadow-xl border border-gray-200 w-full max-w-lg p-5">
+          <div className="bg-white rounded-lg shadow-xl border border-[#d4e8dc] w-full max-w-lg p-5">
             <div className="flex items-center justify-between border-b pb-3 mb-4">
               <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
                 <Wrench className="h-4 w-4 text-amber-600" />

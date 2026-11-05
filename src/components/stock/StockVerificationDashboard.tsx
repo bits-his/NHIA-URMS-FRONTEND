@@ -11,6 +11,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
 } from "recharts";
 import { toast } from "sonner";
+import PageLayout from "@/components/PageLayout";
 import { stockApi } from "@/lib/api";
 import { DashChartCard } from "@/components/dashboard/dashboardUi";
 import { pickGeoLabel } from "@/src/components/servicom/servicomConstants";
@@ -189,156 +190,146 @@ export default function StockVerificationDashboard({ onBack, defaultStateId, def
     []
   );
 
+
   return (
-    <div className="flex flex-col h-full bg-slate-50/30">
-      <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3.5 flex items-center justify-between sticky top-0 z-30 gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onBack}
-            className="rounded-full shrink-0"
-            aria-label="Back"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-          <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">Stock Verification Unit</h2>
-        </div>
-        <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2 shrink-0">
-          <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
+    <PageLayout
+      title="Stock Verification Unit"
+      actions={
+        <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-1.5 h-8 text-xs rounded-md">
+          <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh
         </Button>
-      </div>
-
-      <ScrollArea className="flex-1">
-        <div className="w-full px-4 md:px-6 py-4 space-y-4">
-          <Card className="rounded-2xl border-[#d4e8dc]">
-            <CardContent className="pt-4 pb-4 space-y-3">
-              <div className={`grid gap-3 ${geoLocked ? "grid-cols-2 md:grid-cols-3 xl:grid-cols-6" : "grid-cols-2 md:grid-cols-3 xl:grid-cols-4"}`}>
-                <div className="space-y-1 min-w-0">
-                  <Label className="text-xs text-muted-foreground">Year</Label>
-                  <Select value={year} onValueChange={setYear}>
-                    <SelectTrigger className="w-full" displayValue={year === "all" ? "All Years" : year}>
-                      <SelectValue placeholder="Year" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {YEARS.map((y) => (
-                        <SelectItem key={y} value={y}>{y === "all" ? "All Years" : y}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1 min-w-0">
-                  <Label className="text-xs text-muted-foreground">Quarter</Label>
-                  <Select value={quarter} onValueChange={setQuarter}>
-                    <SelectTrigger className="w-full" displayValue={quarter === "all" ? "All Quarters" : `Q${quarter}`}>
-                      <SelectValue placeholder="Quarter" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Quarters</SelectItem>
-                      {["1", "2", "3", "4"].map((q) => (
-                        <SelectItem key={q} value={q}>{`Q${q}`}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1 min-w-0">
-                  <Label className="text-xs text-muted-foreground">Office</Label>
-                  <Select value={office} onValueChange={setOffice}>
-                    <SelectTrigger className="w-full" displayValue={office === "all" ? "All Offices" : office.toUpperCase()}>
-                      <SelectValue placeholder="Office" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Offices</SelectItem>
-                      <SelectItem value="hq">HQ</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                {!geoLocked && (
-                  <>
-                    <div className="space-y-1 min-w-0">
-                      <Label className="text-xs text-muted-foreground">Zone</Label>
-                      <Select value={filterZone} onValueChange={(v) => { setFilterZone(v); setFilterState("all"); }}>
-                        <SelectTrigger className="w-full" displayValue={zoneLabel}>
-                          <SelectValue placeholder="Zone" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All Zones</SelectItem>
-                          {zones.map((z) => (
-                            <SelectItem key={z.id} value={String(z.id)}>{z.description}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-1 min-w-0">
-                      <Label className="text-xs text-muted-foreground">State</Label>
-                      <Select value={filterState} onValueChange={setFilterState}>
-                        <SelectTrigger className="w-full" displayValue={stateLabel}>
-                          <SelectValue placeholder="State" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All States</SelectItem>
-                          {states.map((s) => (
-                            <SelectItem key={s.id} value={String(s.id)}>{s.description}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </>
-                )}
-                <div className="space-y-1 min-w-0">
-                  <Label className="text-xs text-muted-foreground">Category</Label>
-                  <Select value={category} onValueChange={setCategory}>
-                    <SelectTrigger className="w-full" displayValue={category === "all" ? "All Categories" : category}>
-                      <SelectValue placeholder="Category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Categories</SelectItem>
-                      {Object.keys(LOOKUPS.primaryCategories).map((c) => (
-                        <SelectItem key={c} value={c}>{c}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1 min-w-0">
-                  <Label className="text-xs text-muted-foreground">Status</Label>
-                  <Select value={status} onValueChange={setStatus}>
-                    <SelectTrigger className="w-full" displayValue={status === "all" ? "All Statuses" : status}>
-                      <SelectValue placeholder="Status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Statuses</SelectItem>
-                      {LOOKUPS.operationalStatuses.map((s: string) => (
-                        <SelectItem key={s} value={s}>{s}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1 min-w-0">
-                  <Label className="text-xs text-muted-foreground">Condition</Label>
-                  <Select value={condition} onValueChange={setCondition}>
-                    <SelectTrigger className="w-full" displayValue={condition === "all" ? "All Conditions" : condition}>
-                      <SelectValue placeholder="Condition" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Conditions</SelectItem>
-                      {LOOKUPS.physicalConditions.map((s: string) => (
-                        <SelectItem key={s} value={s}>{s}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+      }
+      contentClassName="space-y-4 w-full pb-8"
+    >
+      <div className="w-full space-y-4">
+        <Card className="rounded-lg border-[#d4e8dc] shadow-2xs">
+          <CardContent className="pt-4 pb-4 space-y-3">
+            <div className={`grid gap-3 ${geoLocked ? "grid-cols-2 md:grid-cols-3 xl:grid-cols-6" : "grid-cols-2 md:grid-cols-3 xl:grid-cols-4"}`}>
+              <div className="space-y-1 min-w-0">
+                <Label className="text-xs text-muted-foreground">Year</Label>
+                <Select value={year} onValueChange={setYear}>
+                  <SelectTrigger className="w-full" displayValue={year === "all" ? "All Years" : year}>
+                    <SelectValue placeholder="Year" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {YEARS.map((y) => (
+                      <SelectItem key={y} value={y}>{y === "all" ? "All Years" : y}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-              {hasFilters && (
-                <div className="flex justify-end">
-                  <Button variant="ghost" size="sm" className="text-slate-500 gap-1 shrink-0" onClick={clearFilters}>
-                    <XCircle className="w-3.5 h-3.5" /> Clear
-                  </Button>
-                </div>
+              <div className="space-y-1 min-w-0">
+                <Label className="text-xs text-muted-foreground">Quarter</Label>
+                <Select value={quarter} onValueChange={setQuarter}>
+                  <SelectTrigger className="w-full" displayValue={quarter === "all" ? "All Quarters" : `Q${quarter}`}>
+                    <SelectValue placeholder="Quarter" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Quarters</SelectItem>
+                    {["1", "2", "3", "4"].map((q) => (
+                      <SelectItem key={q} value={q}>{`Q${q}`}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1 min-w-0">
+                <Label className="text-xs text-muted-foreground">Office</Label>
+                <Select value={office} onValueChange={setOffice}>
+                  <SelectTrigger className="w-full" displayValue={office === "all" ? "All Offices" : office.toUpperCase()}>
+                    <SelectValue placeholder="Office" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Offices</SelectItem>
+                    <SelectItem value="hq">HQ</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {!geoLocked && (
+                <>
+                  <div className="space-y-1 min-w-0">
+                    <Label className="text-xs text-muted-foreground">Zone</Label>
+                    <Select value={filterZone} onValueChange={(v) => { setFilterZone(v); setFilterState("all"); }}>
+                      <SelectTrigger className="w-full" displayValue={zoneLabel}>
+                        <SelectValue placeholder="Zone" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Zones</SelectItem>
+                        {zones.map((z) => (
+                          <SelectItem key={z.id} value={String(z.id)}>{z.description}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1 min-w-0">
+                    <Label className="text-xs text-muted-foreground">State</Label>
+                    <Select value={filterState} onValueChange={setFilterState}>
+                      <SelectTrigger className="w-full" displayValue={stateLabel}>
+                        <SelectValue placeholder="State" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All States</SelectItem>
+                        {states.map((s) => (
+                          <SelectItem key={s.id} value={String(s.id)}>{s.description}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </>
               )}
-            </CardContent>
-          </Card>
+              <div className="space-y-1 min-w-0">
+                <Label className="text-xs text-muted-foreground">Category</Label>
+                <Select value={category} onValueChange={setCategory}>
+                  <SelectTrigger className="w-full" displayValue={category === "all" ? "All Categories" : category}>
+                    <SelectValue placeholder="Category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Categories</SelectItem>
+                    {Object.keys(LOOKUPS.primaryCategories).map((c) => (
+                      <SelectItem key={c} value={c}>{c}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1 min-w-0">
+                <Label className="text-xs text-muted-foreground">Status</Label>
+                <Select value={status} onValueChange={setStatus}>
+                  <SelectTrigger className="w-full" displayValue={status === "all" ? "All Statuses" : status}>
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    {LOOKUPS.operationalStatuses.map((s: string) => (
+                      <SelectItem key={s} value={s}>{s}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1 min-w-0">
+                <Label className="text-xs text-muted-foreground">Condition</Label>
+                <Select value={condition} onValueChange={setCondition}>
+                  <SelectTrigger className="w-full" displayValue={condition === "all" ? "All Conditions" : condition}>
+                    <SelectValue placeholder="Condition" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Conditions</SelectItem>
+                    {LOOKUPS.physicalConditions.map((s: string) => (
+                      <SelectItem key={s} value={s}>{s}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            {hasFilters && (
+              <div className="flex justify-end">
+                <Button variant="ghost" size="sm" className="text-slate-500 gap-1 shrink-0" onClick={clearFilters}>
+                  <XCircle className="w-3.5 h-3.5" /> Clear
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
-          {loading ? (
+        {loading ? (
             <div className="flex items-center justify-center py-24 gap-3 text-slate-400">
               <Loader2 className="w-5 h-5 animate-spin" /> Loading dashboard…
             </div>
@@ -406,7 +397,7 @@ export default function StockVerificationDashboard({ onBack, defaultStateId, def
                   </DashChartCard>
                 </div>
 
-                <div className="rounded-xl border border-[#d4e8dc] bg-white p-4 space-y-4">
+                <div className="rounded-lg border border-[#d4e8dc] bg-white p-3.5 space-y-3.5 shadow-2xs">
                   <div className="flex items-start justify-between gap-3 flex-wrap">
                     <div>
                       <p className="text-sm font-semibold text-slate-800">Assets by office</p>
@@ -538,8 +529,7 @@ export default function StockVerificationDashboard({ onBack, defaultStateId, def
             </>
           )}
         </div>
-      </ScrollArea>
-    </div>
+    </PageLayout>
   );
 }
 

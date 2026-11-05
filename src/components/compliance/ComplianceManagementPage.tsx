@@ -38,6 +38,7 @@ import {
 } from "./complianceDrill";
 import { useCreateReviewAccess } from "@/src/access/createReviewAccess";
 import { SubmitConfirmModal, useReportingOfficerSubmitConfirm } from "@/src/components/SubmitConfirmModal";
+import PageLayout from "@/src/components/PageLayout";
 import { ShadcnDataTable } from "@/components/common/ShadcnDataTable";
 
 const MODULE_NAME = "Facility Compliance Report";
@@ -682,27 +683,21 @@ export default function ComplianceManagementPage({ onBack, defaultZoneId, defaul
     const categories = parseComplaintCategories(v.complaint_categories);
 
     return (
-      <div className="flex flex-col h-full bg-slate-50/30">
-        <div className="bg-white border-b border-border/50 px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30 gap-3">
-          <div className="flex items-center gap-3 min-w-0">
-            <Button variant="ghost" size="icon" onClick={() => { setMode(createOnly ? "form" : "list"); setViewReport(null); }} className="rounded-full shrink-0">
-              <ArrowLeft className="w-5 h-5" />
+      <PageLayout
+        title="Facility Compliance Report"
+        description={`Q${v.reporting_quarter ?? quarterFromWeek(Number(v.reporting_week))} · ${v.reporting_year} · ${v.facility_name || ""}`}
+        badge={<Badge className={`text-[10px] border gap-1 ${st.cls}`}>{st.icon}{st.label}</Badge>}
+        onBack={() => { setMode(createOnly ? "form" : "list"); setViewReport(null); }}
+        maxWidth="5xl"
+        actions={
+          canCreate && v.status !== "approved" ? (
+            <Button variant="outline" size="sm" onClick={() => { applyReport(v); setViewReport(null); setMode("form"); }} className="gap-2">
+              <Pencil className="w-4 h-4" /> {v.status === "draft" ? "Edit Draft" : "Edit"}
             </Button>
-            <div className="min-w-0">
-              <h2 className="text-xl font-bold tracking-tight truncate">Facility Compliance Report</h2>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <Badge className={`text-[10px] border gap-1 ${st.cls}`}>{st.icon}{st.label}</Badge>
-            {canCreate && v.status !== "approved" && (
-              <Button variant="outline" size="sm" onClick={() => { applyReport(v); setViewReport(null); setMode("form"); }} className="gap-2">
-                <Pencil className="w-4 h-4" /> {v.status === "draft" ? "Edit Draft" : "Edit"}
-              </Button>
-            )}
-          </div>
-        </div>
-        <ScrollArea className="flex-1">
-        <div className="w-full px-4 md:px-6 py-4 space-y-4 pb-16">
+          ) : null
+        }
+      >
+        <div className="w-full space-y-4 pb-16">
           <Card className="rounded-2xl border-[#d4e8dc]">
             <CardHeader>
               <CardTitle className="text-base">Report Header</CardTitle>
@@ -850,8 +845,7 @@ export default function ComplianceManagementPage({ onBack, defaultZoneId, defaul
             </CardContent>
           </Card>
         </div>
-        </ScrollArea>
-      </div>
+      </PageLayout>
     );
   }
 
@@ -1086,62 +1080,51 @@ export default function ComplianceManagementPage({ onBack, defaultZoneId, defaul
   );
 
   return (
-    <div className="flex flex-col h-full bg-slate-50/30">
-      <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3.5 flex items-center justify-between sticky top-0 z-30 gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onBack}
-            className="rounded-full shrink-0"
-            aria-label="Back"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-          <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">Facility Compliance Report</h2>
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
+    <PageLayout
+      title="Facility Compliance Report"
+      actions={
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-1.5 h-8 text-xs rounded-md">
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh
           </Button>
           {canCreate && (
             <Button
               size="sm"
-              className="bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20"
+              className="bg-orange-action hover:bg-orange-600 gap-1.5 shadow-md shadow-orange-500/20 h-8 text-xs rounded-md"
               onClick={() => { resetForm(); setMode("form"); }}
             >
-              <Plus className="w-4 h-4" /> New Report
+              <Plus className="w-3.5 h-3.5" /> New Report
             </Button>
           )}
         </div>
-      </div>
+      }
+      contentClassName="space-y-4 pb-8"
+    >
+      <div className="w-full space-y-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+          {(
+            [
+              { kind: "total" as const, label: "Total Reports", value: kpiStats.total, tone: "text-[#0f3d2e] bg-white border-[#d4e8dc]" },
+              { kind: "fully" as const, label: "Fully Compliant", value: kpiStats.fully, tone: "text-emerald-700 bg-emerald-50/80 border-emerald-100" },
+              { kind: "partially" as const, label: "Partially Compliant", value: kpiStats.partially, tone: "text-amber-800 bg-amber-50/80 border-amber-100" },
+              { kind: "non" as const, label: "Non-Compliant", value: kpiStats.non, tone: "text-rose-700 bg-rose-50/80 border-rose-100" },
+              { kind: "violations" as const, label: "Violations", value: kpiStats.violations, tone: "text-orange-800 bg-orange-50/80 border-orange-100" },
+              { kind: "enforcement" as const, label: "Enforcement", value: kpiStats.enforcement, tone: "text-violet-800 bg-violet-50/80 border-violet-100" },
+            ]
+          ).map((c) => (
+            <button
+              key={c.kind}
+              type="button"
+              onClick={() => openComplianceDrill(c.kind)}
+              className={`rounded-lg border px-4 py-3 text-left transition-shadow hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1a7a52]/40 shadow-2xs ${c.tone}`}
+            >
+              <p className="text-2xl font-bold tabular-nums">{loading ? "—" : c.value}</p>
+              <p className="text-[11px] font-semibold text-slate-500 mt-0.5">{c.label}</p>
+            </button>
+          ))}
+        </div>
 
-      <ScrollArea className="flex-1">
-        <div className="w-full px-4 md:px-6 py-4 space-y-4">
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-            {(
-              [
-                { kind: "total" as const, label: "Total Reports", value: kpiStats.total, tone: "text-[#0f3d2e] bg-white border-[#d4e8dc]" },
-                { kind: "fully" as const, label: "Fully Compliant", value: kpiStats.fully, tone: "text-emerald-700 bg-emerald-50/80 border-emerald-100" },
-                { kind: "partially" as const, label: "Partially Compliant", value: kpiStats.partially, tone: "text-amber-800 bg-amber-50/80 border-amber-100" },
-                { kind: "non" as const, label: "Non-Compliant", value: kpiStats.non, tone: "text-rose-700 bg-rose-50/80 border-rose-100" },
-                { kind: "violations" as const, label: "Violations", value: kpiStats.violations, tone: "text-orange-800 bg-orange-50/80 border-orange-100" },
-                { kind: "enforcement" as const, label: "Enforcement", value: kpiStats.enforcement, tone: "text-violet-800 bg-violet-50/80 border-violet-100" },
-              ]
-            ).map((c) => (
-              <button
-                key={c.kind}
-                type="button"
-                onClick={() => openComplianceDrill(c.kind)}
-                className={`rounded-xl border px-4 py-3 text-left transition-shadow hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1a7a52]/40 ${c.tone}`}
-              >
-                <p className="text-2xl font-bold tabular-nums">{loading ? "—" : c.value}</p>
-                <p className="text-[11px] font-semibold text-slate-500 mt-0.5">{c.label}</p>
-              </button>
-            ))}
-          </div>
-
-          <Card className="rounded-2xl border-[#d4e8dc]">
+        <Card className="rounded-lg border-[#d4e8dc] shadow-2xs">
             <CardContent className="pt-4 pb-4 space-y-3">
               <div className="grid grid-flow-col auto-cols-fr gap-3">
                 <div className="space-y-1 min-w-0">
@@ -1223,7 +1206,6 @@ export default function ComplianceManagementPage({ onBack, defaultZoneId, defaul
             showTableOptions={false}
           />
         </div>
-      </ScrollArea>
 
       <DashboardDrillPanel
         open={drillOpen}
@@ -1234,6 +1216,6 @@ export default function ComplianceManagementPage({ onBack, defaultZoneId, defaul
         onRowClick={handleDrillRowClick}
         onStatClick={handleDrillStatClick}
       />
-    </div>
+    </PageLayout>
   );
 }

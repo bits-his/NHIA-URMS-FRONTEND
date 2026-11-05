@@ -10,6 +10,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import { stockApi } from "@/lib/api";
 import StockVerificationPage from "./StockVerificationPage";
+import PageLayout from "@/src/components/PageLayout";
 import { useCreateReviewAccess } from "@/src/access/createReviewAccess";
 import { RegisterStatsCards } from "@/src/components/stateOffice/RegisterStatsCards";
 import { ShadcnDataTable } from "@/components/common/ShadcnDataTable";
@@ -199,50 +200,40 @@ export default function StockVerificationsList({ onBack }: Props) {
   const hasFilters = filterStatus !== "all" || filterType !== "all";
 
   return (
-    <div className="flex flex-col h-full bg-slate-50/30">
-      <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3.5 flex items-center justify-between sticky top-0 z-30 gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onBack}
-            className="rounded-full shrink-0"
-            aria-label="Back"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-          <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">Stock Verification</h2>
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
+    <PageLayout
+      title="Stock & Asset Verifications"
+      onBack={onBack}
+      actions={
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-1.5 h-8 text-xs rounded-md">
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh
           </Button>
           {canCreate && (
             <Button
               size="sm"
-              className="bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20"
+              className="bg-orange-action hover:bg-orange-600 gap-1.5 shadow-md shadow-orange-500/20 h-8 text-xs rounded-md"
               onClick={openNew}
             >
-              <Plus className="w-4 h-4" /> New Verification
+              <Plus className="w-3.5 h-3.5" /> New Verification
             </Button>
           )}
         </div>
-      </div>
+      }
+      contentClassName="space-y-4 pb-8"
+    >
+      <div className="w-full space-y-4">
+        <RegisterStatsCards
+          loading={loading}
+          className="grid grid-cols-2 md:grid-cols-4 gap-3"
+          stats={[
+            { label: "Total", value: counts.total, tone: "text-[#0f3d2e] bg-white border-[#d4e8dc]" },
+            { label: "Draft", value: counts.draft, tone: "text-slate-600 bg-white border-slate-200" },
+            { label: "Submitted", value: counts.submitted, tone: "text-blue-700 bg-blue-50/80 border-blue-100" },
+            { label: "Approved", value: counts.approved, tone: "text-emerald-700 bg-emerald-50/80 border-emerald-100" },
+          ]}
+        />
 
-      <ScrollArea className="flex-1">
-        <div className="w-full px-4 md:px-6 py-4 space-y-4">
-          <RegisterStatsCards
-            loading={loading}
-            className="grid grid-cols-2 md:grid-cols-4 gap-3"
-            stats={[
-              { label: "Total", value: counts.total, tone: "text-[#0f3d2e] bg-white border-[#d4e8dc]" },
-              { label: "Draft", value: counts.draft, tone: "text-slate-600 bg-white border-slate-200" },
-              { label: "Submitted", value: counts.submitted, tone: "text-blue-700 bg-blue-50/80 border-blue-100" },
-              { label: "Approved", value: counts.approved, tone: "text-emerald-700 bg-emerald-50/80 border-emerald-100" },
-            ]}
-          />
-
-          <Card className="rounded-2xl border-[#d4e8dc]">
+        <Card className="rounded-lg border-[#d4e8dc] shadow-2xs">
             <CardContent className="pt-4 pb-4 space-y-3">
               <div className="grid grid-flow-col auto-cols-fr gap-3">
                 <div className="space-y-1 min-w-0">
@@ -304,7 +295,6 @@ export default function StockVerificationsList({ onBack }: Props) {
             showTableOptions={false}
           />
         </div>
-      </ScrollArea>
-    </div>
+    </PageLayout>
   );
 }

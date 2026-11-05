@@ -136,11 +136,7 @@ export function AssetTransfersView() {
 
   return (
     <PageLayout
-      title={
-        <span className="flex items-center gap-2">
-          <ArrowRightLeft className="w-5 h-5 text-[#25a872]" /> Transfers & Movements
-        </span>
-      }
+      title="Transfers & Movements"
       description="Move fixed assets between offices and custodians — approve, dispatch, confirm"
       actions={
         <Button

@@ -1,6 +1,6 @@
 import * as React from "react";
 import {
-  ArrowLeft, Plus, Eye, RefreshCw, Loader2, ClipboardList,
+  Plus, Eye, RefreshCw, Loader2, ClipboardList,
 } from "lucide-react";
 import { motion } from "motion/react";
 import { Button } from "@/components/ui/button";
@@ -8,9 +8,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import { servicomApi } from "@/lib/api";
+import PageLayout from "@/src/components/PageLayout";
 import ServicomVisitForm from "./ServicomVisitForm";
 import { COMPLIANCE_LABELS, MONITORING_TYPES, VISIT_STATUS, pickLabel, pickStatusLabel } from "./servicomConstants";
 
@@ -88,22 +88,22 @@ export default function ServicomVisitsPage({ onBack, defaultStateId, defaultZone
   }
 
   return (
-    <div className="flex flex-col h-full bg-slate-50/30">
-      <div className="bg-white border-b border-border/50 px-4 md:px-6 py-3 flex items-center justify-end sticky top-0 z-30">
-        <div className="flex items-center gap-3">
+    <PageLayout
+      title="SERVICOM Monitoring Visits"
+      actions={
+        <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
           </Button>
           {canCreate && (
-          <Button className="bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20" onClick={openNew}>
-            <Plus className="w-4 h-4" /> New Visit
-          </Button>
+            <Button className="bg-[#145c3f] hover:bg-[#0f3d2e] text-white gap-2 shadow-sm" onClick={openNew}>
+              <Plus className="w-4 h-4" /> New Visit
+            </Button>
           )}
         </div>
-      </div>
-
-      <ScrollArea className="flex-1">
-        <div className="w-full px-4 md:px-6 py-4 space-y-4">
+      }
+    >
+      <div className="w-full space-y-4">
           <Card className="rounded-2xl border-[#d4e8dc]">
             <CardContent className="pt-4 pb-4">
               <div className="flex flex-row items-center gap-3 w-full">
@@ -217,7 +217,6 @@ export default function ServicomVisitsPage({ onBack, defaultStateId, defaultZone
             </CardContent>
           </Card>
         </div>
-      </ScrollArea>
-    </div>
+    </PageLayout>
   );
 }

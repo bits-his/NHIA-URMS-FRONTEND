@@ -46,6 +46,8 @@ import OfficeAccommodationTab from "./OfficeAccommodationTab";
 import UtilityServicesTab from "./UtilityServicesTab";
 import FocalPersonsTab from "./FocalPersonsTab";
 import OfficeProfileDetailView from "./OfficeProfileDetailView";
+import PageLayout from "../../PageLayout";
+import { UnderHeaderNavTabs } from "@/src/components/UnderHeaderNavTabs";
 import { ShadcnDataTable } from "@/components/common/ShadcnDataTable";
 import {
   SolvixStatCards,
@@ -949,24 +951,10 @@ export default function OfficeProfileWorkspace({
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#f4f7f5]">
-      {/* 1. Sticky Navigation Header */}
-      <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3.5 flex items-center justify-between sticky top-0 z-30 gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={mode === "list" ? (onBack || (() => window.history.back())) : handleBackToList}
-            className="rounded-full shrink-0 size-8 text-slate-600 hover:bg-slate-100"
-            aria-label="Back"
-          >
-            <ArrowLeft className="size-4" />
-          </Button>
-          <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">
-            {getHeaderTitle()}
-          </h2>
-        </div>
-
+    <PageLayout
+      title={getHeaderTitle()}
+      onBack={mode === "list" ? undefined : handleBackToList}
+      actions={
         <div className="flex items-center gap-2 shrink-0">
           <Button
             variant="outline"
@@ -980,7 +968,7 @@ export default function OfficeProfileWorkspace({
 
           {mode === "list" && (
             <Button
-              className="h-8.5 bg-[#1a7a52] hover:bg-[#145c3f] text-white text-xs gap-1.5 font-bold shadow-xs rounded-sm border border-[#145c3f]"
+              className="h-8.5 bg-orange-action hover:bg-orange-600 text-white text-xs gap-1.5 font-bold shadow-md shadow-orange-500/15 rounded-sm"
               onClick={() => {
                 if (activeTab === "focal_persons") {
                   updateQueryParams({ mode: "new", id: null });
@@ -1004,58 +992,32 @@ export default function OfficeProfileWorkspace({
             </Button>
           )}
         </div>
-      </div>
-
-      {/* 2. Solvix-style Clean Tab Underline Navigation Bar */}
-      <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 sticky top-[57px] z-20">
-        <div className="flex gap-2 overflow-x-auto -mb-px" role="tablist">
-          {TAB_CONFIG.map((tab) => {
-            const active = activeTab === tab.key;
-            const Icon = tab.icon;
-            const count =
-              tab.key === "general"
-                 ? profiles.length
-                : tab.key === "accommodation"
-                ? accommodations.length
-                : tab.key === "utilities"
-                ? utilities.length
-                : focalPersons.length;
-
-            return (
-              <button
-                key={tab.key}
-                type="button"
-                role="tab"
-                aria-selected={active}
-                onClick={() => handleTabChange(tab.key)}
-                className={`group relative shrink-0 inline-flex items-center gap-2 px-3.5 py-3 text-xs font-semibold whitespace-nowrap border-b-2 transition-all outline-none ${
-                  active
-                    ? "border-[#1a7a52] text-[#1a7a52]"
-                    : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300"
-                }`}
-              >
-                <Icon
-                  className={`size-4 shrink-0 ${active ? "text-[#1a7a52]" : "text-slate-400 group-hover:text-slate-600"}`}
-                />
-                <span>{tab.label}</span>
-                <span
-                  className={`inline-flex min-w-[1.25rem] h-4.5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold tabular-nums ${
-                    active
-                      ? "bg-[#e8f5ee] text-[#1a7a52]"
-                      : "bg-slate-100 text-slate-500 group-hover:bg-slate-200"
-                  }`}
-                >
-                  {count}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* 3. Main Content View Area */}
-      <ScrollArea className="flex-1">
-        <div className="w-full px-4 md:px-6 py-5 space-y-5">
+      }
+      tabs={
+        mode === "list" ? (
+          <UnderHeaderNavTabs
+            tabs={TAB_CONFIG.map((tab) => ({
+              id: tab.key,
+              label: tab.label,
+              icon: tab.icon,
+              count:
+                tab.key === "general"
+                  ? profiles.length
+                  : tab.key === "accommodation"
+                  ? accommodations.length
+                  : tab.key === "utilities"
+                  ? utilities.length
+                  : focalPersons.length,
+            }))}
+            activeTab={activeTab}
+            onChange={(key) => handleTabChange(key as any)}
+            ariaLabel="State office profile sections"
+          />
+        ) : undefined
+      }
+      contentClassName="space-y-5 pb-8"
+    >
+      <div className="w-full space-y-5">
           {/* FOCAL PERSONS TAB DELEGATION */}
           {activeTab === "focal_persons" ? (
             <FocalPersonsTab
@@ -1315,7 +1277,6 @@ export default function OfficeProfileWorkspace({
             </>
           )}
         </div>
-      </ScrollArea>
-    </div>
+    </PageLayout>
   );
 }

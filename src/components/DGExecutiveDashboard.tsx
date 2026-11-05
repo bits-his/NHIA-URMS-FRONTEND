@@ -141,55 +141,55 @@ export default function DGExecutiveDashboard() {
     return "bg-slate-100 text-slate-700 border-slate-200";
   };
 
+
   return (
-    <div className="space-y-5">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+    <div className="w-full space-y-3.5">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2.5">
         <div>
           <p className="text-[11px] font-bold uppercase tracking-wider text-[#1a7a52]">
             Strategic Performance · Risk · Executive Decisions
           </p>
           <h1 className="text-xl font-bold text-slate-900 tracking-tight">DG Dashboard</h1>
-          <p className="text-sm text-slate-500 mt-0.5 max-w-2xl">
+          <p className="text-xs text-slate-500 mt-0.5 max-w-2xl">
             {cmp?.period?.label ? `${cmp.period.label} · ` : ""}
             Are we achieving results, where are the major risks, and what requires management decision?
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">
-          <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
+        <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2 h-8.5 rounded-sm border-slate-300">
+          <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh
         </Button>
       </div>
 
       <RoleDashboardFilters filters={filters} />
 
       {loading ? (
-        <div className="flex items-center justify-center py-28 gap-3 text-slate-400">
-          <Loader2 className="w-6 h-6 animate-spin" />
-          <span className="text-sm">Loading strategic overview…</span>
+        <div className="flex items-center justify-center py-20 gap-3 text-slate-400">
+          <Loader2 className="w-6 h-6 animate-spin text-[#145c3f]" />
+          <span className="text-sm font-medium">Loading strategic overview…</span>
         </div>
       ) : !cmp ? (
-        <Card className="rounded-2xl border-dashed border-slate-300">
-          <CardContent className="py-16 text-center text-slate-500 text-sm">
+        <Card className="rounded-lg border-dashed border-slate-300">
+          <CardContent className="py-12 text-center text-slate-500 text-sm">
             No national strategic data available yet.
           </CardContent>
         </Card>
       ) : (
         <>
-          <Card className={`rounded-2xl ${resultsOnTrack ? "border-emerald-200 bg-emerald-50/40" : "border-amber-200 bg-amber-50/40"}`}>
-            <CardContent className="p-5 flex flex-col md:flex-row md:items-center gap-4">
-              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${
-                resultsOnTrack ? "bg-emerald-100" : "bg-amber-100"
-              }`}>
+          <Card className={`rounded-lg shadow-2xs ${resultsOnTrack ? "border-emerald-200 bg-emerald-50/40" : "border-amber-200 bg-amber-50/40"}`}>
+            <CardContent className="p-3.5 flex flex-col md:flex-row md:items-center gap-3">
+              <div className={`w-10 h-10 rounded-md flex items-center justify-center shrink-0 ${resultsOnTrack ? "bg-emerald-100" : "bg-amber-100"
+                }`}>
                 {resultsOnTrack
-                  ? <CheckCircle2 className="w-6 h-6 text-emerald-700" />
-                  : <AlertTriangle className="w-6 h-6 text-amber-700" />}
+                  ? <CheckCircle2 className="w-5 h-5 text-emerald-700" />
+                  : <AlertTriangle className="w-5 h-5 text-amber-700" />}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-base font-bold text-slate-900">
+                <p className="text-sm font-bold text-slate-900">
                   {resultsOnTrack
                     ? "National results are broadly on track"
                     : "National results require management attention"}
                 </p>
-                <p className="text-sm text-slate-600 mt-1">
+                <p className="text-xs text-slate-600 mt-0.5">
                   {summary.national_avg_completion}% average completion · {summary.performing} states performing ·{" "}
                   {summary.needs_intervention} need intervention · {dgEscalations.length} items for management decision
                 </p>
@@ -198,7 +198,7 @@ export default function DGExecutiveDashboard() {
             </CardContent>
           </Card>
 
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <ClickableKpi
               label="National completion"
               value={`${summary.national_avg_completion}%`}
@@ -229,13 +229,13 @@ export default function DGExecutiveDashboard() {
             />
           </div>
 
-          <div className="grid lg:grid-cols-5 gap-4">
-            <Card className="rounded-2xl border-[#d4e8dc] lg:col-span-3">
-              <CardHeader className="pb-1">
-                <CardTitle className="text-base">National trend</CardTitle>
-                <CardDescription>Click a month to drill into that period</CardDescription>
+          <div className="grid lg:grid-cols-5 gap-3.5">
+            <Card className="rounded-lg border-[#d4e8dc] lg:col-span-3 shadow-2xs">
+              <CardHeader className="pb-1 px-4 pt-3">
+                <CardTitle className="text-xs font-bold uppercase tracking-wider text-slate-800">National trend</CardTitle>
+                <CardDescription className="text-[11px]">Click a month to drill into that period</CardDescription>
               </CardHeader>
-              <CardContent className="h-[280px]">
+              <CardContent className="h-[260px] p-4 pt-0">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart
                     data={op?.period_trend ?? []}
@@ -252,10 +252,10 @@ export default function DGExecutiveDashboard() {
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e8f5ee" vertical={false} />
-                    <XAxis dataKey="label" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
+                    <XAxis dataKey="label" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
                     <YAxis tick={{ fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
-                    <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid #d4e8dc", fontSize: 12 }} />
-                    <Legend wrapperStyle={{ fontSize: 12 }} />
+                    <Tooltip contentStyle={{ borderRadius: 6, border: "1px solid #d4e8dc", fontSize: 12 }} />
+                    <Legend wrapperStyle={{ fontSize: 11 }} />
                     <Area type="monotone" dataKey="approved" name="Approved" stroke="#25a872" fill="url(#dgTrend)" strokeWidth={2.5} />
                     <Area type="monotone" dataKey="reports" name="Total reports" stroke="#94a3b8" fill="transparent" strokeWidth={2} strokeDasharray="4 4" />
                   </AreaChart>
@@ -263,17 +263,17 @@ export default function DGExecutiveDashboard() {
               </CardContent>
             </Card>
 
-            <Card className="rounded-2xl border-[#d4e8dc] lg:col-span-2">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">What requires management decision?</CardTitle>
-                <CardDescription>Click to open the related zone/state</CardDescription>
+            <Card className="rounded-lg border-[#d4e8dc] lg:col-span-2 shadow-2xs">
+              <CardHeader className="pb-2 px-4 pt-3">
+                <CardTitle className="text-xs font-bold uppercase tracking-wider text-slate-800">What requires management decision?</CardTitle>
+                <CardDescription className="text-[11px]">Click to open the related zone/state</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-2.5 max-h-[280px] overflow-y-auto">
+              <CardContent className="space-y-2 max-h-[260px] overflow-y-auto px-4 pb-3">
                 {dgEscalations.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-12 gap-2 text-center">
-                    <CheckCircle2 className="w-8 h-8 text-emerald-500" />
-                    <p className="text-sm font-medium text-slate-700">No executive exceptions</p>
-                    <p className="text-xs text-slate-500">Nothing currently queued for DG / departmental decision.</p>
+                  <div className="flex flex-col items-center justify-center py-10 gap-2 text-center">
+                    <CheckCircle2 className="w-7 h-7 text-emerald-500" />
+                    <p className="text-xs font-bold text-slate-700">No executive exceptions</p>
+                    <p className="text-[11px] text-slate-500">Nothing currently queued for DG / departmental decision.</p>
                   </div>
                 ) : dgEscalations.slice(0, 8).map((e: any, i: number) => (
                   <button
@@ -283,35 +283,34 @@ export default function DGExecutiveDashboard() {
                       if (e.zone_id) drillZone(e.zone_id, e.zone_name || "Zone");
                       else drillReports(e.label || "Exception");
                     }}
-                    className="w-full text-left rounded-xl border border-slate-100 bg-white px-3.5 py-3 hover:border-[#1a7a52]/40"
+                    className="w-full text-left rounded-md border border-slate-100 bg-white p-2.5 hover:border-[#1a7a52] transition-colors"
                   >
-                    <div className="flex items-center gap-2 mb-1">
-                      <Badge variant="outline" className={`text-[10px] ${
-                        e.tier === "dg" ? "bg-rose-100 text-rose-700 border-rose-200" : "bg-violet-100 text-violet-700 border-violet-200"
-                      }`}>
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <Badge variant="outline" className={`text-[10px] ${e.tier === "dg" ? "bg-rose-100 text-rose-700 border-rose-200" : "bg-violet-100 text-violet-700 border-violet-200"
+                        }`}>
                         {e.tier === "dg" ? "DG-level" : "Department"}
                       </Badge>
                       <span className="text-[11px] text-slate-400 truncate">{e.zone_name}</span>
                     </div>
-                    <p className="text-sm font-semibold text-slate-900">{e.label}</p>
-                    <p className="text-xs text-slate-500 mt-0.5">{e.state_name} · {e.reason}</p>
+                    <p className="text-xs font-bold text-slate-900 leading-snug">{e.label}</p>
+                    <p className="text-[11px] text-slate-500 mt-0.5">{e.state_name} · {e.reason}</p>
                   </button>
                 ))}
               </CardContent>
             </Card>
           </div>
 
-          <div className="grid lg:grid-cols-5 gap-4">
-            <Card className="rounded-2xl border-[#d4e8dc] lg:col-span-3">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">Major risks & systemic issues</CardTitle>
-                <CardDescription>Cross-cutting problems and zone-level exceptions — click to drill</CardDescription>
+          <div className="grid lg:grid-cols-5 gap-3.5">
+            <Card className="rounded-lg border-[#d4e8dc] lg:col-span-3 shadow-2xs">
+              <CardHeader className="pb-2 px-4 pt-3">
+                <CardTitle className="text-xs font-bold uppercase tracking-wider text-slate-800">Major risks & systemic issues</CardTitle>
+                <CardDescription className="text-[11px]">Cross-cutting problems and zone-level exceptions — click to drill</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-2.5">
+              <CardContent className="space-y-2 px-4 pb-3">
                 {majorRisks.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-12 gap-2">
-                    <CheckCircle2 className="w-8 h-8 text-emerald-500" />
-                    <p className="text-sm text-slate-600">No major systemic risks flagged</p>
+                  <div className="flex flex-col items-center justify-center py-10 gap-2">
+                    <CheckCircle2 className="w-7 h-7 text-emerald-500" />
+                    <p className="text-xs font-bold text-slate-600">No major systemic risks flagged</p>
                   </div>
                 ) : majorRisks.map((r) => (
                   <button
@@ -321,26 +320,26 @@ export default function DGExecutiveDashboard() {
                       if (r.zone_id) drillZone(r.zone_id, r.title);
                       else drillReports(r.title);
                     }}
-                    className="w-full flex items-start gap-3 rounded-xl border border-slate-100 px-3.5 py-3 bg-white text-left hover:border-[#1a7a52]/40"
+                    className="w-full flex items-start gap-2.5 rounded-md border border-slate-100 p-2.5 bg-white text-left hover:border-[#1a7a52] transition-colors"
                   >
                     <Badge variant="outline" className={`text-[10px] shrink-0 capitalize ${sevCls(r.severity)}`}>
                       {r.severity}
                     </Badge>
                     <div className="min-w-0">
-                      <p className="text-sm font-semibold text-slate-900">{r.title}</p>
-                      <p className="text-xs text-slate-500 mt-0.5">{r.detail}</p>
+                      <p className="text-xs font-bold text-slate-900 leading-snug">{r.title}</p>
+                      <p className="text-[11px] text-slate-500 mt-0.5">{r.detail}</p>
                     </div>
                   </button>
                 ))}
               </CardContent>
             </Card>
 
-            <Card className="rounded-2xl border-[#d4e8dc] lg:col-span-2">
-              <CardHeader className="pb-1">
-                <CardTitle className="text-base">Zone results snapshot</CardTitle>
-                <CardDescription>Click a zone to drill (strategic view)</CardDescription>
+            <Card className="rounded-lg border-[#d4e8dc] lg:col-span-2 shadow-2xs">
+              <CardHeader className="pb-1 px-4 pt-3">
+                <CardTitle className="text-xs font-bold uppercase tracking-wider text-slate-800">Zone results snapshot</CardTitle>
+                <CardDescription className="text-[11px]">Click a zone to drill (strategic view)</CardDescription>
               </CardHeader>
-              <CardContent className="h-[280px]">
+              <CardContent className="h-[260px] p-4 pt-0">
                 {zoneChart.length === 0 ? (
                   <div className="h-full flex items-center justify-center text-xs text-slate-400">No zone data</div>
                 ) : (
@@ -359,10 +358,10 @@ export default function DGExecutiveDashboard() {
                       <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
                       <YAxis type="category" dataKey="name" width={90} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
                       <Tooltip
-                        contentStyle={{ borderRadius: 12, border: "1px solid #d4e8dc", fontSize: 12 }}
+                        contentStyle={{ borderRadius: 6, border: "1px solid #d4e8dc", fontSize: 12 }}
                         labelFormatter={(_, p) => p?.[0]?.payload?.full ?? ""}
                       />
-                      <Bar dataKey="completion" name="Completion %" radius={[0, 6, 6, 0]} barSize={14}>
+                      <Bar dataKey="completion" name="Completion %" radius={[0, 3, 3, 0]} barSize={14}>
                         {zoneChart.map((z) => (
                           <Cell key={z.full} fill={z.completion >= 75 ? "#25a872" : z.completion >= 60 ? "#f59e0b" : "#ef4444"} />
                         ))}
@@ -375,22 +374,22 @@ export default function DGExecutiveDashboard() {
           </div>
 
           {zoneExceptions.length > 0 && (
-            <Card className="rounded-2xl border-amber-200 bg-amber-50/30">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">Zone exceptions requiring attention</CardTitle>
-                <CardDescription>Only zones with material underperformance — click to drill</CardDescription>
+            <Card className="rounded-lg border-amber-200 bg-amber-50/30 shadow-2xs">
+              <CardHeader className="pb-2 px-4 pt-3">
+                <CardTitle className="text-xs font-bold uppercase tracking-wider text-slate-800">Zone exceptions requiring attention</CardTitle>
+                <CardDescription className="text-[11px]">Only zones with material underperformance — click to drill</CardDescription>
               </CardHeader>
-              <CardContent>
-                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              <CardContent className="px-4 pb-3">
+                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
                   {zoneExceptions.map((z) => (
                     <button
                       key={z.zone_id ?? z.zone_name}
                       type="button"
                       onClick={() => z.zone_id && drillZone(z.zone_id, z.zone_name)}
-                      className="rounded-xl border border-amber-100 bg-white px-4 py-3 text-left hover:border-amber-300"
+                      className="rounded-md border border-amber-100 bg-white p-3 text-left hover:border-amber-300 transition-colors"
                     >
-                      <p className="text-sm font-bold text-slate-900">{z.zone_name}</p>
-                      <p className="text-xs text-slate-500 mt-1">
+                      <p className="text-xs font-bold text-slate-900">{z.zone_name}</p>
+                      <p className="text-[11px] text-slate-500 mt-1">
                         {z.completion_rate}% completion · {z.needs_intervention} states at risk · {z.escalated_actionables} escalated
                       </p>
                     </button>

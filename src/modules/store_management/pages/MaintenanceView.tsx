@@ -115,11 +115,7 @@ export default function MaintenanceView() {
 
   return (
     <PageLayout
-      title={
-        <span className="flex items-center gap-2">
-          <Wrench className="w-5 h-5 text-[#25a872]" /> Maintenance & Repairs
-        </span>
-      }
+      title="Maintenance & Repairs"
       description="Preventive servicing, repairs, and vendor maintenance logs"
       actions={
         <>
