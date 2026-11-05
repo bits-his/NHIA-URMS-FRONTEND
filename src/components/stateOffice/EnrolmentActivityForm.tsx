@@ -779,7 +779,7 @@ export default function EnrolmentActivityForm({
 
   const channelTabItems = ENROLMENT_CHANNELS.map((channel) => ({
     id: channel,
-    label: channel === "Equity Program" ? "Equity" : channel,
+    label: channel,
   }));
 
   const channelTabs = isEnrolment && entry.category && !embedded ? (
