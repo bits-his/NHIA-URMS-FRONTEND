@@ -242,28 +242,6 @@ export default function SdoStateDistributionPage({
             </div>
           </div>
         </div>
-
-        <div className="flex items-center gap-2 shrink-0">
-          <Button variant="outline" size="sm" onClick={onBack} disabled={submitting}>
-            Cancel
-          </Button>
-          <Button
-            size="sm"
-            onClick={handleDispatch}
-            disabled={submitting || selectedCount === 0}
-            className="gap-1.5 bg-[#145c3f] hover:bg-[#0f3d2e] text-white shadow-xs px-4"
-          >
-            {submitting ? (
-              <>
-                <Loader2 className="w-3.5 h-3.5 animate-spin" /> Dispatching…
-              </>
-            ) : (
-              <>
-                <Send className="w-3.5 h-3.5" /> Dispatch to {selectedCount} States
-              </>
-            )}
-          </Button>
-        </div>
       </div>
 
       {/* Main Content Body */}
@@ -413,6 +391,14 @@ export default function SdoStateDistributionPage({
                   Ready to dispatch to <strong className="text-slate-700 font-semibold">{selectedCount} State Office(s)</strong>
                 </span>
                 <div className="flex items-center gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={onBack}
+                    disabled={submitting}
+                  >
+                    Cancel
+                  </Button>
                   <Button
                     type="button"
                     onClick={handleDispatch}

@@ -78,6 +78,7 @@ export const BENEFICIARY_LIST_FILTERS = [
 
 export const ADDITIONAL_ENTITY_TYPES = [
   { value: "spouse", label: "Spouse" },
+  { value: "parent", label: "Parent" },
   { value: "child_1", label: "Child 1" },
   { value: "child_2", label: "Child 2" },
   { value: "child_3", label: "Child 3" },
@@ -94,6 +95,7 @@ export const EXTRA_ENTITY_TYPES = [
 export const ADDITIONAL_RELATIONSHIPS = [
   { value: "spouse", label: "Spouse" },
   { value: "child", label: "Child" },
+  { value: "parent", label: "Parent" },
 ];
 
 export const EXTRA_RELATIONSHIPS = [
@@ -101,6 +103,41 @@ export const EXTRA_RELATIONSHIPS = [
   { value: "spouse", label: "Spouse" },
   { value: "parent", label: "Parent" },
 ];
+
+export const RELATIONSHIP_OPTIONS = [
+  { value: "spouse", label: "Spouse" },
+  { value: "child", label: "Child" },
+  { value: "parent", label: "Parent" },
+];
+
+export const CHILD_ENTITY_OPTIONS = [
+  { value: "child_1", label: "Child 1" },
+  { value: "child_2", label: "Child 2" },
+  { value: "child_3", label: "Child 3" },
+  { value: "child_4", label: "Child 4" },
+];
+
+export const ADDITIONAL_ENTITY_OPTIONS = [
+  { value: "spouse", label: "Spouse" },
+  { value: "child_1", label: "Child 1" },
+  { value: "child_2", label: "Child 2" },
+  { value: "child_3", label: "Child 3" },
+  { value: "child_4", label: "Child 4" },
+];
+
+export const EXTRA_DEPENDENT_SLOTS = [
+  { value: "extra_dependent_1", label: "Extra Dependent 1" },
+  { value: "extra_dependent_2", label: "Extra Dependent 2" },
+  { value: "extra_dependent_3", label: "Extra Dependent 3" },
+  { value: "extra_dependent_4", label: "Extra Dependent 4" },
+];
+
+export function formatDependentLabel(val?: string | null) {
+  if (!val) return undefined;
+  const match = /^(?:extra_)?dependent_(\d+)$/.exec(val);
+  if (match) return `Extra Dependent ${match[1]}`;
+  return val;
+}
 
 export const BENEFICIARY_PROGRAMS = ["FSSHIP", "GIFSHIP", "BHCPF", "OPS", "Retirees", "Self-Paying"];
 
@@ -112,6 +149,7 @@ export function entityOptionsFor(request: "additional" | "extra", relationship: 
   if (!relationship) return [];
   if (request === "additional") {
     if (relationship === "spouse") return ADDITIONAL_ENTITY_TYPES.filter((o) => o.value === "spouse");
+    if (relationship === "parent") return ADDITIONAL_ENTITY_TYPES.filter((o) => o.value === "parent");
     if (relationship === "child") return ADDITIONAL_ENTITY_TYPES.filter((o) => o.value.startsWith("child_"));
     return [];
   }
@@ -262,12 +300,12 @@ export function extraDependantProgress(principal: DependantPrincipal, records: E
     const slot = record.dependent || record.dependant_entity || "";
     if (slot === "principal") continue;
     count += 1;
-    const match = /^dependent_(\d+)$/.exec(slot);
+    const match = /^(?:extra_)?dependent_(\d+)$/.exec(slot);
     if (match) {
       slots.add(slot);
       highest = Math.max(highest, Number(match[1]));
     }
   }
   const nextNumber = Math.max(count, highest) + 1;
-  return { count, slots, next: nextNumber <= 3 ? `dependent_${nextNumber}` : null };
+  return { count, slots, next: nextNumber <= 4 ? `extra_dependent_${nextNumber}` : null };
 }
