@@ -183,6 +183,10 @@ export function normalizeFunctionalityTitle(title: string, moduleTitle?: string)
 
   if (mod === ZONAL_MODULE) {
 
+    if (title === "Special Projects" || title === "Special Project" || title === "SPECIAL PROJECT" || title === "Ad-hoc Project") {
+      return "Ad-hoc / Special Assignment";
+    }
+
     if (title === "Compliance Monitoring") return "Monitoring Visits";
 
     if (title === "Enrollee Complaints") return "Monitoring Visits";

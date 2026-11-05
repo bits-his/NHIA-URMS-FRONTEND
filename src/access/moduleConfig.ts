@@ -165,6 +165,7 @@ export const MODULE_CONFIG: ParentModule[] = [
       { type: "group", label: "Admin", children: [
         { title: "Admin Report", view: "admin-monthly", path: "/monthly/admin" },
       ]},
+      { title: "Ad-hoc / Special Assignment", view: "special-projects", path: "/sdo/projects", navLabel: "Special Assignments" },
     ],
   },
 
@@ -182,6 +183,7 @@ export const MODULE_CONFIG: ParentModule[] = [
       { type: "group", label: "Compliance Management", children: [
         { title: "Compliance Management", view: "sqa-compliance", path: "/compliance" },
       ]},
+      { title: "Ad-hoc / Special Assignment", view: "special-projects", path: "/sdo/projects", navLabel: "Special Assignments" },
     ],
   },
 
@@ -192,6 +194,7 @@ export const MODULE_CONFIG: ParentModule[] = [
     children: [
       { title: "ICT Support Desk", path: "/ict/desk" },
       { title: "Systems & Network", path: "/ict/systems" },
+      { title: "Ad-hoc / Special Assignment", view: "special-projects", path: "/sdo/projects", navLabel: "Special Assignments" },
     ],
   },
 
@@ -206,6 +209,16 @@ export const MODULE_CONFIG: ParentModule[] = [
       { type: "group", label: "Enrollment Enquiries & Outreach", children: [
         { title: "Outreach Report", view: "outreach-monthly", path: "/monthly/outreach" },
       ]},
+      { title: "Ad-hoc / Special Assignment", view: "special-projects", path: "/sdo/projects", navLabel: "Special Assignments" },
+    ],
+  },
+
+  // ── Originating Departments ───────────────────────────────────────────────
+  {
+    title: "Originating Departments",
+    roles: "all",
+    children: [
+      { title: "Ad-hoc / Special Assignment", view: "special-projects", path: "/sdo/projects", navLabel: "Ad-hoc / Special Assignment" },
     ],
   },
 
@@ -238,12 +251,12 @@ export const MODULE_CONFIG: ParentModule[] = [
     title: SOC_ZONES_MODULE,
     roles: "all",
     children: [
-      { title: "State/Zonal Office Profile", view: "soc-office-profile", path: "/soc/office-profile", navLabel: "State Office Profile" },
       { title: "Monthly Enrollee Register", view: "state-enrollee-register", path: "/soc/enrollee-register", navLabel: "Enrollee Register" },
       { title: "ETMC/TMC Action-Point Register", view: "state-etmc-tmc-action-point", path: "/soc/etmc-tmc-action-point", navLabel: "ETMC/TMC Action-Point Register" },
       { title: "Weekly Actionable", view: "state-weekly-actionable", path: "/soc/weekly-actionable", navLabel: "Escalated Issues" },
       { title: "Operation Monitoring Visit", view: "soc-operation-monitoring-visit", path: "/soc/operation-monitoring-visit", navLabel: "Operation Monitoring" },
       { title: "Spot Check Visit", view: "soc-spot-check-visit", path: "/soc/spot-check-visit", navLabel: "Spot Check" },
+      { title: "Ad-hoc / Special Assignment", view: "special-projects", path: "/sdo/projects", navLabel: "Ad-hoc / Special Assignment" },
     ],
   },
 
@@ -253,6 +266,7 @@ export const MODULE_CONFIG: ParentModule[] = [
     roles: "all",
     children: [
       { title: "State Office Dashboard", view: "state-office-dashboard", path: "/zonal/dashboard", navLabel: "Dashboard" },
+      { title: "Ad-hoc / Special Assignment", view: "special-projects", path: "/sdo/projects", navLabel: "Ad-hoc / Special Assignment" },
       { title: "Enrolment", view: "state-enrolment", path: "/zonal/enrolment", navLabel: "Enrolment" },
       {
         title: ENROLMENT_DRIVES_NAV_TITLE,
@@ -291,8 +305,7 @@ export const MODULE_CONFIG: ParentModule[] = [
           { title: "IGR, SSHIA & Expenditure", view: "state-finance", path: "/zonal/finance/records", navLabel: "Finance" },
         ]},
         { type: "group", label: "Admin / Human Resource", children: [
-          { title: "Office Accommodation", view: "state-office-accommodation", path: "/zonal/admin-hr/office-accommodation" },
-          { title: "Utility Services", view: "state-utility-services", path: "/zonal/admin-hr/utility-services" },
+          { title: "State Office Profile", view: "state-admin-office-profile", path: "/zonal/admin-hr/office-profile", navLabel: "State Office Profile" },
           { title: "Vehicle Maintenance", view: "state-vehicle-maintenance", path: "/zonal/admin-hr/vehicle-maintenance" },
           { title: "Conflict / Infraction Report", view: "state-conflict-infraction", path: "/zonal/admin-hr/conflict-infraction" },
           { title: "Enrollee Feedback Survey", view: "state-enrollee-feedback", path: "/zonal/admin-hr/enrollee-feedback" },

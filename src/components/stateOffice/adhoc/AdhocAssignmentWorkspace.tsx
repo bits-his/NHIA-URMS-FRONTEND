@@ -56,6 +56,7 @@ const REVIEW_BADGES: Record<string, { label: string; cls: string }> = {
   under_review: { label: "Under Review", cls: "bg-purple-50 text-purple-700 border-purple-200" },
   returned_for_clarification: { label: "Returned for Clarification", cls: "bg-rose-50 text-rose-700 border-rose-200" },
   accepted: { label: "Accepted", cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+  acknowledged: { label: "Acknowledged", cls: "bg-teal-50 text-teal-800 border-teal-200" },
 };
 
 export default function AdhocAssignmentWorkspace({ onBack, user, userRole }: Props) {
@@ -528,6 +529,8 @@ export default function AdhocAssignmentWorkspace({ onBack, user, userRole }: Pro
         masterId={detailMasterId}
         canReview={isSdo || !!user?.department_code}
         canClose={isSdo}
+        isOriginatingDept={!isSdo && !!user?.department_code && !user?.state_code && !user?.zonal_code}
+        userDepartment={user?.department_code}
         onSuccess={() => {
           fetchMasters();
           fetchStateTasks();

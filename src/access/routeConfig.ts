@@ -35,6 +35,8 @@ export const ROUTE_CONFIG: RouteConfig[] = [
   { path: "/zonal/servicom/satisfaction", label: "HCF Customer Satisfaction Survey", module: "Zonal", functionality: "State Office HCF Customer Satisfaction Survey" },
   { path: "/zonal/servicom/comment-card", label: "Citizens' Comment Card", module: "Zonal", functionality: "State Office Charter Performance" },
   { path: "/sdo/projects",                label: "Ad-hoc / Special Assignment", module: "SDO",             functionality: "Ad-hoc / Special Assignment" },
+  { path: "/sdo/projects",                label: "Ad-hoc / Special Assignment", module: "Zonal",           functionality: "Ad-hoc / Special Assignment" },
+  { path: "/sdo/projects",                label: "Ad-hoc / Special Assignment", module: "Originating Departments", functionality: "Ad-hoc / Special Assignment" },
   { path: "/zonal/ict/support",           label: "ICT Support Register",      module: "Zonal",             functionality: "ICT Support Register"      },
   { path: "/notifications",               label: "Notifications",             module: "Notifications",     functionality: "Notifications"             },
   { path: "/settings/users",              label: "Users",                     module: "Settings",          functionality: "Users"                     },

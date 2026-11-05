@@ -413,9 +413,6 @@ export default function SdoStateDistributionPage({
                   Ready to dispatch to <strong className="text-slate-700 font-semibold">{selectedCount} State Office(s)</strong>
                 </span>
                 <div className="flex items-center gap-3">
-                  <Button type="button" variant="outline" onClick={onBack} disabled={submitting}>
-                    Cancel
-                  </Button>
                   <Button
                     type="button"
                     onClick={handleDispatch}

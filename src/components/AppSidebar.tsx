@@ -245,6 +245,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
   "SOC/Zones Dashboard": Activity,
   "Monthly Enrollee Register": ClipboardList,
   "ETMC/TMC Action-Point Register": ClipboardCheck,
+  "State Office Profile": Building,
   "State/Zonal Office Profile": Building,
   "State/Zonal Focal Persons Register": Users,
   "Weekly Actionable": AlertTriangle,
@@ -325,6 +326,7 @@ const VIEW_TO_PATH: Record<string, string> = {
   "state-office-meeting": "/zonal/meetings",
   "state-etmc-cascading": "/zonal/meetings/etmc",
   "state-meetings": "/zonal/meetings",
+  "state-admin-office-profile": "/zonal/admin-hr/office-profile",
   "state-office-accommodation": "/zonal/admin-hr/office-accommodation",
   "state-utility-services": "/zonal/admin-hr/utility-services",
   "state-vehicle-maintenance": "/zonal/admin-hr/vehicle-maintenance",
@@ -554,8 +556,8 @@ function getUserStateLabel(user?: import("@/src/store/authSlice").AuthUser): str
 /** Show zone/state only when the user is assigned to both. */
 function userHasZoneAndState(user?: import("@/src/store/authSlice").AuthUser): boolean {
   if (!user) return false;
-  const hasZone = !!(user.zone_id || user.zone?.id || getUserZoneLabel(user));
-  const hasState = !!(user.state_id || user.state?.id || getUserStateLabel(user));
+  const hasZone = !!(user.zone_id || (user.zone as any)?.id || getUserZoneLabel(user));
+  const hasState = !!(user.state_id || (user.state as any)?.id || getUserStateLabel(user));
   return hasZone && hasState;
 }
 

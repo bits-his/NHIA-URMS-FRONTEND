@@ -242,7 +242,7 @@ export default function SdoAssignmentRegisterPage({
             ) : (
               <Save className="w-3.5 h-3.5" />
             )}
-            Save Record
+            Save to Draft
           </Button>
           <Button
             size="sm"
@@ -511,10 +511,7 @@ export default function SdoAssignmentRegisterPage({
           </Card>
 
           {/* Bottom Action Bar */}
-          <div className="flex items-center justify-between pt-4 pb-8 border-t border-slate-200 w-full">
-            <Button type="button" variant="outline" onClick={onBack} disabled={submitting}>
-              Back to Assignments
-            </Button>
+          <div className="flex items-center justify-end pt-4 pb-8 border-t border-slate-200 w-full">
             <div className="flex items-center gap-2">
               <Button
                 type="button"
@@ -528,7 +525,7 @@ export default function SdoAssignmentRegisterPage({
                 ) : (
                   <Save className="w-4 h-4" />
                 )}
-                Save Record
+                Save to Draft
               </Button>
               <Button
                 type="button"
