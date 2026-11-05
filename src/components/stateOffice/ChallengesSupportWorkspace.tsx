@@ -1,5 +1,5 @@
 import * as React from "react";
-import { ArrowLeft, AlertTriangle, Eye, FileText, HandHelping, Link2, Loader2, MessageSquare, Pencil, Plus, RefreshCw, Send, User2 } from "lucide-react";
+import { ArrowLeft, AlertTriangle, Eye, FileText, HandHelping, Link2, MessageSquare, Pencil, Plus, RefreshCw, Send, User2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,7 +22,7 @@ import {
   SUPPORT_STATUSES, severityToPriority, specificChallengesFor, specificSupportFor,
 } from "./challengesTypes";
 
-const inputClass = "w-full min-h-[4.5rem] rounded-xl px-3.5 py-2 text-sm bg-[#f4f7f5] border-2 border-[#1a7a52] text-slate-800 shadow-xs outline-none hover:border-[#0f3d2e] hover:bg-white focus-visible:border-[#0f3d2e] focus-visible:bg-white focus-visible:ring-3 focus-visible:ring-[#1a7a52]/25";
+const inputClass = "w-full min-h-[4.5rem] rounded-sm px-3.5 py-2 text-sm bg-[#f4f7f5] border-2 border-[#1a7a52] text-slate-800 shadow-xs outline-none hover:border-[#0f3d2e] hover:bg-white focus-visible:border-[#0f3d2e] focus-visible:bg-white focus-visible:ring-3 focus-visible:ring-[#1a7a52]/25";
 const ACTION = "bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20";
 
 function ReviewRow({ label, value }: { label: string; value?: React.ReactNode }) {
@@ -145,12 +145,18 @@ export default function ChallengesSupportWorkspace({ onBack }: Props) {
   };
   const refresh = async () => {
     const [c, s] = await Promise.all([api.challenges(), api.support()]);
-    setChallenges(c.data); setSupportList(s.data);
+    setChallenges(Array.isArray(c.data) ? c.data : []);
+    setSupportList(Array.isArray(s.data) ? s.data : []);
   };
   React.useEffect(() => {
     let cancelled = false;
     Promise.all([api.catalogue(), api.challenges(), api.support()])
-      .then(([cat, c, s]) => { if (!cancelled) { setCatalogue(cat.data); setChallenges(c.data); setSupportList(s.data); } })
+      .then(([cat, c, s]) => {
+        if (cancelled) return;
+        setCatalogue(cat.data);
+        setChallenges(Array.isArray(c.data) ? c.data : []);
+        setSupportList(Array.isArray(s.data) ? s.data : []);
+      })
       .catch((e) => { if (!cancelled) setError(e.message); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
@@ -529,11 +535,9 @@ export default function ChallengesSupportWorkspace({ onBack }: Props) {
     </div>
   ) : undefined;
 
-  if (loading) return <div className="flex flex-col h-full bg-[#f4f7f5]">{header}<div className="flex items-center justify-center py-16 gap-3 text-slate-400"><Loader2 className="w-5 h-5 animate-spin" /><span className="text-sm">Loading...</span></div></div>;
-
   /* ── Challenge form ── */
   const challengeForm = draft && (
-    <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-visible"><CardContent className="p-4 md:p-5 space-y-5">
+    <Card className="w-full rounded-sm border-[#d4e8dc] shadow-none ring-0 overflow-visible"><CardContent className="p-4 md:p-5 space-y-5">
       <FieldSection title="Challenge details">
         <Field label="State / FCT"><Input value={stateName(draft.state_code)} readOnly /></Field>
         <Field label="Zone"><Input value={zoneName(catalogue?.states.find((s) => s.code === draft.state_code)?.zonal_code || catalogue?.default_zone || "")} readOnly /></Field>
@@ -564,9 +568,9 @@ export default function ChallengesSupportWorkspace({ onBack }: Props) {
 
   /* ── Support form ── */
   const supportForm = draft && (
-    <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-visible"><CardContent className="p-4 md:p-5 space-y-5">
+    <Card className="w-full rounded-sm border-[#d4e8dc] shadow-none ring-0 overflow-visible"><CardContent className="p-4 md:p-5 space-y-5">
       {draft.challenge_id && (
-        <div className="rounded-lg bg-[#eef6f1] p-3 text-sm text-[#145c3f] flex flex-wrap items-center gap-2">
+        <div className="rounded-sm bg-[#eef6f1] p-3 text-sm text-[#145c3f] flex flex-wrap items-center gap-2">
           Linked to challenge <strong>{draft.challenge_id}</strong>
         </div>
       )}
@@ -739,6 +743,7 @@ export default function ChallengesSupportWorkspace({ onBack }: Props) {
   );
 
   const isViewOrForm = ["challenge-form", "support-form", "challenge-detail", "support-detail"].includes(mode);
+  const isForm = mode === "challenge-form" || mode === "support-form";
 
   return (
     <PageLayout
@@ -752,10 +757,11 @@ export default function ChallengesSupportWorkspace({ onBack }: Props) {
       onBack={isViewOrForm ? handleBack : undefined}
       actions={actions}
       filters={tabs}
+      loading={loading}
       error={error}
-      contentClassName="space-y-3 pb-6"
+      contentClassName={isForm ? "w-full p-0 md:p-0 gap-0" : "space-y-3 pb-6"}
     >
-      <div className="w-full space-y-3">
+      <div className={isForm ? "w-full" : "w-full space-y-3"}>
         {mode === "challenges" && (
           <>
           <RegisterStatsCards
