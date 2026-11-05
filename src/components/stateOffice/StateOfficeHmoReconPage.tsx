@@ -7,7 +7,6 @@ import { ShadcnDataTable } from "@/components/common/ShadcnDataTable";
 import { RegisterStatsCards } from "./RegisterStatsCards";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -36,8 +35,21 @@ interface Props {
   } | null) => void;
 }
 
-type Geo = { id: number; description: string };
+type Geo = { id?: number | string; code?: string; zonal_code?: string; description?: string };
 type Mode = "list" | "create" | "edit" | "view";
+
+/** Zone PK is zonal_code. */
+function zoneIdOf(o: Geo) {
+  return String(o.zonal_code ?? o.id ?? "");
+}
+/** State PK is code — never prefer zonal_code (that is the parent zone). */
+function stateIdOf(o: Geo) {
+  return String(o.code ?? o.id ?? "");
+}
+
+/** Same field chrome as Weekly Compliance / Customer Satisfaction */
+const amountInputStyling =
+  "h-9 w-full rounded-sm border-2 border-[#1a7a52] bg-[#f4f7f5] px-2.5 font-mono text-xs font-medium text-slate-800 focus:outline-none focus:ring-1 focus:ring-[#1a7a52]";
 type Line = {
   _key: string;
   hcf_name: string;
@@ -99,9 +111,9 @@ function naira(v: string | number | null | undefined) {
 function outstandingOf(l: Pick<Line, "agreed_amount" | "amount_paid">) {
   return money(l.agreed_amount) - money(l.amount_paid);
 }
-function pickGeoLabel(options: Geo[], value: string, fallback: string) {
+function pickGeoLabel(options: Geo[], value: string, fallback: string, idOf: (o: Geo) => string = zoneIdOf) {
   if (!value) return fallback;
-  return options.find((o) => String(o.id) === value)?.description ?? fallback;
+  return options.find((o) => idOf(o) === value)?.description ?? fallback;
 }
 
 function allegedFieldForStream(stream: HmoReconStream): "phi" | "nhia_ffs" | "nhia_cap" {
@@ -121,7 +133,7 @@ export default function StateOfficeHmoReconPage({
   stream, onBack, defaultStateId, defaultZoneId, embedded = false, onChromeChange,
 }: Props) {
   const meta = HMO_RECON_STREAM_META[stream];
-  const { canCreate, createOnly } = useStateOfficeAccess();
+  const { canCreate } = useStateOfficeAccess();
   const [mode, setMode] = React.useState<Mode>("list");
   const [formKey, setFormKey] = React.useState(0);
   const [rows, setRows] = React.useState<any[]>([]);
@@ -260,8 +272,16 @@ export default function StateOfficeHmoReconPage({
   }, [filterZone, defaultZoneId, stateLocked, setFilterState]);
   React.useEffect(() => {
     if (!zoneId) { setStates([]); return; }
-    stockApi.getStates(zoneId).then((r) => setStates(r.data)).catch(() => setStates([]));
-  }, [zoneId]);
+    let cancelled = false;
+    stockApi.getStates(zoneId).then((r) => {
+      if (cancelled) return;
+      setStates(r.data || []);
+      if (defaultStateId && (r.data || []).some((s: Geo) => stateIdOf(s) === String(defaultStateId))) {
+        setStateId((prev) => prev || String(defaultStateId));
+      }
+    }).catch(() => { if (!cancelled) setStates([]); });
+    return () => { cancelled = true; };
+  }, [zoneId, defaultStateId]);
 
   const filteredListHmos = React.useMemo(() => {
     const q = hmoSearch.trim().toLowerCase();
@@ -721,47 +741,50 @@ export default function StateOfficeHmoReconPage({
   );
 
   const headerCard = (
-    <Card className="rounded-sm border-[#d4e8dc]">
-      <CardContent className="pt-4 pb-4">
+    <Card className="rounded-sm border border-slate-200/80 shadow-xs bg-white overflow-hidden p-0 gap-0">
+      <CardHeader className="border-b border-slate-200 bg-[#f4f7f5] py-2 px-2 md:px-3 rounded-none m-0">
+        <CardTitle className="text-sm font-bold text-slate-800">Report Details</CardTitle>
+      </CardHeader>
+      <CardContent className="p-2 md:p-3">
         {hmoLocked ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {infoField("Zone", pickGeoLabel(zones, zoneId, "—"))}
-            {infoField("State", pickGeoLabel(states, stateId, "—"))}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {infoField("Zone", pickGeoLabel(zones, zoneId, "—", zoneIdOf))}
+            {infoField("State", pickGeoLabel(states, stateId, "—", stateIdOf))}
             {infoField("Period", `${monthLabel(periodMonth)} ${periodYear}`)}
             {infoField("HMO", hmoLabel(hmoName, hmoCode))}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label>Zone *</Label>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold text-slate-700">Zone *</Label>
               <Select value={zoneId} disabled={zoneLocked} onValueChange={(v) => { setZoneId(v); if (!stateLocked) setStateId(""); setHmoName(""); setHmoCode(""); setLines([]); }}>
-                <SelectTrigger displayValue={pickGeoLabel(zones, zoneId, "Zone")}><SelectValue /></SelectTrigger>
-                <SelectContent>{zones.map((z) => { const id = String(z.zonal_code ?? z.id ?? ""); return <SelectItem key={id} value={id}>{z.description}</SelectItem>; })}</SelectContent>
+                <SelectTrigger displayValue={pickGeoLabel(zones, zoneId, "Select zone", zoneIdOf)}><SelectValue /></SelectTrigger>
+                <SelectContent>{zones.map((z) => { const id = zoneIdOf(z); return <SelectItem key={id} value={id}>{z.description}</SelectItem>; })}</SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label>State *</Label>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold text-slate-700">State *</Label>
               <Select value={stateId} disabled={stateLocked || !zoneId} onValueChange={(v) => { setStateId(v); setHmoName(""); setHmoCode(""); setLines([]); }}>
-                <SelectTrigger displayValue={pickGeoLabel(states, stateId, zoneId ? "State" : "Select zone first")}><SelectValue /></SelectTrigger>
-                <SelectContent>{states.map((s) => { const id = String(s.code ?? s.id ?? ""); return <SelectItem key={id} value={id}>{s.description}</SelectItem>; })}</SelectContent>
+                <SelectTrigger displayValue={pickGeoLabel(states, stateId, zoneId ? "Select state" : "Select zone first", stateIdOf)}><SelectValue /></SelectTrigger>
+                <SelectContent>{states.map((s) => { const id = stateIdOf(s); return <SelectItem key={id} value={id}>{s.description}</SelectItem>; })}</SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label>Period — Year</Label>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold text-slate-700">Year *</Label>
               <Select value={periodYear} onValueChange={setPeriodYear}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger displayValue={periodYear}><SelectValue /></SelectTrigger>
                 <SelectContent>{buildReportingYearOptions().map((y) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}</SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label>Period — Month</Label>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold text-slate-700">Month *</Label>
               <Select value={periodMonth} onValueChange={setPeriodMonth}>
                 <SelectTrigger displayValue={monthLabel(periodMonth)}><SelectValue /></SelectTrigger>
                 <SelectContent>{MONTHS.map((m) => <SelectItem key={m.value} value={String(m.value)}>{m.label}</SelectItem>)}</SelectContent>
               </Select>
             </div>
-            <div className="space-y-2 md:col-span-2">
-              <Label className="inline-flex items-center gap-2">
+            <div className="space-y-1.5 md:col-span-2">
+              <Label className="text-xs font-bold text-slate-700 inline-flex items-center gap-2">
                 HMO *
                 {loadingCollationHmos ? <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-400" /> : null}
               </Label>
@@ -783,9 +806,9 @@ export default function StateOfficeHmoReconPage({
   );
 
   const hcfTable = (
-    <Card className="rounded-sm border-[#d4e8dc] overflow-hidden">
-      <CardHeader className="pb-2 space-y-3">
-        <CardTitle className="text-base text-[#145c3f] inline-flex items-center gap-2">
+    <Card className="rounded-sm border border-slate-200/80 shadow-xs overflow-hidden bg-white p-0 gap-0">
+      <CardHeader className="border-b border-slate-200 bg-[#f4f7f5] py-2 px-2 md:px-3 rounded-none m-0 space-y-3">
+        <CardTitle className="text-sm font-bold text-slate-800 uppercase tracking-wide inline-flex items-center gap-2">
           HCFs under {hmoName || "selected HMO"}
           {loadingHcfs ? <Loader2 className="w-4 h-4 animate-spin text-slate-400" /> : null}
         </CardTitle>
@@ -826,8 +849,8 @@ export default function StateOfficeHmoReconPage({
                   </TableCell>
                   {(["actual_amount", "agreed_amount", "amount_paid"] as const).map((key) => (
                     <TableCell key={key} className="align-middle py-2">
-                      <Input
-                        className="h-9 font-mono text-xs"
+                      <input
+                        className={amountInputStyling}
                         inputMode="decimal"
                         value={l[key]}
                         onChange={(e) => setLines((prev) => prev.map((x) => x._key === l._key ? { ...x, [key]: e.target.value } : x))}
@@ -838,8 +861,11 @@ export default function StateOfficeHmoReconPage({
                     ₦{naira(outstandingOf(l))}
                   </TableCell>
                   <TableCell className="align-middle py-2">
-                    <Input className="h-9 text-xs" value={l.remarks}
-                      onChange={(e) => setLines((prev) => prev.map((x) => x._key === l._key ? { ...x, remarks: e.target.value } : x))} />
+                    <input
+                      className={amountInputStyling}
+                      value={l.remarks}
+                      onChange={(e) => setLines((prev) => prev.map((x) => x._key === l._key ? { ...x, remarks: e.target.value } : x))}
+                    />
                   </TableCell>
                 </TableRow>
               ))}
@@ -901,7 +927,7 @@ export default function StateOfficeHmoReconPage({
             <div className="min-w-0">
               <h2 className="text-xl font-bold tracking-tight truncate">{hmoLabel(hmoName, hmoCode)}</h2>
               <p className="text-xs text-slate-500 truncate">
-                {pickGeoLabel(states, stateId, "—")}
+                {pickGeoLabel(states, stateId, "—", stateIdOf)}
                 {loadingViewSheets ? " · loading…" : ""}
               </p>
             </div>
@@ -922,12 +948,12 @@ export default function StateOfficeHmoReconPage({
         </div>
         )}
         <ScrollArea className="flex-1">
-          <div className="w-full px-4 md:px-6 py-4 space-y-4 pb-16">
-            <Card className="rounded-xl border border-[#d4e8dc]">
-              <CardContent className="pt-4 pb-4 space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  {infoField("Zone", pickGeoLabel(zones, zoneId, "—"))}
-                  {infoField("State", pickGeoLabel(states, stateId, "—"))}
+          <div className="w-full px-3 md:px-4 py-3 space-y-3 pb-8">
+            <Card className="rounded-sm border border-slate-200/80 shadow-xs bg-white overflow-hidden p-0 gap-0">
+              <CardContent className="p-2 md:p-3 space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  {infoField("Zone", pickGeoLabel(zones, zoneId, "—", zoneIdOf))}
+                  {infoField("State", pickGeoLabel(states, stateId, "—", stateIdOf))}
                   {infoField("Period", `${monthLabel(periodMonth)} ${periodYear}`)}
                   {infoField("HMO", hmoLabel(hmoName, hmoCode))}
                 </div>
@@ -1028,18 +1054,30 @@ export default function StateOfficeHmoReconPage({
           </div>
         )}
         <ScrollArea className="flex-1">
-          <div className="w-full px-4 md:px-6 py-4 space-y-4 pb-28">
+          <div className="w-full px-3 md:px-4 py-3 space-y-3 pb-8">
             {headerCard}
             {hcfTable}
+            <div className="flex flex-wrap items-center justify-end gap-3 pt-1">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={mode === "edit" ? () => setMode("view") : leaveForm}
+                className="rounded-sm border-slate-300"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                className="bg-[#1a7a52] hover:bg-[#145c3f] text-white font-bold gap-2 rounded-sm"
+                onClick={handleSave}
+                disabled={saving}
+              >
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                {mode === "edit" ? "Update Sheet" : "Save Sheet"}
+              </Button>
+            </div>
           </div>
         </ScrollArea>
-        <div className="sticky bottom-0 z-30 bg-white border-t px-4 md:px-6 py-3 flex justify-end gap-3">
-          <Button variant="outline" onClick={mode === "edit" ? () => setMode("view") : leaveForm}>Cancel</Button>
-          <Button className="bg-orange-action hover:bg-orange-600 gap-2" onClick={handleSave} disabled={saving}>
-            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-            {mode === "edit" ? "Update" : "Save Sheet"}
-          </Button>
-        </div>
       </div>
     );
   }
@@ -1062,7 +1100,7 @@ export default function StateOfficeHmoReconPage({
         </div>
       )}
       <ScrollArea className="flex-1">
-        <div className="w-full px-4 md:px-6 py-4 space-y-4">
+        <div className="w-full px-3 md:px-4 py-3 space-y-3">
           <RegisterStatsCards
             loading={loading}
             className="grid grid-cols-2 md:grid-cols-4 gap-3"
@@ -1091,20 +1129,30 @@ export default function StateOfficeHmoReconPage({
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">Zone</Label>
                 <Select value={filterZone} disabled={zoneLocked} onValueChange={(v) => { setFilterZone(v); if (!stateLocked) setFilterState("all"); }}>
-                  <SelectTrigger displayValue={filterZone === "all" ? "All Zones" : pickGeoLabel(zones, filterZone, "Zone")}><SelectValue /></SelectTrigger>
+                  <SelectTrigger displayValue={filterZone === "all" ? "All Zones" : pickGeoLabel(zones, filterZone, "Zone", zoneIdOf)}><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {!zoneLocked && <SelectItem value="all">All Zones</SelectItem>}
-                    {zones.map((z) => <SelectItem key={z.id} value={String(z.id)}>{z.description}</SelectItem>)}
+                    {zones.map((z) => {
+                      const id = zoneIdOf(z);
+                      return <SelectItem key={id} value={id}>{z.description}</SelectItem>;
+                    })}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">State</Label>
                 <Select value={filterState} disabled={stateLocked} onValueChange={setFilterState}>
-                  <SelectTrigger displayValue={filterState === "all" ? "All States" : pickGeoLabel(dashboardStates, filterState, "State")}><SelectValue /></SelectTrigger>
+                  <SelectTrigger displayValue={
+                    filterState === "all"
+                      ? "All States"
+                      : pickGeoLabel(dashboardStates, filterState, "State", stateIdOf)
+                  }><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {!stateLocked && <SelectItem value="all">All States</SelectItem>}
-                    {dashboardStates.map((s) => <SelectItem key={s.id} value={String(s.id)}>{s.description}</SelectItem>)}
+                    {dashboardStates.map((s) => {
+                      const id = stateIdOf(s);
+                      return <SelectItem key={id} value={id}>{s.description}</SelectItem>;
+                    })}
                   </SelectContent>
                 </Select>
               </div>

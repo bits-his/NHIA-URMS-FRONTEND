@@ -7,14 +7,16 @@ import {
   ArrowLeft, Plus, Eye, Pencil, RefreshCw, Loader2, Save, Trash2,
   ChevronDown, ChevronRight,
 } from "lucide-react";
+import { useSelector } from "react-redux";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
+import type { RootState } from "@/src/store/store";
 import { stateOfficeHmoIndebtednessApi, stockApi } from "@/lib/api";
 import { buildReportingYearOptions } from "../monthly/reportingYears";
 import { useMonthlyStateFilter } from "../monthly/useMonthlyStateFilter";
@@ -22,6 +24,10 @@ import { MONTHS, monthLabel } from "./constants";
 import AccreditedProviderSelect from "./AccreditedProviderSelect";
 import HcfFacilitySelect from "../servicom/HcfFacilitySelect";
 import { useStateOfficeAccess } from "@/src/access/createReviewAccess";
+
+/** Same field chrome as HCF Customer Satisfaction / Weekly Compliance */
+const inputStyling =
+  "h-11 w-full rounded-sm border-2 border-[#1a7a52] bg-[#f4f7f5] px-3.5 text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-[#1a7a52] transition-colors";
 
 interface Props {
   onBack: () => void;
@@ -37,7 +43,7 @@ interface Props {
   } | null) => void;
 }
 
-type Geo = { id: number; description: string };
+type Geo = { id?: number | string; code?: string; zonal_code?: string; description: string };
 type Mode = "list" | "create" | "edit" | "view";
 type Line = {
   _key: string;
@@ -62,6 +68,14 @@ const emptyLine = (): Line => ({
   phi: "",
 });
 
+/** Zone PK is zonal_code. */
+function zoneIdOf(o: Geo) {
+  return String(o.zonal_code ?? o.id ?? "");
+}
+/** State PK is code — never prefer zonal_code (that is the parent zone). */
+function stateIdOf(o: Geo) {
+  return String(o.code ?? o.id ?? "");
+}
 function money(v: string | number | null | undefined) {
   const n = Number(v);
   return Number.isFinite(n) ? n : 0;
@@ -72,17 +86,19 @@ function naira(v: string | number | null | undefined) {
 function lineTotal(l: { nhia_cap?: string | number; nhia_ffs?: string | number; phi?: string | number }) {
   return money(l.nhia_cap) + money(l.nhia_ffs) + money(l.phi);
 }
-function pickGeoLabel(options: Geo[], value: string, fallback: string) {
+function pickGeoLabel(options: Geo[], value: string, fallback: string, idOf: (o: Geo) => string = zoneIdOf) {
   if (!value) return fallback;
-  return options.find((o) => String(o.id) === value)?.description ?? fallback;
+  return options.find((o) => idOf(o) === value)?.description ?? fallback;
 }
 
-export default function StateOfficeHmoIndebtednessPage({ onBack, defaultStateId, defaultZoneId, embedded = false, onChromeChange }: Props) {
-  const { canCreate, createOnly } = useStateOfficeAccess();
-  const [mode, setMode] = React.useState<Mode>(createOnly ? "create" : "list");
-  const [formKey, setFormKey] = React.useState(0);
+export default function StateOfficeHmoIndebtednessPage({ defaultStateId, defaultZoneId, embedded = false, onChromeChange }: Props) {
+  const { canCreate } = useStateOfficeAccess();
+  const user = useSelector((s: RootState) => s.auth.user) as any;
+  const officerName = String(user?.name || "").trim();
+  const [mode, setMode] = React.useState<Mode>("list");
+  const [formKey] = React.useState(0);
   const [rows, setRows] = React.useState<any[]>([]);
-  const [loading, setLoading] = React.useState(!createOnly);
+  const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
   const [editingId, setEditingId] = React.useState<number | string | null>(null);
   const [refId, setRefId] = React.useState<string | null>(null);
@@ -118,7 +134,6 @@ export default function StateOfficeHmoIndebtednessPage({ onBack, defaultStateId,
   }), [filterZone, defaultZoneId, apiStateId, defaultStateId, filterYear, filterMonth]);
 
   const load = React.useCallback(async () => {
-    if (createOnly) return;
     setLoading(true);
     try {
       const res = await stateOfficeHmoIndebtednessApi.list(apiFilters);
@@ -126,9 +141,9 @@ export default function StateOfficeHmoIndebtednessPage({ onBack, defaultStateId,
     } catch (err: any) {
       toast.error("Failed to load collation sheets", { description: err.message });
     } finally { setLoading(false); }
-  }, [apiFilters, createOnly]);
+  }, [apiFilters]);
 
-  React.useEffect(() => { if (!createOnly && mode === "list") load(); }, [load, mode, createOnly]);
+  React.useEffect(() => { if (mode === "list") load(); }, [load, mode]);
   React.useEffect(() => { stockApi.getZones().then((r) => setZones(r.data)).catch(() => {}); }, []);
   React.useEffect(() => { if (defaultZoneId) setFilterZone(defaultZoneId); }, [defaultZoneId]);
   React.useEffect(() => {
@@ -369,17 +384,19 @@ export default function StateOfficeHmoIndebtednessPage({ onBack, defaultStateId,
     setEditingKey(key);
   };
 
+  const backToList = React.useCallback(() => {
+    setViewHmoName("");
+    setViewSheets([]);
+    setEditingId(null);
+    setMode("list");
+  }, []);
+
   const leaveForm = () => {
-    if (createOnly) {
-      onBack();
+    if (mode === "edit") {
+      setMode("view");
       return;
     }
-    setMode("list");
-  };
-
-  const remountCreateForm = () => {
-    openCreate();
-    setFormKey((k) => k + 1);
+    backToList();
   };
 
   const handleSave = async () => {
@@ -401,6 +418,7 @@ export default function StateOfficeHmoIndebtednessPage({ onBack, defaultStateId,
         state_code: stateId,
         reporting_year: Number(periodYear),
         reporting_month: Number(periodMonth),
+        submitted_by: officerName || submittedBy || undefined,
         status: "submitted",
         lines: valid.map((l) => ({
           hmo_name: l.hmo_name,
@@ -418,71 +436,75 @@ export default function StateOfficeHmoIndebtednessPage({ onBack, defaultStateId,
         await stateOfficeHmoIndebtednessApi.create(payload);
         toast.success("Collation sheet saved");
       }
-      if (createOnly && mode === "create") remountCreateForm();
-      else setMode("list");
+      backToList();
     } catch (e: any) {
       toast.error("Failed to save sheet", { description: e.message });
     } finally { setSaving(false); }
   };
 
   const headerFields = (
-    <Card className="rounded-sm border-[#d4e8dc]">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-base text-[#145c3f]">HMO Indebtedness Collation Sheet</CardTitle>
+    <Card className="rounded-sm border border-slate-200/80 shadow-xs bg-white overflow-hidden p-0 gap-0">
+      <CardHeader className="border-b border-slate-200 bg-[#f4f7f5] py-2 px-2 md:px-3 rounded-none m-0">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <CardTitle className="text-sm font-bold text-slate-800">Collation Sheet Details</CardTitle>
+          {refId ? (
+            <Badge variant="outline" className="text-[10px] font-bold border-[#1a7a52] text-[#1a7a52] bg-white font-mono">
+              #{refId}
+            </Badge>
+          ) : null}
+        </div>
       </CardHeader>
-      <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="space-y-2">
-          <Label>Zone *</Label>
-          <Select value={zoneId} disabled={zoneLocked} onValueChange={(v) => { setZoneId(v); if (!stateLocked) setStateId(""); }}>
-            <SelectTrigger displayValue={pickGeoLabel(zones, zoneId, "Zone")}><SelectValue /></SelectTrigger>
-            <SelectContent>{zones.map((z) => { const id = String(z.zonal_code ?? z.id ?? ""); return <SelectItem key={id} value={id}>{z.description}</SelectItem>; })}</SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-2">
-          <Label>State *</Label>
-          <Select value={stateId} disabled={stateLocked || !zoneId} onValueChange={setStateId}>
-            <SelectTrigger displayValue={pickGeoLabel(states, stateId, zoneId ? "State" : "Select zone first")}><SelectValue /></SelectTrigger>
-            <SelectContent>{states.map((s) => { const id = String(s.code ?? s.id ?? ""); return <SelectItem key={id} value={id}>{s.description}</SelectItem>; })}</SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-2">
-          <Label>Period — Year</Label>
-          <Select value={periodYear} onValueChange={setPeriodYear}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>{buildReportingYearOptions().map((y) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}</SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-2">
-          <Label>Period — Month</Label>
-          <Select value={periodMonth} onValueChange={setPeriodMonth}>
-            <SelectTrigger displayValue={monthLabel(periodMonth)}><SelectValue /></SelectTrigger>
-            <SelectContent>{MONTHS.map((m) => <SelectItem key={m.value} value={String(m.value)}>{m.label}</SelectItem>)}</SelectContent>
-          </Select>
-        </div>
-        {refId ? (
-          <div className="space-y-2">
-            <Label>Sheet ID</Label>
-            <Input value={refId} readOnly className="font-mono text-xs" />
+      <CardContent className="p-2 md:p-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+          <div className="space-y-1.5">
+            <Label className="text-xs font-bold text-slate-700">Zone *</Label>
+            <Select value={zoneId} disabled={zoneLocked} onValueChange={(v) => { setZoneId(v); if (!stateLocked) setStateId(""); }}>
+              <SelectTrigger displayValue={pickGeoLabel(zones, zoneId, "Select zone", zoneIdOf)}><SelectValue /></SelectTrigger>
+              <SelectContent>{zones.map((z) => { const id = zoneIdOf(z); return <SelectItem key={id} value={id}>{z.description}</SelectItem>; })}</SelectContent>
+            </Select>
           </div>
-        ) : null}
+          <div className="space-y-1.5">
+            <Label className="text-xs font-bold text-slate-700">State *</Label>
+            <Select value={stateId} disabled={stateLocked || !zoneId} onValueChange={setStateId}>
+              <SelectTrigger displayValue={pickGeoLabel(states, stateId, zoneId ? "Select state" : "Select zone first", stateIdOf)}><SelectValue /></SelectTrigger>
+              <SelectContent>{states.map((s) => { const id = stateIdOf(s); return <SelectItem key={id} value={id}>{s.description}</SelectItem>; })}</SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs font-bold text-slate-700">Year *</Label>
+            <Select value={periodYear} onValueChange={setPeriodYear}>
+              <SelectTrigger displayValue={periodYear}><SelectValue /></SelectTrigger>
+              <SelectContent>{buildReportingYearOptions().map((y) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs font-bold text-slate-700">Month *</Label>
+            <Select value={periodMonth} onValueChange={setPeriodMonth}>
+              <SelectTrigger displayValue={monthLabel(periodMonth)}><SelectValue /></SelectTrigger>
+              <SelectContent>{MONTHS.map((m) => <SelectItem key={m.value} value={String(m.value)}>{m.label}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+        </div>
       </CardContent>
     </Card>
   );
 
   const entryForm = (
-    <Card className="rounded-sm border-[#d4e8dc]">
-      <CardHeader className="pb-2">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <CardTitle className="text-base text-[#145c3f]">Alleged Indebtedness Entry</CardTitle>
-          </div>
-          <span className="text-sm font-bold text-[#145c3f]">Sheet total ₦{naira(sheetTotal)}</span>
+    <Card className="rounded-sm border border-slate-200/80 shadow-xs bg-white overflow-hidden p-0 gap-0">
+      <CardHeader className="border-b border-slate-200 bg-[#f4f7f5] py-2 px-2 md:px-3 rounded-none m-0">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <CardTitle className="text-sm font-bold text-slate-800 uppercase tracking-wide">
+            Alleged Indebtedness Entry
+          </CardTitle>
+          <Badge variant="outline" className="text-[10px] font-bold border-[#1a7a52] text-[#1a7a52] bg-white">
+            Sheet total ₦{naira(sheetTotal)}
+          </Badge>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div className="space-y-1">
-            <Label>HMO *</Label>
+      <CardContent className="p-2 md:p-3 space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+          <div className="space-y-1.5">
+            <Label className="text-xs font-bold text-slate-700">HMO *</Label>
             <AccreditedProviderSelect
               type="hmo"
               value={entry.hmo_id}
@@ -492,14 +514,14 @@ export default function StateOfficeHmoIndebtednessPage({ onBack, defaultStateId,
               }))}
             />
           </div>
-          <div className="space-y-1">
-            <Label>Facility (HCF) *</Label>
+          <div className="space-y-1.5">
+            <Label className="text-xs font-bold text-slate-700">Facility (HCF) *</Label>
             <HcfFacilitySelect
               stateId={stateId || undefined}
               value={entry.facility_id}
               fallbackLabel={entry.facility_name}
               includeCodeInLabel={false}
-              placeholder="Select facility"
+              placeholder={stateId ? "Select facility" : "Select a state first"}
               onChange={(f) => setEntry((prev) => ({
                 ...prev,
                 facility_id: f?.id ?? "",
@@ -508,43 +530,48 @@ export default function StateOfficeHmoIndebtednessPage({ onBack, defaultStateId,
               }))}
             />
           </div>
-          <div className="space-y-1">
-            <Label>NHIA CAP (₦)</Label>
-            <Input
+          <div className="space-y-1.5">
+            <Label className="text-xs font-bold text-slate-700">NHIA CAP (₦)</Label>
+            <input
               type="number" min={0} step="0.01"
               value={entry.nhia_cap}
               onChange={(e) => setEntry((prev) => ({ ...prev, nhia_cap: e.target.value }))}
+              className={inputStyling}
             />
           </div>
-          <div className="space-y-1">
-            <Label>NHIA FFS (₦)</Label>
-            <Input
+          <div className="space-y-1.5">
+            <Label className="text-xs font-bold text-slate-700">NHIA FFS (₦)</Label>
+            <input
               type="number" min={0} step="0.01"
               value={entry.nhia_ffs}
               onChange={(e) => setEntry((prev) => ({ ...prev, nhia_ffs: e.target.value }))}
+              className={inputStyling}
             />
           </div>
-          <div className="space-y-1">
-            <Label>PHI (₦)</Label>
-            <Input
+          <div className="space-y-1.5">
+            <Label className="text-xs font-bold text-slate-700">PHI (₦)</Label>
+            <input
               type="number" min={0} step="0.01"
               value={entry.phi}
               onChange={(e) => setEntry((prev) => ({ ...prev, phi: e.target.value }))}
+              className={inputStyling}
             />
           </div>
-          <div className="space-y-1 md:col-span-2">
-            <Label>Line total</Label>
-            <Input readOnly className="bg-slate-50 font-mono font-semibold text-[#145c3f]" value={`₦${naira(lineTotal(entry))}`} />
+          <div className="space-y-1.5">
+            <Label className="text-xs font-bold text-slate-700">Line total</Label>
+            <div className="h-11 flex items-center rounded-sm border-2 border-[#d4e8dc] bg-[#f4f7f5] px-3.5 text-sm font-bold font-mono text-[#1a7a52]">
+              ₦{naira(lineTotal(entry))}
+            </div>
           </div>
         </div>
-        <div className="flex flex-wrap justify-end gap-2 pt-1">
+        <div className="flex flex-wrap justify-end gap-2 pt-1 border-t border-[#d4e8dc]">
           {editingKey && (
-            <Button type="button" variant="outline" onClick={resetEntry}>Cancel edit</Button>
+            <Button type="button" variant="outline" className="rounded-sm border-slate-300" onClick={resetEntry}>Cancel edit</Button>
           )}
           <Button
             type="button"
             variant="outline"
-            className="gap-2"
+            className="gap-2 rounded-sm border-[#1a7a52] text-[#1a7a52] hover:bg-[#e8f5ee]"
             onClick={() => {
               if (saveEntry()) toast.success(editingKey ? "Entry updated" : "Entry added");
             }}
@@ -565,17 +592,17 @@ export default function StateOfficeHmoIndebtednessPage({ onBack, defaultStateId,
         const open = expandedHmos[hmo] !== false;
         const hmoTotal = hcfLines.reduce((s, l) => s + lineTotal(l), 0);
         return (
-          <Card key={hmo} className="rounded-sm border-[#d4e8dc] overflow-hidden">
+          <Card key={hmo} className="rounded-sm border border-slate-200/80 shadow-xs overflow-hidden bg-white p-0 gap-0">
             <button
               type="button"
-              className="w-full flex items-center justify-between gap-3 px-4 py-3 bg-[#f0fdf7] text-left"
+              className="w-full flex items-center justify-between gap-3 px-3 py-2.5 bg-[#f4f7f5] border-b border-slate-200 text-left"
               onClick={() => setExpandedHmos((p) => ({ ...p, [hmo]: !open }))}
             >
-              <span className="font-semibold text-[#145c3f] inline-flex items-center gap-2 min-w-0">
-                {open ? <ChevronDown className="w-4 h-4 shrink-0" /> : <ChevronRight className="w-4 h-4 shrink-0" />}
+              <span className="text-sm font-bold text-slate-800 inline-flex items-center gap-2 min-w-0">
+                {open ? <ChevronDown className="w-4 h-4 shrink-0 text-[#1a7a52]" /> : <ChevronRight className="w-4 h-4 shrink-0 text-[#1a7a52]" />}
                 <span className="truncate">{hmo}</span>
               </span>
-              <span className="text-xs text-slate-500 shrink-0">
+              <span className="text-[10px] font-bold text-[#1a7a52] shrink-0">
                 {hcfLines.length} HCF{hcfLines.length === 1 ? "" : "s"} · ₦{naira(hmoTotal)}
               </span>
             </button>
@@ -659,19 +686,18 @@ export default function StateOfficeHmoIndebtednessPage({ onBack, defaultStateId,
             ? "Edit Collation Sheet"
             : "New Collation Sheet",
       onInnerBack: () => {
-        if (mode === "view") {
-          setViewHmoName("");
-          setViewSheets([]);
-          setMode(createOnly ? "create" : "list");
-        } else if (mode === "edit") {
-          setMode("view");
-        } else {
-          setMode(createOnly ? "create" : "list");
-        }
+        if (mode === "view") backToList();
+        else if (mode === "edit") setMode("view");
+        else backToList();
       },
+      actions: mode === "view" && canCreate ? (
+        <Button className="bg-orange-action hover:bg-orange-600 gap-2" onClick={() => setMode("edit")}>
+          <Pencil className="w-4 h-4" /> Edit
+        </Button>
+      ) : undefined,
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [embedded, onChromeChange, mode, loading, canCreate, viewHmoName, createOnly]);
+  }, [embedded, onChromeChange, mode, loading, canCreate, viewHmoName, backToList]);
 
   React.useEffect(() => () => onChromeChange?.(null), [onChromeChange]);
 
@@ -689,11 +715,7 @@ export default function StateOfficeHmoIndebtednessPage({ onBack, defaultStateId,
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => {
-                  setViewHmoName("");
-                  setViewSheets([]);
-                  setMode(createOnly ? "create" : "list");
-                }}
+                onClick={backToList}
                 className="rounded-full shrink-0"
               >
                 <ArrowLeft className="w-5 h-5" />
@@ -708,9 +730,9 @@ export default function StateOfficeHmoIndebtednessPage({ onBack, defaultStateId,
           </div>
         )}
         <ScrollArea className="flex-1">
-          <div className="w-full px-4 md:px-6 py-4 space-y-4 pb-16">
-            <Card className="rounded-xl border border-[#d4e8dc]">
-              <CardContent className="pt-4 pb-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="w-full px-3 md:px-4 py-3 space-y-3 pb-8">
+            <Card className="rounded-sm border border-slate-200/80 shadow-xs bg-white overflow-hidden p-0 gap-0">
+              <CardContent className="p-2 md:p-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label className="text-xs text-muted-foreground">Year</Label>
                   <Select
@@ -828,32 +850,40 @@ export default function StateOfficeHmoIndebtednessPage({ onBack, defaultStateId,
           </div>
         )}
         <ScrollArea className="flex-1">
-          <div className="w-full px-4 md:px-6 py-4 space-y-4 pb-28">
+          <div className="w-full px-3 md:px-4 py-3 space-y-3 pb-8">
             {headerFields}
             {entryForm}
             {addedEntries}
+            <div className="flex flex-wrap items-center justify-end gap-3 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={mode === "edit" ? () => setMode("view") : leaveForm}
+                className="rounded-sm border-slate-300"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                className="bg-[#1a7a52] hover:bg-[#145c3f] text-white font-bold gap-2 rounded-sm"
+                onClick={() => {
+                  const hasDraft = !!(
+                    entry.hmo_name || entry.facility_name || entry.hcf_code
+                    || entry.nhia_cap || entry.nhia_ffs || entry.phi
+                  );
+                  if (editingKey || hasDraft) {
+                    if (!saveEntry()) return;
+                  }
+                  void handleSave();
+                }}
+                disabled={saving}
+              >
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                {mode === "edit" ? "Update Sheet" : "Submit Sheet"}
+              </Button>
+            </div>
           </div>
         </ScrollArea>
-        <div className="sticky bottom-0 z-30 bg-white border-t px-4 md:px-6 py-3 flex justify-end gap-3">
-          <Button variant="outline" onClick={mode === "edit" ? () => setMode("view") : leaveForm}>Cancel</Button>
-          <Button
-            className="bg-orange-action hover:bg-orange-600 gap-2"
-            onClick={() => {
-              const hasDraft = !!(
-                entry.hmo_name || entry.facility_name || entry.hcf_code
-                || entry.nhia_cap || entry.nhia_ffs || entry.phi
-              );
-              if (editingKey || hasDraft) {
-                if (!saveEntry()) return;
-              }
-              handleSave();
-            }}
-            disabled={saving}
-          >
-            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-            {mode === "edit" ? "Update Sheet" : "Submit Sheet"}
-          </Button>
-        </div>
       </div>
     );
   }
@@ -876,7 +906,7 @@ export default function StateOfficeHmoIndebtednessPage({ onBack, defaultStateId,
         </div>
       )}
       <ScrollArea className="flex-1">
-        <div className="w-full px-4 md:px-6 py-4 space-y-4">
+        <div className="w-full px-3 md:px-4 py-3 space-y-3">
           <RegisterStatsCards
             loading={loading}
             className="grid grid-cols-2 md:grid-cols-4 gap-3"
@@ -905,20 +935,20 @@ export default function StateOfficeHmoIndebtednessPage({ onBack, defaultStateId,
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">Zone</Label>
                 <Select value={filterZone} disabled={zoneLocked} onValueChange={(v) => { setFilterZone(v); if (!stateLocked) setFilterState("all"); }}>
-                  <SelectTrigger displayValue={filterZone === "all" ? "All Zones" : pickGeoLabel(zones, filterZone, "Zone")}><SelectValue /></SelectTrigger>
+                  <SelectTrigger displayValue={filterZone === "all" ? "All Zones" : pickGeoLabel(zones, filterZone, "Zone", zoneIdOf)}><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {!zoneLocked && <SelectItem value="all">All Zones</SelectItem>}
-                    {zones.map((z) => { const id = String(z.zonal_code ?? z.id ?? ""); return <SelectItem key={id} value={id}>{z.description}</SelectItem>; })}
+                    {zones.map((z) => { const id = zoneIdOf(z); return <SelectItem key={id} value={id}>{z.description}</SelectItem>; })}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">State</Label>
                 <Select value={filterState} disabled={stateLocked} onValueChange={setFilterState}>
-                  <SelectTrigger displayValue={stateLocked ? pickGeoLabel(dashboardStates, filterState, "State") : (filterState === "all" ? "All States" : pickGeoLabel(dashboardStates, filterState, "State"))}><SelectValue /></SelectTrigger>
+                  <SelectTrigger displayValue={stateLocked ? pickGeoLabel(dashboardStates, filterState, "State", stateIdOf) : (filterState === "all" ? "All States" : pickGeoLabel(dashboardStates, filterState, "State", stateIdOf))}><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {!stateLocked && <SelectItem value="all">All States</SelectItem>}
-                    {dashboardStates.map((s) => { const id = String(s.code ?? s.id ?? ""); return <SelectItem key={id} value={id}>{s.description}</SelectItem>; })}
+                    {dashboardStates.map((s) => { const id = stateIdOf(s); return <SelectItem key={id} value={id}>{s.description}</SelectItem>; })}
                   </SelectContent>
                 </Select>
               </div>
