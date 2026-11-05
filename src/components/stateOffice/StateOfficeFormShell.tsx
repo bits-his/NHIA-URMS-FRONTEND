@@ -22,6 +22,8 @@ interface Props {
   onSubmitted?: () => void;
   defaultZoneId?: string | null;
   defaultStateId?: string | null;
+  defaultReportYear?: string | number | null;
+  defaultReportMonth?: string | number | null;
   /** Sticky page header title (left); Back sits on the left like SERVICOM pages */
   pageTitle?: string;
   pageSubtitle?: string;
@@ -71,7 +73,7 @@ interface Props {
 }
 
 export default function StateOfficeFormShell({
-  reportId, onBack, onCancel, onSubmitted, defaultZoneId, defaultStateId, children,
+  reportId, onBack, onCancel, onSubmitted, defaultZoneId, defaultStateId, defaultReportYear, defaultReportMonth, children,
   buildPayload, validate, reportType, onLoaded,
   reportWeek, setReportWeek,
   showGeoIds,
@@ -96,7 +98,7 @@ export default function StateOfficeFormShell({
   const handleCancel = onCancel ?? onBack;
   const handleSubmitted = onSubmitted ?? onBack;
   const api = stateOfficeApi[reportType];
-  const header = useStateOfficeHeader(defaultZoneId, defaultStateId);
+  const header = useStateOfficeHeader(defaultZoneId, defaultStateId, defaultReportYear, defaultReportMonth);
   const submitConfirm = useReportingOfficerSubmitConfirm();
 
   const [loadingRecord, setLoadingRecord] = React.useState(false);
@@ -181,7 +183,11 @@ export default function StateOfficeFormShell({
         status: res.data.status || status,
         reference_id: res.data.reference_id,
       });
-      const submittedLabel = pageTitle === "Beneficiary Management" ? "Sent for review" : "Report submitted";
+      const submittedLabel = pageTitle === "Beneficiary Management"
+        ? "Sent for review"
+        : pageTitle === "Beneficiary Registration"
+          ? "Beneficiary registered — you can add another"
+          : "Report submitted";
       const messages: Record<string, string> = {
         draft: "Draft saved",
         returned: "Draft saved",

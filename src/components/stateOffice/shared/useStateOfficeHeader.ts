@@ -3,7 +3,12 @@ import { stockApi } from "@/lib/api";
 
 interface DropdownOption { id: string | number; label: string; }
 
-export function useStateOfficeHeader(defaultZoneId?: string | null, defaultStateId?: string | null) {
+export function useStateOfficeHeader(
+  defaultZoneId?: string | null,
+  defaultStateId?: string | null,
+  defaultReportYear?: string | number | null,
+  defaultReportMonth?: string | number | null,
+) {
   const hydratingRef = React.useRef(false);
   const lockZone  = !!defaultZoneId;
   const lockState = !!defaultStateId;
@@ -12,8 +17,8 @@ export function useStateOfficeHeader(defaultZoneId?: string | null, defaultState
   const [states, setStates] = React.useState<DropdownOption[]>([]);
   const [zoneId, setZoneId] = React.useState(defaultZoneId ?? "");
   const [stateId, setStateId] = React.useState(defaultStateId ?? "");
-  const [reportYear, setReportYear] = React.useState(String(new Date().getFullYear()));
-  const [reportMonth, setReportMonth] = React.useState(String(new Date().getMonth() + 1));
+  const [reportYear, setReportYear] = React.useState(String(defaultReportYear || new Date().getFullYear()));
+  const [reportMonth, setReportMonth] = React.useState(String(defaultReportMonth || new Date().getMonth() + 1));
   const [submitDate, setSubmitDate] = React.useState(new Date().toISOString().slice(0, 10));
 
   React.useEffect(() => {
@@ -39,6 +44,12 @@ export function useStateOfficeHeader(defaultZoneId?: string | null, defaultState
 
   React.useEffect(() => { if (defaultZoneId) setZoneId(defaultZoneId); }, [defaultZoneId]);
   React.useEffect(() => { if (defaultStateId) setStateId(defaultStateId); }, [defaultStateId]);
+  React.useEffect(() => {
+    if (defaultReportYear != null && defaultReportYear !== "") setReportYear(String(defaultReportYear));
+  }, [defaultReportYear]);
+  React.useEffect(() => {
+    if (defaultReportMonth != null && defaultReportMonth !== "") setReportMonth(String(defaultReportMonth));
+  }, [defaultReportMonth]);
 
   const applyHeader = (data: any) => {
     hydratingRef.current = true;
@@ -58,8 +69,8 @@ export function useStateOfficeHeader(defaultZoneId?: string | null, defaultState
   const resetHeader = () => {
     setZoneId(defaultZoneId ?? "");
     setStateId(defaultStateId ?? "");
-    setReportYear(String(new Date().getFullYear()));
-    setReportMonth(String(new Date().getMonth() + 1));
+    setReportYear(String(defaultReportYear || new Date().getFullYear()));
+    setReportMonth(String(defaultReportMonth || new Date().getMonth() + 1));
     setSubmitDate(new Date().toISOString().slice(0, 10));
   };
 

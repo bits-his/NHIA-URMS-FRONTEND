@@ -215,6 +215,8 @@ const ICON_MAP: Record<string, React.ElementType> = {
   "ICT Support": Monitor,
   "Admin / HR": UserCog,
   "Admin / Human Resource": UserCog,
+  "Human Resources / Admin": UserCog,
+  "Meetings & Coordination": Users,
   "State Office Meeting Report": Users,
   "ETMC Cascading Report": ClipboardCheck,
   "Office Accommodation": Building,

@@ -743,8 +743,14 @@ const makeStateOfficeApi = (type: StateOfficeReportType) => ({
     status?: string;
     activity_module?: string;
     category?: string;
+    /** Reporting officer: only own submissions */
+    mine?: string | number | boolean;
   }) => {
-    const p = new URLSearchParams(Object.entries(filters || {}).filter(([, v]) => !!v) as [string, string][]).toString();
+    const p = new URLSearchParams(
+      Object.entries(filters || {})
+        .filter(([, v]) => v !== undefined && v !== null && v !== "")
+        .map(([k, v]) => [k, String(v)])
+    ).toString();
     return request<{ success: boolean; data: any[] }>(
       `/state-office/${type}/reports${p ? `?${p}` : ""}`
     );

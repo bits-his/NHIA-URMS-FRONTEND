@@ -67,9 +67,26 @@ function PayloadFields({ data }: { data: Record<string, unknown> }) {
   );
 }
 
-function PayloadTable({ rows }: { rows: Record<string, unknown>[] }) {
+const VEHICLE_ROW_HEADERS = [
+  "vehicleModel",
+  "chassisNumber",
+  "maintenanceType",
+  "problemReported",
+  "maintenanceDate",
+  "nextServiceDate",
+  "vehicleStatus",
+  "remarks",
+] as const;
+
+function PayloadTable({ rows, preferredHeaders }: { rows: Record<string, unknown>[]; preferredHeaders?: readonly string[] }) {
   if (!rows.length) return <p className="text-sm text-slate-400 italic">No rows</p>;
-  const headers = Array.from(new Set(rows.flatMap((r) => Object.keys(r))));
+  const discovered = Array.from(new Set(rows.flatMap((r) => Object.keys(r))));
+  const headers = preferredHeaders?.length
+    ? [
+        ...preferredHeaders.filter((h) => discovered.includes(h)),
+        ...discovered.filter((h) => !preferredHeaders.includes(h)),
+      ]
+    : discovered;
   return (
     <div className="overflow-x-auto rounded-lg border border-slate-200">
       <Table>
@@ -129,8 +146,11 @@ function PayloadRenderer({ payload }: { payload: Record<string, unknown> }) {
         </Section>
       ))}
       {arraySections.map(([key, rows]) => (
-        <Section key={key} title={humanizeKey(key)}>
-          <PayloadTable rows={rows} />
+        <Section key={key} title={key === "rows" ? "Maintenance Events" : humanizeKey(key)}>
+          <PayloadTable
+            rows={rows}
+            preferredHeaders={key === "rows" ? VEHICLE_ROW_HEADERS : undefined}
+          />
         </Section>
       ))}
     </div>

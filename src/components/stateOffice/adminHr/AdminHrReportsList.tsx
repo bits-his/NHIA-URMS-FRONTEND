@@ -16,9 +16,31 @@ import { stateOfficeApi } from "@/lib/api";
 import { buildReportingYearOptions } from "../../monthly/reportingYears";
 import { ALL_STATES, useMonthlyStateFilter } from "../../monthly/useMonthlyStateFilter";
 import { MONTHS, monthLabel } from "../constants";
-import { ADMIN_HR_CONFIG, type AdminHrReportType } from "./constants";
+import { ADMIN_HR_CONFIG, MAINTENANCE_TYPES, VEHICLE_STATUSES, type AdminHrReportType } from "./constants";
 import { AdminHrFormRouter, AdminHrDetailRouter } from "./registry";
 import { useStateOfficeAccess } from "@/src/access/createReviewAccess";
+
+function vehicleSummary(report: Report): string {
+  const rows = Array.isArray(report.payload?.rows) ? report.payload!.rows : [];
+  if (!rows.length) return report.title || "—";
+  const first = rows[0] || {};
+  const model = String(first.vehicleModel || "").trim();
+  const chassis = String(first.chassisNumber || "").trim();
+  const type = String(first.maintenanceType || "").trim();
+  const head = [model, chassis].filter(Boolean).join(" · ") || type || report.title || "—";
+  return rows.length > 1 ? `${head} (+${rows.length - 1} more)` : head;
+}
+
+function isServiceDueSoon(nextServiceDate?: string | null, withinDays = 30): boolean {
+  if (!nextServiceDate) return false;
+  const due = new Date(`${String(nextServiceDate).slice(0, 10)}T00:00:00`);
+  if (Number.isNaN(due.valueOf())) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const limit = new Date(today);
+  limit.setDate(limit.getDate() + withinDays);
+  return due >= today && due <= limit;
+}
 
 interface Report {
   id: number;
@@ -59,7 +81,14 @@ export default function AdminHrReportsList({
   const [selectedId, setSelectedId] = React.useState<number | null>(null);
   const [reports, setReports] = React.useState<Report[]>([]);
   const { matchesSearch, searchInput } = useListSearch();
-  const filteredReports = reports.filter((r) => matchesSearch([r, monthLabel(r.reporting_month)]));
+  const filteredReports = reports.filter((r) => {
+    const rows = Array.isArray(r.payload?.rows) ? r.payload!.rows : [];
+    return matchesSearch([
+      r,
+      monthLabel(r.reporting_month),
+      ...rows.flatMap((row: any) => [row.vehicleModel, row.chassisNumber, row.maintenanceType, row.problemReported, row.vehicleStatus]),
+    ]);
+  });
   const [loading, setLoading] = React.useState(!createOnly);
 
   const {
@@ -69,11 +98,16 @@ export default function AdminHrReportsList({
   const [filterYear, setFilterYear] = React.useState("all");
   const [filterMonth, setFilterMonth] = React.useState("all");
   const [filterStatus, setFilterStatus] = React.useState("all");
+  const [filterMaintenanceType, setFilterMaintenanceType] = React.useState("all");
+  const [filterVehicleStatus, setFilterVehicleStatus] = React.useState("all");
+  const isVehicle = reportType === "vehicle-maintenance";
 
   React.useEffect(() => {
     setMode(createOnly ? "create" : "list");
     setSelectedId(null);
     setFormKey((k) => k + 1);
+    setFilterMaintenanceType("all");
+    setFilterVehicleStatus("all");
   }, [reportType, createOnly]);
 
   const load = React.useCallback(async () => {
@@ -86,14 +120,16 @@ export default function AdminHrReportsList({
         state_id: apiStateId,
         year: filterYear !== "all" ? filterYear : undefined,
         month: filterMonth !== "all" ? filterMonth : undefined,
-      });
+        ...(isVehicle && filterMaintenanceType !== "all" ? { maintenance_type: filterMaintenanceType } : {}),
+        ...(isVehicle && filterVehicleStatus !== "all" ? { vehicle_status: filterVehicleStatus } : {}),
+      } as any);
       setReports(res.data as Report[]);
     } catch (err: any) {
       toast.error("Failed to load", { description: err.message });
     } finally {
       setLoading(false);
     }
-  }, [api, filterStatus, defaultZoneId, apiStateId, filterYear, filterMonth, createOnly]);
+  }, [api, filterStatus, defaultZoneId, apiStateId, filterYear, filterMonth, createOnly, isVehicle, filterMaintenanceType, filterVehicleStatus]);
 
   React.useEffect(() => { if (!createOnly) load(); }, [load, createOnly]);
 
@@ -121,11 +157,14 @@ export default function AdminHrReportsList({
     [reports],
   );
 
-  const hasFilters = filterYear !== "all" || filterMonth !== "all" || filterStatus !== "all" || stateFilterActive;
+  const hasFilters = filterYear !== "all" || filterMonth !== "all" || filterStatus !== "all" || stateFilterActive
+    || filterMaintenanceType !== "all" || filterVehicleStatus !== "all";
   const clearFilters = () => {
     setFilterYear("all");
     setFilterMonth("all");
     setFilterStatus("all");
+    setFilterMaintenanceType("all");
+    setFilterVehicleStatus("all");
     if (showStateFilter) setFilterState(ALL_STATES);
   };
 
@@ -247,6 +286,38 @@ export default function AdminHrReportsList({
                     </SelectContent>
                   </Select>
                 </div>
+                {isVehicle && (
+                  <>
+                    <div className="space-y-1 min-w-0">
+                      <Label className="text-xs text-muted-foreground">Maintenance Type</Label>
+                      <Select value={filterMaintenanceType} onValueChange={setFilterMaintenanceType}>
+                        <SelectTrigger className="w-full" displayValue={filterMaintenanceType === "all" ? "All Types" : filterMaintenanceType}>
+                          <SelectValue placeholder="All Types" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Types</SelectItem>
+                          {MAINTENANCE_TYPES.map((t) => (
+                            <SelectItem key={t} value={t}>{t}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1 min-w-0">
+                      <Label className="text-xs text-muted-foreground">Vehicle Status</Label>
+                      <Select value={filterVehicleStatus} onValueChange={setFilterVehicleStatus}>
+                        <SelectTrigger className="w-full" displayValue={filterVehicleStatus === "all" ? "All Vehicle Statuses" : filterVehicleStatus}>
+                          <SelectValue placeholder="All Vehicle Statuses" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Vehicle Statuses</SelectItem>
+                          {VEHICLE_STATUSES.map((s) => (
+                            <SelectItem key={s} value={s}>{s}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </>
+                )}
               </div>
               {hasFilters && (
                 <div className="flex justify-end">
@@ -298,13 +369,17 @@ export default function AdminHrReportsList({
                     <TableBody>
                       {filteredReports.map((r) => {
                         const sc = STATUS_CONFIG[r.status];
-                        const summary =
-                          r.title ||
-                          r.payload?.meetingType ||
-                          r.payload?.personLeading ||
-                          r.payload?.reportingOfficer ||
-                          r.payload?.preparedBy ||
-                          "—";
+                        const summary = isVehicle
+                          ? vehicleSummary(r)
+                          : (
+                            r.title ||
+                            r.payload?.meetingType ||
+                            r.payload?.personLeading ||
+                            r.payload?.reportingOfficer ||
+                            r.payload?.preparedBy ||
+                            "—"
+                          );
+                        const dueSoon = isVehicle && (r.payload?.rows || []).some((row: any) => isServiceDueSoon(row?.nextServiceDate));
                         return (
                           <TableRow key={r.id} className="hover:bg-slate-50/80">
                             <TableCell className="font-mono text-xs font-semibold text-[#0f3d2e] whitespace-nowrap">
@@ -314,7 +389,14 @@ export default function AdminHrReportsList({
                             <TableCell className="text-xs whitespace-nowrap">{r.state?.description || "—"}</TableCell>
                             <TableCell className="text-xs tabular-nums">{r.reporting_year}</TableCell>
                             <TableCell className="text-xs whitespace-nowrap">{monthLabel(r.reporting_month)}</TableCell>
-                            <TableCell className="text-xs max-w-[220px] truncate" title={String(summary)}>{String(summary)}</TableCell>
+                            <TableCell className="text-xs max-w-[260px]">
+                              <div className="truncate" title={String(summary)}>{String(summary)}</div>
+                              {dueSoon ? (
+                                <span className="mt-0.5 inline-flex text-[10px] font-semibold uppercase tracking-wide text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-sm">
+                                  Service due soon
+                                </span>
+                              ) : null}
+                            </TableCell>
                             <TableCell>
                               <Badge variant="outline" className={`gap-1 text-[10px] font-semibold ${sc.cls}`}>
                                 {sc.icon} {sc.label}

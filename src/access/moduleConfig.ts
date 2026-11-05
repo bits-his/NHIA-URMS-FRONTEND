@@ -295,12 +295,12 @@ export const MODULE_CONFIG: ParentModule[] = [
         path: COMPLIANCE_HUB_PATH,
       },
       { type: "group", label: "Internal Management", children: [
-        { title: "Meetings & Coordination", view: "state-meetings", path: "/zonal/meetings" },
         { type: "group", label: "Finance", children: [
           { title: "Finance Dashboard", view: "state-finance-dashboard", path: "/zonal/finance/dashboard", navLabel: "Dashboard" },
           { title: "IGR, SSHIA & Expenditure", view: "state-finance", path: "/zonal/finance/records", navLabel: "Finance" },
         ]},
-        { type: "group", label: "Admin / Human Resource", children: [
+        { type: "group", label: "Human Resources / Admin", children: [
+          { title: "Meetings & Coordination", view: "state-meetings", path: "/zonal/meetings" },
           { title: "State Office Profile", view: "state-admin-office-profile", path: "/zonal/admin-hr/office-profile", navLabel: "State Office Profile" },
           { title: "Vehicle Maintenance", view: "state-vehicle-maintenance", path: "/zonal/admin-hr/vehicle-maintenance" },
           { title: "Conflict / Infraction Report", view: "state-conflict-infraction", path: "/zonal/admin-hr/conflict-infraction" },

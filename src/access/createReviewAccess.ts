@@ -5,7 +5,7 @@ import { isDeptStateCoordinator, isDeptZonalCoordinator } from "./departmentRole
 export type CreateReviewAccess = {
   canCreate: boolean;
   canReview: boolean;
-  /** Create on, review off → land on create form, no list */
+  /** Create on, review off → form-first unless the page opts into officerOwnList */
   createOnly: boolean;
   /** Review on, create off → list/view only, no create actions */
   reviewOnly: boolean;

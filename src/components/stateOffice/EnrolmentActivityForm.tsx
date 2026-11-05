@@ -1,7 +1,7 @@
 import * as React from "react";
 import {
   ArrowLeft, ChevronRight, ClipboardCheck, IdCard,
-  Loader2, Save, Send, ShieldCheck, UserPlus, type LucideIcon,
+  Loader2, Plus, Save, Send, ShieldCheck, Trash2, UserPlus, type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { stateOfficeApi } from "@/lib/api";
 import StateOfficeFormShell from "./StateOfficeFormShell";
 import { UnderHeaderNavTabs } from "@/src/components/UnderHeaderNavTabs";
 import ReportBasicInfo from "./shared/ReportBasicInfo";
@@ -107,6 +108,19 @@ const blank = () => ({
 
 type Entry = ReturnType<typeof blank>;
 
+type PendingBeneficiary = {
+  id: string;
+  entry: Entry;
+  label: string;
+};
+
+function beneficiaryLabel(e: Entry) {
+  const surname = String(e.program_details?.surname ?? "").trim();
+  const first = String(e.program_details?.first_name ?? "").trim();
+  const name = [surname, first].filter(Boolean).join(" ");
+  return name || e.enrollee_name?.trim() || e.program_name || "Beneficiary";
+}
+
 type StepId = "activity" | "channel" | "details";
 
 interface Props {
@@ -121,12 +135,18 @@ interface Props {
   driveContext?: {
     reference_id: string;
     programs_supported: string[];
-    /** Display-only totals from the linked drive activity (unused by the form). */
+    state_code: string;
+    zonal_code: string;
+    reporting_year: number;
+    reporting_month: number;
+    /** Display-only totals from the linked drive activity. */
     beneficiaries_recorded?: number;
     registration_count?: number;
   };
   /** Embed inside a parent dialog/workspace — hide FormShell page chrome. */
   embedded?: boolean;
+  /** Called after drive beneficiaries in the list are submitted. */
+  onDriveBeneficiarySaved?: () => void;
 }
 
 export function FieldSection({ title, children, gridClassName = "grid gap-3 sm:grid-cols-2 lg:grid-cols-3" }: { title: string; children: React.ReactNode; gridClassName?: string }) {
@@ -375,7 +395,7 @@ function stepsForCategory(category: string, _channel = ""): { id: StepId; label:
 
 /** Activity Reporting Template — stepped flow from Enrolment.pptx */
 export default function EnrolmentActivityForm({
-  reportId, onBack, onCancel, onSubmitted, defaultZoneId, defaultStateId, initialCategory, driveContext: suppliedDriveContext, embedded = false,
+  reportId, onBack, onCancel, onSubmitted, defaultZoneId, defaultStateId, initialCategory, driveContext: suppliedDriveContext, embedded = false, onDriveBeneficiarySaved,
 }: Props) {
   const [savedDriveContext, setSavedDriveContext] = React.useState<Props["driveContext"]>();
   const driveContext = suppliedDriveContext || savedDriveContext;
@@ -415,6 +435,8 @@ export default function EnrolmentActivityForm({
   const [entry, setEntry] = React.useState<Entry>(() => fresh(seededCategory));
   const [fieldErrors, setFieldErrors] = React.useState<Record<string, string>>({});
   const [stepIndex, setStepIndex] = React.useState(0);
+  const [pendingBeneficiaries, setPendingBeneficiaries] = React.useState<PendingBeneficiary[]>([]);
+  const [submittingList, setSubmittingList] = React.useState(false);
   const entryRef = React.useRef(entry);
   entryRef.current = entry;
 
@@ -476,6 +498,22 @@ export default function EnrolmentActivityForm({
     () => driveContext ? ["Field Registration"] : modesOfRegistrationForProgram(entry.program_name),
     [entry.program_name, driveContext],
   );
+
+  React.useEffect(() => {
+    if (!driveContext) return;
+    // Enrolment drive beneficiary registration is NHIA-only (no SSHIA / Equity tabs).
+    setEntry((current) => {
+      if (current.category === "enrolment" && current.enrolment_channel === "NHIA") return current;
+      return {
+        ...current,
+        category: "enrolment",
+        enrolment_channel: "NHIA",
+        ...(isSshiaLikeChannel(current.enrolment_channel)
+          ? { enrolment_type: "", program_name: "", enrolment_category: "", program_details: {} }
+          : {}),
+      };
+    });
+  }, [driveContext]);
 
   React.useEffect(() => {
     if (!driveContext || isSshiaLikeChannel(entry.enrolment_channel) || !entry.program_name) return;
@@ -568,7 +606,14 @@ export default function EnrolmentActivityForm({
   };
 
   const loadData = (v: any) => {
-    setSavedDriveContext(v.drive_reference_id ? { reference_id: v.drive_reference_id, programs_supported: [] } : undefined);
+    setSavedDriveContext(v.drive_reference_id ? {
+      reference_id: String(v.drive_reference_id),
+      programs_supported: [] as string[],
+      state_code: String(v.state_code || v.state_id || ""),
+      zonal_code: String(v.zonal_code || v.zone_id || ""),
+      reporting_year: Number(v.reporting_year) || new Date().getFullYear(),
+      reporting_month: Number(v.reporting_month) || (new Date().getMonth() + 1),
+    } : undefined);
     const first = (v.lines ?? [])[0];
     if (first) {
       setEntry(lineToEntry(first));
@@ -774,6 +819,83 @@ export default function EnrolmentActivityForm({
     [],
   );
 
+  const resetDriveBeneficiaryForm = (keep: Entry) => {
+    setEntry({
+      ...fresh("enrolment"),
+      enrolment_channel: "NHIA",
+      enrolment_type: keep.enrolment_type,
+      program_name: keep.program_name,
+      enrolment_category: keep.enrolment_category || "Field Registration",
+      activity_date: keep.activity_date,
+      activity_status: keep.activity_status,
+      supporting_evidence: keep.supporting_evidence,
+      funding_option: keep.funding_option,
+      activity_budget: keep.activity_budget,
+      approved_amount: keep.approved_amount,
+    });
+    setFieldErrors({});
+    setStepIndex(0);
+  };
+
+  const addBeneficiaryToList = () => {
+    const err = validateEntry(entryRef.current);
+    if (err) {
+      toast.error(err);
+      return;
+    }
+    const snapshot = JSON.parse(JSON.stringify(entryRef.current)) as Entry;
+    setPendingBeneficiaries((current) => [
+      ...current,
+      {
+        id: `pending-${Date.now()}-${current.length}`,
+        entry: snapshot,
+        label: beneficiaryLabel(snapshot),
+      },
+    ]);
+    resetDriveBeneficiaryForm(snapshot);
+    toast.success("Added to list");
+  };
+
+  const removePendingBeneficiary = (id: string) => {
+    setPendingBeneficiaries((current) => current.filter((row) => row.id !== id));
+  };
+
+  const submitPendingBeneficiaries = async () => {
+    if (!driveContext) return;
+    if (!pendingBeneficiaries.length) {
+      toast.error("Add at least one beneficiary to the list before submitting");
+      return;
+    }
+    setSubmittingList(true);
+    try {
+      for (const row of pendingBeneficiaries) {
+        await stateOfficeApi.enrolment.create({
+          status: "submitted",
+          drive_reference_id: driveContext.reference_id,
+          state_id: driveContext.state_code,
+          zone_id: driveContext.zonal_code,
+          state_code: driveContext.state_code,
+          zonal_code: driveContext.zonal_code,
+          reporting_year: driveContext.reporting_year,
+          reporting_month: driveContext.reporting_month,
+          submission_date: todayIsoDate(),
+          submitted_by: "State Office",
+          lines: [toLinePayload(row.entry)],
+        });
+      }
+      const count = pendingBeneficiaries.length;
+      setPendingBeneficiaries([]);
+      toast.success(
+        count === 1 ? "Beneficiary submitted" : `${count} beneficiaries submitted`,
+      );
+      (onDriveBeneficiarySaved ?? onSubmitted)?.();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not submit beneficiaries");
+    } finally {
+      setSubmittingList(false);
+    }
+  };
+
   const activityMeta = enrolmentActivityMeta(entry.category);
   const categoryLocked = Boolean(seededCategory) || Boolean(driveContext);
 
@@ -782,7 +904,7 @@ export default function EnrolmentActivityForm({
     label: channel,
   }));
 
-  const channelTabs = isEnrolment && entry.category && !embedded ? (
+  const channelTabs = isEnrolment && entry.category && !embedded && !driveContext ? (
     <UnderHeaderNavTabs
       tabs={channelTabItems}
       activeTab={(entry.enrolment_channel || "NHIA") as (typeof ENROLMENT_CHANNELS)[number]}
@@ -797,15 +919,17 @@ export default function EnrolmentActivityForm({
       reportId={reportId}
       onBack={onBack}
       onCancel={onCancel}
-      onSubmitted={onSubmitted}
-      defaultZoneId={defaultZoneId}
-      defaultStateId={defaultStateId}
-      pageTitle={activityMeta?.label ?? "Enrolment Activity Reporting"}
+      onSubmitted={driveContext ? (onDriveBeneficiarySaved ?? onSubmitted) : onSubmitted}
+      defaultZoneId={defaultZoneId || driveContext?.zonal_code || null}
+      defaultStateId={defaultStateId || driveContext?.state_code || null}
+      defaultReportYear={driveContext?.reporting_year ?? null}
+      defaultReportMonth={driveContext?.reporting_month ?? null}
+      pageTitle={driveContext ? "Beneficiary Registration" : (activityMeta?.label ?? "Enrolment Activity Reporting")}
       hideFooterActions
       hideBasicInfo
       hidePageHeader={embedded}
       compact={embedded}
-      showQuarter
+      showQuarter={!driveContext}
       headerTabs={channelTabs}
       onLoaded={loadData}
       validate={() => {
@@ -821,7 +945,15 @@ export default function EnrolmentActivityForm({
       }}
       buildPayload={(base) => ({
         ...base,
-        ...(driveContext ? { drive_reference_id: driveContext.reference_id } : {}),
+        ...(driveContext ? {
+          drive_reference_id: driveContext.reference_id,
+          state_id: driveContext.state_code,
+          zone_id: driveContext.zonal_code,
+          state_code: driveContext.state_code,
+          zonal_code: driveContext.zonal_code,
+          reporting_year: driveContext.reporting_year,
+          reporting_month: driveContext.reporting_month,
+        } : {}),
         lines: [toLinePayload(entryRef.current)],
       })}
     >
@@ -834,7 +966,54 @@ export default function EnrolmentActivityForm({
 
         return (
         <div className="m-0 space-y-3 pb-2">
-          {isEnrolment && entry.category && embedded ? (
+          {driveContext ? (
+            <div className="rounded-sm border border-[#d4e8dc] bg-[#f8fbf9] px-3 py-2.5 space-y-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm text-[#0f3d2e]">
+                  Already recorded:{" "}
+                  <strong className="tabular-nums">
+                    {Number(driveContext.beneficiaries_recorded || 0).toLocaleString()}
+                  </strong>
+                  <span className="text-slate-500 font-normal">
+                    {" "}· In list to submit:{" "}
+                    <strong className="tabular-nums text-[#0f3d2e]">{pendingBeneficiaries.length}</strong>
+                  </span>
+                </p>
+                <p className="text-[11px] text-slate-500">
+                  Add beneficiaries to the list, then submit once.
+                </p>
+              </div>
+              {pendingBeneficiaries.length > 0 ? (
+                <div className="rounded-sm border border-[#d4e8dc] bg-white overflow-hidden">
+                  <ul className="divide-y divide-[#e8f3ec]">
+                    {pendingBeneficiaries.map((row, index) => (
+                      <li key={row.id} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
+                        <div className="min-w-0">
+                          <p className="font-medium text-[#0f3d2e] truncate">
+                            {index + 1}. {row.label}
+                          </p>
+                          <p className="text-[11px] text-slate-500 truncate">
+                            {[row.entry.enrolment_type, row.entry.program_name].filter(Boolean).join(" · ") || "NHIA"}
+                          </p>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 shrink-0 text-rose-600 hover:text-rose-700"
+                          disabled={submittingList}
+                          onClick={() => removePendingBeneficiary(row.id)}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+          {isEnrolment && entry.category && embedded && !driveContext ? (
             <div className="bg-white border border-[#d4e8dc] rounded-sm px-2">
               <UnderHeaderNavTabs
                 tabs={channelTabItems}
@@ -849,13 +1028,15 @@ export default function EnrolmentActivityForm({
           ) : null}
           <Card className="rounded-sm border-[#d4e8dc] shadow-sm overflow-visible m-0">
             <CardContent className={cn("p-3 md:p-4", entry.category && "space-y-4")}>
-              <ReportBasicInfo
-                {...header}
-                lockZone={Boolean(driveContext) || header.lockZone}
-                lockState={Boolean(driveContext) || header.lockState}
-                showQuarter
-                embedded
-              />
+              {!driveContext ? (
+                <ReportBasicInfo
+                  {...header}
+                  lockZone={header.lockZone}
+                  lockState={header.lockState}
+                  showQuarter
+                  embedded
+                />
+              ) : null}
 
               {entry.category ? (
               <div className="border-t border-[#e8f3ec] pt-4 space-y-5">
@@ -1244,14 +1425,14 @@ export default function EnrolmentActivityForm({
                 </div>
               )}
 
-              {/* Footer — single form: Save draft + Submit */}
+              {/* Footer */}
               {entry.category ? (
                 <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-[#e8f3ec]">
                   <Button
                     variant="ghost"
                     size="sm"
                     className="gap-2"
-                    disabled={saving || submitting}
+                    disabled={saving || submitting || submittingList}
                     onClick={() => {
                       if (categoryLocked) {
                         (onCancel ?? onBack)();
@@ -1266,25 +1447,52 @@ export default function EnrolmentActivityForm({
                   </Button>
 
                   <div className="flex flex-wrap items-center gap-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="gap-2"
-                      disabled={saving || submitting}
-                      onClick={() => persist("draft")}
-                    >
-                      {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                      Save draft
-                    </Button>
-                    <Button
-                      className="bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20"
-                      disabled={saving || submitting}
-                      onClick={() => requestSubmit(() => persist("submitted"))}
-                    >
-                      {submitting
-                        ? <><Loader2 className="w-4 h-4 animate-spin" /> Submitting...</>
-                        : <><Send className="w-4 h-4" /> Submit</>}
-                    </Button>
+                    {driveContext ? (
+                      <>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="gap-2 border-[#1a7a52] text-[#0f3d2e]"
+                          disabled={submittingList}
+                          onClick={addBeneficiaryToList}
+                        >
+                          <Plus className="w-4 h-4" />
+                          Add to list
+                        </Button>
+                        <Button
+                          className="bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20"
+                          disabled={submittingList || pendingBeneficiaries.length === 0}
+                          onClick={() => void submitPendingBeneficiaries()}
+                        >
+                          {submittingList
+                            ? <><Loader2 className="w-4 h-4 animate-spin" /> Submitting...</>
+                            : <><Send className="w-4 h-4" /> Submit ({pendingBeneficiaries.length})</>}
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="gap-2"
+                          disabled={saving || submitting}
+                          onClick={() => persist("draft")}
+                        >
+                          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                          Save draft
+                        </Button>
+                        <Button
+                          className="bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20"
+                          disabled={saving || submitting}
+                          onClick={() => requestSubmit(() => persist("submitted"))}
+                        >
+                          {submitting
+                            ? <><Loader2 className="w-4 h-4 animate-spin" /> Submitting...</>
+                            : <><Send className="w-4 h-4" /> Submit</>}
+                        </Button>
+                      </>
+                    )}
                   </div>
                 </div>
               ) : null}

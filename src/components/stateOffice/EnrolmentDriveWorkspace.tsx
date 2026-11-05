@@ -1,6 +1,6 @@
 import * as React from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowLeft, ArrowRight, ChevronDown, Plus, RefreshCw, Save, Send, Download, Users, Pencil, Trash2, Eye, FileText, Clock, CheckCircle2, ClipboardList, Loader2 } from "lucide-react";
+import { ArrowLeft, ChevronDown, Plus, RefreshCw, Save, Send, Download, Users, Pencil, Eye, FileText, Clock, CheckCircle2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,15 +22,12 @@ import {
 import { enrolmentDrivesApi as api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import PageLayout from "../PageLayout";
-import EnrolmentActivityForm, { Field, FieldSection } from "./EnrolmentActivityForm";
+import EnrolmentActivityForm, { Field } from "./EnrolmentActivityForm";
 import { MultiSelectField } from "./EnrolmentDriveForm";
-import StateOfficeFormSteps from "./StateOfficeFormSteps";
 import { AddRowButton } from "./adminHr/ui";
 import {
   driveReportingMonth,
   driveReportingPeriod,
-  hasPendingDriveActivity,
-  shouldOpenDriveActivityForm,
   ENROLMENT_DRIVE_CATEGORIES,
   CATEGORY_TO_DRIVE_KEY,
 } from "./enrolmentDriveTypes";
@@ -64,17 +61,6 @@ function ReviewSection({ title, children }: { title: string; children: React.Rea
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-3">
         {items}
       </div>
-    </section>
-  );
-}
-
-function SectionBand({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="rounded-sm border border-[#d4e8dc] bg-white overflow-hidden shadow-sm">
-      <div className="bg-[#e8f5ee] px-4 py-2.5 border-b border-[#d4e8dc]">
-        <h3 className="text-[12px] font-bold uppercase tracking-[0.06em] text-[#0f3d2e]">{title}</h3>
-      </div>
-      <div className="p-4 bg-[#f4f7f5]">{children}</div>
     </section>
   );
 }
@@ -118,10 +104,6 @@ const editable = (batch: Batch | null) => !!batch && ["draft", "returned"].inclu
 const statusLabel = (value: string) => ({ awaiting_review: "Awaiting review", final_submit: "Final submission", send_for_review: "Sent for review", returned: "Returned", endorsed: "Endorsed", submitted: "Submitted", draft: "Draft", endorse: "Endorsed", return: "Returned" }[value] || value);
 const inputClass = "w-full min-h-[4.5rem] rounded-xl px-3.5 py-2 text-sm bg-[#f4f7f5] border-2 border-[#1a7a52] text-slate-800 shadow-xs outline-none hover:border-[#0f3d2e] hover:bg-white focus-visible:border-[#0f3d2e] focus-visible:bg-white focus-visible:ring-3 focus-visible:ring-[#1a7a52]/25";
 const ACTION = "bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20";
-const WORKFLOW_STEPS = [
-  { id: "period", label: "Reporting period" },
-  { id: "activities", label: "Record activity" },
-];
 const STATUS_TONES: Record<string, string> = { draft: "bg-slate-100 text-slate-600 border-slate-200", returned: "bg-rose-100 text-rose-700 border-rose-200", awaiting_review: "bg-amber-100 text-amber-800 border-amber-200", endorsed: "bg-teal-100 text-teal-800 border-teal-200", submitted: "bg-emerald-100 text-emerald-700 border-emerald-200" };
 function StatusBadge({ status }: { status: string }) {
   return <Badge className={`text-[10px] px-2 py-0.5 inline-flex items-center gap-1 w-fit border ${STATUS_TONES[status] || STATUS_TONES.draft}`}>{status === "awaiting_review" ? <Clock className="w-3.5 h-3.5" /> : ["submitted", "endorsed"].includes(status) ? <CheckCircle2 className="w-3.5 h-3.5" /> : <FileText className="w-3.5 h-3.5" />}{statusLabel(status)}</Badge>;
@@ -133,8 +115,99 @@ export function Dropdown({ value, options, onChange, disabled, placeholder = "Se
 function MultiPicker({ value, options, onChange, label }: { value: string[]; options: string[]; onChange: (value: string[]) => void; label: string }) {
   return <MultiSelectField label="" value={value} options={options} onChange={onChange} placeholder={`Select ${label}`} className="md:col-span-1" />;
 }
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return <FieldSection title={title} gridClassName="grid gap-3 sm:grid-cols-2">{children}</FieldSection>;
+function FormGrid({ children, className = "grid gap-3 sm:grid-cols-2 lg:grid-cols-3" }: { children: React.ReactNode; className?: string }) {
+  return <div className={className}>{children}</div>;
+}
+
+type LinkedEnrolmentRecord = {
+  reference_id: string;
+  status: string;
+  enrolment_count: number;
+  reporting_year: number;
+  reporting_month: number;
+};
+
+function LinkedEnrolmentsPanel({
+  records,
+  totalBeneficiaries,
+  canEdit,
+  busy,
+  onResume,
+}: {
+  records: LinkedEnrolmentRecord[];
+  totalBeneficiaries: number;
+  canEdit: boolean;
+  busy: boolean;
+  onResume: (referenceId: string) => void;
+}) {
+  const count = records.length;
+  return (
+    <div className="mx-3 mb-3 mt-1 rounded-sm border border-[#1a7a52]/35 bg-[#eef6f1] overflow-hidden">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#1a7a52]/25 bg-[#dceee4] px-3 py-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <Users className="w-4 h-4 text-[#0f3d2e] shrink-0" />
+          <p className="text-sm font-bold text-[#0f3d2e]">
+            Linked enrolments
+            <span className="ml-2 font-semibold text-[#145c3f] tabular-nums">
+              {count} registration{count === 1 ? "" : "s"} · {formatCount(totalBeneficiaries)} beneficiaries
+            </span>
+          </p>
+        </div>
+      </div>
+      {count === 0 ? (
+        <p className="px-3 py-3 text-sm text-slate-500">No linked enrolment registrations yet.</p>
+      ) : (
+        <div className="overflow-x-auto bg-white">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-[#f4f7f5] hover:bg-[#f4f7f5]">
+                <TableHead className="w-10 text-[11px] font-bold text-[#0f3d2e]">#</TableHead>
+                <TableHead className="text-[11px] font-bold text-[#0f3d2e]">Registration ID</TableHead>
+                <TableHead className="text-[11px] font-bold text-[#0f3d2e]">Period</TableHead>
+                <TableHead className="text-[11px] font-bold text-[#0f3d2e] text-right">Beneficiaries</TableHead>
+                <TableHead className="text-[11px] font-bold text-[#0f3d2e]">Status</TableHead>
+                <TableHead className="text-[11px] font-bold text-[#0f3d2e] text-right">Action</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {records.map((record, index) => (
+                <TableRow key={record.reference_id} className="hover:bg-[#f8fdfb]">
+                  <TableCell className="text-sm font-semibold tabular-nums text-slate-500">{index + 1}</TableCell>
+                  <TableCell className="font-mono text-xs font-semibold text-[#0f3d2e]">{record.reference_id}</TableCell>
+                  <TableCell className="text-sm whitespace-nowrap">
+                    {monthLabel(record.reporting_month)} {record.reporting_year}
+                  </TableCell>
+                  <TableCell className="text-sm font-semibold tabular-nums text-[#145c3f] text-right">
+                    {formatCount(record.enrolment_count)}
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className={`text-[10px] px-2 py-0.5 border ${STATUS_TONES[record.status] || STATUS_TONES.draft}`}>
+                      {statusLabel(record.status)}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {canEdit && record.status === "draft" ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 border-[#1a7a52] text-[#0f3d2e]"
+                        disabled={busy}
+                        onClick={() => onResume(record.reference_id)}
+                      >
+                        Resume draft
+                      </Button>
+                    ) : (
+                      <span className="text-xs text-slate-400">—</span>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+    </div>
+  );
 }
 function EvidenceFiles({ files }: { files: Evidence[] }) {
   const [loading, setLoading] = React.useState("");
@@ -164,9 +237,7 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
   const [filterMonth, setFilterMonth] = React.useState("all");
   const [filterStatus, setFilterStatus] = React.useState("all");
   const [filterState, setFilterState] = React.useState("all");
-  const [batchStep, setBatchStep] = React.useState(1);
   const yearOptions = React.useMemo(() => buildReportingYearOptions(), []);
-  const [showCreate, setShowCreate] = React.useState(false);
   const [period, setPeriod] = React.useState({ state_code: defaultStateId || "", reporting_year: String(new Date().getFullYear()), reporting_month: String(new Date().getMonth() + 1), planned_activities: "" });
   const [planned, setPlanned] = React.useState("");
   const [draft, setDraft] = React.useState<Activity>(emptyActivity);
@@ -186,6 +257,9 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
 
   const validateActivity = (): boolean => {
     const errs: Record<string, string> = {};
+    if (planned === "" || planned == null || !Number.isSafeInteger(Number(planned)) || Number(planned) < 0) {
+      errs.planned_activities = "Number of planned activities is required";
+    }
     if (!draft.activity_category) {
       errs.activity_category = "Activity category is required";
     } else if (!draft.drive_type) {
@@ -258,27 +332,38 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
     if (issue) params.set("issue", issue);
     routerNavigate(`/zonal/dashboard?${params.toString()}`, { replace: true });
   }, [searchParams, defaultStateId, routerNavigate]);
-  const openBatch = async (id: string, preferredStep?: number) => {
+  const openBatch = async (id: string, edit = false) => {
     const response = await api.batch(id);
-    const step = Math.min(preferredStep ?? 1, 1);
     const activities = response.data.activities || [];
-    setBatch(response.data); setPlanned(String(response.data.planned_activities ?? "")); setReportingDeadline(response.data.reporting_deadline || ""); setBatchStep(step); setReviewNote("");
+    setBatch(response.data);
+    setPlanned(String(response.data.planned_activities ?? ""));
+    setReportingDeadline(response.data.reporting_deadline || "");
+    setReviewNote("");
     setDraft(activities.length === 1 ? toDraft(activities[0]) : emptyActivity());
-    setFiles([]); setActivityErrors({});
-    if (preferredStep !== undefined) {
-      setMode("batch");
-    } else {
-      setMode("view");
-    }
+    setFiles([]);
+    setActivityErrors({});
+    setMode(edit ? "batch" : "view");
   };
   const navigate = (next: typeof mode) => run(async () => {
-    setSearch(""); setShowCreate(false);
+    setSearch("");
     if (next === "register") await refresh();
     setMode(next);
   });
+  const syncPlannedActivities = async (current: Batch) => {
+    if (!canEdit) return current;
+    if (planned === "" || planned == null || !Number.isSafeInteger(Number(planned)) || Number(planned) < 0) {
+      throw new Error("Number of planned activities is required");
+    }
+    if (planned === String(current.planned_activities ?? "")) return current;
+    const response = await api.updateBatch(current.reference_id, { planned_activities: planned, revision: current.revision });
+    setBatch(response.data);
+    setPlanned(String(response.data.planned_activities ?? ""));
+    return response.data as Batch;
+  };
   const persistActivity = async (complete: boolean, clearAfter: boolean, opts?: { quiet?: boolean }) => {
     if (!batch) return null as string | null;
-    const existingCount = batch.activities?.length || 0;
+    let currentBatch = await syncPlannedActivities(batch);
+    const existingCount = currentBatch.activities?.length || 0;
     if (!draft.reference_id && existingCount >= 1) {
       throw new Error("Only one activity can be registered per report. Edit the existing activity, or start a new report.");
     }
@@ -290,14 +375,14 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
     } else if (!draft.activity_category && !draft.specific_activity.trim()) {
       throw new Error("Enter at least an activity category or activity details before registering beneficiaries");
     }
-    const response = await api.saveActivity(batch.reference_id, draft.reference_id, { ...draft, drive_type: effectiveDriveType, complete });
+    const response = await api.saveActivity(currentBatch.reference_id, draft.reference_id, { ...draft, drive_type: effectiveDriveType, complete });
     const id = response.data.reference_id as string;
     if (files.length) {
       if (!draft.evidence_type) throw new Error("Select an evidence type before uploading files");
       await api.evidence("activities", id, draft.evidence_type, files);
       setFiles([]);
     }
-    const finalBatch = (await api.batch(batch.reference_id)).data as Batch;
+    const finalBatch = (await api.batch(currentBatch.reference_id)).data as Batch;
     setBatch(finalBatch);
     const saved = finalBatch.activities?.find((activity) => activity.reference_id === id) || null;
     if (clearAfter) {
@@ -311,7 +396,6 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
       if (!opts?.quiet) toast.success(complete ? "Activity saved" : "Draft activity saved");
       setActivityErrors({});
     }
-    setBatchStep(1);
     setMode("batch");
     if (activityFormRef.current) {
       activityFormRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -323,17 +407,8 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
     const response = await api.transition(batch.reference_id, { action, note: reviewNote, revision: batch.revision });
     setBatch(response.data); setReviewNote(""); toast.success(statusLabel(action)); await refresh();
     if (action === "send_for_review") {
-      setShowCreate(false);
       setMode("register");
     }
-  });
-  const goToBatchStep = (next: number) => run(async () => {
-    const step = Math.min(Math.max(next, 0), 1);
-    if (batch && batchStep === 0 && canEdit && planned !== String(batch.planned_activities ?? "")) {
-      setBatch((await api.updateBatch(batch.reference_id, { planned_activities: planned, revision: batch.revision })).data);
-    }
-    setBatchStep(step);
-    setMode("batch");
   });
   const set = <K extends keyof Activity>(key: K, value: Activity[K]) => {
     setDraft((current) => ({ ...current, [key]: value }));
@@ -350,12 +425,28 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
     setFiles([]);
     setActivityFormKey((value) => value + 1);
     setActivityErrors({});
-    setBatchStep(1);
     setMode("batch");
     if (activityFormRef.current) {
       activityFormRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   };
+  const startNewReport = () => run(async () => {
+    const stateCode = period.state_code
+      || defaultStateId
+      || (filterState !== "all" ? filterState : "")
+      || catalogue?.states[0]?.code
+      || "";
+    const payload = {
+      state_code: stateCode,
+      reporting_year: period.reporting_year || String(new Date().getFullYear()),
+      reporting_month: period.reporting_month || String(new Date().getMonth() + 1),
+      planned_activities: period.planned_activities || null,
+    };
+    setPeriod({ ...period, ...payload, planned_activities: period.planned_activities || "" });
+    const response = await api.createBatch(payload);
+    toast.success("Report opened — complete the form below");
+    await openBatch(response.data.reference_id, true);
+  });
   const openEnrolmentModal = (activity: Activity, reportId: string | null = null) => {
     void run(async () => {
       let target = activity;
@@ -381,14 +472,16 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
     setLinkedReportId(null);
     if (!batchId) return;
     void run(async () => {
-      await openBatch(batchId, 1);
-      // Re-load the activity so beneficiary counts refresh after registration.
+      await openBatch(batchId, true);
       if (activityId) {
         const refreshed = (await api.batch(batchId)).data as Batch;
         const saved = refreshed.activities?.find((row) => row.reference_id === activityId);
         if (saved) setDraft(toDraft(saved));
       }
     });
+  };
+  const handleDriveBeneficiarySaved = () => {
+    closeEnrolmentModal();
   };
   const stateOptions = catalogue?.states.map((state) => ({ value: state.code, label: state.description })) || [];
   const stateName = (code: string) => catalogue?.states.find((state) => state.code === code)?.description || code;
@@ -468,28 +561,23 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [catalogue, busy],
   );
-  const listMode = mode === "register" && !showCreate;
+  const listMode = mode === "register";
   const handleBack = () => {
     if (link) {
       closeEnrolmentModal();
       return;
     }
-    if (showCreate) setShowCreate(false);
-    else if (mode === "view") setMode("register");
-    else if (mode === "batch" && batchStep > 0) {
-      setBatchStep(batchStep - 1);
-    }
-    else if (mode === "batch") setMode("register");
+    if (mode === "view" || mode === "batch") setMode("register");
     else if (mode === "register") onBack();
     else void navigate("register");
   };
-  const pageTitle = showCreate ? "New Enrolment Drive Report" : "Enrolment Drives";
+  const pageTitle = mode === "batch" ? "Enrolment Drive Report" : "Enrolment Drives";
   const geoInfo = (current?: Batch) => {
     const stateCode = current?.state_code || period.state_code;
     const zoneCode = current?.zonal_code || catalogue?.states.find((state) => state.code === stateCode)?.zonal_code || "";
     const zoneName = catalogue?.zones?.find((zone) => zone.zonal_code === zoneCode)?.description || zoneCode;
     return (
-      <Section title="Reporting information">
+      <FormGrid className="grid gap-3 sm:grid-cols-2">
         <Field label="State / FCT" required>
           <Dropdown
             value={stateCode}
@@ -512,18 +600,29 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
             onChange={(event) => setPeriod((previous) => ({ ...previous, ...driveReportingPeriod(event.target.value) }))}
           />
         </Field>
-        <Field label="Number of planned activities">
+        <Field label="Number of planned activities" required error={activityErrors.planned_activities}>
           <Input
             type="number"
             min={0}
             step={1}
             value={current ? planned : period.planned_activities}
-            disabled={!!current && (!canEdit || batchStep !== 0 || mode !== "batch")}
-            onChange={(event) => current ? setPlanned(event.target.value) : setPeriod((previous) => ({ ...previous, planned_activities: event.target.value }))}
-            placeholder="Optional"
+            disabled={!!current && (!canEdit || mode !== "batch")}
+            onChange={(event) => {
+              const value = event.target.value;
+              if (current) setPlanned(value);
+              else setPeriod((previous) => ({ ...previous, planned_activities: value }));
+              if (activityErrors.planned_activities) {
+                setActivityErrors((prev) => {
+                  const next = { ...prev };
+                  delete next.planned_activities;
+                  return next;
+                });
+              }
+            }}
+            placeholder="Enter number"
           />
         </Field>
-      </Section>
+      </FormGrid>
     );
   };
 
@@ -564,7 +663,18 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
                   </TableCell>
                   <TableCell className="text-sm tabular-nums">{activity.target_audience_reached != null ? formatCount(activity.target_audience_reached) : 0}</TableCell>
                   <TableCell className="text-sm tabular-nums">{activity.leads_generated != null ? formatCount(activity.leads_generated) : 0}</TableCell>
-                  <TableCell className="text-sm font-semibold text-[#145c3f] tabular-nums">{activity.enrolment_count != null ? formatCount(activity.enrolment_count) : 0}</TableCell>
+                  <TableCell>
+                    <div className="flex flex-col items-start gap-0.5">
+                      <span className="text-sm font-semibold text-[#145c3f] tabular-nums">
+                        {activity.enrolment_count != null ? formatCount(activity.enrolment_count) : 0}
+                      </span>
+                      {(activity.enrolment_records?.length || 0) > 0 ? (
+                        <span className="text-[10px] font-semibold uppercase tracking-wide text-[#0f3d2e]/80">
+                          {activity.enrolment_records!.length} linked
+                        </span>
+                      ) : null}
+                    </div>
+                  </TableCell>
                   <TableCell>
                     <Badge variant="outline" className={`text-[10px] px-2 py-0.5 border ${activity.activity_status === "Completed" ? STATUS_TONES.submitted : STATUS_TONES.draft}`}>
                       {activity.activity_status || "Draft"}
@@ -591,101 +701,66 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
                     </div>
                   </TableCell>
                 </TableRow>
+                <TableRow className="hover:bg-transparent border-0">
+                  <TableCell colSpan={8} className="p-0">
+                    <div onClick={(event) => event.stopPropagation()}>
+                      <LinkedEnrolmentsPanel
+                        records={activity.enrolment_records || []}
+                        totalBeneficiaries={Number(activity.enrolment_count || 0)}
+                        canEdit={canEdit}
+                        busy={busy}
+                        onResume={(referenceId) => openEnrolmentModal(activity, referenceId)}
+                      />
+                    </div>
+                  </TableCell>
+                </TableRow>
                 {isExpanded && (
                   <TableRow className="hover:bg-transparent">
                     <TableCell colSpan={8} className="p-0">
-                      <div className="border-t border-[#e8f3ec] bg-[#f4f7f5] p-3 md:p-4">
-                        <div className="overflow-hidden rounded-xl border border-[#d4e8dc] bg-white">
-                          <Table>
-                            <TableHeader>
-                              <TableRow className="bg-[#eef6f1] hover:bg-[#eef6f1]">
-                                <TableHead className="w-[220px] text-[11px] font-bold text-[#0f3d2e]">Field</TableHead>
-                                <TableHead className="text-[11px] font-bold text-[#0f3d2e]">Value</TableHead>
+                      <div className="border-t border-[#e8f3ec] bg-white">
+                        <Table>
+                          <TableHeader>
+                            <TableRow className="bg-[#f4f7f5] hover:bg-[#f4f7f5]">
+                              <TableHead className="w-[220px] text-[11px] font-bold text-[#0f3d2e]">Field</TableHead>
+                              <TableHead className="text-[11px] font-bold text-[#0f3d2e]">Value</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {([
+                              ["Drive type", catalogue?.drive_types.find((t) => t.key === activity.drive_type)?.title || activity.drive_type],
+                              ["Category", activity.activity_category],
+                              ["Date", activity.activity_date],
+                              ["Specific activity", activity.specific_activity],
+                              ["Programmes", activity.programs_supported?.join(", ")],
+                              ["Status", activity.activity_status],
+                              ...(activity.status_reason ? [["Reason", activity.status_reason] as [string, React.ReactNode]] : []),
+                              ...(activity.activity_details ? [["Description", activity.activity_details] as [string, React.ReactNode]] : []),
+                              ["Location category", activity.location_category],
+                              ["Location name", activity.location_name],
+                              ["Exact location", activity.exact_location],
+                              ["Target audience", activity.target_audience?.join(", ")],
+                              ["Number of planned audience (if any)", activity.planned_target_audience != null ? formatCount(activity.planned_target_audience) : null],
+                              ["Number of audience reached", activity.target_audience_reached != null ? formatCount(activity.target_audience_reached) : null],
+                              ["Number of leads generated", activity.leads_generated != null ? formatCount(activity.leads_generated) : null],
+                              ["Linked enrolments", `${formatCount(activity.enrolment_count || 0)} beneficiaries · ${(activity.enrolment_records?.length || 0)} registration${(activity.enrolment_records?.length || 0) === 1 ? "" : "s"}`],
+                              ["Funding option", activity.funding_option],
+                              ["Budget", activity.activity_budget ? `₦${formatAmount(activity.activity_budget)}` : null],
+                              ["Approved amount", activity.approved_amount ? `₦${formatAmount(activity.approved_amount)}` : null],
+                              ["Evidence type", activity.evidence_type],
+                              ...(activity.remarks ? [["Remarks", activity.remarks] as [string, React.ReactNode]] : []),
+                              ...(activity.evidence?.length ? [["Supporting evidence", <EvidenceFiles key="evidence" files={activity.evidence} />] as [string, React.ReactNode]] : []),
+                            ] as [string, React.ReactNode][]).map(([label, value]) => (
+                              <TableRow key={label} className="hover:bg-[#f8fdfb]">
+                                <TableCell className="align-top whitespace-nowrap text-xs font-semibold text-slate-500 bg-[#f8fbf9]">
+                                  {label}
+                                </TableCell>
+                                <TableCell className="align-top text-sm font-medium text-slate-800 whitespace-pre-wrap break-words">
+                                  {value == null || value === "" ? "—" : value}
+                                </TableCell>
                               </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {([
-                                {
-                                  title: "Activity details",
-                                  rows: [
-                                    ["Drive type", catalogue?.drive_types.find((t) => t.key === activity.drive_type)?.title || activity.drive_type],
-                                    ["Category", activity.activity_category],
-                                    ["Date", activity.activity_date],
-                                    ["Specific activity", activity.specific_activity],
-                                    ["Programmes", activity.programs_supported?.join(", ")],
-                                    ["Status", activity.activity_status],
-                                    ...(activity.status_reason ? [["Reason", activity.status_reason]] : []),
-                                    ...(activity.activity_details ? [["Description", activity.activity_details]] : []),
-                                  ],
-                                },
-                                {
-                                  title: "Audience & location reach",
-                                  rows: [
-                                    ["Location category", activity.location_category],
-                                    ["Location name", activity.location_name],
-                                    ["Exact location", activity.exact_location],
-                                    ["Target audience", activity.target_audience?.join(", ")],
-                                    ["Number of planned audience (if any)", activity.planned_target_audience != null ? formatCount(activity.planned_target_audience) : null],
-                                    ["Number of audience reached", activity.target_audience_reached != null ? formatCount(activity.target_audience_reached) : null],
-                                    ["Number of leads generated", activity.leads_generated != null ? formatCount(activity.leads_generated) : null],
-                                    ["New enrolments", activity.enrolment_count != null ? formatCount(activity.enrolment_count) : null],
-                                  ],
-                                },
-                                {
-                                  title: "Funding & evidence",
-                                  rows: [
-                                    ["Funding option", activity.funding_option],
-                                    ["Budget", activity.activity_budget ? `₦${formatAmount(activity.activity_budget)}` : null],
-                                    ["Approved amount", activity.approved_amount ? `₦${formatAmount(activity.approved_amount)}` : null],
-                                    ["Evidence type", activity.evidence_type],
-                                    ...(activity.remarks ? [["Remarks", activity.remarks]] : []),
-                                  ],
-                                },
-                              ] as { title: string; rows: [string, React.ReactNode][] }[]).map((section) => (
-                                <React.Fragment key={section.title}>
-                                  <TableRow className="hover:bg-transparent">
-                                    <TableCell
-                                      colSpan={2}
-                                      className="bg-[#e8f5ee] py-2 text-[11px] font-bold uppercase tracking-[0.06em] text-[#0f3d2e] border-y border-[#d4e8dc]"
-                                    >
-                                      {section.title}
-                                    </TableCell>
-                                  </TableRow>
-                                  {section.rows.map(([label, value]) => (
-                                    <TableRow key={`${section.title}-${label}`} className="hover:bg-[#f8fdfb]">
-                                      <TableCell className="align-top whitespace-nowrap text-xs font-semibold text-slate-500 bg-[#f8fbf9]">
-                                        {label}
-                                      </TableCell>
-                                      <TableCell className="align-top text-sm font-medium text-slate-800 whitespace-pre-wrap break-words">
-                                        {value == null || value === "" ? "—" : value}
-                                      </TableCell>
-                                    </TableRow>
-                                  ))}
-                                </React.Fragment>
-                              ))}
-                              {!!activity.evidence?.length && (
-                                <React.Fragment>
-                                  <TableRow className="hover:bg-transparent">
-                                    <TableCell
-                                      colSpan={2}
-                                      className="bg-[#e8f5ee] py-2 text-[11px] font-bold uppercase tracking-[0.06em] text-[#0f3d2e] border-y border-[#d4e8dc]"
-                                    >
-                                      Supporting evidence files
-                                    </TableCell>
-                                  </TableRow>
-                                  <TableRow className="hover:bg-[#f8fdfb]">
-                                    <TableCell className="align-top whitespace-nowrap text-xs font-semibold text-slate-500 bg-[#f8fbf9]">
-                                      Files
-                                    </TableCell>
-                                    <TableCell className="align-top">
-                                      <EvidenceFiles files={activity.evidence} />
-                                    </TableCell>
-                                  </TableRow>
-                                </React.Fragment>
-                              )}
-                            </TableBody>
-                          </Table>
-                        </div>
+                            ))}
+                          </TableBody>
+                        </Table>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -699,20 +774,14 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
 
     if (activitiesCount === 0) {
       return (
-        <div className={cn("bg-white", inline ? "rounded-xl border border-[#d4e8dc]" : "")}>
-          <div className="py-10 text-center text-sm text-slate-400 px-4">
-            No activity recorded for this report.
-          </div>
+        <div className="py-6 text-center text-sm text-slate-400">
+          No activity recorded for this report.
         </div>
       );
     }
 
     if (inline) {
-      return (
-        <div className="rounded-xl border border-[#d4e8dc] overflow-hidden bg-white">
-          <div className="overflow-x-auto">{table}</div>
-        </div>
-      );
+      return <div className="overflow-x-auto -mx-1">{table}</div>;
     }
 
     return (
@@ -738,7 +807,7 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
                   variant="outline"
                   size="sm"
                   className="gap-2 border-[#1a7a52] text-[#0f3d2e] hover:bg-[#eef6f1]"
-                  onClick={() => { setBatchStep(1); setMode("batch"); }}
+                  onClick={() => void run(() => openBatch(batch.reference_id, true))}
                 >
                   <Pencil className="w-4 h-4" /> {batch.status === "returned" ? "Edit & Resubmit" : "Edit Report"}
                 </Button>
@@ -768,7 +837,7 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
               className="gap-2 border-[#d4e8dc]"
               onClick={() => void run(async () => {
                 if (mode === "view" && batch) await openBatch(batch.reference_id);
-                else if (mode === "batch" && batch) await openBatch(batch.reference_id, batchStep);
+                else if (mode === "batch" && batch) await openBatch(batch.reference_id, true);
                 else {
                   await refresh();
                 }
@@ -777,7 +846,16 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
               <RefreshCw className={`w-4 h-4 ${busy ? "animate-spin" : ""}`} />Refresh
             </Button>
           )}
-          {mode === "register" && !showCreate && permissions.create && <Button disabled={busy} className={ACTION} onClick={() => setShowCreate(true)}><Plus className="w-4 h-4" />New Enrolment Drive Report</Button>}
+          {mode === "register" && permissions.create && (
+            <Button
+              disabled={busy}
+              className={ACTION}
+              onClick={() => void startNewReport()}
+            >
+              <Plus className="w-4 h-4" />
+              New Enrolment Drive Report
+            </Button>
+          )}
         </>
       }
       contentClassName="space-y-4 pb-8"
@@ -786,35 +864,6 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
     {error && <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700" role="alert">{error}</div>}
     {loading ? <div className="flex items-center justify-center py-16 gap-3 text-slate-400"><Loader2 className="w-5 h-5 animate-spin" /><span className="text-sm">Loading reports...</span></div> : !catalogue ? <Button onClick={() => void run(async () => { await refresh(); })}>Retry</Button> : <>
       {mode === "register" && <>
-        {showCreate ? <>
-          <Card className="rounded-sm border-[#d4e8dc] shadow-sm overflow-visible"><CardContent className="p-4 md:p-5 space-y-5">
-            <StateOfficeFormSteps steps={WORKFLOW_STEPS} activeIndex={0} onStepChange={() => {}} />
-            <div className="border-t border-[#e8f3ec] pt-4 space-y-4">
-              {geoInfo()}
-            </div>
-          </CardContent></Card>
-          <div className="flex items-center justify-between gap-3">
-            <Button variant="ghost" onClick={() => setShowCreate(false)}>Cancel</Button>
-            <Button
-              className={ACTION}
-              disabled={
-                busy
-                || !period.state_code
-                || !driveReportingMonth(period.reporting_year, period.reporting_month)
-              }
-              onClick={() => void run(async () => {
-                const response = await api.createBatch(period);
-                setShowCreate(false);
-                await refresh();
-                toast.success("Reporting period opened — continue with the activity");
-                await openBatch(response.data.reference_id, 1);
-              })}
-            >
-              Continue
-              <ArrowRight className="w-4 h-4" />
-            </Button>
-          </div>
-        </> : <>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
             {[{ label: "Total", count: periodFiltered.length, tone: "text-[#0f3d2e] bg-white border-[#d4e8dc]" }, { label: "Draft / Returned", count: periodFiltered.filter((row) => ["draft", "returned"].includes(row.status)).length, tone: "text-slate-600 bg-white border-slate-200" }, { label: "Awaiting review", count: periodFiltered.filter((row) => row.status === "awaiting_review").length, tone: "text-amber-800 bg-amber-50/80 border-amber-100" }, { label: "Endorsed", count: periodFiltered.filter((row) => row.status === "endorsed").length, tone: "text-teal-800 bg-teal-50/80 border-teal-100" }, { label: "Submitted", count: periodFiltered.filter((row) => row.status === "submitted").length, tone: "text-emerald-700 bg-emerald-50/80 border-emerald-100" }].map((item) => <div className={`rounded-xl border px-4 py-3 ${item.tone}`} key={item.label}><p className="text-2xl font-bold tabular-nums">{item.count}</p><p className="text-[11px] font-semibold text-slate-500 mt-0.5">{item.label}</p></div>)}
           </div>
@@ -892,125 +941,82 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
             pageSize={50}
             showTableOptions={false}
           />
-        </>}
       </>}
       {mode === "view" && batch && (
-        <div className="space-y-4">
-          <SectionBand title="Report Information">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <ReviewRow label="Reporting period" value={`${monthLabel(batch.reporting_month)} ${batch.reporting_year} (Q${quarterFromMonth(batch.reporting_month)})`} />
-              <ReviewRow label="State / Zone" value={`${stateName(batch.state_code)} · ${catalogue?.zones?.find((z) => z.zonal_code === batch.zonal_code)?.description || batch.zonal_code || "—"}`} />
-              <ReviewRow label="Planned activities" value={batch.planned_activities != null ? formatCount(batch.planned_activities) : "—"} />
-              <ReviewRow label="Activities recorded" value={formatCount(batch.activities?.length || 0)} />
-              <ReviewRow label="Submission date" value={batch.submitted_at ? formatDate(batch.submitted_at) : "—"} />
-              <ReviewRow label="Reporting deadline" value={batch.reporting_deadline || "—"} />
-              <ReviewRow label="Status" value={statusLabel(batch.status)} />
-            </div>
-          </SectionBand>
+        <Card className="rounded-sm border-[#d4e8dc] shadow-sm overflow-hidden">
+          <CardContent className="p-4 md:p-5 space-y-6">
+            <section className="space-y-3">
+              <h3 className="text-[12px] font-bold uppercase tracking-[0.06em] text-[#0f3d2e]">Report Information</h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <ReviewRow label="Reporting period" value={`${monthLabel(batch.reporting_month)} ${batch.reporting_year} (Q${quarterFromMonth(batch.reporting_month)})`} />
+                <ReviewRow label="State / Zone" value={`${stateName(batch.state_code)} · ${catalogue?.zones?.find((z) => z.zonal_code === batch.zonal_code)?.description || batch.zonal_code || "—"}`} />
+                <ReviewRow label="Planned activities" value={batch.planned_activities != null ? formatCount(batch.planned_activities) : "—"} />
+                <ReviewRow label="Activities recorded" value={formatCount(batch.activities?.length || 0)} />
+                <ReviewRow label="Submission date" value={batch.submitted_at ? formatDate(batch.submitted_at) : "—"} />
+                <ReviewRow label="Reporting deadline" value={batch.reporting_deadline || "—"} />
+                <ReviewRow label="Status" value={statusLabel(batch.status)} />
+              </div>
+            </section>
 
-          <SectionBand title="Activity">
-            <div className="-m-4">
+            <section className="space-y-3">
+              <h3 className="text-[12px] font-bold uppercase tracking-[0.06em] text-[#0f3d2e]">Activity</h3>
               {activityTable(true)}
-            </div>
-          </SectionBand>
+            </section>
 
-          {permissions.review && (
-            <SectionBand title="Review and Sign-off">
-              <div className="space-y-4">
-                {batch.status === "awaiting_review" && (
-                  <Field label="Review comment" required className="sm:col-span-2">
-                    <textarea
-                      className={inputClass}
-                      rows={3}
-                      value={reviewNote}
-                      onChange={(event) => setReviewNote(event.target.value)}
-                      placeholder="Enter your review comment"
-                    />
-                  </Field>
-                )}
-                <div className="flex flex-wrap justify-end gap-2">
+            {permissions.review && (
+              <section className="space-y-3">
+                <h3 className="text-[12px] font-bold uppercase tracking-[0.06em] text-[#0f3d2e]">Review and Sign-off</h3>
+                <div className="space-y-4">
                   {batch.status === "awaiting_review" && (
-                    <>
-                      <Button variant="outline" disabled={busy || !reviewNote.trim()} onClick={() => void transition("return")}>
-                        Return for correction
-                      </Button>
-                      <Button className={ACTION} disabled={busy || !reviewNote.trim()} onClick={() => void transition("endorse")}>
-                        Endorse report
-                      </Button>
-                    </>
+                    <Field label="Review comment" required className="sm:col-span-2">
+                      <textarea
+                        className={inputClass}
+                        rows={3}
+                        value={reviewNote}
+                        onChange={(event) => setReviewNote(event.target.value)}
+                        placeholder="Enter your review comment"
+                      />
+                    </Field>
+                  )}
+                  <div className="flex flex-wrap justify-end gap-2">
+                    {batch.status === "awaiting_review" && (
+                      <>
+                        <Button variant="outline" disabled={busy || !reviewNote.trim()} onClick={() => void transition("return")}>
+                          Return for correction
+                        </Button>
+                        <Button className={ACTION} disabled={busy || !reviewNote.trim()} onClick={() => void transition("endorse")}>
+                          Endorse report
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                  {!!batch.reviews?.length && (
+                    <div className="space-y-2">
+                      {batch.reviews.map((review) => (
+                        <div key={review.reference_id} className="rounded-lg bg-[#f4f7f5] border border-[#d4e8dc] p-3 text-sm">
+                          <strong>{statusLabel(review.action)}</strong> · {review.actor_name} · Revision {review.revision}
+                          <p className="text-slate-600 mt-1">{review.note}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {batch.status !== "awaiting_review" && !batch.reviews?.length && (
+                    <p className="text-sm text-slate-500">No review actions yet for this report.</p>
                   )}
                 </div>
-                {!!batch.reviews?.length && (
-                  <div className="space-y-2">
-                    {batch.reviews.map((review) => (
-                      <div key={review.reference_id} className="rounded-lg bg-white border border-[#d4e8dc] p-3 text-sm">
-                        <strong>{statusLabel(review.action)}</strong> · {review.actor_name} · Revision {review.revision}
-                        <p className="text-slate-600 mt-1">{review.note}</p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {batch.status !== "awaiting_review" && !batch.reviews?.length && (
-                  <p className="text-sm text-slate-500">No review actions yet for this report.</p>
-                )}
-              </div>
-            </SectionBand>
-          )}
-        </div>
+              </section>
+            )}
+          </CardContent>
+        </Card>
       )}
       {mode === "batch" && batch && <>
-        <Card className="rounded-sm border-[#d4e8dc] shadow-sm overflow-visible"><CardContent className="p-4 md:p-5 space-y-4">
-          <StateOfficeFormSteps steps={WORKFLOW_STEPS} activeIndex={batchStep} maximumIndex={1} onStepChange={(step) => void goToBatchStep(Math.min(step, 1))} />
-          {batchStep === 0 && (
-            <div className="border-t border-[#e8f3ec] pt-4 space-y-4">
-              {geoInfo(batch)}
-              {canEdit && (
-                <div className="flex justify-end">
-                  <Button
-                    variant="outline"
-                    disabled={busy}
-                    onClick={() => void run(async () => {
-                      const response = await api.updateBatch(batch.reference_id, { planned_activities: planned, revision: batch.revision });
-                      setBatch(response.data);
-                      toast.success("Plan saved");
-                    })}
-                  >
-                    <Save className="w-4 h-4 mr-2" />Save plan
-                  </Button>
-                </div>
-              )}
-            </div>
-          )}
-        </CardContent></Card>
-        {batchStep === 1 && canEdit && (
+        {canEdit && (
           <div ref={activityFormRef} className="space-y-4">
             <Card className="rounded-sm border-[#d4e8dc] shadow-sm overflow-visible">
-              <div className="bg-[#e8f5ee] px-4 py-3 border-b border-[#d4e8dc] flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-bold text-[#0f3d2e]">
-                    {draft.reference_id ? "Edit Activity" : "New Activity"}
-                  </h3>
-                  {draft.reference_id && (
-                    <span className="text-[11px] font-mono bg-white px-2 py-0.5 rounded border border-[#d4e8dc] text-[#145c3f]">
-                      {draft.reference_id}
-                    </span>
-                  )}
-                </div>
-                {!draft.reference_id && hasPendingDriveActivity(draft) ? (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-xs text-slate-500 hover:text-slate-800"
-                    onClick={() => startActivity()}
-                  >
-                    Clear form
-                  </Button>
-                ) : null}
-              </div>
               <CardContent className="p-4 md:p-5 space-y-6">
                 <fieldset disabled={busy || !canEdit} className="space-y-6">
-                  {/* Drive & Activity Details */}
-                  <FieldSection title="Drive & Activity Details">
+                  {geoInfo(batch)}
+                  <FormGrid>
                     <Field label="Activity date" required error={activityErrors.activity_date}>
                       <Input type="date" value={draft.activity_date} onChange={(event) => set("activity_date", event.target.value)} />
                     </Field>
@@ -1043,10 +1049,6 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
                     <Field label="Programmes supported" required error={activityErrors.programs_supported} className="sm:col-span-2 lg:col-span-3">
                       <MultiPicker value={draft.programs_supported} options={catalogue?.programmes || []} onChange={(value) => set("programs_supported", value)} label="programmes" />
                     </Field>
-                  </FieldSection>
-
-                  {/* Audience & Location Reach */}
-                  <FieldSection title="Audience & Location Reach">
                     <Field label="Location category" required error={activityErrors.location_category}>
                       <Dropdown
                         value={draft.location_category}
@@ -1108,10 +1110,6 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
                         </p>
                       </div>
                     </Field>
-                  </FieldSection>
-
-                  {/* Status & Evidence */}
-                  <FieldSection title="Status & Evidence">
                     <Field label="Activity status" required error={activityErrors.activity_status}>
                       <Dropdown value={draft.activity_status} options={catalogue?.statuses || []} onChange={(value) => set("activity_status", value)} placeholder="Select activity status" />
                     </Field>
@@ -1136,10 +1134,6 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
                         <EvidenceFiles files={draft.evidence} />
                       </div>
                     )}
-                  </FieldSection>
-
-                  {/* Funding */}
-                  <FieldSection title="Funding">
                     <Field label="Funding option" required error={activityErrors.funding_option} className={draft.funding_option === catalogue?.funding[1] ? "" : "sm:col-span-2 lg:col-span-3"}>
                       <Dropdown
                         value={draft.funding_option}
@@ -1158,27 +1152,21 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
                         </Field>
                       </>
                     )}
-                  </FieldSection>
-
-                  <FieldSection title="Remarks">
                     <Field label="Remarks" className="sm:col-span-2 lg:col-span-3">
                       <textarea className={inputClass} rows={2} value={draft.remarks} onChange={(event) => set("remarks", event.target.value)} placeholder="Enter any additional remarks" />
                     </Field>
-                  </FieldSection>
+                  </FormGrid>
                 </fieldset>
               </CardContent>
             </Card>
           </div>
         )}
         <div className="flex items-center justify-between gap-3">
-          <Button variant="ghost" disabled={busy} onClick={() => batchStep ? void goToBatchStep(batchStep - 1) : void navigate("register")}><ArrowLeft className="w-4 h-4 mr-2" />Back</Button>
-          {batchStep === 0 && (
-            <Button className={ACTION} disabled={busy} onClick={() => void goToBatchStep(1)}>
-              Continue
-              <ArrowRight className="w-4 h-4" />
-            </Button>
-          )}
-          {batchStep === 1 && permissions.create && (batch.status === "draft" || batch.status === "returned") && (
+          <Button variant="ghost" disabled={busy} onClick={() => void navigate("register")}>
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back
+          </Button>
+          {permissions.create && (batch.status === "draft" || batch.status === "returned") && (
             <div className="flex flex-wrap items-center gap-2">
               <Button
                 type="button"
@@ -1206,7 +1194,6 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
                   setReviewNote("");
                   toast.success(statusLabel("send_for_review"));
                   await refresh();
-                  setShowCreate(false);
                   setMode("register");
                 })}
               >
@@ -1226,9 +1213,9 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
         className="max-w-5xl w-[min(96vw,72rem)] max-h-[92vh] overflow-hidden p-0 flex flex-col"
       >
         <DialogHeader className="px-6 pt-5 pb-3 border-b border-[#d4e8dc] shrink-0">
-          <DialogTitle>Register beneficiaries</DialogTitle>
+          <DialogTitle>Register NHIA beneficiaries</DialogTitle>
           <DialogDescription>
-            Existing Enrolment Form · Drive ID{" "}
+            Drive ID{" "}
             <span className="font-mono font-semibold text-[#145c3f]">{link?.reference_id}</span>
             {link?.activity_category ? ` · ${link.activity_category}` : ""}
             {" · "}
@@ -1239,6 +1226,7 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
             {(link?.enrolment_records?.length || 0) > 0
               ? ` · ${link!.enrolment_records!.length} registration${link!.enrolment_records!.length === 1 ? "" : "s"}`
               : ""}
+            {" · Add to list, then submit"}
           </DialogDescription>
         </DialogHeader>
         <div className="min-h-0 flex-1 overflow-y-auto">
@@ -1251,14 +1239,19 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
               defaultZoneId={batch.zonal_code}
               driveContext={{
                 reference_id: link.reference_id,
-                programs_supported: link.programs_supported,
+                programs_supported: link.programs_supported || [],
+                state_code: batch.state_code,
+                zonal_code: batch.zonal_code,
+                reporting_year: batch.reporting_year,
+                reporting_month: batch.reporting_month,
                 beneficiaries_recorded: Number(link.enrolment_count || 0),
                 registration_count: link.enrolment_records?.length || 0,
               }}
               embedded
               onBack={closeEnrolmentModal}
               onCancel={closeEnrolmentModal}
-              onSubmitted={closeEnrolmentModal}
+              onSubmitted={handleDriveBeneficiarySaved}
+              onDriveBeneficiarySaved={handleDriveBeneficiarySaved}
             />
           ) : null}
         </div>
