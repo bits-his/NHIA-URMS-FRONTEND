@@ -85,6 +85,21 @@ const LEGACY_PROVIDER_TITLES = new Set([
 /** Legacy beneficiary screens → single Beneficiary Management leaf */
 const LEGACY_BENEFICIARY_TITLE_SET = new Set<string>(LEGACY_BENEFICIARY_TITLES);
 
+/** Aliases for Ad-hoc / Special Assignment across versions */
+const ADHOC_ASSIGNMENT_ALIASES = new Set<string>([
+  "Special Projects",
+  "Special Project",
+  "SPECIAL PROJECT",
+  "Ad-hoc Project",
+  "Ad-hoc project",
+  "Adhoc project",
+  "Adhoc Project",
+  "adhoc project",
+  "Special Assignments",
+  "Special Assignment",
+  "Ad-hoc / Special Assignment",
+]);
+
 
 
 /** Map retired module titles to current MODULE_CONFIG titles */
@@ -165,7 +180,7 @@ export function normalizeFunctionalityTitle(title: string, moduleTitle?: string)
 
     if (title === "Stock Verification") return "Physical Asset Verification";
 
-    if (title === "Special Projects" || title === "Special Project" || title === "SPECIAL PROJECT" || title === "Ad-hoc Project") {
+    if (ADHOC_ASSIGNMENT_ALIASES.has(title)) {
       return "Ad-hoc / Special Assignment";
     }
 
@@ -183,7 +198,7 @@ export function normalizeFunctionalityTitle(title: string, moduleTitle?: string)
 
   if (mod === ZONAL_MODULE) {
 
-    if (title === "Special Projects" || title === "Special Project" || title === "SPECIAL PROJECT" || title === "Ad-hoc Project") {
+    if (ADHOC_ASSIGNMENT_ALIASES.has(title)) {
       return "Ad-hoc / Special Assignment";
     }
 
@@ -268,7 +283,7 @@ export function normalizeFunctionalityTitle(title: string, moduleTitle?: string)
 
     if (title === "Overview" || title === "Statistics") return "Dashboard";
 
-    if (title === "Special Projects" || title === "Special Project" || title === "SPECIAL PROJECT" || title === "Ad-hoc Project") {
+    if (ADHOC_ASSIGNMENT_ALIASES.has(title)) {
       return "Ad-hoc / Special Assignment";
     }
 
