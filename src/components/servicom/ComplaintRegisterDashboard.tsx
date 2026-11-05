@@ -309,7 +309,7 @@ export default function ComplaintRegisterDashboard({
             value={year}
             onValueChange={(v) => { setYear(v); if (v !== "all") setDate(""); }}
           >
-            <SelectTrigger className="h-8.5 text-xs bg-slate-50/60 hover:bg-slate-50 border-slate-200 rounded-sm">
+            <SelectTrigger className="h-8.5 text-xs bg-white hover:bg-slate-50 border-[#d4e8dc] rounded-sm">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -325,7 +325,7 @@ export default function ComplaintRegisterDashboard({
             value={month}
             onValueChange={(v) => { setMonth(v); if (v !== "all") setDate(""); }}
           >
-            <SelectTrigger className="h-8.5 text-xs bg-slate-50/60 hover:bg-slate-50 border-slate-200 rounded-sm">
+            <SelectTrigger className="h-8.5 text-xs bg-white hover:bg-slate-50 border-[#d4e8dc] rounded-sm">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -336,7 +336,7 @@ export default function ComplaintRegisterDashboard({
 
         <Filter label="Specific Date">
           <Input
-            className="h-8.5 text-xs bg-slate-50/60 border-slate-200 rounded-sm"
+            className="h-8.5 text-xs bg-white border-[#d4e8dc] rounded-sm"
             type="date"
             value={date}
             onChange={(e) => {
@@ -377,7 +377,7 @@ export default function ComplaintRegisterDashboard({
             value={year}
             onValueChange={(v) => { setYear(v); if (v !== "all") setDate(""); }}
           >
-            <SelectTrigger className="h-8.5 text-xs bg-slate-50/60 hover:bg-slate-50 border-slate-200 rounded-sm">
+            <SelectTrigger className="h-8.5 text-xs bg-white hover:bg-slate-50 border-[#d4e8dc] rounded-sm">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -393,7 +393,7 @@ export default function ComplaintRegisterDashboard({
             value={month}
             onValueChange={(v) => { setMonth(v); if (v !== "all") setDate(""); }}
           >
-            <SelectTrigger className="h-8.5 text-xs bg-slate-50/60 hover:bg-slate-50 border-slate-200 rounded-sm">
+            <SelectTrigger className="h-8.5 text-xs bg-white hover:bg-slate-50 border-[#d4e8dc] rounded-sm">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -404,7 +404,7 @@ export default function ComplaintRegisterDashboard({
 
         <Filter label="Specific Date">
           <Input
-            className="h-8.5 text-xs bg-slate-50/60 border-slate-200 rounded-sm"
+            className="h-8.5 text-xs bg-white border-[#d4e8dc] rounded-sm"
             type="date"
             value={date}
             onChange={(e) => {
@@ -430,7 +430,7 @@ export default function ComplaintRegisterDashboard({
                 if (v === "zone") setFilterState("all");
               }}
             >
-              <SelectTrigger className="h-8.5 text-xs bg-slate-50/60 hover:bg-slate-50 border-slate-200 rounded-sm">
+              <SelectTrigger className="h-8.5 text-xs bg-white hover:bg-slate-50 border-[#d4e8dc] rounded-sm">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -443,7 +443,7 @@ export default function ComplaintRegisterDashboard({
           </Filter>
         ) : (
           <Filter label="Location Level">
-            <div className="h-8.5 px-3 flex items-center text-xs bg-slate-100/70 border border-slate-200 rounded-sm text-slate-600 font-medium">
+            <div className="h-8.5 px-3 flex items-center text-xs bg-slate-100/70 border border-[#d4e8dc] rounded-sm text-slate-600 font-medium">
               Zone Locked
             </div>
           </Filter>
@@ -456,7 +456,7 @@ export default function ComplaintRegisterDashboard({
               onValueChange={(v) => { setFilterZone(v); setFilterState("all"); }}
               disabled={zoneLocked}
             >
-              <SelectTrigger className="h-8.5 text-xs bg-slate-50/60 hover:bg-slate-50 border-slate-200 rounded-sm" displayValue={zoneLabel}>
+              <SelectTrigger className="h-8.5 text-xs bg-white hover:bg-slate-50 border-[#d4e8dc] rounded-sm" displayValue={zoneLabel}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -469,7 +469,7 @@ export default function ComplaintRegisterDashboard({
           </Filter>
         ) : (
           <Filter label="Zone">
-            <div className="h-8.5 px-3 flex items-center text-xs bg-slate-100/70 border border-slate-200 rounded-sm text-slate-400">
+            <div className="h-8.5 px-3 flex items-center text-xs bg-slate-100/70 border border-[#d4e8dc] rounded-sm text-slate-400">
               HQ (N/A)
             </div>
           </Filter>
@@ -478,7 +478,7 @@ export default function ComplaintRegisterDashboard({
         {locationLevel !== "hq" ? (
           <Filter label="State">
             <Select value={filterState} onValueChange={setFilterState}>
-              <SelectTrigger className="h-8.5 text-xs bg-slate-50/60 hover:bg-slate-50 border-slate-200 rounded-sm" displayValue={stateLabel}>
+              <SelectTrigger className="h-8.5 text-xs bg-white hover:bg-slate-50 border-[#d4e8dc] rounded-sm" displayValue={stateLabel}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -491,7 +491,7 @@ export default function ComplaintRegisterDashboard({
           </Filter>
         ) : (
           <Filter label="State">
-            <div className="h-8.5 px-3 flex items-center text-xs bg-slate-100/70 border border-slate-200 rounded-sm text-slate-400">
+            <div className="h-8.5 px-3 flex items-center text-xs bg-slate-100/70 border border-[#d4e8dc] rounded-sm text-slate-400">
               HQ (N/A)
             </div>
           </Filter>
@@ -726,8 +726,8 @@ export default function ComplaintRegisterDashboard({
     return (
       <div className="space-y-4">
         {stateCoordinatorBanner}
-        <div className="rounded-sm border border-slate-200/80 bg-white shadow-xs overflow-hidden">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 px-4 py-2.5 bg-[#f8faf9] border-b border-slate-200/80">
+        <div className="rounded-sm border border-[#d4e8dc] bg-white shadow-2xs overflow-hidden">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 px-4 py-2.5 bg-[#f4f7f5] border-b border-[#d4e8dc]">
             <div className="flex items-center gap-2.5">
               <FilterIcon className="w-4 h-4 text-[#1a7a52]" />
               <div>
@@ -780,8 +780,8 @@ export default function ComplaintRegisterDashboard({
   return (
     <div className="space-y-4">
       {stateCoordinatorBanner}
-      <div className="rounded-sm border border-slate-200/80 bg-white shadow-xs overflow-hidden">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 px-4 py-2.5 bg-[#f8faf9] border-b border-slate-200/80">
+      <div className="rounded-sm border border-[#d4e8dc] bg-white shadow-2xs overflow-hidden">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 px-4 py-2.5 bg-[#f4f7f5] border-b border-[#d4e8dc]">
           <div className="flex items-center gap-2.5">
             <FilterIcon className="w-4 h-4 text-[#1a7a52]" />
             <div>
@@ -898,7 +898,7 @@ function Choice({
   const label = value === "all" ? allLabel : (options.find((o) => o.value === value)?.label || value);
   return (
     <Select value={value} onValueChange={onChange}>
-      <SelectTrigger className="h-8.5 text-xs bg-slate-50/60 hover:bg-slate-50 border-slate-200 rounded-sm" displayValue={label}>
+      <SelectTrigger className="h-8.5 text-xs bg-white hover:bg-slate-50 border-[#d4e8dc] rounded-sm" displayValue={label}>
         <SelectValue />
       </SelectTrigger>
       <SelectContent>

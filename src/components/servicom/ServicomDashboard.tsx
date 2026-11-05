@@ -26,6 +26,7 @@ import { zonesApi, statesApi } from "@/lib/adminApi";
 import { DashKpi, DashChartCard } from "@/components/dashboard/dashboardUi";
 import DashboardDrillPanel from "@/components/dashboard/DashboardDrillPanel";
 import PageLayout from "../PageLayout";
+import { UnderHeaderNavTabs } from "@/src/components/UnderHeaderNavTabs";
 import { useDashboardDrill } from "@/components/dashboard/useDashboardDrill";
 import { satisfactionCategoryLabel } from "./servicomSurveyConstants";
 import ComplaintRegisterDashboard from "./ComplaintRegisterDashboard";
@@ -245,79 +246,31 @@ export default function ServicomDashboard({ onBack, defaultStateId, defaultZoneI
         </Button>
       }
       tabs={
-        <div className="flex items-center gap-1 overflow-x-auto -mb-px w-full" role="tablist">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === "comment-card"}
-            onClick={() => setActiveTab("comment-card")}
-            className={`group relative shrink-0 inline-flex items-center gap-2 px-3.5 py-3 text-xs font-bold whitespace-nowrap border-b-2 transition-all outline-none ${
-              activeTab === "comment-card"
-                ? "border-[#145c3f] text-[#145c3f]"
-                : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300"
-            }`}
-          >
-            <FileText className="size-4 shrink-0" />
-            <span>Citizens' Comment Card</span>
-            <span
-              className={`inline-flex min-w-[1.25rem] h-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold tabular-nums ${
-                activeTab === "comment-card"
-                  ? "bg-[#e8f6ee] text-[#145c3f]"
-                  : "bg-slate-100 text-slate-500 group-hover:bg-slate-200"
-              }`}
-            >
-              {data?.comment_cards ?? data?.meta?.counts?.comment_cards ?? 0}
-            </span>
-          </button>
-
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === "complaints"}
-            onClick={() => setActiveTab("complaints")}
-            className={`group relative shrink-0 inline-flex items-center gap-2 px-3.5 py-3 text-xs font-bold whitespace-nowrap border-b-2 transition-all outline-none ${
-              activeTab === "complaints"
-                ? "border-[#145c3f] text-[#145c3f]"
-                : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300"
-            }`}
-          >
-            <MessageSquare className="size-4 shrink-0" />
-            <span>Complaints Dashboard</span>
-            <span
-              className={`inline-flex min-w-[1.25rem] h-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold tabular-nums ${
-                activeTab === "complaints"
-                  ? "bg-[#e8f6ee] text-[#145c3f]"
-                  : "bg-slate-100 text-slate-500 group-hover:bg-slate-200"
-              }`}
-            >
-              {data?.complaints_received ?? data?.meta?.counts?.complaints ?? 0}
-            </span>
-          </button>
-
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === "satisfaction"}
-            onClick={() => setActiveTab("satisfaction")}
-            className={`group relative shrink-0 inline-flex items-center gap-2 px-3.5 py-3 text-xs font-bold whitespace-nowrap border-b-2 transition-all outline-none ${
-              activeTab === "satisfaction"
-                ? "border-[#145c3f] text-[#145c3f]"
-                : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300"
-            }`}
-          >
-            <Smile className="size-4 shrink-0" />
-            <span>Customer Satisfaction Survey</span>
-            <span
-              className={`inline-flex min-w-[1.25rem] h-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold tabular-nums ${
-                activeTab === "satisfaction"
-                  ? "bg-[#e8f6ee] text-[#145c3f]"
-                  : "bg-slate-100 text-slate-500 group-hover:bg-slate-200"
-              }`}
-            >
-              {surveys.length}
-            </span>
-          </button>
-        </div>
+        <UnderHeaderNavTabs
+          tabs={[
+            {
+              id: "comment-card",
+              label: "Citizens' Comment Card",
+              icon: FileText,
+              count: data?.comment_cards ?? data?.meta?.counts?.comment_cards ?? 0,
+            },
+            {
+              id: "complaints",
+              label: "Complaints Dashboard",
+              icon: MessageSquare,
+              count: data?.complaints_received ?? data?.meta?.counts?.complaints ?? 0,
+            },
+            {
+              id: "satisfaction",
+              label: "Customer Satisfaction Survey",
+              icon: Smile,
+              count: surveys.length,
+            },
+          ]}
+          activeTab={activeTab}
+          onChange={(id) => setActiveTab(id as any)}
+          ariaLabel="SERVICOM Dashboard Sections"
+        />
       }
       contentClassName="space-y-4 pb-6"
     >
@@ -486,6 +439,7 @@ export default function ServicomDashboard({ onBack, defaultStateId, defaultZoneI
               defaultStateId={defaultStateId}
               defaultZoneId={defaultZoneId}
               lockLocation={!!(defaultStateId || defaultZoneId)}
+              embedded
             />
           )}
 

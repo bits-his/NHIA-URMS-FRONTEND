@@ -370,16 +370,16 @@ export default function SatisfactionDashboardTab({
   return (
     <div className="space-y-6">
       {/* ── Unified Management Scope & Filters Card (Compact Single Card) ── */}
-      <Card className="rounded-sm border border-slate-200/80 bg-white shadow-xs overflow-hidden p-0 gap-0">
+      <div className="rounded-sm border border-[#d4e8dc] bg-white shadow-2xs overflow-hidden">
         {/* Top Header: Management Scope Switcher (National View) */}
         {isNationalUser && currentView !== "drilldown" && (
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 px-4 py-2.5 bg-[#f8faf9] border-b border-slate-200/80">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 px-4 py-2.5 bg-[#f4f7f5] border-b border-[#d4e8dc]">
             <div className="flex items-center gap-2.5">
               <Layers className="size-4 text-[#1a7a52]" />
               <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
                 Management Scope:
               </span>
-              <div className="flex items-center gap-1 bg-white p-0.5 rounded-sm border border-slate-200 shadow-2xs">
+              <div className="flex items-center gap-1 bg-white p-0.5 rounded-sm border border-[#d4e8dc] shadow-2xs">
                 <Button
                   variant={currentView === "national" ? "default" : "ghost"}
                   size="sm"
@@ -412,7 +412,7 @@ export default function SatisfactionDashboardTab({
 
             <Badge
               variant="outline"
-              className="h-7 px-2.5 bg-white border border-slate-200 text-slate-700 font-semibold text-xs rounded-sm shadow-2xs"
+              className="h-7 px-2.5 bg-white border border-[#d4e8dc] text-slate-700 font-semibold text-xs rounded-sm shadow-2xs"
             >
               {currentView === "national"
                 ? "🌐 SDO / National Management View"
@@ -423,7 +423,7 @@ export default function SatisfactionDashboardTab({
 
         {/* Drill-down Header when inside State Drilldown */}
         {currentView === "drilldown" && (
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 px-4 py-2.5 bg-[#f8faf9] border-b border-slate-200/80">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 px-4 py-2.5 bg-[#f4f7f5] border-b border-[#d4e8dc]">
             <div className="flex items-center gap-3">
               {!isStateUser && (
                 <Button
@@ -450,7 +450,7 @@ export default function SatisfactionDashboardTab({
 
             <Badge
               variant="outline"
-              className="h-7 px-2.5 bg-white border border-slate-200 text-slate-700 font-black text-xs rounded-sm shadow-2xs"
+              className="h-7 px-2.5 bg-white border border-[#d4e8dc] text-slate-700 font-black text-xs rounded-sm shadow-2xs"
             >
               {scopedSurveys.length} Registered Surveys
             </Badge>
@@ -458,15 +458,15 @@ export default function SatisfactionDashboardTab({
         )}
 
         {/* Filters Controls */}
-        <CardContent className="p-3 bg-white">
+        <div className="p-3 bg-white">
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2.5">
             {/* Year / Period */}
             <div className="space-y-1">
-              <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wide">
+              <label className="text-[11px] font-medium text-slate-500">
                 Reporting Year
               </label>
               <Select value={selectedYear} onValueChange={setSelectedYear}>
-                <SelectTrigger displayValue={selectedYear === "all" ? "All Years" : selectedYear}>
+                <SelectTrigger className="h-8.5 text-xs bg-white hover:bg-slate-50 border-[#d4e8dc] rounded-sm" displayValue={selectedYear === "all" ? "All Years" : selectedYear}>
                   <SelectValue placeholder="All Years" />
                 </SelectTrigger>
                 <SelectContent>
@@ -482,7 +482,7 @@ export default function SatisfactionDashboardTab({
 
             {/* Zone Filter (Locked for Zonal Coordinator, selectable for National) */}
             <div className="space-y-1">
-              <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wide">
+              <label className="text-[11px] font-medium text-slate-500">
                 Zone {isZonalUser && "• Assigned"}
               </label>
               <Select
@@ -493,7 +493,7 @@ export default function SatisfactionDashboardTab({
                 }}
                 disabled={isZonalUser || isStateUser}
               >
-                <SelectTrigger displayValue={
+                <SelectTrigger className="h-8.5 text-xs bg-white hover:bg-slate-50 border-[#d4e8dc] rounded-sm" displayValue={
                   isZonalUser
                     ? (zones.find((z) => z.zonal_code === (assignedZoneCode || selectedZone))?.description || (assignedZoneCode || selectedZone))
                     : selectedZone === "all"
@@ -523,7 +523,7 @@ export default function SatisfactionDashboardTab({
 
             {/* State Filter */}
             <div className="space-y-1">
-              <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wide">
+              <label className="text-[11px] font-medium text-slate-500">
                 State Office {isStateUser && "• Locked"}
               </label>
               <Select
@@ -537,7 +537,7 @@ export default function SatisfactionDashboardTab({
                 }}
                 disabled={isStateUser}
               >
-                <SelectTrigger displayValue={
+                <SelectTrigger className="h-8.5 text-xs bg-white hover:bg-slate-50 border-[#d4e8dc] rounded-sm" displayValue={
                   (currentView === "drilldown" ? activeDrillStateCode : selectedState) === "all"
                     ? "All States"
                     : (states.find((s) => s.code === (currentView === "drilldown" ? activeDrillStateCode : selectedState))?.description || selectedState)
@@ -557,11 +557,11 @@ export default function SatisfactionDashboardTab({
 
             {/* Visit Purpose Filter */}
             <div className="space-y-1">
-              <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wide">
+              <label className="text-[11px] font-medium text-slate-500">
                 Visit Purpose
               </label>
               <Select value={selectedPurpose} onValueChange={setSelectedPurpose}>
-                <SelectTrigger displayValue={selectedPurpose === "all" ? "All Purposes" : selectedPurpose}>
+                <SelectTrigger className="h-8.5 text-xs bg-white hover:bg-slate-50 border-[#d4e8dc] rounded-sm" displayValue={selectedPurpose === "all" ? "All Purposes" : selectedPurpose}>
                   <SelectValue placeholder="All Purposes" />
                 </SelectTrigger>
                 <SelectContent>
@@ -578,11 +578,11 @@ export default function SatisfactionDashboardTab({
 
             {/* Healthcare Facility */}
             <div className="space-y-1">
-              <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wide">
+              <label className="text-[11px] font-medium text-slate-500">
                 Facility / Provider
               </label>
               <Select value={selectedProvider} onValueChange={setSelectedProvider}>
-                <SelectTrigger displayValue={selectedProvider === "all" ? "All Providers" : selectedProvider}>
+                <SelectTrigger className="h-8.5 text-xs bg-white hover:bg-slate-50 border-[#d4e8dc] rounded-sm" displayValue={selectedProvider === "all" ? "All Providers" : selectedProvider}>
                   <SelectValue placeholder="All Providers" />
                 </SelectTrigger>
                 <SelectContent>
@@ -596,8 +596,8 @@ export default function SatisfactionDashboardTab({
               </Select>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* ═══════════════════════════════════════════════════════════════════════
           VIEW 1: NATIONAL DASHBOARD (Slides 3, 4, 5)

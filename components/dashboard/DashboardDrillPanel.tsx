@@ -72,7 +72,7 @@ export default function DashboardDrillPanel({
 
   return (
     <Dialog open={open && !!context} onOpenChange={(isOpen) => { if (!isOpen) onClose(); }}>
-      <DialogContent className="max-w-4xl max-h-[88vh] p-0 flex flex-col overflow-hidden !rounded-none border border-slate-200 bg-white shadow-2xl">
+      <DialogContent className="w-[95vw] max-w-6xl sm:max-w-6xl xl:max-w-7xl max-h-[90vh] p-0 flex flex-col overflow-hidden !rounded-none border border-slate-200 bg-white shadow-2xl">
         <DialogHeader className="flex flex-row items-center justify-between px-6 py-3.5 border-b border-[#d4e8dc] bg-[#f4f7f5] space-y-0 !rounded-none shrink-0">
           <div className="flex items-center gap-3 min-w-0 pr-8">
             {onBack && (
