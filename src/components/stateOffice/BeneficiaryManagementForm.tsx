@@ -401,18 +401,6 @@ function Field({
   );
 }
 
-function Block({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
-  return (
-    <section className="space-y-3 border-t border-[#e8f3ec] pt-4 first:border-t-0 first:pt-0">
-      <div>
-        <h3 className="text-sm font-semibold text-[#0f3d2e]">{title}</h3>
-        {hint ? <p className="text-sm text-slate-600 mt-0.5">{hint}</p> : null}
-      </div>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{children}</div>
-    </section>
-  );
-}
-
 interface Props {
   reportType: string;
   reportId?: number | string | null;
@@ -527,6 +515,9 @@ export default function BeneficiaryManagementForm({
 
   const apiType = activityApiType(activity ?? "extra");
   const meta = BENEFICIARY_ACTIVITIES.find((a) => a.key === activity);
+  const formTitle = meta?.label
+    ? `Beneficiary Management - ${meta.label}`
+    : "Beneficiary Management";
 
   const resetEntry = (next: BeneficiaryActivityKey | null = activity) => {
     setEntry(blankFor(next ?? "extra"));
@@ -841,7 +832,7 @@ export default function BeneficiaryManagementForm({
       onSubmitted={onSubmitted}
       defaultZoneId={defaultZoneId}
       defaultStateId={defaultStateId}
-      pageTitle="Beneficiary Management"
+      pageTitle={formTitle}
       pageSubtitle={meta?.label ?? "Select an activity"}
       hideFooterActions
       hideBasicInfo
@@ -1024,7 +1015,7 @@ export default function BeneficiaryManagementForm({
               <>
                 <div className="flex flex-wrap items-center justify-between gap-2 px-1">
                   <p className="text-sm font-semibold text-[#0f3d2e]">
-                    Activity: <span className="text-slate-800">{meta?.label}</span>
+                    Activity: <span className="text-slate-800">{formTitle}</span>
                   </p>
                   {canEdit && !reportId && !savedId && lines.length === 0 && !categoryLocked && (
                     <Button
@@ -1171,16 +1162,15 @@ export default function BeneficiaryManagementForm({
               <>
                 <div className="flex items-center justify-between gap-2 px-1">
                   <h2 className="text-sm font-bold text-[#0f3d2e]">
-                    {editingKey ? "Edit Activity" : "New Activity"}
-                    <span className="font-medium text-slate-500"> · {meta?.label}</span>
+                    {editingKey ? "Edit" : "New"} {formTitle}
                   </h2>
                   <Button variant="ghost" size="sm" onClick={backToRegister}>Cancel</Button>
                 </div>
 
-                {(activity === "additional" || activity === "extra") && entry.kind === "dependant" && (
-                  <Card className="rounded-lg border border-[#d4e8dc] gap-0 py-0 shadow-none ring-0">
-                    <CardContent className="p-4 md:p-5 space-y-1">
-                      <Block title="Principal enrollee">
+                {activity === "additional" && entry.kind === "dependant" && (
+                  <Card className="rounded-sm border-[#d4e8dc] shadow-sm">
+                    <CardContent className="p-4 md:p-5">
+                      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                         <Field label="Principal enrollee" required className="sm:col-span-2">
                           <SearchSelect
                             options={visiblePrincipals.map((p) => ({ value: p.value, label: p.label, sub: p.sub }))}
@@ -1208,68 +1198,43 @@ export default function BeneficiaryManagementForm({
                             </p>
                           )}
                         </Field>
+
                         <Field label="Principal NHIA number">
                           <Input value={entry.principle_nhia_number} readOnly placeholder="From enrolment record" />
                         </Field>
-                        <div className={entry.request === "extra" ? "sm:col-span-2 lg:col-span-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 items-end" : "contents"}>
-                          <Field label={entry.request === "extra" ? "Relationship" : "Dependant"} required>
-                            <Select
-                              value={entry.entity_type || undefined}
-                              onValueChange={(v) => setEntry({
-                                ...entry,
-                                entity_type: v,
-                                relationship_kind: v.startsWith("child") ? "child" : v,
-                              })}
-                            >
-                              <SelectTrigger displayValue={entityChoices.find((o) => o.value === entry.entity_type)?.label}>
-                                <SelectValue placeholder="Select" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {entityChoices.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-                              </SelectContent>
-                            </Select>
-                          </Field>
-                          {entry.request === "extra" && (
-                            <>
-                              <Field label="Dependent" required>
-                                <Select value={entry.dependent || undefined} onValueChange={(v) => setEntry({ ...entry, dependent: v })}>
-                                  <SelectTrigger displayValue={entry.dependent ? (entry.dependent === "principal" ? "Principal" : entry.dependent.replace("dependent_", "Dependent ")) : undefined}>
-                                    <SelectValue placeholder="Select" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="principal">Principal</SelectItem>
-                                    <SelectItem value="dependent_1">Dependent 1</SelectItem>
-                                    <SelectItem value="dependent_2">Dependent 2</SelectItem>
-                                    <SelectItem value="dependent_3">Dependent 3</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </Field>
-                              {entry.enrollee_name && (
-                                <div className="sm:col-span-2 lg:col-span-1 rounded-lg border border-[#d4e8dc] bg-[#f4f7f5] px-3 py-2 text-xs leading-5 text-[#0f3d2e]" role="status">
-                                  {extraHistoryLoading ? "Loading existing extra dependants…" : extraHistoryError ? (
-                                    <span className="text-amber-700">{extraHistoryError}</span>
-                                  ) : (
-                                    <span className="font-semibold">Number of dependants: {extraProgress?.count ?? 0}</span>
-                                  )}
-                                </div>
-                              )}
-                            </>
-                          )}
-                        </div>
-                      </Block>
 
-                      <Block title="Identity from the enrolment record" hint="Organisation is Unemployed. HMO is inherited from the principal and cannot be edited.">
+                        <Field label="Dependant" required>
+                          <Select
+                            value={entry.entity_type || undefined}
+                            onValueChange={(v) => setEntry({
+                              ...entry,
+                              entity_type: v,
+                              relationship_kind: v.startsWith("child") ? "child" : v,
+                            })}
+                          >
+                            <SelectTrigger displayValue={entityChoices.find((o) => o.value === entry.entity_type)?.label}>
+                              <SelectValue placeholder="Select" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {entityChoices.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </Field>
+
                         {IDENTITY_FIELDS.map((field) => (
                           <Field key={field.key} label={field.label}>
                             <Input value={entry.identity[field.key] || ""} readOnly placeholder="From enrolment record" />
                           </Field>
                         ))}
+
                         <Field label="Organisation / MDA">
                           <Input value="Unemployed" readOnly />
                         </Field>
+
                         <Field label="HMO">
                           <Input value={entry.identity.hmo || ""} readOnly placeholder="Inherited from principal" />
                         </Field>
+
                         <ProviderSelect
                           label="HCF"
                           entityType="hcp"
@@ -1277,6 +1242,7 @@ export default function BeneficiaryManagementForm({
                           value={entry.hcf}
                           onChange={(name) => setEntry((p) => p.kind === "dependant" ? { ...p, hcf: name } : p)}
                         />
+
                         <ProviderSelect
                           label="Alternative provider"
                           entityType="hcp"
@@ -1284,15 +1250,15 @@ export default function BeneficiaryManagementForm({
                           value={entry.alternative_provider}
                           onChange={(name) => setEntry((p) => p.kind === "dependant" ? { ...p, alternative_provider: name } : p)}
                         />
-                      </Block>
 
-                      <Block title="Request">
                         <Field label="Date of request">
                           <Input type="date" value={entry.request_date} onChange={(e) => setEntry({ ...entry, request_date: e.target.value })} />
                         </Field>
+
                         <Field label="Process end date">
                           <Input type="date" value={entry.process_end_date} onChange={(e) => setEntry({ ...entry, process_end_date: e.target.value })} />
                         </Field>
+
                         <Field label="Status">
                           <Select value={entry.line_status} onValueChange={(v) => setEntry({ ...entry, line_status: v })}>
                             <SelectTrigger><SelectValue /></SelectTrigger>
@@ -1301,6 +1267,7 @@ export default function BeneficiaryManagementForm({
                             </SelectContent>
                           </Select>
                         </Field>
+
                         <Field label="Supporting documents" className="sm:col-span-2 lg:col-span-3">
                           <Input
                             ref={fileRef}
@@ -1309,18 +1276,159 @@ export default function BeneficiaryManagementForm({
                             onChange={(e) => setEntry({ ...entry, supportingFiles: Array.from(e.target.files ?? []) })}
                           />
                         </Field>
-                      </Block>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {activity === "extra" && entry.kind === "dependant" && (
+                  <Card className="rounded-sm border-[#d4e8dc] shadow-sm">
+                    <CardContent className="p-4 md:p-5">
+                      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                        <Field label="Principal enrollee" required className="sm:col-span-2">
+                          <SearchSelect
+                            options={visiblePrincipals.map((p) => ({ value: p.value, label: p.label, sub: p.sub }))}
+                            value={entry.principal_key}
+                            displayLabel={entry.enrollee_name ? `${entry.enrollee_name}${entry.principle_nhia_number ? ` · ${entry.principle_nhia_number}` : ""}` : undefined}
+                            onChange={applyPrincipal}
+                            placeholder={
+                              principalsError
+                                ? "Enrolment could not be loaded"
+                                : principalsLoading
+                                  ? "Loading enrolment…"
+                                  : "Select from enrolment"
+                            }
+                            searchPlaceholder="Search name or number"
+                            disabled={!!principalsError || principalsLoading}
+                          />
+                          {principalsError && (
+                            <p className="text-xs text-red-600">{principalsError}</p>
+                          )}
+                          {!principalsError && !principalsLoading && visiblePrincipals.length === 0 && (
+                            <p className="text-xs text-slate-500">
+                              No principal found in Enrolment Activity for this state. Submit an Enrolment
+                              record with surname, first name, and enrolment type first — then select it here
+                              to auto-fill enrolment type and identity fields.
+                            </p>
+                          )}
+                        </Field>
+
+                        <Field label="Principal NHIA number">
+                          <Input value={entry.principle_nhia_number} readOnly placeholder="From enrolment record" />
+                        </Field>
+
+                        <Field label="Relationship" required>
+                          <Select
+                            value={entry.entity_type || undefined}
+                            onValueChange={(v) => setEntry({
+                              ...entry,
+                              entity_type: v,
+                              relationship_kind: v.startsWith("child") ? "child" : v,
+                            })}
+                          >
+                            <SelectTrigger displayValue={entityChoices.find((o) => o.value === entry.entity_type)?.label}>
+                              <SelectValue placeholder="Select" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {entityChoices.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </Field>
+
+                        <Field label="Dependent" required>
+                          <Select value={entry.dependent || undefined} onValueChange={(v) => setEntry({ ...entry, dependent: v })}>
+                            <SelectTrigger displayValue={entry.dependent ? (entry.dependent === "principal" ? "Principal" : entry.dependent.replace("dependent_", "Dependent ")) : undefined}>
+                              <SelectValue placeholder="Select" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="principal">Principal</SelectItem>
+                              <SelectItem value="dependent_1">Dependent 1</SelectItem>
+                              <SelectItem value="dependent_2">Dependent 2</SelectItem>
+                              <SelectItem value="dependent_3">Dependent 3</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </Field>
+
+                        <div className="flex flex-col justify-end">
+                          {entry.enrollee_name ? (
+                            <div className="rounded-lg border border-[#d4e8dc] bg-[#f4f7f5] px-3 py-2 text-xs leading-5 text-[#0f3d2e] h-9 flex items-center" role="status">
+                              {extraHistoryLoading ? "Loading existing extra dependants…" : extraHistoryError ? (
+                                <span className="text-amber-700">{extraHistoryError}</span>
+                              ) : (
+                                <span className="font-semibold">Number of dependants: {extraProgress?.count ?? 0}</span>
+                              )}
+                            </div>
+                          ) : null}
+                        </div>
+
+                        {IDENTITY_FIELDS.map((field) => (
+                          <Field key={field.key} label={field.label}>
+                            <Input value={entry.identity[field.key] || ""} readOnly placeholder="From enrolment record" />
+                          </Field>
+                        ))}
+
+                        <Field label="Organisation / MDA">
+                          <Input value="Unemployed" readOnly />
+                        </Field>
+
+                        <Field label="HMO">
+                          <Input value={entry.identity.hmo || ""} readOnly placeholder="Inherited from principal" />
+                        </Field>
+
+                        <ProviderSelect
+                          label="HCF"
+                          entityType="hcp"
+                          stateId={stateId}
+                          value={entry.hcf}
+                          onChange={(name) => setEntry((p) => p.kind === "dependant" ? { ...p, hcf: name } : p)}
+                        />
+
+                        <ProviderSelect
+                          label="Alternative provider"
+                          entityType="hcp"
+                          stateId={stateId}
+                          value={entry.alternative_provider}
+                          onChange={(name) => setEntry((p) => p.kind === "dependant" ? { ...p, alternative_provider: name } : p)}
+                        />
+
+                        <Field label="Date of request">
+                          <Input type="date" value={entry.request_date} onChange={(e) => setEntry({ ...entry, request_date: e.target.value })} />
+                        </Field>
+
+                        <Field label="Process end date">
+                          <Input type="date" value={entry.process_end_date} onChange={(e) => setEntry({ ...entry, process_end_date: e.target.value })} />
+                        </Field>
+
+                        <Field label="Status">
+                          <Select value={entry.line_status} onValueChange={(v) => setEntry({ ...entry, line_status: v })}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {EXTRA_DEPENDANT_STATUSES.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </Field>
+
+                        <Field label="Supporting documents" className="sm:col-span-2 lg:col-span-3">
+                          <Input
+                            ref={fileRef}
+                            type="file"
+                            multiple
+                            onChange={(e) => setEntry({ ...entry, supportingFiles: Array.from(e.target.files ?? []) })}
+                          />
+                        </Field>
+                      </div>
                     </CardContent>
                   </Card>
                 )}
 
                 {activity === "provider" && entry.kind === "provider" && (
-                  <Card className="rounded-lg border border-[#d4e8dc] gap-0 py-0 shadow-none ring-0">
-                    <CardContent className="p-4 md:p-5 space-y-1">
-                      <Block title="Beneficiary" hint="The enrollee, NHIA number, and programme come from an enrolment record for this state.">
+                  <Card className="rounded-sm border-[#d4e8dc] shadow-sm">
+                    <CardContent className="p-4 md:p-5">
+                      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                         <Field label="Date of request">
                           <Input type="date" value={entry.record_date} onChange={(e) => setEntry({ ...entry, record_date: e.target.value })} />
                         </Field>
+
                         <Field label="Enrollee" required className="sm:col-span-2">
                           <SearchSelect
                             options={visiblePrincipals.map((p) => ({ value: p.value, label: p.label, sub: p.sub }))}
@@ -1345,12 +1453,15 @@ export default function BeneficiaryManagementForm({
                             </p>
                           )}
                         </Field>
+
                         <Field label="NHIA number">
                           <Input value={entry.nhia_number} readOnly placeholder="From the enrollee record" />
                         </Field>
+
                         <Field label="Programme">
                           <Input value={entry.program} readOnly placeholder="From the enrollee record" />
                         </Field>
+
                         <Field label="Request type" required>
                           <Select
                             value={entry.entity_type || undefined}
@@ -1370,11 +1481,11 @@ export default function BeneficiaryManagementForm({
                             </SelectContent>
                           </Select>
                         </Field>
+
                         <Field label="MDA (if applicable)">
                           <Input value={entry.mda} onChange={(e) => setEntry({ ...entry, mda: e.target.value })} />
                         </Field>
-                      </Block>
-                      <Block title="Provider change">
+
                         <ProviderSelect
                           label="Current provider"
                           entityType={entry.entity_type}
@@ -1382,6 +1493,7 @@ export default function BeneficiaryManagementForm({
                           value={entry.current_hcp_hmo}
                           onChange={(name) => setEntry((p) => p.kind === "provider" ? { ...p, current_hcp_hmo: name } : p)}
                         />
+
                         <ProviderSelect
                           label="Requested provider"
                           entityType={entry.entity_type}
@@ -1389,6 +1501,7 @@ export default function BeneficiaryManagementForm({
                           value={entry.new_hcp_hmo}
                           onChange={(name) => setEntry((p) => p.kind === "provider" ? { ...p, new_hcp_hmo: name } : p)}
                         />
+
                         <Field label="Reason category" required>
                           <Select
                             value={entry.reason_category || undefined}
@@ -1403,6 +1516,7 @@ export default function BeneficiaryManagementForm({
                             </SelectContent>
                           </Select>
                         </Field>
+
                         <Field label="Additional explanation" required={entry.reason_category === OTHER_REASON} className="sm:col-span-2">
                           <Input
                             value={entry.reason_other}
@@ -1411,6 +1525,7 @@ export default function BeneficiaryManagementForm({
                             onChange={(e) => setEntry({ ...entry, reason_other: e.target.value })}
                           />
                         </Field>
+
                         <Field label="Met NHIA criteria?">
                           <Select value={entry.met_criteria || undefined} onValueChange={(v) => setEntry({ ...entry, met_criteria: v })}>
                             <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
@@ -1419,6 +1534,7 @@ export default function BeneficiaryManagementForm({
                             </SelectContent>
                           </Select>
                         </Field>
+
                         <Field label="Status">
                           <Select value={entry.line_status} onValueChange={(v) => setEntry({ ...entry, line_status: v })}>
                             <SelectTrigger><SelectValue /></SelectTrigger>
@@ -1427,7 +1543,8 @@ export default function BeneficiaryManagementForm({
                             </SelectContent>
                           </Select>
                         </Field>
-                        <Field label="Supporting documents" className="lg:col-span-3">
+
+                        <Field label="Supporting documents" className="sm:col-span-2 lg:col-span-3">
                           <Input
                             ref={fileRef}
                             type="file"
@@ -1435,21 +1552,23 @@ export default function BeneficiaryManagementForm({
                             onChange={(e) => setEntry({ ...entry, supportingFiles: Array.from(e.target.files ?? []) })}
                           />
                         </Field>
-                      </Block>
+                      </div>
                     </CardContent>
                   </Card>
                 )}
 
                 {activity === "mda" && entry.kind === "mda" && (
-                  <Card className="rounded-lg border border-[#d4e8dc] gap-0 py-0 shadow-none ring-0">
-                    <CardContent className="p-4 md:p-5 space-y-1">
-                      <Block title="MDA and selection">
+                  <Card className="rounded-sm border-[#d4e8dc] shadow-sm">
+                    <CardContent className="p-4 md:p-5">
+                      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                         <Field label="Date">
                           <Input type="date" value={entry.selection_date} onChange={(e) => setEntry({ ...entry, selection_date: e.target.value })} />
                         </Field>
+
                         <Field label="Name of MDA" required className="sm:col-span-2">
                           <Input value={entry.mda} onChange={(e) => setEntry({ ...entry, mda: e.target.value })} />
                         </Field>
+
                         <ProviderSelect
                           label="Former HMO"
                           entityType="hmo"
@@ -1457,17 +1576,19 @@ export default function BeneficiaryManagementForm({
                           value={entry.former_hmo}
                           onChange={(name) => setEntry((p) => p.kind === "mda" ? { ...p, former_hmo: name } : p)}
                         />
+
                         <Field label="Reason for change" className="sm:col-span-2">
                           <Input value={entry.reason_for_change} onChange={(e) => setEntry({ ...entry, reason_for_change: e.target.value })} />
                         </Field>
-                      </Block>
-                      <Block title="Selection process" hint="HMOs are the accredited list. Guideline and transparency are Yes or No.">
+
                         <Field label="HMOs invited">
                           <Input type="number" min={0} value={entry.hmos_invited} onChange={(e) => setEntry({ ...entry, hmos_invited: e.target.value })} />
                         </Field>
+
                         <Field label="HMOs attended">
                           <Input type="number" min={0} value={entry.hmos_attended} onChange={(e) => setEntry({ ...entry, hmos_attended: e.target.value })} />
                         </Field>
+
                         <Field label="NHIA guideline complied?">
                           <Select value={entry.compliance_guideline || undefined} onValueChange={(v) => setEntry({ ...entry, compliance_guideline: v })}>
                             <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
@@ -1476,6 +1597,7 @@ export default function BeneficiaryManagementForm({
                             </SelectContent>
                           </Select>
                         </Field>
+
                         <Field label="Transparent process?">
                           <Select value={entry.transparent_process || undefined} onValueChange={(v) => setEntry({ ...entry, transparent_process: v })}>
                             <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
@@ -1484,6 +1606,7 @@ export default function BeneficiaryManagementForm({
                             </SelectContent>
                           </Select>
                         </Field>
+
                         <ProviderSelect
                           label="Selected HMO"
                           entityType="hmo"
@@ -1491,16 +1614,17 @@ export default function BeneficiaryManagementForm({
                           value={entry.selected_hmo}
                           onChange={(name) => setEntry((p) => p.kind === "mda" ? { ...p, selected_hmo: name } : p)}
                         />
-                      </Block>
-                      <Block title="Evidence">
+
                         <Field label="Evidence of selection">
                           <Input type="file" onChange={(e) => setEntry({ ...entry, evidenceFile: e.target.files?.[0] ?? null })} />
                           {entry.evidence_name ? <p className="text-xs text-slate-600">{entry.evidence_name}</p> : null}
                         </Field>
+
                         <Field label="Full selection report">
                           <Input type="file" onChange={(e) => setEntry({ ...entry, reportFile: e.target.files?.[0] ?? null })} />
                           {entry.report_name ? <p className="text-xs text-slate-600">{entry.report_name}</p> : null}
                         </Field>
+
                         <Field label="Status">
                           <Select value={entry.line_status} onValueChange={(v) => setEntry({ ...entry, line_status: v })}>
                             <SelectTrigger><SelectValue /></SelectTrigger>
@@ -1509,10 +1633,11 @@ export default function BeneficiaryManagementForm({
                             </SelectContent>
                           </Select>
                         </Field>
+
                         <Field label="Remarks" className="sm:col-span-2 lg:col-span-3">
                           <Input value={entry.remarks} onChange={(e) => setEntry({ ...entry, remarks: e.target.value })} />
                         </Field>
-                      </Block>
+                      </div>
                     </CardContent>
                   </Card>
                 )}
