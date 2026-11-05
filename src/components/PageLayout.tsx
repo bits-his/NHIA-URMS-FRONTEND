@@ -200,7 +200,7 @@ export function PageLayout({
 
       {/* Under-Header Tab Bar (Dedicated white bar sitting directly below the header) */}
       {tabs ? (
-        <div className="bg-white border-b border-[#d4e8dc]/80 px-4 md:px-6 shrink-0 shadow-2xs">
+        <div className="bg-white border-b border-[#d4e8dc]/80 px-4 md:px-2 md:pr-1 shrink-0 shadow-2xs">
           {tabs}
         </div>
       ) : null}

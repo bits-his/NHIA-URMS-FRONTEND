@@ -22,6 +22,7 @@ import {
 import { enrolmentDrivesApi as api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import PageLayout from "../PageLayout";
+import { UnderHeaderNavTabs } from "@/src/components/UnderHeaderNavTabs";
 import EnrolmentActivityForm, { Field, FieldSection } from "./EnrolmentActivityForm";
 import { MultiSelectField } from "./EnrolmentDriveForm";
 import StateOfficeFormSteps from "./StateOfficeFormSteps";
@@ -774,11 +775,23 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
           )}
         </>
       }
-      filters={listMode ? (
-        <div className="flex gap-0 overflow-x-auto -mb-px" role="tablist" aria-label="Enrolment Drive sections">
-          <button type="button" role="tab" aria-selected={mode === "register"} disabled={busy} onClick={() => void navigate("register")} className="group relative shrink-0 inline-flex items-center gap-2 px-4 py-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors outline-none focus-visible:bg-[#f4f7f5] border-[#145c3f] text-[#145c3f]"><ClipboardList className="h-4 w-4 shrink-0 text-[#145c3f]" />Enrolment Drives<span className="inline-flex min-w-[1.25rem] h-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold tabular-nums bg-[#e8f6ee] text-[#145c3f]">{batches.length}</span></button>
-        </div>
-      ) : undefined}
+      tabs={
+        listMode ? (
+          <UnderHeaderNavTabs
+            tabs={[
+              {
+                id: "register",
+                label: "Enrolment Drives",
+                icon: ClipboardList,
+                count: batches.length,
+              },
+            ]}
+            activeTab="register"
+            onChange={() => void navigate("register")}
+            ariaLabel="Enrolment Drive sections"
+          />
+        ) : undefined
+      }
       contentClassName="space-y-4 pb-8"
     >
       <div className="w-full space-y-4">

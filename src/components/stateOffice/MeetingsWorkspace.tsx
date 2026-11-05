@@ -13,6 +13,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import PageLayout from "../PageLayout";
+import { UnderHeaderNavTabs } from "@/src/components/UnderHeaderNavTabs";
 import { apiFileUrl, meetingsApi as api } from "@/lib/api";
 import { Field, FieldSection } from "./EnrolmentActivityForm";
 import StateOfficeFormSteps from "./StateOfficeFormSteps";
@@ -482,30 +483,16 @@ export default function MeetingsWorkspace({ onBack, initialTab = "meetings" }: {
     </div>
   );
 
-  const tabs = mode === "list" ? (
-    <div className="flex gap-0 overflow-x-auto -mb-px" role="tablist" aria-label="Meetings templates">
-      {[
-        { key: "meetings" as const, label: "Meeting Report", icon: ClipboardList, count: meetings.length },
-        { key: "etmc" as const, label: "ETMC Cascading Report", icon: FileText, count: etmcs.length },
-      ].map(({ key, label, icon: Icon, count }) => (
-        <button
-          key={key}
-          type="button"
-          role="tab"
-          aria-selected={tab === key}
-          onClick={() => setTab(key)}
-          className={`group relative shrink-0 inline-flex items-center gap-2 px-4 py-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors outline-none focus-visible:bg-[#f4f7f5] ${
-            tab === key
-              ? "border-[#145c3f] text-[#145c3f]"
-              : "border-transparent text-slate-500 hover:text-[#0f3d2e] hover:border-[#c5ddd0]"
-          }`}
-        >
-          <Icon className={`h-4 w-4 shrink-0 ${tab === key ? "text-[#145c3f]" : "text-slate-400"}`} strokeWidth={2} />
-          <span>{label}</span>
-          <span className={`inline-flex min-w-[1.25rem] h-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold tabular-nums ${tab === key ? "bg-[#e8f6ee] text-[#145c3f]" : "bg-slate-100 text-slate-500"}`}>{count}</span>
-        </button>
-      ))}
-    </div>
+  const navTabs = mode === "list" ? (
+    <UnderHeaderNavTabs
+      tabs={[
+        { id: "meetings", label: "Meeting Report", icon: ClipboardList, count: meetings.length },
+        { id: "etmc", label: "ETMC Cascading Report", icon: FileText, count: etmcs.length },
+      ]}
+      activeTab={tab}
+      onChange={(k) => setTab(k as any)}
+      ariaLabel="Meetings templates"
+    />
   ) : undefined;
 
   /* ── Meeting form ── */
@@ -993,7 +980,7 @@ export default function MeetingsWorkspace({ onBack, initialTab = "meetings" }: {
       title={pageTitle}
       onBack={isViewOrForm ? handleBack : undefined}
       actions={actions}
-      filters={tabs}
+      tabs={navTabs}
       loading={loading}
       error={error}
       contentClassName="space-y-4 pb-8"

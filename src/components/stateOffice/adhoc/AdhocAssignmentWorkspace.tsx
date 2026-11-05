@@ -30,6 +30,8 @@ import StateAssignmentReportModal from "./StateAssignmentReportModal";
 import StateAssignmentReportPage from "./StateAssignmentReportPage";
 import AdhocMasterDetailModal from "./AdhocMasterDetailModal";
 import AdhocMasterDetailPage from "./AdhocMasterDetailPage";
+import PageLayout from "@/src/components/PageLayout";
+import { UnderHeaderNavTabs } from "@/src/components/UnderHeaderNavTabs";
 
 interface Props {
   onBack: () => void;
@@ -534,37 +536,49 @@ export default function AdhocAssignmentWorkspace({ onBack, user, userRole }: Pro
     );
   }
 
-  return (
-    <div className="flex flex-col h-full bg-slate-50/40">
-      {/* Top Header */}
-      <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3.5 flex items-center justify-between sticky top-0 z-30 gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onBack}
-            className="rounded-full shrink-0"
-            aria-label="Back"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-          <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">{listTitle}</h2>
-        </div>
+  const adhocTabs = isSdo
+    ? [
+        {
+          id: "sdo_register",
+          label: "SDO Assignment Register",
+          icon: FileSpreadsheet,
+          count: masters.length,
+        },
+        {
+          id: "state_tasks",
+          label: "All State Dispatches & Reports",
+          icon: Layers,
+          count: stateAssignments.length,
+        },
+      ]
+    : [
+        {
+          id: "my_tasks",
+          label: "My Assigned Directives",
+          icon: Clock,
+          count: stateAssignments.length,
+        },
+      ];
 
+  return (
+    <PageLayout
+      title={listTitle}
+      showBack={false}
+      actions={
         <div className="flex items-center gap-2 shrink-0">
           <Button
             variant="outline"
             size="sm"
             onClick={refreshList}
             disabled={activeTab === "sdo_register" ? loadingMasters : loadingStateTasks}
-            className="gap-2"
+            className="h-8.5 gap-1.5 border border-slate-300 text-slate-700 bg-white hover:bg-[#f4f7f5] text-xs font-bold rounded-sm shadow-2xs"
           >
             <RefreshCw
-              className={`w-4 h-4 ${
+              className={`w-3.5 h-3.5 ${
                 (activeTab === "sdo_register" ? loadingMasters : loadingStateTasks) ? "animate-spin" : ""
               }`}
             />
-            Refresh
+            <span>Refresh</span>
           </Button>
           {isSdo && (
             <Button
@@ -573,90 +587,24 @@ export default function AdhocAssignmentWorkspace({ onBack, user, userRole }: Pro
                 setEditMasterData(null);
                 setViewMode("register");
               }}
-              className="gap-2 bg-orange-action hover:bg-orange-600 shadow-lg shadow-orange-500/20"
+              className="h-8.5 gap-1.5 bg-orange-action hover:bg-orange-600 text-white text-xs font-bold shadow-md shadow-orange-500/15 rounded-sm"
             >
-              <Plus className="w-4 h-4" /> Register New Assignment
+              <Plus className="w-3.5 h-3.5" /> <span>Register New Assignment</span>
             </Button>
           )}
         </div>
-      </div>
-
-      {/* Activity Tabs Bar (Positioned ABOVE the stats cards, styled like Enrolment tabs) */}
-      <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 sticky top-[57px] z-20">
-        <div className="flex gap-0 overflow-x-auto -mb-px" role="tablist">
-          {isSdo ? (
-            <>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={activeTab === "sdo_register"}
-                onClick={() => setActiveTab("sdo_register")}
-                className={`group relative shrink-0 inline-flex items-center gap-2 px-4 py-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors outline-none ${
-                  activeTab === "sdo_register"
-                    ? "border-[#145c3f] text-[#145c3f]"
-                    : "border-transparent text-slate-500 hover:text-[#0f3d2e] hover:border-[#c5ddd0]"
-                }`}
-              >
-                <FileSpreadsheet
-                  className={`h-4 w-4 shrink-0 ${activeTab === "sdo_register" ? "text-[#145c3f]" : "text-slate-400 group-hover:text-[#145c3f]"}`}
-                />
-                <span>SDO Assignment Register</span>
-                <span
-                  className={`inline-flex min-w-[1.25rem] h-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold tabular-nums ${
-                    activeTab === "sdo_register"
-                      ? "bg-[#e8f6ee] text-[#145c3f]"
-                      : "bg-slate-100 text-slate-500 group-hover:bg-[#e8f6ee] group-hover:text-[#145c3f]"
-                  }`}
-                >
-                  {masters.length}
-                </span>
-              </button>
-
-              <button
-                type="button"
-                role="tab"
-                aria-selected={activeTab === "state_tasks"}
-                onClick={() => setActiveTab("state_tasks")}
-                className={`group relative shrink-0 inline-flex items-center gap-2 px-4 py-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors outline-none ${
-                  activeTab === "state_tasks"
-                    ? "border-[#145c3f] text-[#145c3f]"
-                    : "border-transparent text-slate-500 hover:text-[#0f3d2e] hover:border-[#c5ddd0]"
-                }`}
-              >
-                <Layers
-                  className={`h-4 w-4 shrink-0 ${activeTab === "state_tasks" ? "text-[#145c3f]" : "text-slate-400 group-hover:text-[#145c3f]"}`}
-                />
-                <span>All State Dispatches & Reports</span>
-                <span
-                  className={`inline-flex min-w-[1.25rem] h-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold tabular-nums ${
-                    activeTab === "state_tasks"
-                      ? "bg-[#e8f6ee] text-[#145c3f]"
-                      : "bg-slate-100 text-slate-500 group-hover:bg-[#e8f6ee] group-hover:text-[#145c3f]"
-                  }`}
-                >
-                  {stateAssignments.length}
-                </span>
-              </button>
-            </>
-          ) : (
-            <button
-              type="button"
-              role="tab"
-              aria-selected={activeTab === "my_tasks"}
-              onClick={() => setActiveTab("my_tasks")}
-              className="group relative shrink-0 inline-flex items-center gap-2 px-4 py-3 text-sm font-semibold whitespace-nowrap border-b-2 border-[#145c3f] text-[#145c3f] outline-none"
-            >
-              <Clock className="h-4 w-4 shrink-0 text-[#145c3f]" />
-              <span>My Assigned Directives</span>
-              <span className="inline-flex min-w-[1.25rem] h-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold tabular-nums bg-[#e8f6ee] text-[#145c3f]">
-                {stateAssignments.length}
-              </span>
-            </button>
-          )}
-        </div>
-      </div>
-
-      <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4">
+      }
+      tabs={
+        <UnderHeaderNavTabs
+          tabs={adhocTabs}
+          activeTab={activeTab}
+          onChange={(k) => setActiveTab(k as any)}
+          ariaLabel="SDO assignment register modules"
+        />
+      }
+      contentClassName="space-y-4 pb-8"
+    >
+      <div className="w-full space-y-4">
         <RegisterStatsCards
           loading={activeTab === "sdo_register" ? loadingMasters : loadingStateTasks}
           stats={[
@@ -809,6 +757,6 @@ export default function AdhocAssignmentWorkspace({ onBack, user, userRole }: Pro
         canReview={isSdo || !!user?.department_code}
         canClose={isSdo}
       />
-    </div>
+    </PageLayout>
   );
 }

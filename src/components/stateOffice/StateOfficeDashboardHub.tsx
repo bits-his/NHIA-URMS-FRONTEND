@@ -23,6 +23,7 @@ import ComplaintRegisterDashboard from "../servicom/ComplaintRegisterDashboard";
 import { STAKEHOLDER_MANAGEMENT_PATH } from "./enrolmentPillarTypes";
 import { canAccessEnrolmentDriveDashboard } from "./enrolmentDriveTypes";
 import PageLayout from "@/src/components/PageLayout";
+import { UnderHeaderNavTabs } from "@/src/components/UnderHeaderNavTabs";
 
 export type StateOfficeDashTab =
   | "enrolment"
@@ -32,13 +33,13 @@ export type StateOfficeDashTab =
   | "complaints"
   | "challenges";
 
-const TABS: { key: StateOfficeDashTab; label: string; icon: React.ReactNode }[] = [
-  { key: "enrolment", label: "Enrolment", icon: <UserPlus className="size-4 shrink-0" /> },
-  { key: "enrolment-drives", label: "Enrolment Drives", icon: <Megaphone className="size-4 shrink-0" /> },
-  { key: "stakeholder", label: "Stakeholder", icon: <Handshake className="size-4 shrink-0" /> },
-  { key: "provider", label: "Provider Management", icon: <Stethoscope className="size-4 shrink-0" /> },
-  { key: "complaints", label: "Complaints", icon: <Scale className="size-4 shrink-0" /> },
-  { key: "challenges", label: "Challenges & Support", icon: <AlertTriangle className="size-4 shrink-0" /> },
+const TABS: { key: StateOfficeDashTab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+  { key: "enrolment", label: "Enrolment", icon: UserPlus },
+  { key: "enrolment-drives", label: "Enrolment Drives", icon: Megaphone },
+  { key: "stakeholder", label: "Stakeholder", icon: Handshake },
+  { key: "provider", label: "Provider Management", icon: Stethoscope },
+  { key: "complaints", label: "Complaints", icon: Scale },
+  { key: "challenges", label: "Challenges & Support", icon: AlertTriangle },
 ];
 
 interface Props {
@@ -156,6 +157,7 @@ export default function StateOfficeDashboardHub({
   return (
     <PageLayout
       title="State Office Dashboard"
+      showBack={false}
       actions={
         <Button
           variant="outline"
@@ -168,25 +170,17 @@ export default function StateOfficeDashboardHub({
           <span>Refresh</span>
         </Button>
       }
-      filters={
-        <div className="flex gap-4 overflow-x-auto -mb-px w-full" role="tablist">
-          {visibleTabs.map((tab) => (
-            <button
-              key={tab.key}
-              type="button"
-              role="tab"
-              aria-selected={activeTab === tab.key}
-              onClick={() => selectTab(tab.key)}
-              className={`group relative shrink-0 inline-flex items-center gap-2 px-3 py-2 text-xs font-bold whitespace-nowrap border-b-2 transition-all outline-none ${activeTab === tab.key
-                  ? "border-[#145c3f] text-[#145c3f]"
-                  : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300"
-                }`}
-            >
-              {tab.icon}
-              <span>{tab.label}</span>
-            </button>
-          ))}
-        </div>
+      tabs={
+        <UnderHeaderNavTabs
+          tabs={visibleTabs.map((t) => ({
+            id: t.key,
+            label: t.label,
+            icon: t.icon,
+          }))}
+          activeTab={activeTab}
+          onChange={(key) => selectTab(key as any)}
+          ariaLabel="State office dashboard modules"
+        />
       }
     >
       <div className="w-full">

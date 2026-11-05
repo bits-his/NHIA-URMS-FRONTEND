@@ -22,6 +22,7 @@ import {
   PROVIDER_MANAGEMENT_PATH,
 } from "./enrolmentPillarTypes";
 import PageLayout from "@/src/components/PageLayout";
+import { UnderHeaderNavTabs } from "@/src/components/UnderHeaderNavTabs";
 import {
   PROVIDER_FORM_TYPES,
   type ProviderFormKey,
@@ -272,47 +273,18 @@ export default function ProviderManagementPage({ onBack, defaultZoneId, defaultS
           )}
         </div>
       }
-      filters={
-        <div
-          className="flex gap-0 overflow-x-auto -mb-px w-full"
-          role="tablist"
-          aria-label="Provider activities"
-        >
-          {PROVIDER_FORM_TYPES.map((tab) => {
-            const active = activeTab === tab.key;
-            const Icon = TAB_ICONS[tab.key];
-            const count = tabCounts[tab.key] ?? 0;
-            return (
-              <button
-                key={tab.key}
-                type="button"
-                role="tab"
-                aria-selected={active}
-                onClick={() => setActiveTab(tab.key)}
-                className={`group relative shrink-0 inline-flex items-center gap-2 px-3 py-2 text-xs font-semibold whitespace-nowrap border-b-2 transition-colors outline-none focus-visible:bg-[#f4f7f5] ${
-                  active
-                    ? "border-[#145c3f] text-[#145c3f]"
-                    : "border-transparent text-slate-500 hover:text-[#0f3d2e] hover:border-[#c5ddd0]"
-                }`}
-              >
-                <Icon
-                  className={`h-4 w-4 shrink-0 ${active ? "text-[#145c3f]" : "text-slate-400 group-hover:text-[#145c3f]"}`}
-                  strokeWidth={2}
-                />
-                <span>{tab.tabLabel}</span>
-                <span
-                  className={`inline-flex min-w-[1.25rem] h-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold tabular-nums ${
-                    active
-                      ? "bg-[#e8f6ee] text-[#145c3f]"
-                      : "bg-slate-100 text-slate-500 group-hover:bg-[#e8f6ee] group-hover:text-[#145c3f]"
-                  }`}
-                >
-                  {count}
-                </span>
-              </button>
-            );
-          })}
-        </div>
+      tabs={
+        <UnderHeaderNavTabs
+          tabs={PROVIDER_FORM_TYPES.map((tab) => ({
+            id: tab.key,
+            label: tab.tabLabel,
+            icon: TAB_ICONS[tab.key],
+            count: tabCounts[tab.key] ?? 0,
+          }))}
+          activeTab={activeTab}
+          onChange={(key) => setActiveTab(key as any)}
+          ariaLabel="Provider activities"
+        />
       }
     >
       <div className="w-full space-y-4">

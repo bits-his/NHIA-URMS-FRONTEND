@@ -2,6 +2,7 @@ import * as React from "react";
 import { useSearchParams } from "react-router-dom";
 import { Landmark, LayoutDashboard, Receipt, ShieldCheck } from "lucide-react";
 import PageLayout from "../PageLayout";
+import { UnderHeaderNavTabs } from "@/src/components/UnderHeaderNavTabs";
 import IgrWorkspace from "./IgrWorkspace";
 import SshiaWorkspace from "./SshiaWorkspace";
 import ExpenditureWorkspace from "./ExpenditureWorkspace";
@@ -31,25 +32,25 @@ export type FinanceChrome = {
 const TAB_META: {
   key: FinanceHubTabKey;
   label: string;
-  icon: React.ReactNode;
+  icon: React.ComponentType<{ className?: string }>;
   listTitle: string;
 }[] = [
   {
     key: "igr",
     label: "IGR",
-    icon: <Landmark className="size-4 shrink-0" />,
+    icon: Landmark,
     listTitle: "Internally Generated Revenue (IGR)",
   },
   {
     key: "sshia",
     label: "SSHIA",
-    icon: <ShieldCheck className="size-4 shrink-0" />,
+    icon: ShieldCheck,
     listTitle: "SSHIA Progress Report",
   },
   {
     key: "expenditure",
     label: "Expenditure",
-    icon: <Receipt className="size-4 shrink-0" />,
+    icon: Receipt,
     listTitle: "Expenditure Profile",
   },
 ];
@@ -140,27 +141,18 @@ export default function FinanceWorkspace({
           {chrome?.actions}
         </div>
       }
-      filters={
+      tabs={
         !hideTabStrip && !inLeaf ? (
-          <div className="flex gap-4 overflow-x-auto -mb-px" role="tablist">
-            {visibleTabs.map((tab) => (
-              <button
-                key={tab.key}
-                type="button"
-                role="tab"
-                aria-selected={activeTab === tab.key}
-                onClick={() => selectTab(tab.key)}
-                className={`group relative shrink-0 inline-flex items-center gap-2 px-3.5 py-3 text-xs font-bold whitespace-nowrap border-b-2 transition-all outline-none ${
-                  activeTab === tab.key
-                    ? "border-[#145c3f] text-[#145c3f]"
-                    : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300"
-                }`}
-              >
-                {tab.icon}
-                <span>{tab.label}</span>
-              </button>
-            ))}
-          </div>
+          <UnderHeaderNavTabs
+            tabs={visibleTabs.map((t) => ({
+              id: t.key,
+              label: t.label,
+              icon: t.icon,
+            }))}
+            activeTab={activeTab!}
+            onChange={(key) => selectTab(key as any)}
+            ariaLabel="Finance modules"
+          />
         ) : undefined
       }
       variant="fluid"

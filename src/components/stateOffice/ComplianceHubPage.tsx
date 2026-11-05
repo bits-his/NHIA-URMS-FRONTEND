@@ -23,6 +23,7 @@ import StateOfficeWeeklyCompliancePage from "./StateOfficeWeeklyCompliancePage";
 import StateOfficeHmoIndebtednessHubPage from "./StateOfficeHmoIndebtednessHubPage";
 import StateOfficeMysteryShoppingPage from "./StateOfficeMysteryShoppingPage";
 import PageLayout from "@/src/components/PageLayout";
+import { UnderHeaderNavTabs } from "@/src/components/UnderHeaderNavTabs";
 
 interface Props {
   onBack: () => void;
@@ -165,32 +166,19 @@ export default function ComplianceHubPage({
           </Button>
         )
       }
-      filters={
+      tabs={
         !hideTabStrip && !inLeaf ? (
-          <div className="flex gap-4 overflow-x-auto -mb-px w-full" role="tablist" aria-label="Compliance modules">
-            {visibleTabMeta.map((tab) => {
-              const active = activeTab === tab.key;
-              const Icon = ICON_MAP[tab.key];
-              return (
-                <button
-                  key={tab.key}
-                  type="button"
-                  role="tab"
-                  aria-selected={active}
-                  onClick={() => setActiveTab(tab.key)}
-                  className={`group relative shrink-0 inline-flex items-center gap-2 px-3 py-2 text-xs font-bold whitespace-nowrap border-b-2 transition-all outline-none ${
-                    active
-                      ? "border-[#145c3f] text-[#145c3f]"
-                      : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300"
-                  }`}
-                >
-                  <Icon className="size-4 shrink-0" strokeWidth={2} />
-                  <span>{tab.tabLabel}</span>
-                </button>
-              );
-            })}
-          </div>
-        ) : null
+          <UnderHeaderNavTabs
+            tabs={visibleTabMeta.map((tab) => ({
+              id: tab.key,
+              label: tab.tabLabel,
+              icon: ICON_MAP[tab.key],
+            }))}
+            activeTab={activeTab}
+            onChange={(key) => setActiveTab(key as any)}
+            ariaLabel="Compliance modules"
+          />
+        ) : undefined
       }
     >
       <div className="flex-1 min-h-0 w-full">

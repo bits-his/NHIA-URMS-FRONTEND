@@ -47,6 +47,7 @@ import UtilityServicesTab from "./UtilityServicesTab";
 import FocalPersonsTab from "./FocalPersonsTab";
 import OfficeProfileDetailView from "./OfficeProfileDetailView";
 import PageLayout from "../../PageLayout";
+import { UnderHeaderNavTabs } from "@/src/components/UnderHeaderNavTabs";
 import { ShadcnDataTable } from "@/components/common/ShadcnDataTable";
 import {
   SolvixStatCards,
@@ -992,50 +993,27 @@ export default function OfficeProfileWorkspace({
           )}
         </div>
       }
-      filters={
-        <div className="flex gap-2 overflow-x-auto -mb-px" role="tablist">
-          {TAB_CONFIG.map((tab) => {
-            const active = activeTab === tab.key;
-            const Icon = tab.icon;
-            const count =
-              tab.key === "general"
-                 ? profiles.length
-                : tab.key === "accommodation"
-                ? accommodations.length
-                : tab.key === "utilities"
-                ? utilities.length
-                : focalPersons.length;
-
-            return (
-              <button
-                key={tab.key}
-                type="button"
-                role="tab"
-                aria-selected={active}
-                onClick={() => handleTabChange(tab.key)}
-                className={`group relative shrink-0 inline-flex items-center gap-2 px-3.5 py-3 text-xs font-semibold whitespace-nowrap border-b-2 transition-all outline-none ${
-                  active
-                    ? "border-[#1a7a52] text-[#1a7a52]"
-                    : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300"
-                }`}
-              >
-                <Icon
-                  className={`size-4 shrink-0 ${active ? "text-[#1a7a52]" : "text-slate-400 group-hover:text-slate-600"}`}
-                />
-                <span>{tab.label}</span>
-                <span
-                  className={`inline-flex min-w-[1.25rem] h-4.5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold tabular-nums ${
-                    active
-                      ? "bg-[#e8f5ee] text-[#1a7a52]"
-                      : "bg-slate-100 text-slate-500 group-hover:bg-slate-200"
-                  }`}
-                >
-                  {count}
-                </span>
-              </button>
-            );
-          })}
-        </div>
+      tabs={
+        mode === "list" ? (
+          <UnderHeaderNavTabs
+            tabs={TAB_CONFIG.map((tab) => ({
+              id: tab.key,
+              label: tab.label,
+              icon: tab.icon,
+              count:
+                tab.key === "general"
+                  ? profiles.length
+                  : tab.key === "accommodation"
+                  ? accommodations.length
+                  : tab.key === "utilities"
+                  ? utilities.length
+                  : focalPersons.length,
+            }))}
+            activeTab={activeTab}
+            onChange={(key) => handleTabChange(key as any)}
+            ariaLabel="State office profile sections"
+          />
+        ) : undefined
       }
       contentClassName="space-y-5 pb-8"
     >
