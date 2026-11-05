@@ -60,6 +60,8 @@ interface Props {
   defaultStateId?: string | null;
   defaultZoneId?: string | null;
   userRole?: string;
+  /** Admin/HR entry: lock filters to the signed-in user's state (and zone). */
+  stateScoped?: boolean;
 }
 
 type TabKey = "general" | "accommodation" | "utilities" | "focal_persons";
@@ -118,6 +120,7 @@ export default function OfficeProfileWorkspace({
   defaultStateId,
   defaultZoneId,
   userRole = "",
+  stateScoped = false,
 }: Props) {
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -126,8 +129,12 @@ export default function OfficeProfileWorkspace({
   const mode = (searchParams.get("mode") as Mode) || "list";
   const recordIdParam = searchParams.get("id");
   const year = searchParams.get("year") || "all";
-  const selectedZoneId = searchParams.get("zone") || defaultZoneId || "all";
-  const selectedStateId = searchParams.get("state") || defaultStateId || "all";
+  const selectedZoneId = stateScoped
+    ? (defaultZoneId || searchParams.get("zone") || "all")
+    : (searchParams.get("zone") || defaultZoneId || "all");
+  const selectedStateId = stateScoped
+    ? (defaultStateId || searchParams.get("state") || "all")
+    : (searchParams.get("state") || defaultStateId || "all");
   const searchQuery = searchParams.get("q") || "";
   const [currentSort, setCurrentSort] = React.useState<string>("newest");
 
@@ -917,11 +924,15 @@ export default function OfficeProfileWorkspace({
   // Active filter count
   const activeFilterCount =
     (year !== "all" ? 1 : 0) +
-    (selectedZoneId !== "all" ? 1 : 0) +
-    (selectedStateId !== "all" ? 1 : 0);
+    (!stateScoped && selectedZoneId !== "all" ? 1 : 0) +
+    (!stateScoped && selectedStateId !== "all" ? 1 : 0);
 
   // Clear all filters helper
   const handleClearAllFilters = () => {
+    if (stateScoped) {
+      updateQueryParams({ year: "all", q: null });
+      return;
+    }
     updateQueryParams({ year: "all", zone: "all", state: "all", q: null });
   };
 
@@ -1121,58 +1132,62 @@ export default function OfficeProfileWorkspace({
                   <Card className="rounded-2xl border-[#d4e8dc]">
                     <CardContent className="pt-4 pb-4 space-y-3">
                       <div className="grid grid-flow-col auto-cols-fr gap-3">
-                        <div className="space-y-1 min-w-0">
-                          <Label className="text-xs text-muted-foreground">Zone</Label>
-                          <Select
-                            value={selectedZoneId}
-                            onValueChange={(val) => updateQueryParams({ zone: val, state: "all" })}
-                          >
-                            <SelectTrigger
-                              className="w-full"
-                              displayValue={
-                                selectedZoneId === "all"
-                                  ? "All Zones"
-                                  : zones.find((z) => String(z.id) === selectedZoneId)?.description || "Zone"
-                              }
-                            >
-                              <SelectValue placeholder="Zone" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="all">All Zones</SelectItem>
-                              {zones.map((z) => (
-                                <SelectItem key={z.id} value={String(z.id)}>
-                                  {z.description}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-1 min-w-0">
-                          <Label className="text-xs text-muted-foreground">State</Label>
-                          <Select
-                            value={selectedStateId}
-                            onValueChange={(val) => updateQueryParams({ state: val })}
-                          >
-                            <SelectTrigger
-                              className="w-full"
-                              displayValue={
-                                selectedStateId === "all"
-                                  ? "All States"
-                                  : states.find((s) => String(s.id) === selectedStateId)?.description || "State"
-                              }
-                            >
-                              <SelectValue placeholder="State" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="all">All States</SelectItem>
-                              {states.map((s) => (
-                                <SelectItem key={s.id} value={String(s.id)}>
-                                  {s.description}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
+                        {!stateScoped && (
+                          <>
+                            <div className="space-y-1 min-w-0">
+                              <Label className="text-xs text-muted-foreground">Zone</Label>
+                              <Select
+                                value={selectedZoneId}
+                                onValueChange={(val) => updateQueryParams({ zone: val, state: "all" })}
+                              >
+                                <SelectTrigger
+                                  className="w-full"
+                                  displayValue={
+                                    selectedZoneId === "all"
+                                      ? "All Zones"
+                                      : zones.find((z) => String(z.id) === selectedZoneId)?.description || "Zone"
+                                  }
+                                >
+                                  <SelectValue placeholder="Zone" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="all">All Zones</SelectItem>
+                                  {zones.map((z) => (
+                                    <SelectItem key={z.id} value={String(z.id)}>
+                                      {z.description}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-1 min-w-0">
+                              <Label className="text-xs text-muted-foreground">State</Label>
+                              <Select
+                                value={selectedStateId}
+                                onValueChange={(val) => updateQueryParams({ state: val })}
+                              >
+                                <SelectTrigger
+                                  className="w-full"
+                                  displayValue={
+                                    selectedStateId === "all"
+                                      ? "All States"
+                                      : states.find((s) => String(s.id) === selectedStateId)?.description || "State"
+                                  }
+                                >
+                                  <SelectValue placeholder="State" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="all">All States</SelectItem>
+                                  {states.map((s) => (
+                                    <SelectItem key={s.id} value={String(s.id)}>
+                                      {s.description}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </>
+                        )}
                         <div className="space-y-1 min-w-0">
                           <Label className="text-xs text-muted-foreground">Year</Label>
                           <Select
