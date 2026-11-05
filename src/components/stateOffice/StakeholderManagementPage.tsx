@@ -13,7 +13,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ShadcnDataTable } from "@/components/common/ShadcnDataTable";
 import { stateOfficeApi } from "@/lib/api";
-import { MONTHS, monthLabel, formatCount, formatDate, quarterFromMonth } from "./constants";
+import { MONTHS, monthLabel, formatDate, quarterFromMonth } from "./constants";
 import { buildReportingYearOptions } from "../monthly/reportingYears";
 import { ALL_STATES, useMonthlyStateFilter } from "../monthly/useMonthlyStateFilter";
 import {
@@ -126,12 +126,12 @@ export default function StakeholderManagementPage({ onBack, defaultZoneId, defau
         ),
       },
       {
-        id: "activities",
-        header: "Activities",
-        accessorFn: (row) => row.lines?.length ?? row.planned_activities ?? 0,
+        id: "engagement",
+        header: "Engagement",
+        accessorFn: (row) => row.lines?.[0]?.engagement_category || "",
         cell: ({ row }) => (
-          <span className="text-sm font-semibold text-slate-900 tabular-nums">
-            {formatCount(row.original.lines?.length ?? row.original.planned_activities ?? 0)}
+          <span className="text-sm text-slate-700 line-clamp-2 max-w-[16rem]">
+            {row.original.lines?.[0]?.engagement_category || "—"}
           </span>
         ),
       },

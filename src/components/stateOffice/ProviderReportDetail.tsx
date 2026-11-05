@@ -1,15 +1,13 @@
 import * as React from "react";
 import {
-  ArrowLeft, CheckCircle2, ChevronDown, Clock, FileText, Loader2, Pencil, Send, XCircle,
+  ArrowLeft, CheckCircle2, Clock, FileText, Loader2, Pencil, Send, XCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
 import { stateOfficeApi, apiFileUrl } from "@/lib/api";
-import { cn } from "@/lib/utils";
 import { useStateOfficeAccess } from "@/src/access/createReviewAccess";
 import { SubmitConfirmModal } from "@/src/components/SubmitConfirmModal";
 import {
@@ -100,88 +98,63 @@ function unwrapLine(row: any) {
   };
 }
 
-function ActivityExpanded({ line }: { line: any }) {
+function ActivityDetail({ line }: { line: any }) {
   const docs = parseSupportingDocuments(line.supporting_documents).filter((d) => d.path);
   const metrics = line.metrics && typeof line.metrics === "object" ? line.metrics : {};
   const metricEntries = Object.entries(metrics).filter(([, v]) => v != null && String(v).trim() !== "");
-  const hasDetails = !!(
-    line.form_type || line.engagement_category || line.related_programme
-    || line.activity_date || line.activity_status || line.funding_option
-    || line.bhcpf_activity_type || line.remarks
-  );
+  const code = line.provider_management_id || line.engagement_code || null;
 
   return (
-    <div className="space-y-4 p-4 bg-[#f8fbf9] border-t border-[#e8f3ec]">
-      {hasDetails ? (
-        <div>
-          <p className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e] mb-2">Activity details</p>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            <InfoField label="Form type" value={line.form_type || line.engagement_category} />
-            <InfoField label="Programme" value={line.related_programme
-              || (Array.isArray(line.programs_supported) ? line.programs_supported.join(", ") : null)} />
-            <InfoField label="BHCPF type" value={line.bhcpf_activity_type} />
-            <InfoField label="Activity date" value={line.activity_date} />
-            <InfoField label="Status" value={line.activity_status} />
-            <InfoField label="Funding" value={line.funding_option} />
-          </div>
-        </div>
-      ) : (
-        <p className="text-sm text-amber-700 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
-          Activity details were lost when evidence was uploaded. Re-open the draft / returned report,
-          re-enter the activity, and send for review again.
-        </p>
-      )}
-
-      <div>
-        <p className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e] mb-2">Facility coverage</p>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          <InfoField
-            label="Total in state"
-            value={line.total_facilities_in_state != null && line.total_facilities_in_state !== ""
-              ? formatCount(line.total_facilities_in_state)
-              : null}
-          />
-          <InfoField
-            label="Planned this period"
-            value={line.facilities_planned != null && line.facilities_planned !== ""
-              ? formatCount(line.facilities_planned)
-              : null}
-          />
-          <InfoField
-            label="Covered"
-            value={line.facilities_covered != null && line.facilities_covered !== ""
-              ? formatCount(line.facilities_covered)
-              : null}
-          />
-          <InfoField
-            label="Budget"
-            value={line.activity_budget != null && line.activity_budget !== ""
-              ? `₦${formatAmount(line.activity_budget)}`
-              : null}
-          />
-          <InfoField
-            label="Approved amount"
-            value={line.approved_amount != null && line.approved_amount !== ""
-              ? `₦${formatAmount(line.approved_amount)}`
-              : null}
-          />
-        </div>
-      </div>
-
-      {metricEntries.length > 0 && (
-        <div>
-          <p className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e] mb-2">Metrics</p>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            {metricEntries.map(([k, v]) => (
-              <InfoField key={k} label={k} value={String(v)} />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {docs.length > 0 && (
-        <div>
-          <p className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e] mb-2">Supporting evidence</p>
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-3">
+      <InfoField label="PM ID" value={code} />
+      <InfoField label="Form type" value={line.form_type || line.engagement_category} />
+      <InfoField
+        label="Programme"
+        value={line.related_programme
+          || (Array.isArray(line.programs_supported) ? line.programs_supported.join(", ") : null)}
+      />
+      <InfoField label="BHCPF type" value={line.bhcpf_activity_type} />
+      <InfoField label="Activity date" value={line.activity_date} />
+      <InfoField label="Status" value={line.activity_status} />
+      <InfoField label="Funding" value={line.funding_option} />
+      <InfoField
+        label="Total facilities in state"
+        value={line.total_facilities_in_state != null && line.total_facilities_in_state !== ""
+          ? formatCount(line.total_facilities_in_state)
+          : null}
+      />
+      <InfoField
+        label="Facilities planned"
+        value={line.facilities_planned != null && line.facilities_planned !== ""
+          ? formatCount(line.facilities_planned)
+          : null}
+      />
+      <InfoField
+        label="Facilities covered"
+        value={line.facilities_covered != null && line.facilities_covered !== ""
+          ? formatCount(line.facilities_covered)
+          : null}
+      />
+      <InfoField
+        label="Budget"
+        value={line.activity_budget != null && line.activity_budget !== ""
+          ? `₦${formatAmount(line.activity_budget)}`
+          : null}
+      />
+      <InfoField
+        label="Approved amount"
+        value={line.approved_amount != null && line.approved_amount !== ""
+          ? `₦${formatAmount(line.approved_amount)}`
+          : null}
+      />
+      {metricEntries.map(([k, v]) => (
+        <InfoField key={k} label={k} value={String(v)} />
+      ))}
+      <div className="sm:col-span-2 lg:col-span-3 space-y-1">
+        <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Supporting evidence</p>
+        {docs.length === 0 ? (
+          <p className="text-sm text-slate-400">—</p>
+        ) : (
           <ul className="space-y-1">
             {docs.map((d) => (
               <li key={d.path}>
@@ -196,13 +169,12 @@ function ActivityExpanded({ line }: { line: any }) {
               </li>
             ))}
           </ul>
-        </div>
-      )}
-
+        )}
+      </div>
       {line.remarks ? (
-        <div>
-          <p className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e] mb-1">Remarks</p>
-          <p className="text-sm text-slate-700 whitespace-pre-wrap">{line.remarks}</p>
+        <div className="sm:col-span-2 lg:col-span-3 space-y-1">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Remarks</p>
+          <p className="text-sm font-medium text-slate-800 whitespace-pre-wrap">{line.remarks}</p>
         </div>
       ) : null}
     </div>
@@ -213,7 +185,6 @@ export default function ProviderReportDetail({ reportId, formKey = "accreditatio
   const { canCreate, canReview } = useStateOfficeAccess();
   const [report, setReport] = React.useState<any>(null);
   const [loading, setLoading] = React.useState(true);
-  const [openKey, setOpenKey] = React.useState<string | null>(null);
   const [reviewNote, setReviewNote] = React.useState("");
   const [reviewBusy, setReviewBusy] = React.useState(false);
   const [finalConfirmOpen, setFinalConfirmOpen] = React.useState(false);
@@ -226,7 +197,6 @@ export default function ProviderReportDetail({ reportId, formKey = "accreditatio
       const res = await api.get(reportId);
       const data = res.data;
       setReport(data);
-      setOpenKey(null);
       setReviewNote(data?.coordinator_review_note || "");
     } catch (err: any) {
       toast.error("Failed to load report", { description: err.message });
@@ -262,10 +232,10 @@ export default function ProviderReportDetail({ reportId, formKey = "accreditatio
     }
   };
 
-  const lines = React.useMemo(
-    () => (report?.lines ?? []).map(unwrapLine),
-    [report],
-  );
+  const line = React.useMemo(() => {
+    const raw = (report?.lines ?? [])[0];
+    return raw ? unwrapLine(raw) : null;
+  }, [report]);
   const statusCfg = report ? (STATUS_CONFIG[report.status] || null) : null;
   const period = report
     ? `${monthLabel(report.reporting_month)} ${report.reporting_year}`
@@ -291,8 +261,10 @@ export default function ProviderReportDetail({ reportId, formKey = "accreditatio
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <div className="min-w-0">
-            <h2 className="text-xl font-bold tracking-tight truncate">{PROVIDER_MANAGEMENT_NAV_TITLE}</h2>
-            <p className="text-xs text-slate-500 truncate">{moduleLabel} · {period}</p>
+            <h2 className="text-xl font-bold tracking-tight truncate">
+              {PROVIDER_MANAGEMENT_NAV_TITLE} - {moduleLabel}
+            </h2>
+            <p className="text-xs text-slate-500 truncate">{period}</p>
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -320,107 +292,23 @@ export default function ProviderReportDetail({ reportId, formKey = "accreditatio
             <div className="text-center py-24 text-slate-400 text-sm">Report not found.</div>
           ) : (
             <>
-              {canReview ? (
-                <SectionBand title="Report Review">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    {[
-                      { label: "State / reporting period", value: `${report.state?.description ?? "—"} / ${period}` },
-                      { label: "Submitted by", value: report.submitted_by || "Reporting Officer" },
-                      { label: "Activities recorded", value: String(lines.length) },
-                      { label: "Form type", value: moduleLabel },
-                    ].map((card) => (
-                      <div key={card.label} className="rounded-xl border border-[#d4e8dc] bg-white px-3.5 py-3 shadow-sm">
-                        <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 mb-1">{card.label}</p>
-                        <p className="text-sm font-semibold text-[#0f3d2e] break-words">{card.value}</p>
-                      </div>
-                    ))}
-                  </div>
-                </SectionBand>
-              ) : (
-                <SectionBand title="Report Information">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <InfoField label="Reporting period" value={period} />
-                    <InfoField label="State" value={report.state?.description ?? "—"} />
-                    <InfoField label="Form type" value={moduleLabel} />
-                    <InfoField label="Reporting officer" value={report.submitted_by || "—"} />
-                  </div>
-                </SectionBand>
-              )}
-
-              <SectionBand title="Activity Register">
-                <div className="-m-4">
-                  <div className="px-4 py-2 border-b border-[#d4e8dc] flex justify-end bg-white">
-                    <p className="text-[11px] text-[#145c3f]">
-                      {formatCount(lines.length)} activit{lines.length === 1 ? "y" : "ies"}
-                      {report.submission_date ? ` · ${formatDate(report.submission_date)}` : ""}
-                    </p>
-                  </div>
-
-                  {lines.length === 0 ? (
-                    <p className="text-sm text-slate-400 text-center py-10">No activities recorded.</p>
-                  ) : (
-                    <div className="overflow-x-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow className="bg-[#f4f7f5] hover:bg-[#f4f7f5]">
-                            {["PM ID", "Activity date", "Programme", "Planned", "Covered", "Status", ""].map((h) => (
-                              <TableHead key={h || "action"} className="text-[11px] font-bold text-[#0f3d2e] whitespace-nowrap">{h}</TableHead>
-                            ))}
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {lines.map((l, i) => {
-                            const key = String(l.id ?? i);
-                            const open = openKey === key;
-                            const code = l.provider_management_id || l.engagement_code || `PM-${String(i + 1).padStart(3, "0")}`;
-                            return (
-                              <React.Fragment key={key}>
-                                <TableRow
-                                  className={cn(
-                                    "cursor-pointer hover:bg-[#f8fdfb]",
-                                    open && "bg-[#f0faf4]",
-                                  )}
-                                  onClick={() => setOpenKey(open ? null : key)}
-                                >
-                                  <TableCell className="text-xs font-mono font-semibold text-[#145c3f]">{code}</TableCell>
-                                  <TableCell className="text-sm whitespace-nowrap">{l.activity_date || "—"}</TableCell>
-                                  <TableCell className="text-sm font-medium">
-                                    {l.related_programme
-                                      || (Array.isArray(l.programs_supported) ? l.programs_supported.join(", ") : null)
-                                      || l.engagement_category
-                                      || "—"}
-                                  </TableCell>
-                                  <TableCell className="text-sm tabular-nums">
-                                    {formatCount(l.facilities_planned)}
-                                  </TableCell>
-                                  <TableCell className="text-sm tabular-nums font-semibold text-[#145c3f]">
-                                    {formatCount(l.facilities_covered)}
-                                  </TableCell>
-                                  <TableCell>
-                                    <Badge variant="outline" className="text-[10px]">{l.activity_status || "—"}</Badge>
-                                  </TableCell>
-                                  <TableCell className="w-10">
-                                    <ChevronDown className={cn(
-                                      "w-4 h-4 text-[#145c3f] transition-transform",
-                                      open && "rotate-180",
-                                    )} />
-                                  </TableCell>
-                                </TableRow>
-                                {open && (
-                                  <TableRow className="hover:bg-transparent">
-                                    <TableCell colSpan={7} className="p-0">
-                                      <ActivityExpanded line={l} />
-                                    </TableCell>
-                                  </TableRow>
-                                )}
-                              </React.Fragment>
-                            );
-                          })}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  )}
+              <SectionBand title="Report Information">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <InfoField label="Reporting period" value={period} />
+                  <InfoField label="State" value={report.state?.description ?? "—"} />
+                  <InfoField label="Form type" value={moduleLabel} />
+                  {report.submission_date ? (
+                    <InfoField label="Submitted" value={formatDate(report.submission_date)} />
+                  ) : null}
                 </div>
+              </SectionBand>
+
+              <SectionBand title="Activity details">
+                {!line ? (
+                  <p className="text-sm text-slate-400 text-center py-6">No activity recorded.</p>
+                ) : (
+                  <ActivityDetail line={line} />
+                )}
               </SectionBand>
 
               {showDecisionBlock && (
