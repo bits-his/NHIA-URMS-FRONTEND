@@ -512,7 +512,7 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
             onChange={(event) => setPeriod((previous) => ({ ...previous, ...driveReportingPeriod(event.target.value) }))}
           />
         </Field>
-        <Field label="Number of planned activities (if any)">
+        <Field label="Number of planned activities">
           <Input
             type="number"
             min={0}
@@ -625,7 +625,7 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
                                     ["Location name", activity.location_name],
                                     ["Exact location", activity.exact_location],
                                     ["Target audience", activity.target_audience?.join(", ")],
-                                    ["Number of planned audience", activity.planned_target_audience != null ? formatCount(activity.planned_target_audience) : null],
+                                    ["Number of planned audience (if any)", activity.planned_target_audience != null ? formatCount(activity.planned_target_audience) : null],
                                     ["Number of audience reached", activity.target_audience_reached != null ? formatCount(activity.target_audience_reached) : null],
                                     ["Number of leads generated", activity.leads_generated != null ? formatCount(activity.leads_generated) : null],
                                     ["New enrolments", activity.enrolment_count != null ? formatCount(activity.enrolment_count) : null],
@@ -900,7 +900,7 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <ReviewRow label="Reporting period" value={`${monthLabel(batch.reporting_month)} ${batch.reporting_year} (Q${quarterFromMonth(batch.reporting_month)})`} />
               <ReviewRow label="State / Zone" value={`${stateName(batch.state_code)} · ${catalogue?.zones?.find((z) => z.zonal_code === batch.zonal_code)?.description || batch.zonal_code || "—"}`} />
-              <ReviewRow label="Planned activities (if any)" value={batch.planned_activities != null ? formatCount(batch.planned_activities) : "—"} />
+              <ReviewRow label="Planned activities" value={batch.planned_activities != null ? formatCount(batch.planned_activities) : "—"} />
               <ReviewRow label="Activities recorded" value={formatCount(batch.activities?.length || 0)} />
               <ReviewRow label="Submission date" value={batch.submitted_at ? formatDate(batch.submitted_at) : "—"} />
               <ReviewRow label="Reporting deadline" value={batch.reporting_deadline || "—"} />
@@ -1075,8 +1075,8 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
                         <Input value={draft.other_audience} maxLength={255} onChange={(event) => set("other_audience", event.target.value)} placeholder="Enter the target audience" />
                       </Field>
                     )}
-                    <Field label="Number of planned audience">
-                      <Input type="number" min={0} step={1} value={draft.planned_target_audience} onChange={(event) => set("planned_target_audience", event.target.value)} />
+                    <Field label="Number of planned audience (if any)">
+                      <Input type="number" min={0} step={1} value={draft.planned_target_audience} onChange={(event) => set("planned_target_audience", event.target.value)} placeholder="Optional" />
                     </Field>
                     <Field label="Number of audience reached">
                       <Input type="number" min={0} step={1} value={draft.target_audience_reached} onChange={(event) => set("target_audience_reached", event.target.value)} />
