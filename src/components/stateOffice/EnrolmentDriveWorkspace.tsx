@@ -40,6 +40,8 @@ function ReviewRow({ label, value }: { label: string; value?: React.ReactNode })
   );
 }
 
+
+
 function ReviewSection({ title, children }: { title: string; children: React.ReactNode }) {
   const items = React.Children.toArray(children).filter(Boolean);
   if (!items.length) return null;
@@ -588,59 +590,98 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
                 {isExpanded && (
                   <TableRow className="hover:bg-transparent">
                     <TableCell colSpan={8} className="p-0">
-                      <div className="space-y-4 p-4 bg-[#f8fbf9] border-t border-[#e8f3ec]">
-                        <div>
-                          <p className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e] mb-2">Activity details</p>
-                          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                            <ReviewRow label="Drive Type" value={catalogue?.drive_types.find((t) => t.key === activity.drive_type)?.title || activity.drive_type} />
-                            <ReviewRow label="Category" value={activity.activity_category} />
-                            <ReviewRow label="Date" value={activity.activity_date} />
-                            <ReviewRow label="Specific activity" value={activity.specific_activity} />
-                            <ReviewRow label="Programmes" value={activity.programs_supported?.join(", ")} />
-                            <ReviewRow label="Status" value={activity.activity_status} />
-                            {activity.status_reason && <ReviewRow label="Reason" value={activity.status_reason} />}
-                          </div>
+                      <div className="border-t border-[#e8f3ec] bg-[#f4f7f5] p-3 md:p-4">
+                        <div className="overflow-hidden rounded-xl border border-[#d4e8dc] bg-white">
+                          <Table>
+                            <TableHeader>
+                              <TableRow className="bg-[#eef6f1] hover:bg-[#eef6f1]">
+                                <TableHead className="w-[220px] text-[11px] font-bold text-[#0f3d2e]">Field</TableHead>
+                                <TableHead className="text-[11px] font-bold text-[#0f3d2e]">Value</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {([
+                                {
+                                  title: "Activity details",
+                                  rows: [
+                                    ["Drive type", catalogue?.drive_types.find((t) => t.key === activity.drive_type)?.title || activity.drive_type],
+                                    ["Category", activity.activity_category],
+                                    ["Date", activity.activity_date],
+                                    ["Specific activity", activity.specific_activity],
+                                    ["Programmes", activity.programs_supported?.join(", ")],
+                                    ["Status", activity.activity_status],
+                                    ...(activity.status_reason ? [["Reason", activity.status_reason]] : []),
+                                    ...(activity.activity_details ? [["Description", activity.activity_details]] : []),
+                                  ],
+                                },
+                                {
+                                  title: "Audience & location reach",
+                                  rows: [
+                                    ["Location category", activity.location_category],
+                                    ["Location name", activity.location_name],
+                                    ["Exact location", activity.exact_location],
+                                    ["Target audience", activity.target_audience?.join(", ")],
+                                    ["Planned audience", activity.planned_target_audience != null ? formatCount(activity.planned_target_audience) : null],
+                                    ["Audience reached", activity.target_audience_reached != null ? formatCount(activity.target_audience_reached) : null],
+                                    ["Leads generated", activity.leads_generated != null ? formatCount(activity.leads_generated) : null],
+                                    ["New enrolments", activity.enrolment_count != null ? formatCount(activity.enrolment_count) : null],
+                                  ],
+                                },
+                                {
+                                  title: "Funding & evidence",
+                                  rows: [
+                                    ["Funding option", activity.funding_option],
+                                    ["Budget", activity.activity_budget ? `₦${formatAmount(activity.activity_budget)}` : null],
+                                    ["Approved amount", activity.approved_amount ? `₦${formatAmount(activity.approved_amount)}` : null],
+                                    ["Evidence type", activity.evidence_type],
+                                    ...(activity.remarks ? [["Remarks", activity.remarks]] : []),
+                                  ],
+                                },
+                              ] as { title: string; rows: [string, React.ReactNode][] }[]).map((section) => (
+                                <React.Fragment key={section.title}>
+                                  <TableRow className="hover:bg-transparent">
+                                    <TableCell
+                                      colSpan={2}
+                                      className="bg-[#e8f5ee] py-2 text-[11px] font-bold uppercase tracking-[0.06em] text-[#0f3d2e] border-y border-[#d4e8dc]"
+                                    >
+                                      {section.title}
+                                    </TableCell>
+                                  </TableRow>
+                                  {section.rows.map(([label, value]) => (
+                                    <TableRow key={`${section.title}-${label}`} className="hover:bg-[#f8fdfb]">
+                                      <TableCell className="align-top whitespace-nowrap text-xs font-semibold text-slate-500 bg-[#f8fbf9]">
+                                        {label}
+                                      </TableCell>
+                                      <TableCell className="align-top text-sm font-medium text-slate-800 whitespace-pre-wrap break-words">
+                                        {value == null || value === "" ? "—" : value}
+                                      </TableCell>
+                                    </TableRow>
+                                  ))}
+                                </React.Fragment>
+                              ))}
+                              {!!activity.evidence?.length && (
+                                <React.Fragment>
+                                  <TableRow className="hover:bg-transparent">
+                                    <TableCell
+                                      colSpan={2}
+                                      className="bg-[#e8f5ee] py-2 text-[11px] font-bold uppercase tracking-[0.06em] text-[#0f3d2e] border-y border-[#d4e8dc]"
+                                    >
+                                      Supporting evidence files
+                                    </TableCell>
+                                  </TableRow>
+                                  <TableRow className="hover:bg-[#f8fdfb]">
+                                    <TableCell className="align-top whitespace-nowrap text-xs font-semibold text-slate-500 bg-[#f8fbf9]">
+                                      Files
+                                    </TableCell>
+                                    <TableCell className="align-top">
+                                      <EvidenceFiles files={activity.evidence} />
+                                    </TableCell>
+                                  </TableRow>
+                                </React.Fragment>
+                              )}
+                            </TableBody>
+                          </Table>
                         </div>
-                        <div>
-                          <p className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e] mb-2">Audience & location reach</p>
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                            <ReviewRow label="Location category" value={activity.location_category} />
-                            <ReviewRow label="Location name" value={activity.location_name} />
-                            <ReviewRow label="Exact location" value={activity.exact_location} />
-                            <ReviewRow label="Target audience" value={activity.target_audience?.join(", ")} />
-                            <ReviewRow label="Planned audience" value={activity.planned_target_audience != null ? formatCount(activity.planned_target_audience) : null} />
-                            <ReviewRow label="Audience reached" value={activity.target_audience_reached != null ? formatCount(activity.target_audience_reached) : null} />
-                            <ReviewRow label="Leads generated" value={activity.leads_generated != null ? formatCount(activity.leads_generated) : null} />
-                            <ReviewRow label="New enrolments" value={activity.enrolment_count != null ? formatCount(activity.enrolment_count) : null} />
-                          </div>
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e] mb-2">Funding & evidence</p>
-                          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                            <ReviewRow label="Funding option" value={activity.funding_option} />
-                            {activity.activity_budget && <ReviewRow label="Budget" value={`₦${formatAmount(activity.activity_budget)}`} />}
-                            {activity.approved_amount && <ReviewRow label="Approved amount" value={`₦${formatAmount(activity.approved_amount)}`} />}
-                            <ReviewRow label="Evidence type" value={activity.evidence_type} />
-                          </div>
-                        </div>
-                        {activity.activity_details && (
-                          <div>
-                            <p className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e] mb-1">Activity details</p>
-                            <p className="text-sm text-slate-700 whitespace-pre-wrap">{activity.activity_details}</p>
-                          </div>
-                        )}
-                        {!!activity.evidence?.length && (
-                          <div>
-                            <p className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e] mb-1">Supporting evidence files</p>
-                            <EvidenceFiles files={activity.evidence} />
-                          </div>
-                        )}
-                        {activity.remarks && (
-                          <div>
-                            <p className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e] mb-1">Remarks</p>
-                            <p className="text-sm text-slate-700 whitespace-pre-wrap">{activity.remarks}</p>
-                          </div>
-                        )}
                       </div>
                     </TableCell>
                   </TableRow>
