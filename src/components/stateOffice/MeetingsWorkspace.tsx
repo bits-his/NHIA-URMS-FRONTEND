@@ -1075,14 +1075,14 @@ export default function MeetingsWorkspace({ onBack, initialTab = "meetings" }: {
           { label: "Submitted", count: periodRows.filter((row) => row.status === "submitted").length, tone: "text-blue-800 bg-blue-50/80 border-blue-100" },
           { label: "Approved", count: periodRows.filter((row) => row.status === "approved").length, tone: "text-emerald-700 bg-emerald-50/80 border-emerald-100" },
         ].map((item) => (
-          <div className={`rounded-xl border px-4 py-3 ${item.tone}`} key={item.label}>
+          <div className={`rounded-sm border px-3 py-2.5 ${item.tone}`} key={item.label}>
             <p className="text-2xl font-bold tabular-nums">{item.count}</p>
             <p className="text-[11px] font-semibold text-slate-500 mt-0.5">{item.label}</p>
           </div>
         ))}
       </div>
-      <Card className="rounded-sm border border-[#d4e8dc] shadow-2xs bg-white">
-        <CardContent className="py-2.5 px-3 grid grid-flow-col auto-cols-fr gap-2.5 items-end">
+      <Card className="rounded-sm border border-[#d4e8dc] py-0 gap-0 shadow-2xs bg-white">
+        <CardContent className="py-1.5 px-3 grid grid-flow-col auto-cols-fr gap-2.5 items-end">
           {stateOptions.length > 1 && (
             <div className="space-y-0.5 min-w-0">
               <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">State</Label>

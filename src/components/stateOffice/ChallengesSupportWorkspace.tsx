@@ -786,22 +786,22 @@ export default function ChallengesSupportWorkspace({ onBack }: Props) {
               },
             ]}
           />
-          <Card className="rounded-sm border-[#d4e8dc]">
-            <CardContent className="pt-4 pb-4 grid grid-flow-col auto-cols-fr gap-3">
-              <div className="space-y-1 min-w-0">
-                <Label className="text-xs text-muted-foreground">Status</Label>
+          <Card className="rounded-sm border border-[#d4e8dc] py-0 gap-0 shadow-2xs bg-white">
+            <CardContent className="py-1.5 px-3 grid grid-flow-col auto-cols-fr gap-2.5 items-end">
+              <div className="space-y-0.5 min-w-0">
+                <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Status</Label>
                 <Select value={filterStatus} onValueChange={setFilterStatus}>
-                  <SelectTrigger displayValue={filterStatus === "all" ? "All Statuses" : filterStatus}><SelectValue /></SelectTrigger>
+                  <SelectTrigger size="sm" className="w-full" displayValue={filterStatus === "all" ? "All Statuses" : filterStatus}><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Statuses</SelectItem>
                     {CHALLENGE_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1 min-w-0">
-                <Label className="text-xs text-muted-foreground">Severity</Label>
+              <div className="space-y-0.5 min-w-0">
+                <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Severity</Label>
                 <Select value={filterSeverity} onValueChange={setFilterSeverity}>
-                  <SelectTrigger displayValue={filterSeverity === "all" ? "All Severities" : filterSeverity}><SelectValue /></SelectTrigger>
+                  <SelectTrigger size="sm" className="w-full" displayValue={filterSeverity === "all" ? "All Severities" : filterSeverity}><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Severities</SelectItem>
                     {CHALLENGE_SEVERITIES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
@@ -848,22 +848,22 @@ export default function ChallengesSupportWorkspace({ onBack }: Props) {
               },
             ]}
           />
-          <Card className="rounded-sm border-[#d4e8dc]">
-            <CardContent className="pt-4 pb-4 grid grid-flow-col auto-cols-fr gap-3">
-              <div className="space-y-1 min-w-0">
-                <Label className="text-xs text-muted-foreground">Status</Label>
+          <Card className="rounded-sm border border-[#d4e8dc] py-0 gap-0 shadow-2xs bg-white">
+            <CardContent className="py-1.5 px-3 grid grid-flow-col auto-cols-fr gap-2.5 items-end">
+              <div className="space-y-0.5 min-w-0">
+                <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Status</Label>
                 <Select value={filterStatus} onValueChange={setFilterStatus}>
-                  <SelectTrigger displayValue={filterStatus === "all" ? "All Statuses" : filterStatus}><SelectValue /></SelectTrigger>
+                  <SelectTrigger size="sm" className="w-full" displayValue={filterStatus === "all" ? "All Statuses" : filterStatus}><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Statuses</SelectItem>
                     {SUPPORT_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1 min-w-0">
-                <Label className="text-xs text-muted-foreground">Priority</Label>
+              <div className="space-y-0.5 min-w-0">
+                <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Priority</Label>
                 <Select value={filterPriority} onValueChange={setFilterPriority}>
-                  <SelectTrigger displayValue={filterPriority === "all" ? "All Priorities" : filterPriority}><SelectValue /></SelectTrigger>
+                  <SelectTrigger size="sm" className="w-full" displayValue={filterPriority === "all" ? "All Priorities" : filterPriority}><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Priorities</SelectItem>
                     {SUPPORT_PRIORITIES.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}

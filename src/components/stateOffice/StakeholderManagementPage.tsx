@@ -242,8 +242,8 @@ export default function StakeholderManagementPage({ onBack, defaultZoneId, defau
             ))}
           </div>
 
-          <Card className="rounded-sm border border-[#d4e8dc] shadow-2xs bg-white">
-            <CardContent className="py-2.5 px-3 grid grid-flow-col auto-cols-fr gap-2.5 items-end">
+          <Card className="rounded-sm border border-[#d4e8dc] py-0 gap-0 shadow-2xs bg-white">
+            <CardContent className="py-1.5 px-3 grid grid-flow-col auto-cols-fr gap-2.5 items-end">
               {showStateFilter && (
                 <div className="space-y-0.5 min-w-0">
                   <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">State</Label>

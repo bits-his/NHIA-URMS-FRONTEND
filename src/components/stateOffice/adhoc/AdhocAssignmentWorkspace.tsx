@@ -619,17 +619,17 @@ export default function AdhocAssignmentWorkspace({ onBack, user, userRole }: Pro
           ]}
         />
 
-        <Card className="rounded-sm border-[#d4e8dc]">
-          <CardContent className="pt-4 pb-4 space-y-3">
-            <div className="grid grid-flow-col auto-cols-fr gap-3">
+        <Card className="rounded-sm border border-[#d4e8dc] py-0 gap-0 shadow-2xs bg-white">
+          <CardContent className="py-1.5 px-3 space-y-1.5">
+            <div className="grid grid-flow-col auto-cols-fr gap-2.5 items-end">
               {activeTab === "sdo_register" && (
-                <div className="space-y-1 min-w-0">
-                  <Label className="text-xs text-muted-foreground">Department</Label>
+                <div className="space-y-0.5 min-w-0">
+                  <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Department</Label>
                   <Select
                     value={deptFilter || "all"}
                     onValueChange={(v) => setDeptFilter(v === "all" ? "" : v)}
                   >
-                    <SelectTrigger className="w-full">
+                    <SelectTrigger size="sm" className="w-full">
                       <SelectValue placeholder="All Departments" />
                     </SelectTrigger>
                     <SelectContent className="max-h-60">
@@ -643,13 +643,13 @@ export default function AdhocAssignmentWorkspace({ onBack, user, userRole }: Pro
                   </Select>
                 </div>
               )}
-              <div className="space-y-1 min-w-0">
-                <Label className="text-xs text-muted-foreground">Status</Label>
+              <div className="space-y-0.5 min-w-0">
+                <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Status</Label>
                 <Select
                   value={statusFilter || "all"}
                   onValueChange={(v) => setStatusFilter(v === "all" ? "" : v)}
                 >
-                  <SelectTrigger className="w-full">
+                  <SelectTrigger size="sm" className="w-full">
                     <SelectValue placeholder="All Statuses" />
                   </SelectTrigger>
                   <SelectContent>
@@ -672,7 +672,7 @@ export default function AdhocAssignmentWorkspace({ onBack, user, userRole }: Pro
               </div>
             </div>
             {hasListFilters && (
-              <div className="flex justify-end">
+              <div className="flex justify-end pt-0.5">
                 <Button
                   variant="ghost"
                   size="sm"
