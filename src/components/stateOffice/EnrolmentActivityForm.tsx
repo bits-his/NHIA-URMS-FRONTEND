@@ -101,7 +101,7 @@ const blank = () => ({
 
 type Entry = ReturnType<typeof blank>;
 
-type StepId = "activity" | "channel" | "details" | "beneficiary" | "review";
+type StepId = "activity" | "channel" | "details" | "beneficiary";
 
 interface Props {
   reportId?: number | string | null;
@@ -112,7 +112,12 @@ interface Props {
   defaultStateId?: string | null;
   /** When creating from an activity tab, skip the activity picker. */
   initialCategory?: string | null;
-  driveContext?: { reference_id: string; programs_supported: string[] };
+  driveContext?: {
+    reference_id: string;
+    programs_supported: string[];
+    beneficiaries_recorded?: number;
+    registration_count?: number;
+  };
   /** Embed inside a parent dialog/workspace — hide FormShell page chrome. */
   embedded?: boolean;
 }
@@ -153,50 +158,6 @@ export function Field({
       {children}
       {error ? <p className="text-[11px] font-medium text-rose-600">{error}</p> : null}
     </div>
-  );
-}
-
-function ReviewRow({ label, value }: { label: string; value?: React.ReactNode }) {
-  if (value == null || value === "" || value === "—") return null;
-  return (
-    <div className="space-y-0.5 min-w-0">
-      <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{label}</p>
-      <p className="text-sm font-medium text-slate-800 break-words">{value}</p>
-    </div>
-  );
-}
-
-function reviewValueForProgramField(f: EnrolmentProgramFieldDef, details: ProgramDetails): string {
-  if (f.type === "hmo" || f.type === "hcf") {
-    const name = String(details[f.key] ?? "").trim();
-    const code = String(details[`${f.key}_code`] ?? "").trim();
-    if (name && code) return `${name} (${code})`;
-    return name || code;
-  }
-  return String(details[f.key] ?? "").trim();
-}
-
-function ReviewSection({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
-  const items = React.Children.toArray(children).filter(Boolean);
-  if (!items.length) return null;
-  return (
-    <section className="space-y-3">
-      <div className="flex items-center gap-3">
-        <h3 className="shrink-0 text-[11px] font-bold uppercase tracking-[0.08em] text-[#145c3f]">
-          {title}
-        </h3>
-        <div className="h-px flex-1 bg-[#d4e8dc]" />
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-3">
-        {items}
-      </div>
-    </section>
   );
 }
 
@@ -415,34 +376,21 @@ function ProgramFieldsGrid({
 function stepsForCategory(category: string, channel = ""): { id: StepId; label: string }[] {
   if (category === "enrolment") {
     if (isSshiaLikeChannel(channel)) {
-      return [
-        { id: "channel", label: "Enrolment Details" },
-        { id: "review", label: "Review" },
-      ];
+      return [{ id: "channel", label: "Enrolment Details" }];
     }
     return [
       { id: "channel", label: "Enrolment Details" },
       { id: "details", label: "Details" },
-      { id: "review", label: "Review" },
     ];
   }
   if (category === "nin_validation") {
-    return [
-      { id: "details", label: "NIN Validation" },
-      { id: "review", label: "Review" },
-    ];
+    return [{ id: "details", label: "NIN Validation" }];
   }
   if (category === "validation_of_enrolees") {
-    return [
-      { id: "details", label: "Validation" },
-      { id: "review", label: "Review" },
-    ];
+    return [{ id: "details", label: "Validation" }];
   }
   if (category === "id_card_issuance") {
-    return [
-      { id: "details", label: "ID Card" },
-      { id: "review", label: "Review" },
-    ];
+    return [{ id: "details", label: "ID Card" }];
   }
   return [];
 }
@@ -520,7 +468,7 @@ export default function EnrolmentActivityForm({
   const currentStep = steps.length
     ? steps[Math.min(stepIndex, steps.length - 1)]
     : null;
-  const isReviewStep = currentStep?.id === "review";
+  const isLastStep = !!steps.length && stepIndex >= steps.length - 1;
 
   React.useEffect(() => {
     if (!steps.length) {
@@ -551,6 +499,22 @@ export default function EnrolmentActivityForm({
     () => driveContext ? ["Field Registration"] : modesOfRegistrationForProgram(entry.program_name),
     [entry.program_name, driveContext],
   );
+
+  React.useEffect(() => {
+    if (!driveContext) return;
+    // Enrolment drive beneficiary registration is NHIA-only (no SSHIA / Equity tabs).
+    setEntry((current) => {
+      if (current.enrolment_channel === "NHIA" && current.category === "enrolment") return current;
+      return {
+        ...current,
+        category: "enrolment",
+        enrolment_channel: "NHIA",
+        ...(isSshiaLikeChannel(current.enrolment_channel)
+          ? { enrolment_type: "", program_name: "", enrolment_category: "", program_details: {} }
+          : {}),
+      };
+    });
+  }, [driveContext]);
 
   React.useEffect(() => {
     if (!driveContext || isSshiaLikeChannel(entry.enrolment_channel) || !entry.program_name) return;
@@ -822,7 +786,6 @@ export default function EnrolmentActivityForm({
   const validateEntry = (e: Entry = entryRef.current): string | null => {
     if (!e.category) return fail("category", "Select an enrolment activity");
     for (const step of stepsForCategory(e.category, e.enrolment_channel)) {
-      if (step.id === "review") continue;
       const err = validateStep(step.id, e);
       if (err) return err;
     }
@@ -878,7 +841,6 @@ export default function EnrolmentActivityForm({
   const goBack = () => setStepIndex((i) => Math.max(i - 1, 0));
 
   const activityMeta = enrolmentActivityMeta(entry.category);
-  const activityLabel = activityMeta?.label ?? "Select activity";
   const categoryLocked = Boolean(seededCategory) || Boolean(driveContext);
 
   const channelTabItems = ENROLMENT_CHANNELS.map((channel) => ({
@@ -928,7 +890,7 @@ export default function EnrolmentActivityForm({
 
         return (
         <div className="m-0 space-y-3 pb-2">
-          {isEnrolment && entry.category && embedded ? (
+          {isEnrolment && entry.category && embedded && !driveContext ? (
             <div className="bg-white border border-[#d4e8dc] rounded-sm px-2">
               <UnderHeaderNavTabs
                 tabs={channelTabItems}
@@ -936,6 +898,27 @@ export default function EnrolmentActivityForm({
                 onChange={setEnrolmentChannel}
                 ariaLabel="Enrolment channel"
               />
+            </div>
+          ) : null}
+          {driveContext ? (
+            <div className="rounded-sm border border-[#d4e8dc] bg-[#f8fbf9] px-3 py-2.5 flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm text-[#0f3d2e]">
+                Beneficiaries already recorded for this drive activity:{" "}
+                <strong className="tabular-nums">
+                  {Number(driveContext.beneficiaries_recorded || 0).toLocaleString()}
+                </strong>
+                {(driveContext.registration_count || 0) > 0 ? (
+                  <span className="text-slate-500 font-normal">
+                    {" "}· {driveContext.registration_count} registration
+                    {driveContext.registration_count === 1 ? "" : "s"}
+                  </span>
+                ) : (
+                  <span className="text-slate-500 font-normal"> · none yet</span>
+                )}
+              </p>
+              <p className="text-[11px] text-slate-500">
+                New submissions below are added to this total.
+              </p>
             </div>
           ) : null}
           {fieldErrors.enrolment_channel ? (
@@ -1348,105 +1331,6 @@ export default function EnrolmentActivityForm({
                 </div>
               )}
 
-              {/* STEP: Review */}
-              {currentStep?.id === "review" && (
-                <div className="space-y-5">
-                  <div className="rounded-sm border border-[#d4e8dc] bg-[#f8fbf9] p-3 space-y-2">
-                    <p className="text-[11px] font-bold uppercase tracking-wide text-[#145c3f]">Ready to submit</p>
-                    <p className="text-sm text-slate-600">
-                      Confirm every section below before saving or submitting this activity.
-                    </p>
-                  </div>
-
-                  <ReviewSection title="Activity summary">
-                    <ReviewRow label="Activity" value={activityLabel} />
-                    {!isSshiaChannel && (
-                      <ReviewRow label="Date" value={entry.activity_date || entry.validation_date} />
-                    )}
-                    <ReviewRow label="Channel" value={entry.enrolment_channel} />
-                    {!isSshiaChannel && <ReviewRow label="Enrolment type" value={entry.enrolment_type} />}
-                    <ReviewRow
-                      label={entry.enrolment_channel === "Equity Program" ? "Enrolment Type" : "Program"}
-                      value={entry.program_name}
-                    />
-                    {!isSshiaChannel && <ReviewRow label="Enrolment mode" value={entry.enrolment_category} />}
-                    {!isSshiaChannel && <ReviewRow label="Beneficiary category" value={entry.beneficiary_category} />}
-                    {!isSshiaChannel && <ReviewRow label="Beneficiary status" value={entry.beneficiary_status} />}
-                    {!isSshiaChannel && <ReviewRow label="Funding" value={entry.funding_option} />}
-                    {!isSshiaChannel && (
-                      <ReviewRow
-                        label="Activity budget (₦)"
-                        value={entry.activity_budget !== "" ? entry.activity_budget : ""}
-                      />
-                    )}
-                    {!isSshiaChannel && (
-                      <ReviewRow
-                        label="Approved budget (₦)"
-                        value={entry.approved_amount !== "" ? entry.approved_amount : ""}
-                      />
-                    )}
-                    {!isSshiaChannel && (
-                      <ReviewRow label="Activity status" value={entry.activity_status || entry.validation_status || entry.id_card_status} />
-                    )}
-                    {!isSshiaChannel && <ReviewRow label="Status reason" value={entry.status_reason} />}
-                    <ReviewRow
-                      label={entry.enrolment_channel === "Equity Program" ? "Number of Beneficiaries" : "Number enrolled"}
-                      value={entry.enrolment_count}
-                    />
-                    <ReviewRow label="Records validated" value={entry.enrollees_validated} />
-                    {!isSshiaChannel && <ReviewRow label="Evidence" value={entry.supporting_evidence} />}
-                    {!isSshiaChannel && <ReviewRow label="Remarks" value={entry.remarks} />}
-                  </ReviewSection>
-
-                  {(isNin || isIdCard || isValidation) && (
-                    <ReviewSection title={isNin ? "NIN validation" : isIdCard ? "ID card" : "Validation details"}>
-                      <ReviewRow label="Enrollee" value={entry.enrollee_name} />
-                      <ReviewRow label="Organization" value={entry.organization_name} />
-                      <ReviewRow label="NIN" value={entry.nin_number} />
-                      <ReviewRow label="Validation status" value={entry.validation_status} />
-                      <ReviewRow label="Not validated reason" value={entry.not_validated_reason} />
-                      <ReviewRow label="Request category" value={entry.request_category} />
-                      <ReviewRow label="NHIA number" value={entry.nhia_number} />
-                      <ReviewRow label="Payment reference" value={entry.payment_reference} />
-                      <ReviewRow label="ID card status" value={entry.id_card_status} />
-                      <ReviewRow label="Issue date" value={entry.issue_date} />
-                    </ReviewSection>
-                  )}
-
-                  {isEnrolment && !isSshiaChannel && (() => {
-                    const reviewFields = mergeProgramFields(programFields);
-                    const locationKeys = new Set(["state_of_origin", "lga_of_origin", "state_of_residence", "lga_of_residence"]);
-                    const providerKeys = new Set(["hmo", "hcf", "alternative_provider"]);
-                    const identityKeys = new Set([
-                      "surname", "first_name", "middle_name", "nin", "organization_mda", "entity_type",
-                      "blood_group", "marital_status", "phone_number", "program_type",
-                    ]);
-                    const groups = [
-                      { title: "Identity", items: reviewFields.filter((f) => identityKeys.has(f.key)) },
-                      { title: "Location", items: reviewFields.filter((f) => locationKeys.has(f.key)) },
-                      { title: "Providers", items: reviewFields.filter((f) => providerKeys.has(f.key)) },
-                      {
-                        title: "Program details",
-                        items: reviewFields.filter(
-                          (f) => !identityKeys.has(f.key) && !locationKeys.has(f.key) && !providerKeys.has(f.key),
-                        ),
-                      },
-                    ];
-                    return groups.map((g) => (
-                      <ReviewSection key={g.title} title={g.title}>
-                        {g.items.map((f) => (
-                          <ReviewRow
-                            key={f.key}
-                            label={f.label}
-                            value={reviewValueForProgramField(f, entry.program_details)}
-                          />
-                        ))}
-                      </ReviewSection>
-                    ));
-                  })()}
-                </div>
-              )}
-
               {/* Footer nav — only after an activity is chosen */}
               {entry.category ? (
                 <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-[#e8f3ec]">
@@ -1474,14 +1358,17 @@ export default function EnrolmentActivityForm({
                   </Button>
 
                   <div className="flex flex-wrap items-center gap-2">
-                    {isReviewStep ? (
+                    {isLastStep ? (
                       <>
                         <Button
                           variant="ghost"
                           size="sm"
                           className="gap-2"
                           disabled={saving || submitting}
-                          onClick={() => persist("draft")}
+                          onClick={() => {
+                            if (currentStep && validateStep(currentStep.id)) return;
+                            void persist("draft");
+                          }}
                         >
                           {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                           Save draft
@@ -1489,7 +1376,10 @@ export default function EnrolmentActivityForm({
                         <Button
                           className="bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20"
                           disabled={saving || submitting}
-                          onClick={() => requestSubmit(() => persist("submitted"))}
+                          onClick={() => {
+                            if (currentStep && validateStep(currentStep.id)) return;
+                            requestSubmit(() => persist("submitted"));
+                          }}
                         >
                           {submitting
                             ? <><Loader2 className="w-4 h-4 animate-spin" /> Submitting...</>
