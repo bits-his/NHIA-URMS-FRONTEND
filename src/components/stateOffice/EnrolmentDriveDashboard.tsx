@@ -381,29 +381,29 @@ export default function EnrolmentDriveDashboard({
             )}
             <div className="min-w-0">
               <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">
-                Enrolment Drives Dashboard
+                  Enrolment Drives Dashboard
               </h2>
               {meta && (
                 <p className="text-xs text-slate-500 truncate">{meta.title} · {meta.actionBlurb}</p>
               )}
+              </div>
             </div>
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={loading}
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={loading}
             onClick={() => void load()}
-            className="gap-1.5 border-[#d4e8dc] text-[#145c3f] hover:bg-[#e8f5ee]"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
-            Refresh
-          </Button>
+              className="gap-1.5 border-[#d4e8dc] text-[#145c3f] hover:bg-[#e8f5ee]"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+              Refresh
+            </Button>
         </div>
       )}
 
       <ScrollArea className="flex-1">
         <div className="w-full p-3 sm:p-4 space-y-3.5">
-          {embedded && (
+      {embedded && (
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#145c3f]">{meta.title}</p>
@@ -411,23 +411,23 @@ export default function EnrolmentDriveDashboard({
                 <p className="text-xs text-slate-500 mt-1 max-w-2xl">
                   {face === "action" ? meta.actionBlurb : meta.analysisBlurb}
                 </p>
-              </div>
-              <Button
+            </div>
+            <Button
                 variant="outline"
-                size="sm"
+              size="sm"
                 disabled={loading}
                 onClick={() => void load()}
                 className="gap-1.5 border-[#d4e8dc] text-[#145c3f] hover:bg-[#e8f5ee] shrink-0"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
                 Refresh
-              </Button>
-            </div>
+            </Button>
+          </div>
           )}
 
           <div className="bg-white border border-[#d4e8dc] rounded-sm p-3.5">
             <div className="grid gap-3 grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
-              <FilterField label="Period">
+          <FilterField label="Period">
                 <Select value={month === "all" ? `y-${year}` : `${year}-${month}`} onValueChange={(v) => {
                   if (v.startsWith("y-")) {
                     setYear(v.slice(2));
@@ -440,8 +440,8 @@ export default function EnrolmentDriveDashboard({
                 }}>
                   <SelectTrigger size="sm" displayValue={month === "all" ? `${year} · All months` : `${monthLabel(Number(month))} ${year}`}>
                     <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
+              </SelectTrigger>
+              <SelectContent>
                     {YEARS.map((y) => (
                       <React.Fragment key={y}>
                         <SelectItem value={`y-${y}`}>{y} · All months</SelectItem>
@@ -451,13 +451,13 @@ export default function EnrolmentDriveDashboard({
                           </SelectItem>
                         ))}
                       </React.Fragment>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </FilterField>
+                ))}
+              </SelectContent>
+            </Select>
+          </FilterField>
 
               {showZoneFilter && (
-                <FilterField label="Zone">
+          <FilterField label="Zone">
                   <Select value={filterZone} onValueChange={(v) => { setFilterZone(v); setFilterState("all"); }}>
                     <SelectTrigger
                       size="sm"
@@ -468,22 +468,22 @@ export default function EnrolmentDriveDashboard({
                       }
                     >
                       <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
+              </SelectTrigger>
+              <SelectContent>
                       <SelectItem value="all">All zones</SelectItem>
-                      {zones.map((z) => (
+                {zones.map((z) => (
                         <SelectItem key={z.zonal_code || z.id} value={String(z.zonal_code || z.id)}>
-                          {z.description || z.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </FilterField>
+                    {z.description || z.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </FilterField>
               )}
 
               {showStateFilter && (
-                <FilterField label="State">
-                  <Select value={filterState} onValueChange={setFilterState} disabled={lockState}>
+          <FilterField label="State">
+            <Select value={filterState} onValueChange={setFilterState} disabled={lockState}>
                     <SelectTrigger
                       size="sm"
                       displayValue={
@@ -495,17 +495,17 @@ export default function EnrolmentDriveDashboard({
                       }
                     >
                       <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
+              </SelectTrigger>
+              <SelectContent>
                       <SelectItem value="all">All states</SelectItem>
-                      {states.map((s) => (
+                {states.map((s) => (
                         <SelectItem key={s.code || s.id} value={String(s.code || s.id)}>
-                          {s.description || s.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </FilterField>
+                    {s.description || s.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </FilterField>
               )}
 
               {lockState && (
@@ -517,19 +517,19 @@ export default function EnrolmentDriveDashboard({
               )}
 
               {showProgrammeFilter && (
-                <FilterField label="Programme">
+          <FilterField label="Programme">
                   <Select value={programme} onValueChange={setProgramme}>
                     <SelectTrigger size="sm" displayValue={programme === "all" ? "All programmes" : programme}>
                       <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
+              </SelectTrigger>
+              <SelectContent>
                       <SelectItem value="all">All programmes</SelectItem>
                       {(catalogueProgrammes.length ? catalogueProgrammes : programmes.map((p) => p.name)).map((name) => (
                         <SelectItem key={name} value={String(name)}>{name}</SelectItem>
                       ))}
-                    </SelectContent>
-                  </Select>
-                </FilterField>
+              </SelectContent>
+            </Select>
+          </FilterField>
               )}
 
               {showCategoryFilter && (
@@ -537,8 +537,8 @@ export default function EnrolmentDriveDashboard({
                   <Select value={activityCategory} onValueChange={setActivityCategory}>
                     <SelectTrigger size="sm" displayValue={activityCategory === "all" ? "All categories" : activityCategory}>
                       <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
+              </SelectTrigger>
+              <SelectContent>
                       <SelectItem value="all">All categories</SelectItem>
                       {categoryOptions.map((name) => (
                         <SelectItem key={name} value={name}>{name}</SelectItem>
@@ -546,9 +546,9 @@ export default function EnrolmentDriveDashboard({
                       {activityCategory !== "all" && !categoryOptions.includes(activityCategory) && (
                         <SelectItem value={activityCategory}>{activityCategory}</SelectItem>
                       )}
-                    </SelectContent>
-                  </Select>
-                </FilterField>
+              </SelectContent>
+            </Select>
+          </FilterField>
               )}
 
               {showStatusFilter && (
@@ -566,8 +566,8 @@ export default function EnrolmentDriveDashboard({
                   </Select>
                 </FilterField>
               )}
-            </div>
-          </div>
+        </div>
+      </div>
 
           <div className="flex gap-1 border-b border-[#d4e8dc]">
             {([
@@ -588,7 +588,7 @@ export default function EnrolmentDriveDashboard({
                 {item.label}
               </button>
             ))}
-          </div>
+        </div>
 
           {loading && !data ? (
             <div className="flex items-center justify-center py-24 text-slate-500 gap-2 text-sm">
@@ -624,9 +624,9 @@ export default function EnrolmentDriveDashboard({
                     <p className="text-2xl font-black text-[#0f3d2e] tabular-nums mt-1.5 tracking-tight">
                       {kpi.value}
                     </p>
-                  </div>
+            </div>
                 ))}
-              </div>
+      </div>
 
               {face === "action" && dashRole === "sdo" && (
                 <div className="grid grid-cols-1 xl:grid-cols-5 gap-4">
@@ -696,9 +696,9 @@ export default function EnrolmentDriveDashboard({
                     <SimpleTable
                       headers={["Activity", "Reached", "Leads", "Enrolled", "Status"]}
                       rows={activityRegister.map((row) => [
-                        <button
+                    <button
                           key={row.reference_id}
-                          type="button"
+                      type="button"
                           className="text-left font-semibold text-[#145c3f] hover:underline"
                           onClick={() => openActivity(row)}
                         >
@@ -712,7 +712,7 @@ export default function EnrolmentDriveDashboard({
                       empty="No activities recorded for this period"
                     />
                   </Panel>
-                </div>
+                    </div>
               )}
 
               {face === "action" && dashRole === "zd" && (
@@ -720,15 +720,15 @@ export default function EnrolmentDriveDashboard({
                   <Panel title="Enrolment by state" className="xl:col-span-2">
                     <ChartFrame>
                       {enrolmentsByState.length ? (
-                        <ResponsiveContainer width="100%" height="100%">
+                      <ResponsiveContainer width="100%" height="100%">
                           <BarChart data={enrolmentsByState} layout="vertical" margin={{ top: 4, right: 16, left: 8, bottom: 4 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#e8f3ec" horizontal={false} />
+                          <CartesianGrid strokeDasharray="3 3" stroke="#e8f3ec" horizontal={false} />
                             <XAxis type="number" tick={{ fontSize: 10, fill: "#64748b" }} />
                             <YAxis type="category" dataKey="name" width={100} tick={{ fontSize: 10, fill: "#0f3d2e" }} />
                             <Tooltip content={<ChartTooltip />} />
                             <Bar dataKey="value" name="Enrolled" fill={BRAND} radius={[0, 4, 4, 0]} />
-                          </BarChart>
-                        </ResponsiveContainer>
+                        </BarChart>
+                      </ResponsiveContainer>
                       ) : (
                         <EmptyChart message="No state enrolment for this period" />
                       )}
@@ -754,7 +754,7 @@ export default function EnrolmentDriveDashboard({
                       empty="No states in this zone for the selected filters"
                     />
                   </Panel>
-                </div>
+                      </div>
               )}
 
               {face === "action" && dashRole === "dg" && (
@@ -762,7 +762,7 @@ export default function EnrolmentDriveDashboard({
                   <Panel title="Enrolment trend" className="xl:col-span-2" subtitle="Linked enrolments over time">
                     <ChartFrame>
                       {trend.length ? (
-                        <ResponsiveContainer width="100%" height="100%">
+                      <ResponsiveContainer width="100%" height="100%">
                           <LineChart data={trend} margin={{ top: 8, right: 12, left: -10, bottom: 8 }}>
                             <CartesianGrid strokeDasharray="3 3" stroke="#e8f3ec" />
                             <XAxis dataKey="label" tick={{ fontSize: 10, fill: "#64748b" }} interval="preserveStartEnd" />
@@ -803,8 +803,8 @@ export default function EnrolmentDriveDashboard({
                       empty="No management issues for this period"
                     />
                   </Panel>
-                </div>
-              )}
+            </div>
+          )}
 
               {face === "analysis" && (
                 <div className="space-y-4">
@@ -813,7 +813,7 @@ export default function EnrolmentDriveDashboard({
                       <FunnelStep title="Audience reached" value={summary.reached || 0} tone="green" />
                       <FunnelStep title="Leads generated" value={summary.leads || 0} tone="blue" />
                       <FunnelStep title="Enrolled" value={summary.enrolled || 0} tone="emerald" />
-                    </div>
+                        </div>
                   </Panel>
 
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -833,30 +833,30 @@ export default function EnrolmentDriveDashboard({
                         </Panel>
                         <Panel title="Enrolment by activity type and location" className="lg:col-span-2">
                           {byActivityLocation.length && activityTypes.length ? (
-                            <div className="overflow-x-auto">
-                              <Table>
-                                <TableHeader>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
                                   <TableRow className="bg-[#f4f7f5]">
                                     <TableHead className="text-xs font-bold text-[#0f3d2e]">Location</TableHead>
                                     {activityTypes.slice(0, 6).map((type) => (
                                       <TableHead key={type} className="text-xs font-bold text-[#0f3d2e] text-right">{type}</TableHead>
                                     ))}
-                                  </TableRow>
-                                </TableHeader>
-                                <TableBody>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
                                   {byActivityLocation.map((row) => (
                                     <TableRow key={row.location}>
                                       <TableCell className="text-sm font-semibold text-[#0f3d2e]">{row.location}</TableCell>
                                       {activityTypes.slice(0, 6).map((type) => (
                                         <TableCell key={type} className="text-sm text-right tabular-nums">
                                           {formatCount(row[type] || 0)}
-                                        </TableCell>
+                            </TableCell>
                                       ))}
-                                    </TableRow>
-                                  ))}
-                                </TableBody>
-                              </Table>
-                            </div>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                    </div>
                           ) : (
                             <EmptyChart message="No activity × location matrix for this period" />
                           )}
@@ -949,13 +949,13 @@ export default function EnrolmentDriveDashboard({
                       </>
                     )}
                   </div>
-                </div>
-              )}
+            </div>
+          )}
               </>
               )}
             </motion.div>
           )}
-        </div>
+      </div>
       </ScrollArea>
     </div>
   );
@@ -1014,7 +1014,7 @@ function FunnelStep({
     <div className={`rounded-sm border p-3.5 ${tones}`}>
       <p className="text-xs font-bold text-slate-800">{title}</p>
       <p className="text-2xl font-black tabular-nums mt-1">{formatCount(value)}</p>
-    </div>
+        </div>
   );
 }
 
@@ -1038,8 +1038,8 @@ function RankList({
               <span className="truncate text-slate-700 font-medium">{item.name}</span>
               <span className="font-bold tabular-nums text-[#0f3d2e] shrink-0">
                 {typeof item.value === "number" ? formatCount(item.value) : item.value}
-              </span>
-            </div>
+        </span>
+      </div>
             <div className="h-1.5 rounded-full bg-[#e8f3ec] overflow-hidden">
               <div
                 className="h-full rounded-full"
@@ -1087,7 +1087,7 @@ function SimpleTable({
           ))}
         </TableBody>
       </Table>
-    </div>
+              </div>
   );
 }
 
@@ -1103,7 +1103,7 @@ function StatusPill({ status }: { status: string }) {
   return (
     <span className={`inline-flex px-2 py-0.5 rounded-sm border text-[11px] font-bold ${tone}`}>
       {status || "—"}
-    </span>
+                </span>
   );
 }
 
@@ -1119,17 +1119,17 @@ function EmptyChart({ message }: { message: string }) {
 
 function ChartTooltip({ active, payload, label, unit }: any) {
   if (!active || !payload?.length) return null;
-  return (
+    return (
     <div className="rounded-sm border border-[#d4e8dc] bg-white p-2.5 shadow-sm text-xs">
-      <p className="font-bold text-[#0f3d2e] mb-1">{label || payload[0].name}</p>
-      {payload.map((p: any, i: number) => (
+        <p className="font-bold text-[#0f3d2e] mb-1">{label || payload[0].name}</p>
+        {payload.map((p: any, i: number) => (
         <p key={i} className="text-slate-600 flex justify-between gap-4">
           <span>{p.name}</span>
-          <span className="font-bold tabular-nums">
+            <span className="font-bold tabular-nums">
             {Number(p.value).toLocaleString()}{unit != null ? unit : ""}
-          </span>
-        </p>
-      ))}
-    </div>
-  );
+            </span>
+          </p>
+        ))}
+      </div>
+    );
 }

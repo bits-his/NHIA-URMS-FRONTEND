@@ -14,7 +14,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ShadcnDataTable } from "@/components/common/ShadcnDataTable";
 import { stateOfficeApi } from "@/lib/api";
-import { MONTHS, monthLabel, formatCount, formatDate, quarterFromMonth } from "./constants";
+import { MONTHS, monthLabel, formatDate, quarterFromMonth } from "./constants";
 import { buildReportingYearOptions } from "../monthly/reportingYears";
 import { ALL_STATES, useMonthlyStateFilter } from "../monthly/useMonthlyStateFilter";
 import {
@@ -151,13 +151,21 @@ export default function ProviderManagementPage({ onBack, defaultZoneId, defaultS
       },
       {
         id: "activities",
-        header: "Activities",
-        accessorFn: (row) => row.lines?.length ?? row.planned_activities ?? 0,
-        cell: ({ row }) => (
-          <span className="text-sm font-semibold text-slate-900 tabular-nums">
-            {formatCount(row.original.lines?.length ?? row.original.planned_activities ?? 0)}
-          </span>
-        ),
+        header: "Programme",
+        accessorFn: (row) => row.lines?.[0]?.related_programme
+          || (Array.isArray(row.lines?.[0]?.programs_supported) ? row.lines[0].programs_supported[0] : "")
+          || "",
+        cell: ({ row }) => {
+          const line = row.original.lines?.[0];
+          const programme = line?.related_programme
+            || (Array.isArray(line?.programs_supported) ? line.programs_supported[0] : null)
+            || "—";
+          return (
+            <span className="text-sm text-slate-700 line-clamp-2 max-w-[14rem]">
+              {programme}
+            </span>
+          );
+        },
       },
       {
         id: "submitted",

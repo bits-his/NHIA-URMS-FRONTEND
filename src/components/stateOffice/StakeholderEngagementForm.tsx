@@ -1,7 +1,7 @@
 import * as React from "react";
 import { createPortal } from "react-dom";
 import {
-  ChevronDown, Loader2, Pencil, Plus, Save, Send, Trash2, Upload,
+  ChevronDown, Loader2, Plus, Save, Send, Trash2, Upload,
 } from "lucide-react";
 import { useSelector } from "react-redux";
 import { toast } from "sonner";
@@ -9,7 +9,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
@@ -117,23 +116,7 @@ interface Props {
   moduleOptions?: { key: string; label: string; filter?: string[] }[];
 }
 
-/** PPT section layout, app green palette */
-function FormSection({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="rounded-xl border border-[#d4e8dc] bg-white shadow-sm overflow-visible">
-      <div className="rounded-t-xl bg-[#e8f5ee] px-4 py-2.5 border-b border-[#d4e8dc]">
-        <h3 className="text-[12px] font-bold uppercase tracking-[0.06em] text-[#0f3d2e]">
-          {title}
-        </h3>
-      </div>
-      <div className="p-4 grid gap-3 grid-cols-1 md:grid-cols-3 bg-[#f4f7f5] rounded-b-xl overflow-visible">
-        {children}
-      </div>
-    </section>
-  );
-}
-
-/** PPT Report Information — State only in UI; Zone is set automatically from the selected state. */
+/** Report info row — flat (no nested card), matches Enrolment embedded basic info. */
 function StakeholderReportInformation({ header }: { header: any }) {
   const user = useSelector((s: RootState) => s.auth.user) as { name?: string } | null;
   const periodText = header.reportMonth && header.reportYear
@@ -173,85 +156,77 @@ function StakeholderReportInformation({ header }: { header: any }) {
     if (header.hydratingRef) header.hydratingRef.current = true;
     if (match?.zoneId && !header.lockZone) header.setZoneId(match.zoneId);
     header.setStateId(v);
-    // Release hydrating on next tick so zone effect does not clear the new state
     queueMicrotask(() => {
       if (header.hydratingRef) header.hydratingRef.current = false;
     });
   };
 
   return (
-    <section className="rounded-xl border border-[#d4e8dc] overflow-hidden bg-white">
-      <div className="bg-[#e8f5ee] px-4 py-2.5 border-b border-[#d4e8dc]">
-        <h3 className="text-[12px] font-bold uppercase tracking-[0.06em] text-[#0f3d2e]">
-          Report Information
-        </h3>
-      </div>
-      <div className="p-4 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 bg-[#f4f7f5]">
-        <div className="space-y-1.5">
-          <Label className="text-[11px] font-semibold text-slate-600">Reporting period</Label>
-          <div className="grid grid-cols-2 gap-2">
-            <Select value={header.reportMonth} onValueChange={header.setReportMonth}>
-              <SelectTrigger className={inputClass} displayValue={monthLabel(header.reportMonth)}>
-                <SelectValue placeholder="Month" />
-              </SelectTrigger>
-              <SelectContent>
-                {MONTHS.map((m) => (
-                  <SelectItem key={m.value} value={String(m.value)}>{m.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={header.reportYear} onValueChange={header.setReportYear}>
-              <SelectTrigger className={inputClass} displayValue={header.reportYear || "Year"}>
-                <SelectValue placeholder="Year" />
-              </SelectTrigger>
-              <SelectContent>
-                {Array.from({ length: 8 }, (_, i) => {
-                  const y = String(new Date().getFullYear() - 2 + i);
-                  return <SelectItem key={y} value={y}>{y}</SelectItem>;
-                })}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        <div className="space-y-1.5">
-          <Label className="text-[11px] font-semibold text-slate-600">
-            State <span className="text-slate-400 font-normal">(required to send for review)</span>
-          </Label>
-          <Select
-            value={header.stateId}
-            onValueChange={onStateChange}
-            disabled={header.lockState}
-          >
-            <SelectTrigger
-              className={cn(inputClass, header.lockState ? "opacity-70" : "")}
-              displayValue={stateLabel}
-            >
-              <SelectValue placeholder="Select a state" />
+    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+      <div className="space-y-1.5">
+        <Label className="text-xs font-semibold text-slate-600">Reporting period</Label>
+        <div className="grid grid-cols-2 gap-2">
+          <Select value={header.reportMonth} onValueChange={header.setReportMonth}>
+            <SelectTrigger className={inputClass} displayValue={monthLabel(header.reportMonth)}>
+              <SelectValue placeholder="Month" />
             </SelectTrigger>
             <SelectContent>
-              {stateOptions.map((s) => (
-                <SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>
+              {MONTHS.map((m) => (
+                <SelectItem key={m.value} value={String(m.value)}>{m.label}</SelectItem>
               ))}
             </SelectContent>
           </Select>
-        </div>
-
-        <div className="space-y-1.5">
-          <Label className="text-[11px] font-semibold text-slate-600">Reporting officer</Label>
-          <Input
-            readOnly
-            value={user?.name || "Signed-in user"}
-            className={cn(inputClass, "opacity-90")}
-          />
-        </div>
-
-        <div className="space-y-1.5">
-          <Label className="text-[11px] font-semibold text-slate-600">Reporting month</Label>
-          <Input readOnly value={periodText} className={cn(inputClass, "opacity-90")} />
+          <Select value={header.reportYear} onValueChange={header.setReportYear}>
+            <SelectTrigger className={inputClass} displayValue={header.reportYear || "Year"}>
+              <SelectValue placeholder="Year" />
+            </SelectTrigger>
+            <SelectContent>
+              {Array.from({ length: 8 }, (_, i) => {
+                const y = String(new Date().getFullYear() - 2 + i);
+                return <SelectItem key={y} value={y}>{y}</SelectItem>;
+              })}
+            </SelectContent>
+          </Select>
         </div>
       </div>
-    </section>
+
+      <div className="space-y-1.5">
+        <Label className="text-xs font-semibold text-slate-600">
+          State <span className="text-slate-400 font-normal">(required to send for review)</span>
+        </Label>
+        <Select
+          value={header.stateId}
+          onValueChange={onStateChange}
+          disabled={header.lockState}
+        >
+          <SelectTrigger
+            className={cn(inputClass, header.lockState ? "opacity-70" : "")}
+            displayValue={stateLabel}
+          >
+            <SelectValue placeholder="Select a state" />
+          </SelectTrigger>
+          <SelectContent>
+            {stateOptions.map((s) => (
+              <SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-1.5">
+        <Label className="text-xs font-semibold text-slate-600">Reporting officer</Label>
+        <Input
+          readOnly
+          value={user?.name || "Signed-in user"}
+          className={cn(inputClass, "opacity-90")}
+        />
+      </div>
+
+      <div className="space-y-1.5">
+        <Label className="text-xs font-semibold text-slate-600">Reporting month</Label>
+        <Input readOnly value={periodText} className={cn(inputClass, "opacity-90")} />
+      </div>
+    </div>
   );
 }
 
@@ -395,10 +370,8 @@ function MultiSelectField({
 }
 
 /**
- * PPT design:
- * 1) Report details + Activity Register (+ Add Activity)
- * 2) Activity form sections when adding/editing
- * 3) Save Activity → back to register → Submit Report
+ * One complete Stakeholder Management card:
+ * fill the form → Save Draft / Send for Review (no activity register table).
  */
 export default function StakeholderEngagementForm({
   reportId, onBack, onCancel, onSubmitted, defaultZoneId, defaultStateId,
@@ -412,26 +385,19 @@ export default function StakeholderEngagementForm({
   const selectedModule = moduleOptions.find((m) => m.key === moduleKey);
   const activityModule = allowModuleSelect ? moduleKey : activityModuleProp;
   const activityFilter = allowModuleSelect ? selectedModule?.filter : activityFilterProp;
-  const moduleLabel = selectedModule?.label
-    ?? moduleOptions.find((m) => m.key === activityModuleProp)?.label
-    ?? pageTitle;
-
   const activities = React.useMemo(() => {
     const all = [...STAKEHOLDER_ENGAGEMENT_CATEGORIES];
     return activityFilter?.length ? all.filter((a) => activityFilter.includes(a.label)) : all;
   }, [activityFilter]);
 
-  const [lines, setLines] = React.useState<Line[]>([]);
-  const linesRef = React.useRef(lines);
-  linesRef.current = lines;
+  const [lineKey, setLineKey] = React.useState(() => uid());
   const [reportStatus, setReportStatus] = React.useState("draft");
-
-  const [view, setView] = React.useState<"register" | "activity">(reportId ? "register" : "activity");
   const [entry, setEntry] = React.useState<Entry>(blankEntry);
+  const entryRef = React.useRef(entry);
+  entryRef.current = entry;
   const [draftOutcome, setDraftOutcome] = React.useState<OutcomeRow>({ outcome_category: "", specific_outcome: "" });
   const [otherOutcomeCategory, setOtherOutcomeCategory] = React.useState("");
   const [otherSpecificOutcome, setOtherSpecificOutcome] = React.useState("");
-  const [editingKey, setEditingKey] = React.useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = React.useState<Record<string, string>>({});
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const followUpFileRef = React.useRef<HTMLInputElement>(null);
@@ -505,52 +471,15 @@ export default function StakeholderEngagementForm({
     return message;
   };
 
-  const startAdd = () => {
-    setEntry(blankEntry());
-    resetDraftOutcome();
-    setEditingKey(null);
+  const validateActivity = (e: Entry = entryRef.current): string | null => {
     setFieldErrors({});
-    setView("activity");
-    if (fileInputRef.current) fileInputRef.current.value = "";
-    if (followUpFileRef.current) followUpFileRef.current.value = "";
-  };
-
-  const startEdit = (key: string) => {
-    const row = linesRef.current.find((l) => l._key === key);
-    if (!row) return;
-    const { _key, engagement_code, ...rest } = row;
-    setEntry({
-      ...blankEntry(),
-      ...rest,
-      outcomes: (rest.outcomes ?? []).filter((o) => o.outcome_category && o.specific_outcome),
-      follow_up_details: { ...blankFollowUp(), ...rest.follow_up_details },
-      supportingFiles: [],
-      follow_up_files: [],
-    });
-    resetDraftOutcome();
-    setEditingKey(key);
-    setFieldErrors({});
-    setView("activity");
-  };
-
-  const backToRegister = () => {
-    setView("register");
-    setEditingKey(null);
-    setEntry(blankEntry());
-    resetDraftOutcome();
-    setFieldErrors({});
-  };
-
-  const validateActivity = (): string | null => {
-    setFieldErrors({});
-    const e = entry;
     if (!e.activity_date) return fail("activity_date", "Enter the activity date");
     if (!e.engagement_category) return fail("engagement_category", "Select engagement category");
     if (!e.stakeholder_categories.length) return fail("stakeholder_categories", "Select at least one stakeholder");
     if (!e.specific_activity.trim()) return fail("specific_activity", "Enter the specific engagement activity");
     if (!e.engagement_purpose.trim()) return fail("engagement_purpose", "Enter the engagement purpose");
 
-    if (!e.outcomes.length) return fail("outcomes", "Add at least one outcome to the table");
+    if (!e.outcomes.length) return fail("outcomes", "Add at least one outcome");
     for (const o of e.outcomes) {
       if (!isValidStakeholderOutcome(e.engagement_category, o.outcome_category, o.specific_outcome)) {
         return fail("outcomes", "Outcome combination is not valid for this engagement category");
@@ -579,91 +508,73 @@ export default function StakeholderEngagementForm({
     return null;
   };
 
-  const saveActivity = () => {
-    if (validateActivity()) return;
-    const meta = activities.find((a) => a.label === entry.engagement_category);
-    const clean: Line = {
-      ...entry,
-      _key: editingKey ?? uid(),
+  const entryToLine = (e: Entry = entryRef.current): Line => {
+    const meta = activities.find((a) => a.label === e.engagement_category);
+    return {
+      ...e,
+      _key: lineKey,
       engagement_code: meta?.code ?? null,
-      outcomes: entry.outcomes.filter((o) => o.outcome_category && o.specific_outcome),
-      ...(entry.funding_option === STAKEHOLDER_FUNDED ? {} : { activity_budget: "", approved_amount: "" }),
-      ...(entry.follow_up_required === "Yes" ? {} : { follow_up_date: "", follow_up_details: blankFollowUp(), follow_up_files: [] }),
+      outcomes: e.outcomes.filter((o) => o.outcome_category && o.specific_outcome),
+      ...(e.funding_option === STAKEHOLDER_FUNDED ? {} : { activity_budget: "", approved_amount: "" }),
+      ...(e.follow_up_required === "Yes" ? {} : { follow_up_date: "", follow_up_details: blankFollowUp(), follow_up_files: [] }),
     };
-    const next = editingKey
-      ? linesRef.current.map((l) => (l._key === editingKey ? clean : l))
-      : [...linesRef.current, clean];
-    linesRef.current = next;
-    setLines(next);
-    toast.success(editingKey ? "Activity updated" : "Activity saved");
-    backToRegister();
+  };
+
+  const rowToEntry = (row: any): Entry => {
+    let plannedText = "";
+    try {
+      const parsed = typeof row.activity_details === "string" ? JSON.parse(row.activity_details) : row.activity_details;
+      plannedText = parsed?.planned_target_audience_text ?? "";
+    } catch { /* ignore */ }
+    const docs = parseSupportingDocuments(row.supporting_documents).filter((d) => d.path) as SavedDoc[];
+    const outcomes: OutcomeRow[] = Array.isArray(row.outcomes) && row.outcomes.length
+      ? row.outcomes.map((o: any) => ({
+        outcome_category: o.outcome_category ?? "",
+        specific_outcome: o.specific_outcome ?? "",
+      })).filter((o: OutcomeRow) => o.outcome_category || o.specific_outcome)
+      : (row.outcome_category || row.specific_outcome)
+        ? [{ outcome_category: row.outcome_category ?? "", specific_outcome: row.specific_outcome ?? "" }]
+        : [];
+    const fu = row.follow_up_details && typeof row.follow_up_details === "object" ? row.follow_up_details : {};
+    return {
+      ...blankEntry(),
+      activity_date: row.activity_date?.slice?.(0, 10) ?? todayIso(),
+      engagement_category: row.engagement_category ?? "",
+      stakeholder_categories: Array.isArray(row.stakeholder_categories) ? row.stakeholder_categories : [],
+      specific_activity: row.specific_activity ?? "",
+      engagement_purpose: row.engagement_purpose ?? "",
+      planned_target_audience: plannedText,
+      target_audience_reached: Array.isArray(row.target_audience_reached) ? row.target_audience_reached : [],
+      location_category: row.location_category ?? "",
+      location_name: row.location_name ?? "",
+      location_specify: row.location_specify ?? "",
+      programs_supported: Array.isArray(row.programs_supported) ? row.programs_supported : [],
+      funding_option: row.funding_option === "Budgeted (Approved Release)" || row.funding_option === "Yes"
+        ? "Yes"
+        : row.funding_option === "Zero-Cost (Statutory Mandate)" || row.funding_option === "No"
+          ? "No"
+          : (row.funding_option ?? ""),
+      activity_budget: row.activity_budget != null ? String(Number(row.activity_budget)) : "",
+      approved_amount: row.approved_amount != null ? String(Number(row.approved_amount)) : "",
+      outcomes,
+      follow_up_required: row.follow_up_required || "No",
+      follow_up_date: row.follow_up_date?.slice?.(0, 10) ?? "",
+      follow_up_details: { ...blankFollowUp(), ...fu },
+      activity_status: row.activity_status ?? "",
+      remarks: row.remarks ?? "",
+      supporting_documents: docs,
+      supportingFiles: [],
+      follow_up_files: [],
+    };
   };
 
   const loadData = (v: any) => {
-    const next: Line[] = (v.lines ?? []).map((row: any) => {
-      let plannedText = "";
-      try {
-        const parsed = typeof row.activity_details === "string" ? JSON.parse(row.activity_details) : row.activity_details;
-        plannedText = parsed?.planned_target_audience_text ?? "";
-      } catch { /* ignore */ }
-      const docs = parseSupportingDocuments(row.supporting_documents).filter((d) => d.path) as SavedDoc[];
-      const outcomes: OutcomeRow[] = Array.isArray(row.outcomes) && row.outcomes.length
-        ? row.outcomes.map((o: any) => ({
-          outcome_category: o.outcome_category ?? "",
-          specific_outcome: o.specific_outcome ?? "",
-        }))
-        : [{
-          outcome_category: row.outcome_category ?? "",
-          specific_outcome: row.specific_outcome ?? "",
-        }];
-      const fu = row.follow_up_details && typeof row.follow_up_details === "object" ? row.follow_up_details : {};
-      return {
-        ...blankEntry(),
-        _key: uid(),
-        engagement_code: row.engagement_code ?? null,
-        activity_date: row.activity_date?.slice?.(0, 10) ?? "",
-        engagement_category: row.engagement_category ?? "",
-        stakeholder_categories: Array.isArray(row.stakeholder_categories) ? row.stakeholder_categories : [],
-        specific_activity: row.specific_activity ?? "",
-        engagement_purpose: row.engagement_purpose ?? "",
-        planned_target_audience: plannedText,
-        target_audience_reached: Array.isArray(row.target_audience_reached) ? row.target_audience_reached : [],
-        location_category: row.location_category ?? "",
-        location_name: row.location_name ?? "",
-        location_specify: row.location_specify ?? "",
-        programs_supported: Array.isArray(row.programs_supported) ? row.programs_supported : [],
-        funding_option: row.funding_option === "Budgeted (Approved Release)" || row.funding_option === "Yes"
-          ? "Yes"
-          : row.funding_option === "Zero-Cost (Statutory Mandate)" || row.funding_option === "No"
-            ? "No"
-            : (row.funding_option ?? ""),
-        activity_budget: row.activity_budget != null ? String(Number(row.activity_budget)) : "",
-        approved_amount: row.approved_amount != null ? String(Number(row.approved_amount)) : "",
-        outcomes,
-        follow_up_required: row.follow_up_required || "No",
-        follow_up_date: row.follow_up_date?.slice?.(0, 10) ?? "",
-        follow_up_details: { ...blankFollowUp(), ...fu },
-        activity_status: row.activity_status ?? "",
-        remarks: row.remarks ?? "",
-        supporting_documents: docs,
-        supportingFiles: [],
-        follow_up_files: [],
-      };
-    });
-    linesRef.current = next;
-    setLines(next);
-    const status = v.status || "draft";
-    setReportStatus(status);
-    const editable = ["draft", "returned"].includes(status);
-    if (next.length === 0 && editable) {
-      setEntry(blankEntry());
-      resetDraftOutcome();
-      setEditingKey(null);
-      setFieldErrors({});
-      setView("activity");
-    } else {
-      setView("register");
-    }
+    const first = (v.lines ?? [])[0];
+    setLineKey(uid());
+    setEntry(first ? rowToEntry(first) : blankEntry());
+    resetDraftOutcome();
+    setFieldErrors({});
+    setReportStatus(v.status || "draft");
     if (v.activity_module && allowModuleSelect) setModuleKey(v.activity_module);
   };
 
@@ -672,21 +583,16 @@ export default function StakeholderEngagementForm({
   const canFinalSubmit = reportStatus === "endorsed";
 
   const afterPersist = async ({ id }: { id: number }) => {
-    const pending = linesRef.current.filter((l) => l.supportingFiles.length > 0);
-    if (!pending.length) return;
+    const line = entryToLine();
+    if (!line.supportingFiles.length) return;
     const res = await stateOfficeApi.stakeholder.get(id);
     const saved: any[] = res.data?.lines ?? [];
-    const used = new Set<number>();
-    for (const line of pending) {
-      const match = saved.find((s) =>
-        !used.has(s.id)
-        && s.engagement_category === line.engagement_category
-        && (s.activity_date ?? "").slice(0, 10) === line.activity_date,
-      );
-      if (!match) continue;
-      used.add(match.id);
-      await stateOfficeApi.stakeholder.uploadLineFiles(id, match.id, line.supportingFiles);
-    }
+    const match = saved.find((s) =>
+      s.engagement_category === line.engagement_category
+      && (s.activity_date ?? "").slice(0, 10) === line.activity_date,
+    ) ?? saved[0];
+    if (!match) return;
+    await stateOfficeApi.stakeholder.uploadLineFiles(id, match.id, line.supportingFiles);
   };
 
   const toPayloadLine = (l: Line) => {
@@ -743,173 +649,28 @@ export default function StakeholderEngagementForm({
       deferStateUntilReview
       onLoaded={loadData}
       afterPersist={afterPersist}
-      validate={() => (linesRef.current.length === 0 ? "Add at least one activity to the register" : null)}
-      buildPayload={(base) => ({
-        ...base,
-        activity_module: activityModule,
-        planned_activities: linesRef.current.length,
-        lines: linesRef.current.map((l) => toPayloadLine(l)),
-      })}
+      validate={(status) => {
+        if (status === "draft" || status === "returned") return null;
+        return validateActivity(entryRef.current);
+      }}
+      buildPayload={(base) => {
+        const line = entryToLine(entryRef.current);
+        return {
+          ...base,
+          activity_module: activityModule,
+          planned_activities: 1,
+          lines: [toPayloadLine(line)],
+        };
+      }}
     >
       {({ submitting, saving, persist, requestSubmit, header }) => (
-        <div className="pb-2 space-y-4">
-          <StakeholderReportInformation header={header} />
+        <div className="m-0 space-y-3 pb-2">
+          <Card className="rounded-sm border-[#d4e8dc] shadow-sm overflow-visible m-0">
+            <CardContent className="p-3 md:p-4 space-y-4">
+              <StakeholderReportInformation header={header} />
 
-          {view === "register" ? (
-            <>
-              <Card className="rounded-xl border border-[#d4e8dc] shadow-sm overflow-hidden">
-                <div className="bg-[#e8f5ee] px-4 py-2.5 border-b border-[#d4e8dc] flex flex-wrap items-center justify-between gap-2">
-                  <h3 className="text-[12px] font-bold uppercase tracking-[0.06em] text-[#0f3d2e]">
-                    Activity Register
-                  </h3>
-                  <p className="text-[11px] text-[#145c3f]">
-                    {lines.length} activit{lines.length === 1 ? "y" : "ies"} this period
-                  </p>
-                </div>
-                <CardContent className="p-0 bg-white">
-                  {lines.length === 0 ? (
-                    <div className="py-14 text-center text-sm text-slate-400">
-                      No activities yet. Click Add Activity to create one.
-                    </div>
-                  ) : (
-                    <div className="overflow-x-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow className="bg-[#eef6f1] hover:bg-[#eef6f1]">
-                            {["Engagement ID", "Activity date", "Engagement category", "Programme supported", "Status", "Follow-up", "Action"].map((h) => (
-                              <TableHead key={h} className="text-[11px] font-bold text-[#0f3d2e] whitespace-nowrap">{h}</TableHead>
-                            ))}
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {lines.map((l, i) => {
-                            const code = l.engagement_code
-                              || activities.find((a) => a.label === l.engagement_category)?.code
-                              || `ENG-${String(i + 1).padStart(3, "0")}`;
-                            return (
-                              <TableRow key={l._key} className="hover:bg-[#f4f7f5]">
-                                <TableCell className="text-xs font-mono font-semibold text-[#145c3f]">{code}</TableCell>
-                                <TableCell className="text-sm whitespace-nowrap">{l.activity_date || "—"}</TableCell>
-                                <TableCell className="text-sm font-medium">{l.engagement_category || "—"}</TableCell>
-                                <TableCell className="text-xs max-w-[12rem] truncate" title={l.programs_supported.join("; ")}>
-                                  {l.programs_supported.join("; ") || "—"}
-                                </TableCell>
-                                <TableCell>
-                                  <Badge variant="outline" className="text-[10px]">{l.activity_status || "—"}</Badge>
-                                </TableCell>
-                                <TableCell className="text-sm">{l.follow_up_required || "—"}</TableCell>
-                                <TableCell className="whitespace-nowrap">
-                                  {canEditContent ? (
-                                    <>
-                                      <Button variant="ghost" size="sm" className="h-7 gap-1 px-2 text-[#145c3f]" onClick={() => startEdit(l._key)}>
-                                        <Pencil className="w-3.5 h-3.5" /> View / Edit
-                                      </Button>
-                                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-rose-500"
-                                        onClick={() => {
-                                          const next = linesRef.current.filter((x) => x._key !== l._key);
-                                          linesRef.current = next;
-                                          setLines(next);
-                                        }}
-                                      >
-                                        <Trash2 className="w-3.5 h-3.5" />
-                                      </Button>
-                                    </>
-                                  ) : (
-                                    <span className="text-xs text-slate-400">Locked</span>
-                                  )}
-                                </TableCell>
-                              </TableRow>
-                            );
-                          })}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  )}
-                  <div className="px-4 py-3 border-t border-[#d4e8dc] flex flex-wrap items-center justify-between gap-2 bg-[#f4f7f5]">
-                    {canEditContent ? (
-                      <Button variant="outline" className="gap-2 border-[#1a7a52] text-[#0f3d2e] hover:bg-[#eef6f1]" onClick={startAdd}>
-                        <Plus className="w-4 h-4" /> Add Activity
-                      </Button>
-                    ) : (
-                      <span />
-                    )}
-                    <p className="text-[11px] text-slate-500">
-                      Monthly activity count is calculated from saved records.
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <div className="flex flex-wrap items-center justify-end gap-2">
-                {canEditContent && (
-                  <>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="gap-2"
-                      disabled={saving || submitting}
-                      onClick={() => void persist(reportStatus === "returned" ? "returned" : "draft").then(() => {
-                        setReportStatus(reportStatus === "returned" ? "returned" : "draft");
-                      })}
-                    >
-                      {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                      Save Draft
-                    </Button>
-                    {canSendReview && (
-                      <Button
-                        className="bg-orange-action hover:bg-orange-600 gap-2"
-                        disabled={saving || submitting || lines.length === 0}
-                        onClick={() => requestSubmit(() => void persist("awaiting_review").then(() => setReportStatus("awaiting_review")))}
-                      >
-                        {submitting
-                          ? <><Loader2 className="w-4 h-4 animate-spin" /> Sending...</>
-                          : <><Send className="w-4 h-4" /> Send for Review</>}
-                      </Button>
-                    )}
-                  </>
-                )}
-                {canFinalSubmit && (
-                  <Button
-                    className="bg-[#0f3d2e] hover:bg-[#145c3f] gap-2"
-                    disabled={saving || submitting}
-                    onClick={() => requestSubmit(
-                      () => void persist("submitted").then(() => setReportStatus("submitted")),
-                      {
-                        force: true,
-                        title: "Confirm final submission",
-                        description: "This will complete the report after State Coordinator endorsement. You will not be able to edit it afterwards.",
-                        confirmLabel: "Yes, final submit",
-                      },
-                    )}
-                  >
-                    {submitting
-                      ? <><Loader2 className="w-4 h-4 animate-spin" /> Submitting...</>
-                      : <><Send className="w-4 h-4" /> Final Submit</>}
-                  </Button>
-                )}
-                {!canEditContent && !canFinalSubmit && (
-                  <p className="text-xs text-slate-500">
-                    This report is {reportStatus.replace(/_/g, " ")}. Editing is locked.
-                  </p>
-                )}
-                {canFinalSubmit && (
-                  <p className="text-xs text-slate-500 w-full text-right">
-                    Endorsed by the State Coordinator — make the final submission to complete.
-                  </p>
-                )}
-              </div>
-            </>
-          ) : (
-            <>
-              {/* SLIDE 3–6 — Activity form */}
-              <div className="flex items-center justify-between gap-2 px-1">
-                <h2 className="text-sm font-bold text-[#0f3d2e]">
-                  {editingKey ? "Edit Activity" : "New Activity"}
-                </h2>
-                <Button variant="ghost" size="sm" onClick={backToRegister}>Cancel</Button>
-              </div>
-
-              <FormSection title="Activity Details">
+              <fieldset disabled={!canEditContent} className="border-t border-[#e8f3ec] pt-4 space-y-5 disabled:opacity-90">
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 <Field label="Activity date" required error={fieldErrors.activity_date}>
                   <Input type="date" className={inputClass} value={entry.activity_date} onChange={(e) => set("activity_date", e.target.value)} />
                 </Field>
@@ -946,9 +707,6 @@ export default function StakeholderEngagementForm({
                 <Field label="Engagement purpose" required error={fieldErrors.engagement_purpose} className="sm:col-span-1 lg:col-span-2">
                   <Input className={inputClass} value={entry.engagement_purpose} onChange={(e) => set("engagement_purpose", e.target.value)} placeholder="Enter purpose" />
                 </Field>
-              </FormSection>
-
-              <FormSection title="Audience and Location">
                 <Field label="Planned target audience">
                   <Input className={inputClass} value={entry.planned_target_audience} onChange={(e) => set("planned_target_audience", e.target.value)} placeholder="Enter planned audience" />
                 </Field>
@@ -1000,10 +758,7 @@ export default function StakeholderEngagementForm({
                 <Field label="Specify location (if needed)">
                   <Input className={inputClass} value={entry.location_specify} onChange={(e) => set("location_specify", e.target.value)} placeholder="Enter exact venue / location / address" />
                 </Field>
-              </FormSection>
 
-              {/* Outcome mapping: one pair of inputs → Add to table → clear & fill again */}
-              <FormSection title="Outcome and Evidence">
                 <div className="sm:col-span-2 lg:col-span-3 space-y-4">
                   <div className="grid gap-4 md:grid-cols-2 items-start">
                     <Field
@@ -1152,10 +907,7 @@ export default function StakeholderEngagementForm({
                     )}
                   </div>
                 </Field>
-              </FormSection>
 
-              {/* SLIDE 6 — Funding */}
-              <FormSection title="Funding and Budget">
                 <Field label="Funding option" required error={fieldErrors.funding_option}>
                   <Select value={entry.funding_option} onValueChange={(v) => set("funding_option", v)}>
                     <SelectTrigger className={inputClass}><SelectValue placeholder="Yes / No" /></SelectTrigger>
@@ -1176,10 +928,7 @@ export default function StakeholderEngagementForm({
                     </Field>
                   </>
                 )}
-              </FormSection>
 
-              {/* SLIDE 5 — Status & Follow-up */}
-              <FormSection title="Activity Status and Follow-up Decision">
                 <Field label="Original activity status" required error={fieldErrors.activity_status}>
                   <Select value={entry.activity_status} onValueChange={(v) => set("activity_status", v)}>
                     <SelectTrigger className={inputClass}><SelectValue placeholder="Select" /></SelectTrigger>
@@ -1256,20 +1005,74 @@ export default function StakeholderEngagementForm({
                     </Field>
                   </>
                 )}
-              </FormSection>
 
-              <p className="text-[11px] text-slate-400 px-1">
-                Engagement ID and Program ID are generated by the system.
-              </p>
+                </div>
 
-              <div className="flex flex-wrap items-center justify-end gap-2">
-                <Button variant="ghost" onClick={backToRegister}>Cancel</Button>
-                <Button variant="outline" className="gap-2" onClick={saveActivity}>
-                  <Save className="w-4 h-4" /> Save Activity
-                </Button>
+                <p className="text-[11px] text-slate-400">
+                  Engagement ID and Program ID are generated by the system.
+                </p>
+              </fieldset>
+
+              <div className="flex flex-wrap items-center justify-end gap-2 pt-2 border-t border-[#e8f3ec]">
+                {canEditContent && (
+                  <>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="gap-2"
+                      disabled={saving || submitting}
+                      onClick={() => void persist(reportStatus === "returned" ? "returned" : "draft").then(() => {
+                        setReportStatus(reportStatus === "returned" ? "returned" : "draft");
+                      })}
+                    >
+                      {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                      Save Draft
+                    </Button>
+                    {canSendReview && (
+                      <Button
+                        className="bg-orange-action hover:bg-orange-600 gap-2"
+                        disabled={saving || submitting}
+                        onClick={() => requestSubmit(() => void persist("awaiting_review").then(() => setReportStatus("awaiting_review")))}
+                      >
+                        {submitting
+                          ? <><Loader2 className="w-4 h-4 animate-spin" /> Sending...</>
+                          : <><Send className="w-4 h-4" /> Send for Review</>}
+                      </Button>
+                    )}
+                  </>
+                )}
+                {canFinalSubmit && (
+                  <Button
+                    className="bg-[#0f3d2e] hover:bg-[#145c3f] gap-2"
+                    disabled={saving || submitting}
+                    onClick={() => requestSubmit(
+                      () => void persist("submitted").then(() => setReportStatus("submitted")),
+                      {
+                        force: true,
+                        title: "Confirm final submission",
+                        description: "This will complete the report after State Coordinator endorsement. You will not be able to edit it afterwards.",
+                        confirmLabel: "Yes, final submit",
+                      },
+                    )}
+                  >
+                    {submitting
+                      ? <><Loader2 className="w-4 h-4 animate-spin" /> Submitting...</>
+                      : <><Send className="w-4 h-4" /> Final Submit</>}
+                  </Button>
+                )}
+                {!canEditContent && !canFinalSubmit && (
+                  <p className="text-xs text-slate-500">
+                    This report is {reportStatus.replace(/_/g, " ")}. Editing is locked.
+                  </p>
+                )}
+                {canFinalSubmit && (
+                  <p className="text-xs text-slate-500 w-full text-right">
+                    Endorsed by the State Coordinator — make the final submission to complete.
+                  </p>
+                )}
               </div>
-            </>
-          )}
+            </CardContent>
+          </Card>
         </div>
       )}
     </StateOfficeFormShell>
