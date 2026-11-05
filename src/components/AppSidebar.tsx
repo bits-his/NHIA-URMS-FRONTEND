@@ -272,7 +272,9 @@ const ICON_MAP: Record<string, React.ElementType> = {
   "State Complaints Register": Scale,
   "Customer Satisfaction Survey": TrendingUp,
   "HCF Customer Satisfaction Survey": TrendingUp,
+  "State Office HCF Customer Satisfaction Survey": TrendingUp,
   "Charter Performance": Megaphone,
+  "State Office Charter Performance": Megaphone,
   "Citizens' Comment Card": Megaphone,
   "Satisfaction Ratings": TrendingUp,
   "Comment Cards": Megaphone,
@@ -377,6 +379,8 @@ type TreeNode =
 const PRESERVE_FOLDER_TITLES = new Set<string>([
   "Special Project",
   SDO_SOC_NAV_GROUP,
+  "SOC/Zones",
+  "State Offices",
 ]);
 
 /** If a folder has only one child, promote that child (no redundant dropdown). */
@@ -408,9 +412,8 @@ function filterModuleTree(
       if (child.label === SDO_SOC_NAV_GROUP || child.label === "SOC/ZONES" || child.label === "SOC/Zones") {
         const hasSoc = socAllowed && socAllowed.size > 0;
         const hasZonal = zonalAllowed && zonalAllowed.size > 0;
-        nested = [];
 
-        // SOC pages sit directly under State Office Coordination
+        // Hoist SOC/Zones + State Offices as siblings under SDO (matches admin target sidebar)
         if (hasSoc) {
           const socMod = MODULE_CONFIG.find((m) => m.title === SOC_ZONES_MODULE);
           const socKids = collapseSingleChildFolders(
@@ -421,10 +424,15 @@ function filterModuleTree(
               zonalAllowed,
             ),
           );
-          nested.push(...socKids);
+          if (socKids.length > 0) {
+            nodes.push({
+              kind: "folder",
+              title: "SOC/Zones",
+              children: socKids,
+            });
+          }
         }
 
-        // State Offices nest under State Office Coordination
         if (hasZonal) {
           const zonalMod = MODULE_CONFIG.find((m) => m.title === ZONAL_MODULE);
           const zonalKids = collapseSingleChildFolders(
@@ -436,7 +444,7 @@ function filterModuleTree(
             ),
           );
           if (zonalKids.length > 0) {
-            nested.push({
+            nodes.push({
               kind: "folder",
               title: "State Offices",
               children: zonalKids,
@@ -444,7 +452,7 @@ function filterModuleTree(
           }
         }
 
-        nested = collapseSingleChildFolders(nested);
+        continue;
       } else {
         nested = filterModuleTree(child.children, allowedTitles, socAllowed, zonalAllowed);
       }

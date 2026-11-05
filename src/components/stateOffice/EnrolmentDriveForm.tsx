@@ -524,7 +524,7 @@ export default function EnrolmentDriveForm({ reportType, reportId, onBack, onCan
                 )}
               </div>
 
-                <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden">
+                <Card className="rounded-sm border-[#d4e8dc] shadow-sm overflow-hidden">
                   <CardContent className="p-4 md:p-5 space-y-6">
                     {/* 1. Drive & Activity Details */}
                     <FieldSection title="Drive & Activity Details">
@@ -696,7 +696,7 @@ export default function EnrolmentDriveForm({ reportType, reportId, onBack, onCan
               </div>
 
               {/* 2. Table UNDER THE FORM: Activity Register */}
-              <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden bg-white">
+              <Card className="rounded-sm border-[#d4e8dc] shadow-sm overflow-hidden bg-white">
                 <div className="bg-[#e8f5ee] px-4 py-2.5 border-b border-[#d4e8dc] flex flex-wrap items-center justify-between gap-2">
                   <h3 className="text-[12px] font-bold uppercase tracking-[0.06em] text-[#0f3d2e]">
                     Activity Register

@@ -278,7 +278,7 @@ export default function IctSupportRegisterForm({ reportId, onBack, onSubmitted, 
             </div>
           ) : (
             <>
-              <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden">
+              <Card className="rounded-sm border-[#d4e8dc] shadow-sm overflow-hidden">
                 <CardContent className="p-0">
                   <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-[#d4e8dc]">
                     {STEPS.map((s, idx) => {
@@ -312,7 +312,7 @@ export default function IctSupportRegisterForm({ reportId, onBack, onSubmitted, 
                 </CardContent>
               </Card>
 
-              <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden">
+              <Card className="rounded-sm border-[#d4e8dc] shadow-sm overflow-hidden">
                 <CardHeader className="pb-3 border-b bg-[#f8fbf9]">
                   <CardTitle className="text-sm font-bold text-[#145c3f]">
                     {STEPS[step].label}

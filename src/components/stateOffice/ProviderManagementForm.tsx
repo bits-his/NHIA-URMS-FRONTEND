@@ -546,7 +546,7 @@ export default function ProviderManagementForm({
                       key={f.key}
                       type="button"
                       onClick={() => selectActivity(f.key)}
-                      className="group flex items-center gap-4 rounded-2xl border border-[#d4e8dc] bg-white px-5 py-5 text-left shadow-sm transition-all hover:border-[#1a7a52] hover:bg-[#f7fcf9] hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1a7a52]/40"
+                      className="group flex items-center gap-4 rounded-sm border border-[#d4e8dc] bg-white px-5 py-5 text-left shadow-sm transition-all hover:border-[#1a7a52] hover:bg-[#f7fcf9] hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1a7a52]/40"
                     >
                       <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#e8f6ee] text-[#145c3f]">
                         <Icon className="h-6 w-6" strokeWidth={1.75} />
@@ -751,7 +751,7 @@ export default function ProviderManagementForm({
                 <Button variant="ghost" size="sm" onClick={backToRegister}>Cancel</Button>
               </div>
 
-              <Card className="rounded-2xl border-[#d4e8dc]">
+              <Card className="rounded-sm border-[#d4e8dc]">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-base">Activity details</CardTitle>
                 </CardHeader>

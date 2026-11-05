@@ -346,7 +346,7 @@ export default function SshiaWorkspace({
           {mode === "tabs" && (
             <div className="space-y-4">
               <RegisterStatsCards stats={workflowRegisterStats(tableData)} loading={loading} />
-              <Card className="rounded-2xl border-[#d4e8dc]">
+              <Card className="rounded-sm border-[#d4e8dc]">
                 <CardContent className="pt-4 pb-4 grid grid-flow-col auto-cols-fr gap-3">
                   <div className="space-y-1">
                     <Label className="text-xs text-muted-foreground">Year</Label>

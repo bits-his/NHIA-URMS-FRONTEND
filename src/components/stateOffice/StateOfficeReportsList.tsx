@@ -642,15 +642,16 @@ export default function StateOfficeReportsList({
     <PageLayout
       title={listTitle ?? activeActivityTab?.label ?? cfg.title}
       showBack={false}
+      contentClassName="space-y-3 pb-6"
       actions={
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-1.5 h-8 text-xs rounded-md">
+          <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-1.5 h-8 text-xs rounded-sm">
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh
           </Button>
           {canCreate && (
             <Button
               size="sm"
-              className="bg-orange-action hover:bg-orange-600 gap-1.5 shadow-md shadow-orange-500/20 h-8 text-xs rounded-md"
+              className="bg-orange-action hover:bg-orange-600 gap-1.5 shadow-md shadow-orange-500/20 h-8 text-xs rounded-sm"
               onClick={() => { setSelectedId(null); setSelectedReportType(reportType); setMode("create"); setFormKey((k) => k + 1); }}
             >
               <Plus className="w-3.5 h-3.5" /> {newButtonLabel}
@@ -675,7 +676,7 @@ export default function StateOfficeReportsList({
       }
     >
       <ScrollArea className="flex-1">
-        <div className="w-full px-4 md:px-6 py-4 space-y-4">
+        <div className="w-full space-y-3">
           {activityRows ? (
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-600">
               <span><span className="font-semibold text-slate-800">{counts.total}</span> reports</span>
@@ -697,7 +698,7 @@ export default function StateOfficeReportsList({
               { label: "Submitted", value: counts.submitted, tone: "text-blue-700 bg-blue-50/80 border-blue-100" },
               { label: "Approved", value: counts.approved, tone: "text-emerald-700 bg-emerald-50/80 border-emerald-100" },
             ]).map((c) => (
-              <div key={c.label} className={`rounded-xl border px-4 py-3 ${c.tone}`}>
+              <div key={c.label} className={`rounded-sm border px-3 py-2.5 ${c.tone}`}>
                 <p className="text-2xl font-bold tabular-nums">{loading ? "—" : c.value}</p>
                 <p className="text-[11px] font-semibold text-slate-500 mt-0.5">{c.label}</p>
               </div>
@@ -705,9 +706,9 @@ export default function StateOfficeReportsList({
           </div>
           )}
 
-          <Card className="rounded-2xl border-[#d4e8dc]">
-            <CardContent className="pt-4 pb-4 space-y-3">
-              <div className="grid grid-flow-col auto-cols-fr gap-3">
+          <Card className="rounded-sm border-[#d4e8dc]">
+            <CardContent className="pt-2.5 pb-2.5 space-y-2">
+              <div className="grid grid-flow-col auto-cols-fr gap-2.5">
                 {showStateFilter && (
                   <div className="space-y-1 min-w-0">
                     <Label className="text-xs text-muted-foreground">State</Label>

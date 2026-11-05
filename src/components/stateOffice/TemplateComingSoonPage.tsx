@@ -20,7 +20,7 @@ export default function TemplateComingSoonPage({ title, note, onBack }: Props) {
         <h2 className="text-xl font-bold tracking-tight truncate">{title}</h2>
       </div>
       <div className="flex-1 flex items-center justify-center p-6">
-        <Card className="max-w-lg w-full rounded-2xl border-[#d4e8dc]">
+        <Card className="max-w-lg w-full rounded-sm border-[#d4e8dc]">
           <CardContent className="pt-8 pb-8 px-6 text-center space-y-3">
             <div className="mx-auto w-12 h-12 rounded-full bg-[#e8f5ee] flex items-center justify-center">
               <Clock className="w-6 h-6 text-[#145c3f]" />

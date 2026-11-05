@@ -36,7 +36,7 @@ const STATUS_CONFIG: Record<string, { label: string; cls: string; icon: React.Re
 
 function SectionBand({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-2xl border border-[#d4e8dc] bg-white overflow-hidden shadow-sm">
+    <section className="rounded-sm border border-[#d4e8dc] bg-white overflow-hidden shadow-sm">
       <div className="bg-[#e8f5ee] px-4 py-2.5 border-b border-[#d4e8dc]">
         <h3 className="text-[12px] font-bold uppercase tracking-[0.06em] text-[#0f3d2e]">{title}</h3>
       </div>

@@ -53,7 +53,7 @@ function Field({
 
 function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden">
+    <Card className="rounded-sm border-[#d4e8dc] shadow-sm overflow-hidden">
       <CardHeader className="pb-3 border-b bg-[#f8fbf9]">
         <CardTitle className="text-sm font-bold text-[#145c3f]">{title}</CardTitle>
       </CardHeader>

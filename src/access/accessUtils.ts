@@ -183,6 +183,15 @@ export function normalizeFunctionalityTitle(title: string, moduleTitle?: string)
     if (ADHOC_ASSIGNMENT_ALIASES.has(title)) {
       return "Ad-hoc / Special Assignment";
     }
+
+    if (title === "Citizens' Comment Card") return "Charter Performance";
+
+    if (
+      title === "Customer Satisfaction Survey"
+      || title === "HCF Customer Satisfaction Survey Survey"
+    ) {
+      return "HCF Customer Satisfaction Survey";
+    }
   }
 
 
@@ -202,6 +211,23 @@ export function normalizeFunctionalityTitle(title: string, moduleTitle?: string)
     if (title === "State Office Meeting Report" || title === "ETMC Cascading Report") return "Meetings & Coordination";
 
     if (title === "ICT Support" || title === "Support") return "ICT Support Register";
+
+    // Distinct from standalone SDO SERVICOM privileges with the same display names
+    if (
+      title === "Charter Performance"
+      || title === "Citizens' Comment Card"
+      || title === "State Office Citizens' Comment Card"
+    ) {
+      return "State Office Charter Performance";
+    }
+    if (
+      title === "HCF Customer Satisfaction Survey"
+      || title === "Customer Satisfaction Survey"
+      || title === "HCF Customer Satisfaction Survey Survey"
+      || title === "State Office Customer Satisfaction Survey"
+    ) {
+      return "State Office HCF Customer Satisfaction Survey";
+    }
 
     if (LEGACY_ENROLMENT_DRIVE_TITLES.has(title)) return ENROLMENT_DRIVES_NAV_TITLE;
 
@@ -231,6 +257,8 @@ export function normalizeFunctionalityTitle(title: string, moduleTitle?: string)
 
   if (title === "My Submissions" || title === "New Annual Report") return "Annual Report";
 
+  // Without module context, keep SDO canonical names (legacy admin rows).
+  // Zonal-scoped grants are normalized above when moduleTitle is Zonal.
   if (title === "Citizens' Comment Card") return "Charter Performance";
 
   if (title === "Customer Satisfaction Survey" || title === "HCF Customer Satisfaction Survey Survey") {

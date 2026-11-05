@@ -27,7 +27,7 @@ export default function SocPlaceholderPage({
         ) : undefined
       }
     >
-      <div className="rounded-2xl border border-[#d4e8dc] bg-white p-5 space-y-3 max-w-xl">
+      <div className="rounded-sm border border-[#d4e8dc] bg-white p-5 space-y-3 max-w-xl">
         <p className="text-sm text-slate-600">
           {note || "This page is under development. The reporting template will be wired when it is provided."}
         </p>

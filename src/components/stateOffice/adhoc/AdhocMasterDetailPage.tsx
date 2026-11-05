@@ -248,7 +248,7 @@ export default function AdhocMasterDetailPage({
         ) : (
           <div className="w-full space-y-6">
             {/* Card 1: Directive Summary */}
-            <Card className="rounded-2xl border-[#d4e8dc] shadow-xs bg-white overflow-hidden">
+            <Card className="rounded-sm border-[#d4e8dc] shadow-xs bg-white overflow-hidden">
               <CardContent className="p-6 md:p-8 space-y-6">
                 <div>
                   <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
@@ -297,7 +297,7 @@ export default function AdhocMasterDetailPage({
             </Card>
 
             {/* Card 2: Dispatched State Offices & Reports */}
-            <Card className="rounded-2xl border-[#d4e8dc] shadow-xs bg-white overflow-hidden">
+            <Card className="rounded-sm border-[#d4e8dc] shadow-xs bg-white overflow-hidden">
               <CardContent className="p-6 md:p-8 space-y-6">
                 <div className="flex items-center justify-between pb-3 border-b border-[#d4e8dc]/70">
                   <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
@@ -594,7 +594,7 @@ export default function AdhocMasterDetailPage({
         open={clarificationModal.open}
         onOpenChange={(op) => !op && setClarificationModal({ reportId: 0, open: false })}
       >
-        <DialogContent className="max-w-md p-6 rounded-2xl">
+        <DialogContent className="max-w-md p-6 rounded-sm">
           <DialogHeader>
             <DialogTitle className="text-base font-bold text-slate-800">
               Return Report for Clarification

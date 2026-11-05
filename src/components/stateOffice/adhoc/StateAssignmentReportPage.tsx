@@ -266,7 +266,7 @@ export default function StateAssignmentReportPage({
       {/* Main Content Body */}
       <div className="flex-1 overflow-y-auto p-4 md:p-6 pb-12 w-full">
         <form onSubmit={handleSubmit} className="w-full space-y-6">
-          <Card className="rounded-2xl border-[#d4e8dc] shadow-xs bg-white overflow-hidden w-full">
+          <Card className="rounded-sm border-[#d4e8dc] shadow-xs bg-white overflow-hidden w-full">
             <CardContent className="p-6 md:p-8 space-y-8">
               {/* Review feedback alert banner if returned */}
               {latestReport?.review_status === "returned_for_clarification" && latestReport?.clarification_note && (
@@ -283,7 +283,7 @@ export default function StateAssignmentReportPage({
 
               {/* Read-Only Assignment Directive */}
               <FieldSection title="Assignment Directive">
-                <div className="sm:col-span-2 p-5 rounded-2xl bg-[#f4f7f5] border border-[#d4e8dc] grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                <div className="sm:col-span-2 p-5 rounded-sm bg-[#f4f7f5] border border-[#d4e8dc] grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
                   <div>
                     <span className="text-slate-400 block text-[10px] uppercase font-bold tracking-wider">
                       Assignment Title
@@ -416,7 +416,7 @@ export default function StateAssignmentReportPage({
               {/* Evidence & Supporting Documents */}
               <FieldSection title="Evidence & Supporting Documents" gridClassName="grid gap-3 sm:grid-cols-1">
                 {!isClosed && (
-                  <div className="border-2 border-dashed border-[#1a7a52]/40 rounded-2xl p-6 bg-[#f4f7f5] hover:bg-[#e8f6ee]/30 text-center transition">
+                  <div className="border-2 border-dashed border-[#1a7a52]/40 rounded-sm p-6 bg-[#f4f7f5] hover:bg-[#e8f6ee]/30 text-center transition">
                     <input
                       type="file"
                       id="evidence_files_input_page"

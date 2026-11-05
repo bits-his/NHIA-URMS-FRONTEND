@@ -74,6 +74,8 @@ export const ZONAL_LEGACY_ALIASES = ["Others"] as const;
 export const ADMIN_HIDDEN_MODULE_TITLES = [
   "Finance & Admin Dept",
   "Programmes",
+  "Zonal ICT Support",
+  "Originating Departments",
 ] as const;
 
 /** Individual nav items hidden from admin (within modules that stay visible) */
@@ -94,21 +96,30 @@ export function modulesVisibleToAdmin(): ParentModule[] {
   return MODULE_CONFIG.filter((m) => !isModuleHiddenForAdmin(m.title));
 }
 
+/**
+ * Admin sidebar titles per module.
+ * Ad-hoc / Special Assignment stays only under SDO → Special Project (no duplicates elsewhere).
+ */
 export function adminAllowedTitlesForModule(mod: ParentModule): Set<string> {
   return new Set(
-    flatLeaves(mod).filter((t) => !isFunctionalityHiddenForAdmin(t)),
+    flatLeaves(mod).filter((t) => {
+      if (isFunctionalityHiddenForAdmin(t)) return false;
+      if (t === "Ad-hoc / Special Assignment" && mod.title !== SDO_MODULE) return false;
+      return true;
+    }),
   );
 }
 
 export function adminVisibleChildrenForModule(mod: ParentModule): ParentModule["children"] {
+  const allow = adminAllowedTitlesForModule(mod);
   const out: ParentModule["children"] = [];
   for (const c of mod.children) {
     if (isSubGroup(c)) {
       const children = c.children.filter(
-        (child) => isSubGroup(child) || !isFunctionalityHiddenForAdmin(child.title),
+        (child) => isSubGroup(child) || allow.has(child.title),
       );
       if (children.length > 0) out.push({ ...c, children });
-    } else if (!isFunctionalityHiddenForAdmin(c.title)) {
+    } else if (allow.has(c.title)) {
       out.push(c);
     }
   }
@@ -299,8 +310,8 @@ export const MODULE_CONFIG: ParentModule[] = [
           { title: "ICT Support Register", view: "state-ict-support", path: "/zonal/ict/support", navLabel: "ICT Support Register" },
         ]},
         { type: "group", label: "SERVICOM", children: [
-          { title: "Charter Performance", view: "servicom-comment-card", path: "/zonal/servicom/comment-card", navLabel: "Citizens' Comment Card" },
-          { title: "HCF Customer Satisfaction Survey", view: "servicom-satisfaction", path: "/zonal/servicom/satisfaction", navLabel: "HCF Customer Satisfaction Survey" },
+          { title: "State Office Charter Performance", view: "servicom-comment-card", path: "/zonal/servicom/comment-card", navLabel: "Citizens' Comment Card" },
+          { title: "State Office HCF Customer Satisfaction Survey", view: "servicom-satisfaction", path: "/zonal/servicom/satisfaction", navLabel: "HCF Customer Satisfaction Survey" },
         ]},
       ]},
       {

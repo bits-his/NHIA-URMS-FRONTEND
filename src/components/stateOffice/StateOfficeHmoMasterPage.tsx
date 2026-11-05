@@ -334,7 +334,7 @@ export default function StateOfficeHmoMasterPage({ onBack, defaultStateId, defau
       <ScrollArea className="flex-1">
         <div className="w-full px-4 md:px-6 py-4 space-y-4 pb-16">
           {searchInput}
-          <Card className="rounded-2xl border-[#d4e8dc]">
+          <Card className="rounded-sm border-[#d4e8dc]">
             <CardContent className="pt-4 pb-4 space-y-3">
               <div className="grid grid-flow-col auto-cols-fr gap-3">
                 <div className="space-y-1">
@@ -404,7 +404,7 @@ export default function StateOfficeHmoMasterPage({ onBack, defaultStateId, defau
           {loading ? (
             <div className="flex justify-center py-16"><Loader2 className="w-5 h-5 animate-spin text-slate-400" /></div>
           ) : flatRows.length === 0 ? (
-            <Card className="rounded-2xl border-[#d4e8dc]">
+            <Card className="rounded-sm border-[#d4e8dc]">
               <CardContent className="py-16 text-center">
                 <Wallet className="w-8 h-8 mx-auto text-slate-300" />
                 <p className="mt-3 text-sm font-medium text-slate-700">No master data for this period</p>
@@ -412,7 +412,7 @@ export default function StateOfficeHmoMasterPage({ onBack, defaultStateId, defau
               </CardContent>
             </Card>
           ) : (
-            <Card className="rounded-2xl border-[#d4e8dc] overflow-hidden">
+            <Card className="rounded-sm border-[#d4e8dc] overflow-hidden">
               <CardContent className="p-4 md:p-5 space-y-4">
                 <div className="text-center space-y-1">
                   <h3 className="text-base md:text-lg font-bold tracking-wide text-[#0f3d2e] uppercase">

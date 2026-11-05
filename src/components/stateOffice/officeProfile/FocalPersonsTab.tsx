@@ -918,7 +918,7 @@ export default function FocalPersonsTab({
 
   return (
     <div className="w-full space-y-3.5 animate-in fade-in-50 duration-200">
-      <Card className="rounded-2xl border-[#d4e8dc]">
+      <Card className="rounded-sm border-[#d4e8dc]">
         <CardContent className="pt-4 pb-4 space-y-3">
           <div className="grid grid-flow-col auto-cols-fr gap-3">
             <div className="space-y-1 min-w-0">

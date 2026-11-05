@@ -67,7 +67,7 @@ export default function EnrolleeRegisterDetail({ reportId, onBack, onEdit }: Pro
 
       <ScrollArea className="flex-1">
         <div className="w-full px-4 md:px-6 py-4 space-y-4 pb-8">
-          <Card className="rounded-2xl border-[#d4e8dc]">
+          <Card className="rounded-sm border-[#d4e8dc]">
             <CardHeader className="pb-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <CardTitle className="text-base">Monthly Enrollee Register (ICT)</CardTitle>
@@ -113,7 +113,7 @@ export default function EnrolleeRegisterDetail({ reportId, onBack, onEdit }: Pro
 
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             {ENROLLEE_REGISTER_SCHEMES.map((scheme) => (
-              <Card key={scheme.key} className="rounded-2xl border-[#d4e8dc]">
+              <Card key={scheme.key} className="rounded-sm border-[#d4e8dc]">
                 <CardContent className="pt-4 pb-4">
                   <p className="text-[11px] uppercase tracking-wide text-slate-500 font-semibold">{scheme.label}</p>
                   <p className="text-2xl font-black tabular-nums text-[#145c3f] mt-1">
@@ -122,7 +122,7 @@ export default function EnrolleeRegisterDetail({ reportId, onBack, onEdit }: Pro
                 </CardContent>
               </Card>
             ))}
-            <Card className="rounded-2xl border-[#145c3f] bg-[#145c3f] text-white md:col-span-3">
+            <Card className="rounded-sm border-[#145c3f] bg-[#145c3f] text-white md:col-span-3">
               <CardContent className="pt-4 pb-4 flex items-center justify-between">
                 <p className="text-[11px] uppercase tracking-wide text-white/70 font-semibold">Total Lives</p>
                 <p className="text-3xl font-black tabular-nums">{formatCount(data.total_lives ?? 0)}</p>

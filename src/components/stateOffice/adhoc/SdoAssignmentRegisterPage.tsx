@@ -263,7 +263,7 @@ export default function SdoAssignmentRegisterPage({
       {/* Main Form Body (Full Width matching URMS design) */}
       <div className="flex-1 overflow-y-auto p-4 md:p-6 pb-12 w-full">
         <div className="w-full space-y-6">
-          <Card className="rounded-2xl border-[#d4e8dc] shadow-xs bg-white overflow-hidden w-full">
+          <Card className="rounded-sm border-[#d4e8dc] shadow-xs bg-white overflow-hidden w-full">
             <CardContent className="p-6 md:p-8 space-y-8">
               {/* FieldSection 1: Assignment Registration */}
               <FieldSection
@@ -448,7 +448,7 @@ export default function SdoAssignmentRegisterPage({
                   <Label className="text-xs font-semibold text-slate-600">
                     Original Instruction Memo / Attachment
                   </Label>
-                  <div className="border-2 border-dashed border-[#1a7a52]/40 rounded-2xl p-6 bg-[#f4f7f5] hover:bg-[#e8f6ee]/30 transition text-center w-full">
+                  <div className="border-2 border-dashed border-[#1a7a52]/40 rounded-sm p-6 bg-[#f4f7f5] hover:bg-[#e8f6ee]/30 transition text-center w-full">
                     <input
                       type="file"
                       id="page_source_doc_file"

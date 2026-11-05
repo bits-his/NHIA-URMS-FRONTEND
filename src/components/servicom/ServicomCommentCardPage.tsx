@@ -345,9 +345,9 @@ export default function ServicomCommentCardPage({
             <h2 className="text-xl font-bold tracking-tight text-slate-900">Citizens&apos; Comment Card</h2>
           </div>
 
-          <div className="rounded-3xl border border-[#d4e8dc] bg-white overflow-hidden">
-            <div className="px-5 md:px-7 py-6 bg-[#f6fbf8] border-b border-[#e6f2eb]">
-              <div className="flex flex-col md:flex-row md:items-center gap-6">
+          <div className="rounded-sm border border-[#d4e8dc] bg-white overflow-hidden">
+            <div className="px-3 md:px-4 py-3 bg-[#f6fbf8] border-b border-[#e6f2eb]">
+              <div className="flex flex-col md:flex-row md:items-center gap-4">
                 <div className="flex items-center gap-4 shrink-0">
                   <div className="relative h-20 w-20">
                     <svg viewBox="0 0 36 36" className="h-20 w-20 -rotate-90">
@@ -384,7 +384,7 @@ export default function ServicomCommentCardPage({
                   {metaItems.map((m) => (
                     <div
                       key={m.label}
-                      className="rounded-2xl border border-[#dcefe4] bg-white px-3.5 py-2.5 min-w-[120px]"
+                      className="rounded-sm border border-[#dcefe4] bg-white px-3 py-2 min-w-[120px]"
                     >
                       <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{m.label}</p>
                       <p className="text-sm font-semibold text-slate-800 mt-0.5">{m.value}</p>
@@ -456,9 +456,9 @@ export default function ServicomCommentCardPage({
     }
 
     return (
-      <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden">
-        <CardContent className="p-4 md:p-5 space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+      <Card className="rounded-sm border-[#d4e8dc] shadow-sm overflow-hidden">
+        <CardContent className="p-1 md:p-2 space-y-2">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             <div className="space-y-1.5">
               <Label className="text-xs text-slate-500">State *</Label>
               <Select
@@ -523,7 +523,7 @@ export default function ServicomCommentCardPage({
             return (
               <div
                 key={q.id}
-                className={`rounded-xl border p-4 md:p-5 transition-colors ${
+                className={`rounded-sm border p-2 md:p-3 transition-colors ${
                   missing
                     ? "border-rose-300 bg-rose-50/50"
                     : val
@@ -531,8 +531,8 @@ export default function ServicomCommentCardPage({
                       : "border-slate-200 bg-slate-50/50"
                 }`}
               >
-                <div className="flex items-start gap-3 mb-4">
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#e8f5ee] text-xs font-bold text-[#145c3f]">
+                <div className="flex items-start gap-3 mb-3">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-sm bg-[#e8f5ee] text-xs font-bold text-[#145c3f]">
                     {i + 1}
                   </span>
                   <p className="text-sm font-semibold text-slate-800 leading-snug pt-0.5">
@@ -552,7 +552,7 @@ export default function ServicomCommentCardPage({
                       return (
                         <label
                           key={o.value}
-                          className={`inline-flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition-all ${
+                          className={`inline-flex cursor-pointer items-center gap-2 rounded-sm border px-3 py-2 text-sm font-medium transition-all ${
                             checked
                               ? "border-[#25a872] bg-[#e8f5ee] text-[#145c3f] shadow-sm"
                               : "border-slate-200 bg-white text-slate-600 hover:border-[#d4e8dc] hover:bg-[#f8fbf9]"
@@ -617,9 +617,10 @@ export default function ServicomCommentCardPage({
         key={formKey}
         title={mode === "view" ? "View Comment Card" : "New Comment Card"}
         onBack={createOnly && mode === "form" ? onBack : closeSub}
-        maxWidth="5xl"
+        maxWidth="full"
+        contentClassName="px-3 md:px-4 py-3"
       >
-        <div className="w-full pb-20 space-y-4">
+        <div className="w-full pb-20 space-y-3">
           {renderDetailsCard(mode === "view", row ?? undefined)}
           {renderQuestions(responses, mode === "view", row ?? undefined)}
         </div>

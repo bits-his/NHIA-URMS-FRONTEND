@@ -152,7 +152,7 @@ export default function SdoAssignmentRegisterModal({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="w-[96vw] max-w-6xl max-h-[94vh] overflow-y-auto p-0 rounded-2xl border-[#d4e8dc]">
+      <DialogContent className="w-[96vw] max-w-6xl max-h-[94vh] overflow-y-auto p-0 rounded-sm border-[#d4e8dc]">
         <form onSubmit={handleSubmit} className="w-full">
           <DialogHeader className="p-6 pb-4 border-b bg-gradient-to-r from-emerald-50/60 to-white">
             <div className="flex items-center justify-between">

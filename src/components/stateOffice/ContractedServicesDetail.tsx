@@ -73,7 +73,7 @@ export default function ContractedServicesDetail({ reportId, onBack, onEdit }: P
         <div className="w-full px-4 md:px-6 py-4 space-y-4 pb-8">
 
           {/* Meta */}
-          <Card className="rounded-2xl border-[#d4e8dc]">
+          <Card className="rounded-sm border-[#d4e8dc]">
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Report Information</CardTitle>
             </CardHeader>
@@ -110,7 +110,7 @@ export default function ContractedServicesDetail({ reportId, onBack, onEdit }: P
           </Card>
 
           {/* Lines table */}
-          <Card className="rounded-2xl border-[#d4e8dc]">
+          <Card className="rounded-sm border-[#d4e8dc]">
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Service Entries</CardTitle>
               <CardDescription>{lines.length} service{lines.length !== 1 ? "s" : ""} recorded</CardDescription>

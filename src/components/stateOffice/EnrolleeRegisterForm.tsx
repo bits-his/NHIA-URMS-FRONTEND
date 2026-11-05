@@ -54,7 +54,7 @@ export default function EnrolleeRegisterForm({ reportId, onBack, onCancel, onSub
       })}
     >
       {() => (
-        <Card className="rounded-2xl border-[#d4e8dc]">
+        <Card className="rounded-sm border-[#d4e8dc]">
           <CardHeader className="pb-2">
             <CardTitle className="text-xl font-bold text-[#145c3f]">Enrollee lives by scheme</CardTitle>
             <CardDescription className="text-xs">
@@ -80,7 +80,7 @@ export default function EnrolleeRegisterForm({ reportId, onBack, onCancel, onSub
               ))}
             </div>
 
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-[#145c3f] px-5 py-4 text-white">
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-sm bg-[#145c3f] px-5 py-4 text-white">
               <div>
                 <p className="text-[11px] uppercase tracking-wider text-white/70 font-semibold">Total Lives</p>
                 <p className="text-sm text-white/80">Self-Paying + OPS + Retirees + Constituency + GIFSHIP + Formal Sector</p>

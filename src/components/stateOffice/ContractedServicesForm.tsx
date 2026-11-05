@@ -96,7 +96,7 @@ export default function ContractedServicesForm({ reportId, onBack, onCancel, onS
       })}
     >
       {() => (
-        <Card className="rounded-2xl border-[#d4e8dc]">
+        <Card className="rounded-sm border-[#d4e8dc]">
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Contracted Services</CardTitle>
             <CardDescription>

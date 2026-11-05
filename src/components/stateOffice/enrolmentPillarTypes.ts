@@ -157,7 +157,13 @@ export function enrolmentActivityMeta(value: string | null | undefined) {
   return ENROLMENT_ACTIVITIES.find((a) => a.value === value) ?? null;
 }
 
-export const ENROLMENT_CHANNELS = ["NHIA", "SSHIA"] as const;
+export const ENROLMENT_CHANNELS = ["NHIA", "SSHIA", "Equity Program"] as const;
+
+/** SSHIA and Equity Program share the same capture fields / flow. */
+export function isSshiaLikeChannel(channel: string | null | undefined): boolean {
+  const ch = String(channel ?? "").trim();
+  return ch === "SSHIA" || ch === "Equity Program";
+}
 
 /** Excel: Fresh Enrolment | Renewal (Renewal only for GIFSHIP-G / GIFSHIP-C / GIFSHIP-R) */
 export const ENROLMENT_TYPES = ["Fresh Enrolment", "Renewal"] as const;
@@ -179,11 +185,12 @@ export const ENROLMENT_RENEWABLE_PROGRAM_LABELS = new Set<string>(
   ENROLMENT_PROGRAMS.filter((p) => Boolean((p as { renewable?: boolean }).renewable)).map((p) => p.label),
 );
 
+/** Equity Program channel — enrolment types / programmes */
 export const ENROLMENT_EQUITY_PROGRAMS = [
   "CEmONC",
-  "Free Fistula Program (FFP)",
-  "NHIA-Roche Cancer Program",
-  "HIV/TB Program",
+  "FFP",
+  "NHIA - Roche Cancer Program",
+  "TB-HIV Global Fund Program",
 ] as const;
 
 export const ENROLMENT_ID_CARD_REQUEST_CATEGORIES = [
@@ -416,8 +423,7 @@ const CBSHIP_FIELDS: EnrolmentProgramFieldDef[] = [
 ];
 
 const EQUITY_FIELDS: EnrolmentProgramFieldDef[] = [
-  { key: "equity_program", label: "Program", type: "select", options: ENROLMENT_EQUITY_PROGRAMS },
-  { key: "beneficiaries_count", label: "Number of Beneficiaries", type: "number" },
+  { key: "number_enrolled", label: "Number of Beneficiaries", type: "number" },
 ];
 
 const SSHIA_CHANNEL_FIELDS: EnrolmentProgramFieldDef[] = [
@@ -436,6 +442,10 @@ export function programSpecificFieldsFor(
   if (ch === "SSHIA") {
     if (program === "BHCPF") return BHCPF_FIELDS;
     return SSHIA_CHANNEL_FIELDS;
+  }
+
+  if (ch === "Equity Program") {
+    return EQUITY_FIELDS;
   }
 
   switch (program) {

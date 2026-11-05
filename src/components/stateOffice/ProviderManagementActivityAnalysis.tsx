@@ -457,7 +457,7 @@ function FocusView({
       </div>
       <p className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm leading-relaxed text-slate-600">{readOf(item)}</p>
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-4">
+      <div className="rounded-sm border border-slate-200 bg-white p-4">
         <div className="mb-2 flex flex-wrap items-end justify-between gap-2">
           <div>
             <p className="text-sm font-semibold text-slate-800">Monthly plan vs coverage</p>
@@ -489,7 +489,7 @@ function FocusView({
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <div className="rounded-2xl border border-slate-200 bg-white p-4">
+        <div className="rounded-sm border border-slate-200 bg-white p-4">
           <p className="text-sm font-semibold text-slate-800">{placeTitle}</p>
           <p className="mb-3 text-xs text-slate-500">{placeHint}</p>
           {places.length === 0 ? (
@@ -540,7 +540,7 @@ function FocusView({
           ) : null}
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-4">
+        <div className="rounded-sm border border-slate-200 bg-white p-4">
           <p className="text-sm font-semibold text-slate-800">How the work ended</p>
           <p className="mb-3 text-xs text-slate-500">Click a status to isolate it.</p>
           {statuses.length === 0 ? (
@@ -640,7 +640,7 @@ function CompareView({
       total: item.count,
     }));
     return (
-      <div className="rounded-2xl border border-slate-200 bg-white p-4">
+      <div className="rounded-sm border border-slate-200 bg-white p-4">
         <p className="text-sm font-semibold text-slate-800">
           {measure === "rate" ? "Plan achievement by activity" : "Completed records by activity"}
         </p>
@@ -674,7 +674,7 @@ function CompareView({
   }
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4">
+    <div className="rounded-sm border border-slate-200 bg-white p-4">
       <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-sm font-semibold text-slate-800">
@@ -758,7 +758,7 @@ function CardsView({
               type="button"
               aria-expanded={on}
               onClick={() => setOpen(on ? null : item.key)}
-              className={`rounded-2xl border bg-white p-4 text-left shadow-[0_8px_30px_rgba(15,23,42,0.04)] transition-colors ${
+              className={`rounded-sm border bg-white p-4 text-left shadow-[0_8px_30px_rgba(15,23,42,0.04)] transition-colors ${
                 on ? "border-slate-300" : "border-slate-200 hover:border-slate-300"
               }`}
             >
@@ -792,7 +792,7 @@ function CardsView({
         })}
       </div>
       {opened ? (
-        <div className="rounded-2xl border border-slate-200 bg-white p-4">
+        <div className="rounded-sm border border-slate-200 bg-white p-4">
           <div className="mb-2 flex flex-wrap items-end justify-between gap-2">
             <div>
               <p className="text-sm font-semibold text-slate-800">{opened.title} · monthly plan vs coverage</p>
@@ -859,7 +859,7 @@ function LedgerView({ items }: { items: ActivityAnalysisItem[] }) {
   );
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+    <div className="overflow-hidden rounded-sm border border-slate-200 bg-white">
       <table className="w-full text-sm">
         <thead className="bg-slate-50">
           <tr>
@@ -993,7 +993,7 @@ export default function ActivityAnalysisPanel({
       ) : null}
 
       {items.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-slate-200 bg-white py-16 text-center text-sm text-slate-500">
+        <div className="rounded-sm border border-dashed border-slate-200 bg-white py-16 text-center text-sm text-slate-500">
           {isState
             ? "No activity analysis for this state yet. Submit Provider Management reports for the selected period."
             : "No activity analysis for this filter."}

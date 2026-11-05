@@ -105,7 +105,7 @@ export default function WeeklyActionableDetail({ reportId, onBack, onEdit }: Pro
         <div className="w-full px-4 md:px-6 py-4 space-y-4 pb-8">
 
           {/* Meta */}
-          <Card className="rounded-2xl border-[#d4e8dc]">
+          <Card className="rounded-sm border-[#d4e8dc]">
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Report Information</CardTitle>
             </CardHeader>
@@ -150,7 +150,7 @@ export default function WeeklyActionableDetail({ reportId, onBack, onEdit }: Pro
           </Card>
 
           {/* Lines table */}
-          <Card className="rounded-2xl border-[#d4e8dc]">
+          <Card className="rounded-sm border-[#d4e8dc]">
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Actionable Points</CardTitle>
               <CardDescription>{lines.length} item{lines.length !== 1 ? "s" : ""}</CardDescription>

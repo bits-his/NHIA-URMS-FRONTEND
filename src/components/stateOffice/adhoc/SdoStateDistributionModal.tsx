@@ -211,7 +211,7 @@ export default function SdoStateDistributionModal({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="w-[96vw] max-w-7xl max-h-[94vh] overflow-y-auto p-0 rounded-2xl border-[#d4e8dc]">
+      <DialogContent className="w-[96vw] max-w-7xl max-h-[94vh] overflow-y-auto p-0 rounded-sm border-[#d4e8dc]">
         <DialogHeader className="p-6 pb-4 border-b bg-gradient-to-r from-emerald-50/70 to-white">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -231,7 +231,7 @@ export default function SdoStateDistributionModal({
         <div className="p-6 space-y-6">
           {/* Section 1: Distribution Settings */}
           <FieldSection title="Distribution Parameters" gridClassName="grid gap-4 sm:grid-cols-3">
-            <div className="sm:col-span-3 p-3.5 rounded-2xl bg-[#f4f7f5] border border-[#d4e8dc]">
+            <div className="sm:col-span-3 p-3.5 rounded-sm bg-[#f4f7f5] border border-[#d4e8dc]">
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Master Assignment Title</span>
               <p className="text-sm font-bold text-slate-900 mt-0.5 truncate">{master.assignment_title}</p>
             </div>
@@ -267,7 +267,7 @@ export default function SdoStateDistributionModal({
               {Object.entries(zonesMap).map(([zCode, { name, states }]) => {
                 const zoneAllSelected = states.every((s) => selectedStates[s.code]?.selected);
                 return (
-                  <div key={zCode} className="border border-[#d4e8dc] rounded-2xl p-4 bg-white shadow-xs">
+                  <div key={zCode} className="border border-[#d4e8dc] rounded-sm p-4 bg-white shadow-xs">
                     <div className="flex items-center justify-between pb-2 mb-3 border-b border-[#d4e8dc]/60">
                       <span className="text-xs font-bold text-[#145c3f] flex items-center gap-1.5">
                         {name} ({zCode})
@@ -344,7 +344,7 @@ export default function SdoStateDistributionModal({
               />
             </Field>
 
-            <div className="flex flex-wrap items-center justify-between gap-4 p-4 rounded-2xl bg-[#f4f7f5] border border-[#d4e8dc]">
+            <div className="flex flex-wrap items-center justify-between gap-4 p-4 rounded-sm bg-[#f4f7f5] border border-[#d4e8dc]">
               <div className="space-y-0.5">
                 <Label className="text-xs font-bold text-slate-800">Copy Zonal Coordinator</Label>
                 <p className="text-[11px] text-slate-500">

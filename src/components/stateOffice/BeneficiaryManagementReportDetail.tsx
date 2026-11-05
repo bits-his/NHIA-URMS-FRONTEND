@@ -129,7 +129,7 @@ export default function BeneficiaryManagementReportDetail({
           ) : !line ? (
             <div className="text-center py-24 text-slate-400 text-sm">No activity recorded.</div>
           ) : (
-            <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden">
+            <Card className="rounded-sm border-[#d4e8dc] shadow-sm overflow-hidden">
               <div className="px-4 md:px-5 py-4 border-b border-[#e8f3ec] bg-gradient-to-r from-[#f4fbf7] to-white">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0 space-y-1">
