@@ -1,7 +1,7 @@
 import * as React from "react";
 import { ArrowLeft, Loader2, FileText, Clock, CheckCircle2, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -9,7 +9,6 @@ import { toast } from "sonner";
 import { stateOfficeApi } from "@/lib/api";
 import { monthLabel } from "../constants";
 import { ADMIN_HR_CONFIG, type AdminHrReportType } from "./constants";
-import { Section } from "./ui";
 import { normalizePayload } from "./normalizePayload";
 
 interface Props {
@@ -113,6 +112,15 @@ function PayloadTable({ rows, preferredHeaders }: { rows: Record<string, unknown
   );
 }
 
+function DetailSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section className="space-y-3">
+      <h3 className="text-[12px] font-bold uppercase tracking-[0.06em] text-[#0f3d2e]">{title}</h3>
+      {children}
+    </section>
+  );
+}
+
 function PayloadRenderer({ payload }: { payload: Record<string, unknown> }) {
   const scalarEntries: [string, unknown][] = [];
   const arraySections: [string, Record<string, unknown>[]][] = [];
@@ -134,26 +142,26 @@ function PayloadRenderer({ payload }: { payload: Record<string, unknown> }) {
   }
 
   return (
-    <div className="space-y-4">
+    <>
       {scalarEntries.length > 0 && (
-        <Section title="General Information">
+        <DetailSection title="General Information">
           <PayloadFields data={Object.fromEntries(scalarEntries)} />
-        </Section>
+        </DetailSection>
       )}
       {objectSections.map(([key, obj]) => (
-        <Section key={key} title={humanizeKey(key)}>
+        <DetailSection key={key} title={humanizeKey(key)}>
           <PayloadFields data={obj} />
-        </Section>
+        </DetailSection>
       ))}
       {arraySections.map(([key, rows]) => (
-        <Section key={key} title={key === "rows" ? "Maintenance Events" : humanizeKey(key)}>
+        <DetailSection key={key} title={key === "rows" ? "Maintenance Events" : humanizeKey(key)}>
           <PayloadTable
             rows={rows}
             preferredHeaders={key === "rows" ? VEHICLE_ROW_HEADERS : undefined}
           />
-        </Section>
+        </DetailSection>
       ))}
-    </div>
+    </>
   );
 }
 
@@ -220,17 +228,17 @@ export default function AdminHrDetail({ reportType, reportId, onBack, onEdit }: 
           ) : !report ? (
             <div className="text-center py-24 text-slate-400 text-sm">Report not found.</div>
           ) : (
-            <>
-              <Card className="rounded-sm border-[#d4e8dc]">
-                <CardHeader className="pb-3 flex flex-row items-start justify-between gap-3">
-                  <CardTitle className="text-base">Report Header</CardTitle>
-                  {statusCfg && (
-                    <Badge variant="outline" className={`text-[10px] px-2 py-0.5 flex items-center gap-1 border ${statusCfg.cls}`}>
-                      {statusCfg.icon} {statusCfg.label}
-                    </Badge>
-                  )}
-                </CardHeader>
-                <CardContent>
+            <Card className="rounded-sm border-[#d4e8dc] shadow-sm overflow-hidden">
+              <CardContent className="p-4 md:p-5 space-y-6">
+                <section className="space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <h3 className="text-[12px] font-bold uppercase tracking-[0.06em] text-[#0f3d2e]">Report Information</h3>
+                    {statusCfg && (
+                      <Badge variant="outline" className={`text-[10px] px-2 py-0.5 flex items-center gap-1 border ${statusCfg.cls}`}>
+                        {statusCfg.icon} {statusCfg.label}
+                      </Badge>
+                    )}
+                  </div>
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                     {[
                       ["Reference", report.reference_id],
@@ -246,11 +254,11 @@ export default function AdminHrDetail({ reportType, reportId, onBack, onEdit }: 
                       </div>
                     ))}
                   </div>
-                </CardContent>
-              </Card>
+                </section>
 
-              <PayloadRenderer payload={payload} />
-            </>
+                <PayloadRenderer payload={payload} />
+              </CardContent>
+            </Card>
           )}
         </div>
       </ScrollArea>
