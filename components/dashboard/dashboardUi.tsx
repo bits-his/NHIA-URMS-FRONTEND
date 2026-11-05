@@ -125,6 +125,7 @@ export function DashKpi({
 
 export function DashChartCard({
   title, subtitle, action, children, className = "", minHeight = "min-h-[280px]",
+  bodyClassName = "p-3.5 flex-1 min-h-[220px] flex flex-col w-full",
 }: {
   title: string;
   subtitle?: string;
@@ -132,6 +133,8 @@ export function DashChartCard({
   children: React.ReactNode;
   className?: string;
   minHeight?: string;
+  /** Override the chart body when the card holds a table instead of a plot. */
+  bodyClassName?: string;
 }) {
   return (
     <div className={`rounded-sm border border-[#d4e8dc] bg-white flex flex-col shadow-2xs overflow-hidden ${minHeight} ${className}`}>
@@ -142,7 +145,7 @@ export function DashChartCard({
         </div>
         {action && <div className="shrink-0">{action}</div>}
       </div>
-      <div className="p-3.5 flex-1 min-h-[220px] flex flex-col w-full">{children}</div>
+      <div className={bodyClassName}>{children}</div>
     </div>
   );
 }

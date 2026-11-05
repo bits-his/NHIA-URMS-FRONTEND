@@ -1,22 +1,12 @@
 import * as React from "react";
 import { useSelector } from "react-redux";
 import {
-  BarChart3,
-  CheckCircle2,
-  AlertCircle,
-  Clock,
-  Smile,
-  TrendingUp,
-  Users,
   MapPin,
   Building2,
-  Calendar,
-  Layers,
-  MessageSquare,
   ArrowLeft,
   ChevronRight,
   Globe,
-  Filter,
+  Loader2,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -32,9 +22,25 @@ import {
   Pie,
 } from "recharts";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { DashKpi, DashChartCard } from "@/components/dashboard/dashboardUi";
+
+const FILTER_TRIGGER = "h-8.5 text-xs rounded-sm border-[#d4e8dc] min-w-[130px] bg-white";
+
+function FilterField({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-1 min-w-0">
+      <label className="text-[11px] text-slate-500">{label}</label>
+      {children}
+    </div>
+  );
+}
+
+const TABLE_CARD = {
+  minHeight: "min-h-0",
+  bodyClassName: "p-0 flex-1 flex flex-col w-full overflow-x-auto",
+};
 import type { RootState } from "@/src/store/store";
 
 interface Props {
@@ -54,9 +60,6 @@ const RATING_COLORS = {
   poor: "#e11d48",
 };
 
-const PIE_COLORS = ["#1a7a52", "#25a872", "#f59e0b", "#ef4444"];
-const CHANNEL_COLORS = ["#145c3f", "#1a7a52", "#25a872", "#0891b2", "#6366f1", "#8b5cf6"];
-const PURPOSE_COLORS = ["#1a7a52", "#0d9488", "#2563eb", "#7c3aed", "#d97706", "#dc2626", "#475569"];
 
 export default function SatisfactionDashboardTab({
   surveys,
@@ -369,17 +372,11 @@ export default function SatisfactionDashboardTab({
 
   return (
     <div className="space-y-6">
-      {/* ── Unified Management Scope & Filters Card (Compact Single Card) ── */}
-      <div className="rounded-sm border border-[#d4e8dc] bg-white shadow-2xs overflow-hidden">
-        {/* Top Header: Management Scope Switcher (National View) */}
+      <div className="space-y-3">
         {isNationalUser && currentView !== "drilldown" && (
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 px-4 py-2.5 bg-[#f4f7f5] border-b border-[#d4e8dc]">
-            <div className="flex items-center gap-2.5">
-              <Layers className="size-4 text-[#1a7a52]" />
-              <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-                Management Scope:
-              </span>
-              <div className="flex items-center gap-1 bg-white p-0.5 rounded-sm border border-[#d4e8dc] shadow-2xs">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[11px] text-slate-500">Scope</span>
+            <div className="flex items-center gap-1 bg-white p-0.5 rounded-sm border border-[#d4e8dc]">
                 <Button
                   variant={currentView === "national" ? "default" : "ghost"}
                   size="sm"
@@ -407,30 +404,23 @@ export default function SatisfactionDashboardTab({
                   <Building2 className="size-3.5" />
                   <span>Zonal Overview</span>
                 </Button>
-              </div>
             </div>
-
-            <Badge
-              variant="outline"
-              className="h-7 px-2.5 bg-white border border-[#d4e8dc] text-slate-700 font-semibold text-xs rounded-sm shadow-2xs"
-            >
-              {currentView === "national"
-                ? "🌐 SDO / National Management View"
-                : `🏛️ Zonal View (${activeZoneLabel})`}
-            </Badge>
+            <span className="text-[11px] text-slate-500">
+              {currentView === "national" ? "National view" : activeZoneLabel}
+            </span>
           </div>
         )}
 
         {/* Drill-down Header when inside State Drilldown */}
         {currentView === "drilldown" && (
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 px-4 py-2.5 bg-[#f4f7f5] border-b border-[#d4e8dc]">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#d4e8dc] pb-2">
             <div className="flex items-center gap-3">
               {!isStateUser && (
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => setCurrentView(isZonalUser ? "zonal" : "national")}
-                  className="h-7 gap-1.5 border-slate-300 text-slate-700 hover:bg-slate-100 rounded-sm font-bold text-xs"
+                  className="h-8.5 gap-1.5 border border-slate-300 text-slate-700 bg-white hover:bg-[#f4f7f5] rounded-sm font-bold text-xs shadow-2xs"
                 >
                   <ArrowLeft className="size-3.5" />
                   <span>Back to {isZonalUser ? "Zonal Overview" : "Dashboard"}</span>
@@ -438,35 +428,21 @@ export default function SatisfactionDashboardTab({
               )}
               <div className="flex items-center gap-2">
                 <MapPin className="size-4 text-[#1a7a52]" />
-                <span className="text-xs font-black text-slate-800 uppercase tracking-wide">
-                  State Office Drill-down: {activeDrillStateLabel}
+                <span className="text-sm font-bold text-slate-900 tracking-tight">
+                  {activeDrillStateLabel}
                 </span>
-                <span className="text-slate-400 text-xs">•</span>
-                <span className="text-xs text-slate-500 font-medium">
-                  {activeZoneLabel}
-                </span>
+                <span className="text-xs text-slate-500">{activeZoneLabel}</span>
               </div>
             </div>
-
-            <Badge
-              variant="outline"
-              className="h-7 px-2.5 bg-white border border-[#d4e8dc] text-slate-700 font-black text-xs rounded-sm shadow-2xs"
-            >
-              {scopedSurveys.length} Registered Surveys
-            </Badge>
+            <span className="text-[11px] text-slate-500">{scopedSurveys.length} surveys</span>
           </div>
         )}
 
-        {/* Filters Controls */}
-        <div className="p-3 bg-white">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2.5">
+        <div className="flex flex-wrap items-end gap-3">
             {/* Year / Period */}
-            <div className="space-y-1">
-              <label className="text-[11px] font-medium text-slate-500">
-                Reporting Year
-              </label>
+            <FilterField label="Reporting year">
               <Select value={selectedYear} onValueChange={setSelectedYear}>
-                <SelectTrigger className="h-8.5 text-xs bg-white hover:bg-slate-50 border-[#d4e8dc] rounded-sm" displayValue={selectedYear === "all" ? "All Years" : selectedYear}>
+                <SelectTrigger className={FILTER_TRIGGER} displayValue={selectedYear === "all" ? "All Years" : selectedYear}>
                   <SelectValue placeholder="All Years" />
                 </SelectTrigger>
                 <SelectContent>
@@ -478,13 +454,9 @@ export default function SatisfactionDashboardTab({
                   ))}
                 </SelectContent>
               </Select>
-            </div>
+            </FilterField>
 
-            {/* Zone Filter (Locked for Zonal Coordinator, selectable for National) */}
-            <div className="space-y-1">
-              <label className="text-[11px] font-medium text-slate-500">
-                Zone {isZonalUser && "• Assigned"}
-              </label>
+            <FilterField label={isZonalUser ? "Zone · assigned" : "Zone"}>
               <Select
                 value={isZonalUser ? (assignedZoneCode || selectedZone) : selectedZone}
                 onValueChange={(val) => {
@@ -493,7 +465,7 @@ export default function SatisfactionDashboardTab({
                 }}
                 disabled={isZonalUser || isStateUser}
               >
-                <SelectTrigger className="h-8.5 text-xs bg-white hover:bg-slate-50 border-[#d4e8dc] rounded-sm" displayValue={
+                <SelectTrigger className={FILTER_TRIGGER} displayValue={
                   isZonalUser
                     ? (zones.find((z) => z.zonal_code === (assignedZoneCode || selectedZone))?.description || (assignedZoneCode || selectedZone))
                     : selectedZone === "all"
@@ -519,13 +491,9 @@ export default function SatisfactionDashboardTab({
                   )}
                 </SelectContent>
               </Select>
-            </div>
+            </FilterField>
 
-            {/* State Filter */}
-            <div className="space-y-1">
-              <label className="text-[11px] font-medium text-slate-500">
-                State Office {isStateUser && "• Locked"}
-              </label>
+            <FilterField label={isStateUser ? "State · locked" : "State"}>
               <Select
                 value={currentView === "drilldown" ? activeDrillStateCode : selectedState}
                 onValueChange={(val) => {
@@ -537,7 +505,7 @@ export default function SatisfactionDashboardTab({
                 }}
                 disabled={isStateUser}
               >
-                <SelectTrigger className="h-8.5 text-xs bg-white hover:bg-slate-50 border-[#d4e8dc] rounded-sm" displayValue={
+                <SelectTrigger className={FILTER_TRIGGER} displayValue={
                   (currentView === "drilldown" ? activeDrillStateCode : selectedState) === "all"
                     ? "All States"
                     : (states.find((s) => s.code === (currentView === "drilldown" ? activeDrillStateCode : selectedState))?.description || selectedState)
@@ -553,15 +521,11 @@ export default function SatisfactionDashboardTab({
                   ))}
                 </SelectContent>
               </Select>
-            </div>
+            </FilterField>
 
-            {/* Visit Purpose Filter */}
-            <div className="space-y-1">
-              <label className="text-[11px] font-medium text-slate-500">
-                Visit Purpose
-              </label>
+            <FilterField label="Visit purpose">
               <Select value={selectedPurpose} onValueChange={setSelectedPurpose}>
-                <SelectTrigger className="h-8.5 text-xs bg-white hover:bg-slate-50 border-[#d4e8dc] rounded-sm" displayValue={selectedPurpose === "all" ? "All Purposes" : selectedPurpose}>
+                <SelectTrigger className={FILTER_TRIGGER} displayValue={selectedPurpose === "all" ? "All Purposes" : selectedPurpose}>
                   <SelectValue placeholder="All Purposes" />
                 </SelectTrigger>
                 <SelectContent>
@@ -574,15 +538,11 @@ export default function SatisfactionDashboardTab({
                   <SelectItem value="NIN / Update">NIN / Enrollee Update</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
+            </FilterField>
 
-            {/* Healthcare Facility */}
-            <div className="space-y-1">
-              <label className="text-[11px] font-medium text-slate-500">
-                Facility / Provider
-              </label>
+            <FilterField label="Facility / provider">
               <Select value={selectedProvider} onValueChange={setSelectedProvider}>
-                <SelectTrigger className="h-8.5 text-xs bg-white hover:bg-slate-50 border-[#d4e8dc] rounded-sm" displayValue={selectedProvider === "all" ? "All Providers" : selectedProvider}>
+                <SelectTrigger className={FILTER_TRIGGER} displayValue={selectedProvider === "all" ? "All Providers" : selectedProvider}>
                   <SelectValue placeholder="All Providers" />
                 </SelectTrigger>
                 <SelectContent>
@@ -594,112 +554,27 @@ export default function SatisfactionDashboardTab({
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-          </div>
+            </FilterField>
         </div>
       </div>
 
-      {/* ═══════════════════════════════════════════════════════════════════════
-          VIEW 1: NATIONAL DASHBOARD (Slides 3, 4, 5)
-      ═══════════════════════════════════════════════════════════════════════ */}
-      {currentView === "national" && (
+      {loading ? (
+        <div className="flex items-center justify-center py-24 gap-3 text-slate-400">
+          <Loader2 className="w-5 h-5 animate-spin" /> Loading customer satisfaction analytics…
+        </div>
+      ) : currentView === "national" ? (
         <div className="space-y-6">
-          {/* Top KPI Cards (Slide 3: Overview) */}
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-            {/* Survey Responses */}
-            <div className="bg-white border border-slate-200/80 rounded-sm p-3.5 shadow-xs flex flex-col justify-between">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                  Survey Responses
-                </span>
-                <Users className="size-4 text-[#1a7a52]" />
-              </div>
-              <div className="mt-2">
-                <span className="text-2xl font-black text-slate-900 tabular-nums">
-                  {metrics.total.toLocaleString()}
-                </span>
-                <p className="text-[11px] text-slate-500 mt-0.5">Submitted survey forms</p>
-              </div>
-            </div>
-
-            {/* Overall Excellent */}
-            <div className="bg-white border border-slate-200/80 rounded-sm p-3.5 shadow-xs flex flex-col justify-between">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                  Overall Excellent
-                </span>
-                <Smile className="size-4 text-emerald-600" />
-              </div>
-              <div className="mt-2">
-                <span className="text-2xl font-black text-emerald-700 tabular-nums">
-                  {metrics.excellentPct}%
-                </span>
-                <p className="text-[11px] text-slate-500 mt-0.5">Top rating in satisfaction</p>
-              </div>
-            </div>
-
-            {/* Acceptable + Excellent (Positive Rating) */}
-            <div className="bg-white border border-slate-200/80 rounded-sm p-3.5 shadow-xs flex flex-col justify-between">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                  Positive Rating
-                </span>
-                <TrendingUp className="size-4 text-[#1a7a52]" />
-              </div>
-              <div className="mt-2">
-                <span className="text-2xl font-black text-[#1a7a52] tabular-nums">
-                  {metrics.positivePct}%
-                </span>
-                <p className="text-[11px] text-slate-500 mt-0.5">Acceptable + Excellent</p>
-              </div>
-            </div>
-
-            {/* Issues Resolved */}
-            <div className="bg-white border border-slate-200/80 rounded-sm p-3.5 shadow-xs flex flex-col justify-between">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                  Issues Resolved
-                </span>
-                <CheckCircle2 className="size-4 text-emerald-600" />
-              </div>
-              <div className="mt-2">
-                <span className="text-2xl font-black text-emerald-700 tabular-nums">
-                  {metrics.resolvedPct}%
-                </span>
-                <p className="text-[11px] text-slate-500 mt-0.5">Resolved during visit</p>
-              </div>
-            </div>
-
-            {/* Partially / Not Resolved */}
-            <div className="bg-white border border-slate-200/80 rounded-sm p-3.5 shadow-xs flex flex-col justify-between">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                  Partial / Unresolved
-                </span>
-                <AlertCircle className="size-4 text-amber-600" />
-              </div>
-              <div className="mt-2">
-                <span className="text-2xl font-black text-amber-700 tabular-nums">
-                  {metrics.partiallyPct + metrics.notResolvedPct}%
-                </span>
-                <p className="text-[11px] text-slate-500 mt-0.5">Partial or unresolved</p>
-              </div>
-            </div>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 items-stretch">
+            <DashKpi label="Survey responses" value={metrics.total.toLocaleString()} detail="Submitted survey forms" />
+            <DashKpi label="Overall excellent" value={`${metrics.excellentPct}%`} detail="Top rating in satisfaction" />
+            <DashKpi label="Positive rating" value={`${metrics.positivePct}%`} detail="Acceptable + excellent" />
+            <DashKpi label="Issues resolved" value={`${metrics.resolvedPct}%`} detail="Resolved during visit" />
+            <DashKpi label="Partial / unresolved" value={`${metrics.partiallyPct + metrics.notResolvedPct}%`} detail="Partial or unresolved" />
           </div>
 
           {/* Visual Charts */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            {/* 1. Overall Satisfaction Rating Distribution */}
-            <Card className="rounded-sm border border-slate-200/80 bg-white shadow-xs overflow-hidden p-0 gap-0">
-              <CardHeader className="border-b border-slate-200 bg-[#f4f7f5] py-2.5 px-4 rounded-none m-0">
-                <CardTitle className="text-xs font-bold text-slate-800 uppercase tracking-wide flex items-center justify-between">
-                  <span>Overall Satisfaction Rating</span>
-                  <Badge variant="outline" className="text-[10px] border-[#1a7a52] text-[#1a7a52]">
-                    Distribution
-                  </Badge>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="pt-4 pb-4 px-4">
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 items-stretch">
+            <DashChartCard title="Overall satisfaction rating" className="xl:col-span-2">
                 <div className="h-[220px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
@@ -729,20 +604,9 @@ export default function SatisfactionDashboardTab({
                     </div>
                   ))}
                 </div>
-              </CardContent>
-            </Card>
+            </DashChartCard>
 
-            {/* 2. Purpose of Visit */}
-            <Card className="rounded-sm border border-slate-200/80 bg-white shadow-xs overflow-hidden p-0 gap-0">
-              <CardHeader className="border-b border-slate-200 bg-[#f4f7f5] py-2.5 px-4 rounded-none m-0">
-                <CardTitle className="text-xs font-bold text-slate-800 uppercase tracking-wide flex items-center justify-between">
-                  <span>Purpose of Visit</span>
-                  <Badge variant="outline" className="text-[10px] border-[#1a7a52] text-[#1a7a52]">
-                    Share of Surveys
-                  </Badge>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="pt-4 pb-4 px-4">
+            <DashChartCard title="Purpose of visit">
                 <div className="h-[220px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={metrics.purposes} layout="vertical" margin={{ left: 20, right: 20, top: 5, bottom: 5 }}>
@@ -750,31 +614,13 @@ export default function SatisfactionDashboardTab({
                       <XAxis type="number" domain={[0, 40]} unit="%" tick={{ fontSize: 10 }} />
                       <YAxis dataKey="name" type="category" width={85} tick={{ fontSize: 10 }} />
                       <RechartsTooltip formatter={(v: any) => [`${v}% share`, "Share"]} />
-                      <Bar dataKey="share" fill="#1a7a52" radius={[0, 4, 4, 0]}>
-                        {metrics.purposes.map((_, i) => (
-                          <Cell key={i} fill={PURPOSE_COLORS[i % PURPOSE_COLORS.length]} />
-                        ))}
-                      </Bar>
+                      <Bar dataKey="share" fill="#1a7a52" radius={[0, 4, 4, 0]} maxBarSize={16} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
-                <p className="text-[11px] text-slate-500 text-center mt-2">
-                  Highest visit reason: <strong className="text-slate-800">New Enrolment (31%)</strong>
-                </p>
-              </CardContent>
-            </Card>
+            </DashChartCard>
 
-            {/* 3. Awareness Channels */}
-            <Card className="rounded-sm border border-slate-200/80 bg-white shadow-xs overflow-hidden p-0 gap-0">
-              <CardHeader className="border-b border-slate-200 bg-[#f4f7f5] py-2.5 px-4 rounded-none m-0">
-                <CardTitle className="text-xs font-bold text-slate-800 uppercase tracking-wide flex items-center justify-between">
-                  <span>How Enrollees Heard About NHIA</span>
-                  <Badge variant="outline" className="text-[10px] border-[#1a7a52] text-[#1a7a52]">
-                    Awareness
-                  </Badge>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="pt-4 pb-4 px-4">
+            <DashChartCard title="How enrollees heard about NHIA">
                 <div className="h-[220px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={metrics.awareness} layout="vertical" margin={{ left: 20, right: 20, top: 5, bottom: 5 }}>
@@ -782,35 +628,14 @@ export default function SatisfactionDashboardTab({
                       <XAxis type="number" domain={[0, 40]} unit="%" tick={{ fontSize: 10 }} />
                       <YAxis dataKey="name" type="category" width={95} tick={{ fontSize: 10 }} />
                       <RechartsTooltip formatter={(v: any) => [`${v}%`, "Awareness Share"]} />
-                      <Bar dataKey="share" fill="#2563eb" radius={[0, 4, 4, 0]}>
-                        {metrics.awareness.map((_, i) => (
-                          <Cell key={i} fill={CHANNEL_COLORS[i % CHANNEL_COLORS.length]} />
-                        ))}
-                      </Bar>
+                      <Bar dataKey="share" fill="#1a7a52" radius={[0, 4, 4, 0]} maxBarSize={16} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
-                <p className="text-[11px] text-slate-500 text-center mt-2">
-                  Top channel: <strong className="text-slate-800">Office staff (29%) & Provider (22%)</strong>
-                </p>
-              </CardContent>
-            </Card>
+            </DashChartCard>
           </div>
 
-          {/* Service Experience Matrix Table & Stacked Breakdown */}
-          <Card className="rounded-sm border border-slate-200/80 bg-white shadow-xs overflow-hidden p-0 gap-0">
-            <CardHeader className="border-b border-slate-200 bg-[#f4f7f5] py-3 px-4 flex flex-row items-center justify-between rounded-none m-0">
-              <div>
-                <CardTitle className="text-sm font-bold text-slate-800 uppercase tracking-wide">
-                  Rating Distribution by Service Area
-                </CardTitle>
-              </div>
-              <Badge variant="outline" className="border border-[#1a7a52] text-[#1a7a52] font-bold">
-                100% Normalized
-              </Badge>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
+          <DashChartCard title="Rating distribution by service area" subtitle="Each row is normalized to 100%" {...TABLE_CARD}>
                 <table className="w-full text-xs text-left">
                   <thead className="bg-slate-100/80 text-slate-700 font-bold border-b">
                     <tr>
@@ -855,101 +680,26 @@ export default function SatisfactionDashboardTab({
                     ))}
                   </tbody>
                 </table>
-              </div>
-            </CardContent>
-          </Card>
+          </DashChartCard>
 
-          {/* Resolution & Qualitative Feedback */}
-          <div className="space-y-4 pt-2">
-            <div className="border-b border-[#1a7a52]/40 pb-2 flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-black text-slate-900 uppercase tracking-wide">
-                  Resolution & Qualitative Feedback
-                </h3>
-              </div>
+          <div className="space-y-4">
+            <div className="border-b border-[#d4e8dc] pb-1.5">
+              <h3 className="text-sm font-bold text-slate-900 tracking-tight">
+                Resolution and qualitative feedback
+              </h3>
             </div>
 
-            {/* ── THE 5 STAT CARDS EXACTLY AS IN THE UPLOADED SCREENSHOT ── */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-              {/* 1. RESOLVED — YES (Green border-l) */}
-              <div className="bg-white rounded-lg border border-slate-200/90 shadow-xs p-4 border-l-4 border-l-[#1a7a52] flex flex-col justify-between">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600">
-                  RESOLVED — YES
-                </span>
-                <div className="mt-2">
-                  <span className="text-2xl font-black text-slate-900 tabular-nums">
-                    {metrics.resolvedPct}%
-                  </span>
-                  <p className="text-[11px] text-slate-400 mt-0.5">Resolved today</p>
-                </div>
-              </div>
-
-              {/* 2. PARTIALLY RESOLVED (Amber/Yellow border-l) */}
-              <div className="bg-white rounded-lg border border-slate-200/90 shadow-xs p-4 border-l-4 border-l-amber-500 flex flex-col justify-between">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600">
-                  PARTIALLY RESOLVED
-                </span>
-                <div className="mt-2">
-                  <span className="text-2xl font-black text-slate-900 tabular-nums">
-                    {metrics.partiallyPct}%
-                  </span>
-                  <p className="text-[11px] text-slate-400 mt-0.5">Partial resolution</p>
-                </div>
-              </div>
-
-              {/* 3. NOT RESOLVED (Red border-l) */}
-              <div className="bg-white rounded-lg border border-slate-200/90 shadow-xs p-4 border-l-4 border-l-rose-600 flex flex-col justify-between">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600">
-                  NOT RESOLVED
-                </span>
-                <div className="mt-2">
-                  <span className="text-2xl font-black text-slate-900 tabular-nums">
-                    {metrics.notResolvedPct}%
-                  </span>
-                  <p className="text-[11px] text-slate-400 mt-0.5">No resolution today</p>
-                </div>
-              </div>
-
-              {/* 4. TOTAL RESPONSES (Blue border-l) */}
-              <div className="bg-white rounded-lg border border-slate-200/90 shadow-xs p-4 border-l-4 border-l-blue-600 flex flex-col justify-between">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600">
-                  TOTAL RESPONSES
-                </span>
-                <div className="mt-2">
-                  <span className="text-2xl font-black text-slate-900 tabular-nums">
-                    {metrics.total.toLocaleString()}
-                  </span>
-                  <p className="text-[11px] text-slate-400 mt-0.5">Valid responses</p>
-                </div>
-              </div>
-
-              {/* 5. COMMENT RATE (Purple border-l) */}
-              <div className="bg-white rounded-lg border border-slate-200/90 shadow-xs p-4 border-l-4 border-l-purple-600 flex flex-col justify-between">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600">
-                  COMMENT RATE
-                </span>
-                <div className="mt-2">
-                  <span className="text-2xl font-black text-slate-900 tabular-nums">
-                    {metrics.commentRate}%
-                  </span>
-                  <p className="text-[11px] text-slate-400 mt-0.5">Surveys with feedback</p>
-                </div>
-              </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 items-stretch">
+              <DashKpi label="Resolved — yes" value={`${metrics.resolvedPct}%`} detail="Resolved during the visit" />
+              <DashKpi label="Partially resolved" value={`${metrics.partiallyPct}%`} detail="Partial resolution" />
+              <DashKpi label="Not resolved" value={`${metrics.notResolvedPct}%`} detail="No resolution during the visit" />
+              <DashKpi label="Total responses" value={metrics.total.toLocaleString()} detail="Valid responses" />
+              <DashKpi label="Comment rate" value={`${metrics.commentRate}%`} detail="Surveys with feedback" />
             </div>
 
             {/* Matrix & Qualitative list below the cards */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {/* Resolution by Purpose */}
-              <Card className="rounded-sm border border-slate-200/80 bg-white shadow-xs overflow-hidden p-0 gap-0">
-                <CardHeader className="border-b border-slate-200 bg-[#f4f7f5] py-2.5 px-4 rounded-none m-0">
-                  <CardTitle className="text-xs font-bold text-slate-800 uppercase tracking-wide flex items-center justify-between">
-                    <span>Resolution by Visit Purpose</span>
-                    <Badge variant="outline" className="text-[10px] border-[#1a7a52] text-[#1a7a52]">
-                      Yes / Partially / No
-                    </Badge>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-0">
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 items-stretch">
+              <DashChartCard title="Resolution by visit purpose" subtitle="Yes, partially, or no" {...TABLE_CARD}>
                   <table className="w-full text-xs">
                     <thead className="bg-slate-100 text-slate-700 font-bold border-b">
                       <tr>
@@ -970,18 +720,13 @@ export default function SatisfactionDashboardTab({
                       ))}
                     </tbody>
                   </table>
-                </CardContent>
-              </Card>
+              </DashChartCard>
 
-              {/* Qualitative Feedback Themes & Comments List */}
-              <Card className="rounded-sm border border-slate-200/80 bg-white shadow-xs overflow-hidden p-0 gap-0">
-                <CardHeader className="border-b border-slate-200 bg-[#f4f7f5] py-2.5 px-4 rounded-none m-0">
-                  <CardTitle className="text-xs font-bold text-slate-800 uppercase tracking-wide flex items-center justify-between">
-                    <span>Enrollee Feedback Themes & Comments</span>
-                    <span className="text-[10px] text-slate-500 font-normal">Coded Review</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-3 divide-y divide-slate-100 max-h-[260px] overflow-y-auto">
+              <DashChartCard
+                title="Enrollee feedback"
+                minHeight="min-h-0"
+                bodyClassName="p-3.5 flex-1 flex flex-col w-full divide-y divide-slate-100 max-h-[280px] overflow-y-auto"
+              >
                   {metrics.commentsList.map((comm, idx) => (
                     <div key={idx} className="py-2.5 first:pt-0 last:pb-0 space-y-1">
                       <div className="flex items-center justify-between text-[11px]">
@@ -994,80 +739,27 @@ export default function SatisfactionDashboardTab({
                       <p className="text-[10px] text-slate-500 font-medium">Facility: {comm.provider}</p>
                     </div>
                   ))}
-                </CardContent>
-              </Card>
+              </DashChartCard>
             </div>
           </div>
         </div>
-      )}
+      ) : null}
 
       {/* ═══════════════════════════════════════════════════════════════════════
           VIEW 2: ZONAL DASHBOARD (Slide 6)
           Assigned Zone Overview & State comparison
       ═══════════════════════════════════════════════════════════════════════ */}
-      {currentView === "zonal" && (
+      {!loading && currentView === "zonal" && (
         <div className="space-y-6">
-          {/* Zonal Top Stat Cards (Slide 6) */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <div className="bg-white border border-slate-200/80 rounded-sm p-3.5 shadow-xs flex flex-col justify-between">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                SURVEY RESPONSES
-              </span>
-              <div className="mt-2">
-                <span className="text-2xl font-black text-slate-900 tabular-nums">
-                  {metrics.total.toLocaleString()}
-                </span>
-                <p className="text-[11px] text-slate-500 mt-0.5">Assigned zone only</p>
-              </div>
-            </div>
-
-            <div className="bg-white border border-slate-200/80 rounded-sm p-3.5 shadow-xs flex flex-col justify-between">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                OVERALL EXCELLENT
-              </span>
-              <div className="mt-2">
-                <span className="text-2xl font-black text-emerald-700 tabular-nums">
-                  {metrics.excellentPct}%
-                </span>
-                <p className="text-[11px] text-slate-500 mt-0.5">Excellent overall ratings</p>
-              </div>
-            </div>
-
-            <div className="bg-white border border-slate-200/80 rounded-sm p-3.5 shadow-xs flex flex-col justify-between">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                POSITIVE RATING
-              </span>
-              <div className="mt-2">
-                <span className="text-2xl font-black text-[#1a7a52] tabular-nums">
-                  {metrics.positivePct}%
-                </span>
-                <p className="text-[11px] text-slate-500 mt-0.5">Acceptable + Excellent</p>
-              </div>
-            </div>
-
-            <div className="bg-white border border-slate-200/80 rounded-sm p-3.5 shadow-xs flex flex-col justify-between">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                ISSUES RESOLVED
-              </span>
-              <div className="mt-2">
-                <span className="text-2xl font-black text-emerald-700 tabular-nums">
-                  {metrics.resolvedPct}%
-                </span>
-                <p className="text-[11px] text-slate-500 mt-0.5">Resolved during visit</p>
-              </div>
-            </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 items-stretch">
+            <DashKpi label="Survey responses" value={metrics.total.toLocaleString()} detail="Assigned zone only" />
+            <DashKpi label="Overall excellent" value={`${metrics.excellentPct}%`} detail="Excellent overall ratings" />
+            <DashKpi label="Positive rating" value={`${metrics.positivePct}%`} detail="Acceptable + excellent" />
+            <DashKpi label="Issues resolved" value={`${metrics.resolvedPct}%`} detail="Resolved during visit" />
           </div>
 
-          {/* Charts Row: Responses by State & Satisfaction by State (One Card Per Row for optimal readability) */}
-          <div className="space-y-4">
-            {/* Survey responses by state */}
-            <Card className="rounded-sm border border-slate-200/80 bg-white shadow-xs overflow-hidden p-0 gap-0">
-              <CardHeader className="border-b border-slate-200 bg-[#f4f7f5] py-2.5 px-4 rounded-none m-0">
-                <CardTitle className="text-xs font-bold text-slate-800 uppercase tracking-wide">
-                  Survey Responses by State ({activeZoneLabel})
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="pt-4 pb-4 px-4">
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 items-stretch">
+            <DashChartCard title={`Survey responses by state (${activeZoneLabel})`}>
                 <div className="h-[280px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={metrics.stateRankings} margin={{ top: 10, right: 15, left: 10, bottom: 25 }}>
@@ -1079,17 +771,9 @@ export default function SatisfactionDashboardTab({
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
-              </CardContent>
-            </Card>
+            </DashChartCard>
 
-            {/* Overall satisfaction by state */}
-            <Card className="rounded-sm border border-slate-200/80 bg-white shadow-xs overflow-hidden p-0 gap-0">
-              <CardHeader className="border-b border-slate-200 bg-[#f4f7f5] py-2.5 px-4 rounded-none m-0">
-                <CardTitle className="text-xs font-bold text-slate-800 uppercase tracking-wide">
-                  Overall Satisfaction Index by State (% Acceptable + Excellent)
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="pt-4 pb-4 px-4">
+            <DashChartCard title="Overall satisfaction index by state" subtitle="Acceptable + excellent">
                 <div className="h-[280px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={metrics.stateRankings} margin={{ top: 10, right: 15, left: 10, bottom: 25 }}>
@@ -1105,26 +789,15 @@ export default function SatisfactionDashboardTab({
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
-              </CardContent>
-            </Card>
+            </DashChartCard>
           </div>
 
-          {/* States Table with Drill-down Action Button (Slide 6/8) */}
-          <Card className="rounded-sm border border-slate-200/80 bg-white shadow-xs overflow-hidden p-0 gap-0">
-            <CardHeader className="border-b border-slate-200 bg-[#f4f7f5] py-2.5 px-4 flex flex-row items-center justify-between rounded-none m-0">
-              <div>
-                <CardTitle className="text-xs font-bold text-slate-800 uppercase tracking-wide">
-                  States in {activeZoneLabel} (Select for Drill-down)
-                </CardTitle>
-                <p className="text-[11px] text-slate-500 mt-0.5">
-                  Click on any state to open granular service rating and resolution drill-down
-                </p>
-              </div>
-              <Badge variant="outline" className="border-[#1a7a52] text-[#1a7a52] font-bold">
-                {metrics.stateRankings.length} States
-              </Badge>
-            </CardHeader>
-            <CardContent className="p-0">
+          <DashChartCard
+            title={`States in ${activeZoneLabel}`}
+            subtitle="Open a state for the service rating and resolution detail"
+            action={<span className="text-[11px] text-slate-500">{metrics.stateRankings.length} states</span>}
+            {...TABLE_CARD}
+          >
               <table className="w-full text-xs">
                 <thead className="bg-slate-100 text-slate-700 font-bold border-b">
                   <tr>
@@ -1166,8 +839,7 @@ export default function SatisfactionDashboardTab({
                   ))}
                 </tbody>
               </table>
-            </CardContent>
-          </Card>
+          </DashChartCard>
         </div>
       )}
 
@@ -1175,81 +847,18 @@ export default function SatisfactionDashboardTab({
           VIEW 3: STATE / OFFICE DRILL-DOWN (Slide 7)
           Opened via Drill-down action from Zone Overview or National Dashboard
       ═══════════════════════════════════════════════════════════════════════ */}
-      {currentView === "drilldown" && (
+      {!loading && currentView === "drilldown" && (
         <div className="space-y-6">
-          {/* Slide 7 Stat Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-            <div className="bg-white border border-slate-200/80 rounded-sm p-3.5 shadow-xs flex flex-col justify-between">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                SURVEY RESPONSES
-              </span>
-              <div className="mt-2">
-                <span className="text-2xl font-black text-slate-900 tabular-nums">
-                  {scopedSurveys.length}
-                </span>
-                <p className="text-[11px] text-slate-500 mt-0.5">Selected state / office</p>
-              </div>
-            </div>
-
-            <div className="bg-white border border-slate-200/80 rounded-sm p-3.5 shadow-xs flex flex-col justify-between">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                OVERALL EXCELLENT
-              </span>
-              <div className="mt-2">
-                <span className="text-2xl font-black text-emerald-700 tabular-nums">
-                  {metrics.excellentPct}%
-                </span>
-                <p className="text-[11px] text-slate-500 mt-0.5">Overall rating</p>
-              </div>
-            </div>
-
-            <div className="bg-white border border-slate-200/80 rounded-sm p-3.5 shadow-xs flex flex-col justify-between">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                POSITIVE RATING
-              </span>
-              <div className="mt-2">
-                <span className="text-2xl font-black text-[#1a7a52] tabular-nums">
-                  {metrics.positivePct}%
-                </span>
-                <p className="text-[11px] text-slate-500 mt-0.5">Acceptable + Excellent</p>
-              </div>
-            </div>
-
-            <div className="bg-white border border-slate-200/80 rounded-sm p-3.5 shadow-xs flex flex-col justify-between">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                RESOLVED
-              </span>
-              <div className="mt-2">
-                <span className="text-2xl font-black text-emerald-700 tabular-nums">
-                  {metrics.resolvedPct}%
-                </span>
-                <p className="text-[11px] text-slate-500 mt-0.5">Resolved during visit</p>
-              </div>
-            </div>
-
-            <div className="bg-white border border-slate-200/80 rounded-sm p-3.5 shadow-xs flex flex-col justify-between">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                NOT RESOLVED
-              </span>
-              <div className="mt-2">
-                <span className="text-2xl font-black text-rose-700 tabular-nums">
-                  {metrics.notResolvedPct}%
-                </span>
-                <p className="text-[11px] text-slate-500 mt-0.5">Pending resolution</p>
-              </div>
-            </div>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 items-stretch">
+            <DashKpi label="Survey responses" value={scopedSurveys.length} detail="Selected state office" />
+            <DashKpi label="Overall excellent" value={`${metrics.excellentPct}%`} detail="Overall rating" />
+            <DashKpi label="Positive rating" value={`${metrics.positivePct}%`} detail="Acceptable + excellent" />
+            <DashKpi label="Resolved" value={`${metrics.resolvedPct}%`} detail="Resolved during visit" />
+            <DashKpi label="Not resolved" value={`${metrics.notResolvedPct}%`} detail="Pending resolution" />
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {/* Service ratings — selected state */}
-            <Card className="rounded-sm border border-slate-200/80 bg-white shadow-xs overflow-hidden p-0 gap-0">
-              <CardHeader className="border-b border-slate-200 bg-[#f4f7f5] py-2.5 px-4 rounded-none m-0">
-                <CardTitle className="text-xs font-bold text-slate-800 uppercase tracking-wide">
-                  Service Ratings — {activeDrillStateLabel}
-                </CardTitle>
-                <p className="text-[11px] text-slate-500 mt-0.5">Distribution across four service areas</p>
-              </CardHeader>
-              <CardContent className="p-0">
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 items-stretch">
+            <DashChartCard title={`Service ratings — ${activeDrillStateLabel}`} subtitle="Distribution across four service areas" {...TABLE_CARD}>
                 <table className="w-full text-xs">
                   <thead className="bg-slate-100 text-slate-700 font-bold border-b">
                     <tr>
@@ -1272,18 +881,9 @@ export default function SatisfactionDashboardTab({
                     ))}
                   </tbody>
                 </table>
-              </CardContent>
-            </Card>
+            </DashChartCard>
 
-            {/* Resolution and visit purpose */}
-            <Card className="rounded-sm border border-slate-200/80 bg-white shadow-xs overflow-hidden p-0 gap-0">
-              <CardHeader className="border-b border-slate-200 bg-[#f4f7f5] py-2.5 px-4 rounded-none m-0">
-                <CardTitle className="text-xs font-bold text-slate-800 uppercase tracking-wide">
-                  Resolution and Visit Purpose — {activeDrillStateLabel}
-                </CardTitle>
-                <p className="text-[11px] text-slate-500 mt-0.5">Review reasons for visit and outcome reported by enrollees</p>
-              </CardHeader>
-              <CardContent className="p-0">
+            <DashChartCard title={`Resolution and visit purpose — ${activeDrillStateLabel}`} subtitle="Reasons for the visit and the outcome reported" {...TABLE_CARD}>
                 <table className="w-full text-xs">
                   <thead className="bg-slate-100 text-slate-700 font-bold border-b">
                     <tr>
@@ -1304,8 +904,7 @@ export default function SatisfactionDashboardTab({
                     ))}
                   </tbody>
                 </table>
-              </CardContent>
-            </Card>
+            </DashChartCard>
           </div>
         </div>
       )}

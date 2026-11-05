@@ -802,15 +802,23 @@ export default function ServicomComplaintsPage({
     next: { mode?: Mode; id?: string | number | null; stage?: LifecycleStage | null },
     opts?: { replace?: boolean },
   ) => {
-    const params = new URLSearchParams();
+    // Keep hub params such as ?tab=complaints. Replacing the whole query
+    // drops the tab and the compliance hub snaps back to the register table.
+    const params = new URLSearchParams(searchParams);
     const m = next.mode ?? "list";
-    if (m !== "list") {
+    if (m === "list") {
+      params.delete("mode");
+      params.delete("id");
+      params.delete("stage");
+    } else {
       params.set("mode", m);
       if (next.id != null && next.id !== "") params.set("id", String(next.id));
+      else params.delete("id");
       if (m === "manage" && next.stage) params.set("stage", next.stage);
+      else params.delete("stage");
     }
     setSearchParams(params, { replace: !!opts?.replace });
-  }, [setSearchParams]);
+  }, [searchParams, setSearchParams]);
 
   const set = (key: string, value: string | boolean) => setF((p) => ({ ...p, [key]: value }));
 

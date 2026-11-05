@@ -1,19 +1,18 @@
 import * as React from "react";
 import {
-  AlertTriangle, BarChart3, CheckCircle2, ClipboardList, Clock,
-  Columns2, FileText, LayoutGrid, LineChart as LineChartIcon, Loader2,
-  MessageSquare, RefreshCw, Rows3, Table2, Target,
+  AlertTriangle, CheckCircle2, ClipboardList, Clock, FileText,
+  Loader2, MessageSquare, RefreshCw,
 } from "lucide-react";
 import {
-  Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart,
-  Pie, PieChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis,
+  Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart,
+  ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { stateOfficeDashboardApi } from "@/lib/api";
+import { officeAccommodationApi, stateOfficeDashboardApi } from "@/lib/api";
 import type { AuthUser } from "@/src/store/authSlice";
 import DashboardDrillPanel from "@/components/dashboard/DashboardDrillPanel";
 import { useDashboardDrill } from "@/components/dashboard/useDashboardDrill";
@@ -22,6 +21,7 @@ import StateOfficeDrillReportReview from "@/components/dashboard/StateOfficeDril
 import { parseDrillReportRecord } from "@/components/dashboard/stateOfficeDrillUtils";
 import type { StateOfficeReportType } from "@/components/stateOffice/constants";
 import type { DrillRow } from "@/components/dashboard/DashboardDrillPanel";
+import { ChartTooltip, DashChartCard, DashKpi } from "@/components/dashboard/dashboardUi";
 
 interface Props {
   user?: AuthUser;
@@ -30,81 +30,22 @@ interface Props {
   onNavigate?: (path: string) => void;
 }
 
-const DESIGN_KEY = "urms.sc.dashboard.design";
-const CHART_KEY = "urms.sc.dashboard.chart";
-const COLORS = ["#0ea5e9", "#14b8a6", "#f59e0b", "#8b5cf6", "#ef4444", "#64748b", "#25a872"];
+const RENT_SOON_DAYS = 90;
+const STATUS_COLORS: Record<string, string> = {
+  approved: "#1a7a52",
+  submitted: "#0284c7",
+  draft: "#d97706",
+};
 
-const DESIGNS = [
-  {
-    id: "focus",
-    label: "Focus",
-    icon: Rows3,
-    blurb: "KPIs and follow-ups first. Click a month, status, or pack to pin the slice.",
-  },
-  {
-    id: "compare",
-    label: "Compare",
-    icon: Columns2,
-    blurb: "Period vs previous, plan vs conducted, and pack mix side by side.",
-  },
-  {
-    id: "cards",
-    label: "Cards",
-    icon: LayoutGrid,
-    blurb: "Scan the four control KPIs, then open one for the supporting chart.",
-  },
-  {
-    id: "ledger",
-    label: "Table",
-    icon: Table2,
-    blurb: "Sortable figures for hand-off. Open a row for the month trend.",
-  },
-] as const;
+type RentStatus = "expired" | "due";
 
-const CHARTS = [
-  { id: "bar", label: "Bars", icon: BarChart3 },
-  { id: "line", label: "Lines", icon: LineChartIcon },
-  { id: "area", label: "Area", icon: AreaChartIcon },
-] as const;
-
-type DesignId = (typeof DESIGNS)[number]["id"];
-type ChartId = (typeof CHARTS)[number]["id"];
-
-function AreaChartIcon(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <path d="M3 17l6-6 4 3 8-8" />
-      <path d="M3 17h18" opacity="0.4" />
-      <path d="M3 17l6-6 4 3 8-8v11H3z" fill="currentColor" opacity="0.15" stroke="none" />
-    </svg>
-  );
-}
-
-function storedChoice<T extends string>(key: string, allowed: readonly T[], fallback: T): T {
-  try {
-    const value = localStorage.getItem(key);
-    if (value && (allowed as readonly string[]).includes(value)) return value as T;
-  } catch { /* */ }
-  return fallback;
-}
-
-function remember(key: string, value: string) {
-  try { localStorage.setItem(key, value); } catch { /* */ }
-}
-
-function severityCls(s: string) {
-  if (s === "high") return "bg-rose-100 text-rose-700 border-rose-200";
-  if (s === "medium") return "bg-amber-100 text-amber-700 border-amber-200";
-  return "bg-slate-100 text-slate-600 border-slate-200";
-}
-
-function tipStyle() {
-  return {
-    borderRadius: 12,
-    border: "1px solid #d4e8dc",
-    boxShadow: "0 8px 24px rgba(15,61,46,0.08)",
-    fontSize: 12,
-  };
+interface RentAlert {
+  id: number;
+  state: string;
+  status: RentStatus;
+  days: number;
+  dateLabel: string;
+  ownership: string;
 }
 
 function fmtNum(v: number | null | undefined) {
@@ -112,107 +53,78 @@ function fmtNum(v: number | null | undefined) {
   return Number(v).toLocaleString();
 }
 
-function Segmented<T extends string>({
-  value, options, onChange, ariaLabel,
-}: {
-  value: T;
-  options: readonly { id: T; label: string; icon?: React.ComponentType<{ className?: string }> }[];
-  onChange: (id: T) => void;
-  ariaLabel: string;
-}) {
-  return (
-    <div role="group" aria-label={ariaLabel} className="inline-flex flex-wrap items-center gap-0.5 rounded-lg border border-[#d4e8dc] bg-slate-50 p-1">
-      {options.map((opt) => {
-        const Icon = opt.icon;
-        const on = value === opt.id;
-        return (
-          <button
-            key={opt.id}
-            type="button"
-            aria-pressed={on}
-            onClick={() => onChange(opt.id)}
-            className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors ${
-              on ? "bg-white text-teal-800 shadow-sm" : "text-slate-500 hover:text-slate-800"
-            }`}
-          >
-            {Icon ? <Icon className="h-3.5 w-3.5" /> : null}
-            {opt.label}
-          </button>
-        );
-      })}
-    </div>
-  );
+function formatLeaseDate(iso: string) {
+  const parsed = new Date(`${iso.slice(0, 10)}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) return iso;
+  return parsed.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 }
 
-function AccentKpi({
-  label, value, detail, accent, onClick, active,
-}: {
-  label: string;
-  value: string | number;
-  detail?: string;
-  accent: "blue" | "teal" | "amber" | "green" | "purple";
-  onClick?: () => void;
-  active?: boolean;
-}) {
-  const border = {
-    blue: "border-l-sky-500",
-    teal: "border-l-teal-500",
-    amber: "border-l-amber-500",
-    green: "border-l-emerald-500",
-    purple: "border-l-violet-500",
-  }[accent];
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`h-full min-h-[96px] rounded-lg border border-[#d4e8dc] border-l-4 ${border} bg-white p-3.5 flex flex-col text-left hover:border-[#145c3f] hover:shadow-xs transition-colors shadow-2xs ${
-        active ? "ring-2 ring-teal-600/30" : ""
-      }`}
-    >
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 leading-tight min-h-[28px]">{label}</p>
-      <p className="mt-1 text-2xl font-bold tabular-nums text-slate-900 leading-tight">{value}</p>
-      <p className="mt-auto pt-1.5 text-xs text-slate-500 leading-snug">{detail || " "}</p>
-    </button>
-  );
+function daysUntil(iso: string) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const expiry = new Date(`${iso.slice(0, 10)}T00:00:00`);
+  return Math.round((expiry.getTime() - today.getTime()) / 86_400_000);
 }
 
-function ChartShell({
-  title, hint, children, height = 260,
-}: {
-  title: string;
-  hint?: string;
-  children: React.ReactNode;
-  height?: number;
-}) {
-  return (
-    <div className="rounded-lg border border-[#d4e8dc] bg-white p-3.5 shadow-2xs">
-      <div className="mb-2">
-        <p className="text-sm font-semibold text-slate-800">{title}</p>
-        {hint ? <p className="text-xs text-slate-500">{hint}</p> : null}
-      </div>
-      <div style={{ height }} className="w-full">{children}</div>
-    </div>
-  );
+function rentPhrase(alert: RentAlert) {
+  if (alert.days < 0) {
+    const n = Math.abs(alert.days);
+    return `expired ${n} day${n === 1 ? "" : "s"} ago`;
+  }
+  if (alert.days === 0) return "expires today";
+  return `expires in ${alert.days} day${alert.days === 1 ? "" : "s"}`;
 }
 
-/** State Coordinator — Operational Control home dashboard */
+/** Latest rented or co-habiting lease per state. Owned offices have no expiry. */
+function leaseAlerts(rows: any[]): RentAlert[] {
+  const latest = new Map<string, any>();
+  for (const row of rows) {
+    if (!row?.rent_expiry_date) continue;
+    if (row.ownership_status === "NHIA-owned") continue;
+    const key = String(row.state_code || row.id);
+    const prev = latest.get(key);
+    const year = Number(row.reporting_year) || 0;
+    const prevYear = Number(prev?.reporting_year) || 0;
+    if (!prev || year > prevYear || (year === prevYear && Number(row.id) > Number(prev.id))) {
+      latest.set(key, row);
+    }
+  }
+
+  const alerts: RentAlert[] = [];
+  for (const row of latest.values()) {
+    const days = daysUntil(String(row.rent_expiry_date));
+    if (days > RENT_SOON_DAYS) continue;
+    alerts.push({
+      id: Number(row.id),
+      state: row.state?.description || row.state_code || "State office",
+      status: days < 0 ? "expired" : "due",
+      days,
+      dateLabel: formatLeaseDate(String(row.rent_expiry_date)),
+      ownership: row.ownership_status || "Rented",
+    });
+  }
+  alerts.sort((a, b) => a.days - b.days);
+  return alerts;
+}
+
+function severityCls(s: string) {
+  if (s === "high") return "bg-rose-50 text-rose-800 border-rose-200";
+  if (s === "medium") return "bg-amber-50 text-amber-800 border-amber-200";
+  return "bg-slate-50 text-slate-600 border-slate-200";
+}
+
+/** State Coordinator — operational home. One layout, with office-rent watch. */
 export default function StateCoordinatorDashboard({
   user, stateName = "State", zoneName = "Zone", onNavigate,
 }: Props) {
   const [data, setData] = React.useState<any | null>(null);
+  const [leases, setLeases] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [reviewTarget, setReviewTarget] = React.useState<{
     reportType: StateOfficeReportType;
     reportId: number | string;
     reference?: string | null;
   } | null>(null);
-
-  const [design, setDesign] = React.useState<DesignId>(() => storedChoice(DESIGN_KEY, DESIGNS.map((d) => d.id), "focus"));
-  const [chart, setChart] = React.useState<ChartId>(() => storedChoice(CHART_KEY, CHARTS.map((c) => c.id), "area"));
-  const [pinnedMonth, setPinnedMonth] = React.useState<string | null>(null);
-  const [pinnedStatus, setPinnedStatus] = React.useState<string | null>(null);
-  const [pinnedPack, setPinnedPack] = React.useState<string | null>(null);
-  const [openCard, setOpenCard] = React.useState<"completion" | "implementation" | "action" | "reports">("action");
 
   const lockZone = user?.zonal_code || user?.zone_id || user?.zone?.zonal_code || null;
   const lockState = user?.state_code || user?.state_id || user?.state?.code || null;
@@ -244,8 +156,15 @@ export default function StateCoordinatorDashboard({
   const load = React.useCallback(async () => {
     setLoading(true);
     try {
-      const res = await stateOfficeDashboardApi.getDashboard(filters.apiFilters);
-      setData(res.data);
+      const [dash, acc] = await Promise.all([
+        stateOfficeDashboardApi.getDashboard(filters.apiFilters),
+        officeAccommodationApi.list({
+          state_id: filters.apiFilters.state_id,
+          zone_id: filters.apiFilters.zone_id,
+        }).catch(() => ({ data: [] as any[] })),
+      ]);
+      setData(dash.data);
+      setLeases(acc.data || []);
     } catch (err: any) {
       toast.error("Failed to load operational dashboard", { description: err.message });
       setData(null);
@@ -264,7 +183,10 @@ export default function StateCoordinatorDashboard({
   const periodLabel = op?.current_period?.label;
   const scopeLine = `${stateName} · ${zoneName}${periodLabel ? ` · ${periodLabel}` : ""}`;
   const drillCtx = { subtitle: scopeLine, breadcrumbs: ["State Coordinator"] };
-  const activeDesign = DESIGNS.find((d) => d.id === design) || DESIGNS[0];
+  const rent = React.useMemo(() => leaseAlerts(leases), [leases]);
+  const expiredCount = rent.filter((item) => item.status === "expired").length;
+
+  const openAccommodation = () => onNavigate?.("/soc/office-profile?tab=accommodation");
 
   const drillReports = (title: string, extra?: Record<string, string>) => {
     drill.openRecordDrill("all_reports", title, drillCtx, extra);
@@ -281,19 +203,11 @@ export default function StateCoordinatorDashboard({
   const statusPie = React.useMemo(() => {
     if (!current) return [];
     return [
-      { name: "Approved", value: current.approved || 0, color: "#14b8a6", status: "approved" },
-      { name: "Submitted", value: current.submitted || 0, color: "#0ea5e9", status: "submitted" },
-      { name: "Draft", value: current.drafts || 0, color: "#f59e0b", status: "draft" },
+      { name: "Approved", value: current.approved || 0, status: "approved" },
+      { name: "Submitted", value: current.submitted || 0, status: "submitted" },
+      { name: "Draft", value: current.drafts || 0, status: "draft" },
     ].filter((d) => d.value > 0);
   }, [current]);
-
-  const planChart = React.useMemo(() => {
-    if (!op) return [];
-    return [
-      { name: "Planned", value: op.planned_activities || 0, fill: "#94a3b8" },
-      { name: "Conducted", value: op.activities_conducted || 0, fill: "#14b8a6" },
-    ];
-  }, [op]);
 
   const compareChart = React.useMemo(() => {
     if (!current || !previous) return [];
@@ -304,515 +218,356 @@ export default function StateCoordinatorDashboard({
     ];
   }, [current, previous]);
 
-  const topTypes = React.useMemo(() => {
-    const rows = (data?.reports_by_type ?? []).map((r: any) => ({
+  const topTypes = React.useMemo(() => (
+    (data?.reports_by_type ?? []).map((r: any) => ({
       ...r,
       total: Number(r.total ?? r.reports ?? 0),
-    }));
-    return pinnedPack ? rows.filter((r: any) => r.key === pinnedPack) : rows.slice(0, 8);
-  }, [data?.reports_by_type, pinnedPack]);
+    })).slice(0, 8)
+  ), [data?.reports_by_type]);
 
   const trend = op?.period_trend ?? [];
-  const pinnedTrend = trend.find((t: any) => t.month === pinnedMonth) || null;
-
-  const chooseDesign = (id: DesignId) => {
-    setDesign(id);
-    remember(DESIGN_KEY, id);
-  };
-  const chooseChart = (id: ChartId) => {
-    setChart(id);
-    remember(CHART_KEY, id);
-  };
 
   const actionItems = [
-    { label: "Pending review", value: needs?.pending_review ?? 0, icon: Clock, path: null as string | null, color: "#0ea5e9", drill: () => drillReports("Pending review", { status: "submitted" }) },
-    { label: "Draft reports", value: needs?.draft_reports ?? 0, icon: FileText, path: "/zonal/enrolment", color: "#f59e0b", drill: () => drillReports("Draft reports", { status: "draft" }) },
-    { label: "Open actionables", value: needs?.open_actionables ?? 0, icon: ClipboardList, path: "/soc/weekly-actionable", color: "#ef4444", drill: () => drillReportType("weekly_actionable", "Weekly Actionable") },
-    { label: "Open challenges", value: needs?.open_challenges ?? 0, icon: AlertTriangle, path: "/zonal/challenges", color: "#8b5cf6", drill: () => drillReportType("challenges", "Challenges") },
+    { label: "Pending review", value: needs?.pending_review ?? 0, icon: Clock, path: null as string | null, drill: () => drillReports("Pending review", { status: "submitted" }) },
+    { label: "Draft reports", value: needs?.draft_reports ?? 0, icon: FileText, path: "/zonal/enrolment", drill: () => drillReports("Draft reports", { status: "draft" }) },
+    { label: "Open actionables", value: needs?.open_actionables ?? 0, icon: ClipboardList, path: "/soc/weekly-actionable", drill: () => drillReportType("weekly_actionable", "Weekly Actionable") },
+    { label: "Open challenges", value: needs?.open_challenges ?? 0, icon: AlertTriangle, path: "/zonal/challenges", drill: () => drillReportType("challenges", "Challenges") },
     {
       label: "Complaints register",
       value: null as number | null,
       icon: MessageSquare,
       path: "/zonal/complaints-register",
-      color: "#0f766e",
       drill: null as (() => void) | null,
-      hint: "View submitted complaints & assign officers",
+      hint: "View submitted complaints and assign officers",
     },
   ];
 
-  const trendChart = (
-    <ChartShell
-      title="6-month activity trend"
-      hint={pinnedTrend
-        ? `${pinnedTrend.label}: ${fmtNum(pinnedTrend.reports)} reports · ${fmtNum(pinnedTrend.submitted)} submitted · ${fmtNum(pinnedTrend.approved)} approved. Click again to clear.`
-        : "Click a month to pin it, or drill into that period."}
-    >
-      {trend.length === 0 ? (
-        <div className="h-full flex items-center justify-center text-xs text-slate-400">No trend yet</div>
-      ) : chart === "line" ? (
-        <ResponsiveContainer width="100%" height="100%">
-          <LineChart
-            data={trend}
-            onClick={(e: any) => {
-              const m = e?.activePayload?.[0]?.payload?.month;
-              if (!m) return;
-              setPinnedMonth((cur) => (cur === m ? null : m));
-            }}
-            className="cursor-pointer"
-          >
-            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-            <XAxis dataKey="label" tick={{ fontSize: 11, fill: "#64748b" }} axisLine={false} tickLine={false} />
-            <YAxis tick={{ fontSize: 11, fill: "#64748b" }} axisLine={false} tickLine={false} allowDecimals={false} width={32} />
-            <Tooltip contentStyle={tipStyle()} />
-            <Legend wrapperStyle={{ fontSize: 12 }} />
-            {pinnedMonth ? <ReferenceLine x={pinnedTrend?.label} stroke="#0f3d2e" strokeDasharray="4 4" /> : null}
-            <Line type="monotone" dataKey="reports" name="Reports" stroke="#14b8a6" strokeWidth={2.4} dot={{ r: 3 }} />
-            <Line type="monotone" dataKey="submitted" name="Submitted" stroke="#0ea5e9" strokeWidth={2} dot={{ r: 3 }} />
-            <Line type="monotone" dataKey="approved" name="Approved" stroke="#f59e0b" strokeWidth={2} dot={{ r: 3 }} />
-          </LineChart>
-        </ResponsiveContainer>
-      ) : chart === "bar" ? (
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart
-            data={trend}
-            onClick={(e: any) => {
-              const m = e?.activePayload?.[0]?.payload?.month;
-              if (!m) return;
-              setPinnedMonth((cur) => (cur === m ? null : m));
-            }}
-            className="cursor-pointer"
-          >
-            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-            <XAxis dataKey="label" tick={{ fontSize: 11, fill: "#64748b" }} axisLine={false} tickLine={false} />
-            <YAxis tick={{ fontSize: 11, fill: "#64748b" }} axisLine={false} tickLine={false} allowDecimals={false} width={32} />
-            <Tooltip contentStyle={tipStyle()} />
-            <Legend wrapperStyle={{ fontSize: 12 }} />
-            <Bar dataKey="reports" name="Reports" fill="#14b8a6" radius={[4, 4, 0, 0]} maxBarSize={22} />
-            <Bar dataKey="submitted" name="Submitted" fill="#0ea5e9" radius={[4, 4, 0, 0]} maxBarSize={22} />
-            <Bar dataKey="approved" name="Approved" fill="#f59e0b" radius={[4, 4, 0, 0]} maxBarSize={22} />
-          </BarChart>
-        </ResponsiveContainer>
-      ) : (
-        <ResponsiveContainer width="100%" height="100%">
-          <AreaChart
-            data={trend}
-            onClick={(e: any) => {
-              const m = e?.activePayload?.[0]?.payload?.month;
-              if (m) {
-                setPinnedMonth((cur) => (cur === m ? null : m));
-                drillReports(`Reports — ${m}`, { month: m });
-              }
-            }}
-            className="cursor-pointer"
-          >
-            <defs>
-              <linearGradient id="scReports" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#14b8a6" stopOpacity={0.35} />
-                <stop offset="100%" stopColor="#14b8a6" stopOpacity={0} />
-              </linearGradient>
-            </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-            <XAxis dataKey="label" tick={{ fontSize: 11, fill: "#64748b" }} axisLine={false} tickLine={false} />
-            <YAxis tick={{ fontSize: 11, fill: "#64748b" }} axisLine={false} tickLine={false} allowDecimals={false} width={32} />
-            <Tooltip contentStyle={tipStyle()} />
-            <Legend wrapperStyle={{ fontSize: 12 }} />
-            {pinnedMonth ? <ReferenceLine x={pinnedTrend?.label} stroke="#0f3d2e" strokeDasharray="4 4" /> : null}
-            <Area type="monotone" dataKey="reports" name="Reports" stroke="#14b8a6" fill="url(#scReports)" strokeWidth={2} />
-            <Area type="monotone" dataKey="submitted" name="Submitted" stroke="#0ea5e9" fill="transparent" strokeWidth={2} />
-            <Area type="monotone" dataKey="approved" name="Approved" stroke="#f59e0b" fill="transparent" strokeWidth={2} />
-          </AreaChart>
-        </ResponsiveContainer>
-      )}
-    </ChartShell>
-  );
-
-  const statusChart = (
-    <ChartShell title="Status mix" hint="Click a slice to drill that status.">
-      {statusPie.length === 0 ? (
-        <div className="h-full flex items-center justify-center text-xs text-slate-400">No reports this period</div>
-      ) : (
-        <ResponsiveContainer width="100%" height="100%">
-          <PieChart>
-            <Pie
-              data={pinnedStatus ? statusPie.filter((s) => s.status === pinnedStatus) : statusPie}
-              dataKey="value"
-              nameKey="name"
-              innerRadius={55}
-              outerRadius={85}
-              paddingAngle={3}
-              className="cursor-pointer"
-              onClick={(_: any, idx: number) => {
-                const slice = (pinnedStatus ? statusPie.filter((s) => s.status === pinnedStatus) : statusPie)[idx];
-                if (!slice) return;
-                setPinnedStatus((cur) => (cur === slice.status ? null : slice.status));
-                drillReports(slice.name, { status: slice.status });
-              }}
-            >
-              {(pinnedStatus ? statusPie.filter((s) => s.status === pinnedStatus) : statusPie).map((e) => (
-                <Cell key={e.name} fill={e.color} />
-              ))}
-            </Pie>
-            <Tooltip contentStyle={tipStyle()} />
-            <Legend wrapperStyle={{ fontSize: 12 }} />
-          </PieChart>
-        </ResponsiveContainer>
-      )}
-    </ChartShell>
-  );
-
-  const packsChart = (
-    <ChartShell title={`What is happening in ${stateName}?`} hint="Click a pack to pin and drill." height={280}>
-      {topTypes.length === 0 ? (
-        <div className="h-full flex items-center justify-center text-xs text-slate-400">No report activity yet</div>
-      ) : (
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart
-            data={topTypes}
-            layout="vertical"
-            margin={{ left: 8, right: 16 }}
-            onClick={(e: any) => {
-              const row = e?.activePayload?.[0]?.payload;
-              if (!row?.key) return;
-              setPinnedPack((cur) => (cur === row.key ? null : row.key));
-              drillReportType(row.key, row.label);
-            }}
-            className="cursor-pointer"
-          >
-            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal={false} />
-            <XAxis type="number" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
-            <YAxis type="category" dataKey="label" width={140} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
-            <Tooltip contentStyle={tipStyle()} />
-            <Bar dataKey="total" name="Reports" radius={[0, 6, 6, 0]} barSize={14}>
-              {topTypes.map((_: any, i: number) => (
-                <Cell key={i} fill={COLORS[i % COLORS.length]} fillOpacity={!pinnedPack || topTypes[i]?.key === pinnedPack ? 1 : 0.35} />
-              ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
-      )}
-    </ChartShell>
-  );
-
-  const actionQueue = (
-    <div className="h-full flex flex-col rounded-lg border border-[#d4e8dc] bg-white p-3.5 shadow-2xs">
-      <p className="text-sm font-semibold text-slate-800">What needs my action?</p>
-      <p className="mb-3 text-xs text-slate-500">Immediate items for {stateName}</p>
-      <div className="space-y-2 flex-1">
-        {actionItems.map((item) => (
-          <button
-            key={item.label}
-            type="button"
-            onClick={() => {
-              if (item.drill && typeof item.value === "number" && item.value > 0) item.drill();
-              else if (item.path) onNavigate?.(item.path);
-            }}
-            className="w-full flex items-center gap-2.5 rounded-md border border-slate-100 bg-slate-50/80 p-2 text-left hover:border-[#145c3f] transition-colors"
-          >
-            <div className="w-8 h-8 rounded-md flex items-center justify-center shrink-0" style={{ background: `${item.color}18` }}>
-              <item.icon className="w-4 h-4" style={{ color: item.color }} />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-slate-800">{item.label}</p>
-              {"hint" in item && item.hint ? <p className="text-[11px] text-slate-500 truncate">{item.hint}</p> : null}
-            </div>
-            {typeof item.value === "number" ? (
-              <span className="text-lg font-bold tabular-nums text-slate-900">{item.value}</span>
-            ) : (
-              <span className="text-xs font-semibold text-teal-800">Open →</span>
-            )}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-
-  const offTrack = (
-    <div className="h-full flex flex-col rounded-lg border border-[#d4e8dc] bg-white p-3.5 shadow-2xs">
-      <div className="mb-3 flex items-start justify-between gap-2">
-        <div>
-          <p className="text-sm font-semibold text-slate-800">Off-track & attention</p>
-          <p className="text-xs text-slate-500">Where performance is slipping against plan</p>
-        </div>
-        <button type="button" onClick={() => drillReports("All reports")} className="text-[11px] font-semibold text-teal-700 hover:underline">
-          All reports
-        </button>
-      </div>
-      {(op?.off_track ?? []).length === 0 ? (
-        <div className="flex flex-1 flex-col items-center justify-center py-10 text-center gap-2">
-          <CheckCircle2 className="w-8 h-8 text-emerald-500" />
-          <p className="text-sm font-medium text-slate-700">All clear</p>
-          <p className="text-xs text-slate-500">No off-track items flagged for this period.</p>
-        </div>
-      ) : (
-        <div className="space-y-2 flex-1">
-          {op.off_track.map((item: any) => (
-            <button
-              key={item.key}
-              type="button"
-              onClick={() => {
-                if (item.key === "drafts") drillReports("Draft reports", { status: "draft" });
-                else if (item.key === "pending_review") drillReports("Pending review", { status: "submitted" });
-                else if (item.key === "actionables") drillReportType("weekly_actionable", "Weekly Actionable");
-                else if (item.key === "challenges") drillReportType("challenges", "Challenges");
-                else drillReports(item.label);
-              }}
-              className="w-full flex items-start gap-2.5 rounded-md border border-slate-100 bg-slate-50/80 p-2.5 text-left hover:border-[#145c3f] transition-colors"
-            >
-              <Badge variant="outline" className={`text-[10px] shrink-0 ${severityCls(item.severity)}`}>
-                {item.severity}
-              </Badge>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-slate-800">{item.label}</p>
-                <p className="text-xs text-slate-500 mt-0.5">{item.reason}</p>
-              </div>
-              <span className="text-base font-bold tabular-nums text-slate-900">
-                {item.count}{item.key === "implementation" ? "%" : ""}
-              </span>
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-
-  const compareBlock = (
-    <div className="grid lg:grid-cols-3 gap-4">
-      <div className="lg:col-span-2">
-        <ChartShell
-          title="Performance vs previous period"
-          hint={`${op?.current_period?.label} compared with ${op?.previous_period?.label}`}
-        >
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={compareChart} barGap={6} barSize={22}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-              <XAxis dataKey="metric" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
-              <Tooltip contentStyle={tipStyle()} />
-              <Legend wrapperStyle={{ fontSize: 12 }} />
-              <Bar dataKey="previous" name={op?.previous_period?.label} fill="#94a3b8" radius={[6, 6, 0, 0]} />
-              <Bar dataKey="current" name={op?.current_period?.label} fill="#14b8a6" radius={[6, 6, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartShell>
-      </div>
-      <ChartShell title="Plan vs conducted" hint="Approved packs with plan / completion signals">
-        <div className="h-full flex flex-col">
-          <div className="flex-1 min-h-0">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={planChart} layout="vertical" margin={{ left: 8, right: 16 }}>
-                <XAxis type="number" hide />
-                <YAxis type="category" dataKey="name" width={80} tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
-                <Tooltip contentStyle={tipStyle()} />
-                <Bar dataKey="value" radius={[0, 8, 8, 0]} barSize={18}>
-                  {planChart.map((e) => <Cell key={e.name} fill={e.fill} />)}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="pt-3">
-            <div className="flex justify-between text-xs mb-1.5">
-              <span className="text-slate-500">Implementation rate</span>
-              <span className="font-bold text-slate-800">{op?.implementation_rate ?? 0}%</span>
-            </div>
-            <Progress value={Math.min(100, Number(op?.implementation_rate || 0))} className="h-2" />
-          </div>
-        </div>
-      </ChartShell>
-    </div>
-  );
-
-  const kpiRow = current && op && needs ? (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-      <AccentKpi
-        accent="teal"
-        label="Completion rate"
-        value={`${current.completion_rate}%`}
-        detail={`${current.approved} approved of ${current.reports}`}
-        active={openCard === "completion"}
-        onClick={() => { setOpenCard("completion"); drillReports("All reports — completion"); }}
-      />
-      <AccentKpi
-        accent="blue"
-        label="Implementation vs plan"
-        value={`${op.implementation_rate}%`}
-        detail={`${op.activities_conducted} conducted · ${op.planned_activities} planned`}
-        active={openCard === "implementation"}
-        onClick={() => setOpenCard("implementation")}
-      />
-      <AccentKpi
-        accent="amber"
-        label="Needs your action"
-        value={needs.total}
-        detail={`${needs.pending_review} review · ${needs.open_actionables} actionables`}
-        active={openCard === "action"}
-        onClick={() => { setOpenCard("action"); drillReports("Needs action — submitted", { status: "submitted" }); }}
-      />
-      <AccentKpi
-        accent="green"
-        label="Reports this period"
-        value={current.reports}
-        detail={`vs ${previous.reports} in ${op.previous_period.label}${typeof vs?.reports_delta_pct === "number" ? ` (${vs.reports_delta_pct > 0 ? "+" : ""}${vs.reports_delta_pct}%)` : ""}`}
-        active={openCard === "reports"}
-        onClick={() => { setOpenCard("reports"); drillReports("Reports this period"); }}
-      />
-    </div>
-  ) : null;
+  const rentKpiValue = rent.length === 0
+    ? "Current"
+    : expiredCount > 0
+      ? (expiredCount === 1 ? "Expired" : `${expiredCount} expired`)
+      : (rent.length === 1 ? `${rent[0].days}d` : `${rent.length} due`);
+  const rentKpiDetail = rent.length === 0
+    ? "No lease inside the 90-day window"
+    : rent[0].status === "expired"
+      ? `${rent[0].state} ${rentPhrase(rent[0])}`
+      : `${rent[0].state} ${rentPhrase(rent[0])}`;
 
   return (
-    <div className="flex flex-col h-full min-h-0 bg-[#f7fafc] rounded-lg overflow-hidden w-full">
-      <div className="bg-white border-b border-slate-200 px-4 md:px-5 py-2 sticky top-0 z-20">
-        <div className="flex items-center gap-3">
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2 min-w-0">
-              <h1 className="text-base md:text-lg font-bold tracking-tight text-slate-900 shrink-0">
-                State Coordinator Dashboard
-              </h1>
-              <span className="hidden sm:inline rounded-full border border-teal-200 bg-teal-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-teal-800 shrink-0">
-                State
-              </span>
-              <span className="text-xs text-slate-500 truncate hidden md:inline">{scopeLine}</span>
-            </div>
-            <p className="text-[11px] text-slate-400 truncate md:hidden">{scopeLine}</p>
+    <div className="flex flex-col h-full min-h-0 rounded-sm overflow-hidden w-full">
+      <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-5 py-2.5 sticky top-0 z-20">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="text-base md:text-lg font-bold tracking-tight text-slate-900">
+              State Coordinator Dashboard
+            </h1>
+            <p className="text-xs text-slate-500 truncate">{scopeLine}</p>
           </div>
-          <div className="flex items-center gap-1.5 shrink-0">
+          <div className="flex flex-wrap items-end gap-2">
             <RoleDashboardFilters filters={filters} compact />
             <Button
               variant="outline"
               size="sm"
               onClick={() => void load()}
               disabled={loading}
-              className="h-8 w-8 p-0 shrink-0"
-              title="Refresh"
-              aria-label="Refresh"
+              className="h-8.5 gap-1.5 border border-slate-300 text-slate-700 bg-white hover:bg-[#f4f7f5] text-xs font-bold rounded-sm shadow-2xs"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+              <span>Sync</span>
             </Button>
           </div>
-        </div>
-        <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-          <Segmented value={design} options={DESIGNS} onChange={chooseDesign} ariaLabel="Dashboard design" />
-          {(design === "focus" || design === "compare" || design === "cards") ? (
-            <Segmented value={chart} options={CHARTS} onChange={chooseChart} ariaLabel="Chart style" />
-          ) : null}
         </div>
       </div>
 
       <ScrollArea className="flex-1">
-        <div className="px-3 md:px-4 py-3.5 space-y-3.5 pb-8 w-full">
-
-          {(pinnedMonth || pinnedStatus || pinnedPack) ? (
-            <div className="flex flex-wrap items-center gap-2 text-xs">
-              <span className="text-slate-500">Pinned:</span>
-              {pinnedMonth ? (
-                <button type="button" onClick={() => setPinnedMonth(null)} className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-slate-700">
-                  Month {pinnedTrend?.label || pinnedMonth} ×
-                </button>
-              ) : null}
-              {pinnedStatus ? (
-                <button type="button" onClick={() => setPinnedStatus(null)} className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-slate-700">
-                  Status {pinnedStatus} ×
-                </button>
-              ) : null}
-              {pinnedPack ? (
-                <button type="button" onClick={() => setPinnedPack(null)} className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-slate-700">
-                  Pack {topTypes.find((t: any) => t.key === pinnedPack)?.label || pinnedPack} ×
-                </button>
-              ) : null}
-            </div>
-          ) : null}
-
+        <div className="px-3 md:px-4 py-4 space-y-4 pb-8 w-full">
           {loading ? (
-            <div className="flex items-center justify-center py-28 gap-3 text-slate-400">
-              <Loader2 className="w-6 h-6 animate-spin text-teal-700" />
-              <span className="text-sm">Loading performance overview…</span>
+            <div className="flex items-center justify-center py-24 gap-3 text-slate-400">
+              <Loader2 className="w-5 h-5 animate-spin" />
+              <span className="text-sm">Loading operational dashboard…</span>
             </div>
           ) : !data || !op || !current || !needs ? (
-            <div className="rounded-lg border border-dashed border-slate-200 bg-white py-12 text-center text-sm text-slate-500">
-              No operational data available for this state yet. Approved packs will appear here as reports are submitted.
-            </div>
-          ) : design === "cards" ? (
-            <div className="space-y-4">
-              {kpiRow}
-              {openCard === "action" ? (
-                <div className="grid lg:grid-cols-5 gap-4 items-stretch">
-                  <div className="lg:col-span-2 min-h-0 h-full">{actionQueue}</div>
-                  <div className="lg:col-span-3 min-h-0 h-full">{offTrack}</div>
-                </div>
-              ) : openCard === "implementation" ? (
-                compareBlock
-              ) : openCard === "reports" ? (
-                packsChart
-              ) : (
-                <div className="grid lg:grid-cols-3 gap-4">
-                  <div className="lg:col-span-2">{trendChart}</div>
-                  {statusChart}
-                </div>
-              )}
-            </div>
-          ) : design === "ledger" ? (
-            <div className="space-y-4">
-              <div className="overflow-hidden rounded-lg border border-[#d4e8dc] bg-white shadow-2xs">
-                <table className="w-full text-sm">
-                  <thead className="bg-slate-50">
-                    <tr>
-                      <th className="px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500">Metric</th>
-                      <th className="px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500">Current</th>
-                      <th className="px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500">Previous</th>
-                      <th className="px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500">Note</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {[
-                      ["Reports", current.reports, previous.reports, op.current_period.label],
-                      ["Submitted / awaiting review", current.submitted, previous.submitted, "Needs coordinator action"],
-                      ["Approved / endorsed", current.approved, previous.approved, `${current.completion_rate}% completion`],
-                      ["Drafts", current.drafts, previous.drafts, "Still in draft"],
-                      ["Planned volume", op.planned_activities, "—", "Across approved packs"],
-                      ["Conducted volume", op.activities_conducted, "—", `${op.implementation_rate}% implementation`],
-                    ].map(([metric, cur, prev, note]) => (
-                      <tr key={String(metric)} className="border-t border-slate-100">
-                        <td className="px-3 py-2.5 font-medium text-slate-800">{metric}</td>
-                        <td className="px-3 py-2.5 tabular-nums font-semibold">{fmtNum(Number(cur))}</td>
-                        <td className="px-3 py-2.5 tabular-nums text-slate-500">{prev === "—" ? "—" : fmtNum(Number(prev))}</td>
-                        <td className="px-3 py-2.5 text-slate-500">{note}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              {packsChart}
-              <div className="grid lg:grid-cols-2 gap-4 items-stretch">
-                <div className="h-full min-h-0">{actionQueue}</div>
-                <div className="h-full min-h-0">{offTrack}</div>
-              </div>
-            </div>
-          ) : design === "compare" ? (
-            <div className="space-y-4">
-              {kpiRow}
-              {compareBlock}
-              <div className="grid lg:grid-cols-3 gap-4">
-                <div className="lg:col-span-2">{trendChart}</div>
-                {statusChart}
-              </div>
-              {packsChart}
+            <div className="rounded-sm border border-dashed border-[#d4e8dc] bg-white py-12 text-center text-sm text-slate-500">
+              No operational data for this state yet. Approved packs appear here as reports are submitted.
             </div>
           ) : (
-            <div className="space-y-4">
-              {kpiRow}
-              <div className="grid lg:grid-cols-5 gap-4 items-stretch">
-                <div className="lg:col-span-2 min-h-0 h-full">{actionQueue}</div>
-                <div className="lg:col-span-3 min-h-0 h-full">{offTrack}</div>
+            <>
+              {rent.length > 0 && (
+                <section
+                  className={`rounded-sm border px-3.5 py-3 ${
+                    expiredCount > 0 ? "border-rose-200 bg-rose-50" : "border-amber-200 bg-amber-50"
+                  }`}
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className={`text-sm font-bold ${expiredCount > 0 ? "text-rose-950" : "text-amber-950"}`}>
+                        {expiredCount > 0 ? "Office rent has expired" : "Office rent is about to expire"}
+                      </p>
+                      <ul className="mt-1.5 space-y-1">
+                        {rent.map((item) => (
+                          <li key={item.id} className={`text-xs ${expiredCount > 0 ? "text-rose-900" : "text-amber-950"}`}>
+                            <span className="font-semibold">{item.state}</span>
+                            {" · "}
+                            {item.ownership}
+                            {" · "}
+                            {rentPhrase(item)}
+                            {" · "}
+                            {item.dateLabel}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={openAccommodation}
+                      className="h-8.5 shrink-0 text-xs font-bold rounded-sm border-slate-300 bg-white"
+                    >
+                      Open accommodation
+                    </Button>
+                  </div>
+                </section>
+              )}
+
+              <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 items-stretch">
+                <DashKpi
+                  label="Completion rate"
+                  value={`${current.completion_rate}%`}
+                  detail={`${current.approved} approved of ${current.reports}`}
+                  onClick={() => drillReports("All reports — completion")}
+                />
+                <DashKpi
+                  label="Implementation vs plan"
+                  value={`${op.implementation_rate}%`}
+                  detail={`${op.activities_conducted} conducted · ${op.planned_activities} planned`}
+                  onClick={() => drillReports("Reports this period")}
+                />
+                <DashKpi
+                  label="Needs your action"
+                  value={needs.total}
+                  detail={`${needs.pending_review} review · ${needs.open_actionables} actionables`}
+                  onClick={() => drillReports("Needs action — submitted", { status: "submitted" })}
+                />
+                <DashKpi
+                  label="Reports this period"
+                  value={current.reports}
+                  detail={`vs ${previous.reports} in ${op.previous_period.label}${typeof vs?.reports_delta_pct === "number" ? ` (${vs.reports_delta_pct > 0 ? "+" : ""}${vs.reports_delta_pct}%)` : ""}`}
+                  onClick={() => drillReports("Reports this period")}
+                />
+                <DashKpi
+                  label="Office rent"
+                  value={rentKpiValue}
+                  detail={rentKpiDetail}
+                  onClick={openAccommodation}
+                />
               </div>
-              <div className="grid lg:grid-cols-3 gap-4">
-                <div className="lg:col-span-2">{trendChart}</div>
-                {statusChart}
+
+              <div className="grid grid-cols-1 xl:grid-cols-5 gap-4 items-stretch">
+                <DashChartCard
+                  title="What needs action"
+                  subtitle={`Immediate items for ${stateName}`}
+                  className="xl:col-span-2"
+                  minHeight="min-h-0"
+                  bodyClassName="p-3 flex-1 flex flex-col w-full"
+                >
+                  <div className="space-y-2">
+                    {actionItems.map((item) => {
+                      const Icon = item.icon;
+                      return (
+                        <button
+                          key={item.label}
+                          type="button"
+                          onClick={() => {
+                            if (item.drill && typeof item.value === "number" && item.value > 0) item.drill();
+                            else if (item.path) onNavigate?.(item.path);
+                          }}
+                          className="w-full flex items-center gap-2.5 rounded-sm border border-[#d4e8dc] bg-white px-2.5 py-2 text-left hover:border-[#1a7a52] transition-colors"
+                        >
+                          <Icon className="w-4 h-4 text-[#1a7a52] shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-slate-800">{item.label}</p>
+                            {"hint" in item && item.hint ? (
+                              <p className="text-[11px] text-slate-500 truncate">{item.hint}</p>
+                            ) : null}
+                          </div>
+                          {typeof item.value === "number" ? (
+                            <span className="text-lg font-black tabular-nums text-slate-900">{item.value}</span>
+                          ) : (
+                            <span className="text-[11px] font-semibold text-[#1a7a52]">Open</span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </DashChartCard>
+
+                <DashChartCard
+                  title="Off-track and attention"
+                  subtitle="Where performance is slipping against plan"
+                  className="xl:col-span-3"
+                  minHeight="min-h-0"
+                  bodyClassName="p-3 flex-1 flex flex-col w-full"
+                  action={(
+                    <button type="button" onClick={() => drillReports("All reports")} className="text-[11px] font-semibold text-[#1a7a52] hover:underline">
+                      All reports
+                    </button>
+                  )}
+                >
+                  {(op?.off_track ?? []).length === 0 ? (
+                    <div className="flex flex-1 flex-col items-center justify-center py-8 text-center gap-2">
+                      <CheckCircle2 className="w-7 h-7 text-[#1a7a52]" />
+                      <p className="text-sm font-medium text-slate-800">All clear</p>
+                      <p className="text-xs text-slate-500">No off-track items for this period.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {op.off_track.map((item: any) => (
+                        <button
+                          key={item.key}
+                          type="button"
+                          onClick={() => {
+                            if (item.key === "drafts") drillReports("Draft reports", { status: "draft" });
+                            else if (item.key === "pending_review") drillReports("Pending review", { status: "submitted" });
+                            else if (item.key === "actionables") drillReportType("weekly_actionable", "Weekly Actionable");
+                            else if (item.key === "challenges") drillReportType("challenges", "Challenges");
+                            else drillReports(item.label);
+                          }}
+                          className="w-full flex items-start gap-2.5 rounded-sm border border-[#d4e8dc] bg-white px-2.5 py-2 text-left hover:border-[#1a7a52] transition-colors"
+                        >
+                          <Badge variant="outline" className={`text-[10px] shrink-0 ${severityCls(item.severity)}`}>
+                            {item.severity}
+                          </Badge>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-slate-800">{item.label}</p>
+                            <p className="text-xs text-slate-500 mt-0.5">{item.reason}</p>
+                          </div>
+                          <span className="text-base font-black tabular-nums text-slate-900">
+                            {item.count}{item.key === "implementation" ? "%" : ""}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </DashChartCard>
               </div>
-              {packsChart}
-              <p className="text-[11px] text-slate-400 text-center flex items-center justify-center gap-1.5">
-                <Target className="w-3.5 h-3.5" />
-                Scoped to {stateName}. Other states appear for zonal and national roles as they report.
-              </p>
-            </div>
+
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 items-stretch">
+                <DashChartCard title="Six-month activity" subtitle="Click a month to open that period">
+                  {trend.length === 0 ? (
+                    <div className="h-full flex items-center justify-center text-xs text-slate-500">No trend yet</div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={trend}
+                        onClick={(e: any) => {
+                          const month = e?.activePayload?.[0]?.payload?.month;
+                          if (month) drillReports(`Reports — ${month}`, { month });
+                        }}
+                        className="cursor-pointer"
+                      >
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                        <XAxis dataKey="label" tick={{ fontSize: 11, fill: "#64748b" }} axisLine={false} tickLine={false} />
+                        <YAxis tick={{ fontSize: 11, fill: "#64748b" }} axisLine={false} tickLine={false} allowDecimals={false} width={32} />
+                        <Tooltip content={<ChartTooltip />} />
+                        <Legend wrapperStyle={{ fontSize: 12 }} />
+                        <Bar dataKey="reports" name="Reports" fill="#1a7a52" radius={[4, 4, 0, 0]} maxBarSize={22} />
+                        <Bar dataKey="submitted" name="Submitted" fill="#25a872" radius={[4, 4, 0, 0]} maxBarSize={22} />
+                        <Bar dataKey="approved" name="Approved" fill="#7eb89a" radius={[4, 4, 0, 0]} maxBarSize={22} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  )}
+                </DashChartCard>
+
+                <DashChartCard title="Status mix" subtitle="Click a slice to open that status">
+                  {statusPie.length === 0 ? (
+                    <div className="h-full flex items-center justify-center text-xs text-slate-500">No reports this period</div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={statusPie}
+                          dataKey="value"
+                          nameKey="name"
+                          innerRadius={52}
+                          outerRadius={82}
+                          paddingAngle={3}
+                          className="cursor-pointer"
+                          onClick={(_: any, idx: number) => {
+                            const slice = statusPie[idx];
+                            if (!slice) return;
+                            drillReports(slice.name, { status: slice.status });
+                          }}
+                        >
+                          {statusPie.map((entry) => (
+                            <Cell key={entry.name} fill={STATUS_COLORS[entry.status] || "#1a7a52"} />
+                          ))}
+                        </Pie>
+                        <Tooltip content={<ChartTooltip />} />
+                        <Legend wrapperStyle={{ fontSize: 12 }} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  )}
+                </DashChartCard>
+              </div>
+
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 items-stretch">
+                <DashChartCard
+                  title={`This period against ${op.previous_period?.label || "the previous period"}`}
+                >
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={compareChart}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                      <XAxis dataKey="metric" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} width={32} />
+                      <Tooltip content={<ChartTooltip />} />
+                      <Legend wrapperStyle={{ fontSize: 12 }} />
+                      <Bar dataKey="previous" name={op.previous_period?.label || "Previous"} fill="#94a3b8" radius={[4, 4, 0, 0]} maxBarSize={28} />
+                      <Bar dataKey="current" name={op.current_period?.label || "Current"} fill="#1a7a52" radius={[4, 4, 0, 0]} maxBarSize={28} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </DashChartCard>
+
+                <DashChartCard title={`Activity in ${stateName}`} subtitle="Click a pack to open it">
+                  {topTypes.length === 0 ? (
+                    <div className="h-full flex items-center justify-center text-xs text-slate-500">No report activity yet</div>
+                  ) : (
+                    <div className="flex h-full flex-col">
+                      <div className="flex-1 min-h-[180px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart
+                            data={topTypes}
+                            layout="vertical"
+                            margin={{ left: 8, right: 12 }}
+                            onClick={(e: any) => {
+                              const row = e?.activePayload?.[0]?.payload;
+                              if (row?.key) drillReportType(row.key, row.label);
+                            }}
+                            className="cursor-pointer"
+                          >
+                            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal={false} />
+                            <XAxis type="number" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
+                            <YAxis type="category" dataKey="label" width={130} tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                            <Tooltip content={<ChartTooltip />} />
+                            <Bar dataKey="total" name="Reports" fill="#1a7a52" radius={[0, 4, 4, 0]} maxBarSize={16} />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                      <div className="pt-2">
+                        <div className="flex justify-between text-xs mb-1.5">
+                          <span className="text-slate-500">Implementation rate</span>
+                          <span className="font-bold text-slate-800">{op.implementation_rate ?? 0}%</span>
+                        </div>
+                        <Progress value={Math.min(100, Number(op.implementation_rate || 0))} className="h-1.5" />
+                        <p className="mt-1 text-[11px] text-slate-500">
+                          {fmtNum(op.activities_conducted)} conducted of {fmtNum(op.planned_activities)} planned
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </DashChartCard>
+              </div>
+            </>
           )}
         </div>
       </ScrollArea>
@@ -831,7 +586,7 @@ export default function StateCoordinatorDashboard({
       <StateOfficeDrillReportReview
         open={!!reviewTarget}
         reportType={reviewTarget?.reportType ?? "enrolment"}
-        reportId={reviewTarget?.reportId ?? 0}
+        reportId={Number(reviewTarget?.reportId ?? 0)}
         reference={reviewTarget?.reference}
         user={user}
         onClose={() => setReviewTarget(null)}

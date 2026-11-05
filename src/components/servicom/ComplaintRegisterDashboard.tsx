@@ -3,7 +3,7 @@
  * Spec: volume, sources, issue patterns, resolution performance, SLA, escalation.
  */
 import * as React from "react";
-import { RefreshCw, Loader2, Filter as FilterIcon, X, Calendar, Tag, ChevronRight, MapPin } from "lucide-react";
+import { RefreshCw, Loader2, X, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -15,7 +15,7 @@ import {
 import { toast } from "sonner";
 import { servicomApi } from "@/lib/api";
 import { zonesApi, statesApi } from "@/lib/adminApi";
-import { DashKpi, DashChartCard } from "@/components/dashboard/dashboardUi";
+import { DashChartCard } from "@/components/dashboard/dashboardUi";
 import DashboardDrillPanel from "@/components/dashboard/DashboardDrillPanel";
 import { useDashboardDrill } from "@/components/dashboard/useDashboardDrill";
 import {
@@ -53,52 +53,6 @@ function ChartEmpty({ message }: { message: string }) {
     <div className="flex h-full min-h-[220px] items-center justify-center px-4 text-center">
       <p className="text-xs text-slate-500">{message}</p>
     </div>
-  );
-}
-
-function volumeLabel(row: { name?: string; count?: number } | null | undefined) {
-  if (!row?.name) return "—";
-  return `${row.name} (${row.count})`;
-}
-
-function KpiCard({
-  label,
-  value,
-  detail,
-  onClick,
-  accent = "border-l-slate-300",
-}: {
-  label: string;
-  value: string | number;
-  detail?: string;
-  onClick?: () => void;
-  accent?: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`group relative text-left rounded-sm border border-slate-200/90 bg-white p-4 transition-all hover:shadow-md hover:border-[#1a7a52] hover:bg-emerald-50/20 border-l-4 ${accent} flex flex-col justify-between min-h-[96px] w-full`}
-    >
-      <div className="flex items-center justify-between gap-1.5 w-full">
-        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 truncate leading-none">
-          {label}
-        </span>
-        {onClick && (
-          <ChevronRight className="w-3.5 h-3.5 text-slate-400 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all shrink-0" />
-        )}
-      </div>
-      <div className="mt-2 w-full">
-        <p className="text-xl sm:text-2xl font-black text-slate-900 tabular-nums leading-tight truncate">
-          {value}
-        </p>
-        {detail && (
-          <p className="text-xs text-slate-500 truncate leading-none mt-1.5">
-            {detail}
-          </p>
-        )}
-      </div>
-    </button>
   );
 }
 
@@ -213,32 +167,6 @@ export default function ComplaintRegisterDashboard({
     },
   );
 
-  const drillCtx = React.useMemo(() => ({
-    subtitle: excludeServicom ? "State Complaints register" : "Complaint register",
-    breadcrumbs: [excludeServicom ? "State Office" : "SERVICOM", "Complaint register"],
-  }), [excludeServicom]);
-
-  const openComplaints = React.useCallback((title: string, extra?: Record<string, string>) => {
-    const crumbs = [...drillCtx.breadcrumbs, title];
-    if (extra?.state_id || extra?.state_code) {
-      drill.openDrill(
-        { segment: "complaints", record_segment: "complaints", ...extra },
-        { title, subtitle: drillCtx.subtitle, breadcrumbs: crumbs },
-        { resetStack: true },
-      );
-      return;
-    }
-    if (extra?.zone_id || extra?.zonal_code) {
-      drill.openDrill(
-        { segment: "state_breakdown", record_segment: "complaints", ...extra },
-        { title: `${title} — by State`, subtitle: drillCtx.subtitle, breadcrumbs: [...crumbs, "By State"] },
-        { resetStack: true },
-      );
-      return;
-    }
-    drill.openRecordDrill("complaints", title, drillCtx, extra);
-  }, [drill, drillCtx]);
-
   const load = React.useCallback(async () => {
     setLoading(true);
     try {
@@ -302,14 +230,13 @@ export default function ComplaintRegisterDashboard({
   }, [year, month, date, locationLevel, filterZone, filterState, domain, priority, category, type, route, status, stateLocked, zoneLocked]);
 
   const filters = stateLocked ? (
-    <div className="p-3.5 bg-white">
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-9 gap-2.5">
-        <Filter label="Reporting Year">
+    <div className="flex flex-wrap items-end gap-3">
+        <Filter label="Reporting year">
           <Select
             value={year}
             onValueChange={(v) => { setYear(v); if (v !== "all") setDate(""); }}
           >
-            <SelectTrigger className="h-8.5 text-xs bg-white hover:bg-slate-50 border-[#d4e8dc] rounded-sm">
+            <SelectTrigger className="h-8.5 text-xs rounded-sm border-[#d4e8dc] min-w-[120px] bg-white">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -325,7 +252,7 @@ export default function ComplaintRegisterDashboard({
             value={month}
             onValueChange={(v) => { setMonth(v); if (v !== "all") setDate(""); }}
           >
-            <SelectTrigger className="h-8.5 text-xs bg-white hover:bg-slate-50 border-[#d4e8dc] rounded-sm">
+            <SelectTrigger className="h-8.5 text-xs rounded-sm border-[#d4e8dc] min-w-[120px] bg-white">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -334,9 +261,9 @@ export default function ComplaintRegisterDashboard({
           </Select>
         </Filter>
 
-        <Filter label="Specific Date">
+        <Filter label="Specific date">
           <Input
-            className="h-8.5 text-xs bg-white border-[#d4e8dc] rounded-sm"
+            className="h-8.5 text-xs rounded-sm border-[#d4e8dc] min-w-[140px] bg-white"
             type="date"
             value={date}
             onChange={(e) => {
@@ -367,17 +294,15 @@ export default function ComplaintRegisterDashboard({
         <Filter label="Status">
           <Choice value={status} onChange={setStatus} allLabel="All Statuses" options={COMPLAINT_STATUSES} />
         </Filter>
-      </div>
     </div>
   ) : (
-    <div className="p-3.5 space-y-3 bg-white">
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
-        <Filter label="Reporting Year">
+    <div className="flex flex-wrap items-end gap-3">
+        <Filter label="Reporting year">
           <Select
             value={year}
             onValueChange={(v) => { setYear(v); if (v !== "all") setDate(""); }}
           >
-            <SelectTrigger className="h-8.5 text-xs bg-white hover:bg-slate-50 border-[#d4e8dc] rounded-sm">
+            <SelectTrigger className="h-8.5 text-xs rounded-sm border-[#d4e8dc] min-w-[120px] bg-white">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -393,7 +318,7 @@ export default function ComplaintRegisterDashboard({
             value={month}
             onValueChange={(v) => { setMonth(v); if (v !== "all") setDate(""); }}
           >
-            <SelectTrigger className="h-8.5 text-xs bg-white hover:bg-slate-50 border-[#d4e8dc] rounded-sm">
+            <SelectTrigger className="h-8.5 text-xs rounded-sm border-[#d4e8dc] min-w-[120px] bg-white">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -402,9 +327,9 @@ export default function ComplaintRegisterDashboard({
           </Select>
         </Filter>
 
-        <Filter label="Specific Date">
+        <Filter label="Specific date">
           <Input
-            className="h-8.5 text-xs bg-white border-[#d4e8dc] rounded-sm"
+            className="h-8.5 text-xs rounded-sm border-[#d4e8dc] min-w-[140px] bg-white"
             type="date"
             value={date}
             onChange={(e) => {
@@ -418,7 +343,7 @@ export default function ComplaintRegisterDashboard({
         </Filter>
 
         {!zoneLocked ? (
-          <Filter label="Location Level">
+          <Filter label="Location">
             <Select
               value={locationLevel}
               onValueChange={(v: "all" | "hq" | "zone" | "state") => {
@@ -430,7 +355,7 @@ export default function ComplaintRegisterDashboard({
                 if (v === "zone") setFilterState("all");
               }}
             >
-              <SelectTrigger className="h-8.5 text-xs bg-white hover:bg-slate-50 border-[#d4e8dc] rounded-sm">
+              <SelectTrigger className="h-8.5 text-xs rounded-sm border-[#d4e8dc] min-w-[120px] bg-white">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -442,7 +367,7 @@ export default function ComplaintRegisterDashboard({
             </Select>
           </Filter>
         ) : (
-          <Filter label="Location Level">
+          <Filter label="Location">
             <div className="h-8.5 px-3 flex items-center text-xs bg-slate-100/70 border border-[#d4e8dc] rounded-sm text-slate-600 font-medium">
               Zone Locked
             </div>
@@ -456,7 +381,7 @@ export default function ComplaintRegisterDashboard({
               onValueChange={(v) => { setFilterZone(v); setFilterState("all"); }}
               disabled={zoneLocked}
             >
-              <SelectTrigger className="h-8.5 text-xs bg-white hover:bg-slate-50 border-[#d4e8dc] rounded-sm" displayValue={zoneLabel}>
+              <SelectTrigger className="h-8.5 text-xs rounded-sm border-[#d4e8dc] min-w-[120px] bg-white" displayValue={zoneLabel}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -478,7 +403,7 @@ export default function ComplaintRegisterDashboard({
         {locationLevel !== "hq" ? (
           <Filter label="State">
             <Select value={filterState} onValueChange={setFilterState}>
-              <SelectTrigger className="h-8.5 text-xs bg-white hover:bg-slate-50 border-[#d4e8dc] rounded-sm" displayValue={stateLabel}>
+              <SelectTrigger className="h-8.5 text-xs rounded-sm border-[#d4e8dc] min-w-[120px] bg-white" displayValue={stateLabel}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -496,9 +421,6 @@ export default function ComplaintRegisterDashboard({
             </div>
           </Filter>
         )}
-      </div>
-
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 pt-1">
         <Filter label="Program">
           <Choice value={domain} onChange={setDomain} allLabel="All Programs" options={COMPLAINT_DOMAINS} />
         </Filter>
@@ -517,7 +439,6 @@ export default function ComplaintRegisterDashboard({
         <Filter label="Status">
           <Choice value={status} onChange={setStatus} allLabel="All Statuses" options={COMPLAINT_STATUSES} />
         </Filter>
-      </div>
     </div>
   );
 
@@ -527,143 +448,6 @@ export default function ComplaintRegisterDashboard({
     </div>
   ) : (
     <>
-      {/* 5-Column Responsive KPI Grid (Spacious, comfortably padded, high visual clarity) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3.5">
-        <KpiCard
-          label="Received"
-          value={data?.received ?? 0}
-          detail="In current filter"
-          accent="border-l-[#1a7a52]"
-          onClick={() => openComplaints("Complaints received")}
-        />
-        <KpiCard
-          label="Avg Resolution"
-          value={data?.average_resolution != null ? `${data.average_resolution}d` : "—"}
-          detail="Mean days to close"
-          accent="border-l-blue-500"
-          onClick={() => openComplaints("Closed complaints — resolution time", { kpi: "closed" })}
-        />
-        <KpiCard
-          label="Within SLA"
-          value={data?.resolved_within_sla != null ? `${data.resolved_within_sla}%` : "—"}
-          detail={`${data?.resolved_within_sla_count ?? 0} met target`}
-          accent="border-l-emerald-600"
-          onClick={() => openComplaints("Resolved within SLA", { kpi: "within_sla" })}
-        />
-        <KpiCard
-          label="Pending"
-          value={data?.pending ?? 0}
-          detail="Active / open"
-          accent="border-l-amber-500"
-          onClick={() => openComplaints("Pending complaints", { kpi: "pending" })}
-        />
-        <KpiCard
-          label="Overdue"
-          value={data?.overdue_percent != null ? `${data.overdue_percent}%` : "—"}
-          detail="Past target date"
-          accent="border-l-rose-500"
-          onClick={() => openComplaints("Overdue / open complaints", { kpi: "overdue" })}
-        />
-        <KpiCard
-          label="Beyond SLA"
-          value={data?.beyond_sla_percent != null ? `${data.beyond_sla_percent}%` : "—"}
-          detail="Closed past target"
-          accent="border-l-orange-500"
-          onClick={() => openComplaints("Resolved beyond SLA", { kpi: "beyond_sla" })}
-        />
-        <KpiCard
-          label="Repeat Rate"
-          value={data?.repeat_rate != null ? `${data.repeat_rate}%` : "—"}
-          detail="Recurring issues"
-          accent="border-l-purple-500"
-          onClick={() => openComplaints("Repeat complaints", { kpi: "repeat" })}
-        />
-        <KpiCard
-          label="Top Category"
-          value={data?.top_category || "—"}
-          detail="Most frequent"
-          accent="border-l-indigo-400"
-          onClick={() => openComplaints(
-            data?.top_category ? `Category: ${data.top_category}` : "Complaints by category",
-            data?.top_category ? { category: data.top_category } : undefined,
-          )}
-        />
-        <KpiCard
-          label="Top Complainant"
-          value={data?.top_type || "—"}
-          detail="Respondent type"
-          accent="border-l-cyan-500"
-          onClick={() => openComplaints(
-            data?.top_type ? `Type: ${data.top_type}` : "Complaints by type",
-            data?.top_type ? { type: data.top_type } : undefined,
-          )}
-        />
-        <KpiCard
-          label="Top Route"
-          value={data?.top_route || "—"}
-          detail="Intake channel"
-          accent="border-l-teal-500"
-          onClick={() => openComplaints(
-            data?.top_route ? `Route: ${data.top_route}` : "Complaints by route",
-            data?.top_route ? { route: data.top_route } : undefined,
-          )}
-        />
-
-        {/* National / Multi-State comparison cards — hidden for single state view */}
-        {!isSingleState && (
-          <>
-            <KpiCard
-              label="Highest State"
-              value={volumeLabel(data?.highest_state)}
-              detail="Max volume"
-              accent="border-l-emerald-500"
-              onClick={() => openComplaints(
-                data?.highest_state?.name ? `State: ${data.highest_state.name}` : "Complaints by state",
-                data?.highest_state?.code
-                  ? { state_id: String(data.highest_state.code), state_code: String(data.highest_state.code) }
-                  : undefined,
-              )}
-            />
-            <KpiCard
-              label="Lowest State"
-              value={volumeLabel(data?.lowest_state)}
-              detail="Min volume"
-              accent="border-l-slate-400"
-              onClick={() => openComplaints(
-                data?.lowest_state?.name ? `State: ${data.lowest_state.name}` : "Complaints by state",
-                data?.lowest_state?.code
-                  ? { state_id: String(data.lowest_state.code), state_code: String(data.lowest_state.code) }
-                  : undefined,
-              )}
-            />
-            <KpiCard
-              label="Highest Zone"
-              value={volumeLabel(data?.highest_zone)}
-              detail="Max volume"
-              accent="border-l-blue-400"
-              onClick={() => openComplaints(
-                data?.highest_zone?.name ? `Zone: ${data.highest_zone.name}` : "Complaints by zone",
-                data?.highest_zone?.code
-                  ? { zone_id: String(data.highest_zone.code), zonal_code: String(data.highest_zone.code) }
-                  : undefined,
-              )}
-            />
-            <KpiCard
-              label="Lowest Zone"
-              value={volumeLabel(data?.lowest_zone)}
-              detail="Min volume"
-              accent="border-l-slate-400"
-              onClick={() => openComplaints(
-                data?.lowest_zone?.name ? `Zone: ${data.lowest_zone.name}` : "Complaints by zone",
-                data?.lowest_zone?.code
-                  ? { zone_id: String(data.lowest_zone.code), zonal_code: String(data.lowest_zone.code) }
-                  : undefined,
-              )}
-            />
-          </>
-        )}
-      </div>
-
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 items-stretch">
         <CountChart title="Complaints by programs" data={data?.by_domain} empty="No complaints in this filter." />
         <CountChart title="Complaints by respondent (complainant type)" data={data?.by_complainant} empty="No complainant types recorded." />
@@ -691,11 +475,6 @@ export default function ComplaintRegisterDashboard({
     />
   );
 
-  const displayTitle = title || (excludeServicom ? "State Office Complaints Analytics" : "Complaint Register Analytics");
-  const displaySubtitle = subtitle || (excludeServicom
-    ? "Volume, sources, issue patterns, and resolution performance for state-level complaints"
-    : "Volume, sources, issue patterns, resolution performance, SLA compliance and escalation");
-
   const stateCoordinatorBanner = stateLocked ? (
     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-gradient-to-r from-emerald-50 via-white to-emerald-50/50 border border-[#d4e8dc] px-4 py-3 rounded-sm shadow-2xs">
       <div className="flex items-center gap-3">
@@ -722,108 +501,42 @@ export default function ComplaintRegisterDashboard({
     </div>
   ) : null;
 
-  if (embedded) {
-    return (
-      <div className="space-y-4">
-        {stateCoordinatorBanner}
-        <div className="rounded-sm border border-[#d4e8dc] bg-white shadow-2xs overflow-hidden">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 px-4 py-2.5 bg-[#f4f7f5] border-b border-[#d4e8dc]">
-            <div className="flex items-center gap-2.5">
-              <FilterIcon className="w-4 h-4 text-[#1a7a52]" />
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-slate-800 uppercase tracking-wide">
-                    {displayTitle}
-                  </span>
-                  {activeFiltersCount > 0 && (
-                    <Badge className="bg-[#1a7a52] text-white text-[10px] font-bold px-1.5 py-0 rounded-full">
-                      {activeFiltersCount} Active
-                    </Badge>
-                  )}
-                </div>
-                {subtitle && (
-                  <p className="text-[11px] text-slate-500 mt-0.5">{displaySubtitle}</p>
-                )}
-              </div>
-            </div>
-            <div className="flex items-center gap-2 self-end sm:self-auto">
-              {activeFiltersCount > 0 && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={clearFilters}
-                  className="h-7 text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 gap-1 rounded-sm px-2"
-                >
-                  <X className="w-3.5 h-3.5" />
-                  <span>Reset</span>
-                </Button>
-              )}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={load}
-                disabled={loading}
-                className="h-7 gap-1.5 text-xs rounded-sm border-slate-300 text-slate-700 hover:bg-[#f4f7f5]"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh
-              </Button>
-            </div>
-          </div>
-          {filters}
-        </div>
-        {body}
-        {drillPanel}
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-4">
       {stateCoordinatorBanner}
-      <div className="rounded-sm border border-[#d4e8dc] bg-white shadow-2xs overflow-hidden">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 px-4 py-2.5 bg-[#f4f7f5] border-b border-[#d4e8dc]">
-          <div className="flex items-center gap-2.5">
-            <FilterIcon className="w-4 h-4 text-[#1a7a52]" />
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-slate-800 uppercase tracking-wide">
-                  {displayTitle}
-                </span>
-                {activeFiltersCount > 0 && (
-                  <Badge className="bg-[#1a7a52] text-white text-[10px] font-bold px-1.5 py-0 rounded-full">
-                    {activeFiltersCount} Active
-                  </Badge>
-                )}
-              </div>
-              <p className="text-[11px] text-slate-500">
-                {displaySubtitle}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 self-end sm:self-auto">
-            {activeFiltersCount > 0 && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={clearFilters}
-                className="h-7 text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 gap-1 rounded-sm px-2"
-              >
-                <X className="w-3.5 h-3.5" />
-                <span>Reset</span>
-              </Button>
-            )}
+      {(title || subtitle) && (
+        <div className="border-b border-[#d4e8dc] pb-1.5">
+          <h2 className="text-sm font-bold text-slate-900 tracking-tight">{title}</h2>
+          {subtitle && <p className="text-xs text-slate-500 mt-0.5">{subtitle}</p>}
+        </div>
+      )}
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="flex-1 min-w-0">{filters}</div>
+        <div className="flex items-center gap-2">
+          {activeFiltersCount > 0 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={clearFilters}
+              className="h-8.5 text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 gap-1 rounded-sm px-2"
+            >
+              <X className="w-3.5 h-3.5" />
+              <span>Reset</span>
+            </Button>
+          )}
+          {!embedded && (
             <Button
               variant="outline"
               size="sm"
               onClick={load}
               disabled={loading}
-              className="h-7 gap-1.5 text-xs rounded-sm border-slate-300 text-slate-700 hover:bg-[#f4f7f5]"
+              className="h-8.5 gap-1.5 border border-slate-300 text-slate-700 bg-white hover:bg-[#f4f7f5] text-xs font-bold rounded-sm shadow-2xs"
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+              <span>Sync</span>
             </Button>
-          </div>
+          )}
         </div>
-        {filters}
       </div>
       {body}
       {drillPanel}
@@ -868,7 +581,7 @@ function DaysChart({ title, data }: { title: string; data?: { name: string; days
             <XAxis dataKey="name" tick={{ fontSize: 10 }} interval={0} angle={-25} textAnchor="end" height={60} />
             <YAxis tick={{ fontSize: 11 }} />
             <Tooltip formatter={(value: any) => [`${value} days`, "Average"]} />
-            <Bar dataKey="days" fill="#0f766e" radius={[4, 4, 0, 0]} maxBarSize={32} />
+            <Bar dataKey="days" fill="#1a7a52" radius={[4, 4, 0, 0]} maxBarSize={32} />
           </BarChart>
         </ResponsiveContainer>
       )}
@@ -879,9 +592,7 @@ function DaysChart({ title, data }: { title: string; data?: { name: string; days
 function Filter({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="space-y-1 min-w-0">
-      <Label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider truncate block">
-        {label}
-      </Label>
+      <Label className="text-[11px] text-slate-500">{label}</Label>
       {children}
     </div>
   );
@@ -898,7 +609,7 @@ function Choice({
   const label = value === "all" ? allLabel : (options.find((o) => o.value === value)?.label || value);
   return (
     <Select value={value} onValueChange={onChange}>
-      <SelectTrigger className="h-8.5 text-xs bg-white hover:bg-slate-50 border-[#d4e8dc] rounded-sm" displayValue={label}>
+      <SelectTrigger className="h-8.5 text-xs rounded-sm border-[#d4e8dc] min-w-[120px] bg-white" displayValue={label}>
         <SelectValue />
       </SelectTrigger>
       <SelectContent>

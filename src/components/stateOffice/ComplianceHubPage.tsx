@@ -83,11 +83,11 @@ export default function ComplianceHubPage({
   React.useEffect(() => {
     if (!defaultTab) return;
     if (!requested || !allowedKeys.has(requested)) {
-      const params = new URLSearchParams();
+      const params = new URLSearchParams(searchParams);
       params.set("tab", defaultTab);
       setSearchParams(params, { replace: true });
     }
-  }, [requested, defaultTab, allowedKeys, setSearchParams]);
+  }, [requested, defaultTab, allowedKeys, searchParams, setSearchParams]);
 
   const setActiveTab = (tab: ComplianceHubTabKey) => {
     const params = new URLSearchParams();
