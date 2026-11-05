@@ -193,7 +193,7 @@ export function ShadcnDataTable<TData, TValue>({
               onChange={(e) => handleSearch(e.target.value)}
               placeholder={searchPlaceholder}
               className={cn(
-                "pl-8 pr-7 h-8 text-xs bg-slate-50/70 border-slate-200 focus:bg-white focus:border-slate-400 rounded-md transition-colors placeholder:text-slate-400",
+                "pl-8 pr-7 h-8 text-xs bg-slate-50/70 border-slate-200 focus:bg-white border-2 border-[#1a7a52] rounded-sm transition-colors placeholder:text-slate-400",
                 searchClassName
               )}
             />

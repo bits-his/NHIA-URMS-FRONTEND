@@ -1081,13 +1081,13 @@ export default function MeetingsWorkspace({ onBack, initialTab = "meetings" }: {
           </div>
         ))}
       </div>
-      <Card className="rounded-sm border-[#d4e8dc]">
-        <CardContent className="pt-4 pb-4 grid grid-flow-col auto-cols-fr gap-3">
+      <Card className="rounded-sm border border-[#d4e8dc] shadow-2xs bg-white">
+        <CardContent className="py-2.5 px-3 grid grid-flow-col auto-cols-fr gap-2.5 items-end">
           {stateOptions.length > 1 && (
-            <div className="space-y-1">
-              <Label className="text-xs text-muted-foreground">State</Label>
+            <div className="space-y-0.5 min-w-0">
+              <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">State</Label>
               <Select value={filterState} onValueChange={setFilterState}>
-                <SelectTrigger displayValue={filterState === "all" ? "All States" : (stateOptions.find((s) => s.value === filterState)?.label || "State")}>
+                <SelectTrigger size="sm" displayValue={filterState === "all" ? "All States" : (stateOptions.find((s) => s.value === filterState)?.label || "State")}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -1099,10 +1099,10 @@ export default function MeetingsWorkspace({ onBack, initialTab = "meetings" }: {
               </Select>
             </div>
           )}
-          <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground">Year</Label>
+          <div className="space-y-0.5 min-w-0">
+            <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Year</Label>
             <Select value={filterYear} onValueChange={setFilterYear}>
-              <SelectTrigger displayValue={filterYear === "all" ? "All Years" : filterYear}>
+              <SelectTrigger size="sm" displayValue={filterYear === "all" ? "All Years" : filterYear}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -1113,10 +1113,10 @@ export default function MeetingsWorkspace({ onBack, initialTab = "meetings" }: {
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground">Month</Label>
+          <div className="space-y-0.5 min-w-0">
+            <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Month</Label>
             <Select value={filterMonth} onValueChange={setFilterMonth}>
-              <SelectTrigger displayValue={filterMonth === "all" ? "All Months" : monthLabel(filterMonth)}>
+              <SelectTrigger size="sm" displayValue={filterMonth === "all" ? "All Months" : monthLabel(filterMonth)}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -1127,10 +1127,10 @@ export default function MeetingsWorkspace({ onBack, initialTab = "meetings" }: {
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground">Status</Label>
+          <div className="space-y-0.5 min-w-0">
+            <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Status</Label>
             <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger displayValue={filterStatus === "all" ? "All Statuses" : statusLabel(filterStatus)}>
+              <SelectTrigger size="sm" displayValue={filterStatus === "all" ? "All Statuses" : statusLabel(filterStatus)}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

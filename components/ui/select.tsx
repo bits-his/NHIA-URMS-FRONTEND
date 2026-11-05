@@ -157,7 +157,7 @@ function SelectTrigger({ children, className, size = "default", id, displayValue
         "hover:border-[#0f3d2e] hover:bg-white",
         "focus-visible:border-[#0f3d2e] focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-[#1a7a52]/20",
         open && "border-[#0f3d2e] bg-white",
-        size === "default" ? "h-10 text-sm font-medium" : "h-9 text-xs",
+        size === "default" ? "h-10 text-sm font-medium px-3.5" : "h-8 text-xs font-medium px-2.5",
         isDisabled && "opacity-50 cursor-not-allowed hover:border-[#1a7a52] hover:bg-[#f4f7f5] pointer-events-none",
         className,
       )}
@@ -166,7 +166,8 @@ function SelectTrigger({ children, className, size = "default", id, displayValue
         {shown}
       </span>
       <ChevronDown className={cn(
-        "size-4 text-[#1a7a52] shrink-0 transition-transform duration-200",
+        size === "default" ? "size-4" : "size-3.5",
+        "text-[#1a7a52] shrink-0 transition-transform duration-200",
         open && "rotate-180"
       )} />
     </button>
