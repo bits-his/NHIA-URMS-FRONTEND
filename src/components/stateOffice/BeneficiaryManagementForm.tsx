@@ -972,11 +972,13 @@ export default function BeneficiaryManagementForm({
 
         return (
           <div className="space-y-4 pb-2">
-            <Card className="rounded-sm border-[#d4e8dc] shadow-sm overflow-hidden">
-              <CardContent className="p-4 md:p-5">
-                <ReportBasicInfo {...header} lockZone={header.lockZone} lockState={header.lockState} showQuarter embedded />
-              </CardContent>
-            </Card>
+            {view !== "activity" && (
+              <Card className="rounded-sm border-[#d4e8dc] shadow-sm overflow-hidden">
+                <CardContent className="p-4 md:p-5">
+                  <ReportBasicInfo {...header} lockZone={header.lockZone} lockState={header.lockState} showQuarter embedded />
+                </CardContent>
+              </Card>
+            )}
 
             {!activity ? (
               <div className="space-y-4">
@@ -1160,17 +1162,13 @@ export default function BeneficiaryManagementForm({
               </>
             ) : (
               <>
-                <div className="flex items-center justify-between gap-2 px-1">
-                  <h2 className="text-sm font-bold text-[#0f3d2e]">
-                    {editingKey ? "Edit" : "New"} {formTitle}
-                  </h2>
-                  <Button variant="ghost" size="sm" onClick={backToRegister}>Cancel</Button>
-                </div>
+                <Card className="rounded-sm border-[#d4e8dc] shadow-sm overflow-hidden">
+                  <CardContent className="p-4 md:p-5 space-y-6">
+                    <ReportBasicInfo {...header} lockZone={header.lockZone} lockState={header.lockState} showQuarter embedded />
 
-                {activity === "additional" && entry.kind === "dependant" && (
-                  <Card className="rounded-sm border-[#d4e8dc] shadow-sm">
-                    <CardContent className="p-4 md:p-5">
-                      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    <div className="border-t border-[#e8f3ec] pt-6">
+                      {activity === "additional" && entry.kind === "dependant" && (
+                        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                         <Field label="Principal enrollee" required className="sm:col-span-2">
                           <SearchSelect
                             options={visiblePrincipals.map((p) => ({ value: p.value, label: p.label, sub: p.sub }))}
@@ -1277,13 +1275,9 @@ export default function BeneficiaryManagementForm({
                           />
                         </Field>
                       </div>
-                    </CardContent>
-                  </Card>
-                )}
+                    )}
 
-                {activity === "extra" && entry.kind === "dependant" && (
-                  <Card className="rounded-sm border-[#d4e8dc] shadow-sm">
-                    <CardContent className="p-4 md:p-5">
+                    {activity === "extra" && entry.kind === "dependant" && (
                       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                         <Field label="Principal enrollee" required className="sm:col-span-2">
                           <SearchSelect
@@ -1417,13 +1411,9 @@ export default function BeneficiaryManagementForm({
                           />
                         </Field>
                       </div>
-                    </CardContent>
-                  </Card>
-                )}
+                    )}
 
-                {activity === "provider" && entry.kind === "provider" && (
-                  <Card className="rounded-sm border-[#d4e8dc] shadow-sm">
-                    <CardContent className="p-4 md:p-5">
+                    {activity === "provider" && entry.kind === "provider" && (
                       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                         <Field label="Date of request">
                           <Input type="date" value={entry.record_date} onChange={(e) => setEntry({ ...entry, record_date: e.target.value })} />
@@ -1553,13 +1543,9 @@ export default function BeneficiaryManagementForm({
                           />
                         </Field>
                       </div>
-                    </CardContent>
-                  </Card>
-                )}
+                    )}
 
-                {activity === "mda" && entry.kind === "mda" && (
-                  <Card className="rounded-sm border-[#d4e8dc] shadow-sm">
-                    <CardContent className="p-4 md:p-5">
+                    {activity === "mda" && entry.kind === "mda" && (
                       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                         <Field label="Date">
                           <Input type="date" value={entry.selection_date} onChange={(e) => setEntry({ ...entry, selection_date: e.target.value })} />
@@ -1638,19 +1624,20 @@ export default function BeneficiaryManagementForm({
                           <Input value={entry.remarks} onChange={(e) => setEntry({ ...entry, remarks: e.target.value })} />
                         </Field>
                       </div>
-                    </CardContent>
-                  </Card>
-                )}
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
 
-                <div className="flex flex-wrap items-center justify-end gap-2">
-                  <Button variant="ghost" onClick={backToRegister}>Cancel</Button>
-                  {canEdit && (
-                    <Button variant="outline" className="gap-2" onClick={saveActivity}>
-                      <Save className="w-4 h-4" /> Save Activity
-                    </Button>
-                  )}
-                </div>
-              </>
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                <Button variant="ghost" onClick={backToRegister}>Cancel</Button>
+                {canEdit && (
+                  <Button variant="outline" className="gap-2" onClick={saveActivity}>
+                    <Save className="w-4 h-4" /> Save Activity
+                  </Button>
+                )}
+              </div>
+            </>
             )}
           </div>
         );
