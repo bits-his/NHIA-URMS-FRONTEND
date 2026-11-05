@@ -122,7 +122,7 @@ export default function OfficeProfileDetailView({
               </p>
             </div>
             <div className="rounded-lg border border-[#d4e8dc] bg-white p-4 shadow-2xs">
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Enrolment Target</p>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Annual Enrolment Target</p>
               <p className="text-2xl font-bold text-[#0f3d2e] mt-1">
                 {data.enrolment_target ? Number(data.enrolment_target).toLocaleString() : "—"}
               </p>

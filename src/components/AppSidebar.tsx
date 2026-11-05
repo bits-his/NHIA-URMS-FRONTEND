@@ -245,6 +245,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
   "SOC/Zones Dashboard": Activity,
   "Monthly Enrollee Register": ClipboardList,
   "ETMC/TMC Action-Point Register": ClipboardCheck,
+  "State Office Profile": Building,
   "State/Zonal Office Profile": Building,
   "State/Zonal Focal Persons Register": Users,
   "Weekly Actionable": AlertTriangle,
@@ -320,14 +321,16 @@ const VIEW_TO_PATH: Record<string, string> = {
   ),
   "state-hcf-change": BENEFICIARY_MANAGEMENT_PATH,
   "state-ict-support": "/zonal/ict/support",
-  "state-office-meeting": "/zonal/admin-hr/office-meeting",
-  "state-etmc-cascading": "/zonal/admin-hr/etmc-cascading",
+  "state-office-meeting": "/zonal/meetings",
+  "state-etmc-cascading": "/zonal/meetings/etmc",
+  "state-meetings": "/zonal/meetings",
+  "state-admin-office-profile": "/zonal/admin-hr/office-profile",
   "state-office-accommodation": "/zonal/admin-hr/office-accommodation",
   "state-utility-services": "/zonal/admin-hr/utility-services",
   "state-vehicle-maintenance": "/zonal/admin-hr/vehicle-maintenance",
   "state-conflict-infraction": "/zonal/admin-hr/conflict-infraction",
   "state-enrollee-feedback": "/zonal/admin-hr/enrollee-feedback",
-  "state-admin-meetings": "/zonal/admin-hr/office-meeting",
+  "state-admin-meetings": "/zonal/meetings",
   "state-accommodation": "/zonal/admin-hr/office-accommodation",
   "state-utilities": "/zonal/admin-hr/utility-services",
   "state-vehicles": "/zonal/admin-hr/vehicle-maintenance",
@@ -373,6 +376,7 @@ type TreeNode =
  */
 const PRESERVE_FOLDER_TITLES = new Set<string>([
   "Special Project",
+  SDO_SOC_NAV_GROUP,
 ]);
 
 /** If a folder has only one child, promote that child (no redundant dropdown). */
@@ -401,12 +405,12 @@ function filterModuleTree(
     if (isSubGroup(child)) {
       let nested: TreeNode[];
 
-      if (child.label === SDO_SOC_NAV_GROUP || child.label === "SOC/ZONES") {
+      if (child.label === SDO_SOC_NAV_GROUP || child.label === "SOC/ZONES" || child.label === "SOC/Zones") {
         const hasSoc = socAllowed && socAllowed.size > 0;
         const hasZonal = zonalAllowed && zonalAllowed.size > 0;
         nested = [];
 
-        // Add SOC items first to ensure they appear before State Offices
+        // SOC pages sit directly under State Office Coordination
         if (hasSoc) {
           const socMod = MODULE_CONFIG.find((m) => m.title === SOC_ZONES_MODULE);
           const socKids = collapseSingleChildFolders(
@@ -417,16 +421,10 @@ function filterModuleTree(
               zonalAllowed,
             ),
           );
-          if (socKids.length > 0) {
-            nodes.push({
-              kind: "folder",
-              title: "SOC/Zones",
-              children: socKids,
-            });
-          }
+          nested.push(...socKids);
         }
 
-        // Then add Zonal (State Offices) items
+        // State Offices nest under State Office Coordination
         if (hasZonal) {
           const zonalMod = MODULE_CONFIG.find((m) => m.title === ZONAL_MODULE);
           const zonalKids = collapseSingleChildFolders(
@@ -438,7 +436,7 @@ function filterModuleTree(
             ),
           );
           if (zonalKids.length > 0) {
-            nodes.push({
+            nested.push({
               kind: "folder",
               title: "State Offices",
               children: zonalKids,
@@ -539,18 +537,6 @@ function flattenSdoForNonAdmin(trees: TreeNode[], role: string): TreeNode[] {
   return out;
 }
 
-function getUserDepartmentLabel(
-  user?: import("@/src/store/authSlice").AuthUser,
-  role?: string,
-): string | null {
-  const dept = user?.department?.name?.trim();
-  if (dept) return dept;
-
-  if (role === "admin") return "NHIA Headquarters";
-
-  return user?.role_label || role?.replace(/-/g, " ") || null;
-}
-
 function getUserZoneLabel(user?: import("@/src/store/authSlice").AuthUser): string | null {
   const desc = user?.zone?.description?.trim();
   if (desc) return desc;
@@ -573,33 +559,6 @@ function userHasZoneAndState(user?: import("@/src/store/authSlice").AuthUser): b
   return hasZone && hasState;
 }
 
-function UserSidebarDepartment({
-  user,
-  role,
-}: {
-  user?: import("@/src/store/authSlice").AuthUser;
-  role?: string;
-}) {
-  const department = getUserDepartmentLabel(user, role);
-  const unit = user?.unit?.name?.trim() || null;
-  if (!department && !unit) return null;
-
-  return (
-    <div className="mx-0 mt-2.5 rounded-xl bg-white/8 px-3 py-2 space-y-0.5 group-data-[collapsible=icon]:hidden">
-      {department ? (
-        <p className="text-[13px] font-semibold leading-snug text-white/95">
-          {department}
-        </p>
-      ) : null}
-      {unit ? (
-        <p className="text-[12px] font-medium leading-snug text-white/80">
-          {unit}
-        </p>
-      ) : null}
-    </div>
-  );
-}
-
 function UserSidebarGeo({
   user,
 }: {
@@ -611,7 +570,7 @@ function UserSidebarGeo({
   if (!zoneLabel && !stateLabel) return null;
 
   return (
-    <div className="mx-2 my-1 rounded-xl bg-white/8 px-3 py-2 space-y-1 group-data-[collapsible=icon]:hidden">
+    <div className="mx-0 mt-2.5 rounded-xl bg-white/8 px-3 py-2 space-y-1 group-data-[collapsible=icon]:hidden">
       {zoneLabel ? (
         <div className="min-w-0">
           <p className="text-[9px] font-semibold uppercase tracking-[0.12em] text-white/40">Zone</p>
@@ -775,6 +734,8 @@ function NavMain({
     const zonalMod = modules.find(({ mod }) => mod.title === ZONAL_MODULE);
     const socAllowed = socMod?.allowedTitles;
     const zonalAllowed = zonalMod?.allowedTitles;
+    // Nest State Offices under State Office Coordination whenever both modules are present
+    const nestZonalUnderSoc = !!(socMod && zonalMod);
 
     const built = modules
       .filter(({ mod }) => {
@@ -782,16 +743,32 @@ function NavMain({
         // When SDO is shown, SOC/Zones and Zonal nest under State Office Coordination
         if (hasSdo && mod.title === SOC_ZONES_MODULE) return false;
         if (hasSdo && mod.title === ZONAL_MODULE) return false;
+        // Without SDO, still nest Zonal under SOC so it doesn't appear as a sibling "SOC/Zones"
+        if (!hasSdo && nestZonalUnderSoc && mod.title === ZONAL_MODULE) return false;
         return true;
       })
-      .map(({ mod, allowedTitles }) =>
-        buildVisibleTree(
+      .map(({ mod, allowedTitles }) => {
+        if (mod.title === SOC_ZONES_MODULE && nestZonalUnderSoc && !hasSdo) {
+          const socKids = collapseSingleChildFolders(
+            filterModuleTree(mod.children, allowedTitles),
+          );
+          const zonalKids = collapseSingleChildFolders(
+            filterModuleTree(zonalMod!.mod.children, zonalAllowed!),
+          );
+          const children: TreeNode[] = [...socKids];
+          if (zonalKids.length > 0) {
+            children.push({ kind: "folder", title: "State Offices", children: zonalKids });
+          }
+          if (children.length === 0) return null;
+          return { kind: "folder" as const, title: SDO_SOC_NAV_GROUP, children };
+        }
+        return buildVisibleTree(
           mod,
           allowedTitles,
           mod.title === SDO_MODULE ? socAllowed : undefined,
           mod.title === SDO_MODULE ? zonalAllowed : undefined,
-        )
-      )
+        );
+      })
       .filter(Boolean) as TreeNode[];
 
     return flattenSdoForNonAdmin(built, role);
@@ -915,7 +892,7 @@ export function AppSidebar({
       <SidebarHeader className="gap-0 border-b border-white/10 p-0">
         <div className="px-3 pt-3.5 pb-3 group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-2">
           <NhiaSidebarBrand />
-          <UserSidebarDepartment user={user} role={role} />
+          <UserSidebarGeo user={user} />
         </div>
       </SidebarHeader>
 
@@ -924,7 +901,6 @@ export function AppSidebar({
       </SidebarContent>
 
       <SidebarFooter className="border-t border-sidebar-border gap-1 pt-2">
-        <UserSidebarGeo user={user} />
         <SidebarMenu>
           <SidebarMenuItem onClick={closeMobile}>
             <SidebarMenuButton

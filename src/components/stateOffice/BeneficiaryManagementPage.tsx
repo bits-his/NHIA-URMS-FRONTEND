@@ -1,17 +1,18 @@
 import * as React from "react";
-import { useListSearch } from "./useListSearch";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft, ArrowRightLeft, Building2, CheckCircle2, Clock, Eye, FileText,
-  Loader2, Plus, RefreshCw, UserPlus, Users, type LucideIcon,
+  Plus, RefreshCw, UserPlus, Users, type LucideIcon,
 } from "lucide-react";
+import type { ColumnDef } from "@tanstack/react-table";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ShadcnDataTable } from "@/components/common/ShadcnDataTable";
 import { stateOfficeApi } from "@/lib/api";
 import { useStateOfficeAccess } from "@/src/access/createReviewAccess";
 import { buildReportingYearOptions } from "../monthly/reportingYears";
@@ -19,6 +20,8 @@ import { ALL_STATES, useMonthlyStateFilter } from "../monthly/useMonthlyStateFil
 import { MONTHS, monthLabel, type StateOfficeReportType } from "./constants";
 import BeneficiaryManagementForm from "./BeneficiaryManagementForm";
 import BeneficiaryManagementReportDetail from "./BeneficiaryManagementReportDetail";
+import PageLayout from "@/src/components/PageLayout";
+import { UnderHeaderNavTabs } from "@/src/components/UnderHeaderNavTabs";
 import {
   BENEFICIARY_ACTIVITIES,
   BENEFICIARY_MANAGEMENT_NAV_TITLE,
@@ -201,11 +204,9 @@ export default function BeneficiaryManagementPage({ onBack, defaultZoneId, defau
     return map;
   }, [statusFiltered]);
 
-  const { matchesSearch, searchInput } = useListSearch();
   const filtered = React.useMemo(
-    () => statusFiltered.filter((row) => beneficiaryTabMatches(beneficiaryListSummary(row).key, activeTab)
-      && matchesSearch([row, beneficiaryListSummary(row), monthLabel(row.reporting_month)])),
-    [statusFiltered, activeTab, matchesSearch],
+    () => statusFiltered.filter((row) => beneficiaryTabMatches(beneficiaryListSummary(row).key, activeTab)),
+    [statusFiltered, activeTab],
   );
 
   const yearOptions = React.useMemo(
@@ -226,6 +227,111 @@ export default function BeneficiaryManagementPage({ onBack, defaultZoneId, defau
       activity: activeTab,
     });
   }, [activeTab, setQuery]);
+
+  const columns = React.useMemo<ColumnDef<Report>[]>(
+    () => {
+      const cols: ColumnDef<Report>[] = [
+        {
+          id: "period",
+          header: "Period",
+          accessorFn: (row) => `${monthLabel(row.reporting_month)} ${row.reporting_year}`,
+          cell: ({ row }) => (
+            <span className="text-sm font-semibold text-slate-900 whitespace-nowrap">
+              {monthLabel(row.original.reporting_month)} {row.original.reporting_year}
+            </span>
+          ),
+        },
+      ];
+      if (showLocation) {
+        cols.push({
+          id: "zone",
+          header: "Zone",
+          accessorFn: (row) => row.zone?.description || "",
+          cell: ({ row }) => (
+            <span className="text-sm text-slate-700 whitespace-nowrap">
+              {row.original.zone?.description || "—"}
+            </span>
+          ),
+        });
+      }
+      cols.push(
+        {
+          id: "state",
+          header: "State",
+          accessorFn: (row) => row.state?.description || "",
+          cell: ({ row }) => (
+            <span className="text-sm text-slate-700 whitespace-nowrap">
+              {row.original.state?.description || "—"}
+            </span>
+          ),
+        },
+        {
+          id: "subject",
+          header: "Subject",
+          accessorFn: (row) => beneficiaryListSummary(row).subject,
+          cell: ({ row }) => {
+            const summary = beneficiaryListSummary(row.original);
+            return (
+              <span className="text-sm text-slate-700 max-w-[16rem] truncate block" title={summary.subject}>
+                {summary.subject}
+              </span>
+            );
+          },
+        },
+      );
+      if (activeTab === "provider") {
+        cols.push({
+          id: "type",
+          header: "Type",
+          accessorFn: (row) => beneficiaryListSummary(row).activity,
+          cell: ({ row }) => (
+            <span className="text-sm font-semibold text-[#145c3f] whitespace-nowrap">
+              {beneficiaryListSummary(row.original).activity}
+            </span>
+          ),
+        });
+      }
+      cols.push(
+        {
+          id: "status",
+          header: "Status",
+          accessorFn: (row) => reportStatus(row).label,
+          cell: ({ row }) => {
+            const status = reportStatus(row.original);
+            return (
+              <Badge className={`text-[10px] px-2 py-0.5 flex items-center gap-1 w-fit border ${status.cls}`}>
+                {status.icon} {status.label}
+              </Badge>
+            );
+          },
+        },
+        {
+          id: "actions",
+          header: "Action",
+          enableSorting: false,
+          cell: ({ row }) => (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 gap-1.5 text-[#145c3f] hover:bg-[#eef6f1]"
+              onClick={(e) => {
+                e.stopPropagation();
+                setQuery({
+                  mode: "view",
+                  id: row.original.reference_id || row.original.id,
+                  type: row.original.__reportType,
+                });
+              }}
+            >
+              <Eye className="w-3.5 h-3.5" /> View
+            </Button>
+          ),
+        },
+      );
+      return cols;
+    },
+    [activeTab, showLocation, setQuery],
+  );
 
   if (mode === "view" && reportId) {
     return (
@@ -254,8 +360,6 @@ export default function BeneficiaryManagementPage({ onBack, defaultZoneId, defau
     );
   }
 
-  const hasFilters = filterYear !== "all" || filterMonth !== "all" || filterStatus !== "all"
-    || (showStateFilter && filterState !== ALL_STATES);
   const counts = {
     total: filtered.length,
     draft: filtered.filter((row) => row.status === "draft" && !row.endorsed).length,
@@ -272,83 +376,39 @@ export default function BeneficiaryManagementPage({ onBack, defaultZoneId, defau
   ];
 
   return (
-    <div className="flex flex-col h-full bg-[#f4f7f5]">
-      <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3.5 flex items-center justify-between sticky top-0 z-30 gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <Button variant="ghost" size="icon" onClick={onBack} className="rounded-full shrink-0" aria-label="Back">
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-          <div className="min-w-0">
-            <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">
-              {BENEFICIARY_MANAGEMENT_NAV_TITLE}
-            </h2>
-            <p className="text-xs text-slate-500 truncate">
-              {canReview
-                ? "Review and endorse beneficiary reports"
-                : "Send for review, then submit as approved after endorsement"}
-            </p>
-          </div>
-        </div>
+    <PageLayout
+      title={BENEFICIARY_MANAGEMENT_NAV_TITLE}
+      actions={
         <div className="flex items-center gap-2 shrink-0">
-          <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2 border-[#d4e8dc]">
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
+          <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-1.5 h-8 text-xs rounded-md border-[#d4e8dc]">
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh
           </Button>
           {canCreate && (
             <Button
-              className="bg-orange-action hover:bg-orange-600 gap-2 shadow-md shadow-orange-500/15"
+              size="sm"
+              className="bg-orange-action hover:bg-orange-600 gap-1.5 shadow-md shadow-orange-500/20 h-8 text-xs rounded-md"
               onClick={openCreate}
             >
-              <Plus className="w-4 h-4" /> {newButtonLabel}
+              <Plus className="w-3.5 h-3.5" /> {newButtonLabel}
             </Button>
           )}
         </div>
-      </div>
-
-      <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 sticky top-[57px] z-20">
-        <div
-          className="flex gap-0 overflow-x-auto -mb-px"
-          role="tablist"
-          aria-label="Beneficiary activities"
-        >
-          {BENEFICIARY_ACTIVITIES.map((tab) => {
-            const active = activeTab === tab.key;
-            const Icon = ACTIVITY_ICONS[tab.key];
-            const count = activityTabCounts[tab.key] ?? 0;
-            return (
-              <button
-                key={tab.key}
-                type="button"
-                role="tab"
-                aria-selected={active}
-                onClick={() => setActiveTab(tab.key)}
-                className={`group relative shrink-0 inline-flex items-center gap-2 px-4 py-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors outline-none focus-visible:bg-[#f4f7f5] ${
-                  active
-                    ? "border-[#145c3f] text-[#145c3f]"
-                    : "border-transparent text-slate-500 hover:text-[#0f3d2e] hover:border-[#c5ddd0]"
-                }`}
-              >
-                <Icon
-                  className={`h-4 w-4 shrink-0 ${active ? "text-[#145c3f]" : "text-slate-400 group-hover:text-[#145c3f]"}`}
-                  strokeWidth={2}
-                />
-                <span>{tab.tabLabel}</span>
-                <span
-                  className={`inline-flex min-w-[1.25rem] h-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold tabular-nums ${
-                    active
-                      ? "bg-[#e8f6ee] text-[#145c3f]"
-                      : "bg-slate-100 text-slate-500 group-hover:bg-[#e8f6ee] group-hover:text-[#145c3f]"
-                  }`}
-                >
-                  {count}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      <ScrollArea className="flex-1">
-        <div className="w-full px-4 md:px-6 py-5 space-y-4">
+      }
+      tabs={
+        <UnderHeaderNavTabs
+          tabs={BENEFICIARY_ACTIVITIES.map((tab) => ({
+            id: tab.key,
+            label: tab.tabLabel,
+            icon: ACTIVITY_ICONS[tab.key],
+            count: activityTabCounts[tab.key] ?? 0,
+          }))}
+          activeTab={activeTab}
+          onChange={(key) => setActiveTab(key as any)}
+          ariaLabel="Beneficiary activities"
+        />
+      }
+    >
+      <div className="w-full space-y-4">
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
             {statCards.map((card) => (
               <div key={card.label} className={`rounded-xl border px-4 py-3 ${card.tone}`}>
@@ -358,163 +418,92 @@ export default function BeneficiaryManagementPage({ onBack, defaultZoneId, defau
             ))}
           </div>
 
-          <div className={`grid gap-3 w-full rounded-xl border border-[#d4e8dc] bg-white px-4 py-4 ${
-            showStateFilter ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4" : "grid-cols-1 sm:grid-cols-3"
-          }`}>
-            {showStateFilter && (
-              <Select value={filterState} onValueChange={setFilterState}>
-                <SelectTrigger className="w-full h-10 bg-[#f4f7f5] border-2 border-[#1a7a52]" displayValue={filterState === ALL_STATES ? "All States" : (states.find((s) => String(s.id) === filterState)?.description ?? filterState)}>
-                  <SelectValue placeholder="All States" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={ALL_STATES}>All States</SelectItem>
-                  {states.map((s) => <SelectItem key={s.id} value={String(s.id)}>{s.description}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            )}
-            <Select value={filterYear} onValueChange={setFilterYear}>
-              <SelectTrigger className="w-full h-10 bg-[#f4f7f5] border-2 border-[#1a7a52]" displayValue={filterYear === "all" ? "All Years" : filterYear}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Years</SelectItem>
-                {yearOptions.map((year) => <SelectItem key={year} value={year}>{year}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Select value={filterMonth} onValueChange={setFilterMonth}>
-              <SelectTrigger className="w-full h-10 bg-[#f4f7f5] border-2 border-[#1a7a52]" displayValue={filterMonth === "all" ? "All Months" : monthLabel(filterMonth)}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Months</SelectItem>
-                {MONTHS.map((month) => <SelectItem key={month.value} value={String(month.value)}>{month.label}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="w-full h-10 bg-[#f4f7f5] border-2 border-[#1a7a52]" displayValue={filterStatus === "all" ? "All Statuses" : STATUS[filterStatus as keyof typeof STATUS]?.label}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="draft">Draft</SelectItem>
-                <SelectItem value="submitted">In review</SelectItem>
-                <SelectItem value="endorsed">Endorsed</SelectItem>
-                <SelectItem value="approved">Approved</SelectItem>
-              </SelectContent>
-            </Select>
-            {hasFilters && (
-              <div className="col-span-full flex justify-end">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-slate-500"
-                  onClick={() => {
-                    setFilterYear("all");
-                    setFilterMonth("all");
-                    setFilterStatus("all");
-                    if (showStateFilter) setFilterState(ALL_STATES);
-                  }}
-                >
-                  Clear
-                </Button>
-              </div>
-            )}
-          </div>
-
-          {searchInput}
-          <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden">
-            <CardContent className="p-0">
-              {loading ? (
-                <div className="flex items-center justify-center py-20 gap-3 text-slate-400">
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  <span className="text-sm">Loading reports...</span>
-                </div>
-              ) : filtered.length === 0 ? (
-                <div className="py-16 text-center space-y-3">
-                  <p className="text-sm text-slate-500">
-                    {hasFilters
-                      ? "No reports match your filters."
-                      : `No ${activeActivity.tabLabel} reports yet.`}
-                  </p>
-                  {canCreate && (
-                    <Button
-                      className="bg-orange-action hover:bg-orange-600 gap-2"
-                      onClick={openCreate}
-                    >
-                      <Plus className="w-4 h-4" /> {newButtonLabel}
-                    </Button>
-                  )}
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-[#e8f5ee] hover:bg-[#e8f5ee] border-b border-[#d4e8dc]">
-                        <TableHead className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e]">Period</TableHead>
-                        {showLocation && (
-                          <TableHead className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e]">Zone</TableHead>
-                        )}
-                        <TableHead className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e]">State</TableHead>
-                        <TableHead className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e]">Subject</TableHead>
-                        {activeTab === "provider" && (
-                          <TableHead className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e]">Type</TableHead>
-                        )}
-                        <TableHead className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e]">Status</TableHead>
-                        <TableHead className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e] text-right">Action</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filtered.map((row) => {
-                        const status = reportStatus(row);
-                        const summary = beneficiaryListSummary(row);
-                        return (
-                          <TableRow key={`${row.__reportType}-${row.id}`} className="hover:bg-[#f8fdfb] border-b border-[#e8f3ec] last:border-0">
-                            <TableCell className="text-sm font-semibold text-[#0f3d2e] whitespace-nowrap">
-                              {monthLabel(row.reporting_month)} {row.reporting_year}
-                            </TableCell>
-                            {showLocation && (
-                              <TableCell className="text-sm text-slate-700 whitespace-nowrap">
-                                {row.zone?.description || "—"}
-                              </TableCell>
-                            )}
-                            <TableCell className="text-sm text-slate-700 whitespace-nowrap">
-                              {row.state?.description || "—"}
-                            </TableCell>
-                            <TableCell className="text-sm text-slate-700 max-w-[16rem] truncate" title={summary.subject}>
-                              {summary.subject}
-                            </TableCell>
-                            {activeTab === "provider" && (
-                              <TableCell className="text-sm font-semibold text-[#145c3f] whitespace-nowrap">
-                                {summary.activity}
-                              </TableCell>
-                            )}
-                            <TableCell>
-                              <Badge className={`text-[10px] px-2 py-0.5 flex items-center gap-1 w-fit border ${status.cls}`}>
-                                {status.icon} {status.label}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-8 gap-1.5 text-[#145c3f] hover:bg-[#eef6f1]"
-                                onClick={() => setQuery({ mode: "view", id: row.reference_id || row.id, type: row.__reportType })}
-                              >
-                                <Eye className="w-3.5 h-3.5" /> View
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
+          <Card className="rounded-lg border-[#d4e8dc] shadow-2xs">
+            <CardContent className="pt-4 pb-4 grid grid-flow-col auto-cols-fr gap-3">
+              {showStateFilter && (
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">State</Label>
+                  <Select
+                    value={filterState === ALL_STATES ? "all" : filterState}
+                    onValueChange={(v) => setFilterState(v === "all" ? ALL_STATES : v)}
+                  >
+                    <SelectTrigger displayValue={filterState === ALL_STATES ? "All States" : (states.find((s) => String(s.id) === filterState)?.description || "State")}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All States</SelectItem>
+                      {states.map((s) => (
+                        <SelectItem key={String(s.id)} value={String(s.id)}>{s.description}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               )}
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Year</Label>
+                <Select value={filterYear} onValueChange={setFilterYear}>
+                  <SelectTrigger displayValue={filterYear === "all" ? "All Years" : filterYear}><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Years</SelectItem>
+                    {yearOptions.map((year) => (
+                      <SelectItem key={year} value={year}>{year}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Month</Label>
+                <Select value={filterMonth} onValueChange={setFilterMonth}>
+                  <SelectTrigger displayValue={filterMonth === "all" ? "All Months" : monthLabel(filterMonth)}><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Months</SelectItem>
+                    {MONTHS.map((month) => (
+                      <SelectItem key={month.value} value={String(month.value)}>{month.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Status</Label>
+                <Select value={filterStatus} onValueChange={setFilterStatus}>
+                  <SelectTrigger displayValue={
+                    filterStatus === "all" ? "All Statuses"
+                      : filterStatus === "draft" ? "Draft"
+                      : filterStatus === "submitted" ? "In review"
+                      : filterStatus === "endorsed" ? "Endorsed"
+                      : filterStatus === "approved" ? "Approved"
+                      : filterStatus
+                  }><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    <SelectItem value="draft">Draft</SelectItem>
+                    <SelectItem value="submitted">In review</SelectItem>
+                    <SelectItem value="endorsed">Endorsed</SelectItem>
+                    <SelectItem value="approved">Approved</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </CardContent>
           </Card>
+
+          <ShadcnDataTable
+            title={`${activeActivity.tabLabel.toUpperCase()} REGISTER`}
+            infoTooltip={`${activeActivity.tabLabel} beneficiary reports by period and status.`}
+            columns={columns}
+            data={filtered}
+            loading={loading}
+            searchPlaceholder={`Search ${activeActivity.tabLabel.toLowerCase()}...`}
+            emptyMessage={`No ${activeActivity.tabLabel} reports yet.`}
+            onRowClick={(row) => setQuery({
+              mode: "view",
+              id: row.reference_id || row.id,
+              type: row.__reportType,
+            })}
+            pageSize={50}
+            showTableOptions={false}
+          />
         </div>
-      </ScrollArea>
-    </div>
+    </PageLayout>
   );
 }
 

@@ -1,22 +1,24 @@
 import * as React from "react";
-import { ArrowLeft, Plus, RefreshCw, Loader2, MessageSquareText, Eye, Search, CheckCircle2 } from "lucide-react";
+import { ColumnDef } from "@tanstack/react-table";
+import { ArrowLeft, Plus, RefreshCw, Loader2, Eye, CheckCircle2 } from "lucide-react";
 import { motion } from "motion/react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import { servicomApi } from "@/lib/api";
 import { zonesApi, statesApi } from "@/lib/adminApi";
+import { ShadcnDataTable } from "@/components/common/ShadcnDataTable";
+import { RegisterStatsCards } from "@/src/components/stateOffice/RegisterStatsCards";
 import { pickGeoLabel } from "./servicomConstants";
 import {
   COMMENT_CARD_QUESTIONS, computeCommentCardScore, commentCardScaleOptions, commentCardResponseLabel,
 } from "./servicomSurveyConstants";
 import { SubmitConfirmModal, useReportingOfficerSubmitConfirm } from "@/src/components/SubmitConfirmModal";
+import PageLayout from "@/src/components/PageLayout";
 
 interface Props {
   onBack: () => void;
@@ -146,27 +148,17 @@ export default function ServicomCommentCardPage({
     });
   }, [cards, filterSearch, filterDate]);
 
-  const questionKpis = React.useMemo(() => {
-    const shortLabels: Record<string, string> = {
-      Q01: "Reception",
-      Q02: "Courteous",
-      Q03: "Professional",
-      Q04: "Prompt",
-      Q05: "Overall",
-    };
-    return COMMENT_CARD_QUESTIONS.map((q) => {
-      let answered = 0;
-      for (const card of filteredCards) {
-        const responses = parseStoredResponses(card.responses);
-        if (responses[q.id]) answered += 1;
-      }
-      return {
-        id: q.id,
-        label: shortLabels[q.id] || q.section,
-        answered,
-        total: filteredCards.length,
-      };
-    });
+  const listStats = React.useMemo(() => {
+    const scores = filteredCards
+      .map((c) => Number(c.average_score))
+      .filter((n) => !Number.isNaN(n));
+    const avg =
+      scores.length > 0
+        ? (scores.reduce((sum, n) => sum + n, 0) / scores.length).toFixed(1)
+        : "—";
+    const high = scores.filter((s) => s >= 4).length;
+    const low = scores.filter((s) => s < 3).length;
+    return { total: filteredCards.length, avg, high, low };
   }, [filteredCards]);
 
   const openForm = () => {
@@ -185,6 +177,69 @@ export default function ServicomCommentCardPage({
       toast.error("Failed to load record", { description: err.message });
     }
   };
+
+  const listColumns: ColumnDef<any>[] = [
+    {
+      accessorKey: "card_date",
+      header: "Date",
+      cell: ({ row }) => (
+        <span className="text-xs text-slate-600 whitespace-nowrap">
+          {formatCardDate(row.original.card_date)}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "respondent_name",
+      header: "Respondent",
+      cell: ({ row }) => (
+        <span className="text-sm text-slate-800">{row.original.respondent_name || "—"}</span>
+      ),
+    },
+    {
+      accessorKey: "organisation",
+      header: "Organisation",
+      cell: ({ row }) => (
+        <span className="text-sm text-slate-700">{row.original.organisation || "—"}</span>
+      ),
+    },
+    {
+      id: "geo",
+      header: "State",
+      cell: ({ row }) => (
+        <span className="text-xs text-slate-600">
+          {row.original.state?.description ?? row.original.state_code ?? "—"}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "average_score",
+      header: "Avg Score",
+      cell: ({ row }) => {
+        const score = Number(row.original.average_score);
+        if (Number.isNaN(score)) return <span className="text-slate-400">—</span>;
+        const tone = scoreTone(score, 5);
+        return (
+          <span className={`text-sm font-bold tabular-nums ${tone.text}`}>{score.toFixed(1)}</span>
+        );
+      },
+    },
+    {
+      id: "actions",
+      header: "Action",
+      cell: ({ row }) => (
+        <div className="flex justify-end" onClick={(e) => e.stopPropagation()}>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 text-xs font-semibold gap-1.5 border-[#d4e8dc] hover:bg-[#e8f5ee] hover:text-[#145c3f]"
+            onClick={() => openView(row.original)}
+          >
+            <Eye className="w-3.5 h-3.5" /> View
+          </Button>
+        </div>
+      ),
+    },
+  ];
 
   const resetCreateForm = () => {
     setF(emptyForm(defaultZoneId, defaultStateId));
@@ -558,37 +613,16 @@ export default function ServicomCommentCardPage({
     const responses = mode === "view" ? parseStoredResponses(row?.responses) : f.responses;
 
     return (
-      <div key={formKey} className="flex flex-col h-full bg-slate-50/30">
-        <div className="bg-white border-b px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30">
-          <div className="flex items-center gap-3">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={createOnly && mode === "form" ? onBack : closeSub}
-              className="rounded-full"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
-            <h2 className="text-xl font-bold tracking-tight">
-              {mode === "view" ? "View Comment Card" : "New Comment Card"}
-            </h2>
-          </div>
+      <PageLayout
+        key={formKey}
+        title={mode === "view" ? "View Comment Card" : "New Comment Card"}
+        onBack={createOnly && mode === "form" ? onBack : closeSub}
+        maxWidth="5xl"
+      >
+        <div className="w-full pb-20 space-y-4">
+          {renderDetailsCard(mode === "view", row ?? undefined)}
+          {renderQuestions(responses, mode === "view", row ?? undefined)}
         </div>
-
-        <ScrollArea className="flex-1">
-          <div className="w-full px-4 md:px-6 py-4 pb-24 space-y-4">
-            {renderDetailsCard(mode === "view", row ?? undefined)}
-            {renderQuestions(responses, mode === "view", row ?? undefined)}
-            {mode === "form" && (
-          <div>
-            <p className="text-xs text-slate-500 hidden sm:block">
-            
-            </p>
-           
-          </div>
-        )}
-          </div>
-        </ScrollArea>
 
         <SubmitConfirmModal
           open={submitConfirm.open}
@@ -596,79 +630,51 @@ export default function ServicomCommentCardPage({
           onConfirm={submitConfirm.confirm}
           onCancel={submitConfirm.cancel}
         />
-      </div>
+      </PageLayout>
     );
   }
 
   return (
-    <div className="flex flex-col h-full bg-slate-50/30">
-      <div className="bg-white border-b px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30">
-        
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={onBack} className="rounded-full"><ArrowLeft className="w-5 h-5" /></Button>
-         <h2 className="text-xl font-bold tracking-tight">Citizens&apos; Comment Card</h2>
-         </div>
-       
-         <div className="flex items-center gap-3"> <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
+    <PageLayout
+      title="Citizens' Comment Card"
+      actions={
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-1.5 h-8 text-xs rounded-md">
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh
           </Button>
           {canCreate && (
-          <Button className="bg-orange-action hover:bg-orange-600 gap-2" onClick={openForm}>
-            <Plus className="w-4 h-4" /> New Comment Card
-          </Button>
-          )}</div>
-         
-        
-      </div>
+            <Button
+              size="sm"
+              className="bg-orange-action hover:bg-orange-600 gap-1.5 shadow-md shadow-orange-500/20 h-8 text-xs rounded-md"
+              onClick={openForm}
+            >
+              <Plus className="w-3.5 h-3.5" /> New Comment Card
+            </Button>
+          )}
+        </div>
+      }
+      contentClassName="space-y-4 pb-8"
+    >
+      <div className="w-full space-y-4">
+        <RegisterStatsCards
+          loading={loading}
+          className="grid grid-cols-2 md:grid-cols-4 gap-3"
+          stats={[
+            { label: "Total", value: listStats.total, tone: "text-[#0f3d2e] bg-white border-[#d4e8dc]" },
+            { label: "Avg score", value: listStats.avg, tone: "text-teal-800 bg-teal-50/80 border-teal-100" },
+            { label: "High (≥4.0)", value: listStats.high, tone: "text-emerald-700 bg-emerald-50/80 border-emerald-100" },
+            { label: "Low (<3.0)", value: listStats.low, tone: "text-rose-700 bg-rose-50/80 border-rose-100" },
+          ]}
+        />
 
-      <ScrollArea className="flex-1">
-        <div className="w-full px-4 md:px-6 py-4 space-y-4">
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
-            {questionKpis.map((kpi) => {
-              const pct = kpi.total ? Math.round((kpi.answered / kpi.total) * 100) : 0;
-              return (
-                <div
-                  key={kpi.id}
-                  className="rounded-2xl border border-[#d4e8dc] bg-white px-3.5 py-3"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="text-[11px] font-semibold text-slate-500 truncate pt-0.5">{kpi.label}</p>
-                    <p className="text-xl font-bold tabular-nums text-[#145c3f] leading-none">
-                      {loading ? "—" : kpi.answered}
-                    </p>
-                  </div>
-                  <div className="mt-2.5 flex items-center gap-2">
-                    <div className="h-1 flex-1 rounded-full bg-slate-100 overflow-hidden">
-                      <div
-                        className="h-full rounded-full bg-[#25a872] transition-all"
-                        style={{ width: loading ? "0%" : `${pct}%` }}
-                      />
-                    </div>
-                    <span className="text-[10px] font-semibold tabular-nums text-slate-400 w-8 text-right">
-                      {loading ? "—" : `${pct}%`}
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          <Card className="rounded-2xl border-[#d4e8dc]">
-            <CardContent className="pt-4 pb-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
-                <div className="relative lg:col-span-2">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                  <Input
-                    className="pl-9"
-                    placeholder="Search respondent, organisation..."
-                    value={filterSearch}
-                    onChange={(e) => setFilterSearch(e.target.value)}
-                  />
-                </div>
-                {!geoLocked && (
-                  <>
+        <Card className="rounded-lg border-[#d4e8dc] shadow-2xs">
+            <CardContent className="pt-4 pb-4 grid grid-flow-col auto-cols-fr gap-3">
+              {!geoLocked && (
+                <>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Zone</Label>
                     <Select value={filterZone} onValueChange={(v) => { setFilterZone(v); setFilterState("all"); }}>
-                      <SelectTrigger displayValue={filterZone === "all" ? "All Zones" : pickGeoLabel(zones, filterZone, "Zone")}>
+                      <SelectTrigger className="w-full" displayValue={filterZone === "all" ? "All Zones" : pickGeoLabel(zones, filterZone, "Zone")}>
                         <SelectValue placeholder="All Zones" />
                       </SelectTrigger>
                       <SelectContent>
@@ -676,8 +682,11 @@ export default function ServicomCommentCardPage({
                         {zones.map((z) => <SelectItem key={z.zonal_code} value={z.zonal_code}>{z.description}</SelectItem>)}
                       </SelectContent>
                     </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">State</Label>
                     <Select value={filterState} onValueChange={setFilterState}>
-                      <SelectTrigger displayValue={filterState === "all" ? "All States" : pickGeoLabel(filterStates, filterState, "State")}>
+                      <SelectTrigger className="w-full" displayValue={filterState === "all" ? "All States" : pickGeoLabel(filterStates, filterState, "State")}>
                         <SelectValue placeholder="All States" />
                       </SelectTrigger>
                       <SelectContent>
@@ -685,67 +694,31 @@ export default function ServicomCommentCardPage({
                         {filterStates.map((s) => <SelectItem key={s.code} value={s.code}>{s.description}</SelectItem>)}
                       </SelectContent>
                     </Select>
-                  </>
-                )}
+                  </div>
+                </>
+              )}
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Date</Label>
                 <Input type="date" value={filterDate} onChange={(e) => setFilterDate(e.target.value)} />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="rounded-2xl border-[#d4e8dc] overflow-hidden">
-            <CardHeader className="pb-3 border-b">
-              <CardTitle className="text-sm font-bold flex items-center gap-2">
-                <MessageSquareText className="w-4 h-4" />
-                {loading ? "Loading..." : `${filteredCards.length} record(s)`}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              {loading ? (
-                <div className="flex justify-center py-16"><Loader2 className="w-5 h-5 animate-spin text-slate-400" /></div>
-              ) : filteredCards.length === 0 ? (
-                <div className="flex justify-center py-16 text-sm text-slate-400">No records found</div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-[#f0fdf7]">
-                        <TableHead className="text-xs font-bold">Date</TableHead>
-                        <TableHead className="text-xs font-bold">Respondent</TableHead>
-                        <TableHead className="text-xs font-bold">Organisation</TableHead>
-                        <TableHead className="text-xs font-bold">State</TableHead>
-                        <TableHead className="text-xs font-bold">Avg Score</TableHead>
-                        <TableHead className="text-xs font-bold text-right w-24">Action</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredCards.map((c, i) => (
-                        <motion.tr key={c.reference_id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.02 }}
-                          className="border-b border-slate-100">
-                          <TableCell className="text-xs text-slate-500">{c.card_date}</TableCell>
-                          <TableCell className="text-sm">{c.respondent_name || "—"}</TableCell>
-                          <TableCell className="text-sm">{c.organisation || "—"}</TableCell>
-                          <TableCell className="text-xs">{c.state?.description ?? "—"}</TableCell>
-                          <TableCell className="text-sm font-semibold">{c.average_score ?? "—"}</TableCell>
-                          <TableCell className="text-right">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="h-8 text-xs font-semibold gap-1.5 border-[#d4e8dc] hover:bg-[#e8f5ee] hover:text-[#145c3f]"
-                              onClick={() => openView(c)}
-                            >
-                              <Eye className="w-3.5 h-3.5" /> View
-                            </Button>
-                          </TableCell>
-                        </motion.tr>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <ShadcnDataTable
+            title="COMMENT CARD REGISTER"
+            columns={listColumns}
+            data={filteredCards}
+            loading={loading}
+            searchPlaceholder="Search respondent, organisation..."
+            searchValue={filterSearch}
+            onSearchChange={setFilterSearch}
+            emptyMessage="No comment cards found for the selected criteria."
+            onRowClick={openView}
+            pageSize={50}
+            enableSelection={false}
+            showTableOptions={false}
+          />
         </div>
-      </ScrollArea>
-    </div>
+    </PageLayout>
   );
 }

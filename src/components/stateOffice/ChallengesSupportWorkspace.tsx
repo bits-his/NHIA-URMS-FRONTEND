@@ -1,16 +1,19 @@
 import * as React from "react";
-import { ArrowLeft, AlertTriangle, Eye, FileText, HandHelping, Link2, Loader2, MessageSquare, Pencil, Plus, RefreshCw, Send, User2 } from "lucide-react";
+import { ArrowLeft, AlertTriangle, Eye, FileText, HandHelping, Link2, MessageSquare, Pencil, Plus, RefreshCw, Send, User2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { ColumnDef } from "@tanstack/react-table";
+import PageLayout from "../PageLayout";
 import { ShadcnDataTable } from "@/components/common/ShadcnDataTable";
 import { challengesSupportApi as api } from "@/lib/api";
+import { RegisterStatsCards } from "./RegisterStatsCards";
 import { Field, FieldSection } from "./EnrolmentActivityForm";
 import {
   CHALLENGE_CATEGORIES, CHALLENGE_DEPARTMENTS, CHALLENGE_IMPACTS, CHALLENGE_PROGRAMS,
@@ -19,7 +22,7 @@ import {
   SUPPORT_STATUSES, severityToPriority, specificChallengesFor, specificSupportFor,
 } from "./challengesTypes";
 
-const inputClass = "w-full min-h-[4.5rem] rounded-xl px-3.5 py-2 text-sm bg-[#f4f7f5] border-2 border-[#1a7a52] text-slate-800 shadow-xs outline-none hover:border-[#0f3d2e] hover:bg-white focus-visible:border-[#0f3d2e] focus-visible:bg-white focus-visible:ring-3 focus-visible:ring-[#1a7a52]/25";
+const inputClass = "w-full min-h-[4.5rem] rounded-sm px-3.5 py-2 text-sm bg-[#f4f7f5] border-2 border-[#1a7a52] text-slate-800 shadow-xs outline-none hover:border-[#0f3d2e] hover:bg-white focus-visible:border-[#0f3d2e] focus-visible:bg-white focus-visible:ring-3 focus-visible:ring-[#1a7a52]/25";
 const ACTION = "bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20";
 
 function ReviewRow({ label, value }: { label: string; value?: React.ReactNode }) {
@@ -106,7 +109,33 @@ export default function ChallengesSupportWorkspace({ onBack }: Props) {
   const [detail, setDetail] = React.useState<any>(null);
   const [note, setNote] = React.useState("");
   const [newStatus, setNewStatus] = React.useState("");
+  const [filterStatus, setFilterStatus] = React.useState("all");
+  const [filterSeverity, setFilterSeverity] = React.useState("all");
+  const [filterPriority, setFilterPriority] = React.useState("all");
   const permissions = catalogue?.permissions || { create: false, comment: false, assign: false, national: false };
+
+  const filteredChallenges = React.useMemo(
+    () => challenges.filter((c) => {
+      if (filterStatus !== "all" && (c.status || "In-progress") !== filterStatus) return false;
+      if (filterSeverity !== "all" && c.severity !== filterSeverity) return false;
+      return true;
+    }),
+    [challenges, filterStatus, filterSeverity],
+  );
+  const filteredSupport = React.useMemo(
+    () => supportList.filter((s) => {
+      if (filterStatus !== "all" && (s.status || "Submitted") !== filterStatus) return false;
+      if (filterPriority !== "all" && s.priority !== filterPriority) return false;
+      return true;
+    }),
+    [supportList, filterStatus, filterPriority],
+  );
+
+  React.useEffect(() => {
+    setFilterStatus("all");
+    setFilterSeverity("all");
+    setFilterPriority("all");
+  }, [mode]);
 
   const run = async <T,>(op: () => Promise<T>): Promise<T | undefined> => {
     setBusy(true); setError("");
@@ -116,16 +145,43 @@ export default function ChallengesSupportWorkspace({ onBack }: Props) {
   };
   const refresh = async () => {
     const [c, s] = await Promise.all([api.challenges(), api.support()]);
-    setChallenges(c.data); setSupportList(s.data);
+    setChallenges(Array.isArray(c.data) ? c.data : []);
+    setSupportList(Array.isArray(s.data) ? s.data : []);
   };
   React.useEffect(() => {
     let cancelled = false;
     Promise.all([api.catalogue(), api.challenges(), api.support()])
-      .then(([cat, c, s]) => { if (!cancelled) { setCatalogue(cat.data); setChallenges(c.data); setSupportList(s.data); } })
+      .then(([cat, c, s]) => {
+        if (cancelled) return;
+        setCatalogue(cat.data);
+        setChallenges(Array.isArray(c.data) ? c.data : []);
+        setSupportList(Array.isArray(s.data) ? s.data : []);
+      })
       .catch((e) => { if (!cancelled) setError(e.message); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, []);
+
+  // Prefill from Meetings & Coordination handoff (?from=meeting&meeting_id=&related_activity=&note=)
+  React.useEffect(() => {
+    if (loading || !catalogue) return;
+    try {
+      const q = new URLSearchParams(window.location.search);
+      if (q.get("from") !== "meeting") return;
+      const related = q.get("related_activity") || "Meetings & Coordination";
+      const note = q.get("note") || "";
+      const meetingId = q.get("meeting_id") || "";
+      const seed = blankChallenge(catalogue);
+      seed.related_activity = related;
+      seed.description = [note, meetingId ? `Source meeting: ${meetingId}` : ""].filter(Boolean).join("\n");
+      setEditingId(null);
+      setDraft(seed);
+      setMode("challenge-form");
+      const url = new URL(window.location.href);
+      ["from", "meeting_id", "related_activity", "note"].forEach((k) => url.searchParams.delete(k));
+      window.history.replaceState({}, "", url.pathname + (url.search ? url.search : ""));
+    } catch { /* ignore */ }
+  }, [loading, catalogue]);
 
   const stateName = (code: string) => catalogue?.states.find((s) => s.code === code)?.description || code;
   const zoneName = (code: string) => catalogue?.zones.find((z) => z.zonal_code === code)?.description || code;
@@ -408,97 +464,80 @@ export default function ChallengesSupportWorkspace({ onBack }: Props) {
     },
   ], [busy, catalogue]);
 
-  const header = (
-    <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3.5 flex items-center justify-between sticky top-0 z-30 gap-3">
-      <div className="flex items-center gap-3 min-w-0">
-        <Button variant="ghost" size="icon" className="rounded-full shrink-0" aria-label="Back" onClick={handleBack}>
-          <ArrowLeft className="w-5 h-5" />
+  const actions = (
+    <div className="flex items-center gap-2 shrink-0">
+      {["challenges", "support"].includes(mode) && (
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-1.5 h-8 text-xs rounded-md border-[#d4e8dc]"
+          disabled={busy || loading}
+          onClick={() => void run(refresh)}
+        >
+          <RefreshCw className={`w-3.5 h-3.5 ${busy ? "animate-spin" : ""}`} /> Refresh
         </Button>
-        <div className="min-w-0">
-          <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">Challenges &amp; Support</h2>
-          <p className="text-xs text-slate-500 truncate">Operational challenges, departmental support requests, and action queue</p>
-        </div>
-      </div>
-      <div className="flex items-center gap-2 shrink-0">
-        {["challenges", "support"].includes(mode) && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8.5 gap-1.5 border border-slate-300 text-slate-700 bg-white hover:bg-[#f4f7f5] text-xs font-bold rounded-sm shadow-2xs"
-            disabled={busy || loading}
-            onClick={() => void run(refresh)}
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${busy ? "animate-spin" : ""}`} />
-            <span>Sync</span>
-          </Button>
-        )}
-        {permissions.create && (
-          <Button
-            size="sm"
-            className="h-8.5 bg-[#1a7a52] hover:bg-[#145c3f] text-white border border-[#145c3f] font-bold text-xs gap-1.5 rounded-sm shadow-xs"
-            disabled={busy}
-            onClick={() => startChallengeForm()}
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Record Challenge</span>
-          </Button>
-        )}
-        {permissions.create && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8.5 bg-white hover:bg-[#f4f7f5] text-[#1a7a52] border-2 border-[#1a7a52] font-bold text-xs gap-1.5 rounded-sm shadow-xs"
-            disabled={busy}
-            onClick={() => startSupportForm(null)}
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Request Support</span>
-          </Button>
-        )}
-      </div>
-    </div>
-  );
-  const tabs = ["challenges", "support"].includes(mode) && (
-    <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 sticky top-[57px] z-20">
-      <div className="flex gap-0 overflow-x-auto -mb-px" role="tablist" aria-label="Challenges and Support">
-        {[
-          { key: "challenges", label: "Challenges Register", count: challenges.length, icon: AlertTriangle },
-          { key: "support", label: "Support Requests", count: supportList.length, icon: HandHelping },
-        ].map(({ key, label, count, icon: Icon }) => (
-          <button
-            key={key}
-            type="button"
-            role="tab"
-            aria-selected={mode === key}
-            onClick={() => setMode(key as any)}
-            className={`group relative shrink-0 inline-flex items-center gap-2 px-4 py-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors outline-none focus-visible:bg-[#f4f7f5] ${
-              mode === key
-                ? "border-[#145c3f] text-[#145c3f]"
-                : "border-transparent text-slate-500 hover:text-[#0f3d2e] hover:border-[#c5ddd0]"
-            }`}
-          >
-            <Icon className="w-4 h-4" />
-            <span>{label}</span>
-            {count !== null && (
-              <span
-                className={`inline-flex min-w-[1.25rem] h-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold tabular-nums ${
-                  mode === key ? "bg-[#e8f6ee] text-[#145c3f]" : "bg-slate-100 text-slate-500"
-                }`}
-              >
-                {count}
-              </span>
-            )}
-          </button>
-        ))}
-      </div>
+      )}
+      {permissions.create && mode === "challenges" && (
+        <Button
+          size="sm"
+          className="bg-orange-action hover:bg-orange-600 gap-1.5 shadow-md shadow-orange-500/15 h-8 text-xs rounded-md"
+          disabled={busy}
+          onClick={() => startChallengeForm()}
+        >
+          <Plus className="w-3.5 h-3.5" /> Record Challenge
+        </Button>
+      )}
+      {permissions.create && mode === "support" && (
+        <Button
+          size="sm"
+          className="bg-orange-action hover:bg-orange-600 gap-1.5 shadow-md shadow-orange-500/15 h-8 text-xs rounded-md"
+          disabled={busy}
+          onClick={() => startSupportForm(null)}
+        >
+          <Plus className="w-3.5 h-3.5" /> Request Support
+        </Button>
+      )}
     </div>
   );
 
-  if (loading) return <div className="flex flex-col h-full bg-[#f4f7f5]">{header}<div className="flex items-center justify-center py-16 gap-3 text-slate-400"><Loader2 className="w-5 h-5 animate-spin" /><span className="text-sm">Loading...</span></div></div>;
+
+  const tabs = ["challenges", "support"].includes(mode) ? (
+    <div className="flex gap-0 overflow-x-auto -mb-px" role="tablist" aria-label="Challenges and Support">
+      {[
+        { key: "challenges", label: "Challenges Register", count: challenges.length, icon: AlertTriangle },
+        { key: "support", label: "Support Requests", count: supportList.length, icon: HandHelping },
+      ].map(({ key, label, count, icon: Icon }) => (
+        <button
+          key={key}
+          type="button"
+          role="tab"
+          aria-selected={mode === key}
+          onClick={() => setMode(key as any)}
+          className={`group relative shrink-0 inline-flex items-center gap-2 px-4 py-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors outline-none focus-visible:bg-[#f4f7f5] ${
+            mode === key
+              ? "border-[#145c3f] text-[#145c3f]"
+              : "border-transparent text-slate-500 hover:text-[#0f3d2e] hover:border-[#c5ddd0]"
+          }`}
+        >
+          <Icon className="w-4 h-4" />
+          <span>{label}</span>
+          {count !== null && (
+            <span
+              className={`inline-flex min-w-[1.25rem] h-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold tabular-nums ${
+                mode === key ? "bg-[#e8f6ee] text-[#145c3f]" : "bg-slate-100 text-slate-500"
+              }`}
+            >
+              {count}
+            </span>
+          )}
+        </button>
+      ))}
+    </div>
+  ) : undefined;
 
   /* ── Challenge form ── */
   const challengeForm = draft && (
-    <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-visible"><CardContent className="p-4 md:p-5 space-y-5">
+    <Card className="w-full rounded-sm border-[#d4e8dc] shadow-none ring-0 overflow-visible"><CardContent className="p-4 md:p-5 space-y-5">
       <FieldSection title="Challenge details">
         <Field label="State / FCT"><Input value={stateName(draft.state_code)} readOnly /></Field>
         <Field label="Zone"><Input value={zoneName(catalogue?.states.find((s) => s.code === draft.state_code)?.zonal_code || catalogue?.default_zone || "")} readOnly /></Field>
@@ -529,9 +568,9 @@ export default function ChallengesSupportWorkspace({ onBack }: Props) {
 
   /* ── Support form ── */
   const supportForm = draft && (
-    <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-visible"><CardContent className="p-4 md:p-5 space-y-5">
+    <Card className="w-full rounded-sm border-[#d4e8dc] shadow-none ring-0 overflow-visible"><CardContent className="p-4 md:p-5 space-y-5">
       {draft.challenge_id && (
-        <div className="rounded-lg bg-[#eef6f1] p-3 text-sm text-[#145c3f] flex flex-wrap items-center gap-2">
+        <div className="rounded-sm bg-[#eef6f1] p-3 text-sm text-[#145c3f] flex flex-wrap items-center gap-2">
           Linked to challenge <strong>{draft.challenge_id}</strong>
         </div>
       )}
@@ -703,46 +742,155 @@ export default function ChallengesSupportWorkspace({ onBack }: Props) {
     </div>
   );
 
+  const isViewOrForm = ["challenge-form", "support-form", "challenge-detail", "support-detail"].includes(mode);
+  const isForm = mode === "challenge-form" || mode === "support-form";
+
   return (
-    <div className="flex flex-col h-full bg-[#f4f7f5]">
-      {header}{tabs}
-      <ScrollArea className="flex-1"><div className="w-full px-3 md:px-5 py-2.5 space-y-3 pb-6">
-        {error && <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700" role="alert">{error}</div>}
+    <PageLayout
+      title={
+        mode === "challenge-form" ? (editingId ? "Edit Challenge" : "Record Challenge")
+        : mode === "support-form" ? (editingId ? "Edit Support Request" : "Request Support")
+        : mode === "challenge-detail" ? `Challenge ${detail?.challenge_id || ""}`
+        : mode === "support-detail" ? `Support Request ${detail?.support_id || ""}`
+        : "Challenges & Support"
+      }
+      onBack={isViewOrForm ? handleBack : undefined}
+      actions={actions}
+      filters={tabs}
+      loading={loading}
+      error={error}
+      contentClassName={isForm ? "w-full p-0 md:p-0 gap-0" : "space-y-3 pb-6"}
+    >
+      <div className={isForm ? "w-full" : "w-full space-y-3"}>
         {mode === "challenges" && (
+          <>
+          <RegisterStatsCards
+            loading={busy || loading}
+            className="grid grid-cols-2 md:grid-cols-4 gap-3"
+            stats={[
+              { label: "Total", value: filteredChallenges.length, tone: "text-[#0f3d2e] bg-white border-[#d4e8dc]" },
+              {
+                label: "In-progress",
+                value: filteredChallenges.filter((c: any) => (c.status || "In-progress") === "In-progress").length,
+                tone: "text-amber-800 bg-amber-50/80 border-amber-100",
+              },
+              {
+                label: "Resolved",
+                value: filteredChallenges.filter((c: any) => c.status === "Resolved" || c.status === "Closed").length,
+                tone: "text-emerald-700 bg-emerald-50/80 border-emerald-100",
+              },
+              {
+                label: "Escalated",
+                value: filteredChallenges.filter((c: any) => /escalat/i.test(String(c.status || ""))).length,
+                tone: "text-rose-700 bg-rose-50/80 border-rose-100",
+              },
+            ]}
+          />
+          <Card className="rounded-2xl border-[#d4e8dc]">
+            <CardContent className="pt-4 pb-4 grid grid-flow-col auto-cols-fr gap-3">
+              <div className="space-y-1 min-w-0">
+                <Label className="text-xs text-muted-foreground">Status</Label>
+                <Select value={filterStatus} onValueChange={setFilterStatus}>
+                  <SelectTrigger displayValue={filterStatus === "all" ? "All Statuses" : filterStatus}><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    {CHALLENGE_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1 min-w-0">
+                <Label className="text-xs text-muted-foreground">Severity</Label>
+                <Select value={filterSeverity} onValueChange={setFilterSeverity}>
+                  <SelectTrigger displayValue={filterSeverity === "all" ? "All Severities" : filterSeverity}><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Severities</SelectItem>
+                    {CHALLENGE_SEVERITIES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
           <ShadcnDataTable
             title="CHALLENGES REGISTER"
             infoTooltip="Operational and strategic challenges registered across NHIA state offices."
             columns={challengeColumns}
-            data={challenges}
+            data={filteredChallenges}
             loading={busy || loading}
             searchPlaceholder="Search challenges, categories, states..."
-            searchClassName="h-9 rounded-sm border-2 border-[#1a7a52] bg-[#f4f7f5] pl-8 pr-7 text-xs font-medium text-slate-800 placeholder:text-slate-400"
             emptyMessage="No challenges recorded for this view."
             onRowClick={(row) => void openChallengeDetail(row.challenge_id)}
             pageSize={50}
             showTableOptions={false}
           />
+          </>
         )}
         {mode === "support" && (
+          <>
+          <RegisterStatsCards
+            loading={busy || loading}
+            className="grid grid-cols-2 md:grid-cols-4 gap-3"
+            stats={[
+              { label: "Total", value: filteredSupport.length, tone: "text-[#0f3d2e] bg-white border-[#d4e8dc]" },
+              {
+                label: "In progress",
+                value: filteredSupport.filter((s: any) => ["Submitted", "Under Review", "Assigned", "In Progress"].includes(s.status || "Submitted")).length,
+                tone: "text-amber-800 bg-amber-50/80 border-amber-100",
+              },
+              {
+                label: "Resolved",
+                value: filteredSupport.filter((s: any) => s.status === "Resolved" || s.status === "Closed").length,
+                tone: "text-emerald-700 bg-emerald-50/80 border-emerald-100",
+              },
+              {
+                label: "Returned",
+                value: filteredSupport.filter((s: any) => /return/i.test(String(s.status || ""))).length,
+                tone: "text-rose-700 bg-rose-50/80 border-rose-100",
+              },
+            ]}
+          />
+          <Card className="rounded-2xl border-[#d4e8dc]">
+            <CardContent className="pt-4 pb-4 grid grid-flow-col auto-cols-fr gap-3">
+              <div className="space-y-1 min-w-0">
+                <Label className="text-xs text-muted-foreground">Status</Label>
+                <Select value={filterStatus} onValueChange={setFilterStatus}>
+                  <SelectTrigger displayValue={filterStatus === "all" ? "All Statuses" : filterStatus}><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    {SUPPORT_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1 min-w-0">
+                <Label className="text-xs text-muted-foreground">Priority</Label>
+                <Select value={filterPriority} onValueChange={setFilterPriority}>
+                  <SelectTrigger displayValue={filterPriority === "all" ? "All Priorities" : filterPriority}><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Priorities</SelectItem>
+                    {SUPPORT_PRIORITIES.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
           <ShadcnDataTable
             title="SUPPORT REQUESTS REGISTER"
             infoTooltip="Inter-departmental and executive support requests for resolution."
             columns={supportColumns}
-            data={supportList}
+            data={filteredSupport}
             loading={busy || loading}
             searchPlaceholder="Search support requests, owners, states..."
-            searchClassName="h-9 rounded-sm border-2 border-[#1a7a52] bg-[#f4f7f5] pl-8 pr-7 text-xs font-medium text-slate-800 placeholder:text-slate-400"
             emptyMessage="No support requests recorded for this view."
             onRowClick={(row) => void openSupportDetail(row.support_id)}
             pageSize={50}
             showTableOptions={false}
           />
+          </>
         )}
         {mode === "challenge-form" && challengeForm}
         {mode === "support-form" && supportForm}
         {mode === "challenge-detail" && challengeDetail}
         {mode === "support-detail" && supportDetail}
-      </div></ScrollArea>
-    </div>
+      </div>
+    </PageLayout>
   );
 }

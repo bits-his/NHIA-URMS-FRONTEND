@@ -1,10 +1,9 @@
 import * as React from "react";
+import type { ColumnDef } from "@tanstack/react-table";
 import {
   ArrowLeft, Plus, Loader2, RefreshCw, Eye,
   FileText, CheckCircle2, Clock, XCircle, Pencil,
-  AlertTriangle, ShieldAlert, MinusCircle,
 } from "lucide-react";
-import { motion } from "motion/react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -31,7 +30,7 @@ import {
   nextComplianceStep, parseComplaintCategories, countFindingStatuses,
 } from "./complianceConstants";
 import DashboardDrillPanel, { type DrillContext, type DrillRow } from "@/components/dashboard/DashboardDrillPanel";
-import { ClickableKpi, getUnitHeadScope } from "@/components/dashboard/dashboardUi";
+import { getUnitHeadScope } from "@/components/dashboard/dashboardUi";
 import type { DrillStatChip } from "@/components/dashboard/drillStats";
 import {
   buildComplianceDrillRows, computeComplianceKpis, parseReportIdFromDrillRow,
@@ -39,6 +38,8 @@ import {
 } from "./complianceDrill";
 import { useCreateReviewAccess } from "@/src/access/createReviewAccess";
 import { SubmitConfirmModal, useReportingOfficerSubmitConfirm } from "@/src/components/SubmitConfirmModal";
+import PageLayout from "@/src/components/PageLayout";
+import { ShadcnDataTable } from "@/components/common/ShadcnDataTable";
 
 const MODULE_NAME = "Facility Compliance Report";
 
@@ -682,27 +683,21 @@ export default function ComplianceManagementPage({ onBack, defaultZoneId, defaul
     const categories = parseComplaintCategories(v.complaint_categories);
 
     return (
-      <div className="flex flex-col h-full bg-slate-50/30">
-        <div className="bg-white border-b border-border/50 px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30 gap-3">
-          <div className="flex items-center gap-3 min-w-0">
-            <Button variant="ghost" size="icon" onClick={() => { setMode(createOnly ? "form" : "list"); setViewReport(null); }} className="rounded-full shrink-0">
-              <ArrowLeft className="w-5 h-5" />
+      <PageLayout
+        title="Facility Compliance Report"
+        description={`Q${v.reporting_quarter ?? quarterFromWeek(Number(v.reporting_week))} · ${v.reporting_year} · ${v.facility_name || ""}`}
+        badge={<Badge className={`text-[10px] border gap-1 ${st.cls}`}>{st.icon}{st.label}</Badge>}
+        onBack={() => { setMode(createOnly ? "form" : "list"); setViewReport(null); }}
+        maxWidth="5xl"
+        actions={
+          canCreate && v.status !== "approved" ? (
+            <Button variant="outline" size="sm" onClick={() => { applyReport(v); setViewReport(null); setMode("form"); }} className="gap-2">
+              <Pencil className="w-4 h-4" /> {v.status === "draft" ? "Edit Draft" : "Edit"}
             </Button>
-            <div className="min-w-0">
-              <h2 className="text-xl font-bold tracking-tight truncate">Facility Compliance Report</h2>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <Badge className={`text-[10px] border gap-1 ${st.cls}`}>{st.icon}{st.label}</Badge>
-            {canCreate && v.status !== "approved" && (
-              <Button variant="outline" size="sm" onClick={() => { applyReport(v); setViewReport(null); setMode("form"); }} className="gap-2">
-                <Pencil className="w-4 h-4" /> {v.status === "draft" ? "Edit Draft" : "Edit"}
-              </Button>
-            )}
-          </div>
-        </div>
-        <ScrollArea className="flex-1">
-        <div className="w-full px-4 md:px-6 py-4 space-y-4 pb-16">
+          ) : null
+        }
+      >
+        <div className="w-full space-y-4 pb-16">
           <Card className="rounded-2xl border-[#d4e8dc]">
             <CardHeader>
               <CardTitle className="text-base">Report Header</CardTitle>
@@ -850,8 +845,7 @@ export default function ComplianceManagementPage({ onBack, defaultZoneId, defaul
             </CardContent>
           </Card>
         </div>
-        </ScrollArea>
-      </div>
+      </PageLayout>
     );
   }
 
@@ -1008,208 +1002,210 @@ export default function ComplianceManagementPage({ onBack, defaultZoneId, defaul
     );
   }
 
+  const listColumns = React.useMemo<ColumnDef<any>[]>(
+    () => [
+      {
+        id: "date",
+        header: "Date",
+        accessorFn: (r) => r.date_submitted?.slice(0, 10) ?? "",
+        cell: ({ row }) => (
+          <span className="text-sm text-slate-600 whitespace-nowrap">
+            {row.original.date_submitted?.slice(0, 10) ?? "—"}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "facility_name",
+        header: "Facility",
+        cell: ({ row }) => (
+          <span className="text-sm font-semibold text-slate-800 whitespace-nowrap">
+            {row.original.facility_name || "—"}
+          </span>
+        ),
+      },
+      {
+        id: "period",
+        header: "Period",
+        accessorFn: (r) =>
+          `Q${r.reporting_quarter ?? quarterFromWeek(Number(r.reporting_week))} · ${r.reporting_year}`,
+        cell: ({ row }) => {
+          const r = row.original;
+          return (
+            <span className="text-sm text-slate-600 whitespace-nowrap">
+              Q{r.reporting_quarter ?? quarterFromWeek(Number(r.reporting_week))} · {r.reporting_year}
+            </span>
+          );
+        },
+      },
+      {
+        accessorKey: "officer_name",
+        header: "Officer",
+        cell: ({ row }) => (
+          <span className="text-sm text-slate-500 whitespace-nowrap">
+            {row.original.officer_name || "—"}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "status",
+        header: "Status",
+        cell: ({ row }) => {
+          const st = STATUS_CFG[row.original.status as keyof typeof STATUS_CFG] ?? STATUS_CFG.draft;
+          return (
+            <Badge className={`text-[10px] px-2 py-0.5 flex items-center gap-1 w-fit border ${st.cls}`}>
+              {st.icon} {st.label}
+            </Badge>
+          );
+        },
+      },
+      {
+        id: "actions",
+        header: "Action",
+        enableSorting: false,
+        cell: ({ row }) => (
+          <div className="flex justify-end" onClick={(e) => e.stopPropagation()}>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 gap-1 px-2 text-slate-500 hover:text-primary hover:bg-primary/10"
+              onClick={() => openView(row.original.id)}
+            >
+              <Eye className="w-3.5 h-3.5" /> View
+            </Button>
+          </div>
+        ),
+      },
+    ],
+    [],
+  );
+
   return (
-    <div className="flex flex-col h-full bg-slate-50/30">
-      <div className="bg-white border-b border-border/50 px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30 gap-3">
-        <h2 className="text-xl font-bold tracking-tight truncate">Facility Compliance Report</h2>
-        <div className="flex items-center gap-3 shrink-0">
-          <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
+    <PageLayout
+      title="Facility Compliance Report"
+      actions={
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-1.5 h-8 text-xs rounded-md">
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh
           </Button>
           {canCreate && (
-          <Button
-            className="bg-[#145c3f] hover:bg-[#0f3d2e] gap-2 shadow-lg shadow-emerald-500/20"
-            onClick={() => { resetForm(); setMode("form"); }}
-          >
-            <Plus className="w-4 h-4" /> New Report
-          </Button>
+            <Button
+              size="sm"
+              className="bg-orange-action hover:bg-orange-600 gap-1.5 shadow-md shadow-orange-500/20 h-8 text-xs rounded-md"
+              onClick={() => { resetForm(); setMode("form"); }}
+            >
+              <Plus className="w-3.5 h-3.5" /> New Report
+            </Button>
           )}
         </div>
-      </div>
+      }
+      contentClassName="space-y-4 pb-8"
+    >
+      <div className="w-full space-y-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+          {(
+            [
+              { kind: "total" as const, label: "Total Reports", value: kpiStats.total, tone: "text-[#0f3d2e] bg-white border-[#d4e8dc]" },
+              { kind: "fully" as const, label: "Fully Compliant", value: kpiStats.fully, tone: "text-emerald-700 bg-emerald-50/80 border-emerald-100" },
+              { kind: "partially" as const, label: "Partially Compliant", value: kpiStats.partially, tone: "text-amber-800 bg-amber-50/80 border-amber-100" },
+              { kind: "non" as const, label: "Non-Compliant", value: kpiStats.non, tone: "text-rose-700 bg-rose-50/80 border-rose-100" },
+              { kind: "violations" as const, label: "Violations", value: kpiStats.violations, tone: "text-orange-800 bg-orange-50/80 border-orange-100" },
+              { kind: "enforcement" as const, label: "Enforcement", value: kpiStats.enforcement, tone: "text-violet-800 bg-violet-50/80 border-violet-100" },
+            ]
+          ).map((c) => (
+            <button
+              key={c.kind}
+              type="button"
+              onClick={() => openComplianceDrill(c.kind)}
+              className={`rounded-lg border px-4 py-3 text-left transition-shadow hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1a7a52]/40 shadow-2xs ${c.tone}`}
+            >
+              <p className="text-2xl font-bold tabular-nums">{loading ? "—" : c.value}</p>
+              <p className="text-[11px] font-semibold text-slate-500 mt-0.5">{c.label}</p>
+            </button>
+          ))}
+        </div>
 
-      <ScrollArea className="flex-1">
-        <div className="w-full px-4 md:px-6 py-4 space-y-4">
-          <Card className="rounded-2xl border-[#d4e8dc]">
-            <CardContent className="pt-4 pb-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-              <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">Zone</Label>
-                <Select value={filterZone} disabled={zoneLocked} onValueChange={(v) => { setFilterZone(v); if (!stateLocked) setFilterState(ALL_STATES); }}>
-                  <SelectTrigger className="w-full" displayValue={filterZone === "all" ? "All Zones" : pickGeoLabel(zones.map(z => ({ id: z.id, description: z.label })), filterZone, "Zone")}>
-                    <SelectValue placeholder="Zone" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {!zoneLocked && <SelectItem value="all">All Zones</SelectItem>}
-                    {zones.map(z => <SelectItem key={z.id} value={String(z.id)}>{z.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+        <Card className="rounded-lg border-[#d4e8dc] shadow-2xs">
+            <CardContent className="pt-4 pb-4 space-y-3">
+              <div className="grid grid-flow-col auto-cols-fr gap-3">
+                <div className="space-y-1 min-w-0">
+                  <Label className="text-xs text-muted-foreground">Zone</Label>
+                  <Select value={filterZone} disabled={zoneLocked} onValueChange={(v) => { setFilterZone(v); if (!stateLocked) setFilterState(ALL_STATES); }}>
+                    <SelectTrigger className="w-full" displayValue={filterZone === "all" ? "All Zones" : pickGeoLabel(zones.map(z => ({ id: z.id, description: z.label })), filterZone, "Zone")}>
+                      <SelectValue placeholder="Zone" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {!zoneLocked && <SelectItem value="all">All Zones</SelectItem>}
+                      {zones.map(z => <SelectItem key={z.id} value={String(z.id)}>{z.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1 min-w-0">
+                  <Label className="text-xs text-muted-foreground">State</Label>
+                  <Select value={filterState} disabled={stateLocked} onValueChange={setFilterState}>
+                    <SelectTrigger className="w-full" displayValue={
+                      stateLocked
+                        ? pickGeoLabel(dashboardStates, filterState, "State")
+                        : (filterState === ALL_STATES ? "All States" : pickGeoLabel(dashboardStates, filterState, "State"))
+                    }>
+                      <SelectValue placeholder="State" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {!stateLocked && <SelectItem value={ALL_STATES}>All States</SelectItem>}
+                      {dashboardStates.map(s => (
+                        <SelectItem key={s.id} value={String(s.id)}>{s.description}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1 min-w-0">
+                  <Label className="text-xs text-muted-foreground">Year</Label>
+                  <Select value={filterYear} onValueChange={setFilterYear}>
+                    <SelectTrigger className="w-full" displayValue={filterYear === "all" ? "All Years" : filterYear}>
+                      <SelectValue placeholder="Year" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Years</SelectItem>
+                      {yearOptions.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1 min-w-0">
+                  <Label className="text-xs text-muted-foreground">Status</Label>
+                  <Select value={filterStatus} onValueChange={setFilterStatus}>
+                    <SelectTrigger className="w-full" displayValue={filterStatus === "all" ? "All Statuses" : STATUS_CFG[filterStatus as keyof typeof STATUS_CFG]?.label}>
+                      <SelectValue placeholder="Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Statuses</SelectItem>
+                      {Object.keys(STATUS_CFG).map(s => (
+                        <SelectItem key={s} value={s}>{STATUS_CFG[s as keyof typeof STATUS_CFG].label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-              <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">State</Label>
-                <Select value={filterState} disabled={stateLocked} onValueChange={setFilterState}>
-                  <SelectTrigger className="w-full" displayValue={
-                    stateLocked
-                      ? pickGeoLabel(dashboardStates, filterState, "State")
-                      : (filterState === ALL_STATES ? "All States" : pickGeoLabel(dashboardStates, filterState, "State"))
-                  }>
-                    <SelectValue placeholder="State" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {!stateLocked && <SelectItem value={ALL_STATES}>All States</SelectItem>}
-                    {dashboardStates.map(s => (
-                      <SelectItem key={s.id} value={String(s.id)}>{s.description}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">Year</Label>
-                <Select value={filterYear} onValueChange={setFilterYear}>
-                  <SelectTrigger className="w-full" displayValue={filterYear === "all" ? "All Years" : filterYear}>
-                    <SelectValue placeholder="Year" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Years</SelectItem>
-                    {yearOptions.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">Status</Label>
-                <Select value={filterStatus} onValueChange={setFilterStatus}>
-                  <SelectTrigger className="w-full" displayValue={filterStatus === "all" ? "All Statuses" : STATUS_CFG[filterStatus as keyof typeof STATUS_CFG]?.label}>
-                    <SelectValue placeholder="Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Statuses</SelectItem>
-                    {Object.keys(STATUS_CFG).map(s => (
-                      <SelectItem key={s} value={s}>{STATUS_CFG[s as keyof typeof STATUS_CFG].label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {hasFilters && (
+                <div className="flex justify-end">
+                  <Button variant="ghost" size="sm" className="text-slate-500 gap-1 shrink-0" onClick={clearFilters}>
+                    <XCircle className="w-3.5 h-3.5" /> Clear
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
 
-          {loading ? (
-            <div className="flex justify-center py-16"><Loader2 className="w-5 h-5 animate-spin text-slate-400" /></div>
-          ) : (
-            <>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 items-stretch">
-                <ClickableKpi
-                  label="Total Reports"
-                  value={kpiStats.total}
-                  icon={<FileText className="w-5 h-5 text-slate-600" />}
-                  onClick={() => openComplianceDrill("total")}
-                />
-                <ClickableKpi
-                  label="Fully Compliant"
-                  value={kpiStats.fully}
-                  icon={<CheckCircle2 className="w-5 h-5 text-emerald-600" />}
-                  onClick={() => openComplianceDrill("fully")}
-                />
-                <ClickableKpi
-                  label="Partially Compliant"
-                  value={kpiStats.partially}
-                  icon={<MinusCircle className="w-5 h-5 text-amber-600" />}
-                  onClick={() => openComplianceDrill("partially")}
-                />
-                <ClickableKpi
-                  label="Non-Compliant"
-                  value={kpiStats.non}
-                  icon={<XCircle className="w-5 h-5 text-red-600" />}
-                  onClick={() => openComplianceDrill("non")}
-                />
-                <ClickableKpi
-                  label="Violations"
-                  value={kpiStats.violations}
-                  icon={<AlertTriangle className="w-5 h-5 text-orange-600" />}
-                  onClick={() => openComplianceDrill("violations")}
-                  detail="Reports with violations"
-                />
-                <ClickableKpi
-                  label="Enforcement"
-                  value={kpiStats.enforcement}
-                  icon={<ShieldAlert className="w-5 h-5 text-violet-600" />}
-                  onClick={() => openComplianceDrill("enforcement")}
-                  detail="Reports with enforcement"
-                />
-              </div>
-
-              <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden">
-                <CardHeader className="pb-3 border-b border-[#d4e8dc] flex flex-row items-center justify-between">
-                  <CardTitle className="text-sm font-bold">
-                    {`${reports.length} report${reports.length !== 1 ? "s" : ""}`}
-                  </CardTitle>
-                  {hasFilters && (
-                    <Button variant="ghost" size="sm" className="text-slate-500 gap-1" onClick={clearFilters}>
-                      <XCircle className="w-3.5 h-3.5" /> Clear filters
-                    </Button>
-                  )}
-                </CardHeader>
-                <CardContent className="p-0">
-                  {reports.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-16 gap-2 text-slate-400">
-                      <FileText className="w-8 h-8 opacity-30" />
-                      <p className="text-sm font-medium">{hasFilters ? "No reports match your filters" : "No compliance reports yet"}</p>
-                      {!hasFilters && canCreate && (
-                        <Button variant="outline" size="sm" className="mt-2 gap-2" onClick={() => { resetForm(); setMode("form"); }}>
-                          <Plus className="w-4 h-4" /> New Report
-                        </Button>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="overflow-x-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow className="bg-[#f0fdf7] hover:bg-[#f0fdf7]">
-                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Date</TableHead>
-                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Facility</TableHead>
-                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Period</TableHead>
-                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Officer</TableHead>
-                            <TableHead className="text-xs font-bold text-slate-600 whitespace-nowrap">Status</TableHead>
-                            <TableHead className="text-right text-xs font-bold text-slate-600 whitespace-nowrap">Action</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {reports.map((r, i) => {
-                            const st = STATUS_CFG[r.status as keyof typeof STATUS_CFG] ?? STATUS_CFG.draft;
-                            return (
-                              <motion.tr key={r.id} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: i * 0.02 }}
-                                className="hover:bg-[#f8fdfb] transition-colors border-b border-slate-100 last:border-0">
-                                <TableCell className="text-sm text-slate-600 whitespace-nowrap">
-                                  {r.date_submitted?.slice(0, 10) ?? "—"}
-                                </TableCell>
-                                <TableCell className="text-sm font-semibold text-slate-800 whitespace-nowrap">{r.facility_name || "—"}</TableCell>
-                                <TableCell className="text-sm text-slate-600 whitespace-nowrap">
-                                  Q{r.reporting_quarter ?? quarterFromWeek(Number(r.reporting_week))} · {r.reporting_year}
-                                </TableCell>
-                                <TableCell className="text-sm text-slate-500 whitespace-nowrap">{r.officer_name || "—"}</TableCell>
-                                <TableCell>
-                                  <Badge className={`text-[10px] px-2 py-0.5 flex items-center gap-1 w-fit border ${st.cls}`}>
-                                    {st.icon} {st.label}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell className="text-right">
-                                  <Button variant="ghost" size="sm"
-                                    className="h-7 gap-1 px-2 text-slate-500 hover:text-primary hover:bg-primary/10"
-                                    onClick={() => openView(r.id)}>
-                                    <Eye className="w-3.5 h-3.5" /> View
-                                  </Button>
-                                </TableCell>
-                              </motion.tr>
-                            );
-                          })}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </>
-          )}
+          <ShadcnDataTable
+            title="FACILITY COMPLIANCE REGISTER"
+            columns={listColumns}
+            data={reports}
+            loading={loading}
+            searchPlaceholder="Search by facility, officer, period..."
+            emptyMessage={hasFilters ? "No reports match your filters" : "No compliance reports yet"}
+            onRowClick={(r) => void openView(r.id)}
+            pageSize={50}
+            showTableOptions={false}
+          />
         </div>
-      </ScrollArea>
 
       <DashboardDrillPanel
         open={drillOpen}
@@ -1220,6 +1216,6 @@ export default function ComplianceManagementPage({ onBack, defaultZoneId, defaul
         onRowClick={handleDrillRowClick}
         onStatClick={handleDrillStatClick}
       />
-    </div>
+    </PageLayout>
   );
 }

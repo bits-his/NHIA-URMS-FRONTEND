@@ -1,12 +1,16 @@
 import React, { useEffect, useMemo, useState } from "react";
+import type { ColumnDef } from "@tanstack/react-table";
 import { useNavigate } from "react-router-dom";
 import { storeManagementApi } from "@/src/services/storeManagementApi";
-import CustomTable, { CustomTableField } from "@/components/CustomTable";
 import { Button } from "@/components/ui/button";
-import { Plus, Paperclip, ExternalLink, FileSpreadsheet, Eye, CheckCircle2, AlertTriangle } from "lucide-react";
-import PageLayout from "../components/PageLayout";
-import ListSearchBar from "../components/ListSearchBar";
+import { Card, CardContent } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Plus, Paperclip, ExternalLink, Eye, RefreshCw, XCircle } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { useCreateReviewAccess } from "@/src/access/createReviewAccess";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ShadcnDataTable } from "@/components/common/ShadcnDataTable";
+import PageLayout from "@/src/components/PageLayout";
 
 const API_ORIGIN = ((import.meta.env?.VITE_API_URL as string) || "http://localhost:3001/api").replace(/\/api\/?$/, "");
 
@@ -19,6 +23,15 @@ function formatDate(value: string | null | undefined) {
 
 const naira = new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", maximumFractionDigits: 0 });
 
+type Bucket = "all" | "matched" | "variance" | "award";
+
+const BUCKET_LABELS: Record<Bucket, string> = {
+  all: "All",
+  matched: "Matched",
+  variance: "Variance",
+  award: "Award letter",
+};
+
 export default function PrepaymentAnalysisListView() {
   const navigate = useNavigate();
   const { canCreate, createOnly } = useCreateReviewAccess();
@@ -26,7 +39,21 @@ export default function PrepaymentAnalysisListView() {
   const [loading, setLoading] = useState(!createOnly);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
-  const [bucket, setBucket] = useState<"all" | "matched" | "variance" | "award">("all");
+  const [bucket, setBucket] = useState<Bucket>("all");
+
+  const load = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await storeManagementApi.getPrepaymentAnalyses();
+      setRows(Array.isArray(res.data) ? res.data : []);
+    } catch (err: any) {
+      setError(err.message || "Failed to load register");
+      setRows([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (!createOnly) return;
@@ -35,25 +62,7 @@ export default function PrepaymentAnalysisListView() {
 
   useEffect(() => {
     if (createOnly) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const res = await storeManagementApi.getPrepaymentAnalyses();
-        if (!cancelled) setRows(Array.isArray(res.data) ? res.data : []);
-      } catch (err: any) {
-        if (!cancelled) {
-          setError(err.message || "Failed to load register");
-          setRows([]);
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
+    load();
   }, [createOnly]);
 
   const searched = useMemo(() => {
@@ -101,249 +110,247 @@ export default function PrepaymentAnalysisListView() {
     return searched;
   }, [searched, bucket]);
 
-  const toggleBucket = (next: typeof bucket) => {
+  const toggleBucket = (next: Bucket) => {
     setBucket((prev) => (prev === next ? "all" : next));
   };
 
-  const kpis = [
-    {
-      key: "all" as const,
-      label: "Total",
-      value: counts.total,
-      icon: <FileSpreadsheet className="w-3.5 h-3.5 text-[#25a872]" />,
-      accent: "border-[#d4e8dc] bg-white",
-      onClick: () => setBucket("all"),
-    },
-    {
-      key: "matched" as const,
-      label: "Matched",
-      value: counts.matched,
-      icon: <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />,
-      accent: "border-emerald-200 bg-emerald-50/50",
-      onClick: () => toggleBucket("matched"),
-    },
-    {
-      key: "variance" as const,
-      label: "Variance",
-      value: counts.variance,
-      icon: <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />,
-      accent: "border-amber-200 bg-amber-50/50",
-      onClick: () => toggleBucket("variance"),
-    },
-    {
-      key: "award" as const,
-      label: "Award letter",
-      value: counts.award,
-      icon: <Paperclip className="w-3.5 h-3.5 text-slate-500" />,
-      accent: "border-slate-200 bg-white",
-      onClick: () => toggleBucket("award"),
-    },
+  const resetFilters = () => {
+    setQuery("");
+    setBucket("all");
+  };
+
+  const hasActiveFilters = Boolean(query || bucket !== "all");
+
+  const statCards = [
+    { key: "all" as const, label: "Total", value: counts.total, tone: "text-[#0f3d2e] bg-white border-[#d4e8dc]", onClick: () => setBucket("all") },
+    { key: "matched" as const, label: "Matched", value: counts.matched, tone: "text-emerald-700 bg-emerald-50/80 border-emerald-100", onClick: () => toggleBucket("matched") },
+    { key: "variance" as const, label: "Variance", value: counts.variance, tone: "text-amber-800 bg-amber-50/80 border-amber-100", onClick: () => toggleBucket("variance") },
+    { key: "award" as const, label: "Award letter", value: counts.award, tone: "text-slate-600 bg-white border-slate-200", onClick: () => toggleBucket("award") },
   ];
 
-  const fields: CustomTableField[] = [
-    {
-      title: "Control No.",
-      value: "controlNumber",
-      className: "whitespace-nowrap",
-      custom: true,
-      component: (item) => (
-        <button
-          type="button"
-          onClick={() => navigate(`/store-management/prepayment-analysis/${item.id}`)}
-          className="font-mono text-sm font-semibold tabular-nums text-[#145c3f] whitespace-nowrap hover:underline cursor-pointer"
-        >
-          {item.controlNumber}
-        </button>
-      ),
-    },
-    {
-      title: "Date",
-      value: "entryDate",
-      className: "whitespace-nowrap",
-      custom: true,
-      component: (item) => (
-        <span className="text-slate-700 tabular-nums whitespace-nowrap">{formatDate(item.entryDate)}</span>
-      ),
-    },
-    {
-      title: "Instrument",
-      value: "procurementInstrument",
-      custom: true,
-      component: (item) => (
-        <span className="inline-flex rounded-md bg-[#e8f5ee] px-2 py-0.5 text-[11px] font-semibold text-[#0f3d2e] whitespace-nowrap">
-          {item.procurementInstrument || "—"}
-        </span>
-      ),
-    },
-    {
-      title: "Contractor",
-      value: "contractorName",
-      className: "min-w-[140px] font-medium text-slate-900",
-    },
-    {
-      title: "Ref",
-      value: "refInvoiceDeliveryNote",
-      custom: true,
-      component: (item) => (
-        <span className="font-mono text-xs text-slate-700 whitespace-nowrap">
-          {item.refInvoiceDeliveryNote || "—"}
-        </span>
-      ),
-    },
-    {
-      title: "Item",
-      value: "itemDescription",
-      className: "min-w-[160px] text-slate-800",
-    },
-    {
-      title: "Ordered",
-      value: "quantityOrdered",
-      className: "text-right whitespace-nowrap",
-      custom: true,
-      component: (item) => (
-        <span className="font-mono font-semibold tabular-nums">{item.quantityOrdered ?? 0}</span>
-      ),
-    },
-    {
-      title: "Supplied",
-      value: "quantitySupplied",
-      className: "text-right whitespace-nowrap",
-      custom: true,
-      component: (item) => {
-        const ordered = Number(item.quantityOrdered || 0);
-        const supplied = Number(item.quantitySupplied || 0);
-        const variance = ordered !== supplied;
-        return (
-          <span className={`font-mono font-semibold tabular-nums ${variance ? "text-amber-800" : "text-slate-900"}`}>
-            {supplied}
+  const columns = useMemo<ColumnDef<any>[]>(
+    () => [
+      {
+        id: "controlNumber",
+        header: "Control No.",
+        accessorKey: "controlNumber",
+        cell: ({ row }) => (
+          <span className="font-mono text-sm font-semibold tabular-nums text-[#145c3f] whitespace-nowrap">
+            {row.original.controlNumber}
           </span>
-        );
-      },
-    },
-    {
-      title: "Rate",
-      value: "rate",
-      className: "text-right whitespace-nowrap",
-      custom: true,
-      component: (item) => (
-        <span className="font-mono font-semibold tabular-nums text-slate-900">
-          {naira.format(Number(item.rate || 0))}
-        </span>
-      ),
-    },
-    {
-      title: "Award",
-      value: "awardLetterPath",
-      className: "whitespace-nowrap",
-      custom: true,
-      component: (item) =>
-        item.awardLetterPath ? (
-          <a
-            href={`${API_ORIGIN}${item.awardLetterPath}`}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#145c3f] hover:underline"
-          >
-            <Paperclip className="w-3.5 h-3.5" aria-hidden="true" />
-            View
-            <ExternalLink className="w-3 h-3" aria-hidden="true" />
-          </a>
-        ) : (
-          <span className="text-slate-400 text-[11px]">None</span>
         ),
-    },
-    {
-      title: "Remarks",
-      value: "remarks",
-      className: "min-w-[120px]",
-      custom: true,
-      component: (item) => <span className="text-slate-700">{item.remarks || "—"}</span>,
-    },
-    {
-      title: "",
-      value: "id",
-      className: "whitespace-nowrap",
-      custom: true,
-      component: (item) => (
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={() => navigate(`/store-management/prepayment-analysis/${item.id}`)}
-          className="h-8 px-2 text-[11px] font-semibold text-[#145c3f] hover:bg-[#e8f5ee]"
-        >
-          <Eye className="w-3.5 h-3.5 mr-1" aria-hidden="true" /> View
-        </Button>
-      ),
-    },
-  ];
+      },
+      {
+        id: "entryDate",
+        header: "Date",
+        accessorKey: "entryDate",
+        cell: ({ row }) => (
+          <span className="text-slate-700 tabular-nums whitespace-nowrap">{formatDate(row.original.entryDate)}</span>
+        ),
+      },
+      {
+        id: "instrument",
+        header: "Instrument",
+        accessorKey: "procurementInstrument",
+        cell: ({ row }) => (
+          <span className="inline-flex rounded-md bg-[#e8f5ee] px-2 py-0.5 text-[11px] font-semibold text-[#0f3d2e] whitespace-nowrap">
+            {row.original.procurementInstrument || "—"}
+          </span>
+        ),
+      },
+      {
+        id: "contractor",
+        header: "Contractor",
+        accessorKey: "contractorName",
+        cell: ({ row }) => <span className="font-medium text-slate-900 min-w-[140px]">{row.original.contractorName || "—"}</span>,
+      },
+      {
+        id: "ref",
+        header: "Ref",
+        accessorKey: "refInvoiceDeliveryNote",
+        cell: ({ row }) => (
+          <span className="font-mono text-xs text-slate-700 whitespace-nowrap">{row.original.refInvoiceDeliveryNote || "—"}</span>
+        ),
+      },
+      {
+        id: "item",
+        header: "Item",
+        accessorKey: "itemDescription",
+        cell: ({ row }) => <span className="text-slate-800 min-w-[160px]">{row.original.itemDescription || "—"}</span>,
+      },
+      {
+        id: "ordered",
+        header: "Ordered",
+        accessorKey: "quantityOrdered",
+        cell: ({ row }) => (
+          <span className="font-mono font-semibold tabular-nums text-right block">{row.original.quantityOrdered ?? 0}</span>
+        ),
+      },
+      {
+        id: "supplied",
+        header: "Supplied",
+        accessorKey: "quantitySupplied",
+        cell: ({ row }) => {
+          const ordered = Number(row.original.quantityOrdered || 0);
+          const supplied = Number(row.original.quantitySupplied || 0);
+          const variance = ordered !== supplied;
+          return (
+            <span className={`font-mono font-semibold tabular-nums text-right block ${variance ? "text-amber-800" : "text-slate-900"}`}>
+              {supplied}
+            </span>
+          );
+        },
+      },
+      {
+        id: "rate",
+        header: "Rate",
+        accessorKey: "rate",
+        cell: ({ row }) => (
+          <span className="font-mono font-semibold tabular-nums text-slate-900 text-right block">
+            {naira.format(Number(row.original.rate || 0))}
+          </span>
+        ),
+      },
+      {
+        id: "award",
+        header: "Award",
+        cell: ({ row }) =>
+          row.original.awardLetterPath ? (
+            <a
+              href={`${API_ORIGIN}${row.original.awardLetterPath}`}
+              target="_blank"
+              rel="noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#145c3f] hover:underline"
+            >
+              <Paperclip className="w-3.5 h-3.5" aria-hidden="true" />
+              View
+              <ExternalLink className="w-3 h-3" aria-hidden="true" />
+            </a>
+          ) : (
+            <span className="text-slate-400 text-[11px]">None</span>
+          ),
+      },
+      {
+        id: "remarks",
+        header: "Remarks",
+        accessorKey: "remarks",
+        cell: ({ row }) => <span className="text-slate-700">{row.original.remarks || "—"}</span>,
+      },
+      {
+        id: "view",
+        header: "View",
+        enableSorting: false,
+        cell: ({ row }) => (
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(`/store-management/prepayment-analysis/${row.original.id}`);
+            }}
+            className="h-8 px-2 text-[11px] font-semibold text-[#145c3f] hover:bg-[#e8f5ee]"
+          >
+            <Eye className="w-3.5 h-3.5 mr-1" aria-hidden="true" /> View
+          </Button>
+        ),
+      },
+    ],
+    [navigate],
+  );
 
   if (createOnly) return null;
 
   return (
     <PageLayout
-      title={
-        <span className="flex items-center gap-2">
-          <FileSpreadsheet className="w-5 h-5 text-[#25a872]" /> Stock Prepayment Register
-        </span>
-      }
-      description="Stock Verification — Stock Prepayment Register"
+      title="Stock Prepayment Register"
       actions={
-        canCreate ? (
-        <Button
-          size="sm"
-          onClick={() => navigate("/store-management/prepayment-analysis/new")}
-          className="bg-[#145c3f] hover:bg-[#0f3d2e] text-white text-xs h-9 font-semibold"
-        >
-          <Plus className="w-4 h-4 mr-1.5" aria-hidden="true" /> New entry
-        </Button>
-        ) : null
-      }
-      contentClassName="gap-3 min-w-0"
-    >
-      {error && (
-        <div role="alert" className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-800">
-          {error}
+        <div className="flex items-center gap-2 shrink-0">
+          <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-1.5 h-8 text-xs rounded-md border-[#d4e8dc]">
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh
+          </Button>
+          {canCreate && (
+            <Button
+              size="sm"
+              className="bg-orange-action hover:bg-orange-600 gap-1.5 shadow-md shadow-orange-500/15 h-8 text-xs rounded-md"
+              onClick={() => navigate("/store-management/prepayment-analysis/new")}
+            >
+              <Plus className="w-3.5 h-3.5" /> New entry
+            </Button>
+          )}
         </div>
-      )}
-
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
-        {kpis.map((kpi) => (
-          <button
-            key={kpi.label}
-            type="button"
-            onClick={kpi.onClick}
-            className={`rounded-lg border px-3 py-2 flex items-center gap-2.5 text-left ${kpi.accent} ${bucket === kpi.key ? "ring-2 ring-[#145c3f] ring-offset-1" : ""}`}
-          >
-            {kpi.icon}
-            <div className="min-w-0">
-              <p className="text-lg font-bold text-slate-800 tabular-nums leading-none">{kpi.value}</p>
-              <p className="text-[10px] font-medium text-slate-500 mt-0.5 truncate">{kpi.label}</p>
+      }
+      contentClassName="space-y-4 pb-8"
+    >
+        <div className="w-full px-4 md:px-6 py-5 space-y-4">
+          {error && (
+            <div role="alert" className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-800">
+              {error}
             </div>
-          </button>
-        ))}
-      </div>
+          )}
 
-      <ListSearchBar
-        value={query}
-        onChange={setQuery}
-        placeholder="Search control no, contractor, item…"
-        id="par-search"
-      />
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {statCards.map((c) => (
+              <button
+                key={c.label}
+                type="button"
+                onClick={c.onClick}
+                className={`rounded-xl border px-4 py-3 text-left transition-shadow ${c.tone} ${
+                  bucket === c.key ? "ring-2 ring-[#1a7a52] ring-offset-1" : ""
+                }`}
+              >
+                <p className="text-2xl font-bold tabular-nums">{loading ? "—" : c.value}</p>
+                <p className="text-[11px] font-semibold text-slate-500 mt-0.5">{c.label}</p>
+              </button>
+            ))}
+          </div>
 
-      <div className="min-w-0 w-full overflow-x-auto">
-        <CustomTable
-          data={filtered}
-          fields={fields}
-          filter={false}
-          loading={loading}
-          pageSize={20}
-          message={
-            bucket === "all"
-              ? "No stock prepayment register records yet — add an entry"
-              : `No ${bucket} records match this search`
-          }
-        />
-      </div>
-    </PageLayout>
-  );
-}
+          <Card className="rounded-lg border-[#d4e8dc] shadow-2xs">
+            <CardContent className="pt-4 pb-4 space-y-3">
+              <div className="grid grid-flow-col auto-cols-fr gap-3">
+                <div className="space-y-1 min-w-0">
+                  <Label className="text-xs text-muted-foreground">Bucket</Label>
+                  <Select value={bucket} onValueChange={(v) => setBucket(v as Bucket)}>
+                    <SelectTrigger displayValue={BUCKET_LABELS[bucket]}>
+                      <SelectValue placeholder="All" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All</SelectItem>
+                      <SelectItem value="matched">Matched</SelectItem>
+                      <SelectItem value="variance">Variance</SelectItem>
+                      <SelectItem value="award">Award letter</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              {hasActiveFilters && (
+                <div className="flex justify-end">
+                  <Button variant="ghost" size="sm" className="text-slate-500 gap-1 shrink-0" onClick={resetFilters}>
+                    <XCircle className="w-3.5 h-3.5" /> Clear
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <ShadcnDataTable
+            title="STOCK PREPAYMENT REGISTER"
+            columns={columns}
+            data={filtered}
+            loading={loading}
+            searchPlaceholder="Search control no, contractor, item…"
+            searchValue={query}
+            onSearchChange={setQuery}
+            emptyMessage={
+              bucket === "all"
+                ? "No stock prepayment register records yet — add an entry"
+                : `No ${bucket} records match this search`
+            }
+            onRowClick={(row) => navigate(`/store-management/prepayment-analysis/${row.id}`)}
+            pageSize={50}
+            showTableOptions={false}
+          />
+        </div>
+      </PageLayout>
+    );
+  }

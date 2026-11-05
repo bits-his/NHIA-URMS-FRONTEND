@@ -4,7 +4,6 @@ import { useSelector } from "react-redux";
 import {
   AlertTriangle,
   ArrowLeft,
-  Building2,
   Handshake,
   LayoutDashboard,
   Megaphone,
@@ -23,6 +22,8 @@ import ChallengesSupportDashboard from "./ChallengesSupportDashboard";
 import ComplaintRegisterDashboard from "../servicom/ComplaintRegisterDashboard";
 import { STAKEHOLDER_MANAGEMENT_PATH } from "./enrolmentPillarTypes";
 import { canAccessEnrolmentDriveDashboard } from "./enrolmentDriveTypes";
+import PageLayout from "@/src/components/PageLayout";
+import { UnderHeaderNavTabs } from "@/src/components/UnderHeaderNavTabs";
 
 export type StateOfficeDashTab =
   | "enrolment"
@@ -32,13 +33,13 @@ export type StateOfficeDashTab =
   | "complaints"
   | "challenges";
 
-const TABS: { key: StateOfficeDashTab; label: string; icon: React.ReactNode }[] = [
-  { key: "enrolment", label: "Enrolment", icon: <UserPlus className="size-4 shrink-0" /> },
-  { key: "enrolment-drives", label: "Enrolment Drives", icon: <Megaphone className="size-4 shrink-0" /> },
-  { key: "stakeholder", label: "Stakeholder", icon: <Handshake className="size-4 shrink-0" /> },
-  { key: "provider", label: "Provider Management", icon: <Stethoscope className="size-4 shrink-0" /> },
-  { key: "complaints", label: "Complaints", icon: <Scale className="size-4 shrink-0" /> },
-  { key: "challenges", label: "Challenges & Support", icon: <AlertTriangle className="size-4 shrink-0" /> },
+const TABS: { key: StateOfficeDashTab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+  { key: "enrolment", label: "Enrolment", icon: UserPlus },
+  { key: "enrolment-drives", label: "Enrolment Drives", icon: Megaphone },
+  { key: "stakeholder", label: "Stakeholder", icon: Handshake },
+  { key: "provider", label: "Provider Management", icon: Stethoscope },
+  { key: "complaints", label: "Complaints", icon: Scale },
+  { key: "challenges", label: "Challenges & Support", icon: AlertTriangle },
 ];
 
 interface Props {
@@ -87,7 +88,6 @@ export default function StateOfficeDashboardHub({
   userRole,
   user,
 }: Props) {
-  const navigate = useNavigate();
   const authUser = useSelector((s: RootState) => s.auth.user);
   const canEdDash = canAccessEnrolmentDriveDashboard(authUser?.role || userRole, {
     reportScope: authUser?.role_config?.report_scope ?? user?.role_config?.report_scope ?? null,
@@ -152,28 +152,13 @@ export default function StateOfficeDashboardHub({
     defaultZoneId,
     defaultStateId,
   };
+  const navigate = useNavigate();
 
   return (
-    <div className="flex flex-col h-full bg-[#f4f7f5]">
-      <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30 gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="rounded-full shrink-0"
-            aria-label="Back"
-            onClick={onBack}
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-          <div className="min-w-0 flex items-center gap-2">
-            <Building2 className="w-5 h-5 text-[#145c3f] shrink-0" />
-            <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">
-              State Office Dashboard
-            </h2>
-          </div>
-        </div>
-
+    <PageLayout
+      title="State Office Dashboard"
+      showBack={false}
+      actions={
         <Button
           variant="outline"
           size="sm"
@@ -182,99 +167,92 @@ export default function StateOfficeDashboardHub({
           onClick={handleSync}
         >
           <RefreshCw className={`w-3.5 h-3.5 ${syncing ? "animate-spin" : ""}`} />
-          <span>Sync</span>
+          <span>Refresh</span>
         </Button>
+      }
+      tabs={
+        <UnderHeaderNavTabs
+          tabs={visibleTabs.map((t) => ({
+            id: t.key,
+            label: t.label,
+            icon: t.icon,
+          }))}
+          activeTab={activeTab}
+          onChange={(key) => selectTab(key as any)}
+          ariaLabel="State office dashboard modules"
+        />
+      }
+    >
+      <div className="w-full">
+
+        {activeTab === "enrolment" && (
+          <UnavailablePanel moduleLabel="Enrolment" registerPath="/zonal/enrolment" />
+        )}
+
+        {activeTab === "enrolment-drives" && canEdDash && (
+          <EnrolmentDriveDashboard
+            key={`ed-dash-${refreshKey}`}
+            embedded
+            onBack={onBack}
+            {...shared}
+            onRecordAction={(stateCode, issue) => {
+              const params = new URLSearchParams({ tab: "actions" });
+              if (stateCode) params.set("state", stateCode);
+              if (issue) params.set("issue", issue);
+              navigate(`/zonal/enrolment-drives?${params.toString()}`);
+            }}
+          />
+        )}
+        {activeTab === "enrolment-drives" && !canEdDash && (
+          <UnavailablePanel moduleLabel="Enrolment Drives" registerPath="/zonal/enrolment-drives" />
+        )}
+
+        {activeTab === "stakeholder" && (
+          <UnavailablePanel moduleLabel="Stakeholder Management" registerPath={STAKEHOLDER_MANAGEMENT_PATH} />
+        )}
+
+        {activeTab === "provider" && (
+          <ProviderManagementDashboard
+            key={`pm-dash-${refreshKey}`}
+            embedded
+            onBack={onBack}
+            {...shared}
+          />
+        )}
+
+        {activeTab === "complaints" && (
+          <ScrollArea className="flex-1">
+            <div className="p-3 sm:p-4 w-full space-y-3.5">
+              <ComplaintRegisterDashboard
+                key={`state-comp-dash-${refreshKey}`}
+                embedded
+                defaultStateId={isStateLocked ? defaultStateId : undefined}
+                defaultZoneId={isStateLocked ? defaultZoneId : undefined}
+                lockLocation={isStateLocked}
+                excludeServicom
+                title={
+                  isStateLocked
+                    ? "State Complaints Dashboard"
+                    : "State Office Complaints Analytics"
+                }
+                subtitle={
+                  isStateLocked
+                    ? `Complaint resolution, SLA tracking, and trends for ${defaultStateId || "your state"}`
+                    : "State-level complaint resolution, SLA performance, and trends across states"
+                }
+              />
+            </div>
+          </ScrollArea>
+        )}
+
+        {activeTab === "challenges" && (
+          <ChallengesSupportDashboard
+            key={`cs-dash-${refreshKey}`}
+            embedded
+            onBack={onBack}
+          />
+        )}
       </div>
-
-      <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 sticky top-[57px] z-20">
-        <div className="flex gap-4 overflow-x-auto -mb-px" role="tablist">
-          {visibleTabs.map((tab) => (
-            <button
-              key={tab.key}
-              type="button"
-              role="tab"
-              aria-selected={activeTab === tab.key}
-              onClick={() => selectTab(tab.key)}
-              className={`group relative shrink-0 inline-flex items-center gap-2 px-3.5 py-3 text-xs font-bold whitespace-nowrap border-b-2 transition-all outline-none ${
-                activeTab === tab.key
-                  ? "border-[#145c3f] text-[#145c3f]"
-                  : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300"
-              }`}
-            >
-              {tab.icon}
-              <span>{tab.label}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {activeTab === "enrolment" && (
-        <UnavailablePanel moduleLabel="Enrolment" registerPath="/zonal/enrolment" />
-      )}
-
-      {activeTab === "enrolment-drives" && canEdDash && (
-        <EnrolmentDriveDashboard
-          key={`ed-dash-${refreshKey}`}
-          embedded
-          onBack={onBack}
-          {...shared}
-          onRecordAction={(stateCode, issue) => {
-            const params = new URLSearchParams({ tab: "actions" });
-            if (stateCode) params.set("state", stateCode);
-            if (issue) params.set("issue", issue);
-            navigate(`/zonal/enrolment-drives?${params.toString()}`);
-          }}
-        />
-      )}
-      {activeTab === "enrolment-drives" && !canEdDash && (
-        <UnavailablePanel moduleLabel="Enrolment Drives" registerPath="/zonal/enrolment-drives" />
-      )}
-
-      {activeTab === "stakeholder" && (
-        <UnavailablePanel moduleLabel="Stakeholder Management" registerPath={STAKEHOLDER_MANAGEMENT_PATH} />
-      )}
-
-      {activeTab === "provider" && (
-        <ProviderManagementDashboard
-          key={`pm-dash-${refreshKey}`}
-          embedded
-          onBack={onBack}
-          {...shared}
-        />
-      )}
-
-      {activeTab === "complaints" && (
-        <ScrollArea className="flex-1">
-          <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-4">
-            <ComplaintRegisterDashboard
-              key={`state-comp-dash-${refreshKey}`}
-              embedded
-              defaultStateId={isStateLocked ? defaultStateId : undefined}
-              defaultZoneId={isStateLocked ? defaultZoneId : undefined}
-              lockLocation={isStateLocked}
-              excludeServicom
-              title={
-                isStateLocked
-                  ? "State Complaints Dashboard"
-                  : "State Office Complaints Analytics"
-              }
-              subtitle={
-                isStateLocked
-                  ? `Complaint resolution, SLA tracking, and trends for ${defaultStateId || "your state"}`
-                  : "State-level complaint resolution, SLA performance, and trends across states"
-              }
-            />
-          </div>
-        </ScrollArea>
-      )}
-
-      {activeTab === "challenges" && (
-        <ChallengesSupportDashboard
-          key={`cs-dash-${refreshKey}`}
-          embedded
-          onBack={onBack}
-        />
-      )}
-    </div>
+    </PageLayout>
   );
 }

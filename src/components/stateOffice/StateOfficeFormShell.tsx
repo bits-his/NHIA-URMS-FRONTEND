@@ -11,6 +11,7 @@ import {
   useReportingOfficerSubmitConfirm,
   type SubmitConfirmOptions,
 } from "@/src/components/SubmitConfirmModal";
+import PageLayout from "@/src/components/PageLayout";
 
 interface Props {
   reportId?: number | string | null;
@@ -209,41 +210,15 @@ export default function StateOfficeFormShell({
       : "px-4 md:px-6 py-4 space-y-4";
 
   return (
-    <div className={`flex flex-col h-full min-h-0 ${hidePageHeader ? "bg-transparent" : compact ? "bg-[#f4f7f5]" : "bg-slate-50/30"}`}>
-      {!hidePageHeader && (
-        <div className={`bg-white border-b sticky top-0 z-30 flex items-center justify-between gap-3 ${compact ? "px-4 md:px-5 py-2.5" : "border-border/50 px-4 md:px-6 py-3"}`}>
-          <div className="flex items-center gap-2 min-w-0">
-            <Button
-              variant="ghost"
-              size={compact ? "sm" : "icon"}
-              onClick={handleCancel}
-              className={compact ? "h-8 gap-1.5 -ml-2 shrink-0" : "rounded-full shrink-0"}
-              aria-label="Back"
-            >
-              <ArrowLeft className={compact ? "w-4 h-4" : "w-5 h-5"} />
-              {compact ? "Back" : null}
-            </Button>
-            <div className="min-w-0">
-              {pageTitle ? (
-                <>
-                  <h2 className={`font-bold tracking-tight truncate ${compact ? "text-base" : "text-xl"}`}>{pageTitle}</h2>
-                  {(pageSubtitle || refId) && (
-                    <p className={`text-slate-500 truncate ${compact ? "text-[11px]" : "text-xs"}`}>
-                      {refId ? <span className="font-mono font-semibold text-[#145c3f]">{refId}</span> : null}
-                      {refId && pageSubtitle ? " · " : null}
-                      {pageSubtitle || null}
-                    </p>
-                  )}
-                </>
-              ) : refId ? (
-                <span className="text-xs font-mono font-semibold text-[#145c3f] truncate">{refId}</span>
-              ) : null}
-            </div>
-          </div>
-        </div>
-      )}
-      <ScrollArea className="flex-1 min-h-0">
-        <div className={`w-full ${contentPad} ${hideFooterActions ? "pb-8" : "pb-28"}`}>
+    <PageLayout
+      showHeader={!hidePageHeader}
+      title={pageTitle || refId}
+      onBack={handleCancel}
+      backLabel={compact ? "Back" : undefined}
+      maxWidth="5xl"
+      loading={loadingRecord}
+    >
+      <div className={`w-full ${contentPad} ${hideFooterActions ? "pb-8" : "pb-28"}`}>
           {loadingRecord ? (
             <div className="flex items-center justify-center py-24 gap-3 text-slate-400">
               <Loader2 className="w-6 h-6 animate-spin" /><span className="text-sm">Loading report...</span>
@@ -275,16 +250,15 @@ export default function StateOfficeFormShell({
             </>
           )}
         </div>
-      </ScrollArea>
 
       {!loadingRecord && !hideFooterActions && (
         <div className="sticky bottom-0 z-30 bg-white border-t border-border/50 px-4 md:px-6 py-3 flex flex-wrap items-center justify-end gap-3">
-          <Button variant="ghost" size="sm" onClick={() => persist("draft")} disabled={saving} className="gap-2">
+          <Button variant="outline" size="sm" onClick={() => persist("draft")} disabled={saving} className="gap-2">
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             Save Draft
           </Button>
           <Button
-            className="bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20"
+            className="bg-[#145c3f] hover:bg-[#0f3d2e] text-white gap-2 shadow-sm"
             onClick={() => submitConfirm.requestSubmit(() => persist("submitted"))}
             disabled={submitting}
           >
@@ -303,6 +277,6 @@ export default function StateOfficeFormShell({
         onConfirm={submitConfirm.confirm}
         onCancel={submitConfirm.cancel}
       />
-    </div>
+    </PageLayout>
   );
 }

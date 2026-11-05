@@ -20,6 +20,12 @@ interface Props {
   defaultZoneId?: string | null;
   /** When true, hide page chrome (hub provides header/tabs). */
   embedded?: boolean;
+  onChromeChange?: (chrome: {
+    mode: "list" | "form" | "detail";
+    title?: string;
+    onInnerBack?: () => void;
+    actions?: React.ReactNode;
+  } | null) => void;
 }
 
 type Geo = { id: number; description: string };
@@ -87,7 +93,7 @@ const thGroup = "text-[10px] md:text-xs font-bold uppercase tracking-wide text-c
 const td = "text-xs border border-slate-200 px-2 py-2 align-middle";
 const tdNum = `${td} font-mono text-right whitespace-nowrap`;
 
-export default function StateOfficeHmoMasterPage({ onBack, defaultStateId, defaultZoneId, embedded = false }: Props) {
+export default function StateOfficeHmoMasterPage({ onBack, defaultStateId, defaultZoneId, embedded = false, onChromeChange }: Props) {
   const [groups, setGroups] = React.useState<MasterGroup[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [zones, setZones] = React.useState<Geo[]>([]);
@@ -297,15 +303,27 @@ export default function StateOfficeHmoMasterPage({ onBack, defaultStateId, defau
     }
   }, [flatRows, sheetTotals, displayState, displayPeriod, displayHmo]);
 
+  React.useEffect(() => {
+    if (!embedded || !onChromeChange) return;
+    onChromeChange({
+      mode: "list",
+      actions: (
+        <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2 shrink-0">
+          <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
+        </Button>
+      ),
+    });
+  }, [embedded, onChromeChange, loading, load]);
+
+  React.useEffect(() => () => onChromeChange?.(null), [onChromeChange]);
+
   return (
     <div className="flex flex-col h-full bg-slate-50/30">
       {!embedded && (
-        <div className="bg-white border-b px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30">
+        <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3.5 flex items-center justify-between sticky top-0 z-30">
           <div className="flex items-center gap-3 min-w-0">
             <Button variant="ghost" size="icon" onClick={onBack} className="rounded-full shrink-0"><ArrowLeft className="w-5 h-5" /></Button>
-            <div className="min-w-0">
-              <h2 className="text-xl font-bold tracking-tight truncate">Master Data Sheet</h2>
-            </div>
+            <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">Master Data Sheet</h2>
           </div>
           <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2 shrink-0">
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
@@ -318,7 +336,7 @@ export default function StateOfficeHmoMasterPage({ onBack, defaultStateId, defau
           {searchInput}
           <Card className="rounded-2xl border-[#d4e8dc]">
             <CardContent className="pt-4 pb-4 space-y-3">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
+              <div className="grid grid-flow-col auto-cols-fr gap-3">
                 <div className="space-y-1">
                   <Label className="text-xs text-muted-foreground">Zone</Label>
                   <Select value={filterZone} disabled={zoneLocked} onValueChange={(v) => { setFilterZone(v); if (!stateLocked) setFilterState("all"); setFilterHmo("all"); }}>

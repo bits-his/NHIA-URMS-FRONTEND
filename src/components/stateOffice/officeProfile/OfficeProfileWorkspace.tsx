@@ -13,6 +13,7 @@ import {
   Trash2,
   RefreshCw,
   MoreHorizontal,
+  XCircle,
   Layers,
   CheckCircle2,
   Loader2,
@@ -20,7 +21,10 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -42,19 +46,22 @@ import OfficeAccommodationTab from "./OfficeAccommodationTab";
 import UtilityServicesTab from "./UtilityServicesTab";
 import FocalPersonsTab from "./FocalPersonsTab";
 import OfficeProfileDetailView from "./OfficeProfileDetailView";
+import PageLayout from "../../PageLayout";
+import { UnderHeaderNavTabs } from "@/src/components/UnderHeaderNavTabs";
 import { ShadcnDataTable } from "@/components/common/ShadcnDataTable";
 import {
   SolvixStatCards,
   SolvixStatusPill,
   type SolvixStatItem,
 } from "@/components/common/SolvixStatCards";
-import { SolvixFilterBar } from "@/components/common/SolvixFilterBar";
 
 interface Props {
   onBack?: () => void;
   defaultStateId?: string | null;
   defaultZoneId?: string | null;
   userRole?: string;
+  /** Admin/HR entry: lock filters to the signed-in user's state (and zone). */
+  stateScoped?: boolean;
 }
 
 type TabKey = "general" | "accommodation" | "utilities" | "focal_persons";
@@ -113,6 +120,7 @@ export default function OfficeProfileWorkspace({
   defaultStateId,
   defaultZoneId,
   userRole = "",
+  stateScoped = false,
 }: Props) {
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -121,8 +129,12 @@ export default function OfficeProfileWorkspace({
   const mode = (searchParams.get("mode") as Mode) || "list";
   const recordIdParam = searchParams.get("id");
   const year = searchParams.get("year") || "all";
-  const selectedZoneId = searchParams.get("zone") || defaultZoneId || "all";
-  const selectedStateId = searchParams.get("state") || defaultStateId || "all";
+  const selectedZoneId = stateScoped
+    ? (defaultZoneId || searchParams.get("zone") || "all")
+    : (searchParams.get("zone") || defaultZoneId || "all");
+  const selectedStateId = stateScoped
+    ? (defaultStateId || searchParams.get("state") || "all")
+    : (searchParams.get("state") || defaultStateId || "all");
   const searchQuery = searchParams.get("q") || "";
   const [currentSort, setCurrentSort] = React.useState<string>("newest");
 
@@ -912,11 +924,15 @@ export default function OfficeProfileWorkspace({
   // Active filter count
   const activeFilterCount =
     (year !== "all" ? 1 : 0) +
-    (selectedZoneId !== "all" ? 1 : 0) +
-    (selectedStateId !== "all" ? 1 : 0);
+    (!stateScoped && selectedZoneId !== "all" ? 1 : 0) +
+    (!stateScoped && selectedStateId !== "all" ? 1 : 0);
 
   // Clear all filters helper
   const handleClearAllFilters = () => {
+    if (stateScoped) {
+      updateQueryParams({ year: "all", q: null });
+      return;
+    }
     updateQueryParams({ year: "all", zone: "all", state: "all", q: null });
   };
 
@@ -945,49 +961,11 @@ export default function OfficeProfileWorkspace({
     return currentTabCfg.formTitle;
   };
 
-  const getHeaderSubtitle = () => {
-    if (activeTab === "focal_persons") {
-      if (mode === "new" || mode === "edit") {
-        return "Designate state focal officer responsibilities and verified official communication channels.";
-      }
-      return currentTabCfg.infoTooltip;
-    }
-    if (activeTab === "general" && (mode === "new" || mode === "edit")) {
-      return "Configure jurisdiction, operational leadership, contact credentials, and annual targets.";
-    }
-    if (activeTab === "accommodation" && (mode === "new" || mode === "edit")) {
-      return "Specify ownership type, tenancy terms, physical condition, and facility remarks.";
-    }
-    if (activeTab === "utilities" && (mode === "new" || mode === "edit")) {
-      return "Submit verified contractor claims for generator maintenance, security, cleaning, and facility operations.";
-    }
-    return currentTabCfg.infoTooltip;
-  };
-
   return (
-    <div className="flex flex-col h-full bg-[#f4f7f5]">
-      {/* 1. Sticky Navigation Header */}
-      <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3.5 flex items-center justify-between sticky top-0 z-30 gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={mode === "list" ? (onBack || (() => window.history.back())) : handleBackToList}
-            className="rounded-full shrink-0 size-8 text-slate-600 hover:bg-slate-100"
-            aria-label="Back"
-          >
-            <ArrowLeft className="size-4" />
-          </Button>
-          <div className="min-w-0">
-            <h1 className="text-lg font-bold tracking-tight text-slate-900 truncate">
-              {getHeaderTitle()}
-            </h1>
-            <p className="text-xs text-slate-500 truncate mt-0.5">
-              {getHeaderSubtitle()}
-            </p>
-          </div>
-        </div>
-
+    <PageLayout
+      title={getHeaderTitle()}
+      onBack={mode === "list" ? undefined : handleBackToList}
+      actions={
         <div className="flex items-center gap-2 shrink-0">
           <Button
             variant="outline"
@@ -1001,7 +979,7 @@ export default function OfficeProfileWorkspace({
 
           {mode === "list" && (
             <Button
-              className="h-8.5 bg-[#1a7a52] hover:bg-[#145c3f] text-white text-xs gap-1.5 font-bold shadow-xs rounded-sm border border-[#145c3f]"
+              className="h-8.5 bg-orange-action hover:bg-orange-600 text-white text-xs gap-1.5 font-bold shadow-md shadow-orange-500/15 rounded-sm"
               onClick={() => {
                 if (activeTab === "focal_persons") {
                   updateQueryParams({ mode: "new", id: null });
@@ -1025,58 +1003,32 @@ export default function OfficeProfileWorkspace({
             </Button>
           )}
         </div>
-      </div>
-
-      {/* 2. Solvix-style Clean Tab Underline Navigation Bar */}
-      <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 sticky top-[57px] z-20">
-        <div className="flex gap-2 overflow-x-auto -mb-px" role="tablist">
-          {TAB_CONFIG.map((tab) => {
-            const active = activeTab === tab.key;
-            const Icon = tab.icon;
-            const count =
-              tab.key === "general"
-                 ? profiles.length
-                : tab.key === "accommodation"
-                ? accommodations.length
-                : tab.key === "utilities"
-                ? utilities.length
-                : focalPersons.length;
-
-            return (
-              <button
-                key={tab.key}
-                type="button"
-                role="tab"
-                aria-selected={active}
-                onClick={() => handleTabChange(tab.key)}
-                className={`group relative shrink-0 inline-flex items-center gap-2 px-3.5 py-3 text-xs font-semibold whitespace-nowrap border-b-2 transition-all outline-none ${
-                  active
-                    ? "border-[#1a7a52] text-[#1a7a52]"
-                    : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300"
-                }`}
-              >
-                <Icon
-                  className={`size-4 shrink-0 ${active ? "text-[#1a7a52]" : "text-slate-400 group-hover:text-slate-600"}`}
-                />
-                <span>{tab.label}</span>
-                <span
-                  className={`inline-flex min-w-[1.25rem] h-4.5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold tabular-nums ${
-                    active
-                      ? "bg-[#e8f5ee] text-[#1a7a52]"
-                      : "bg-slate-100 text-slate-500 group-hover:bg-slate-200"
-                  }`}
-                >
-                  {count}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* 3. Main Content View Area */}
-      <ScrollArea className="flex-1">
-        <div className="w-full px-4 md:px-6 py-5 space-y-5">
+      }
+      tabs={
+        mode === "list" ? (
+          <UnderHeaderNavTabs
+            tabs={TAB_CONFIG.map((tab) => ({
+              id: tab.key,
+              label: tab.label,
+              icon: tab.icon,
+              count:
+                tab.key === "general"
+                  ? profiles.length
+                  : tab.key === "accommodation"
+                  ? accommodations.length
+                  : tab.key === "utilities"
+                  ? utilities.length
+                  : focalPersons.length,
+            }))}
+            activeTab={activeTab}
+            onChange={(key) => handleTabChange(key as any)}
+            ariaLabel="State office profile sections"
+          />
+        ) : undefined
+      }
+      contentClassName="space-y-5 pb-8"
+    >
+      <div className="w-full space-y-5">
           {/* FOCAL PERSONS TAB DELEGATION */}
           {activeTab === "focal_persons" ? (
             <FocalPersonsTab
@@ -1177,37 +1129,102 @@ export default function OfficeProfileWorkspace({
                   {/* 1. Solvix 4-Card Metric Grid with Sparklines matching media_1793556856351_c64fb296.jpg */}
                   <SolvixStatCards items={solvixStatItems} loading={loading} />
 
-                  {/* 2. Solvix Filter Bar matching media_1793555167591_0eae438b.png */}
-                  <SolvixFilterBar
-                    filters={[
-                      {
-                        id: "zone",
-                        label: "Zone",
-                        value: selectedZoneId,
-                        onChange: (val) => updateQueryParams({ zone: val, state: "all" }),
-                        options: zones.map((z) => ({ label: z.description, value: String(z.id) })),
-                        allLabel: "All Zones",
-                      },
-                      {
-                        id: "state",
-                        label: "State",
-                        value: selectedStateId,
-                        onChange: (val) => updateQueryParams({ state: val }),
-                        options: states.map((s) => ({ label: s.description, value: String(s.id) })),
-                        allLabel: "All States",
-                      },
-                      {
-                        id: "year",
-                        label: "Year",
-                        value: year,
-                        onChange: (val) => updateQueryParams({ year: val }),
-                        options: yearOptions.map((opt) => ({ label: opt, value: opt })),
-                        allLabel: "All Years",
-                      },
-                    ]}
-                    activeFilterCount={activeFilterCount}
-                    onClearFilters={handleClearAllFilters}
-                  />
+                  <Card className="rounded-2xl border-[#d4e8dc]">
+                    <CardContent className="pt-4 pb-4 space-y-3">
+                      <div className="grid grid-flow-col auto-cols-fr gap-3">
+                        {!stateScoped && (
+                          <>
+                            <div className="space-y-1 min-w-0">
+                              <Label className="text-xs text-muted-foreground">Zone</Label>
+                              <Select
+                                value={selectedZoneId}
+                                onValueChange={(val) => updateQueryParams({ zone: val, state: "all" })}
+                              >
+                                <SelectTrigger
+                                  className="w-full"
+                                  displayValue={
+                                    selectedZoneId === "all"
+                                      ? "All Zones"
+                                      : zones.find((z) => String(z.id) === selectedZoneId)?.description || "Zone"
+                                  }
+                                >
+                                  <SelectValue placeholder="Zone" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="all">All Zones</SelectItem>
+                                  {zones.map((z) => (
+                                    <SelectItem key={z.id} value={String(z.id)}>
+                                      {z.description}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-1 min-w-0">
+                              <Label className="text-xs text-muted-foreground">State</Label>
+                              <Select
+                                value={selectedStateId}
+                                onValueChange={(val) => updateQueryParams({ state: val })}
+                              >
+                                <SelectTrigger
+                                  className="w-full"
+                                  displayValue={
+                                    selectedStateId === "all"
+                                      ? "All States"
+                                      : states.find((s) => String(s.id) === selectedStateId)?.description || "State"
+                                  }
+                                >
+                                  <SelectValue placeholder="State" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="all">All States</SelectItem>
+                                  {states.map((s) => (
+                                    <SelectItem key={s.id} value={String(s.id)}>
+                                      {s.description}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </>
+                        )}
+                        <div className="space-y-1 min-w-0">
+                          <Label className="text-xs text-muted-foreground">Year</Label>
+                          <Select
+                            value={year}
+                            onValueChange={(val) => updateQueryParams({ year: val })}
+                          >
+                            <SelectTrigger
+                              className="w-full"
+                              displayValue={year === "all" ? "All Years" : year}
+                            >
+                              <SelectValue placeholder="Year" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">All Years</SelectItem>
+                              {yearOptions.map((opt) => (
+                                <SelectItem key={opt} value={opt}>
+                                  {opt}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      {activeFilterCount > 0 && (
+                        <div className="flex justify-end">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-slate-500 gap-1 shrink-0"
+                            onClick={handleClearAllFilters}
+                          >
+                            <XCircle className="w-3.5 h-3.5" /> Clear
+                          </Button>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
 
                   {/* Zonal Utility Batch Consolidation Banner */}
                   {activeTab === "utilities" && selectedUtilityIds.length > 0 && (
@@ -1275,7 +1292,6 @@ export default function OfficeProfileWorkspace({
             </>
           )}
         </div>
-      </ScrollArea>
-    </div>
+    </PageLayout>
   );
 }

@@ -86,14 +86,14 @@ export const ENROLMENT_DRIVE_DASHBOARD_NAV_TITLE = "Enrolment Drives Dashboard";
 export const ENROLMENT_DRIVE_DASHBOARD_VIEW = "state-enrolment-drives-dashboard";
 export const ENROLMENT_DRIVE_DASHBOARD_PATH = "/zonal/enrolment-drives/dashboard";
 
-/** Design actors only: State Coordinator, Zonal Director, SDO, DG. */
+/** Design actors: State Coordinator, Zonal Director, SDO, DG (+ admin for support). */
 export function canAccessEnrolmentDriveDashboard(
   role?: string | null,
   opts?: { reportScope?: string | null; stateCode?: string | null; zonalCode?: string | null },
 ): boolean {
   const r = String(role || "").trim().toLowerCase().replace(/_/g, "-").replace(/\s+/g, "-");
   const scope = opts?.reportScope ?? null;
-  if (r === "sdo" || r === "dg-ceo") return true;
+  if (r === "admin" || r === "sdo" || r === "dg-ceo") return true;
   if (r === "state-coordinator") return true;
   if ((r.endsWith("-state-coordinator")) && scope === "state" && opts?.stateCode) return true;
   const isZonal = r === "zonal-coordinator" || r === "zc" || r.endsWith("-zonal-coordinator");

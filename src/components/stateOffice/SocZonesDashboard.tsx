@@ -3,10 +3,12 @@ import {
   ArrowLeft, RefreshCw, Loader2, FileText, CheckSquare, CheckCircle2,
   ClipboardList, Wallet,
 } from "lucide-react";
+import type { ColumnDef } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ShadcnDataTable } from "@/components/common/ShadcnDataTable";
+import { RegisterStatsCards } from "./RegisterStatsCards";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   LineChart, Line, PieChart, Pie, Cell, Legend,
@@ -116,10 +118,47 @@ export default function SocZonesDashboard({ onBack, defaultStateId, defaultZoneI
     );
   };
 
+  const stateActivityColumns: ColumnDef<any>[] = React.useMemo(
+    () => [
+      {
+        accessorKey: "state_name",
+        header: "State",
+        cell: ({ row }) => <span className="text-sm">{row.original.state_name}</span>,
+      },
+      {
+        accessorKey: "zone_name",
+        header: "Zone",
+        cell: ({ row }) => (
+          <span className="text-xs text-muted-foreground">{row.original.zone_name ?? "—"}</span>
+        ),
+      },
+      {
+        accessorKey: "report_count",
+        header: "Reports",
+        cell: ({ row }) => (
+          <span className="text-sm font-bold tabular-nums">{row.original.report_count}</span>
+        ),
+      },
+    ],
+    []
+  );
+
   return (
     <div className="flex flex-col h-full bg-slate-50/30">
-      <div className="bg-white border-b border-border/50 px-4 md:px-6 py-3 flex items-center justify-end sticky top-0 z-30">
-        <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">
+      <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3.5 flex items-center justify-between sticky top-0 z-30 gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onBack}
+            className="rounded-full shrink-0"
+            aria-label="Back"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </Button>
+          <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">SOC / Zones Dashboard</h2>
+        </div>
+        <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2 shrink-0">
           <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
         </Button>
       </div>
@@ -132,31 +171,18 @@ export default function SocZonesDashboard({ onBack, defaultStateId, defaultZoneI
             </div>
           ) : !data ? null : (
             <>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8 gap-4">
-                <ClickableKpi
-                  label="Total Reports"
-                  value={data.total_reports ?? 0}
-                  icon={<FileText className="w-5 h-5 text-emerald-600" />}
-                  onClick={() => drillReports("All SOC/Zones Reports")}
-                />
-                <ClickableKpi
-                  label="Submitted"
-                  value={data.total_submitted ?? 0}
-                  icon={<CheckCircle2 className="w-5 h-5 text-blue-600" />}
-                  onClick={() => drillReports("Submitted Reports", { status: "submitted" })}
-                />
-                <ClickableKpi
-                  label="Approved"
-                  value={data.total_approved ?? 0}
-                  icon={<CheckCircle2 className="w-5 h-5 text-[#25a872]" />}
-                  onClick={() => drillReports("Approved Reports", { status: "approved" })}
-                />
-                <ClickableKpi
-                  label="Weekly Actionable"
-                  value={data.weekly_actionable_reports ?? 0}
-                  icon={<ClipboardList className="w-5 h-5 text-indigo-600" />}
-                  onClick={() => drillReportType("weekly_actionable", "Weekly Actionable")}
-                />
+              <RegisterStatsCards
+                loading={loading}
+                className="grid grid-cols-2 md:grid-cols-4 gap-3"
+                stats={[
+                  { label: "Total Reports", value: data.total_reports ?? 0, tone: "text-[#0f3d2e] bg-white border-[#d4e8dc]" },
+                  { label: "Submitted", value: data.total_submitted ?? 0, tone: "text-blue-700 bg-blue-50/80 border-blue-100" },
+                  { label: "Approved", value: data.total_approved ?? 0, tone: "text-emerald-700 bg-emerald-50/80 border-emerald-100" },
+                  { label: "Weekly Actionable", value: data.weekly_actionable_reports ?? 0, tone: "text-indigo-800 bg-indigo-50/80 border-indigo-100" },
+                ]}
+              />
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <ClickableKpi
                   label="Contracted Services"
                   value={data.contracted_services_reports ?? 0}
@@ -183,8 +209,8 @@ export default function SocZonesDashboard({ onBack, defaultStateId, defaultZoneI
                 />
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <Card className="rounded-2xl border-[#d4e8dc]">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3.5">
+                <Card className="rounded-lg border-[#d4e8dc] shadow-2xs">
                   <CardHeader className="pb-2 flex flex-row items-center justify-between">
                     <CardTitle className="text-sm font-bold">Monthly Report Activity</CardTitle>
                     <DrillHint label="All reports" onClick={() => drillReports("All Monthly Reports")} />
@@ -216,7 +242,7 @@ export default function SocZonesDashboard({ onBack, defaultStateId, defaultZoneI
                   </CardContent>
                 </Card>
 
-                <Card className="rounded-2xl border-[#d4e8dc]">
+                <Card className="rounded-lg border-[#d4e8dc] shadow-2xs">
                   <CardHeader className="pb-2 flex flex-row items-center justify-between">
                     <CardTitle className="text-sm font-bold">Reports by Type</CardTitle>
                     <DrillHint label="Browse types" onClick={openReportTypePicker} />
@@ -232,7 +258,7 @@ export default function SocZonesDashboard({ onBack, defaultStateId, defaultZoneI
                         <YAxis type="category" dataKey="label" tick={{ fontSize: 9 }} width={120} />
                         <Tooltip />
                         <Bar
-                          dataKey="total" fill="#25a872" radius={[0, 4, 4, 0]} style={{ cursor: "pointer" }}
+                          dataKey="total" fill="#25a872" radius={[0, 3, 3, 0]} style={{ cursor: "pointer" }}
                           onClick={(_: unknown, index: number) => {
                             const row = (data.reports_by_type ?? [])[index];
                             if (row?.key) drillReportType(row.key, row.label);
@@ -244,7 +270,7 @@ export default function SocZonesDashboard({ onBack, defaultStateId, defaultZoneI
                   </CardContent>
                 </Card>
 
-                <Card className="rounded-2xl border-[#d4e8dc]">
+                <Card className="rounded-lg border-[#d4e8dc] shadow-2xs">
                   <CardHeader className="pb-2"><CardTitle className="text-sm font-bold">Actionable Items by Status</CardTitle></CardHeader>
                   <CardContent className="h-[240px]">
                     {(data.actionable_by_status ?? []).length === 0 ? (
@@ -270,40 +296,31 @@ export default function SocZonesDashboard({ onBack, defaultStateId, defaultZoneI
                   </CardContent>
                 </Card>
 
-                <Card className="rounded-2xl border-[#d4e8dc]">
-                  <CardHeader className="pb-2 flex flex-row items-center justify-between">
-                    <CardTitle className="text-sm font-bold">Top States by Reports</CardTitle>
-                    <DrillHint label="All reports" onClick={() => drillReports("All Monthly Reports")} />
-                  </CardHeader>
-                  <CardContent className="p-0 max-h-[240px] overflow-auto">
-                    {(data.state_activity ?? []).length === 0 ? (
-                      <ChartEmpty message="No state-level report activity yet." />
-                    ) : (
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="bg-[#f0fdf7]">
-                          <TableHead className="text-xs">State</TableHead>
-                          <TableHead className="text-xs">Zone</TableHead>
-                          <TableHead className="text-xs text-right">Reports</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {(data.state_activity ?? []).map((row: any) => (
-                          <TableRow
-                            key={row.state_id}
-                            className="cursor-pointer hover:bg-[#f0fdf7]"
-                            onClick={() => onStateRow(row.state_id, row.state_name)}
-                          >
-                            <TableCell className="text-sm">{row.state_name}</TableCell>
-                            <TableCell className="text-xs text-muted-foreground">{row.zone_name ?? "—"}</TableCell>
-                            <TableCell className="text-sm text-right font-bold">{row.report_count}</TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                    )}
-                  </CardContent>
-                </Card>
+                <div className="lg:col-span-2">
+                  {(data.state_activity ?? []).length === 0 ? (
+                    <Card className="rounded-lg border-[#d4e8dc] shadow-2xs">
+                      <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                        <CardTitle className="text-sm font-bold">Top States by Reports</CardTitle>
+                        <DrillHint label="All reports" onClick={() => drillReports("All Monthly Reports")} />
+                      </CardHeader>
+                      <CardContent>
+                        <ChartEmpty message="No state-level report activity yet." />
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    <ShadcnDataTable
+                      title="TOP STATES BY REPORTS"
+                      columns={stateActivityColumns}
+                      data={data.state_activity ?? []}
+                      loading={false}
+                      searchPlaceholder="Search states or zones..."
+                      emptyMessage="No state-level report activity yet."
+                      onRowClick={(row) => onStateRow(row.state_id, row.state_name)}
+                      pageSize={50}
+                      showTableOptions={false}
+                    />
+                  )}
+                </div>
               </div>
             </>
           )}

@@ -503,23 +503,23 @@ export default function SDONationalDashboard({ user, onNavigate }: Props) {
   ) : null;
 
   const zoneBandBlock = (
-    <div className="grid lg:grid-cols-3 gap-4">
-      <Card className="rounded-2xl border-[#d4e8dc] lg:col-span-2">
-        <CardHeader className="pb-1 flex flex-row items-center justify-between">
+    <div className="grid lg:grid-cols-3 gap-3.5">
+      <Card className="rounded-lg border border-[#d4e8dc] shadow-2xs lg:col-span-2">
+        <CardHeader className="pb-1 px-4 pt-3 flex flex-row items-center justify-between">
           <div>
-            <CardTitle className="text-base">Zone comparison</CardTitle>
-            <CardDescription>Completion, implementation & compliance by zone</CardDescription>
+            <CardTitle className="text-xs font-bold uppercase tracking-wider text-slate-800">Zone comparison</CardTitle>
+            <CardDescription className="text-[11px]">Completion, implementation & compliance by zone</CardDescription>
           </div>
           <DrillHint label="All reports" onClick={() => drillReports("All national reports")} />
         </CardHeader>
-        <CardContent className="h-[300px]">{zoneComparisonChart}</CardContent>
+        <CardContent className="h-[280px] p-4 pt-0">{zoneComparisonChart}</CardContent>
       </Card>
-      <Card className="rounded-2xl border-[#d4e8dc]">
-        <CardHeader className="pb-1">
-          <CardTitle className="text-base">National band mix</CardTitle>
-          <CardDescription>Share of states by performance band</CardDescription>
+      <Card className="rounded-lg border border-[#d4e8dc] shadow-2xs">
+        <CardHeader className="pb-1 px-4 pt-3">
+          <CardTitle className="text-xs font-bold uppercase tracking-wider text-slate-800">National band mix</CardTitle>
+          <CardDescription className="text-[11px]">Share of states by performance band</CardDescription>
         </CardHeader>
-        <CardContent className="h-[300px]">
+        <CardContent className="h-[280px] p-4 pt-0">
           {bandPie.length === 0 ? (
             <div className="h-full flex items-center justify-center text-xs text-slate-400">No data</div>
           ) : (
@@ -551,22 +551,22 @@ export default function SDONationalDashboard({ user, onNavigate }: Props) {
   );
 
   const trendEscalationBlock = (
-    <div className="grid lg:grid-cols-3 gap-4">
-      <Card className="rounded-2xl border-[#d4e8dc] lg:col-span-2">
-        <CardHeader className="pb-1">
-          <CardTitle className="text-base">6-month national trend</CardTitle>
-          <CardDescription>Reports submitted and approved over time</CardDescription>
+    <div className="grid lg:grid-cols-3 gap-3.5">
+      <Card className="rounded-lg border border-[#d4e8dc] shadow-2xs lg:col-span-2">
+        <CardHeader className="pb-1 px-4 pt-3">
+          <CardTitle className="text-xs font-bold uppercase tracking-wider text-slate-800">6-month national trend</CardTitle>
+          <CardDescription className="text-[11px]">Reports submitted and approved over time</CardDescription>
         </CardHeader>
-        <CardContent className="h-[260px]">{trendChart}</CardContent>
+        <CardContent className="h-[260px] p-4 pt-0">{trendChart}</CardContent>
       </Card>
-      <Card className="rounded-2xl border-[#d4e8dc]">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base flex items-center gap-2">
+      <Card className="rounded-lg border border-[#d4e8dc] shadow-2xs">
+        <CardHeader className="pb-2 px-4 pt-3">
+          <CardTitle className="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-2">
             <ShieldAlert className="w-4 h-4 text-rose-600" /> Escalation & support
           </CardTitle>
-          <CardDescription>States needing coordination</CardDescription>
+          <CardDescription className="text-[11px]">States needing coordination</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-2 max-h-[260px] overflow-y-auto">
+        <CardContent className="space-y-2 max-h-[260px] overflow-y-auto px-4 pb-3">
           {(cmp?.escalations ?? []).length === 0 ? (
             <div className="flex flex-col items-center justify-center py-10 gap-1">
               <CheckCircle2 className="w-7 h-7 text-emerald-500" />
@@ -577,13 +577,13 @@ export default function SDONationalDashboard({ user, onNavigate }: Props) {
               key={String(e.state_id)}
               type="button"
               onClick={() => { if (e.state_id) drillState(e.state_id, e.state_name, e.zone_name); }}
-              className="w-full text-left rounded-xl border border-slate-100 bg-white px-3 py-2.5 hover:border-[#1a7a52]/40"
+              className="w-full text-left rounded-md border border-slate-100 bg-white p-2.5 hover:border-[#1a7a52] transition-colors"
             >
               <div className="flex items-center gap-2 mb-1">
                 <Badge variant="outline" className={`text-[10px] ${tierBadge(e.tier)}`}>{tierLabel(e.tier)}</Badge>
                 <span className="text-[11px] text-slate-400 truncate">{e.zone_name}</span>
               </div>
-              <p className="text-sm font-semibold text-slate-800">{e.state_name}</p>
+              <p className="text-xs font-bold text-slate-800">{e.state_name}</p>
               <p className="text-[11px] text-slate-500 mt-0.5">{e.label} · {e.reason}</p>
             </button>
           ))}
@@ -593,15 +593,15 @@ export default function SDONationalDashboard({ user, onNavigate }: Props) {
   );
 
   const areasBlock = (
-    <div className="grid lg:grid-cols-2 gap-4">
-      <Card className="rounded-2xl border-[#d4e8dc]">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base flex items-center gap-2">
+    <div className="grid lg:grid-cols-2 gap-3.5">
+      <Card className="rounded-lg border border-[#d4e8dc] shadow-2xs">
+        <CardHeader className="pb-2 px-4 pt-3">
+          <CardTitle className="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-2">
             <TrendingUp className="w-4 h-4 text-emerald-600" /> High-performing areas
           </CardTitle>
-          <CardDescription>Report types with strong approval rates</CardDescription>
+          <CardDescription className="text-[11px]">Report types with strong approval rates</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-2">
+        <CardContent className="space-y-2 px-4 pb-3">
           {highAreas.length === 0 ? (
             <p className="text-xs text-slate-400 text-center py-8">No high-performing areas yet</p>
           ) : highAreas.map((a: any) => (
@@ -609,25 +609,25 @@ export default function SDONationalDashboard({ user, onNavigate }: Props) {
               key={a.key}
               type="button"
               onClick={() => drill.openRecordDrill("reports", a.label, drillCtx, { report_type: a.key })}
-              className="w-full flex items-center gap-3 rounded-xl border border-emerald-100 bg-emerald-50/40 px-3 py-2 text-left hover:border-emerald-300"
+              className="w-full flex items-center gap-3 rounded-md border border-emerald-100 bg-emerald-50/40 p-2.5 text-left hover:border-emerald-300 transition-colors"
             >
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-slate-800 truncate">{a.label}</p>
+                <p className="text-xs font-bold text-slate-800 truncate">{a.label}</p>
                 <p className="text-[11px] text-slate-500">{a.approved}/{a.total} approved</p>
               </div>
-              <span className="text-sm font-bold text-emerald-700 tabular-nums">{a.completion_rate}%</span>
+              <span className="text-xs font-bold text-emerald-700 tabular-nums">{a.completion_rate}%</span>
             </button>
           ))}
         </CardContent>
       </Card>
-      <Card className="rounded-2xl border-[#d4e8dc]">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base flex items-center gap-2">
+      <Card className="rounded-lg border border-[#d4e8dc] shadow-2xs">
+        <CardHeader className="pb-2 px-4 pt-3">
+          <CardTitle className="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-2">
             <TrendingDown className="w-4 h-4 text-rose-600" /> Low-performing areas
           </CardTitle>
-          <CardDescription>Report types with weak approval rates</CardDescription>
+          <CardDescription className="text-[11px]">Report types with weak approval rates</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-2">
+        <CardContent className="space-y-2 px-4 pb-3">
           {lowAreas.length === 0 ? (
             <p className="text-xs text-slate-400 text-center py-8">No low-performing areas flagged</p>
           ) : lowAreas.map((a: any) => (
@@ -635,13 +635,13 @@ export default function SDONationalDashboard({ user, onNavigate }: Props) {
               key={a.key}
               type="button"
               onClick={() => drill.openRecordDrill("reports", a.label, drillCtx, { report_type: a.key })}
-              className="w-full flex items-center gap-3 rounded-xl border border-rose-100 bg-rose-50/40 px-3 py-2 text-left hover:border-rose-300"
+              className="w-full flex items-center gap-3 rounded-md border border-rose-100 bg-rose-50/40 p-2.5 text-left hover:border-rose-300 transition-colors"
             >
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-slate-800 truncate">{a.label}</p>
+                <p className="text-xs font-bold text-slate-800 truncate">{a.label}</p>
                 <p className="text-[11px] text-slate-500">{a.drafts} drafts · {a.submitted} submitted</p>
               </div>
-              <span className="text-sm font-bold text-rose-700 tabular-nums">{a.completion_rate}%</span>
+              <span className="text-xs font-bold text-rose-700 tabular-nums">{a.completion_rate}%</span>
             </button>
           ))}
         </CardContent>
@@ -650,13 +650,13 @@ export default function SDONationalDashboard({ user, onNavigate }: Props) {
   );
 
   const problemsBlock = (
-    <div className="grid lg:grid-cols-3 gap-4">
-      <Card className="rounded-2xl border-[#d4e8dc]">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">Cross-cutting problems</CardTitle>
-          <CardDescription>Recurring across states</CardDescription>
+    <div className="grid lg:grid-cols-3 gap-3.5">
+      <Card className="rounded-lg border border-[#d4e8dc] shadow-2xs">
+        <CardHeader className="pb-2 px-4 pt-3">
+          <CardTitle className="text-xs font-bold uppercase tracking-wider text-slate-800">Cross-cutting problems</CardTitle>
+          <CardDescription className="text-[11px]">Recurring across states</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-2 max-h-64 overflow-y-auto">
+        <CardContent className="space-y-2 max-h-64 overflow-y-auto px-4 pb-3">
           {(cmp?.recurring_problems ?? []).length === 0 ? (
             <p className="text-xs text-slate-400 text-center py-8">No recurring problems</p>
           ) : (cmp.recurring_problems as any[]).map((p, i) => (
@@ -664,23 +664,23 @@ export default function SDONationalDashboard({ user, onNavigate }: Props) {
               key={p.key || p.label}
               type="button"
               onClick={() => drillRecurringProblem(p)}
-              className="w-full flex items-center gap-2 rounded-xl border border-[#e8f5ee] bg-[#f8fdfb] px-3 py-2 text-left hover:border-[#1a7a52]/40 transition-colors"
+              className="w-full flex items-center gap-2 rounded-md border border-[#e8f5ee] bg-[#f8fdfb] p-2 text-left hover:border-[#1a7a52] transition-colors"
             >
               <span className="w-5 h-5 rounded-full bg-white border text-[10px] font-bold flex items-center justify-center">{i + 1}</span>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-slate-800">{p.label}</p>
+                <p className="text-xs font-bold text-slate-800">{p.label}</p>
               </div>
               <Badge variant="outline" className="text-[10px]">{p.states_affected} states</Badge>
             </button>
           ))}
         </CardContent>
       </Card>
-      <Card className="rounded-2xl border-[#d4e8dc]">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">Support requirements</CardTitle>
-          <CardDescription>Most requested support types</CardDescription>
+      <Card className="rounded-lg border border-[#d4e8dc] shadow-2xs">
+        <CardHeader className="pb-2 px-4 pt-3">
+          <CardTitle className="text-xs font-bold uppercase tracking-wider text-slate-800">Support requirements</CardTitle>
+          <CardDescription className="text-[11px]">Most requested support types</CardDescription>
         </CardHeader>
-        <CardContent className="h-[240px]">
+        <CardContent className="h-[240px] p-4 pt-0">
           {(cmp?.support_requirements ?? []).length === 0 ? (
             <div className="h-full flex items-center justify-center text-xs text-slate-400">No support requests logged</div>
           ) : (
@@ -689,7 +689,7 @@ export default function SDONationalDashboard({ user, onNavigate }: Props) {
                 <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
                 <YAxis type="category" dataKey="label" width={110} tick={{ fontSize: 9 }} axisLine={false} tickLine={false} />
                 <Tooltip contentStyle={tip} />
-                <Bar dataKey="count" radius={[0, 6, 6, 0]} barSize={12}>
+                <Bar dataKey="count" radius={[0, 3, 3, 0]} barSize={12}>
                   {(cmp.support_requirements as any[]).slice(0, 6).map((_: any, i: number) => (
                     <Cell key={i} fill={COLORS[i % COLORS.length]} />
                   ))}
@@ -699,12 +699,12 @@ export default function SDONationalDashboard({ user, onNavigate }: Props) {
           )}
         </CardContent>
       </Card>
-      <Card className="rounded-2xl border-[#d4e8dc]">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">Departmental load</CardTitle>
-          <CardDescription>Challenges routed to departments</CardDescription>
+      <Card className="rounded-lg border border-[#d4e8dc] shadow-2xs">
+        <CardHeader className="pb-2 px-4 pt-3">
+          <CardTitle className="text-xs font-bold uppercase tracking-wider text-slate-800">Departmental load</CardTitle>
+          <CardDescription className="text-[11px]">Challenges routed to departments</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-2 max-h-64 overflow-y-auto">
+        <CardContent className="space-y-2 max-h-64 overflow-y-auto px-4 pb-3">
           {(cmp?.department_load ?? []).length === 0 ? (
             <p className="text-xs text-slate-400 text-center py-8">No departmental assignments</p>
           ) : (cmp.department_load as any[]).map((d) => (
@@ -712,10 +712,10 @@ export default function SDONationalDashboard({ user, onNavigate }: Props) {
               key={d.label}
               type="button"
               onClick={() => drill.openRecordDrill("reports", "Challenges", drillCtx, { report_type: "challenges" })}
-              className="w-full flex items-center justify-between rounded-xl border border-violet-100 bg-violet-50/40 px-3 py-2 text-left hover:border-violet-300"
+              className="w-full flex items-center justify-between rounded-md border border-violet-100 bg-violet-50/40 p-2 text-left hover:border-violet-300 transition-colors"
             >
-              <p className="text-sm font-medium text-slate-800 truncate">{d.label}</p>
-              <span className="text-sm font-bold tabular-nums text-violet-700">{d.count}</span>
+              <p className="text-xs font-bold text-slate-800 truncate">{d.label}</p>
+              <span className="text-xs font-bold tabular-nums text-violet-700">{d.count}</span>
             </button>
           ))}
         </CardContent>
@@ -725,13 +725,13 @@ export default function SDONationalDashboard({ user, onNavigate }: Props) {
 
   const tablesBlock = (
     <>
-      <div className="grid lg:grid-cols-2 gap-4">
-        <Card className="rounded-2xl border-[#d4e8dc]">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">Top performing states</CardTitle>
-            <CardDescription>Highest completion this period</CardDescription>
+      <div className="grid lg:grid-cols-2 gap-3.5">
+        <Card className="rounded-lg border border-[#d4e8dc] shadow-2xs">
+          <CardHeader className="pb-2 px-4 pt-3">
+            <CardTitle className="text-xs font-bold uppercase tracking-wider text-slate-800">Top performing states</CardTitle>
+            <CardDescription className="text-[11px]">Highest completion this period</CardDescription>
           </CardHeader>
-          <CardContent className="overflow-x-auto">
+          <CardContent className="overflow-x-auto p-0">
             <Table>
               <TableHeader>
                 <TableRow className="bg-[#f0fdf7] hover:bg-[#f0fdf7]">
@@ -743,23 +743,23 @@ export default function SDONationalDashboard({ user, onNavigate }: Props) {
               <TableBody>
                 {filteredTop.map((s: any) => (
                   <TableRow key={s.state_id} className="cursor-pointer hover:bg-[#f8fdfb]" onClick={() => drillState(s.state_id, s.state_name, s.zone_name)}>
-                    <TableCell className="text-sm font-semibold text-[#145c3f]">{s.state_name}</TableCell>
+                    <TableCell className="text-xs font-bold text-[#145c3f]">{s.state_name}</TableCell>
                     <TableCell className="text-xs text-slate-500">{s.zone_name || "—"}</TableCell>
                     <TableCell><Badge variant="outline" className={`text-[10px] ${bandCls(s.band)}`}>{s.band.replace("_", " ")}</Badge></TableCell>
-                    <TableCell className="tabular-nums font-semibold">{s.completion_rate}%</TableCell>
-                    <TableCell className="tabular-nums">{s.reports}</TableCell>
+                    <TableCell className="tabular-nums font-bold text-xs">{s.completion_rate}%</TableCell>
+                    <TableCell className="tabular-nums text-xs">{s.reports}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
           </CardContent>
         </Card>
-        <Card className="rounded-2xl border-[#d4e8dc]">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">Lowest performing states</CardTitle>
-            <CardDescription>Priority coordination this period</CardDescription>
+        <Card className="rounded-lg border border-[#d4e8dc] shadow-2xs">
+          <CardHeader className="pb-2 px-4 pt-3">
+            <CardTitle className="text-xs font-bold uppercase tracking-wider text-slate-800">Lowest performing states</CardTitle>
+            <CardDescription className="text-[11px]">Priority coordination this period</CardDescription>
           </CardHeader>
-          <CardContent className="overflow-x-auto">
+          <CardContent className="overflow-x-auto p-0">
             <Table>
               <TableHeader>
                 <TableRow className="bg-[#f0fdf7] hover:bg-[#f0fdf7]">
@@ -771,11 +771,11 @@ export default function SDONationalDashboard({ user, onNavigate }: Props) {
               <TableBody>
                 {filteredBottom.map((s: any) => (
                   <TableRow key={s.state_id} className="cursor-pointer hover:bg-[#f8fdfb]" onClick={() => drillState(s.state_id, s.state_name, s.zone_name)}>
-                    <TableCell className="text-sm font-semibold text-[#145c3f]">{s.state_name}</TableCell>
+                    <TableCell className="text-xs font-bold text-[#145c3f]">{s.state_name}</TableCell>
                     <TableCell className="text-xs text-slate-500">{s.zone_name || "—"}</TableCell>
                     <TableCell><Badge variant="outline" className={`text-[10px] ${bandCls(s.band)}`}>{s.band.replace("_", " ")}</Badge></TableCell>
-                    <TableCell className="tabular-nums font-semibold">{s.completion_rate}%</TableCell>
-                    <TableCell className="tabular-nums">{s.escalated_actionables || 0}</TableCell>
+                    <TableCell className="tabular-nums font-bold text-xs">{s.completion_rate}%</TableCell>
+                    <TableCell className="tabular-nums text-xs">{s.escalated_actionables || 0}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -783,7 +783,7 @@ export default function SDONationalDashboard({ user, onNavigate }: Props) {
           </CardContent>
         </Card>
       </div>
-      <Card className="rounded-2xl border-[#d4e8dc]">
+      <Card className="rounded-lg border border-[#d4e8dc] shadow-2xs">
         <CardHeader className="pb-2">
           <CardTitle className="text-base">Zone compliance scorecard</CardTitle>
           <CardDescription>Zone summary for this period</CardDescription>
@@ -854,8 +854,8 @@ export default function SDONationalDashboard({ user, onNavigate }: Props) {
           <span className="text-sm">Loading national oversight…</span>
         </div>
       ) : !data || !cmp || !summary ? (
-        <Card className="rounded-2xl border-dashed border-slate-300">
-          <CardContent className="py-16 text-center text-slate-500 text-sm">
+        <Card className="rounded-lg border-dashed border-slate-300">
+          <CardContent className="py-12 text-center text-slate-500 text-sm">
             No national operational data available yet. Approved packs from states will appear here as they report.
           </CardContent>
         </Card>

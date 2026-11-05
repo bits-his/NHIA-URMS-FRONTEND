@@ -92,6 +92,7 @@ export const CHALLENGE_RELATED_ACTIVITIES = [
   "Enrolment Drives",
   "Stakeholder Engagement",
   "Internal Operations",
+  "Meetings & Coordination",
   "Provider Management",
   "Complaint Management",
 ] as const;

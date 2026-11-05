@@ -39,7 +39,7 @@ function ReviewDialog({
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40" onClick={onCancel} />
-      <div className="relative z-10 w-full max-w-md rounded-2xl border border-[#d4e8dc] bg-white p-5 shadow-xl space-y-3">
+      <div className="relative z-10 w-full max-w-md rounded-none border border-[#d4e8dc] bg-white p-5 shadow-xl space-y-3">
         <p className="text-sm font-bold text-slate-900">{title}</p>
         <p className="text-xs text-slate-500">{reference || "Report"} — {hint}</p>
         <textarea
@@ -47,7 +47,7 @@ function ReviewDialog({
           onChange={(e) => setNote(e.target.value)}
           rows={4}
           placeholder={noteRequired ? "Review comment (required)…" : "Review comment (optional)…"}
-          className="w-full rounded-xl border border-[#d4e8dc] bg-[#f8fdfb] p-3 text-sm resize-none outline-none focus:ring-2 focus:ring-[#1a7a52]/30"
+          className="w-full rounded-none border border-[#d4e8dc] bg-[#f8fdfb] p-3 text-sm resize-none outline-none focus:ring-2 focus:ring-[#1a7a52]/30"
         />
         <div className="flex gap-2">
           <Button variant="outline" className="flex-1" onClick={onCancel} disabled={loading}>Cancel</Button>
@@ -149,7 +149,7 @@ export default function StateOfficeDrillReportReview({
               initial={{ opacity: 0, scale: 0.98, y: 12 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.98 }}
-              className="relative z-10 flex w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-[#d4e8dc] bg-white shadow-2xl"
+              className="relative z-10 flex w-full max-w-5xl flex-col overflow-hidden rounded-none border border-[#d4e8dc] bg-white shadow-2xl"
               style={{ maxHeight: "92vh" }}
               onClick={(e) => e.stopPropagation()}
             >
@@ -163,7 +163,7 @@ export default function StateOfficeDrillReportReview({
                 <button
                   type="button"
                   onClick={onClose}
-                  className="w-8 h-8 rounded-xl flex items-center justify-center hover:bg-[#d4e8dc] text-slate-500"
+                  className="w-8 h-8 rounded-none flex items-center justify-center hover:bg-[#d4e8dc] text-slate-500"
                 >
                   <X className="w-4 h-4" />
                 </button>

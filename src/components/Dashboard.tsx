@@ -125,6 +125,7 @@ import OfficesView from "../modules/store_management/pages/admin/OfficesView";
 import AuditView from "../modules/store_management/pages/admin/AuditView";
 import AdjustmentsView from "../modules/store_management/pages/AdjustmentsView";
 import MovementLedgerView from "../modules/store_management/pages/MovementLedgerView";
+import StoreManagementWorkspace from "../modules/store_management/pages/StoreManagementWorkspace";
 import { getMonthlyReportContext } from "@/src/access/monthlyReportAccess";
 import { canAccessFunctionality, expandAccessEntries, getFirstAccessiblePath, canAccessHomeDashboard, isDgCeoUser, DASHBOARDS_ENABLED, ANNUAL_REPORTS_ENABLED } from "@/src/access/accessUtils";
 import { VIEW_MODULE_ACCESS } from "@/src/access/moduleConfig";
@@ -134,7 +135,7 @@ import AppSidebar from "./AppSidebar";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 
 type Role = string;
-type View = "home" | "report-entry" | "report-preview" | "zonal-review" | "zonal-compose" | "annual-report" | "annual-reports-list" | "annual-report-detail" | "settings" | "stock-verifications-list" | "stock-assets" | "servicom-dashboard" | "servicom-visits" | "servicom-complaints" | "zonal-complaints-register" | "servicom-satisfaction" | "servicom-comment-card" | "finance-monthly" | "admin-monthly" | "programmes-monthly" | "outreach-monthly" | "sqa-monthly" | "sqa-compliance" | "complaints-monthly" | "monthly-reports-list" | "report-review" | "notifications" | "soc-zones-dashboard" | "soc-office-profile" | "soc-focal-persons" | "soc-operation-monitoring-visit" | "soc-spot-check-visit" | "state-enrolment" | "state-enrolment-nin-validation" | "state-enrolment-id-cards" | `state-enrolment-drive-${string}` | "state-migration" | "state-cemonc" | "state-complaints" | "state-compliance-monitoring" | "state-weekly-compliance" | "state-hmo-indebtedness" | "state-mystery-shopping" | "state-reconciliation" | "state-accreditation" | "state-stakeholder" | "state-stakeholder-sshia-meetings" | "state-stakeholder-forum" | "state-stakeholder-others" | "state-provider-medical-audits" | "state-provider-reaccreditation" | "state-provider-qa-inspections" | "state-hmo-selection" | "state-extra-dependant" | "state-hcf-change" | "state-challenges" | "state-igr" | "state-sshia-financial" | "state-expenditure-profile" | "state-ict-support" | "state-admin-meetings" | "state-etmc-cascading" | "state-accommodation" | "state-utilities" | "state-vehicles" | "state-staff-feedback" | "state-infractions" | "state-weekly-actionable" | "state-contracted-services" | "state-enrollee-register" | "state-etmc-tmc-action-point" | "state-ict-support-register" | "state-adhoc-special-assignment" | "state-compliance-hub" | "store-assets-list" | "store-assets-register" | "store-inventory-catalog" | "store-goods-receipt" | "store-stock-issues" | "store-directory" | "store-stock-returns" | "store-asset-transfers" | "store-supply-verification" | "store-asset-maintenance" | "store-asset-disposal" | "store-asset-reports";
+type View = "home" | "report-entry" | "report-preview" | "zonal-review" | "zonal-compose" | "annual-report" | "annual-reports-list" | "annual-report-detail" | "settings" | "stock-verifications-list" | "stock-assets" | "servicom-dashboard" | "servicom-visits" | "servicom-complaints" | "zonal-complaints-register" | "servicom-satisfaction" | "servicom-comment-card" | "finance-monthly" | "admin-monthly" | "programmes-monthly" | "outreach-monthly" | "sqa-monthly" | "sqa-compliance" | "complaints-monthly" | "monthly-reports-list" | "report-review" | "notifications" | "soc-zones-dashboard" | "soc-office-profile" | "state-admin-office-profile" | "soc-focal-persons" | "soc-operation-monitoring-visit" | "soc-spot-check-visit" | "state-enrolment" | "state-enrolment-nin-validation" | "state-enrolment-id-cards" | `state-enrolment-drive-${string}` | "state-migration" | "state-cemonc" | "state-complaints" | "state-compliance-monitoring" | "state-weekly-compliance" | "state-hmo-indebtedness" | "state-mystery-shopping" | "state-reconciliation" | "state-accreditation" | "state-stakeholder" | "state-stakeholder-sshia-meetings" | "state-stakeholder-forum" | "state-stakeholder-others" | "state-provider-medical-audits" | "state-provider-reaccreditation" | "state-provider-qa-inspections" | "state-hmo-selection" | "state-extra-dependant" | "state-hcf-change" | "state-challenges" | "state-igr" | "state-sshia-financial" | "state-expenditure-profile" | "state-ict-support" | "state-admin-meetings" | "state-etmc-cascading" | "state-accommodation" | "state-utilities" | "state-vehicles" | "state-staff-feedback" | "state-infractions" | "state-weekly-actionable" | "state-contracted-services" | "state-enrollee-register" | "state-etmc-tmc-action-point" | "state-ict-support-register" | "state-adhoc-special-assignment" | "state-compliance-hub" | "store-assets-list" | "store-assets-register" | "store-inventory-catalog" | "store-goods-receipt" | "store-stock-issues" | "store-directory" | "store-stock-returns" | "store-asset-transfers" | "store-supply-verification" | "store-asset-maintenance" | "store-asset-disposal" | "store-asset-reports";
 interface DashboardProps { role: Role; user?: import("@/src/store/authSlice").AuthUser; access?: import("@/src/access/types").AccessEntry[]; functionalities?: string; onLogout: () => void; }
 
 // ─── Mock data ────────────────────────────────────────────────────────────────
@@ -201,20 +202,20 @@ function KPICard({ title, value, trend, trendUp, icon, tint, sub }: {
   icon: React.ReactNode; tint: string; sub?: string;
 }) {
   return (
-    <div className={`${tint} rounded-2xl p-5 border border-white/60 shadow-sm hover:shadow-md transition-all`}>
-      <div className="flex items-start justify-between mb-4">
-        <div className="w-10 h-10 rounded-xl bg-white/70 flex items-center justify-center shadow-sm">
+    <div className="rounded-lg p-3.5 border border-[#d4e8dc] bg-white shadow-2xs hover:border-[#1a7a52] transition-colors">
+      <div className="flex items-start justify-between mb-2">
+        <div className="w-8 h-8 rounded-md bg-[#e8f5ee] flex items-center justify-center text-[#145c3f] shrink-0">
           {icon}
         </div>
-        <span className={`flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full ${
+        <span className={`flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
           trendUp ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"
         }`}>
           <TrendingUp className={`w-3 h-3 ${!trendUp ? "rotate-180" : ""}`} />
           {trend}
         </span>
       </div>
-      <p className="text-3xl font-black text-slate-900 tracking-tight">{value}</p>
-      <p className="text-sm font-semibold text-slate-700 mt-1">{title}</p>
+      <p className="text-2xl font-black text-slate-900 tracking-tight tabular-nums">{value}</p>
+      <p className="text-xs font-bold uppercase tracking-wider text-slate-600 mt-1">{title}</p>
       {sub && <p className="text-[11px] text-slate-500 mt-0.5">{sub}</p>}
     </div>
   );
@@ -514,8 +515,17 @@ export default function Dashboard({ role, user, access = [], functionalities = "
                     }}
                   />
                 </div>
+              ) : role === "admin" ? (
+                <div className="relative z-10 w-full">
+                  <AdminDashboard
+                    onNavigate={(tab) => {
+                      setView("settings");
+                      navigate(`/settings${tab ? `?tab=${tab}` : ""}`);
+                    }}
+                  />
+                </div>
               ) : (
-              <div className="relative z-10 p-6 max-w-7xl mx-auto space-y-6">
+              <div className="relative z-10 w-full p-3 sm:p-4 md:p-5 space-y-4">
                 {!isDg && role !== "sdo" && !isDeptZonalCoordinator(role) && role !== "state-officer" && !isDeptReportingOfficer(role) && !isDeptStateCoordinator(role) && role !== "department-officer" && role !== "admin" && role !== "hq-department" && (
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                     <KPICard title="Reports Submitted" value="124" trend="+12%" trendUp icon={<FileText className="w-5 h-5 text-blue-600" />} tint="kpi-blue" sub="This month" />
@@ -569,18 +579,12 @@ export default function Dashboard({ role, user, access = [], functionalities = "
                       else if (path.includes("weekly-actionable")) setView("state-weekly-actionable");
                       else if (path.includes("enrolment")) setView("state-enrolment");
                       else if (path.includes("complaints-register") || path.includes("servicom/complaints")) setView("zonal-complaints-register");
+                      else if (path.includes("office-profile")) setView("soc-office-profile");
                       else setView("home");
                     }}
                   />
                 ) : role === "department-officer" ? (
                   <DepartmentalDashboard user={user} onNewSubmission={(targetView) => setView(targetView as View)} />
-                ) : role === "admin" ? (
-                  <AdminDashboard
-                    onNavigate={() => {
-                      setView("settings");
-                      navigate("/settings");
-                    }}
-                  />
                 ) : (
                   <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
                     <div className="xl:col-span-2 space-y-6">
@@ -906,44 +910,40 @@ export default function Dashboard({ role, user, access = [], functionalities = "
             <Route path="/zonal/expenditure-profile/dashboard" element={<Navigate to="/zonal/finance/records?tab=expenditure" replace />} />
             <Route path="/zonal/expenditure-profile" element={<Navigate to="/zonal/finance/records?tab=expenditure" replace />} />
             <Route path="/zonal/ict/support" element={<StateOfficeReportsList key="state-ict-support" reportType="ict-support-register" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
-            <Route path="/zonal/admin-hr/office-meeting" element={<AdminHrReportsList key="office-meeting" reportType="office-meeting" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
-            <Route path="/zonal/admin-hr/etmc-cascading" element={<AdminHrReportsList key="etmc-cascading" reportType="etmc-cascading" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
-            <Route path="/zonal/admin-hr/office-accommodation" element={<AdminHrReportsList key="office-accommodation" reportType="office-accommodation" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
-            <Route path="/zonal/admin-hr/utility-services" element={<AdminHrReportsList key="utility-services" reportType="utility-services" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
+            <Route path="/zonal/admin-hr/office-meeting" element={<Navigate to="/zonal/meetings" replace />} />
+            <Route path="/zonal/admin-hr/etmc-cascading" element={<Navigate to="/zonal/meetings/etmc" replace />} />
+            <Route path="/zonal/admin-hr/office-profile/*" element={<OfficeProfileWorkspace onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} userRole={role} stateScoped />} />
+            <Route path="/zonal/admin-hr/office-profile" element={<OfficeProfileWorkspace onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} userRole={role} stateScoped />} />
+            <Route path="/zonal/admin-hr/office-accommodation" element={<Navigate to="/zonal/admin-hr/office-profile?tab=accommodation" replace />} />
+            <Route path="/zonal/admin-hr/utility-services" element={<Navigate to="/zonal/admin-hr/office-profile?tab=utilities" replace />} />
             <Route path="/zonal/admin-hr/vehicle-maintenance" element={<AdminHrReportsList key="vehicle-maintenance" reportType="vehicle-maintenance" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
             <Route path="/zonal/admin-hr/conflict-infraction" element={<AdminHrReportsList key="conflict-infraction" reportType="conflict-infraction" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
             <Route path="/zonal/admin-hr/enrollee-feedback" element={<AdminHrReportsList key="enrollee-feedback" reportType="enrollee-feedback" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
-            <Route path="/zonal/admin-hr/meetings" element={<Navigate to="/zonal/admin-hr/office-meeting" replace />} />
-            <Route path="/zonal/admin-hr/accommodation" element={<Navigate to="/zonal/admin-hr/office-accommodation" replace />} />
-            <Route path="/zonal/admin-hr/utilities" element={<Navigate to="/zonal/admin-hr/utility-services" replace />} />
+            <Route path="/zonal/admin-hr/meetings" element={<Navigate to="/zonal/meetings" replace />} />
+            <Route path="/zonal/admin-hr/accommodation" element={<Navigate to="/zonal/admin-hr/office-profile?tab=accommodation" replace />} />
+            <Route path="/zonal/admin-hr/utilities" element={<Navigate to="/zonal/admin-hr/office-profile?tab=utilities" replace />} />
             <Route path="/zonal/admin-hr/vehicles" element={<Navigate to="/zonal/admin-hr/vehicle-maintenance" replace />} />
             <Route path="/zonal/admin-hr/feedback" element={<Navigate to="/zonal/admin-hr/enrollee-feedback" replace />} />
             <Route path="/zonal/admin-hr/infractions" element={<Navigate to="/zonal/admin-hr/conflict-infraction" replace />} />
 
             {/* ── Store & Asset Management Module ── */}
-            <Route
-              path="/store-management"
-              element={
-                DASHBOARDS_ENABLED
-                  ? <DashboardView />
-                  : <Navigate to={getFirstAccessiblePath(access, role, user)} replace />
-              }
-            />
+            <Route path="/store-management" element={<StoreManagementWorkspace />} />
+            <Route path="/store-management/workspace" element={<StoreManagementWorkspace />} />
             <Route path="/store-management/assets/register" element={<AssetRegisterView />} />
             <Route path="/store-management/assets/list" element={<AssetListView />} />
             <Route path="/store-management/assets/detail/:id" element={<AssetDetailView />} />
             <Route path="/store-management/assets/detail/*" element={<AssetDetailView />} />
             <Route path="/store-management/assets/categories" element={<CategoriesView />} />
             <Route path="/store-management/assets/qr-labels" element={<QrLabelsView />} />
-            <Route path="/store-management/inventory/items" element={<InventoryItemsView />} />
+            <Route path="/store-management/inventory/items" element={<Navigate to="/store-management?tab=inventory" replace />} />
             <Route path="/store-management/inventory/items/new" element={<AddStockView />} />
             <Route path="/store-management/inventory/items/:id" element={<InventoryItemDetailView />} />
             <Route path="/store-management/inventory/receipts" element={<GoodsReceiptView />} />
-            <Route path="/store-management/stores/issues" element={<StockIssuesView />} />
+            <Route path="/store-management/stores/issues" element={<Navigate to="/store-management?tab=issuance" replace />} />
             <Route path="/store-management/stores/issues/new" element={<NewStockIssueView />} />
             <Route path="/store-management/stores/list" element={<StoreListView />} />
             <Route path="/store-management/stores/returns" element={<StockReturnsView />} />
-            <Route path="/store-management/transfers/requests" element={<StockIssuesView />} />
+            <Route path="/store-management/transfers/requests" element={<Navigate to="/store-management?tab=issuance" replace />} />
             <Route path="/store-management/transfers/new" element={<NewStockIssueView />} />
             <Route path="/transfers/requests" element={<StockIssuesView />} />
             <Route path="/transfers/new" element={<NewStockIssueView />} />
@@ -966,8 +966,8 @@ export default function Dashboard({ role, user, access = [], functionalities = "
             <Route path="/store-management/admin/offices" element={<OfficesView />} />
             <Route path="/store-management/admin/logs" element={<AuditView />} />
             <Route path="/store-management/adjustments" element={<AdjustmentsView />} />
-            <Route path="/store-management/conversion" element={<Navigate to="/store-management/transfers/requests" replace />} />
-            <Route path="/store-management/conversion/new" element={<Navigate to="/store-management/transfers/requests" replace />} />
+            <Route path="/store-management/conversion" element={<Navigate to="/store-management?tab=issuance" replace />} />
+            <Route path="/store-management/conversion/new" element={<Navigate to="/store-management?tab=issuance" replace />} />
             <Route path="/store-management/movement-ledger" element={<MovementLedgerView />} />
 
             {/* ── System Administration ── */}

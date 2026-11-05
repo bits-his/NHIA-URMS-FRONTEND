@@ -61,6 +61,7 @@ import {
 import HmoProviderSelect from "./HmoProviderSelect";
 import HcfFacilitySelect from "./HcfFacilitySelect";
 import { SubmitConfirmModal, useReportingOfficerSubmitConfirm } from "@/src/components/SubmitConfirmModal";
+import PageLayout from "@/src/components/PageLayout";
 
 interface Props {
   onBack?: () => void;
@@ -76,6 +77,12 @@ interface Props {
   stateScope?: boolean;
   /** When true, hide the standalone page title chrome (parent hub owns it). */
   embedded?: boolean;
+  onChromeChange?: (chrome: {
+    mode: "list" | "form" | "detail";
+    title?: string;
+    onInnerBack?: () => void;
+    actions?: React.ReactNode;
+  } | null) => void;
   /**
    * Channel scope:
    * - "servicom-only": Complaints Management (SERVICOM module) - only show complaints received via SERVICOM channel.
@@ -637,7 +644,9 @@ export default function ServicomComplaintsPage({
   onBack,
   defaultStateId, defaultZoneId, userName, userStaffId, userRole, userDepartment,
   canCreate = true, canReview = true, stateScope: stateScopeProp = false,
-  embedded = false, channelScope,
+  embedded = false,
+  onChromeChange,
+  channelScope,
 }: Props) {
   const effectiveChannelScope: "servicom-only" | "exclude-servicom" | "all" =
     channelScope ?? (stateScopeProp ? "exclude-servicom" : "servicom-only");
@@ -793,15 +802,23 @@ export default function ServicomComplaintsPage({
     next: { mode?: Mode; id?: string | number | null; stage?: LifecycleStage | null },
     opts?: { replace?: boolean },
   ) => {
-    const params = new URLSearchParams();
+    // Keep hub params such as ?tab=complaints. Replacing the whole query
+    // drops the tab and the compliance hub snaps back to the register table.
+    const params = new URLSearchParams(searchParams);
     const m = next.mode ?? "list";
-    if (m !== "list") {
+    if (m === "list") {
+      params.delete("mode");
+      params.delete("id");
+      params.delete("stage");
+    } else {
       params.set("mode", m);
       if (next.id != null && next.id !== "") params.set("id", String(next.id));
+      else params.delete("id");
       if (m === "manage" && next.stage) params.set("stage", next.stage);
+      else params.delete("stage");
     }
     setSearchParams(params, { replace: !!opts?.replace });
-  }, [setSearchParams]);
+  }, [searchParams, setSearchParams]);
 
   const set = (key: string, value: string | boolean) => setF((p) => ({ ...p, [key]: value }));
 
@@ -1194,6 +1211,106 @@ export default function ServicomComplaintsPage({
     setCommentDraft("");
     setComplaintsQuery({ mode: "list" });
   };
+
+  React.useEffect(() => {
+    if (!embedded || !onChromeChange) return;
+
+    if (mode === "list") {
+      onChromeChange({
+        mode: "list",
+        actions: (
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={load}
+              disabled={loading}
+              className="gap-2 border-[#d4e8dc]"
+            >
+              <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
+            </Button>
+            {canRegister && (
+              <Button
+                className="bg-orange-action hover:bg-orange-600 gap-2 shadow-md shadow-orange-500/15"
+                onClick={openRegister}
+              >
+                <Plus className="w-4 h-4" /> New Complaint
+              </Button>
+            )}
+          </>
+        ),
+      });
+      return;
+    }
+
+    if (mode === "register") {
+      onChromeChange({
+        mode: "form",
+        title: "New Complaint",
+        onInnerBack: closeSub,
+      });
+      return;
+    }
+
+    if (mode === "view" && selected) {
+      onChromeChange({
+        mode: "detail",
+        title: selected.complaint_number ?? "Complaint",
+        onInnerBack: closeSub,
+      });
+      return;
+    }
+
+    if (mode === "manage" && selected) {
+      const assignedToMe = officerMatchesUser(
+        selected.officer_assigned ?? selected.assigned_officer,
+        userName,
+        userStaffId,
+      );
+      const inboxMine = (() => {
+        const target = String(selected.escalated_to || "");
+        if (!target) return false;
+        if (isEnforcementUser && isEnforcementEscalationTarget(target)) return true;
+        if (isZonalCoordinatorEscalationTarget(target) && canActOnZonalOfficeInbox && zoneMatchesMyInbox(selected)) {
+          return true;
+        }
+        return false;
+      })();
+      const escalatedOpen = !!selected.escalated || selected.status === "Escalated";
+      const handedToRoleInbox = isRoleEscalationInbox(selected.escalated_to);
+      const escalatedAwayFromMe = escalatedOpen
+        && !inboxMine
+        && (handedToRoleInbox || !assignedToMe)
+        && !isNationalViewer
+        && userRole !== "admin"
+        && userRole !== "hq-department"
+        && userRole !== "sdo";
+      const canCloseComplaint = !isComplaintClosed(selected.status)
+        && (!(isStateCoordinator || isZonalCoordinator) || assignedToMe || inboxMine)
+        && !escalatedAwayFromMe;
+
+      onChromeChange({
+        mode: "detail",
+        title: selected.complaint_number ?? "Complaint",
+        onInnerBack: closeSub,
+        actions: canCloseComplaint ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={saving}
+            onClick={() => setCloseModal({ open: true, status: "Resolved", fromInvestigation: false, remarks: "" })}
+            className="gap-2"
+          >
+            Close complaint
+          </Button>
+        ) : undefined,
+      });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [embedded, onChromeChange, mode, loading, canRegister, selected, saving, userName, userStaffId, userRole]);
+
+  React.useEffect(() => () => onChromeChange?.(null), [onChromeChange]);
 
   const selectedIdRef = React.useRef<string | null>(null);
   selectedIdRef.current = selected?.complaint_number != null ? String(selected.complaint_number) : null;
@@ -3461,19 +3578,21 @@ export default function ServicomComplaintsPage({
 
   if (mode === "register") {
     return (
-      <div key={`complaint-register-${formKey}`} className="bg-[#f4f7f5]">
-        <div className="bg-white border-b px-4 md:px-5 py-2.5 flex items-center gap-3 sticky top-0 z-30">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={closeSub}
-            className="rounded-full hover:bg-[#e8f5ee] shrink-0 h-8 w-8"
-            aria-label="Back to list"
-          >
-            <ArrowLeft className="w-4 h-4" />
-          </Button>
-          <h1 className="text-base font-bold text-slate-900">New Complaint</h1>
-        </div>
+      <div key={`complaint-register-${formKey}`} className={embedded ? "h-full overflow-auto" : "bg-[#f4f7f5]"}>
+        {!embedded && (
+          <div className="bg-white border-b px-4 md:px-5 py-2.5 flex items-center gap-3 sticky top-0 z-30">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={closeSub}
+              className="rounded-full hover:bg-[#e8f5ee] shrink-0 h-8 w-8"
+              aria-label="Back to list"
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </Button>
+            <h1 className="text-base font-bold text-slate-900">New Complaint</h1>
+          </div>
+        )}
         <div className="w-full px-4 md:px-5 py-3 md:py-4">
           {renderComplaintSection(false)}
         </div>
@@ -3583,7 +3702,8 @@ export default function ServicomComplaintsPage({
     };
 
     return (
-      <div className="bg-[#f4f7f5] min-h-full">
+      <div className={embedded ? "h-full overflow-auto" : "bg-[#f4f7f5] min-h-full"}>
+        {!embedded && (
         <div className="bg-white border-b sticky top-0 z-30">
           <div className="px-4 md:px-5 py-2.5 flex items-center gap-2.5">
             <Button variant="ghost" size="icon" onClick={closeSub} className="rounded-full shrink-0 hover:bg-[#e8f5ee] h-8 w-8" aria-label="Back to list">
@@ -3614,6 +3734,7 @@ export default function ServicomComplaintsPage({
             </div>
           </div>
         </div>
+        )}
 
         <div className="w-full px-4 md:px-5 py-3.5">
           <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_320px] gap-3.5 items-start">
@@ -3818,7 +3939,8 @@ export default function ServicomComplaintsPage({
       && !escalatedAwayFromMe;
 
     return (
-      <div className="bg-[#f4f7f5]">
+      <div className={embedded ? "h-full overflow-auto" : "bg-[#f4f7f5]"}>
+        {!embedded && (
         <div className="bg-white border-b sticky top-0 z-30">
           <div className="px-4 md:px-5 py-2.5 flex items-center gap-2.5">
             <Button variant="ghost" size="icon" onClick={closeSub} className="rounded-full shrink-0 hover:bg-[#e8f5ee] h-8 w-8" aria-label="Back to list">
@@ -3854,8 +3976,10 @@ export default function ServicomComplaintsPage({
           </div>
           {renderComplaintSlaBar(row)}
         </div>
+        )}
 
         <div className="w-full px-4 md:px-5 py-3 space-y-3">
+          {embedded && renderComplaintSlaBar(row)}
           {escalatedAwayFromMe && (
             <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
               <p className="text-xs text-slate-600">
@@ -4034,43 +4158,18 @@ export default function ServicomComplaintsPage({
   ];
 
   return (
-    <div className={`${embedded ? "" : "bg-[#f4f7f5]"} min-h-full h-full overflow-auto`}>
-      <div className={`bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sticky top-0 ${embedded ? "z-10" : "z-30"}`}>
-        <div className="flex items-center gap-3 min-w-0">
-          {!embedded && onBack && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={onBack}
-              className="rounded-sm hover:bg-[#e8f5ee] text-slate-700"
-              aria-label="Back"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
-          )}
-          <div className="min-w-0">
-            {!embedded ? (
-              <>
-                <div className="flex items-center gap-2">
-                  <h2 className="text-xl font-black tracking-tight text-slate-900 truncate">
-                    Complaints Management
-                  </h2>
-                  <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
-                    {listStats.total} {listStats.total === 1 ? "complaint" : "complaints"}
-                  </span>
-                </div>
-                <p className="text-xs text-slate-500 truncate">
-                  SERVICOM dispute resolution, investigations, SLA tracking & escalation workflow
-                </p>
-              </>
-            ) : (
-              <p className="text-xs text-slate-500 truncate">
-                {listStats.total} complaint{listStats.total === 1 ? "" : "s"} in register
-              </p>
-            )}
-          </div>
-        </div>
-
+    <PageLayout
+      showHeader={!embedded}
+      title={embedded ? undefined : "Complaints Management"}
+      badge={
+        !embedded ? (
+          <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+            {listStats.total} {listStats.total === 1 ? "complaint" : "complaints"}
+          </span>
+        ) : null
+      }
+      showBack={false}
+      actions={
         <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
           <Button
             variant="outline"
@@ -4080,12 +4179,12 @@ export default function ServicomComplaintsPage({
             className="h-8.5 gap-1.5 border border-slate-300 text-slate-700 bg-white hover:bg-[#f4f7f5] text-xs font-bold rounded-sm shadow-2xs"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
-            <span>Sync</span>
+            <span>Refresh</span>
           </Button>
           {canRegister && (
             <Button
               size="sm"
-              className="h-8.5 bg-[#1a7a52] hover:bg-[#145c3f] text-white border border-[#145c3f] font-bold text-xs gap-1.5 rounded-sm shadow-xs"
+              className="h-8.5 bg-orange-action hover:bg-orange-600 text-white font-bold text-xs gap-1.5 rounded-sm shadow-md shadow-orange-500/15"
               onClick={openRegister}
             >
               <Plus className="w-3.5 h-3.5" />
@@ -4093,9 +4192,9 @@ export default function ServicomComplaintsPage({
             </Button>
           )}
         </div>
-      </div>
-
-      <div className="w-full px-4 md:px-5 py-3 space-y-3">
+      }
+    >
+      <div className="w-full space-y-3">
         {!isReportingOfficer && (
           <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-2">
             {[
@@ -4146,48 +4245,52 @@ export default function ServicomComplaintsPage({
           </div>
         )}
 
-        <div className="rounded-lg border border-[#d4e8dc] bg-white p-2 space-y-1.5">
-          {/* Row 1 — search + location */}
-          <div className={`grid gap-1.5 items-center ${
-            geoLocked
-              ? "grid-cols-2 sm:grid-cols-3"
-              : "grid-cols-2 sm:grid-cols-3 lg:grid-cols-5"
-          }`}>
-            <div className="relative min-w-0 col-span-2">
-              <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none z-10" />
-              <Input
-                className="pl-7 h-8 w-full text-xs"
-                placeholder="Search…"
-                value={filterSearch}
-                onChange={(e) => setFilterSearch(e.target.value)}
-              />
-            </div>
-            <div className="min-w-0">
-              <Input
-                type="date"
-                value={filterDate}
-                onChange={(e) => setFilterDate(e.target.value)}
-                className="h-8 w-full text-xs"
-              />
-            </div>
-            {!geoLocked && (
-              <>
-                {!isZonalCoordinator && (
-                  <div className="min-w-0">
-                    <Select value={filterZone} onValueChange={(v) => { setFilterZone(v); setFilterState("all"); setFilterFacilityId(""); setFilterFacilityName(""); }}>
-                      <SelectTrigger className="h-8 w-full text-xs" displayValue={filterZone === "all" ? "Zone" : pickGeoLabel(zones, filterZone, "Zone")}>
-                        <SelectValue placeholder="Zone" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Zones</SelectItem>
-                        {zones.map((z: any) => <SelectItem key={z.zonal_code || z.id} value={String(z.zonal_code || z.id)}>{z.description}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-                <div className="min-w-0">
+        <Card className="rounded-2xl border-[#d4e8dc]">
+          <CardContent className="pt-4 pb-4 space-y-3">
+            <div className={`grid gap-3 ${
+              geoLocked
+                ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
+                : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4"
+            }`}>
+              <div className="space-y-1 min-w-0 sm:col-span-2">
+                <Label className="text-xs text-muted-foreground">Search</Label>
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none z-10" />
+                  <Input
+                    className="pl-8"
+                    placeholder="Search…"
+                    value={filterSearch}
+                    onChange={(e) => setFilterSearch(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="space-y-1 min-w-0">
+                <Label className="text-xs text-muted-foreground">Date</Label>
+                <Input
+                  type="date"
+                  value={filterDate}
+                  onChange={(e) => setFilterDate(e.target.value)}
+                />
+              </div>
+              {!geoLocked && !isZonalCoordinator && (
+                <div className="space-y-1 min-w-0">
+                  <Label className="text-xs text-muted-foreground">Zone</Label>
+                  <Select value={filterZone} onValueChange={(v) => { setFilterZone(v); setFilterState("all"); setFilterFacilityId(""); setFilterFacilityName(""); }}>
+                    <SelectTrigger displayValue={filterZone === "all" ? "All Zones" : pickGeoLabel(zones, filterZone, "Zone")}>
+                      <SelectValue placeholder="Zone" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Zones</SelectItem>
+                      {zones.map((z: any) => <SelectItem key={z.zonal_code || z.id} value={String(z.zonal_code || z.id)}>{z.description}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              {!geoLocked && (
+                <div className="space-y-1 min-w-0">
+                  <Label className="text-xs text-muted-foreground">State</Label>
                   <Select value={filterState} onValueChange={(v) => { setFilterState(v); setFilterFacilityId(""); setFilterFacilityName(""); }}>
-                    <SelectTrigger className="h-8 w-full text-xs" displayValue={filterState === "all" ? "State" : pickGeoLabel(filterStates, filterState, "State")}>
+                    <SelectTrigger displayValue={filterState === "all" ? "All States" : pickGeoLabel(filterStates, filterState, "State")}>
                       <SelectValue placeholder="State" />
                     </SelectTrigger>
                     <SelectContent>
@@ -4196,79 +4299,80 @@ export default function ServicomComplaintsPage({
                     </SelectContent>
                   </Select>
                 </div>
-              </>
-            )}
-          </div>
-
-          {/* Row 2 — status / channel / facility filters */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-1.5 items-center">
-            <div className="min-w-0">
-              <Select value={filterStatus} onValueChange={setFilterStatus}>
-                <SelectTrigger className="h-8 w-full text-xs" displayValue={filterStatus === "all" ? "Status" : filterStatus}>
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Statuses</SelectItem>
-                  {COMPLAINT_STATUSES.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="min-w-0">
-              <Select value={filterPriority} onValueChange={setFilterPriority}>
-                <SelectTrigger className="h-8 w-full text-xs" displayValue={filterPriority === "all" ? "Priority" : filterPriority}>
-                  <SelectValue placeholder="Priority" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Priorities</SelectItem>
-                  {PRIORITY_RATINGS.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            {!isServicomOnly && (
-              <div className="min-w-0">
-                <Select value={filterTransmission} onValueChange={setFilterTransmission}>
-                  <SelectTrigger className="h-8 w-full text-xs" displayValue={filterTransmission === "all" ? "Channel" : filterTransmission}>
-                    <SelectValue placeholder="Channel" />
+              )}
+              <div className="space-y-1 min-w-0">
+                <Label className="text-xs text-muted-foreground">Status</Label>
+                <Select value={filterStatus} onValueChange={setFilterStatus}>
+                  <SelectTrigger displayValue={filterStatus === "all" ? "All Statuses" : (COMPLAINT_STATUSES.find((s) => s.value === filterStatus)?.label || filterStatus)}>
+                    <SelectValue placeholder="Status" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All channels</SelectItem>
-                    {availableRoutes.map((r) => (
-                      <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
-                    ))}
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    {COMPLAINT_STATUSES.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
-            )}
-            <div className="min-w-0">
-              <HcfFacilitySelect
-                requireState={false}
-                stateId={filterState !== "all" ? filterState : (defaultStateId ?? undefined)}
-                value={filterFacilityId}
-                onChange={(fac) => {
-                  setFilterFacilityId(fac?.facility_code || fac?.code || fac?.id || "");
-                  setFilterFacilityName(fac?.name ?? "");
-                }}
-                placeholder="HCF"
-                className="h-8 w-full text-xs px-3 rounded-xl"
-              />
-            </div>
-            <div className="min-w-0">
-              <HmoProviderSelect
-                value={filterHmoId}
-                onChange={(hmo) => setFilterHmoId(hmo?.code || hmo?.id || "")}
-                placeholder="HMO"
-                className="h-8 w-full text-xs px-3 rounded-xl"
-              />
+              <div className="space-y-1 min-w-0">
+                <Label className="text-xs text-muted-foreground">Priority</Label>
+                <Select value={filterPriority} onValueChange={setFilterPriority}>
+                  <SelectTrigger displayValue={filterPriority === "all" ? "All Priorities" : (PRIORITY_RATINGS.find((p) => p.value === filterPriority)?.label || filterPriority)}>
+                    <SelectValue placeholder="Priority" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Priorities</SelectItem>
+                    {PRIORITY_RATINGS.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              {!isServicomOnly && (
+                <div className="space-y-1 min-w-0">
+                  <Label className="text-xs text-muted-foreground">Channel</Label>
+                  <Select value={filterTransmission} onValueChange={setFilterTransmission}>
+                    <SelectTrigger displayValue={filterTransmission === "all" ? "All channels" : (availableRoutes.find((r) => r.value === filterTransmission)?.label || filterTransmission)}>
+                      <SelectValue placeholder="Channel" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All channels</SelectItem>
+                      {availableRoutes.map((r) => (
+                        <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              <div className="space-y-1 min-w-0">
+                <Label className="text-xs text-muted-foreground">HCF</Label>
+                <HcfFacilitySelect
+                  requireState={false}
+                  stateId={filterState !== "all" ? filterState : (defaultStateId ?? undefined)}
+                  value={filterFacilityId}
+                  onChange={(fac) => {
+                    setFilterFacilityId(fac?.facility_code || fac?.code || fac?.id || "");
+                    setFilterFacilityName(fac?.name ?? "");
+                  }}
+                  placeholder="All HCFs"
+                  className="w-full"
+                />
+              </div>
+              <div className="space-y-1 min-w-0">
+                <Label className="text-xs text-muted-foreground">HMO</Label>
+                <HmoProviderSelect
+                  value={filterHmoId}
+                  onChange={(hmo) => setFilterHmoId(hmo?.code || hmo?.id || "")}
+                  placeholder="All HMOs"
+                  className="w-full"
+                />
+              </div>
             </div>
             {hasFilters && (
-              <div className="col-span-full flex justify-end">
+              <div className="flex justify-end">
                 <Button variant="ghost" size="sm" className="h-8 px-2 text-slate-500 gap-1 text-[11px]" onClick={clearFilters}>
                   <XCircle className="w-3.5 h-3.5" /> Clear
                 </Button>
               </div>
             )}
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-xs text-slate-500">
@@ -4299,6 +4403,6 @@ export default function ServicomComplaintsPage({
           getRowClassName={(c) => slaRowClass(c.sla?.color)}
         />
       </div>
-    </div>
+    </PageLayout>
   );
 }

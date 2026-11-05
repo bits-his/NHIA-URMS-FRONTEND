@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
+import PageLayout from "./PageLayout";
 import { annualReportApi } from "@/lib/api";
 import type { AnnualReportPayload } from "@/lib/api";
 
@@ -241,12 +242,10 @@ export default function AnnualReportForm({ onBack, onSubmit }: AnnualReportFormP
   };
 
   return (
-    <div className="flex flex-col h-full bg-slate-50/30">
-      {/* Header */}
-      <div className="bg-white border-b border-border/50 px-8 py-4 flex items-center justify-between sticky top-0 z-30">
-        <Button variant="ghost" size="icon" onClick={onBack} className="rounded-full">
-          <ArrowLeft className="w-5 h-5" />
-        </Button>
+    <PageLayout
+      title={`Annual Progress Report (${general.year})`}
+      onBack={onBack}
+      actions={
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="sm" onClick={handleSaveDraft} disabled={isSaving} className="gap-2">
             {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
@@ -266,11 +265,12 @@ export default function AnnualReportForm({ onBack, onSubmit }: AnnualReportFormP
             }
           </Button>
         </div>
-      </div>
-
-      <ScrollArea className="flex-1">
-        <div className="max-w-5xl mx-auto p-8 space-y-8">
-          <Stepper current={step} />
+      }
+      maxWidth="5xl"
+      contentClassName="space-y-8 pb-12"
+    >
+      <div className="w-full space-y-8">
+        <Stepper current={step} />
 
           <AnimatePresence mode="wait">
 
@@ -480,7 +480,6 @@ export default function AnnualReportForm({ onBack, onSubmit }: AnnualReportFormP
             </Button>
           </div>
         </div>
-      </ScrollArea>
-    </div>
+    </PageLayout>
   );
 }

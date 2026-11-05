@@ -237,10 +237,7 @@ export const MODULE_CONFIG: ParentModule[] = [
         { title: "Stock Verification Dashboard", view: "stock-verification-dashboard", path: "/sdo/stock-dashboard", navLabel: "Dashboard" },
         { title: "Physical Asset Verification", view: "store-verification-verify", path: "/store-management/verification/verify", navLabel: "Asset Verification" },
         { title: "Stock Prepayment Register", view: "store-prepayment-analysis", path: "/store-management/prepayment-analysis", navLabel: "Prepayment Analysis" },
-        { type: "group", label: "Store Management", children: [
-          { title: "Inventory Register",          view: "store-inventory-catalog",   path: "/store-management/inventory/items", navLabel: "Inventory" },
-          { title: "Capitalisation & Issuance",   view: "store-asset-transfers",     path: "/store-management/transfers/requests", navLabel: "Issuance" },
-        ]},
+        { title: "Store Management", view: "store-inventory-catalog", path: "/store-management", navLabel: "Store Management" },
       ]},
       { type: "group", label: SDO_SOC_NAV_GROUP, children: [] },
       { type: "group", label: "Special Project", children: [
@@ -254,7 +251,6 @@ export const MODULE_CONFIG: ParentModule[] = [
     title: SOC_ZONES_MODULE,
     roles: "all",
     children: [
-      { title: "State/Zonal Office Profile", view: "soc-office-profile", path: "/soc/office-profile", navLabel: "State Office Profile" },
       { title: "Monthly Enrollee Register", view: "state-enrollee-register", path: "/soc/enrollee-register", navLabel: "Enrollee Register" },
       { title: "ETMC/TMC Action-Point Register", view: "state-etmc-tmc-action-point", path: "/soc/etmc-tmc-action-point", navLabel: "ETMC/TMC Action-Point Register" },
       { title: "Weekly Actionable", view: "state-weekly-actionable", path: "/soc/weekly-actionable", navLabel: "Escalated Issues" },
@@ -309,10 +305,7 @@ export const MODULE_CONFIG: ParentModule[] = [
           { title: "IGR, SSHIA & Expenditure", view: "state-finance", path: "/zonal/finance/records", navLabel: "Finance" },
         ]},
         { type: "group", label: "Admin / Human Resource", children: [
-          { title: "State Office Meeting Report", view: "state-office-meeting", path: "/zonal/admin-hr/office-meeting" },
-          { title: "ETMC Cascading Report", view: "state-etmc-cascading", path: "/zonal/admin-hr/etmc-cascading" },
-          { title: "Office Accommodation", view: "state-office-accommodation", path: "/zonal/admin-hr/office-accommodation" },
-          { title: "Utility Services", view: "state-utility-services", path: "/zonal/admin-hr/utility-services" },
+          { title: "State Office Profile", view: "state-admin-office-profile", path: "/zonal/admin-hr/office-profile", navLabel: "State Office Profile" },
           { title: "Vehicle Maintenance", view: "state-vehicle-maintenance", path: "/zonal/admin-hr/vehicle-maintenance" },
           { title: "Conflict / Infraction Report", view: "state-conflict-infraction", path: "/zonal/admin-hr/conflict-infraction" },
           { title: "Enrollee Feedback Survey", view: "state-enrollee-feedback", path: "/zonal/admin-hr/enrollee-feedback" },

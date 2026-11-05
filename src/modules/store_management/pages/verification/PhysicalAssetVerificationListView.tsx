@@ -1,11 +1,13 @@
 import React, { useEffect, useMemo, useState } from "react";
+import type { ColumnDef } from "@tanstack/react-table";
 import { storeManagementApi } from "@/src/services/storeManagementApi";
 import { stockApi } from "@/lib/api";
 import { useNavigate } from "react-router-dom";
-import CustomTable, { CustomTableField } from "@/components/CustomTable";
 import { Button } from "@/components/ui/button";
-import { Plus, Eye, ClipboardCheck, X, Filter, Search, CheckCircle2, AlertTriangle } from "lucide-react";
-import PageLayout from "../../components/PageLayout";
+import { Card, CardContent } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Plus, Eye, ClipboardCheck, RefreshCw, XCircle } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { matchesStore } from "../../lib/storeOptions";
 import { useCreateReviewAccess } from "@/src/access/createReviewAccess";
 import {
@@ -15,6 +17,7 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
+import { ShadcnDataTable } from "@/components/common/ShadcnDataTable";
 
 type ConditionBucket = "good" | "defective" | "missing" | "obsolete" | "retired";
 
@@ -77,7 +80,6 @@ export default function PhysicalAssetVerificationListView() {
   const [query, setQuery] = useState("");
   const [bucket, setBucket] = useState<ConditionBucket | "all">("all");
 
-  // Zone, State, and Category Filter states
   const [zones, setZones] = useState<Option[]>([]);
   const [states, setStates] = useState<Option[]>([]);
   const [zoneFilter, setZoneFilter] = useState<string>("");
@@ -110,7 +112,6 @@ export default function PhysicalAssetVerificationListView() {
     navigate("/store-management/assets/register", { replace: true });
   }, [createOnly, navigate]);
 
-  // Load Zones on Mount
   useEffect(() => {
     if (createOnly) return;
     stockApi
@@ -121,7 +122,6 @@ export default function PhysicalAssetVerificationListView() {
       .catch(() => {});
   }, [createOnly]);
 
-  // Load States on Zone change
   useEffect(() => {
     if (!zoneFilter) {
       stockApi
@@ -257,291 +257,261 @@ export default function PhysicalAssetVerificationListView() {
 
   const hasActiveFilters = Boolean(zoneFilter || stateFilter || categoryFilter || query || bucket !== "all");
 
-  const kpis = [
-    {
-      key: "all" as const,
-      label: "Total",
-      value: searched.length,
-      icon: <ClipboardCheck className="w-3.5 h-3.5 text-[#25a872]" />,
-      accent: "border-[#d4e8dc] bg-white",
-      onClick: () => setBucket("all"),
-    },
-    {
-      key: "good" as const,
-      label: "Good",
-      value: counts.good,
-      icon: <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />,
-      accent: "border-emerald-200 bg-emerald-50/50",
-      onClick: () => toggleBucket("good"),
-    },
-    {
-      key: "defective" as const,
-      label: "Defective",
-      value: counts.defective,
-      icon: <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />,
-      accent: "border-rose-200 bg-rose-50/50",
-      onClick: () => toggleBucket("defective"),
-    },
-    {
-      key: "missing" as const,
-      label: "Missing",
-      value: counts.missing,
-      icon: <Search className="w-3.5 h-3.5 text-slate-500" />,
-      accent: "border-slate-200 bg-white",
-      onClick: () => toggleBucket("missing"),
-    },
+  const statCards = [
+    { key: "all" as const, label: "Total", value: searched.length, tone: "text-[#0f3d2e] bg-white border-[#d4e8dc]", onClick: () => setBucket("all") },
+    { key: "good" as const, label: "Good", value: counts.good, tone: "text-emerald-700 bg-emerald-50/80 border-emerald-100", onClick: () => toggleBucket("good") },
+    { key: "defective" as const, label: "Defective", value: counts.defective, tone: "text-rose-800 bg-rose-50/80 border-rose-100", onClick: () => toggleBucket("defective") },
+    { key: "missing" as const, label: "Missing", value: counts.missing, tone: "text-slate-600 bg-white border-slate-200", onClick: () => toggleBucket("missing") },
   ];
 
-  const fields: CustomTableField[] = [
-    {
-      title: "Tag",
-      value: "assetId",
-      className: "whitespace-nowrap",
-      custom: true,
-      component: (item) => (
-        <span className="font-mono text-sm font-semibold tabular-nums text-[#145c3f] whitespace-nowrap">
-          {item.assetId || item.assetNumber || item.nhiaTagNumber || `AST-${item.id}`}
-        </span>
-      ),
-    },
-    { title: "Name", value: "name", className: "font-medium text-slate-900 min-w-[160px]" },
-    {
-      title: "Category",
-      value: "primaryCategory",
-      custom: true,
-      component: (item) => (
-        <span className="text-slate-700 whitespace-nowrap">{item.primaryCategory || item.category || "—"}</span>
-      ),
-    },
-    {
-      title: "Custodian",
-      value: "assignedCustodian",
-      custom: true,
-      component: (item) => (
-        <span className="text-slate-800 whitespace-nowrap">{item.assignedCustodian || item.custodian || "—"}</span>
-      ),
-    },
-    {
-      title: "Location",
-      value: "officeDeptUnit",
-      custom: true,
-      component: (item) => (
-        <span className="text-slate-700 whitespace-nowrap">
-          {item.officeDeptUnit || item.department || item.location || "—"}
-        </span>
-      ),
-    },
-    {
-      title: "Condition",
-      value: "physicalCondition",
-      className: "whitespace-nowrap",
-      custom: true,
-      component: (item) => {
-        const tone = BUCKET_BADGE[conditionBucket(item)];
-        return (
-          <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap ${tone.className}`}>
-            {tone.label}
+  const columns = useMemo<ColumnDef<any>[]>(
+    () => [
+      {
+        id: "tag",
+        header: "Tag",
+        accessorFn: (row) => row.assetId || row.assetNumber || row.nhiaTagNumber,
+        cell: ({ row }) => (
+          <span className="font-mono text-sm font-semibold tabular-nums text-[#145c3f] whitespace-nowrap">
+            {row.original.assetId || row.original.assetNumber || row.original.nhiaTagNumber || `AST-${row.original.id}`}
           </span>
-        );
+        ),
       },
-    },
-    {
-      title: "Last verified",
-      value: "lastVerificationDate",
-      className: "whitespace-nowrap",
-      custom: true,
-      component: (item) => (
-        <span className="text-slate-700 tabular-nums whitespace-nowrap">{formatDate(item.lastVerificationDate)}</span>
-      ),
-    },
-    {
-      title: "",
-      value: "id",
-      className: "text-right whitespace-nowrap",
-      custom: true,
-      component: (item) => {
-        const id = item.id || item.assetId || item.assetNumber;
-        return (
-          <div className="flex items-center justify-end gap-1.5 whitespace-nowrap">
-            <Button
-              size="sm"
-              variant="outline"
-              aria-label={`View ${item.name || "asset"}`}
-              onClick={() => navigate(`/store-management/assets/detail/${encodeURIComponent(String(id))}`)}
-              className="h-8 px-2.5 text-[11px] font-semibold border-slate-200"
-            >
-              <Eye className="w-3.5 h-3.5 mr-1" aria-hidden="true" /> View
-            </Button>
-            <Button
-              size="sm"
-              aria-label={`Verify ${item.name || "asset"}`}
-              onClick={() =>
-                navigate(`/store-management/verification/verify/asset/${encodeURIComponent(String(item.id))}`)
-              }
-              className="h-8 px-2.5 text-[11px] font-semibold bg-[#145c3f] hover:bg-[#0f3d2e] text-white"
-            >
-              <ClipboardCheck className="w-3.5 h-3.5 mr-1" aria-hidden="true" /> Verify
-            </Button>
-          </div>
-        );
+      {
+        id: "name",
+        header: "Name",
+        accessorKey: "name",
+        cell: ({ row }) => <span className="font-medium text-slate-900">{row.original.name || "—"}</span>,
       },
-    },
-  ];
+      {
+        id: "category",
+        header: "Category",
+        accessorFn: (row) => row.primaryCategory || row.category,
+        cell: ({ row }) => (
+          <span className="text-slate-700 whitespace-nowrap">{row.original.primaryCategory || row.original.category || "—"}</span>
+        ),
+      },
+      {
+        id: "custodian",
+        header: "Custodian",
+        accessorFn: (row) => row.assignedCustodian || row.custodian,
+        cell: ({ row }) => (
+          <span className="text-slate-800 whitespace-nowrap">{row.original.assignedCustodian || row.original.custodian || "—"}</span>
+        ),
+      },
+      {
+        id: "location",
+        header: "Location",
+        accessorFn: (row) => row.officeDeptUnit || row.department || row.location,
+        cell: ({ row }) => (
+          <span className="text-slate-700 whitespace-nowrap">
+            {row.original.officeDeptUnit || row.original.department || row.original.location || "—"}
+          </span>
+        ),
+      },
+      {
+        id: "condition",
+        header: "Condition",
+        cell: ({ row }) => {
+          const tone = BUCKET_BADGE[conditionBucket(row.original)];
+          return (
+            <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap ${tone.className}`}>
+              {tone.label}
+            </span>
+          );
+        },
+      },
+      {
+        id: "lastVerified",
+        header: "Last verified",
+        accessorFn: (row) => row.lastVerificationDate,
+        cell: ({ row }) => (
+          <span className="text-slate-700 tabular-nums whitespace-nowrap">{formatDate(row.original.lastVerificationDate)}</span>
+        ),
+      },
+      {
+        id: "actions",
+        header: "Actions",
+        enableSorting: false,
+        cell: ({ row }) => {
+          const item = row.original;
+          const id = item.id || item.assetId || item.assetNumber;
+          return (
+            <div className="flex items-center justify-end gap-1.5 whitespace-nowrap">
+              <Button
+                size="sm"
+                variant="outline"
+                aria-label={`View ${item.name || "asset"}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigate(`/store-management/assets/detail/${encodeURIComponent(String(id))}`);
+                }}
+                className="h-8 px-2.5 text-[11px] font-semibold border-slate-200"
+              >
+                <Eye className="w-3.5 h-3.5 mr-1" aria-hidden="true" /> View
+              </Button>
+              <Button
+                size="sm"
+                aria-label={`Verify ${item.name || "asset"}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigate(`/store-management/verification/verify/asset/${encodeURIComponent(String(item.id))}`);
+                }}
+                className="h-8 px-2.5 text-[11px] font-semibold bg-[#145c3f] hover:bg-[#0f3d2e] text-white"
+              >
+                <ClipboardCheck className="w-3.5 h-3.5 mr-1" aria-hidden="true" /> Verify
+              </Button>
+            </div>
+          );
+        },
+      },
+    ],
+    [navigate],
+  );
 
   if (createOnly) return null;
 
   return (
-    <PageLayout
-      title="Physical Asset Verification"
-      description="Condition of tagged assets on the register"
-      actions={
-        canCreate ? (
-        <Button
-          size="sm"
-          onClick={() => navigate("/store-management/assets/register")}
-          className="bg-[#145c3f] hover:bg-[#0f3d2e] text-white text-xs h-9 font-semibold"
-        >
-          <Plus className="w-4 h-4 mr-1.5" aria-hidden="true" /> Register Asset
-        </Button>
-        ) : null
-      }
-      contentClassName="gap-3 min-w-0"
-    >
-      {error && (
-        <div role="alert" className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-800">
-          {error}
+    <div className="flex flex-col h-full bg-[#f4f7f5]">
+      <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3.5 flex items-center justify-between sticky top-0 z-30 gap-3">
+        <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">Physical Asset Verification</h2>
+        <div className="flex items-center gap-2 shrink-0">
+          <Button variant="outline" size="sm" onClick={fetchAssets} disabled={loading} className="gap-2 border-[#d4e8dc]">
+            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
+          </Button>
+          {canCreate && (
+            <Button
+              className="bg-orange-action hover:bg-orange-600 gap-2 shadow-md shadow-orange-500/15"
+              onClick={() => navigate("/store-management/assets/register")}
+            >
+              <Plus className="w-4 h-4" /> Register Asset
+            </Button>
+          )}
         </div>
-      )}
-
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
-        {kpis.map((kpi) => (
-          <button
-            key={kpi.label}
-            type="button"
-            onClick={kpi.onClick}
-            className={`rounded-lg border px-3 py-2 flex items-center gap-2.5 text-left ${kpi.accent} ${bucket === kpi.key ? "ring-2 ring-[#145c3f] ring-offset-1" : ""}`}
-          >
-            {kpi.icon}
-            <div className="min-w-0">
-              <p className="text-lg font-bold text-slate-800 tabular-nums leading-none">{kpi.value}</p>
-              <p className="text-[10px] font-medium text-slate-500 mt-0.5 truncate">{kpi.label}</p>
-            </div>
-          </button>
-        ))}
       </div>
 
-      {/* Compact Filters in One Row */}
-      <div className="flex flex-wrap md:flex-nowrap items-center gap-2.5 bg-white p-2.5 border border-slate-200 rounded-xl shadow-sm">
-        {/* Search */}
-        <div className="relative flex-1 min-w-[180px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" aria-hidden="true" />
-          <input
-            id="verify-search"
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search tag, name, custodian…"
-            className="w-full h-9 pl-9 pr-3 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#25a872]/40"
+      <ScrollArea className="flex-1">
+        <div className="w-full px-4 md:px-6 py-5 space-y-4">
+          {error && (
+            <div role="alert" className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-800">
+              {error}
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {statCards.map((c) => (
+              <button
+                key={c.label}
+                type="button"
+                onClick={c.onClick}
+                className={`rounded-xl border px-4 py-3 text-left transition-shadow ${c.tone} ${
+                  bucket === c.key ? "ring-2 ring-[#1a7a52] ring-offset-1" : ""
+                }`}
+              >
+                <p className="text-2xl font-bold tabular-nums">{loading ? "—" : c.value}</p>
+                <p className="text-[11px] font-semibold text-slate-500 mt-0.5">{c.label}</p>
+              </button>
+            ))}
+          </div>
+
+          <Card className="rounded-2xl border-[#d4e8dc]">
+            <CardContent className="pt-4 pb-4 space-y-3">
+              <div className="grid grid-flow-col auto-cols-fr gap-3">
+                <div className="space-y-1 min-w-0">
+                  <Label className="text-xs text-muted-foreground">Zone</Label>
+                  <Select
+                    value={zoneFilter || "ALL"}
+                    onValueChange={(val) => {
+                      setZoneFilter(val === "ALL" ? "" : val);
+                      setStateFilter("");
+                    }}
+                  >
+                    <SelectTrigger displayValue={zoneLabel || "All Zones"}>
+                      <SelectValue placeholder="All Zones" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ALL">All Zones</SelectItem>
+                      {zones.map((z) => (
+                        <SelectItem key={z.id} value={String(z.id)}>
+                          {z.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1 min-w-0">
+                  <Label className="text-xs text-muted-foreground">State</Label>
+                  <Select
+                    value={stateFilter || "ALL"}
+                    disabled={!zoneFilter && states.length === 0}
+                    onValueChange={(val) => setStateFilter(val === "ALL" ? "" : val)}
+                  >
+                    <SelectTrigger
+                      displayValue={stateLabel || (zoneFilter ? "All States in Zone" : "All States")}
+                    >
+                      <SelectValue placeholder={zoneFilter ? "All States in Zone" : "All States"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ALL">{zoneFilter ? "All States in Zone" : "All States"}</SelectItem>
+                      {states.map((s) => (
+                        <SelectItem key={s.id} value={String(s.id)}>
+                          {s.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1 min-w-0">
+                  <Label className="text-xs text-muted-foreground">Category</Label>
+                  <Select
+                    value={categoryFilter || "ALL"}
+                    onValueChange={(val) => setCategoryFilter(val === "ALL" ? "" : val)}
+                  >
+                    <SelectTrigger displayValue={categoryFilter || "All Categories"}>
+                      <SelectValue placeholder="All Categories" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ALL">All Categories</SelectItem>
+                      {categoryOptions.map((cat) => (
+                        <SelectItem key={cat} value={cat}>
+                          {cat}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              {hasActiveFilters && (
+                <div className="flex justify-end">
+                  <Button variant="ghost" size="sm" className="text-slate-500 gap-1 shrink-0" onClick={resetFilters}>
+                    <XCircle className="w-3.5 h-3.5" /> Clear
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <ShadcnDataTable
+            title="PHYSICAL ASSET VERIFICATION REGISTER"
+            columns={columns}
+            data={filtered}
+            loading={loading}
+            searchPlaceholder="Search tag, name, custodian…"
+            searchValue={query}
+            onSearchChange={setQuery}
+            emptyMessage={
+              bucket === "all"
+                ? "No assets registered yet — add an asset first"
+                : `No ${bucket} assets match this search`
+            }
+            onRowClick={(item) => {
+              const id = item.id || item.assetId || item.assetNumber;
+              navigate(`/store-management/assets/detail/${encodeURIComponent(String(id))}`);
+            }}
+            pageSize={50}
+            showTableOptions={false}
           />
         </div>
-
-        {/* Zone */}
-        <div className="w-40 shrink-0">
-          <Select
-            value={zoneFilter || "ALL"}
-            onValueChange={(val) => {
-              setZoneFilter(val === "ALL" ? "" : val);
-              setStateFilter("");
-            }}
-          >
-            <SelectTrigger size="sm" displayValue={zoneLabel || "All Zones"} className="bg-white">
-              <SelectValue placeholder="All Zones" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">All Zones</SelectItem>
-              {zones.map((z) => (
-                <SelectItem key={z.id} value={String(z.id)}>
-                  {z.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* State */}
-        <div className="w-44 shrink-0">
-          <Select
-            value={stateFilter || "ALL"}
-            disabled={!zoneFilter && states.length === 0}
-            onValueChange={(val) => setStateFilter(val === "ALL" ? "" : val)}
-          >
-            <SelectTrigger
-              size="sm"
-              displayValue={stateLabel || (zoneFilter ? "All States in Zone" : "All States")}
-              className="bg-white"
-            >
-              <SelectValue placeholder={zoneFilter ? "All States in Zone" : "All States"} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">{zoneFilter ? "All States in Zone" : "All States"}</SelectItem>
-              {states.map((s) => (
-                <SelectItem key={s.id} value={String(s.id)}>
-                  {s.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Category */}
-        <div className="w-44 shrink-0">
-          <Select
-            value={categoryFilter || "ALL"}
-            onValueChange={(val) => setCategoryFilter(val === "ALL" ? "" : val)}
-          >
-            <SelectTrigger size="sm" displayValue={categoryFilter || "All Categories"} className="bg-white">
-              <SelectValue placeholder="All Categories" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">All Categories</SelectItem>
-              {categoryOptions.map((cat) => (
-                <SelectItem key={cat} value={cat}>
-                  {cat}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Clear Button */}
-        {hasActiveFilters && (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={resetFilters}
-            className="h-9 px-2.5 text-xs font-semibold text-rose-700 border-rose-200 hover:bg-rose-50 shrink-0"
-            title="Clear filters"
-          >
-            <X className="w-3.5 h-3.5 mr-1" /> Clear
-          </Button>
-        )}
-      </div>
-
-      <div className="min-w-0 w-full overflow-x-auto">
-        <CustomTable
-          data={filtered}
-          fields={fields}
-          filter={false}
-          loading={loading}
-          pageSize={20}
-          message={
-            bucket === "all"
-              ? "No assets registered yet — add an asset first"
-              : `No ${bucket} assets match this search`
-          }
-        />
-      </div>
-    </PageLayout>
+      </ScrollArea>
+    </div>
   );
 }

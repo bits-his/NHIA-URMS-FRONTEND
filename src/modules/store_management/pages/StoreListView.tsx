@@ -32,11 +32,7 @@ export default function StoreListView({ onNavigate }: { onNavigate?: (view: stri
 
   return (
     <PageLayout
-      title={
-        <span className="flex items-center gap-2">
-          <Warehouse className="w-5 h-5 text-[#25a872]" /> Store Directory & Warehouses
-        </span>
-      }
+      title="Store Directory & Warehouses"
       description="Registered physical stores and warehouses across NHIA state and zonal offices"
       actions={
         <Button size="sm" className="bg-[#145c3f] hover:bg-[#0f3d2e] text-white text-xs h-9 font-semibold">

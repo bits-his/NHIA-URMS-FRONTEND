@@ -1,6 +1,6 @@
 import * as React from "react";
-import { useSearchParams } from "react-router-dom";
-import { ArrowLeft, ArrowRight, ChevronDown, Plus, RefreshCw, Save, Send, Download, Users, Pencil, Trash2, Eye, FileText, Clock, CheckCircle2, ClipboardList, History, Loader2 } from "lucide-react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { ArrowLeft, ArrowRight, ChevronDown, Plus, RefreshCw, Save, Send, Download, Users, Pencil, Trash2, Eye, FileText, Clock, CheckCircle2, ClipboardList, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +9,9 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableHeader, TableHead, TableBody, TableRow, TableCell } from "@/components/ui/table";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import type { ColumnDef } from "@tanstack/react-table";
+import { ShadcnDataTable } from "@/components/common/ShadcnDataTable";
+import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -18,6 +21,7 @@ import {
 } from "@/components/ui/dialog";
 import { enrolmentDrivesApi as api } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import PageLayout from "../PageLayout";
 import EnrolmentActivityForm, { Field, FieldSection } from "./EnrolmentActivityForm";
 import { MultiSelectField } from "./EnrolmentDriveForm";
 import StateOfficeFormSteps from "./StateOfficeFormSteps";
@@ -36,6 +40,8 @@ function ReviewRow({ label, value }: { label: string; value?: React.ReactNode })
     </div>
   );
 }
+
+
 
 function ReviewSection({ title, children }: { title: string; children: React.ReactNode }) {
   const items = React.Children.toArray(children).filter(Boolean);
@@ -90,10 +96,6 @@ type Batch = {
   activities?: Activity[]; summary?: Record<string, number>;
   reviews?: { reference_id: string; action: string; actor_name: string; note: string; createdAt?: string; created_at?: string; revision: number }[];
 };
-type FollowUp = {
-  reference_id?: string; state_code: string; reporting_year: string; reporting_month: string; issue: string; agreed_action: string;
-  source_dashboard: string; accountable_owner: string; owner_user_id: string; deadline: string; status: string; outcome: string; evidence?: Evidence[]; can_update?: boolean; closure_date?: string;
-};
 const emptyActivity = (): Activity => ({ drive_type: "", activity_date: "", activity_category: "", specific_activity: "", location_category: "", location_name: "", exact_location: "", programs_supported: [], target_audience: [], other_audience: "", planned_target_audience: "", target_audience_reached: "", leads_generated: "", activity_status: "", status_reason: "", funding_option: "", activity_budget: "", approved_amount: "", activity_details: "", evidence_type: "", remarks: "" });
 const toDraft = (row: Activity): Activity => Object.fromEntries(Object.entries({ ...emptyActivity(), ...row }).map(([key, value]) => [key, value ?? ""])) as Activity;
 const editable = (batch: Batch | null) => !!batch && ["draft", "returned"].includes(batch.status);
@@ -134,11 +136,12 @@ function EvidenceFiles({ files }: { files: Evidence[] }) {
   }}><Download className="mr-1 h-3 w-3" />{file.original_name}</Button>)}</div>;
 }
 export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaultZoneId }: { onBack: () => void; defaultZoneId?: string | null; defaultStateId?: string | null }) {
+  const routerNavigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [catalogue, setCatalogue] = React.useState<Catalogue | null>(null);
   const [batches, setBatches] = React.useState<Batch[]>([]);
   const [batch, setBatch] = React.useState<Batch | null>(null);
-  const [mode, setMode] = React.useState<"register" | "batch" | "view" | "activity" | "actions" | "legacy">("register");
+  const [mode, setMode] = React.useState<"register" | "batch" | "view" | "activity">("register");
   const [busy, setBusy] = React.useState(false);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState("");
@@ -161,24 +164,6 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
   const [reportingDeadline, setReportingDeadline] = React.useState("");
   const [analytics, setAnalytics] = React.useState<any>(null);
   const [reportFilter, setReportFilter] = React.useState({ year: String(new Date().getFullYear()), month: String(new Date().getMonth() + 1) });
-  const [actions, setActions] = React.useState<FollowUp[]>([]);
-  const blankAction = (seed?: { state_code?: string; issue?: string }): FollowUp => ({
-    state_code: seed?.state_code || batch?.state_code || period.state_code,
-    reporting_year: String(batch?.reporting_year || period.reporting_year),
-    reporting_month: String(batch?.reporting_month || period.reporting_month),
-    issue: seed?.issue || "",
-    agreed_action: "",
-    source_dashboard: "Enrolment Drives",
-    accountable_owner: "",
-    owner_user_id: "",
-    deadline: "",
-    status: "Open",
-    outcome: "",
-  });
-  const [actionDraft, setActionDraft] = React.useState<FollowUp | null>(null);
-  const [actionFiles, setActionFiles] = React.useState<File[]>([]);
-  const [actionEvidenceType, setActionEvidenceType] = React.useState("Field Report");
-  const [historical, setHistorical] = React.useState<any[]>([]);
   const [activityErrors, setActivityErrors] = React.useState<Record<string, string>>({});
   const [expandedActivityId, setExpandedActivityId] = React.useState<string | null>(null);
   const activityFormRef = React.useRef<HTMLDivElement>(null);
@@ -247,21 +232,15 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
     if (catalogue?.states.length === 1) setPeriod((current) => current.state_code ? current : { ...current, state_code: catalogue.states[0].code });
   }, [catalogue]);
   React.useEffect(() => {
-    const tab = searchParams.get("tab");
-    if (tab !== "actions" || !catalogue) return;
+    // Legacy Management Follow-up links now live on the Enrolment Drives Dashboard.
+    if (searchParams.get("tab") !== "actions") return;
+    const params = new URLSearchParams({ tab: "enrolment-drives", face: "followup" });
     const stateCode = searchParams.get("state") || defaultStateId || "";
     const issue = searchParams.get("issue") || "";
-    void run(async () => {
-      setActions((await api.actions()).data);
-      setMode("actions");
-      if (catalogue.permissions?.manage) {
-        setActionDraft(blankAction({ state_code: stateCode || undefined, issue: issue || undefined }));
-        setActionFiles([]);
-      }
-      setSearchParams({}, { replace: true });
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [catalogue, searchParams]);
+    if (stateCode) params.set("state", stateCode);
+    if (issue) params.set("issue", issue);
+    routerNavigate(`/zonal/dashboard?${params.toString()}`, { replace: true });
+  }, [searchParams, defaultStateId, routerNavigate]);
   const openBatch = async (id: string, preferredStep?: number) => {
     const response = await api.batch(id);
     const locked = ["awaiting_review", "endorsed", "submitted"].includes(response.data.status);
@@ -278,8 +257,6 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
   const navigate = (next: typeof mode) => run(async () => {
     setSearch(""); setShowCreate(false);
     if (next === "register") await refresh();
-    if (next === "actions") { setActions((await api.actions()).data); setActionDraft(null); }
-    if (next === "legacy") setHistorical((await api.legacy()).data);
     setMode(next);
   });
   const persistActivity = async (complete: boolean, clearAfter: boolean) => {
@@ -393,7 +370,80 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
   const monthOptions = Array.from({ length: 12 }, (_, index) => ({ value: String(index + 1), label: monthLabel(index + 1) }));
   const periodFiltered = batches.filter((row) => (filterYear === "all" || String(row.reporting_year) === filterYear) && (filterMonth === "all" || String(row.reporting_month) === filterMonth) && (filterState === "all" || row.state_code === filterState));
   const filteredBatches = periodFiltered.filter((row) => (filterStatus === "all" || row.status === filterStatus) && matchesSearch([row, stateName(row.state_code), monthLabel(row.reporting_month), statusLabel(row.status)]));
-  const listMode = ["register", "actions", "legacy"].includes(mode) && !showCreate && !actionDraft;
+  const registerColumns = React.useMemo<ColumnDef<any>[]>(
+    () => [
+      {
+        id: "period",
+        header: "Period",
+        accessorFn: (row) => `${monthLabel(row.reporting_month)} ${row.reporting_year}`,
+        cell: ({ row }) => (
+          <span className="text-sm font-semibold text-slate-900 whitespace-nowrap">
+            {monthLabel(row.original.reporting_month)} {row.original.reporting_year}
+          </span>
+        ),
+      },
+      {
+        id: "state",
+        header: "State",
+        accessorFn: (row) => stateName(row.state_code),
+        cell: ({ row }) => (
+          <span className="text-sm text-slate-700">{stateName(row.original.state_code)}</span>
+        ),
+      },
+      {
+        id: "quarter",
+        header: "Quarter",
+        accessorFn: (row) => `Q${quarterFromMonth(row.reporting_month)}`,
+        cell: ({ row }) => (
+          <span className="text-sm text-slate-500">Q{quarterFromMonth(row.original.reporting_month)}</span>
+        ),
+      },
+      {
+        id: "planned",
+        header: "Planned",
+        accessorFn: (row) => row.planned_activities ?? 0,
+        cell: ({ row }) => (
+          <span className="text-sm tabular-nums">{row.original.planned_activities ?? "—"}</span>
+        ),
+      },
+      {
+        id: "activities",
+        header: "Activities",
+        accessorFn: (row) => row.activity_count || 0,
+        cell: ({ row }) => (
+          <span className="text-sm font-semibold text-slate-900 tabular-nums">{row.original.activity_count || 0}</span>
+        ),
+      },
+      {
+        id: "status",
+        header: "Status",
+        accessorKey: "status",
+        cell: ({ row }) => <StatusBadge status={row.original.status} />,
+      },
+      {
+        id: "actions",
+        header: "Action",
+        enableSorting: false,
+        cell: ({ row }) => (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-8 gap-1.5 text-[#145c3f] hover:bg-[#eef6f1]"
+            disabled={busy}
+            onClick={(e) => {
+              e.stopPropagation();
+              void run(() => openBatch(row.original.reference_id));
+            }}
+          >
+            <Eye className="w-3.5 h-3.5" /> View
+          </Button>
+        ),
+      },
+    ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [catalogue, busy],
+  );
+  const listMode = mode === "register" && !showCreate;
   const handleBack = () => {
     if (link) {
       closeEnrolmentModal();
@@ -405,11 +455,10 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
       setBatchStep(batchStep - 1);
     }
     else if (mode === "batch") setMode("register");
-    else if (actionDraft) setActionDraft(null);
     else if (mode === "register") onBack();
     else void navigate("register");
   };
-  const pageTitle = showCreate ? "New Enrolment Drive Report" : mode === "actions" && actionDraft ? "Management Follow-up" : "Enrolment Drives";
+  const pageTitle = showCreate ? "New Enrolment Drive Report" : "Enrolment Drives";
   const existingPeriodBatch = React.useMemo(() => {
     if (!period.state_code || !period.reporting_year || !period.reporting_month) return null;
     return batches.find((row) =>
@@ -542,59 +591,98 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
                 {isExpanded && (
                   <TableRow className="hover:bg-transparent">
                     <TableCell colSpan={8} className="p-0">
-                      <div className="space-y-4 p-4 bg-[#f8fbf9] border-t border-[#e8f3ec]">
-                        <div>
-                          <p className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e] mb-2">Activity details</p>
-                          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                            <ReviewRow label="Drive Type" value={catalogue?.drive_types.find((t) => t.key === activity.drive_type)?.title || activity.drive_type} />
-                            <ReviewRow label="Category" value={activity.activity_category} />
-                            <ReviewRow label="Date" value={activity.activity_date} />
-                            <ReviewRow label="Specific activity" value={activity.specific_activity} />
-                            <ReviewRow label="Programmes" value={activity.programs_supported?.join(", ")} />
-                            <ReviewRow label="Status" value={activity.activity_status} />
-                            {activity.status_reason && <ReviewRow label="Reason" value={activity.status_reason} />}
-                          </div>
+                      <div className="border-t border-[#e8f3ec] bg-[#f4f7f5] p-3 md:p-4">
+                        <div className="overflow-hidden rounded-xl border border-[#d4e8dc] bg-white">
+                          <Table>
+                            <TableHeader>
+                              <TableRow className="bg-[#eef6f1] hover:bg-[#eef6f1]">
+                                <TableHead className="w-[220px] text-[11px] font-bold text-[#0f3d2e]">Field</TableHead>
+                                <TableHead className="text-[11px] font-bold text-[#0f3d2e]">Value</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {([
+                                {
+                                  title: "Activity details",
+                                  rows: [
+                                    ["Drive type", catalogue?.drive_types.find((t) => t.key === activity.drive_type)?.title || activity.drive_type],
+                                    ["Category", activity.activity_category],
+                                    ["Date", activity.activity_date],
+                                    ["Specific activity", activity.specific_activity],
+                                    ["Programmes", activity.programs_supported?.join(", ")],
+                                    ["Status", activity.activity_status],
+                                    ...(activity.status_reason ? [["Reason", activity.status_reason]] : []),
+                                    ...(activity.activity_details ? [["Description", activity.activity_details]] : []),
+                                  ],
+                                },
+                                {
+                                  title: "Audience & location reach",
+                                  rows: [
+                                    ["Location category", activity.location_category],
+                                    ["Location name", activity.location_name],
+                                    ["Exact location", activity.exact_location],
+                                    ["Target audience", activity.target_audience?.join(", ")],
+                                    ["Planned audience", activity.planned_target_audience != null ? formatCount(activity.planned_target_audience) : null],
+                                    ["Audience reached", activity.target_audience_reached != null ? formatCount(activity.target_audience_reached) : null],
+                                    ["Leads generated", activity.leads_generated != null ? formatCount(activity.leads_generated) : null],
+                                    ["New enrolments", activity.enrolment_count != null ? formatCount(activity.enrolment_count) : null],
+                                  ],
+                                },
+                                {
+                                  title: "Funding & evidence",
+                                  rows: [
+                                    ["Funding option", activity.funding_option],
+                                    ["Budget", activity.activity_budget ? `₦${formatAmount(activity.activity_budget)}` : null],
+                                    ["Approved amount", activity.approved_amount ? `₦${formatAmount(activity.approved_amount)}` : null],
+                                    ["Evidence type", activity.evidence_type],
+                                    ...(activity.remarks ? [["Remarks", activity.remarks]] : []),
+                                  ],
+                                },
+                              ] as { title: string; rows: [string, React.ReactNode][] }[]).map((section) => (
+                                <React.Fragment key={section.title}>
+                                  <TableRow className="hover:bg-transparent">
+                                    <TableCell
+                                      colSpan={2}
+                                      className="bg-[#e8f5ee] py-2 text-[11px] font-bold uppercase tracking-[0.06em] text-[#0f3d2e] border-y border-[#d4e8dc]"
+                                    >
+                                      {section.title}
+                                    </TableCell>
+                                  </TableRow>
+                                  {section.rows.map(([label, value]) => (
+                                    <TableRow key={`${section.title}-${label}`} className="hover:bg-[#f8fdfb]">
+                                      <TableCell className="align-top whitespace-nowrap text-xs font-semibold text-slate-500 bg-[#f8fbf9]">
+                                        {label}
+                                      </TableCell>
+                                      <TableCell className="align-top text-sm font-medium text-slate-800 whitespace-pre-wrap break-words">
+                                        {value == null || value === "" ? "—" : value}
+                                      </TableCell>
+                                    </TableRow>
+                                  ))}
+                                </React.Fragment>
+                              ))}
+                              {!!activity.evidence?.length && (
+                                <React.Fragment>
+                                  <TableRow className="hover:bg-transparent">
+                                    <TableCell
+                                      colSpan={2}
+                                      className="bg-[#e8f5ee] py-2 text-[11px] font-bold uppercase tracking-[0.06em] text-[#0f3d2e] border-y border-[#d4e8dc]"
+                                    >
+                                      Supporting evidence files
+                                    </TableCell>
+                                  </TableRow>
+                                  <TableRow className="hover:bg-[#f8fdfb]">
+                                    <TableCell className="align-top whitespace-nowrap text-xs font-semibold text-slate-500 bg-[#f8fbf9]">
+                                      Files
+                                    </TableCell>
+                                    <TableCell className="align-top">
+                                      <EvidenceFiles files={activity.evidence} />
+                                    </TableCell>
+                                  </TableRow>
+                                </React.Fragment>
+                              )}
+                            </TableBody>
+                          </Table>
                         </div>
-                        <div>
-                          <p className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e] mb-2">Audience & location reach</p>
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                            <ReviewRow label="Location category" value={activity.location_category} />
-                            <ReviewRow label="Location name" value={activity.location_name} />
-                            <ReviewRow label="Exact location" value={activity.exact_location} />
-                            <ReviewRow label="Target audience" value={activity.target_audience?.join(", ")} />
-                            <ReviewRow label="Planned audience" value={activity.planned_target_audience != null ? formatCount(activity.planned_target_audience) : null} />
-                            <ReviewRow label="Audience reached" value={activity.target_audience_reached != null ? formatCount(activity.target_audience_reached) : null} />
-                            <ReviewRow label="Leads generated" value={activity.leads_generated != null ? formatCount(activity.leads_generated) : null} />
-                            <ReviewRow label="New enrolments" value={activity.enrolment_count != null ? formatCount(activity.enrolment_count) : null} />
-                          </div>
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e] mb-2">Funding & evidence</p>
-                          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                            <ReviewRow label="Funding option" value={activity.funding_option} />
-                            {activity.activity_budget && <ReviewRow label="Budget" value={`₦${formatAmount(activity.activity_budget)}`} />}
-                            {activity.approved_amount && <ReviewRow label="Approved amount" value={`₦${formatAmount(activity.approved_amount)}`} />}
-                            <ReviewRow label="Evidence type" value={activity.evidence_type} />
-                          </div>
-                        </div>
-                        {activity.activity_details && (
-                          <div>
-                            <p className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e] mb-1">Activity details</p>
-                            <p className="text-sm text-slate-700 whitespace-pre-wrap">{activity.activity_details}</p>
-                          </div>
-                        )}
-                        {!!activity.evidence?.length && (
-                          <div>
-                            <p className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e] mb-1">Supporting evidence files</p>
-                            <EvidenceFiles files={activity.evidence} />
-                          </div>
-                        )}
-                        {activity.remarks && (
-                          <div>
-                            <p className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e] mb-1">Remarks</p>
-                            <p className="text-sm text-slate-700 whitespace-pre-wrap">{activity.remarks}</p>
-                          </div>
-                        )}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -681,60 +769,55 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
     );
   };
 
-  return <div className="flex flex-col h-full bg-[#f4f7f5]">
-    <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3.5 flex items-center justify-between sticky top-0 z-30 gap-3">
-      <div className="flex items-center gap-3 min-w-0">
-        <Button variant="ghost" size="icon" onClick={handleBack} className="rounded-full shrink-0" aria-label="Back"><ArrowLeft className="w-5 h-5" /></Button>
-        <div className="min-w-0"><h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">{pageTitle}</h2><p className="text-xs text-slate-500 truncate">{batch && ["batch", "activity", "view"].includes(mode) ? `${stateName(batch.state_code)} · ${monthLabel(batch.reporting_month)} ${batch.reporting_year} · ${statusLabel(batch.status)}` : permissions.review ? "Review and endorse enrolment drive reports" : "Record activities, register beneficiaries and submit reports"}</p></div>
-      </div>
-      <div className="flex items-center gap-2 shrink-0">
-        {mode === "view" && batch && (
-          <>
-            <StatusBadge status={batch.status} />
-            {canEdit && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-2 border-[#1a7a52] text-[#0f3d2e] hover:bg-[#eef6f1]"
-                onClick={() => { setBatchStep(1); setMode("batch"); }}
-              >
-                <Pencil className="w-4 h-4" /> {batch.status === "returned" ? "Edit & Resubmit" : "Edit Report"}
-              </Button>
-            )}
-          </>
-        )}
-        {(listMode || mode === "batch" || mode === "view") && (
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={busy || loading}
-            className="gap-2 border-[#d4e8dc]"
-            onClick={() => void run(async () => {
-              if (mode === "view" && batch) await openBatch(batch.reference_id);
-              else if (mode === "batch" && batch) await openBatch(batch.reference_id, batchStep);
-              else {
-                await refresh();
-                if (mode === "actions") setActions((await api.actions()).data);
-                if (mode === "legacy") setHistorical((await api.legacy()).data);
-              }
-            })}
-          >
-            <RefreshCw className={`w-4 h-4 ${busy ? "animate-spin" : ""}`} />Refresh
-          </Button>
-        )}
-        {mode === "register" && !showCreate && permissions.create && <Button disabled={busy} className={ACTION} onClick={() => setShowCreate(true)}><Plus className="w-4 h-4" />New Enrolment Drive Report</Button>}
-        {mode === "batch" && canEdit && batchStep === 1 && (
-          <Button variant="outline" size="sm" className="gap-2 border-[#d4e8dc] text-[#145c3f]" disabled={busy} onClick={() => void saveReportDraft()}>
-            <Save className="w-4 h-4" />Save Report Draft
-          </Button>
-        )}
-        {mode === "actions" && !actionDraft && permissions.manage && <Button className={ACTION} disabled={busy} onClick={() => { setActionDraft(blankAction()); setActionFiles([]); }}><Plus className="w-4 h-4" />Record Action</Button>}
-      </div>
-    </div>
-    {listMode && <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 sticky top-[57px] z-20"><div className="flex gap-0 overflow-x-auto -mb-px" role="tablist" aria-label="Enrolment Drive sections">
-      {[{ key: "register", label: "Enrolment Drives", icon: ClipboardList }, { key: "actions", label: "Management Follow-up", icon: Users }, { key: "legacy", label: "Historical Activities", icon: History }].map(({ key, label, icon: Icon }) => <button key={key} type="button" role="tab" aria-selected={mode === key} disabled={busy} onClick={() => void navigate(key as typeof mode)} className={`group relative shrink-0 inline-flex items-center gap-2 px-4 py-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors outline-none focus-visible:bg-[#f4f7f5] ${mode === key ? "border-[#145c3f] text-[#145c3f]" : "border-transparent text-slate-500 hover:text-[#0f3d2e] hover:border-[#c5ddd0]"}`}><Icon className={`h-4 w-4 shrink-0 ${mode === key ? "text-[#145c3f]" : "text-slate-400 group-hover:text-[#145c3f]"}`} />{label}{key === "register" && <span className={`inline-flex min-w-[1.25rem] h-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold tabular-nums ${mode === key ? "bg-[#e8f6ee] text-[#145c3f]" : "bg-slate-100 text-slate-500"}`}>{batches.length}</span>}</button>)}
-    </div></div>}
-    <ScrollArea className="flex-1"><div className="w-full px-4 md:px-6 py-4 space-y-4 pb-8">
+  return (
+    <PageLayout
+      title={pageTitle}
+      onBack={listMode ? undefined : handleBack}
+      actions={
+        <>
+          {mode === "view" && batch && (
+            <>
+              <StatusBadge status={batch.status} />
+              {canEdit && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2 border-[#1a7a52] text-[#0f3d2e] hover:bg-[#eef6f1]"
+                  onClick={() => { setBatchStep(1); setMode("batch"); }}
+                >
+                  <Pencil className="w-4 h-4" /> {batch.status === "returned" ? "Edit & Resubmit" : "Edit Report"}
+                </Button>
+              )}
+            </>
+          )}
+          {(listMode || mode === "batch" || mode === "view") && (
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={busy || loading}
+              className="gap-2 border-[#d4e8dc]"
+              onClick={() => void run(async () => {
+                if (mode === "view" && batch) await openBatch(batch.reference_id);
+                else if (mode === "batch" && batch) await openBatch(batch.reference_id, batchStep);
+                else {
+                  await refresh();
+                }
+              })}
+            >
+              <RefreshCw className={`w-4 h-4 ${busy ? "animate-spin" : ""}`} />Refresh
+            </Button>
+          )}
+          {mode === "register" && !showCreate && permissions.create && <Button disabled={busy} className={ACTION} onClick={() => setShowCreate(true)}><Plus className="w-4 h-4" />New Enrolment Drive Report</Button>}
+          {mode === "batch" && canEdit && batchStep === 1 && (
+            <Button variant="outline" size="sm" className="gap-2 border-[#d4e8dc] text-[#145c3f]" disabled={busy} onClick={() => void saveReportDraft()}>
+              <Save className="w-4 h-4" />Save Report Draft
+            </Button>
+          )}
+        </>
+      }
+      contentClassName="space-y-4 pb-8"
+    >
+      <div className="w-full space-y-4">
     {error && <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700" role="alert">{error}</div>}
     {loading ? <div className="flex items-center justify-center py-16 gap-3 text-slate-400"><Loader2 className="w-5 h-5 animate-spin" /><span className="text-sm">Loading reports...</span></div> : !catalogue ? <Button onClick={() => void run(async () => { await refresh(); })}>Retry</Button> : <>
       {mode === "register" && <>
@@ -846,18 +929,80 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
             {[{ label: "Total", count: periodFiltered.length, tone: "text-[#0f3d2e] bg-white border-[#d4e8dc]" }, { label: "Draft / Returned", count: periodFiltered.filter((row) => ["draft", "returned"].includes(row.status)).length, tone: "text-slate-600 bg-white border-slate-200" }, { label: "Awaiting review", count: periodFiltered.filter((row) => row.status === "awaiting_review").length, tone: "text-amber-800 bg-amber-50/80 border-amber-100" }, { label: "Endorsed", count: periodFiltered.filter((row) => row.status === "endorsed").length, tone: "text-teal-800 bg-teal-50/80 border-teal-100" }, { label: "Submitted", count: periodFiltered.filter((row) => row.status === "submitted").length, tone: "text-emerald-700 bg-emerald-50/80 border-emerald-100" }].map((item) => <div className={`rounded-xl border px-4 py-3 ${item.tone}`} key={item.label}><p className="text-2xl font-bold tabular-nums">{item.count}</p><p className="text-[11px] font-semibold text-slate-500 mt-0.5">{item.label}</p></div>)}
           </div>
-          <div className="flex flex-wrap items-center gap-3 rounded-xl border border-[#d4e8dc] bg-white px-4 py-4">
-            {catalogue.states.length > 1 && <div className="flex-1 min-w-[150px]"><Dropdown value={filterState} onChange={setFilterState} options={[{ value: "all", label: "All States" }, ...stateOptions]} /></div>}
-            <div className="flex-1 min-w-[130px]"><Dropdown value={filterYear} onChange={setFilterYear} options={[{ value: "all", label: "All Years" }, ...yearOptions.map((value) => ({ value, label: value }))]} /></div>
-            <div className="flex-1 min-w-[130px]"><Dropdown value={filterMonth} onChange={setFilterMonth} options={[{ value: "all", label: "All Months" }, ...monthOptions]} /></div>
-            <div className="flex-1 min-w-[150px]"><Dropdown value={filterStatus} onChange={setFilterStatus} options={[{ value: "all", label: "All Statuses" }, ...Object.keys(STATUS_TONES).map((value) => ({ value, label: statusLabel(value) }))]} /></div>
-          </div>
-          {searchInput}
-          <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden"><CardHeader className="pb-3 border-b border-[#d4e8dc]"><CardTitle className="text-sm font-bold">{filteredBatches.length} report{filteredBatches.length !== 1 ? "s" : ""}</CardTitle></CardHeader><CardContent className="p-0">
-            {filteredBatches.length ? <div className="overflow-x-auto"><Table><TableHeader><TableRow className="bg-[#f0fdf7] hover:bg-[#f0fdf7]">{["Period", "State", "Quarter", "Planned", "Activities", "Status", "Action"].map((label) => <TableHead key={label} className={`text-xs font-bold text-slate-600 whitespace-nowrap ${label === "Action" ? "text-right" : ""}`}>{label}</TableHead>)}</TableRow></TableHeader><TableBody>
-              {filteredBatches.map((row) => <TableRow key={row.reference_id} className="hover:bg-[#f8fdfb] border-b border-[#e8f3ec] last:border-0"><TableCell className="text-sm font-semibold text-[#0f3d2e] whitespace-nowrap">{monthLabel(row.reporting_month)} {row.reporting_year}</TableCell><TableCell className="text-sm text-slate-700">{stateName(row.state_code)}</TableCell><TableCell className="text-sm text-slate-500">Q{quarterFromMonth(row.reporting_month)}</TableCell><TableCell className="text-sm tabular-nums">{row.planned_activities ?? "—"}</TableCell><TableCell className="text-sm font-semibold text-[#145c3f] tabular-nums">{row.activity_count || 0}</TableCell><TableCell><StatusBadge status={row.status} /></TableCell><TableCell className="text-right"><Button size="sm" variant="ghost" className="h-8 gap-1.5 text-[#145c3f] hover:bg-[#eef6f1]" disabled={busy} onClick={() => void run(() => openBatch(row.reference_id))}><Eye className="w-3.5 h-3.5" />View</Button></TableCell></TableRow>)}
-            </TableBody></Table></div> : <div className="flex flex-col items-center justify-center py-16 gap-2 text-slate-400"><FileText className="w-8 h-8 opacity-30" /><p className="text-sm font-medium">No reports found for these filters.</p></div>}
-          </CardContent></Card>
+          <Card className="rounded-2xl border-[#d4e8dc]">
+            <CardContent className="pt-4 pb-4 grid grid-flow-col auto-cols-fr gap-3">
+              {catalogue.states.length > 1 && (
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">State</Label>
+                  <Select value={filterState} onValueChange={setFilterState}>
+                    <SelectTrigger displayValue={filterState === "all" ? "All States" : (stateOptions.find((s) => s.value === filterState)?.label || "State")}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All States</SelectItem>
+                      {stateOptions.map((s) => (
+                        <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Year</Label>
+                <Select value={filterYear} onValueChange={setFilterYear}>
+                  <SelectTrigger displayValue={filterYear === "all" ? "All Years" : filterYear}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Years</SelectItem>
+                    {yearOptions.map((y) => (
+                      <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Month</Label>
+                <Select value={filterMonth} onValueChange={setFilterMonth}>
+                  <SelectTrigger displayValue={filterMonth === "all" ? "All Months" : monthLabel(filterMonth)}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Months</SelectItem>
+                    {monthOptions.map((m) => (
+                      <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Status</Label>
+                <Select value={filterStatus} onValueChange={setFilterStatus}>
+                  <SelectTrigger displayValue={filterStatus === "all" ? "All Statuses" : statusLabel(filterStatus)}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    {Object.keys(STATUS_TONES).map((value) => (
+                      <SelectItem key={value} value={value}>{statusLabel(value)}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
+          <ShadcnDataTable
+            title="ENROLMENT DRIVES REGISTER"
+            infoTooltip="Enrolment drive reports by period, state, and submission status."
+            columns={registerColumns}
+            data={filteredBatches}
+            loading={loading}
+            searchPlaceholder="Search enrolment drive reports..."
+            emptyMessage="No reports found for these filters."
+            onRowClick={(row) => { if (!busy) void run(() => openBatch(row.reference_id)); }}
+            pageSize={50}
+            showTableOptions={false}
+          />
         </>}
       </>}
       {mode === "view" && batch && (
@@ -1226,104 +1371,151 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
         {batchStep === 1 && !canEdit && activityTable()}
         {batchStep === 2 && (() => {
           const activities = batch.activities || [];
-          const enrolledTotal = activities.reduce((sum, activity) => sum + Number(activity.enrolment_count || 0), 0);
           const driveTitle = (key: string) => catalogue?.drive_types.find((type) => type.key === key)?.title || key || "Activity";
+          const statusTone = (status?: string) => {
+            if (status === "Completed") return "bg-emerald-100 text-emerald-800 border-emerald-200";
+            if (status === "In Progress") return "bg-sky-100 text-sky-800 border-sky-200";
+            if (status === "Delayed") return "bg-amber-100 text-amber-800 border-amber-200";
+            if (status === "Cancelled") return "bg-rose-100 text-rose-700 border-rose-200";
+            return "bg-slate-100 text-slate-600 border-slate-200";
+          };
           return (
             <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden">
-              <div className="flex flex-wrap items-center justify-between gap-3 bg-[#e8f5ee] px-4 py-3 border-b border-[#d4e8dc]">
-                <div>
-                  <h3 className="text-sm font-bold text-[#0f3d2e]">Register beneficiaries</h3>
-                  <p className="text-xs text-slate-600 mt-0.5">
-                    Choose an activity, then enter how many people were enrolled from it.
-                  </p>
+              <div className="relative overflow-hidden border-b border-[#d4e8dc] bg-gradient-to-r from-[#e8f5ee] via-[#f3faf6] to-white px-5 py-5">
+                <div className="flex items-start gap-3 min-w-0">
+                  <div className="mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#145c3f] text-white shadow-sm">
+                    <Users className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="text-lg font-bold tracking-tight text-[#0f3d2e]">Register beneficiaries</h3>
+                    <p className="mt-1 text-sm text-slate-600 max-w-xl">
+                      Pick an activity below and record how many people were enrolled from it.
+                    </p>
+                  </div>
                 </div>
-                <p className="text-xs font-semibold text-[#145c3f]">
-                  {formatCount(enrolledTotal)} enrolled so far · {activities.length} activit{activities.length === 1 ? "y" : "ies"}
-                </p>
               </div>
-              <CardContent className="p-4 space-y-3">
+
+              <CardContent className="p-4 md:p-5 space-y-4 bg-[#f7faf8]">
                 {activities.length === 0 ? (
-                  <div className="rounded-xl border border-dashed border-[#d4e8dc] bg-[#f8fbf9] px-4 py-8 text-center">
-                    <p className="text-sm font-medium text-slate-600">No activities to enrol against yet.</p>
-                    <Button className={`${ACTION} mt-3`} onClick={() => void goToBatchStep(1)}>
+                  <div className="rounded-2xl border border-dashed border-[#cfe6d8] bg-white px-6 py-14 text-center">
+                    <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[#e8f5ee] text-[#145c3f]">
+                      <ClipboardList className="h-6 w-6" />
+                    </div>
+                    <p className="text-sm font-semibold text-[#0f3d2e]">No activities to enrol against yet</p>
+                    <p className="mt-1 text-sm text-slate-500">Go back and add at least one activity first.</p>
+                    <Button className={`${ACTION} mt-4`} onClick={() => void goToBatchStep(1)}>
                       <ArrowLeft className="w-4 h-4 mr-2" />Back to activities
                     </Button>
                   </div>
                 ) : (
-                  activities.map((activity) => {
-                    const enrolled = Number(activity.enrolment_count || 0);
-                    const canRegister = canEdit && (activity.programs_supported?.length || 0) > 0;
-                    return (
-                      <div key={activity.reference_id} className="rounded-xl border border-[#d4e8dc] bg-white p-4 space-y-3">
-                        <div className="flex flex-wrap items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="text-sm font-bold text-[#0f3d2e]">
-                              {activity.activity_category || "Untitled activity"}
-                            </p>
-                            <p className="text-xs text-slate-500 mt-0.5">
-                              {driveTitle(activity.drive_type)}
-                              {activity.activity_date ? ` · ${activity.activity_date}` : ""}
-                              {activity.specific_activity ? ` · ${activity.specific_activity}` : ""}
-                            </p>
-                          </div>
-                          <Badge
-                            variant="outline"
-                            className={`text-[10px] px-2 py-0.5 border shrink-0 ${activity.activity_status === "Completed" ? STATUS_TONES.submitted : STATUS_TONES.draft}`}
-                          >
-                            {activity.activity_status || "Draft"}
-                          </Badge>
-                        </div>
-
-                        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-[#f8fbf9] border border-[#e8f3ec] px-3 py-2.5">
-                          <div>
-                            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Linked enrolments</p>
-                            <p className="text-xl font-bold tabular-nums text-[#0f3d2e]">{formatCount(enrolled)}</p>
-                          </div>
-                          {canRegister ? (
-                            <Button
-                              className={ACTION}
-                              disabled={busy}
-                              onClick={() => openEnrolmentModal(activity)}
-                            >
-                              <Users className="w-4 h-4 mr-2" />
-                              {enrolled > 0 ? "Add more enrolments" : "Register beneficiaries"}
-                            </Button>
-                          ) : !canEdit ? (
-                            <p className="text-xs text-slate-500">View only</p>
-                          ) : (
-                            <p className="text-xs text-amber-700">Add programmes on the activity first</p>
-                          )}
-                        </div>
-
-                        {!!activity.enrolment_records?.length && (
-                          <div className="space-y-1.5">
-                            {activity.enrolment_records.map((record) => (
-                              <div
-                                key={record.reference_id}
-                                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[#eef3ef] px-3 py-2 text-xs"
-                              >
-                                <p className="text-slate-600">
-                                  <span className="font-semibold text-[#0f3d2e]">{record.enrolment_count}</span>
-                                  {" beneficiaries · "}
-                                  {statusLabel(record.status)}
+                  <div className="grid gap-4">
+                    {activities.map((activity, index) => {
+                      const enrolled = Number(activity.enrolment_count || 0);
+                      const canRegister = canEdit && (activity.programs_supported?.length || 0) > 0;
+                      return (
+                        <div
+                          key={activity.reference_id}
+                          className="rounded-2xl border border-[#d4e8dc] bg-white p-4 md:p-5 shadow-sm hover:border-[#a8d4bc] hover:shadow-md transition-all"
+                        >
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div className="flex items-start gap-3 min-w-0">
+                              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#eef6f1] text-sm font-bold text-[#145c3f]">
+                                {String(index + 1).padStart(2, "0")}
+                              </div>
+                              <div className="min-w-0">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <h4 className="text-base font-bold text-[#0f3d2e]">
+                                    {activity.activity_category || "Untitled activity"}
+                                  </h4>
+                                  <Badge className={cn("text-[10px] px-2 py-0.5 border font-semibold", statusTone(activity.activity_status))}>
+                                    {activity.activity_status || "Draft"}
+                                  </Badge>
+                                </div>
+                                <p className="mt-1 text-xs text-slate-500 leading-relaxed">
+                                  <span className="font-medium text-slate-600">{driveTitle(activity.drive_type)}</span>
+                                  {activity.activity_date ? ` · ${activity.activity_date}` : ""}
+                                  {activity.specific_activity ? ` · ${activity.specific_activity}` : ""}
                                 </p>
-                                {canEdit && record.status === "draft" && (
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    className="h-7 text-[#145c3f]"
-                                    onClick={() => openEnrolmentModal(activity, record.reference_id)}
-                                  >
-                                    Resume draft
-                                  </Button>
+                                {!!activity.programs_supported?.length && (
+                                  <div className="mt-2 flex flex-wrap gap-1.5">
+                                    {activity.programs_supported.slice(0, 4).map((program) => (
+                                      <span key={program} className="rounded-full bg-[#f0f7f3] px-2 py-0.5 text-[10px] font-semibold text-[#145c3f]">
+                                        {program}
+                                      </span>
+                                    ))}
+                                    {activity.programs_supported.length > 4 && (
+                                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">
+                                        +{activity.programs_supported.length - 4}
+                                      </span>
+                                    )}
+                                  </div>
                                 )}
                               </div>
-                            ))}
+                            </div>
                           </div>
-                        )}
-                      </div>
-                    );
-                  })
+
+                          <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-[#e8f3ec] bg-[#f8fbf9] p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4">
+                            <div className="flex items-center gap-3">
+                              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white border border-[#d4e8dc] shadow-sm">
+                                <Users className="h-5 w-5 text-[#145c3f]" />
+                              </div>
+                              <div>
+                                <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-400">Linked enrolments</p>
+                                <p className="text-2xl font-bold tabular-nums text-[#0f3d2e] leading-none mt-1">{formatCount(enrolled)}</p>
+                              </div>
+                            </div>
+                            {canRegister ? (
+                              <Button
+                                className={`${ACTION} h-11 px-5 text-sm`}
+                                disabled={busy}
+                                onClick={() => openEnrolmentModal(activity)}
+                              >
+                                <Users className="w-4 h-4" />
+                                {enrolled > 0 ? "Add more enrolments" : "Register beneficiaries"}
+                              </Button>
+                            ) : !canEdit ? (
+                              <Badge variant="outline" className="border-slate-200 text-slate-500">View only</Badge>
+                            ) : (
+                              <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">
+                                Add programmes on the activity first
+                              </div>
+                            )}
+                          </div>
+
+                          {!!activity.enrolment_records?.length && (
+                            <div className="mt-3 space-y-2">
+                              <p className="text-[11px] font-bold uppercase tracking-wide text-slate-400 px-0.5">Enrolment records</p>
+                              {activity.enrolment_records.map((record) => (
+                                <div
+                                  key={record.reference_id}
+                                  className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[#eef3ef] bg-white px-3.5 py-2.5"
+                                >
+                                  <div className="flex items-center gap-2 text-sm">
+                                    <span className="inline-flex h-7 min-w-7 items-center justify-center rounded-lg bg-[#eef6f1] px-2 text-xs font-bold tabular-nums text-[#145c3f]">
+                                      {record.enrolment_count}
+                                    </span>
+                                    <span className="text-slate-600">
+                                      beneficiaries · <span className="font-medium text-slate-800">{statusLabel(record.status)}</span>
+                                    </span>
+                                  </div>
+                                  {canEdit && record.status === "draft" && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="h-8 border-[#d4e8dc] text-[#145c3f]"
+                                      onClick={() => openEnrolmentModal(activity, record.reference_id)}
+                                    >
+                                      Resume draft
+                                    </Button>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
                 )}
               </CardContent>
             </Card>
@@ -1462,42 +1654,8 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
           {batchStep < 3 && <Button className={ACTION} disabled={busy || (batchStep === 1 && !batch.activities?.length)} onClick={() => void goToBatchStep(batchStep + 1)}>{batchStep === 1 ? "Register beneficiaries" : batchStep === 2 ? "Review & endorse" : "Continue"}<ArrowRight className="w-4 h-4" /></Button>}
         </div>
       </>}
-      {mode === "actions" && <>
-        {actionDraft && <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-visible"><CardContent className="p-4 md:p-5"><Section title={actionDraft.reference_id || "New management action"}>
-          <Field label="State" required><Dropdown value={actionDraft.state_code} options={stateOptions} disabled={!!actionDraft.reference_id} onChange={(value) => setActionDraft({ ...actionDraft, state_code: value })} /></Field>
-          <Field label="Reporting month" required><Dropdown value={actionDraft.reporting_month} options={monthOptions} disabled={!!actionDraft.reference_id} onChange={(value) => setActionDraft({ ...actionDraft, reporting_month: value })} /></Field>
-          <Field label="Reporting year" required><Input type="number" min={2000} max={2100} disabled={!!actionDraft.reference_id} value={actionDraft.reporting_year} onChange={(event) => setActionDraft({ ...actionDraft, reporting_year: event.target.value })} /></Field>
-          <Field label="Source dashboard" required><Input value={actionDraft.source_dashboard} disabled={!permissions.manage} onChange={(event) => setActionDraft({ ...actionDraft, source_dashboard: event.target.value })} /></Field>
-          <Field label="Issue" required className="sm:col-span-2"><textarea className={inputClass} value={actionDraft.issue} disabled={!permissions.manage} onChange={(event) => setActionDraft({ ...actionDraft, issue: event.target.value })} /></Field>
-          <Field label="Agreed action" required className="sm:col-span-2"><textarea className={inputClass} value={actionDraft.agreed_action} disabled={!permissions.manage} onChange={(event) => setActionDraft({ ...actionDraft, agreed_action: event.target.value })} /></Field>
-          <Field label="Accountable owner" required>{catalogue.owners?.length ? <Dropdown value={String(actionDraft.owner_user_id || "")} options={catalogue.owners.filter((owner) => !owner.state_code || owner.state_code === actionDraft.state_code).map((owner) => ({ value: String(owner.id), label: owner.name }))} disabled={!permissions.manage} onChange={(value) => setActionDraft({ ...actionDraft, owner_user_id: value, accountable_owner: catalogue.owners?.find((owner) => String(owner.id) === value)?.name || "" })} /> : <Input value={actionDraft.accountable_owner} disabled={!permissions.manage} onChange={(event) => setActionDraft({ ...actionDraft, accountable_owner: event.target.value })} />}</Field>
-          <Field label="Due date" required><Input type="date" value={actionDraft.deadline} disabled={!permissions.manage} onChange={(event) => setActionDraft({ ...actionDraft, deadline: event.target.value })} /></Field>
-          <Field label="Status" required><Dropdown value={actionDraft.status} options={["Open", "In progress", "Closed"]} onChange={(value) => setActionDraft({ ...actionDraft, status: value })} /></Field>
-          <Field label="Outcome / closure explanation"><textarea className={inputClass} value={actionDraft.outcome} onChange={(event) => setActionDraft({ ...actionDraft, outcome: event.target.value })} /></Field>
-          <Field label="Evidence type"><Dropdown value={actionEvidenceType} options={catalogue.evidence_types} onChange={setActionEvidenceType} /></Field><Field label="Action evidence"><Input type="file" multiple onChange={(event) => setActionFiles(Array.from(event.target.files || []))} /></Field>
-          <div className="sm:col-span-2"><EvidenceFiles files={actionDraft.evidence || []} /></div>
-          <div className="flex justify-end gap-2 sm:col-span-2"><Button variant="ghost" onClick={() => setActionDraft(null)}>Cancel</Button><Button className={ACTION} disabled={busy} onClick={() => void run(async () => {
-            let id = actionDraft.reference_id;
-            if (actionFiles.length && actionDraft.status === "Closed" && !id) throw new Error("Save the action as Open, then upload closure evidence");
-            if (!id || actionDraft.status !== "Closed") { const response = await api.saveAction(id, actionDraft); id = response.data.reference_id; setActionDraft({ ...actionDraft, reference_id: id }); }
-            if (actionFiles.length && id) { await api.evidence("actions", id, actionEvidenceType, actionFiles); setActionFiles([]); }
-            if (actionDraft.status === "Closed") await api.saveAction(id, actionDraft);
-            setActions((await api.actions()).data); setActionDraft(null); toast.success("Management action saved");
-          })}>Save action</Button></div>
-        </Section></CardContent></Card>}
-        {!actionDraft && <>{searchInput}<Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden"><CardHeader className="pb-3 border-b border-[#d4e8dc]"><CardTitle className="text-sm font-bold">Management actions</CardTitle></CardHeader><CardContent className="p-0"><div className="overflow-x-auto"><Table><TableHeader><TableRow className="bg-[#f0fdf7] hover:bg-[#f0fdf7]">{["Issue / Agreed action", "State", "Owner", "Due date", "Status", "Closed", "Action"].map((label) => <TableHead className={`text-xs font-bold text-slate-600 whitespace-nowrap ${label === "Action" ? "text-right" : ""}`} key={label}>{label}</TableHead>)}</TableRow></TableHeader><TableBody>
-          {actions.filter((action) => matchesSearch([action, stateName(action.state_code)])).map((action) => <TableRow key={action.reference_id} className="hover:bg-[#f8fdfb] border-b border-[#e8f3ec] last:border-0"><TableCell className="min-w-[220px] space-y-1"><p className="text-sm font-semibold text-[#0f3d2e]">{action.issue}</p><p className="text-xs text-slate-500">{action.agreed_action}</p>{action.outcome && <p className="text-xs text-slate-600">{action.outcome}</p>}<p className="text-[10px] text-slate-400 font-mono">{action.reference_id}</p><EvidenceFiles files={action.evidence || []} /></TableCell><TableCell className="text-sm whitespace-nowrap">{stateName(action.state_code)}</TableCell><TableCell className="text-sm">{action.accountable_owner}</TableCell><TableCell className="text-xs whitespace-nowrap">{action.deadline}</TableCell><TableCell><Badge className={`text-[10px] border ${action.status === "Closed" ? STATUS_TONES.submitted : action.status === "In progress" ? STATUS_TONES.awaiting_review : STATUS_TONES.draft}`}>{action.status}</Badge></TableCell><TableCell className="text-xs whitespace-nowrap">{action.closure_date ? new Date(action.closure_date).toLocaleDateString() : "—"}</TableCell><TableCell className="text-right">{action.can_update && <Button size="sm" variant="ghost" className="h-8 gap-1.5 text-[#145c3f] hover:bg-[#eef6f1]" onClick={() => { setActionDraft({ ...action, owner_user_id: String(action.owner_user_id || "") }); setActionFiles([]); }}><Pencil className="w-3.5 h-3.5" />Update</Button>}</TableCell></TableRow>)}
-        </TableBody></Table></div>{!actions.filter((action) => matchesSearch([action, stateName(action.state_code)])).length && <div className="py-16 text-center text-sm text-slate-400">No management actions found.</div>}</CardContent></Card></>}
-      </>}
-      {mode === "legacy" && <>
-        {permissions.create && <Card className="rounded-2xl border-[#d4e8dc] shadow-sm"><CardContent className="p-4"><Field label="Add historical activities to report"><Dropdown value={batch?.reference_id || ""} placeholder="Select reporting period" options={batches.filter((row) => editable(row)).map((row) => ({ value: row.reference_id, label: `${stateName(row.state_code)} · ${monthLabel(row.reporting_month)} ${row.reporting_year}` }))} onChange={(value) => void run(async () => { const response = await api.batch(value); setBatch(response.data); })} /></Field></CardContent></Card>}
-        {searchInput}
-        <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden"><CardHeader className="pb-3 border-b border-[#d4e8dc]"><CardTitle className="text-sm font-bold">Historical activities</CardTitle></CardHeader><CardContent className="p-0"><div className="overflow-x-auto"><Table><TableHeader><TableRow className="bg-[#f0fdf7] hover:bg-[#f0fdf7]">{["Period", "State", "Activity", "Reported enrolments", "Evidence", "Action"].map((label) => <TableHead className={`text-xs font-bold text-slate-600 whitespace-nowrap ${label === "Action" ? "text-right" : ""}`} key={label}>{label}</TableHead>)}</TableRow></TableHeader><TableBody>
-          {historical.filter((activity) => matchesSearch([activity, stateName(activity.state_code), monthLabel(activity.reporting_month)])).map((activity) => <TableRow key={activity.reference_id} className="hover:bg-[#f8fdfb] border-b border-[#e8f3ec] last:border-0"><TableCell className="text-sm font-semibold text-[#0f3d2e] whitespace-nowrap">{monthLabel(activity.reporting_month)} {activity.reporting_year}</TableCell><TableCell className="text-sm whitespace-nowrap">{stateName(activity.state_code)}</TableCell><TableCell><p className="text-sm font-medium">{activity.activity_category}</p><p className="text-[10px] font-mono text-slate-400">{activity.reference_id}</p></TableCell><TableCell className="text-sm font-semibold text-[#145c3f] tabular-nums">{activity.enrolment_count ?? activity.new_enrolments ?? "—"}</TableCell><TableCell><EvidenceFiles files={activity.evidence || []} /></TableCell><TableCell className="text-right">{canEdit && batch && batch.state_code === activity.state_code && Number(batch.reporting_year) === Number(activity.reporting_year) && Number(batch.reporting_month) === Number(activity.reporting_month) && <Button disabled={busy} variant="ghost" size="sm" className="h-8 gap-1.5 text-[#145c3f] hover:bg-[#eef6f1]" onClick={() => void run(async () => { await api.attachLegacy(batch.reference_id, activity.reference_id); setHistorical((await api.legacy()).data); setBatch((await api.batch(batch.reference_id)).data); toast.success("Activity added to the report"); })}><Plus className="w-3.5 h-3.5" />Add to report</Button>}</TableCell></TableRow>)}
-        </TableBody></Table></div>{!historical.filter((activity) => matchesSearch([activity, stateName(activity.state_code), monthLabel(activity.reporting_month)])).length && <div className="py-16 text-center text-sm text-slate-400">No historical activities found.</div>}</CardContent></Card>
-      </>}
     </>}
-    </div></ScrollArea>
+    </div>
 
     <Dialog open={Boolean(link?.reference_id && batch)} onOpenChange={(open) => { if (!open) closeEnrolmentModal(); }}>
       <DialogContent
@@ -1530,5 +1688,6 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
         </div>
       </DialogContent>
     </Dialog>
-  </div>;
+  </PageLayout>
+  );
 }

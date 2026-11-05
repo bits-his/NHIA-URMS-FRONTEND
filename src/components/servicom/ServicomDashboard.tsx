@@ -25,6 +25,8 @@ import { servicomApi } from "@/lib/api";
 import { zonesApi, statesApi } from "@/lib/adminApi";
 import { DashKpi, DashChartCard } from "@/components/dashboard/dashboardUi";
 import DashboardDrillPanel from "@/components/dashboard/DashboardDrillPanel";
+import PageLayout from "../PageLayout";
+import { UnderHeaderNavTabs } from "@/src/components/UnderHeaderNavTabs";
 import { useDashboardDrill } from "@/components/dashboard/useDashboardDrill";
 import { satisfactionCategoryLabel } from "./servicomSurveyConstants";
 import ComplaintRegisterDashboard from "./ComplaintRegisterDashboard";
@@ -75,11 +77,11 @@ function Filter({ label, children }: { label: string; children: React.ReactNode 
   );
 }
 
-function SectionTitle({ title, note }: { title: string; note: string }) {
+function SectionTitle({ title, note }: { title: string; note?: string }) {
   return (
-    <div className="border-b border-[#d4e8dc] pb-2">
-      <h2 className="text-base font-semibold text-slate-900">{title}</h2>
-      <p className="text-xs text-slate-500 mt-0.5">{note}</p>
+    <div className="border-b border-[#d4e8dc] pb-1.5 mb-2">
+      <h2 className="text-sm font-bold text-slate-900 tracking-tight">{title}</h2>
+      {note && <p className="text-xs text-slate-500 mt-0.5">{note}</p>}
     </div>
   );
 }
@@ -227,209 +229,136 @@ export default function ServicomDashboard({ onBack, defaultStateId, defaultZoneI
     : (states.find((s) => String(s.code) === filterState)?.description || filterState);
 
   return (
-    <div className="flex flex-col h-full bg-slate-50/40">
-      {/* 1. Master Header */}
-      <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sticky top-0 z-30">
-        <div className="flex items-center gap-3 min-w-0">
-          {onBack && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={onBack}
-              className="rounded-sm hover:bg-[#e8f5ee] text-slate-700"
-              aria-label="Back"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
+    <PageLayout
+      title="SERVICOM Dashboard"
+      showBack={false}
+      maxWidth="full"
+      actions={
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => { void load(); void loadSurveys(); }}
+          disabled={loading || surveysLoading}
+          className="h-8.5 gap-1.5 border border-slate-300 text-slate-700 bg-white hover:bg-[#f4f7f5] text-xs font-bold rounded-sm shadow-2xs"
+        >
+          <RefreshCw className={`w-3.5 h-3.5 ${loading || surveysLoading ? "animate-spin" : ""}`} />
+          <span>Sync</span>
+        </Button>
+      }
+      tabs={
+        <UnderHeaderNavTabs
+          tabs={[
+            {
+              id: "comment-card",
+              label: "Citizens' Comment Card",
+              icon: FileText,
+              count: data?.comment_cards ?? data?.meta?.counts?.comment_cards ?? 0,
+            },
+            {
+              id: "complaints",
+              label: "Complaints Dashboard",
+              icon: MessageSquare,
+              count: data?.complaints_received ?? data?.meta?.counts?.complaints ?? 0,
+            },
+            {
+              id: "satisfaction",
+              label: "Customer Satisfaction Survey",
+              icon: Smile,
+              count: surveys.length,
+            },
+          ]}
+          activeTab={activeTab}
+          onChange={(id) => setActiveTab(id as any)}
+          ariaLabel="SERVICOM Dashboard Sections"
+        />
+      }
+      contentClassName="space-y-4 pb-6"
+    >
+      {/* Shared Filter Bar — applies to Comment Card tab (Complaints & Satisfaction have their own internal filters) */}
+      {activeTab === "comment-card" && (
+        <div className="flex flex-wrap items-end gap-3 px-0 pb-0">
+          <Filter label="Reporting year">
+            <Select value={year} onValueChange={setYear}>
+              <SelectTrigger className="h-8.5 text-xs rounded-sm border-[#d4e8dc] min-w-[110px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {YEARS.map((y) => (
+                  <SelectItem key={y} value={y}>{y === "all" ? "All years" : y}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Filter>
+          <Filter label="Quarter">
+            <Select value={quarter} onValueChange={setQuarter}>
+              <SelectTrigger className="h-8.5 text-xs rounded-sm border-[#d4e8dc] min-w-[110px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All quarters</SelectItem>
+                <SelectItem value="1">Q1</SelectItem>
+                <SelectItem value="2">Q2</SelectItem>
+                <SelectItem value="3">Q3</SelectItem>
+                <SelectItem value="4">Q4</SelectItem>
+              </SelectContent>
+            </Select>
+          </Filter>
+          {!zoneLocked && !stateLocked && (
+            <Filter label="Location">
+              <Select
+                value={locationLevel}
+                onValueChange={(v: "all" | "hq" | "zone" | "state") => {
+                  setLocationLevel(v);
+                  if (v === "hq" || v === "all") {
+                    setFilterZone("all");
+                    setFilterState("all");
+                  }
+                  if (v === "zone") setFilterState("all");
+                }}
+              >
+                <SelectTrigger className="h-8.5 text-xs rounded-sm border-[#d4e8dc] min-w-[120px]"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All locations</SelectItem>
+                  <SelectItem value="hq">HQ</SelectItem>
+                  <SelectItem value="zone">Zone</SelectItem>
+                  <SelectItem value="state">State</SelectItem>
+                </SelectContent>
+              </Select>
+            </Filter>
           )}
-          <div className="min-w-0">
-            <h1 className="text-xl font-black tracking-tight text-slate-900 truncate">
-              SERVICOM Dashboard
-            </h1>
-            <p className="text-xs text-slate-500 truncate">
-              Unified service delivery intelligence across Customer Satisfaction Surveys, Complaints Management &amp; Citizens' Comment Cards
-            </p>
-          </div>
+          {!stateLocked && locationLevel !== "hq" && (
+            <Filter label="Zone">
+              <Select
+                value={filterZone}
+                onValueChange={(v) => { setFilterZone(v); setFilterState("all"); }}
+                disabled={zoneLocked}
+              >
+                <SelectTrigger className="h-8.5 text-xs rounded-sm border-[#d4e8dc] min-w-[130px]" displayValue={zoneLabel}><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All zones</SelectItem>
+                  {zones.map((z) => (
+                    <SelectItem key={z.zonal_code} value={String(z.zonal_code)}>{z.description}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Filter>
+          )}
+          {locationLevel !== "hq" && (
+            <Filter label="State">
+              <Select value={filterState} onValueChange={setFilterState} disabled={stateLocked}>
+                <SelectTrigger className="h-8.5 text-xs rounded-sm border-[#d4e8dc] min-w-[130px]" displayValue={stateLabel}><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All states</SelectItem>
+                  {states.map((s) => (
+                    <SelectItem key={s.code} value={String(s.code)}>{s.description}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Filter>
+          )}
         </div>
+      )}
 
-        <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => { void load(); void loadSurveys(); }}
-            disabled={loading || surveysLoading}
-            className="h-8.5 gap-1.5 border border-slate-300 text-slate-700 bg-white hover:bg-[#f4f7f5] text-xs font-bold rounded-sm shadow-2xs"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading || surveysLoading ? "animate-spin" : ""}`} />
-            <span>Sync</span>
-          </Button>
-        </div>
-      </div>
-
-      {/* 2. Unified Tab Navigation Bar (in sidebar order: Citizens' Comment Card, Complaints, Satisfaction Survey) */}
-      <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 sticky top-[57px] z-20">
-        <div className="flex gap-4 overflow-x-auto -mb-px" role="tablist">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === "comment-card"}
-            onClick={() => setActiveTab("comment-card")}
-            className={`group relative shrink-0 inline-flex items-center gap-2 px-3.5 py-3 text-xs font-bold whitespace-nowrap border-b-2 transition-all outline-none ${
-              activeTab === "comment-card"
-                ? "border-[#145c3f] text-[#145c3f]"
-                : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300"
-            }`}
-          >
-            <FileText className="size-4 shrink-0" />
-            <span>Citizens' Comment Card</span>
-            <span
-              className={`inline-flex min-w-[1.25rem] h-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold tabular-nums ${
-                activeTab === "comment-card"
-                  ? "bg-[#e8f6ee] text-[#145c3f]"
-                  : "bg-slate-100 text-slate-500 group-hover:bg-slate-200"
-              }`}
-            >
-              {data?.comment_cards ?? data?.meta?.counts?.comment_cards ?? 0}
-            </span>
-          </button>
-
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === "complaints"}
-            onClick={() => setActiveTab("complaints")}
-            className={`group relative shrink-0 inline-flex items-center gap-2 px-3.5 py-3 text-xs font-bold whitespace-nowrap border-b-2 transition-all outline-none ${
-              activeTab === "complaints"
-                ? "border-[#145c3f] text-[#145c3f]"
-                : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300"
-            }`}
-          >
-            <MessageSquare className="size-4 shrink-0" />
-            <span>Complaints Dashboard</span>
-            <span
-              className={`inline-flex min-w-[1.25rem] h-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold tabular-nums ${
-                activeTab === "complaints"
-                  ? "bg-[#e8f6ee] text-[#145c3f]"
-                  : "bg-slate-100 text-slate-500 group-hover:bg-slate-200"
-              }`}
-            >
-              {data?.complaints_received ?? data?.meta?.counts?.complaints ?? 0}
-            </span>
-          </button>
-
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === "satisfaction"}
-            onClick={() => setActiveTab("satisfaction")}
-            className={`group relative shrink-0 inline-flex items-center gap-2 px-3.5 py-3 text-xs font-bold whitespace-nowrap border-b-2 transition-all outline-none ${
-              activeTab === "satisfaction"
-                ? "border-[#145c3f] text-[#145c3f]"
-                : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300"
-            }`}
-          >
-            <Smile className="size-4 shrink-0" />
-            <span>Customer Satisfaction Survey</span>
-            <span
-              className={`inline-flex min-w-[1.25rem] h-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold tabular-nums ${
-                activeTab === "satisfaction"
-                  ? "bg-[#e8f6ee] text-[#145c3f]"
-                  : "bg-slate-100 text-slate-500 group-hover:bg-slate-200"
-              }`}
-            >
-              {surveys.length}
-            </span>
-          </button>
-        </div>
-      </div>
-
-      {/* 3. Main Body Content */}
-      <ScrollArea className="flex-1">
-        <div className="w-full px-4 md:px-6 py-5 max-w-7xl mx-auto space-y-6">
+      <div className="w-full space-y-4">
           {/* TAB 1: Citizens' Comment Card */}
           {activeTab === "comment-card" && (
             <div className="space-y-6">
-              {/* Comment Card Filter Bar */}
-              <div className="bg-white border border-slate-200/80 rounded-sm p-3 shadow-xs">
-                <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3">
-                  <Filter label="Reporting year">
-                    <Select value={year} onValueChange={setYear}>
-                      <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {YEARS.map((y) => (
-                          <SelectItem key={y} value={y}>{y === "all" ? "All years" : y}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </Filter>
-                  <Filter label="Reporting period">
-                    <Select value={quarter} onValueChange={setQuarter}>
-                      <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All quarters</SelectItem>
-                        <SelectItem value="1">Q1</SelectItem>
-                        <SelectItem value="2">Q2</SelectItem>
-                        <SelectItem value="3">Q3</SelectItem>
-                        <SelectItem value="4">Q4</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </Filter>
-                  {!zoneLocked && !stateLocked && (
-                    <Filter label="Location">
-                      <Select
-                        value={locationLevel}
-                        onValueChange={(v: "all" | "hq" | "zone" | "state") => {
-                          setLocationLevel(v);
-                          if (v === "hq" || v === "all") {
-                            setFilterZone("all");
-                            setFilterState("all");
-                          }
-                          if (v === "zone") setFilterState("all");
-                        }}
-                      >
-                        <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All locations</SelectItem>
-                          <SelectItem value="hq">HQ</SelectItem>
-                          <SelectItem value="zone">Zone</SelectItem>
-                          <SelectItem value="state">State</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </Filter>
-                  )}
-                  {!stateLocked && locationLevel !== "hq" && (
-                    <Filter label="Zone">
-                      <Select
-                        value={filterZone}
-                        onValueChange={(v) => { setFilterZone(v); setFilterState("all"); }}
-                        disabled={zoneLocked}
-                      >
-                        <SelectTrigger className="h-9" displayValue={zoneLabel}><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All zones</SelectItem>
-                          {zones.map((z) => (
-                            <SelectItem key={z.zonal_code} value={String(z.zonal_code)}>{z.description}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </Filter>
-                  )}
-                  {locationLevel !== "hq" && (
-                    <Filter label="State">
-                      <Select value={filterState} onValueChange={setFilterState} disabled={stateLocked}>
-                        <SelectTrigger className="h-9" displayValue={stateLabel}><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All states</SelectItem>
-                          {states.map((s) => (
-                            <SelectItem key={s.code} value={String(s.code)}>{s.description}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </Filter>
-                  )}
-                </div>
-              </div>
-
               {loading ? (
                 <div className="flex items-center justify-center py-24 gap-3 text-slate-400">
                   <Loader2 className="w-5 h-5 animate-spin" /> Loading Citizens' Comment Card analytics…
@@ -438,10 +367,7 @@ export default function ServicomDashboard({ onBack, defaultStateId, defaultZoneI
                 <div className="space-y-6">
                   {/* Citizens' Comment Card */}
                   <section className="space-y-4">
-                    <SectionTitle
-                      title="Citizens' Comment Card"
-                      note="Filters: reporting period (Q1–Q4) and location (HQ / Zone / State). Reception and overall use the 1–5 scale."
-                    />
+                    <SectionTitle title="Citizens' Comment Card" />
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-stretch">
                       <DashKpi
                         label="Count of responses"
@@ -513,6 +439,7 @@ export default function ServicomDashboard({ onBack, defaultStateId, defaultZoneI
               defaultStateId={defaultStateId}
               defaultZoneId={defaultZoneId}
               lockLocation={!!(defaultStateId || defaultZoneId)}
+              embedded
             />
           )}
 
@@ -531,7 +458,6 @@ export default function ServicomDashboard({ onBack, defaultStateId, defaultZoneI
             />
           )}
         </div>
-      </ScrollArea>
 
       <DashboardDrillPanel
         open={drill.open}
@@ -543,7 +469,7 @@ export default function ServicomDashboard({ onBack, defaultStateId, defaultZoneI
         onRowClick={drill.handleNestedRow}
         onStatClick={drill.handleStatClick}
       />
-    </div>
+    </PageLayout>
   );
 }
 
@@ -736,11 +662,11 @@ function StateComparePanel({
   className?: string;
 }) {
   return (
-    <div className={`grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch ${className}`}>
-      <div className="rounded-xl border border-[#d4e8dc] bg-white p-4 space-y-3">
+    <div className={`grid grid-cols-1 md:grid-cols-2 gap-3.5 items-stretch ${className}`}>
+      <div className="rounded-lg border border-[#d4e8dc] bg-white p-3.5 space-y-3 shadow-2xs">
         <div className="flex items-center gap-2">
           <TrendingUp className="w-4 h-4 text-[#145c3f]" />
-          <p className="text-sm font-semibold text-slate-800">Top performing states</p>
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-800">Top performing states</p>
         </div>
         {topStates.length === 0 ? (
           <ChartEmpty message="No ranked states yet." />
@@ -757,15 +683,15 @@ function StateComparePanel({
               <XAxis dataKey="name" tick={{ fontSize: 10 }} interval={0} angle={-20} textAnchor="end" height={48} />
               <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} />
               <Tooltip />
-              <Bar dataKey="score" fill="#1a7a52" radius={[4, 4, 0, 0]} maxBarSize={32} />
+              <Bar dataKey="score" fill="#1a7a52" radius={[3, 3, 0, 0]} maxBarSize={32} />
             </BarChart>
           </ResponsiveContainer>
         )}
       </div>
-      <div className="rounded-xl border border-rose-200 bg-rose-50/40 p-4 space-y-3">
+      <div className="rounded-lg border border-rose-200 bg-rose-50/40 p-3.5 space-y-3 shadow-2xs">
         <div className="flex items-center gap-2">
           <TrendingDown className="w-4 h-4 text-rose-700" />
-          <p className="text-sm font-semibold text-slate-800">Priority states (corrective action)</p>
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-800">Priority states (corrective action)</p>
         </div>
         {lowStates.length === 0 ? (
           <p className="text-xs text-slate-500 py-8 text-center">No low-performing states in this period.</p>

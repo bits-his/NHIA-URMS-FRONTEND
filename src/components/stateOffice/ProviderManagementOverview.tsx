@@ -123,9 +123,9 @@ function AccentKpi({
     <Comp
       type={onClick ? "button" : undefined}
       onClick={onClick}
-      className={`h-full min-h-[108px] rounded-xl border border-slate-200 border-l-4 ${border} bg-white p-4 flex flex-col text-left transition-shadow ${
-        onClick ? "hover:shadow-sm cursor-pointer" : ""
-      } ${active ? "ring-2 ring-teal-600/30" : ""}`}
+      className={`h-full min-h-[96px] rounded-lg border border-[#d4e8dc] border-l-4 ${border} bg-white p-3.5 flex flex-col text-left transition-shadow shadow-2xs ${
+        onClick ? "hover:border-[#145c3f] hover:shadow-xs cursor-pointer" : ""
+      } ${active ? "ring-2 ring-[#145c3f]/30" : ""}`}
     >
       <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 leading-tight min-h-[28px]">{label}</p>
       <p className="mt-1 text-2xl font-semibold tabular-nums text-slate-900 leading-tight">{value}</p>
@@ -463,10 +463,10 @@ export default function ProviderManagementOverview(props: OverviewProps) {
               </ResponsiveContainer>
             )}
           </DashChartCard>
-          <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
-            <div className="px-4 py-3 border-b border-slate-100">
-              <p className="text-sm font-semibold text-slate-800">Priority areas for attention</p>
-              <p className="text-xs text-slate-500 mt-0.5">Operational signals from the activity register</p>
+          <div className="rounded-lg border border-[#d4e8dc] bg-white overflow-hidden shadow-2xs">
+            <div className="px-3.5 py-2.5 border-b border-slate-100">
+              <p className="text-xs font-bold uppercase tracking-wider text-slate-800">Priority areas for attention</p>
+              <p className="text-[11px] text-slate-500 mt-0.5">Operational signals from the activity register</p>
             </div>
             <Table>
               <TableHeader>
@@ -481,9 +481,9 @@ export default function ProviderManagementOverview(props: OverviewProps) {
                   <TableRow><TableCell colSpan={3} className="text-sm text-slate-400 text-center py-8">No priority signals</TableCell></TableRow>
                 ) : priorities.slice(0, 6).map((p: any) => (
                   <TableRow key={p.area}>
-                    <TableCell className="text-sm font-medium">{p.area}</TableCell>
-                    <TableCell className="text-sm">{p.signal}</TableCell>
-                    <TableCell className="text-sm text-slate-600">{p.focus}</TableCell>
+                    <TableCell className="text-xs font-medium">{p.area}</TableCell>
+                    <TableCell className="text-xs">{p.signal}</TableCell>
+                    <TableCell className="text-xs text-slate-600">{p.focus}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -495,18 +495,18 @@ export default function ProviderManagementOverview(props: OverviewProps) {
   );
 
   const actionPanel = level === 4 ? (
-    <div className="rounded-xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
-      <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500 mb-2">Executive decisions</p>
-      <p className="text-sm text-slate-700 leading-relaxed">
+    <div className="rounded-lg border border-[#d4e8dc] bg-white px-4 py-3 shadow-2xs">
+      <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Executive decisions</p>
+      <p className="text-xs text-slate-700 leading-relaxed">
         {actionQueue[0]
           || "Direct follow-up by programme and activity; request time-bound improvement plans from zones; monitor accreditation and re-accreditation separately."}
       </p>
     </div>
   ) : (
-    <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
-      <div className="flex items-center gap-2 mb-3">
+    <div className="rounded-lg border border-[#d4e8dc] bg-slate-50/60 p-4">
+      <div className="flex items-center gap-2 mb-2">
         <AlertTriangle className="w-4 h-4 text-amber-600" />
-        <p className="text-sm font-bold uppercase tracking-wide text-slate-800">
+        <p className="text-xs font-bold uppercase tracking-wider text-slate-800">
           {level === 1 ? "State action queue" : level === 2 ? "Zonal follow-up" : "National exceptions"}
         </p>
       </div>
@@ -599,23 +599,23 @@ export default function ProviderManagementOverview(props: OverviewProps) {
                 type="button"
                 aria-pressed={openCard === c.id}
                 onClick={() => setOpenCard(c.id)}
-                className={`rounded-2xl border bg-white p-4 text-left ${openCard === c.id ? "border-teal-300 shadow-sm" : "border-slate-200"}`}
+                className={`rounded-lg border bg-white p-3.5 text-left shadow-2xs transition-all ${openCard === c.id ? "border-[#145c3f] ring-1 ring-[#145c3f]" : "border-[#d4e8dc] hover:border-slate-300"}`}
               >
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{c.label}</p>
-                <p className="mt-1 text-2xl font-semibold tabular-nums text-slate-900">{c.value}</p>
+                <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">{c.label}</p>
+                <p className="mt-1 text-2xl font-black tabular-nums text-slate-900">{c.value}</p>
                 <p className="mt-1 text-xs text-slate-500">{c.detail}</p>
               </button>
             ))}
           </div>
           {openCard === "queue" ? actionPanel : (
-            <div className="grid lg:grid-cols-2 gap-4">
+            <div className="grid lg:grid-cols-2 gap-3.5">
               {activityChart}
               {statusChart}
             </div>
           )}
         </div>
       ) : design === "ledger" ? (
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+        <div className="overflow-hidden rounded-lg border border-[#d4e8dc] bg-white shadow-2xs">
           <table className="w-full text-sm">
             <thead className="bg-slate-50">
               <tr>

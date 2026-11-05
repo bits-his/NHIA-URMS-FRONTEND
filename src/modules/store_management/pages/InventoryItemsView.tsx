@@ -1,15 +1,23 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import type { ColumnDef } from "@tanstack/react-table";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { stockApi } from "@/lib/api";
-import CustomTable, { CustomTableField } from "@/components/CustomTable";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
-import { AlertTriangle, CheckCircle2, Eye, Package, PackagePlus, PackageX, Search } from "lucide-react";
-import PageLayout from "../components/PageLayout";
+import { Eye, PackagePlus, RefreshCw, XCircle } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { matchesStore, storeNameFromState } from "../lib/storeOptions";
+import { ShadcnDataTable } from "@/components/common/ShadcnDataTable";
 
 type Option = { id: string | number; label: string };
 type StockKey = "in" | "low" | "out";
+
+interface Props {
+  embedded?: boolean;
+  refreshSignal?: number;
+}
 
 function stockTone(item: any): { key: StockKey; label: string; className: string } {
   const qty = Number(item.quantityInStock || 0);
@@ -37,36 +45,34 @@ function sameStore(itemStore: string | null | undefined, selected: string) {
   return selectedWords.some((word) => itemWords.includes(word));
 }
 
-export default function InventoryItemsView() {
+export default function InventoryItemsView({ embedded = false, refreshSignal = 0 }: Props) {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const zoneFilter = searchParams.get("zone") || "";
   const stateFilter = searchParams.get("state") || "";
   const statusFilter = (searchParams.get("status") || "") as "" | StockKey;
-  const q = searchParams.get("q") || "";
+  const [query, setQuery] = useState(searchParams.get("q") || "");
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [zones, setZones] = useState<Option[]>([]);
   const [states, setStates] = useState<Option[]>([]);
   const [statesReady, setStatesReady] = useState(!zoneFilter);
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        setLoading(true);
-        const res = await stockApi.getInventoryItems();
-        if (!cancelled) setItems(Array.isArray(res.data) ? res.data : []);
-      } catch {
-        if (!cancelled) setItems([]);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
+  const loadItems = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await stockApi.getInventoryItems();
+      setItems(Array.isArray(res.data) ? res.data : []);
+    } catch {
+      setItems([]);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    loadItems();
+  }, [loadItems, refreshSignal]);
 
   useEffect(() => {
     stockApi.getZones().then((r) => setZones((r.data || []).map((z: any) => ({ id: z.id, label: z.description })))).catch(() => {});
@@ -128,18 +134,18 @@ export default function InventoryItemsView() {
           names.some((name) => sameStore(item.storeLocation, name)),
       );
     }
-    const query = q.trim().toLowerCase();
-    if (query) {
+    const q = query.trim().toLowerCase();
+    if (q) {
       list = list.filter((item) =>
         [item.itemCode, item.name, item.category, item.storeLocation, item.unitOfMeasure]
           .filter(Boolean)
           .join(" ")
           .toLowerCase()
-          .includes(query)
+          .includes(q)
       );
     }
     return list;
-  }, [items, storeLabel, selectedState, stateFilter, zoneFilter, statesReady, states, q]);
+  }, [items, storeLabel, selectedState, stateFilter, zoneFilter, statesReady, states, query]);
 
   const counts = useMemo(() => {
     const next = { total: located.length, in: 0, low: 0, out: 0 };
@@ -152,194 +158,223 @@ export default function InventoryItemsView() {
     return located.filter((item) => stockTone(item).key === statusFilter);
   }, [located, statusFilter]);
 
-  const kpis = [
-    { key: "" as const, label: "Total", value: counts.total, icon: <Package className="w-3.5 h-3.5 text-[#25a872]" />, accent: "border-[#d4e8dc] bg-white" },
-    { key: "in" as const, label: "In stock", value: counts.in, icon: <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />, accent: "border-emerald-200 bg-emerald-50/50" },
-    { key: "low" as const, label: "Low stock", value: counts.low, icon: <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />, accent: "border-amber-200 bg-amber-50/50" },
-    { key: "out" as const, label: "Out of stock", value: counts.out, icon: <PackageX className="w-3.5 h-3.5 text-rose-600" />, accent: "border-rose-200 bg-rose-50/50" },
+  const resetFilters = () => {
+    setQuery("");
+    setParams({ zone: "", state: "", status: "", q: "" });
+  };
+
+  const hasActiveFilters = Boolean(zoneFilter || stateFilter || statusFilter || query);
+
+  const statCards = [
+    { key: "" as const, label: "Total", value: counts.total, tone: "text-[#0f3d2e] bg-white border-[#d4e8dc]", onClick: () => setParams({ status: "" }) },
+    { key: "in" as const, label: "In stock", value: counts.in, tone: "text-emerald-700 bg-emerald-50/80 border-emerald-100", onClick: () => setParams({ status: statusFilter === "in" ? "" : "in" }) },
+    { key: "low" as const, label: "Low stock", value: counts.low, tone: "text-amber-800 bg-amber-50/80 border-amber-100", onClick: () => setParams({ status: statusFilter === "low" ? "" : "low" }) },
+    { key: "out" as const, label: "Out of stock", value: counts.out, tone: "text-rose-800 bg-rose-50/80 border-rose-100", onClick: () => setParams({ status: statusFilter === "out" ? "" : "out" }) },
   ];
 
-  const fields: CustomTableField[] = [
-    {
-      title: "Code",
-      value: "itemCode",
-      custom: true,
-      component: (item) => (
-        <span className="font-mono text-xs font-semibold text-[#145c3f]" translate="no">
-          {item.itemCode}
-        </span>
-      ),
-    },
-    {
-      title: "Item",
-      value: "name",
-      className: "min-w-[180px]",
-      custom: true,
-      component: (item) => (
-        <div className="min-w-0">
-          <p className="font-medium text-slate-900">{item.name}</p>
-          <p className="text-[11px] text-slate-600">{[item.category, item.unitOfMeasure].filter(Boolean).join(" · ") || "—"}</p>
-        </div>
-      ),
-    },
-    {
-      title: "Store",
-      value: "storeLocation",
-      custom: true,
-      component: (item) => <span className="text-slate-800">{item.storeLocation || "—"}</span>,
-    },
-    {
-      title: "Qty",
-      value: "quantityInStock",
-      custom: true,
-      component: (item) => (
-        <span className="font-mono font-semibold tabular-nums text-slate-900">{item.quantityInStock ?? 0}</span>
-      ),
-    },
-    {
-      title: "Status",
-      value: "status",
-      custom: true,
-      component: (item) => {
-        const tone = stockTone(item);
-        return (
-          <span className={`inline-flex rounded-md px-2 py-0.5 text-[11px] font-semibold ${tone.className}`}>
-            {tone.label}
+  const columns = useMemo<ColumnDef<any>[]>(
+    () => [
+      {
+        id: "code",
+        header: "Code",
+        accessorKey: "itemCode",
+        cell: ({ row }) => (
+          <span className="font-mono text-xs font-semibold text-[#145c3f]" translate="no">
+            {row.original.itemCode}
           </span>
-        );
+        ),
       },
-    },
-    {
-      title: "",
-      value: "id",
-      custom: true,
-      component: (item) => (
-        <Button
-          size="sm"
-          variant="outline"
-          aria-label={`View ${item.name || "item"}`}
-          className="h-7 px-2 text-[11px] font-semibold border-[#d4e8dc] text-[#145c3f] hover:bg-[#e8f5ee]"
-          onClick={() => navigate(`/store-management/inventory/items/${item.id}`)}
-        >
-          <Eye className="w-3.5 h-3.5 mr-1" aria-hidden="true" /> View
-        </Button>
-      ),
-    },
-  ];
+      {
+        id: "item",
+        header: "Item",
+        accessorKey: "name",
+        cell: ({ row }) => (
+          <div className="min-w-0">
+            <p className="font-medium text-slate-900">{row.original.name}</p>
+            <p className="text-[11px] text-slate-600">
+              {[row.original.category, row.original.unitOfMeasure].filter(Boolean).join(" · ") || "—"}
+            </p>
+          </div>
+        ),
+      },
+      {
+        id: "store",
+        header: "Store",
+        accessorKey: "storeLocation",
+        cell: ({ row }) => <span className="text-slate-800">{row.original.storeLocation || "—"}</span>,
+      },
+      {
+        id: "qty",
+        header: "Qty",
+        accessorKey: "quantityInStock",
+        cell: ({ row }) => (
+          <span className="font-mono font-semibold tabular-nums text-slate-900">{row.original.quantityInStock ?? 0}</span>
+        ),
+      },
+      {
+        id: "status",
+        header: "Status",
+        cell: ({ row }) => {
+          const tone = stockTone(row.original);
+          return (
+            <span className={`inline-flex rounded-md px-2 py-0.5 text-[11px] font-semibold ${tone.className}`}>
+              {tone.label}
+            </span>
+          );
+        },
+      },
+      {
+        id: "view",
+        header: "View",
+        enableSorting: false,
+        cell: ({ row }) => (
+          <Button
+            size="sm"
+            variant="outline"
+            aria-label={`View ${row.original.name || "item"}`}
+            className="h-7 px-2 text-[11px] font-semibold border-[#d4e8dc] text-[#145c3f] hover:bg-[#e8f5ee]"
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(`/store-management/inventory/items/${row.original.id}`);
+            }}
+          >
+            <Eye className="w-3.5 h-3.5 mr-1" aria-hidden="true" /> View
+          </Button>
+        ),
+      },
+    ],
+    [navigate],
+  );
+
+  const listBody = (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {statCards.map((c) => (
+          <button
+            key={c.label}
+            type="button"
+            onClick={c.onClick}
+            className={`rounded-xl border px-4 py-3 text-left transition-shadow ${c.tone} ${
+              statusFilter === c.key || (!statusFilter && c.key === "") ? "ring-2 ring-[#1a7a52] ring-offset-1" : ""
+            }`}
+          >
+            <p className="text-2xl font-bold tabular-nums">{loading ? "—" : c.value}</p>
+            <p className="text-[11px] font-semibold text-slate-500 mt-0.5">{c.label}</p>
+          </button>
+        ))}
+      </div>
+
+      <Card className="rounded-2xl border-[#d4e8dc]">
+        <CardContent className="pt-4 pb-4 space-y-3">
+          <div className="grid grid-flow-col auto-cols-fr gap-3">
+            <div className="space-y-1 min-w-0">
+              <Label className="text-xs text-muted-foreground">Zone</Label>
+              <Select value={zoneFilter || "ALL"} onValueChange={(val) => setParams({ zone: val === "ALL" ? "" : val, state: "" })}>
+                <SelectTrigger displayValue={zones.find((z) => String(z.id) === zoneFilter)?.label || "All zones"}>
+                  <SelectValue placeholder="All zones" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">All zones</SelectItem>
+                  {zones.map((z) => (
+                    <SelectItem key={z.id} value={String(z.id)}>{z.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1 min-w-0">
+              <Label className="text-xs text-muted-foreground">State store</Label>
+              <Select
+                value={stateFilter || "ALL"}
+                disabled={!zoneFilter}
+                onValueChange={(val) => setParams({ state: val === "ALL" ? "" : val })}
+              >
+                <SelectTrigger
+                  displayValue={
+                    !zoneFilter
+                      ? "Select zone first"
+                      : states.find((s) => String(s.id) === stateFilter)
+                        ? storeNameFromState(states.find((s) => String(s.id) === stateFilter)?.label)
+                        : "All state stores"
+                  }
+                >
+                  <SelectValue placeholder="All state stores" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">All state stores</SelectItem>
+                  {states.map((s) => (
+                    <SelectItem key={s.id} value={String(s.id)}>{storeNameFromState(s.label)}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1 min-w-0">
+              <Label className="text-xs text-muted-foreground">Status</Label>
+              <Select value={statusFilter || "ALL"} onValueChange={(val) => setParams({ status: val === "ALL" ? "" : val })}>
+                <SelectTrigger
+                  displayValue={
+                    statusFilter === "in" ? "In stock" : statusFilter === "low" ? "Low stock" : statusFilter === "out" ? "Out of stock" : "All statuses"
+                  }
+                >
+                  <SelectValue placeholder="All statuses" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">All statuses</SelectItem>
+                  <SelectItem value="in">In stock</SelectItem>
+                  <SelectItem value="low">Low stock</SelectItem>
+                  <SelectItem value="out">Out of stock</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          {hasActiveFilters && (
+            <div className="flex justify-end">
+              <Button variant="ghost" size="sm" className="text-slate-500 gap-1 shrink-0" onClick={resetFilters}>
+                <XCircle className="w-3.5 h-3.5" /> Clear
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <ShadcnDataTable
+        title="INVENTORY REGISTER"
+        columns={columns}
+        data={filtered}
+        loading={loading}
+        searchPlaceholder="Search code, item, store…"
+        searchValue={query}
+        onSearchChange={setQuery}
+        emptyMessage="No stock matches these filters"
+        onRowClick={(item) => navigate(`/store-management/inventory/items/${item.id}`)}
+        pageSize={50}
+        showTableOptions={false}
+      />
+    </div>
+  );
+
+  if (embedded) {
+    return listBody;
+  }
 
   return (
-    <PageLayout
-      title="Inventory Register"
-      description="Store stock on the register"
-      actions={
-        <Button
-          size="sm"
-          className="bg-[#145c3f] hover:bg-[#0f3d2e] text-white text-xs h-8 font-semibold"
-          onClick={() => navigate("/store-management/inventory/items/new")}
-        >
-          <PackagePlus className="w-3.5 h-3.5 mr-1.5" aria-hidden="true" /> Add stock
-        </Button>
-      }
-      contentClassName="gap-3"
-    >
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
-        {kpis.map((kpi) => {
-          const active = statusFilter === kpi.key || (!statusFilter && kpi.key === "");
-          return (
-            <button
-              key={kpi.label}
-              type="button"
-              onClick={() => setParams({ status: kpi.key })}
-              className={`rounded-lg border px-3 py-2 flex items-center gap-2.5 text-left ${kpi.accent} ${active ? "ring-2 ring-[#145c3f] ring-offset-1" : ""}`}
-            >
-              {kpi.icon}
-              <div className="min-w-0">
-                <p className="text-lg font-bold text-slate-800 tabular-nums leading-none">{kpi.value}</p>
-                <p className="text-[10px] font-medium text-slate-500 mt-0.5 truncate">{kpi.label}</p>
-              </div>
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="rounded-lg border border-[#d4e8dc] bg-white p-2">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-1.5 items-center">
-          <div className="relative min-w-0 col-span-2 lg:col-span-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#5a7a6a] pointer-events-none" aria-hidden="true" />
-            <input
-              id="inv-search"
-              type="search"
-              value={q}
-              onChange={(e) => setParams({ q: e.target.value })}
-              placeholder="Search code, item, store…"
-              aria-label="Search inventory"
-              className="h-9 w-full min-w-0 rounded-lg border-2 border-[#1a7a52] bg-[#f4f7f5] pl-9 pr-3 text-xs text-slate-900 placeholder:text-slate-400 outline-none hover:bg-white focus-visible:bg-white focus-visible:ring-3 focus-visible:ring-[#1a7a52]/25"
-            />
-          </div>
-          <Select value={zoneFilter || "ALL"} onValueChange={(val) => setParams({ zone: val === "ALL" ? "" : val, state: "" })}>
-            <SelectTrigger id="inv-zone" size="sm" displayValue={zones.find((z) => String(z.id) === zoneFilter)?.label || "All zones"}>
-              <SelectValue placeholder="All zones" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">All zones</SelectItem>
-              {zones.map((z) => (
-                <SelectItem key={z.id} value={String(z.id)}>{z.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select
-            value={stateFilter || "ALL"}
-            disabled={!zoneFilter}
-            onValueChange={(val) => setParams({ state: val === "ALL" ? "" : val })}
+    <div className="flex flex-col h-full bg-[#f4f7f5]">
+      <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3.5 flex items-center justify-between sticky top-0 z-30 gap-3">
+        <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">Inventory Register</h2>
+        <div className="flex items-center gap-2 shrink-0">
+          <Button variant="outline" size="sm" onClick={loadItems} disabled={loading} className="gap-2 border-[#d4e8dc]">
+            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
+          </Button>
+          <Button
+            className="bg-orange-action hover:bg-orange-600 gap-2 shadow-md shadow-orange-500/15"
+            onClick={() => navigate("/store-management/inventory/items/new")}
           >
-            <SelectTrigger
-              id="inv-state"
-              size="sm"
-              displayValue={
-                !zoneFilter
-                  ? "Select zone first"
-                  : states.find((s) => String(s.id) === stateFilter)
-                    ? storeNameFromState(states.find((s) => String(s.id) === stateFilter)?.label)
-                    : "All state stores"
-              }
-            >
-              <SelectValue placeholder="All state stores" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">All state stores</SelectItem>
-              {states.map((s) => (
-                <SelectItem key={s.id} value={String(s.id)}>{storeNameFromState(s.label)}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={statusFilter || "ALL"} onValueChange={(val) => setParams({ status: val === "ALL" ? "" : val })}>
-            <SelectTrigger
-              id="inv-status"
-              size="sm"
-              displayValue={statusFilter === "in" ? "In stock" : statusFilter === "low" ? "Low stock" : statusFilter === "out" ? "Out of stock" : "All statuses"}
-            >
-              <SelectValue placeholder="All statuses" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">All statuses</SelectItem>
-              <SelectItem value="in">In stock</SelectItem>
-              <SelectItem value="low">Low stock</SelectItem>
-              <SelectItem value="out">Out of stock</SelectItem>
-            </SelectContent>
-          </Select>
+            <PackagePlus className="w-4 h-4" /> Add stock
+          </Button>
         </div>
       </div>
-
-      <div className="min-w-0 w-full flex-1">
-        <CustomTable
-          data={filtered}
-          fields={fields}
-          filter={false}
-          loading={loading}
-          pageSize={15}
-          message="No stock matches these filters"
-        />
-      </div>
-    </PageLayout>
+      <ScrollArea className="flex-1">
+        <div className="w-full px-4 md:px-6 py-5">{listBody}</div>
+      </ScrollArea>
+    </div>
   );
 }

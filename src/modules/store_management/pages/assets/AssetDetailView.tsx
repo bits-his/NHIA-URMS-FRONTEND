@@ -186,11 +186,7 @@ export function AssetDetailView() {
 
   return (
     <PageLayout
-      title={
-        <span className="flex items-center gap-2">
-          <ShieldCheck className="w-5 h-5 text-[#25a872]" /> Asset Master Profile
-        </span>
-      }
+      title="Asset Master Profile"
       description={`Master Register record for ${tag}`}
       actions={
         <div className="flex items-center gap-2">
