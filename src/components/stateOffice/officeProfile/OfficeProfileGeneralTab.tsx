@@ -304,7 +304,7 @@ export default function OfficeProfileGeneralTab({
         {/* ROW 4: ENROLMENT TARGET, ANNUAL BUDGET, ANNUAL OPERATIONAL PLAN (AOP) */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="space-y-1.5">
-            <Label className="text-xs font-semibold text-slate-700">Enrolment Target</Label>
+            <Label className="text-xs font-semibold text-slate-700">Annual Enrolment Target</Label>
             <Input
               type="number"
               min="0"
