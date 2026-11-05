@@ -165,7 +165,6 @@ export const MODULE_CONFIG: ParentModule[] = [
       { type: "group", label: "Admin", children: [
         { title: "Admin Report", view: "admin-monthly", path: "/monthly/admin" },
       ]},
-      { title: "Ad-hoc / Special Assignment", view: "special-projects", path: "/sdo/projects", navLabel: "Special Assignments" },
     ],
   },
 
@@ -183,7 +182,6 @@ export const MODULE_CONFIG: ParentModule[] = [
       { type: "group", label: "Compliance Management", children: [
         { title: "Compliance Management", view: "sqa-compliance", path: "/compliance" },
       ]},
-      { title: "Ad-hoc / Special Assignment", view: "special-projects", path: "/sdo/projects", navLabel: "Special Assignments" },
     ],
   },
 
@@ -194,7 +192,6 @@ export const MODULE_CONFIG: ParentModule[] = [
     children: [
       { title: "ICT Support Desk", path: "/ict/desk" },
       { title: "Systems & Network", path: "/ict/systems" },
-      { title: "Ad-hoc / Special Assignment", view: "special-projects", path: "/sdo/projects", navLabel: "Special Assignments" },
     ],
   },
 
@@ -209,16 +206,6 @@ export const MODULE_CONFIG: ParentModule[] = [
       { type: "group", label: "Enrollment Enquiries & Outreach", children: [
         { title: "Outreach Report", view: "outreach-monthly", path: "/monthly/outreach" },
       ]},
-      { title: "Ad-hoc / Special Assignment", view: "special-projects", path: "/sdo/projects", navLabel: "Special Assignments" },
-    ],
-  },
-
-  // ── Originating Departments ───────────────────────────────────────────────
-  {
-    title: "Originating Departments",
-    roles: "all",
-    children: [
-      { title: "Ad-hoc / Special Assignment", view: "special-projects", path: "/sdo/projects", navLabel: "Ad-hoc / Special Assignment" },
     ],
   },
 
@@ -241,7 +228,7 @@ export const MODULE_CONFIG: ParentModule[] = [
       ]},
       { type: "group", label: SDO_SOC_NAV_GROUP, children: [] },
       { type: "group", label: "Special Project", children: [
-        { title: "Ad-hoc / Special Assignment", view: "special-projects", path: "/sdo/projects", navLabel: "Ad-hoc Project" },
+        { title: "Ad-hoc / Special Assignment", view: "special-projects", path: "/sdo/projects", navLabel: "Adhoc project" },
       ]},
     ],
   },
@@ -256,7 +243,6 @@ export const MODULE_CONFIG: ParentModule[] = [
       { title: "Weekly Actionable", view: "state-weekly-actionable", path: "/soc/weekly-actionable", navLabel: "Escalated Issues" },
       { title: "Operation Monitoring Visit", view: "soc-operation-monitoring-visit", path: "/soc/operation-monitoring-visit", navLabel: "Operation Monitoring" },
       { title: "Spot Check Visit", view: "soc-spot-check-visit", path: "/soc/spot-check-visit", navLabel: "Spot Check" },
-      { title: "Ad-hoc / Special Assignment", view: "special-projects", path: "/sdo/projects", navLabel: "Ad-hoc / Special Assignment" },
     ],
   },
 
@@ -266,7 +252,6 @@ export const MODULE_CONFIG: ParentModule[] = [
     roles: "all",
     children: [
       { title: "State Office Dashboard", view: "state-office-dashboard", path: "/zonal/dashboard", navLabel: "Dashboard" },
-      { title: "Ad-hoc / Special Assignment", view: "special-projects", path: "/sdo/projects", navLabel: "Ad-hoc / Special Assignment" },
       { title: "Enrolment", view: "state-enrolment", path: "/zonal/enrolment", navLabel: "Enrolment" },
       {
         title: ENROLMENT_DRIVES_NAV_TITLE,
