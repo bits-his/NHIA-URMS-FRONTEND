@@ -41,9 +41,9 @@ export const STAKEHOLDER_PROGRAMS = [
   { code: "PR-12", label: "NHIA-Roche Cancer Program" },
 ] as const;
 
-/** PPT: Funding option Yes / No */
-export const STAKEHOLDER_FUNDING_OPTIONS = ["Yes", "No"] as const;
-export const STAKEHOLDER_FUNDED = "Yes";
+/** Funding options: Zero-Cost or Budgeted (no Yes and No) */
+export const STAKEHOLDER_FUNDING_OPTIONS = ["Zero-Cost", "Budgeted"] as const;
+export const STAKEHOLDER_FUNDED = "Budgeted";
 
 export const STAKEHOLDER_TARGET_AUDIENCES = [
   "State Executives", "Organized Labour", "Traditional Rulers", "Healthcare Workers",
@@ -57,27 +57,33 @@ export const STAKEHOLDER_LOCATION_BY_CATEGORY: Record<string, readonly string[]>
   "Government Agency": [
     "NHIA Office", "State Government Secretariat", "Ministry/Department/Agency Office",
     "Local Government Secretariat", "Government Institution", "Government Meeting Venue",
+    "Other",
   ],
   Health_Sector: [
     "Health Facility", "PHC", "Primary Healthcare Centre", "NHIA Programme Office",
     "Health Management Organisation Office", "Provider Organisation Office",
     "Healthcare Provider Association Office",
+    "Other",
   ],
   Stakeholder_Organisation: [
     "Stakeholder's Office", "Corporate Office", "NGO/CSO Office", "Development Partner Office",
     "Professional Association Office", "Trade/Business Association Office", "Union Office",
     "Cooperative Society Office",
+    "Other",
   ],
   Community_and_Traditional: [
     "Traditional Ruler's Palace", "Community Centre", "Community Hall",
     "Community Meeting Venue", "Ward Meeting Centre", "Religious Centre", "Market",
+    "Other",
   ],
   Institutional: [
     "School", "Tertiary Institution", "Research Institution", "Training Institution",
     "Conference Centre", "Hotel/Meeting Venue", "Workplace",
+    "Other",
   ],
-  Media: ["Radio Station", "Television Station", "Media House", "Press Centre"],
-  Virtual: ["Online", "Telephone/Teleconference"],
+  Media: ["Radio Station", "Television Station", "Media House", "Press Centre", "Other"],
+  Virtual: ["Online", "Telephone/Teleconference", "Other"],
+  Other: ["Other"],
 };
 
 export const STAKEHOLDER_LOCATION_CATEGORIES = Object.keys(STAKEHOLDER_LOCATION_BY_CATEGORY);

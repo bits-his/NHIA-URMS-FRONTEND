@@ -1,3 +1,5 @@
+import { useSelector } from "react-redux";
+import type { RootState } from "@/src/store/store";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -62,32 +64,56 @@ export default function ReportBasicInfo({
   const labelCls = dense ? "text-xs font-semibold text-slate-600" : undefined;
   const trigger = (extra = "") => `w-full ${dense ? "h-8 text-xs" : ""} ${extra}`.trim();
 
+  const authUser = useSelector((s: RootState) => s.auth.user);
+  const userRole = (authUser?.role || "").toLowerCase();
+  const isAdmin = ["admin", "sdo", "dg-ceo", "hq-department"].includes(userRole) || authUser?.role_config?.report_scope === "national";
+  const canSelectGeo = isAdmin && !lockZone && !lockState;
+
+  const displayZone = zoneLabel !== "—" ? zoneLabel : (authUser?.zone?.description || authUser?.zonal_code || "—");
+  const displayState = stateLabel !== "—" ? stateLabel : (authUser?.state?.description || authUser?.state_code || "—");
+
   const fields = (
         <div className={`grid grid-cols-2 md:grid-cols-3 ${showWeek ? "lg:grid-cols-3" : "lg:grid-cols-5"} ${dense ? "gap-1.5" : "gap-4"}`}>
           <div className={stack}>
             <Label className={labelCls}>Zone <span className="text-red-500">*</span></Label>
-            <Select value={zoneId} onValueChange={setZoneId} disabled={lockZone}>
-              <SelectTrigger className={trigger(lockZone ? "opacity-70 bg-slate-50" : "")} displayValue={zoneLabel}>
-                <SelectValue placeholder="Select Zone" />
-              </SelectTrigger>
-              <SelectContent>
-                {zones.map(z => <SelectItem key={z.id} value={String(z.id)}>{z.label}</SelectItem>)}
-              </SelectContent>
-            </Select>
+            {canSelectGeo ? (
+              <Select value={zoneId} onValueChange={setZoneId} disabled={lockZone}>
+                <SelectTrigger className={trigger(lockZone ? "opacity-70 bg-slate-50" : "")} displayValue={zoneLabel}>
+                  <SelectValue placeholder="Select Zone" />
+                </SelectTrigger>
+                <SelectContent>
+                  {zones.map(z => <SelectItem key={z.id} value={String(z.id)}>{z.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            ) : (
+              <Input
+                readOnly
+                value={displayZone}
+                className={trigger("opacity-90 bg-slate-100 font-medium cursor-not-allowed")}
+              />
+            )}
             {showGeoIds && (
               <p className="text-[11px] text-slate-500">Zone ID: <span className="font-semibold tabular-nums text-slate-700">{zoneId || "—"}</span></p>
             )}
           </div>
           <div className={stack}>
             <Label className={labelCls}>State <span className="text-red-500">*</span></Label>
-            <Select value={stateId} onValueChange={setStateId} disabled={lockState || !zoneId}>
-              <SelectTrigger className={trigger(lockState ? "opacity-70 bg-slate-50" : "")} displayValue={stateLabel}>
-                <SelectValue placeholder="Select State" />
-              </SelectTrigger>
-              <SelectContent>
-                {states.map(s => <SelectItem key={s.id} value={String(s.id)}>{s.label}</SelectItem>)}
-              </SelectContent>
-            </Select>
+            {canSelectGeo ? (
+              <Select value={stateId} onValueChange={setStateId} disabled={lockState || !zoneId}>
+                <SelectTrigger className={trigger(lockState ? "opacity-70 bg-slate-50" : "")} displayValue={stateLabel}>
+                  <SelectValue placeholder="Select State" />
+                </SelectTrigger>
+                <SelectContent>
+                  {states.map(s => <SelectItem key={s.id} value={String(s.id)}>{s.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            ) : (
+              <Input
+                readOnly
+                value={displayState}
+                className={trigger("opacity-90 bg-slate-100 font-medium cursor-not-allowed")}
+              />
+            )}
             {showGeoIds && (
               <p className="text-[11px] text-slate-500">State ID: <span className="font-semibold tabular-nums text-slate-700">{stateId || "—"}</span></p>
             )}
