@@ -3,7 +3,6 @@ import { createPortal } from "react-dom";
 import {
   ChevronDown, Loader2, Plus, Save, Send, Trash2, Upload,
 } from "lucide-react";
-import { useSelector } from "react-redux";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -12,10 +11,10 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
-import type { RootState } from "@/src/store/store";
-import { stateOfficeApi, stockApi } from "@/lib/api";
-import { MONTHS, monthLabel, labelOf, parseSupportingDocuments } from "./constants";
+import { stateOfficeApi } from "@/lib/api";
+import { parseSupportingDocuments } from "./constants";
 import StateOfficeFormShell from "./StateOfficeFormShell";
+import ReportBasicInfo from "./shared/ReportBasicInfo";
 import {
   STAKEHOLDER_CATEGORIES,
   STAKEHOLDER_ENGAGEMENT_CATEGORIES,
@@ -114,120 +113,6 @@ interface Props {
   activityFilter?: string[];
   allowModuleSelect?: boolean;
   moduleOptions?: { key: string; label: string; filter?: string[] }[];
-}
-
-/** Report info row — flat (no nested card), matches Enrolment embedded basic info. */
-function StakeholderReportInformation({ header }: { header: any }) {
-  const user = useSelector((s: RootState) => s.auth.user) as { name?: string } | null;
-  const periodText = header.reportMonth && header.reportYear
-    ? `${monthLabel(header.reportMonth)} ${header.reportYear}`
-    : "—";
-  const [allStates, setAllStates] = React.useState<{ id: string; label: string; zoneId: string }[]>([]);
-
-  React.useEffect(() => {
-    stockApi.getStates().then((r) => {
-      setAllStates(
-        (r.data ?? []).map((s: any) => ({
-          id: String(s.id ?? s.code ?? ""),
-          label: s.description || s.label || String(s.id),
-          zoneId: String(s.zonal_code ?? s.zonal_id ?? s.zone_id ?? s.zone?.id ?? s.zone?.zonal_code ?? ""),
-        })).filter((s: { id: string }) => s.id),
-      );
-    }).catch(() => setAllStates([]));
-  }, []);
-
-  const stateOptions = allStates.length
-    ? allStates
-    : (header.states ?? []).map((s: { id: string | number; label: string }) => ({
-      id: String(s.id),
-      label: s.label,
-      zoneId: header.zoneId || "",
-    }));
-
-  const stateLabel = labelOf(
-    stateOptions.map((s) => ({ value: s.id, label: s.label })),
-    header.stateId,
-    "Select when sending for review",
-  );
-  const inputClass = "bg-[#f4f7f5] border-2 border-[#1a7a52] shadow-xs hover:border-[#0f3d2e] hover:bg-white";
-
-  const onStateChange = (v: string) => {
-    const match = stateOptions.find((s) => s.id === v);
-    if (header.hydratingRef) header.hydratingRef.current = true;
-    if (match?.zoneId && !header.lockZone) header.setZoneId(match.zoneId);
-    header.setStateId(v);
-    queueMicrotask(() => {
-      if (header.hydratingRef) header.hydratingRef.current = false;
-    });
-  };
-
-  return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
-      <div className="space-y-1.5">
-        <Label className="text-xs font-semibold text-slate-600">Reporting period</Label>
-        <div className="grid grid-cols-2 gap-2">
-          <Select value={header.reportMonth} onValueChange={header.setReportMonth}>
-            <SelectTrigger className={inputClass} displayValue={monthLabel(header.reportMonth)}>
-              <SelectValue placeholder="Month" />
-            </SelectTrigger>
-            <SelectContent>
-              {MONTHS.map((m) => (
-                <SelectItem key={m.value} value={String(m.value)}>{m.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={header.reportYear} onValueChange={header.setReportYear}>
-            <SelectTrigger className={inputClass} displayValue={header.reportYear || "Year"}>
-              <SelectValue placeholder="Year" />
-            </SelectTrigger>
-            <SelectContent>
-              {Array.from({ length: 8 }, (_, i) => {
-                const y = String(new Date().getFullYear() - 2 + i);
-                return <SelectItem key={y} value={y}>{y}</SelectItem>;
-              })}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      <div className="space-y-1.5">
-        <Label className="text-xs font-semibold text-slate-600">
-          State <span className="text-slate-400 font-normal">(required to send for review)</span>
-        </Label>
-        <Select
-          value={header.stateId}
-          onValueChange={onStateChange}
-          disabled={header.lockState}
-        >
-          <SelectTrigger
-            className={cn(inputClass, header.lockState ? "opacity-70" : "")}
-            displayValue={stateLabel}
-          >
-            <SelectValue placeholder="Select a state" />
-          </SelectTrigger>
-          <SelectContent>
-            {stateOptions.map((s) => (
-              <SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div className="space-y-1.5">
-        <Label className="text-xs font-semibold text-slate-600">Reporting officer</Label>
-        <Input
-          readOnly
-          value={user?.name || "Signed-in user"}
-          className={cn(inputClass, "opacity-90")}
-        />
-      </div>
-
-      <div className="space-y-1.5">
-        <Label className="text-xs font-semibold text-slate-600">Reporting month</Label>
-        <Input readOnly value={periodText} className={cn(inputClass, "opacity-90")} />
-      </div>
-    </div>
-  );
 }
 
 function Field({
@@ -667,7 +552,7 @@ export default function StakeholderEngagementForm({
         <div className="m-0 space-y-3 pb-2">
           <Card className="rounded-sm border-[#d4e8dc] shadow-sm overflow-visible m-0">
             <CardContent className="p-3 md:p-4 space-y-4">
-              <StakeholderReportInformation header={header} />
+              <ReportBasicInfo {...header} showQuarter embedded />
 
               <fieldset disabled={!canEditContent} className="border-t border-[#e8f3ec] pt-4 space-y-5 disabled:opacity-90">
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

@@ -889,7 +889,7 @@ export default function StateOfficeMysteryShoppingPage({ onBack, defaultStateId,
           </div>
         )}
         <ScrollArea className="flex-1">
-          <div className="w-full max-w-5xl mx-auto px-4 md:px-6 py-4 space-y-4 pb-28">{formBody}</div>
+          <div className="w-full px-4 md:px-6 py-4 space-y-4 pb-28">{formBody}</div>
         </ScrollArea>
         <div className="sticky bottom-0 z-30 bg-white/95 backdrop-blur border-t border-border/50 px-4 md:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
           <Button variant="outline" onClick={() => setStep((s) => Math.max(0, s - 1))} disabled={step === 0}>

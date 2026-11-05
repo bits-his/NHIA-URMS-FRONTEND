@@ -21,7 +21,7 @@ export type WeeklySection = {
 export const WEEKLY_COMPLIANCE_SECTIONS: WeeklySection[] = [
   {
     key: "service_delivery",
-    title: "Section B: Service Delivery Compliance",
+    title: "Service Delivery Compliance",
     remarksLabel: "Remarks / Evidence",
     indicators: [
       { key: "services_without_denial", label: "Enrolees received services without denial or delays" },
@@ -33,7 +33,7 @@ export const WEEKLY_COMPLIANCE_SECTIONS: WeeklySection[] = [
   },
   {
     key: "medicines",
-    title: "Section C: Medicines & Consumables Compliance",
+    title: "Medicines & Consumables Compliance",
     remarksLabel: "Remarks / Evidence",
     indicators: [
       { key: "prescribed_medicines_available", label: "Availability of prescribed medicines" },
@@ -43,7 +43,7 @@ export const WEEKLY_COMPLIANCE_SECTIONS: WeeklySection[] = [
   },
   {
     key: "provider_hmo",
-    title: "Section D: Provider – HMO Interface",
+    title: "Provider – HMO Interface",
     remarksLabel: "Remarks",
     indicators: [
       { key: "timely_claims_submission", label: "Timely submission of claims" },
@@ -52,6 +52,14 @@ export const WEEKLY_COMPLIANCE_SECTIONS: WeeklySection[] = [
     ],
   },
 ];
+
+/** Week-of-month options for the reporting period picker. */
+export const WEEKLY_WEEKS_OF_MONTH = [
+  { value: "1", label: "Week 1 (1st – 7th)" },
+  { value: "2", label: "Week 2 (8th – 14th)" },
+  { value: "3", label: "Week 3 (15th – 21st)" },
+  { value: "4", label: "Week 4 (22nd – 31st)" },
+] as const;
 
 export const WEEKLY_FACILITY_TYPES = ["Public", "Private", "Faith-Based", "Other"] as const;
 
@@ -100,4 +108,39 @@ export function formatIsoWeek(week: string | null | undefined) {
   sunday.setUTCDate(monday.getUTCDate() + 6);
   const fmt = (x: Date) => x.toLocaleDateString("en-NG", { day: "2-digit", month: "short", timeZone: "UTC" });
   return `Week ${wk}, ${year} (${fmt(monday)} – ${fmt(sunday)})`;
+}
+
+/** Build ISO week from calendar year + month + week-of-month (1–4). */
+export function isoWeekFromYearMonthWeek(year: number | string, month: number | string, weekOfMonth: number | string) {
+  const y = Number(year);
+  const m = Number(month);
+  const w = Math.min(4, Math.max(1, Number(weekOfMonth) || 1));
+  const day = Math.min((w - 1) * 7 + 1, 28);
+  return currentIsoWeek(new Date(Date.UTC(y, m - 1, day)));
+}
+
+/** Parse ISO week into year / month / week-of-month for the period pickers. */
+export function yearMonthWeekFromIso(week: string | null | undefined) {
+  const m = /^(\d{4})-W(\d{1,2})$/.exec(String(week || ""));
+  const now = new Date();
+  if (!m) {
+    const day = now.getDate();
+    return {
+      year: String(now.getFullYear()),
+      month: String(now.getMonth() + 1),
+      weekOfMonth: String(Math.min(4, Math.ceil(day / 7))),
+    };
+  }
+  const year = Number(m[1]);
+  const wk = Number(m[2]);
+  const jan4 = new Date(Date.UTC(year, 0, 4));
+  const monday = new Date(jan4);
+  monday.setUTCDate(jan4.getUTCDate() - ((jan4.getUTCDay() + 6) % 7) + (wk - 1) * 7);
+  const month = monday.getUTCMonth() + 1;
+  const day = monday.getUTCDate();
+  return {
+    year: String(monday.getUTCFullYear()),
+    month: String(month),
+    weekOfMonth: String(Math.min(4, Math.ceil(day / 7) || 1)),
+  };
 }

@@ -332,7 +332,7 @@ export default function StateOfficeHmoMasterPage({ onBack, defaultStateId, defau
       )}
 
       <ScrollArea className="flex-1">
-        <div className="w-full px-4 md:px-6 py-4 space-y-4 pb-16">
+        <div className="w-full px-3 md:px-4 py-3 space-y-3 pb-8">
           {searchInput}
           <Card className="rounded-sm border-[#d4e8dc]">
             <CardContent className="pt-4 pb-4 space-y-3">
