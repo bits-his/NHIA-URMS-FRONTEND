@@ -282,12 +282,11 @@ export default function ExtendedReportDetail({ reportType, reportId, onBack, onE
                           formatCount(coveredTotal),
                         ]]} />
                       <DataCard title="Provider Management Activities"
-                        headers={["ID", "Date", "Programme", "BHCPF Type", "Planned", "Covered", "Funding", "Status", "Remarks"]}
+                        headers={["ID", "Date", "Programme", "Planned", "Covered", "Funding", "Status", "Remarks"]}
                         rows={templateLines.map((l: any) => [
                           l.provider_management_id || l.engagement_code || "—",
                           l.activity_date || "—",
                           l.related_programme || (Array.isArray(l.programs_supported) ? l.programs_supported.join(", ") : null) || "—",
-                          l.bhcpf_activity_type || "—",
                           formatCount(l.facilities_planned ?? l.planned_target_stakeholders),
                           formatCount(l.facilities_covered ?? l.stakeholders_engaged),
                           l.funding_option || "—",
@@ -299,11 +298,14 @@ export default function ExtendedReportDetail({ reportType, reportId, onBack, onE
                           headers={["ID", "Metric", "Value"]}
                           rows={templateLines.flatMap((l: any) => {
                             const metrics = l.metrics && typeof l.metrics === "object" ? l.metrics : {};
+                            const isReacc = l.form_type === "reaccreditation"
+                              || l.engagement_category === "Re-accreditation"
+                              || l.bhcpf_activity_type === "Reaccreditation";
                             const linked = l.related_programme === "BHCPF"
-                              ? (l.bhcpf_activity_type === "Reaccreditation"
+                              ? (isReacc
                                 ? [["Number of PHCs Re-accredited", l.facilities_covered ?? l.stakeholders_engaged]]
                                 : [["Number of PHCs Accredited", l.facilities_covered ?? l.stakeholders_engaged]])
-                              : (l.form_type === "reaccreditation" || l.engagement_category === "Re-accreditation"
+                              : (isReacc
                                 ? [["Number of Facilities Re-accredited", l.facilities_covered ?? l.stakeholders_engaged]]
                                 : (l.form_type === "accreditation" || l.engagement_category === "Accreditation"
                                   ? [["Number of Facilities Accredited", l.facilities_covered ?? l.stakeholders_engaged]]

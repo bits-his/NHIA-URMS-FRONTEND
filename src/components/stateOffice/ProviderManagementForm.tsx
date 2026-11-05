@@ -1,6 +1,6 @@
 import * as React from "react";
 import {
-  Award, ChevronRight, ClipboardCheck, Loader2, RefreshCw,
+  Award, ClipboardCheck, Loader2, RefreshCw,
   Save, Send, Stethoscope, type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -9,15 +9,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { UnderHeaderNavTabs } from "@/src/components/UnderHeaderNavTabs";
 import StateOfficeFormShell from "./StateOfficeFormShell";
 import ReportBasicInfo from "./shared/ReportBasicInfo";
 import { stateOfficeApi } from "@/lib/api";
 import { cn } from "@/lib/utils";
-import { labelOf, monthLabel, parseSupportingDocuments, quarterFromMonth } from "./constants";
+import { parseSupportingDocuments } from "./constants";
 import { PROVIDER_MANAGEMENT_NAV_TITLE } from "./enrolmentPillarTypes";
 import {
   PROVIDER_ACTIVITY_STATUSES,
-  PROVIDER_BHCPF_ACTIVITY_TYPES,
   PROVIDER_FORM_TYPES,
   PROVIDER_FUNDED_OPTIONS,
   PROVIDER_FUNDING_OPTIONS,
@@ -107,16 +107,15 @@ interface Props {
   defaultZoneId?: string | null;
   defaultStateId?: string | null;
   onPersisted?: (saved: { id: number | string; status: string; reference_id?: string }) => void;
+  /** Keep parent list tab in sync when switching form type. */
+  onFormTypeChange?: (key: ProviderFormKey) => void;
 }
 
 export default function ProviderManagementForm({
-  reportId, initialFormKey = "accreditation", onBack, onCancel, onSubmitted, defaultZoneId, defaultStateId, onPersisted,
+  reportId, initialFormKey = "accreditation", onBack, onCancel, onSubmitted, defaultZoneId, defaultStateId, onPersisted, onFormTypeChange,
 }: Props) {
-  const openedFromTab = !reportId && !!initialFormKey;
-  const leave = onCancel ?? onBack;
   const [formKey, setFormKey] = React.useState<ProviderFormKey>(initialFormKey);
   const api = stateOfficeApi.providerManagement;
-  const [activityChosen, setActivityChosen] = React.useState(!!reportId || openedFromTab);
   const [reportStatus, setReportStatus] = React.useState<string>("draft");
   const [lineKey, setLineKey] = React.useState(() => uid());
   const [entry, setEntry] = React.useState<Entry>(() => blank(initialFormKey));
@@ -124,35 +123,41 @@ export default function ProviderManagementForm({
   entryRef.current = entry;
   const [pmSeq, setPmSeq] = React.useState(1);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
-  const typeLocked = !!reportId || openedFromTab;
+  const typeLocked = !!reportId;
 
   const set = <K extends keyof Entry>(key: K, value: Entry[K]) => {
     setEntry((prev) => ({ ...prev, [key]: value }));
   };
 
   const selectActivity = (key: ProviderFormKey) => {
-    if (typeLocked && activityChosen && formKey !== key) {
-      toast.error("Form type is locked once the report is saved");
+    if (key === formKey) return;
+    // Parent remounts create forms / returns to list for saved reports.
+    if (onFormTypeChange) {
+      onFormTypeChange(key);
+      return;
+    }
+    if (typeLocked) {
+      toast.error("Form type cannot be changed for a saved report");
       return;
     }
     setFormKey(key);
     setEntry(blank(key));
     setLineKey(uid());
-    setActivityChosen(true);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const isFunded = PROVIDER_FUNDED_OPTIONS.has(entry.funding_option);
-  const showBhcpfActivityType = entry.related_programme === "BHCPF" && (formKey === "accreditation" || formKey === "reaccreditation");
+  // Accreditation vs Reaccreditation tabs already imply BHCPF activity type.
+  const bhcpfType = formKey === "reaccreditation" ? "Reaccreditation" : "Accreditation";
   const manualMetrics = providerManualMetrics({
-    formKey: entry.form_type,
+    formKey,
     programme: entry.related_programme,
-    bhcpfType: entry.bhcpf_activity_type,
+    bhcpfType,
   });
   const linkedLabel = providerLinkedMetricLabel({
-    formKey: entry.form_type,
+    formKey,
     programme: entry.related_programme,
-    bhcpfType: entry.bhcpf_activity_type,
+    bhcpfType,
   });
   const covered = Number(entry.facilities_covered) || 0;
   const planned = Number(entry.facilities_planned) || 0;
@@ -206,7 +211,6 @@ export default function ProviderManagementForm({
     const matched = PROVIDER_FORM_TYPES.find((f) => f.key === mod);
     const fk = (matched?.key || "accreditation") as ProviderFormKey;
     setFormKey(fk);
-    setActivityChosen(true);
     const first = (v.lines ?? [])[0];
     let maxSeq = 0;
     for (const row of v.lines ?? []) {
@@ -222,9 +226,6 @@ export default function ProviderManagementForm({
 
   const validateActivity = (e: Entry = entryRef.current): string | null => {
     if (!e.related_programme) return "Select Related Programme";
-    if (e.related_programme === "BHCPF" && (e.form_type === "accreditation" || e.form_type === "reaccreditation") && !e.bhcpf_activity_type) {
-      return "Select BHCPF activity type (Accreditation or Reaccreditation)";
-    }
     if (!e.activity_date) return "Enter the activity date";
     if (!e.activity_status) return "Select the activity status";
     if (e.total_facilities_in_state === "") return "Enter total facilities in the state";
@@ -241,10 +242,11 @@ export default function ProviderManagementForm({
       seq += 1;
       setPmSeq(seq);
     }
+    const derivedBhcpfType = formKey === "reaccreditation" ? "Reaccreditation" : "Accreditation";
     const metricLabels = providerManualMetrics({
-      formKey: formKey,
+      formKey,
       programme: e.related_programme,
-      bhcpfType: e.bhcpf_activity_type,
+      bhcpfType: derivedBhcpfType,
     });
     const metricMap: Record<string, string> = {};
     for (const label of metricLabels) {
@@ -259,7 +261,7 @@ export default function ProviderManagementForm({
       engagement_code: formMeta(formKey).code,
       metrics: metricMap,
       ...(funded ? {} : { activity_budget: "", approved_amount: "" }),
-      bhcpf_activity_type: e.related_programme === "BHCPF" ? e.bhcpf_activity_type : "",
+      bhcpf_activity_type: e.related_programme === "BHCPF" ? derivedBhcpfType : "",
     };
   };
 
@@ -285,6 +287,19 @@ export default function ProviderManagementForm({
   const canSubmit = reportStatus === "endorsed";
   const isLockedReview = ["awaiting_review", "submitted", "approved"].includes(reportStatus);
 
+  const formTabs = (
+    <UnderHeaderNavTabs
+      tabs={PROVIDER_FORM_TYPES.map((f) => ({
+        id: f.key,
+        label: f.tabLabel,
+        icon: PROVIDER_ACTIVITY_ICONS[f.key],
+      }))}
+      activeTab={formKey}
+      onChange={(key) => selectActivity(key as ProviderFormKey)}
+      ariaLabel="Provider activities"
+    />
+  );
+
   return (
     <StateOfficeFormShell
       reportType="provider-management"
@@ -294,15 +309,12 @@ export default function ProviderManagementForm({
       onSubmitted={onSubmitted}
       defaultZoneId={defaultZoneId}
       defaultStateId={defaultStateId}
-      pageTitle={
-        activityChosen
-          ? `${PROVIDER_MANAGEMENT_NAV_TITLE} - ${formMeta(formKey).label}`
-          : PROVIDER_MANAGEMENT_NAV_TITLE
-      }
+      pageTitle={`${PROVIDER_MANAGEMENT_NAV_TITLE} - ${formMeta(formKey).label}`}
       hideFooterActions
       hideBasicInfo
       showQuarter
       deferStateUntilReview
+      headerTabs={formTabs}
       onLoaded={loadData}
       afterPersist={afterPersist}
       onPersisted={onPersisted}
@@ -346,17 +358,6 @@ export default function ProviderManagementForm({
       }}
     >
       {({ saving, submitting, persist, requestSubmit, header }) => {
-        const stateLabel = labelOf(
-          header.states.map((s) => ({ value: String(s.id), label: s.label })),
-          header.stateId,
-          "",
-        );
-        const periodBadge = [
-          stateLabel,
-          [monthLabel(header.reportMonth), header.reportYear].filter(Boolean).join(" "),
-          header.reportMonth ? `(Q${quarterFromMonth(header.reportMonth)})` : "",
-        ].filter(Boolean).join(", ").replace(", (", " (");
-
         const footer = (
           <div className="flex flex-wrap items-center justify-end gap-2 pt-2 border-t border-[#e8f3ec]">
             {canEdit && (
@@ -433,76 +434,20 @@ export default function ProviderManagementForm({
 
         return (
         <div className="m-0 space-y-3 pb-2">
-          {!activityChosen ? (
-            <div className="space-y-4">
-              <Card className="rounded-sm border-[#d4e8dc] shadow-sm overflow-visible m-0">
-                <CardContent className="p-3 md:p-4">
-                  <ReportBasicInfo {...header} showQuarter embedded />
-                </CardContent>
-              </Card>
-              <div className="flex flex-wrap items-center justify-between gap-3 px-1">
-                <h2 className="text-xl font-bold text-slate-900">Activities</h2>
-                {periodBadge && (
-                  <span className="inline-flex items-center rounded-full bg-[#e8f6ee] px-3 py-1 text-xs font-semibold text-[#145c3f]">
-                    {periodBadge}
-                  </span>
-                )}
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                {PROVIDER_FORM_TYPES.map((f) => {
-                  const Icon = PROVIDER_ACTIVITY_ICONS[f.key];
-                  return (
-                    <button
-                      key={f.key}
-                      type="button"
-                      onClick={() => selectActivity(f.key)}
-                      className="group flex items-center gap-4 rounded-sm border border-[#d4e8dc] bg-white px-5 py-5 text-left shadow-sm transition-all hover:border-[#1a7a52] hover:bg-[#f7fcf9] hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1a7a52]/40"
-                    >
-                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#e8f6ee] text-[#145c3f]">
-                        <Icon className="h-6 w-6" strokeWidth={1.75} />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-base font-bold text-slate-900">{f.label}</p>
-                        <p className="mt-0.5 text-sm text-slate-500 leading-snug">{f.description}</p>
-                      </div>
-                      <ChevronRight className="h-5 w-5 shrink-0 text-[#145c3f] opacity-70 transition group-hover:opacity-100" />
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          ) : (
-            <Card className="rounded-sm border-[#d4e8dc] shadow-sm overflow-visible m-0">
-              <CardContent className="p-3 md:p-4 space-y-4">
-                <ReportBasicInfo {...header} showQuarter embedded />
+          <Card className="rounded-sm border-[#d4e8dc] shadow-sm overflow-visible m-0">
+            <CardContent className="p-3 md:p-4 space-y-4">
+              <ReportBasicInfo {...header} showQuarter embedded />
 
-                {canEdit && !typeLocked && !reportId && (
-                  <div className="flex justify-end border-t border-[#e8f3ec] pt-2">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="text-[#145c3f]"
-                      onClick={() => {
-                        if (openedFromTab) { leave(); return; }
-                        setActivityChosen(false);
-                      }}
-                    >
-                      Change activity
-                    </Button>
-                  </div>
-                )}
-
-                <fieldset disabled={!canEdit} className="border-t border-[#e8f3ec] pt-4 space-y-5 disabled:opacity-90">
-                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                    <div className="space-y-1.5">
-                      <Label className="text-xs font-semibold text-slate-600">Related Programme <span className="text-rose-500">*</span></Label>
+              <fieldset disabled={!canEdit} className="border-t border-[#e8f3ec] pt-4 space-y-5 disabled:opacity-90">
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold text-slate-600">Related Programme <span className="text-rose-500">*</span></Label>
                       <Select
                         value={entry.related_programme}
                         onValueChange={(v) => setEntry((p) => ({
                           ...p,
                           related_programme: v,
-                          bhcpf_activity_type: v === "BHCPF" ? p.bhcpf_activity_type : "",
+                          bhcpf_activity_type: "",
                           metrics: {},
                         }))}
                       >
@@ -512,18 +457,25 @@ export default function ProviderManagementForm({
                         </SelectContent>
                       </Select>
                     </div>
-                    {showBhcpfActivityType && (
+                    {manualMetrics.map((label) => (
+                      <div key={label} className="space-y-1.5">
+                        <Label className="text-xs font-semibold text-slate-600 leading-tight">{label}</Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          className={inputClass}
+                          value={entry.metrics[label] ?? ""}
+                          onChange={(e) => setEntry((p) => ({
+                            ...p,
+                            metrics: { ...p.metrics, [label]: e.target.value },
+                          }))}
+                        />
+                      </div>
+                    ))}
+                    {linkedLabel && (
                       <div className="space-y-1.5">
-                        <Label className="text-xs font-semibold text-slate-600">BHCPF Activity Type <span className="text-rose-500">*</span></Label>
-                        <Select
-                          value={entry.bhcpf_activity_type}
-                          onValueChange={(v) => setEntry((p) => ({ ...p, bhcpf_activity_type: v, metrics: {} }))}
-                        >
-                          <SelectTrigger className={inputClass}><SelectValue placeholder="Accreditation / Reaccreditation" /></SelectTrigger>
-                          <SelectContent>
-                            {PROVIDER_BHCPF_ACTIVITY_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
+                        <Label className="text-xs font-semibold text-slate-600 leading-tight">{linkedLabel}</Label>
+                        <Input value={String(covered)} readOnly className={cn(inputClass, "bg-slate-50 opacity-90")} />
                       </div>
                     )}
                     <div className="space-y-1.5">
@@ -592,32 +544,6 @@ export default function ProviderManagementForm({
                         onChange={(e) => set("remarks", e.target.value)} />
                     </div>
 
-                    {(manualMetrics.length > 0 || linkedLabel) && (
-                      <>
-                        {manualMetrics.map((label) => (
-                          <div key={label} className="space-y-1.5">
-                            <Label className="text-xs font-semibold text-slate-600 leading-tight">{label}</Label>
-                            <Input
-                              type="number"
-                              min={0}
-                              className={inputClass}
-                              value={entry.metrics[label] ?? ""}
-                              onChange={(e) => setEntry((p) => ({
-                                ...p,
-                                metrics: { ...p.metrics, [label]: e.target.value },
-                              }))}
-                            />
-                          </div>
-                        ))}
-                        {linkedLabel && (
-                          <div className="space-y-1.5">
-                            <Label className="text-xs font-semibold text-slate-600 leading-tight">{linkedLabel}</Label>
-                            <Input value={String(covered)} readOnly className={cn(inputClass, "bg-slate-50 opacity-90")} />
-                          </div>
-                        )}
-                      </>
-                    )}
-
                     <div className="sm:col-span-2 lg:col-span-3 grid sm:grid-cols-2 gap-3 text-sm rounded-sm border border-[#d4e8dc] bg-[#f8fdfb] p-3">
                       <div>
                         <p className="text-[11px] uppercase text-slate-400 font-semibold">Period Coverage Rate</p>
@@ -633,10 +559,9 @@ export default function ProviderManagementForm({
                   </div>
                 </fieldset>
 
-                {footer}
-              </CardContent>
-            </Card>
-          )}
+              {footer}
+            </CardContent>
+          </Card>
         </div>
         );
       }}

@@ -221,42 +221,9 @@ export default function SdoAssignmentRegisterPage({
           </Button>
           <div className="min-w-0">
             <h1 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">
-              {initialData ? "Edit Master Assignment Register" : "SDO Assignment Register"}
+              {initialData ? "Edit Adhoc Assignment Register" : "Adhoc Assignment Register"}
             </h1>
           </div>
-        </div>
-
-        <div className="flex items-center gap-2 shrink-0">
-          <Button variant="outline" size="sm" onClick={onBack} disabled={submitting}>
-            Cancel
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => handleSave(false)}
-            disabled={submitting}
-            className="gap-1.5 border-emerald-300 text-emerald-800 hover:bg-emerald-50"
-          >
-            {submitting && !proceedToDistribute ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            ) : (
-              <Save className="w-3.5 h-3.5" />
-            )}
-            Save to Draft
-          </Button>
-          <Button
-            size="sm"
-            onClick={() => handleSave(true)}
-            disabled={submitting}
-            className="gap-1.5 bg-[#145c3f] hover:bg-[#0f3d2e] text-white shadow-xs"
-          >
-            {submitting && proceedToDistribute ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            ) : (
-              <Send className="w-3.5 h-3.5" />
-            )}
-            Save & Proceed to State Distribution
-          </Button>
         </div>
       </div>
 
@@ -513,6 +480,14 @@ export default function SdoAssignmentRegisterPage({
           {/* Bottom Action Bar */}
           <div className="flex items-center justify-end pt-4 pb-8 border-t border-slate-200 w-full">
             <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onBack}
+                disabled={submitting}
+              >
+                Cancel
+              </Button>
               <Button
                 type="button"
                 variant="outline"

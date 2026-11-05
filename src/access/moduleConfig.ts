@@ -98,13 +98,13 @@ export function modulesVisibleToAdmin(): ParentModule[] {
 
 /**
  * Admin sidebar titles per module.
- * Ad-hoc / Special Assignment stays only under SDO → Special Project (no duplicates elsewhere).
+ * Ad-hoc / Special Assignment stays under State Offices → Challenges & Support.
  */
 export function adminAllowedTitlesForModule(mod: ParentModule): Set<string> {
   return new Set(
     flatLeaves(mod).filter((t) => {
       if (isFunctionalityHiddenForAdmin(t)) return false;
-      if (t === "Ad-hoc / Special Assignment" && mod.title !== SDO_MODULE) return false;
+      if (t === "Ad-hoc / Special Assignment" && mod.title !== ZONAL_MODULE) return false;
       return true;
     }),
   );
@@ -238,9 +238,6 @@ export const MODULE_CONFIG: ParentModule[] = [
         { title: "Store Management", view: "store-inventory-catalog", path: "/store-management", navLabel: "Store Management" },
       ]},
       { type: "group", label: SDO_SOC_NAV_GROUP, children: [] },
-      { type: "group", label: "Special Project", children: [
-        { title: "Ad-hoc / Special Assignment", view: "special-projects", path: "/sdo/projects", navLabel: "Adhoc project" },
-      ]},
     ],
   },
 
@@ -319,6 +316,12 @@ export const MODULE_CONFIG: ParentModule[] = [
         view: "state-challenges",
         path: "/zonal/challenges",
         navLabel: "Challenges & Support",
+      },
+      {
+        title: "Ad-hoc / Special Assignment",
+        view: "special-projects",
+        path: "/sdo/projects",
+        navLabel: "Adhoc project",
       },
     ],
   },

@@ -189,14 +189,14 @@ export default function AdhocAssignmentWorkspace({ onBack, user, userRole }: Pro
 
   const listTitle =
     activeTab === "sdo_register"
-      ? "SDO Assignment Register"
+      ? "Adhoc Assignment Register"
       : activeTab === "state_tasks"
         ? "State Dispatches & Reports"
         : "My Assigned Directives";
 
   const registerTableTitle =
     activeTab === "sdo_register"
-      ? "SDO ASSIGNMENT REGISTER"
+      ? "ADHOC ASSIGNMENT REGISTER"
       : activeTab === "state_tasks"
         ? "STATE DISPATCH & REPORTS REGISTER"
         : "MY ASSIGNED DIRECTIVES REGISTER";
@@ -543,7 +543,7 @@ export default function AdhocAssignmentWorkspace({ onBack, user, userRole }: Pro
     ? [
         {
           id: "sdo_register",
-          label: "SDO Assignment Register",
+          label: "Adhoc Assignment Register",
           icon: FileSpreadsheet,
           count: masters.length,
         },
@@ -602,7 +602,7 @@ export default function AdhocAssignmentWorkspace({ onBack, user, userRole }: Pro
           tabs={adhocTabs}
           activeTab={activeTab}
           onChange={(k) => setActiveTab(k as any)}
-          ariaLabel="SDO assignment register modules"
+          ariaLabel="Adhoc assignment register modules"
         />
       }
       contentClassName="space-y-4 pb-8"

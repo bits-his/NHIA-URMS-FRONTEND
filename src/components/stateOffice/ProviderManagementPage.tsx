@@ -236,6 +236,20 @@ export default function ProviderManagementPage({ onBack, defaultZoneId, defaultS
     setMode("create");
   };
 
+  const switchFormType = (key: ProviderFormKey) => {
+    setActiveTab(key);
+    setSelectedModule(key);
+    if (mode === "create") {
+      setFormKey((k) => k + 1);
+      return;
+    }
+    // Editing/viewing a saved report: leave the form and open that activity's list.
+    setMode("list");
+    setSelectedId(null);
+    setFormKey((k) => k + 1);
+    void load();
+  };
+
   if (mode === "create" || mode === "edit") {
     return (
       <ProviderManagementForm
@@ -247,6 +261,7 @@ export default function ProviderManagementPage({ onBack, defaultZoneId, defaultS
         onSubmitted={backToList}
         defaultZoneId={defaultZoneId}
         defaultStateId={defaultStateId}
+        onFormTypeChange={switchFormType}
       />
     );
   }

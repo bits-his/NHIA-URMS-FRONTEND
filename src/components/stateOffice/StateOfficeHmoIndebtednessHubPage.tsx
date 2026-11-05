@@ -13,6 +13,7 @@ import {
 } from "./hmoIndebtednessTypes";
 import { COMPLIANCE_HUB_PATH } from "./complianceHubTypes";
 import type { ComplianceChrome } from "./ComplianceHubPage";
+import { UnderHeaderNavTabs } from "@/src/components/UnderHeaderNavTabs";
 import StateOfficeHmoMasterPage from "./StateOfficeHmoMasterPage";
 import StateOfficeHmoReconPage from "./StateOfficeHmoReconPage";
 import StateOfficeHmoIndebtednessPage from "./StateOfficeHmoIndebtednessPage";
@@ -69,8 +70,23 @@ export default function StateOfficeHmoIndebtednessHubPage({
 
   React.useEffect(() => {
     if (!embedded || !onChromeChange) return;
-    onChromeChange(childChrome);
-  }, [embedded, onChromeChange, childChrome]);
+    const listTitle = `${HMO_INDEBTEDNESS_NAV_TITLE} - ${activeMeta.tabLabel}`;
+    if (!childChrome || childChrome.mode === "list") {
+      onChromeChange({
+        mode: "list",
+        title: listTitle,
+        actions: childChrome?.actions,
+        onInnerBack: childChrome?.onInnerBack,
+      });
+      return;
+    }
+    onChromeChange({
+      ...childChrome,
+      title: childChrome.title
+        ? `${HMO_INDEBTEDNESS_NAV_TITLE} - ${childChrome.title}`
+        : listTitle,
+    });
+  }, [embedded, onChromeChange, childChrome, activeMeta.tabLabel]);
 
   React.useEffect(() => () => onChromeChange?.(null), [onChromeChange]);
 
@@ -112,35 +128,20 @@ export default function StateOfficeHmoIndebtednessHubPage({
         </div>
       )}
 
+      {/* Nested under HMO Indebtedness — Collation / PHI / FFS / Cap / Master.
+          Parent Compliance Hub keeps its own top tabs. */}
       {!inLeaf && (
-        <div className={`bg-white border-b border-[#d4e8dc] px-4 md:px-6 ${embedded ? "sticky top-0 z-10" : "sticky top-[57px] z-20"}`}>
-          <div
-            className="flex gap-4 overflow-x-auto -mb-px"
-            role="tablist"
-            aria-label="HMO Indebtedness sections"
-          >
-            {HMO_INDEBTEDNESS_TABS.map((tab) => {
-              const active = activeTab === tab.key;
-              const Icon = TAB_ICONS[tab.key];
-              return (
-                <button
-                  key={tab.key}
-                  type="button"
-                  role="tab"
-                  aria-selected={active}
-                  onClick={() => setActiveTab(tab.key)}
-                  className={`group relative shrink-0 inline-flex items-center gap-2 px-3.5 py-3 text-xs font-bold whitespace-nowrap border-b-2 transition-all outline-none ${
-                    active
-                      ? "border-[#145c3f] text-[#145c3f]"
-                      : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300"
-                  }`}
-                >
-                  <Icon className="size-4 shrink-0" strokeWidth={2} />
-                  <span>{tab.tabLabel}</span>
-                </button>
-              );
-            })}
-          </div>
+        <div className={`bg-white border-b border-[#d4e8dc] px-4 md:px-6 z-20 ${embedded ? "" : "sticky top-[57px]"}`}>
+          <UnderHeaderNavTabs
+            tabs={HMO_INDEBTEDNESS_TABS.map((tab) => ({
+              id: tab.key,
+              label: tab.tabLabel,
+              icon: TAB_ICONS[tab.key],
+            }))}
+            activeTab={activeTab}
+            onChange={(key) => setActiveTab(key as HmoIndebtednessTabKey)}
+            ariaLabel="HMO Indebtedness sections"
+          />
         </div>
       )}
 

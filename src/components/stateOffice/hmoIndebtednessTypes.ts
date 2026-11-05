@@ -2,7 +2,7 @@
  * HMO Indebtedness / Reconciliation templates (Enforcement Department).
  * Matches RECONCILIATION TEMPLATES_UPDATED.xlsx
  *
- * UI is a single hub page with standalone tabs:
+ * Nested under Compliance Hub → HMO Indebtedness:
  * Collation (default) | PHI | FFS | Capitation | Master (last).
  */
 

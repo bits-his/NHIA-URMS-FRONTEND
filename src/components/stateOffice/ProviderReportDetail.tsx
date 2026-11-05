@@ -113,7 +113,6 @@ function ActivityDetail({ line }: { line: any }) {
         value={line.related_programme
           || (Array.isArray(line.programs_supported) ? line.programs_supported.join(", ") : null)}
       />
-      <InfoField label="BHCPF type" value={line.bhcpf_activity_type} />
       <InfoField label="Activity date" value={line.activity_date} />
       <InfoField label="Status" value={line.activity_status} />
       <InfoField label="Funding" value={line.funding_option} />

@@ -13,9 +13,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { SearchSelect } from "@/components/ui/search-select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
-import { stateOfficeApi } from "@/lib/api";
+import { stateOfficeApi, stockApi } from "@/lib/api";
 import StateOfficeFormShell from "./StateOfficeFormShell";
 import ReportBasicInfo from "./shared/ReportBasicInfo";
+import { UnderHeaderNavTabs } from "@/src/components/UnderHeaderNavTabs";
 import { ProviderSelect } from "./HcpChangeForm";
 import {
   EXTRA_DEPENDANT_STATUSES,
@@ -31,6 +32,11 @@ import {
   HCP_REASON_CATEGORIES,
   HMO_REASON_CATEGORIES,
   OTHER_REASON,
+  RELATIONSHIP_OPTIONS,
+  CHILD_ENTITY_OPTIONS,
+  ADDITIONAL_ENTITY_OPTIONS,
+  EXTRA_DEPENDENT_SLOTS,
+  formatDependentLabel,
   activityApiType,
   activityFromReportType,
   ADDITIONAL_ENTITY_TYPES,
@@ -252,6 +258,7 @@ type DepEntry = {
   relationship_kind: string;
   entity_type: string;
   dependent: string;
+  hcf_state_id?: string;
   hcf: string;
   alternative_provider: string;
   request_date: string;
@@ -318,6 +325,7 @@ const blankDep = (request: "additional" | "extra"): DepEntry => ({
   relationship_kind: "",
   entity_type: "",
   dependent: "",
+  hcf_state_id: "",
   hcf: "",
   alternative_provider: "",
   request_date: "",
@@ -377,9 +385,61 @@ function blankFor(activity: BeneficiaryActivityKey): Entry {
 function inferRelationship(request: "additional" | "extra", entity: string, saved?: string) {
   if (saved) return saved;
   if (entity.startsWith("child")) return "child";
-  if (request === "additional" && entity === "spouse") return "spouse";
-  if (request === "extra" && (entity === "spouse" || entity === "parent" || entity === "child")) return entity;
+  if (entity === "spouse") return "spouse";
+  if (entity === "parent") return "parent";
   return "";
+}
+
+function EnrolleeInfoView({
+  nhiaNumber,
+  identity,
+}: {
+  nhiaNumber?: string;
+  identity?: Record<string, string>;
+}) {
+  const d = identity || {};
+  const fields = [
+    { label: "Principal NHIA Number", value: nhiaNumber },
+    { label: "Surname", value: d.surname },
+    { label: "First Name", value: d.first_name },
+    { label: "Middle Name", value: d.middle_name },
+    { label: "NIN", value: d.nin },
+    { label: "Blood Group", value: d.blood_group },
+    { label: "Marital Status", value: d.marital_status },
+    { label: "State of Origin", value: d.state_of_origin },
+    { label: "LGA of Origin", value: d.lga_of_origin },
+    { label: "State of Residence", value: d.state_of_residence },
+    { label: "LGA of Residence", value: d.lga_of_residence },
+    { label: "Phone Number", value: d.phone_number },
+    { label: "Organisation / MDA", value: "Unemployed" },
+    { label: "HMO", value: d.hmo || "Inherited from principal" },
+  ];
+
+  return (
+    <div className="rounded-md border border-[#d4e8dc] bg-[#f8faf9] p-4">
+      <div className="mb-3 flex items-center justify-between border-b border-[#e2efe7] pb-2">
+        <div className="flex items-center gap-2">
+          <span className="h-2 w-2 rounded-full bg-[#145c3f]" />
+          <h4 className="text-xs font-bold uppercase tracking-wider text-[#0f3d2e]">
+            Principal Enrollee Information
+          </h4>
+        </div>
+        <span className="text-[11px] text-slate-500 font-medium">Populated from enrolment</span>
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-x-4 gap-y-3">
+        {fields.map((f) => (
+          <div key={f.label} className="min-w-0 space-y-0.5">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+              {f.label}
+            </p>
+            <p className="text-xs font-semibold text-slate-800 truncate" title={f.value || "—"}>
+              {f.value || "—"}
+            </p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 function Field({
@@ -420,7 +480,7 @@ export default function BeneficiaryManagementForm({
     && BENEFICIARY_ACTIVITIES.some((a) => a.key === initialActivity)
     ? initialActivity
     : null;
-  const initial = reportId ? activityFromReportType(reportType) : seededActivity;
+  const initial = reportId ? activityFromReportType(reportType) : (seededActivity ?? "additional");
   const [activity, setActivity] = React.useState<BeneficiaryActivityKey | null>(initial);
   // New from a hub tab → open the activity form immediately (not the empty register).
   const [view, setView] = React.useState<"register" | "activity">(
@@ -455,6 +515,18 @@ export default function BeneficiaryManagementForm({
   const [reportStatus, setReportStatus] = React.useState<"draft" | "submitted" | "approved">("draft");
   const [endorsed, setEndorsed] = React.useState(false);
   const [reviewNote, setReviewNote] = React.useState("");
+  const [allStates, setAllStates] = React.useState<{ id: string; label: string }[]>([]);
+
+  React.useEffect(() => {
+    stockApi.getStates()
+      .then((res) => {
+        setAllStates((res.data || []).map((s: any) => ({
+          id: String(s.id),
+          label: s.description || s.name || `State ${s.id}`,
+        })));
+      })
+      .catch(() => setAllStates([]));
+  }, []);
 
   React.useEffect(() => {
     if (activity !== "additional" && activity !== "extra" && activity !== "provider") return;
@@ -584,7 +656,8 @@ export default function BeneficiaryManagementForm({
           },
           relationship_kind: l.relationship_kind || inferRelationship(request, l.relationship ?? l.dependant_entity ?? "", saved.fields.relationship),
           entity_type: l.relationship ?? l.dependant_entity ?? "",
-          dependent: l.dependent ?? "",
+          dependent: l.dependent ? (l.dependent.startsWith("dependent_") ? `extra_${l.dependent}` : (l.dependent === "principal" ? "" : l.dependent)) : "",
+          hcf_state_id: l.hcf_state_id ?? saved.fields.hcf_state_id ?? "",
           hcf: l.hcf ?? saved.fields.hcf ?? "",
           alternative_provider: l.alternative_provider ?? saved.fields.alternative_provider ?? "",
           request_date: l.request_date?.slice?.(0, 10) ?? "",
@@ -700,13 +773,24 @@ export default function BeneficiaryManagementForm({
         toast.error("Select the principal enrollee");
         return;
       }
-      if (!entry.entity_type) {
-        toast.error(entry.request === "extra" ? "Select the relationship" : "Select the dependant");
-        return;
-      }
-      if (entry.request === "extra" && !entry.dependent) {
-        toast.error("Select the dependent");
-        return;
+      if (entry.request === "additional") {
+        if (!entry.relationship_kind) {
+          toast.error("Select the relationship");
+          return;
+        }
+        if (!entry.entity_type) {
+          toast.error("Select the entity");
+          return;
+        }
+      } else {
+        if (!entry.entity_type) {
+          toast.error("Select the relationship");
+          return;
+        }
+        if (!entry.dependent) {
+          toast.error("Select the dependent");
+          return;
+        }
       }
     } else if (entry.kind === "provider") {
       if (!entry.enrollee_name.trim() || !entry.nhia_number.trim() || !entry.entity_type) {
@@ -823,6 +907,25 @@ export default function BeneficiaryManagementForm({
     ? HMO_REASON_CATEGORIES
     : HCP_REASON_CATEGORIES;
 
+  const navTabs = (
+    <UnderHeaderNavTabs
+      tabs={BENEFICIARY_ACTIVITIES.map((tab) => ({
+        id: tab.key,
+        label: tab.tabLabel,
+        icon: BENEFICIARY_ACTIVITY_ICONS[tab.key],
+      }))}
+      activeTab={activity || "additional"}
+      onChange={(key) => {
+        if (reportId || savedIdRef.current) {
+          toast.info("Cannot switch activities while editing a saved report.");
+          return;
+        }
+        pickActivity(key as BeneficiaryActivityKey);
+      }}
+      ariaLabel="Beneficiary activities"
+    />
+  );
+
   return (
     <StateOfficeFormShell
       reportType={apiType}
@@ -838,6 +941,7 @@ export default function BeneficiaryManagementForm({
       hideBasicInfo
       showQuarter
       preserveHeader
+      headerTabs={navTabs}
       onLoaded={loadData}
       afterPersist={afterPersist}
       validate={() => {
@@ -864,6 +968,7 @@ export default function BeneficiaryManagementForm({
               request_date: l.request_date || null,
               process_end_date: l.process_end_date || null,
               line_status: l.line_status || "pending",
+              hcf_state_id: l.hcf_state_id || null,
               hcf: l.hcf || null,
               alternative_provider: l.alternative_provider || null,
               hmo_name: l.identity.hmo || null,
@@ -924,6 +1029,12 @@ export default function BeneficiaryManagementForm({
     >
       {({ submitting, saving, persist, requestSubmit, stateId, header, savedId }) => {
         savedIdRef.current = savedId;
+        const effectiveHcfStateId = (entry.kind === "dependant" && entry.hcf_state_id)
+          ? entry.hcf_state_id
+          : String(stateId || "");
+        const availableStates = allStates.length
+          ? allStates
+          : header.states.map((s) => ({ id: String(s.id), label: s.label }));
         const entityChoices = entry.kind === "dependant"
           ? (entry.request === "additional" ? ADDITIONAL_ENTITY_TYPES : EXTRA_ENTITY_TYPES)
           : [];
@@ -1168,250 +1279,324 @@ export default function BeneficiaryManagementForm({
 
                     <div className="border-t border-[#e8f3ec] pt-6">
                       {activity === "additional" && entry.kind === "dependant" && (
-                        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                        <Field label="Principal enrollee" required className="sm:col-span-2">
-                          <SearchSelect
-                            options={visiblePrincipals.map((p) => ({ value: p.value, label: p.label, sub: p.sub }))}
-                            value={entry.principal_key}
-                            displayLabel={entry.enrollee_name ? `${entry.enrollee_name}${entry.principle_nhia_number ? ` · ${entry.principle_nhia_number}` : ""}` : undefined}
-                            onChange={applyPrincipal}
-                            placeholder={
-                              principalsError
-                                ? "Enrolment could not be loaded"
-                                : principalsLoading
-                                  ? "Loading enrolment…"
-                                  : "Select from enrolment"
-                            }
-                            searchPlaceholder="Search name or number"
-                            disabled={!!principalsError || principalsLoading}
-                          />
-                          {principalsError && (
-                            <p className="text-xs text-red-600">{principalsError}</p>
-                          )}
-                          {!principalsError && !principalsLoading && visiblePrincipals.length === 0 && (
-                            <p className="text-xs text-slate-500">
-                              No principal found in Enrolment Activity for this state. Submit an Enrolment
-                              record with surname, first name, and enrolment type first — then select it here
-                              to auto-fill enrolment type and identity fields.
-                            </p>
-                          )}
-                        </Field>
-
-                        <Field label="Principal NHIA number">
-                          <Input value={entry.principle_nhia_number} readOnly placeholder="From enrolment record" />
-                        </Field>
-
-                        <Field label="Dependant" required>
-                          <Select
-                            value={entry.entity_type || undefined}
-                            onValueChange={(v) => setEntry({
-                              ...entry,
-                              entity_type: v,
-                              relationship_kind: v.startsWith("child") ? "child" : v,
-                            })}
-                          >
-                            <SelectTrigger displayValue={entityChoices.find((o) => o.value === entry.entity_type)?.label}>
-                              <SelectValue placeholder="Select" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {entityChoices.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-                            </SelectContent>
-                          </Select>
-                        </Field>
-
-                        {IDENTITY_FIELDS.map((field) => (
-                          <Field key={field.key} label={field.label}>
-                            <Input value={entry.identity[field.key] || ""} readOnly placeholder="From enrolment record" />
-                          </Field>
-                        ))}
-
-                        <Field label="Organisation / MDA">
-                          <Input value="Unemployed" readOnly />
-                        </Field>
-
-                        <Field label="HMO">
-                          <Input value={entry.identity.hmo || ""} readOnly placeholder="Inherited from principal" />
-                        </Field>
-
-                        <ProviderSelect
-                          label="HCF"
-                          entityType="hcp"
-                          stateId={stateId}
-                          value={entry.hcf}
-                          onChange={(name) => setEntry((p) => p.kind === "dependant" ? { ...p, hcf: name } : p)}
-                        />
-
-                        <ProviderSelect
-                          label="Alternative provider"
-                          entityType="hcp"
-                          stateId={stateId}
-                          value={entry.alternative_provider}
-                          onChange={(name) => setEntry((p) => p.kind === "dependant" ? { ...p, alternative_provider: name } : p)}
-                        />
-
-                        <Field label="Date of request">
-                          <Input type="date" value={entry.request_date} onChange={(e) => setEntry({ ...entry, request_date: e.target.value })} />
-                        </Field>
-
-                        <Field label="Process end date">
-                          <Input type="date" value={entry.process_end_date} onChange={(e) => setEntry({ ...entry, process_end_date: e.target.value })} />
-                        </Field>
-
-                        <Field label="Status">
-                          <Select value={entry.line_status} onValueChange={(v) => setEntry({ ...entry, line_status: v })}>
-                            <SelectTrigger><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              {EXTRA_DEPENDANT_STATUSES.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-                            </SelectContent>
-                          </Select>
-                        </Field>
-
-                        <Field label="Supporting documents" className="sm:col-span-2 lg:col-span-3">
-                          <Input
-                            ref={fileRef}
-                            type="file"
-                            multiple
-                            onChange={(e) => setEntry({ ...entry, supportingFiles: Array.from(e.target.files ?? []) })}
-                          />
-                        </Field>
-                      </div>
-                    )}
-
-                    {activity === "extra" && entry.kind === "dependant" && (
-                      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                        <Field label="Principal enrollee" required className="sm:col-span-2">
-                          <SearchSelect
-                            options={visiblePrincipals.map((p) => ({ value: p.value, label: p.label, sub: p.sub }))}
-                            value={entry.principal_key}
-                            displayLabel={entry.enrollee_name ? `${entry.enrollee_name}${entry.principle_nhia_number ? ` · ${entry.principle_nhia_number}` : ""}` : undefined}
-                            onChange={applyPrincipal}
-                            placeholder={
-                              principalsError
-                                ? "Enrolment could not be loaded"
-                                : principalsLoading
-                                  ? "Loading enrolment…"
-                                  : "Select from enrolment"
-                            }
-                            searchPlaceholder="Search name or number"
-                            disabled={!!principalsError || principalsLoading}
-                          />
-                          {principalsError && (
-                            <p className="text-xs text-red-600">{principalsError}</p>
-                          )}
-                          {!principalsError && !principalsLoading && visiblePrincipals.length === 0 && (
-                            <p className="text-xs text-slate-500">
-                              No principal found in Enrolment Activity for this state. Submit an Enrolment
-                              record with surname, first name, and enrolment type first — then select it here
-                              to auto-fill enrolment type and identity fields.
-                            </p>
-                          )}
-                        </Field>
-
-                        <Field label="Principal NHIA number">
-                          <Input value={entry.principle_nhia_number} readOnly placeholder="From enrolment record" />
-                        </Field>
-
-                        <Field label="Relationship" required>
-                          <Select
-                            value={entry.entity_type || undefined}
-                            onValueChange={(v) => setEntry({
-                              ...entry,
-                              entity_type: v,
-                              relationship_kind: v.startsWith("child") ? "child" : v,
-                            })}
-                          >
-                            <SelectTrigger displayValue={entityChoices.find((o) => o.value === entry.entity_type)?.label}>
-                              <SelectValue placeholder="Select" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {entityChoices.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-                            </SelectContent>
-                          </Select>
-                        </Field>
-
-                        <Field label="Dependent" required>
-                          <Select value={entry.dependent || undefined} onValueChange={(v) => setEntry({ ...entry, dependent: v })}>
-                            <SelectTrigger displayValue={entry.dependent ? (entry.dependent === "principal" ? "Principal" : entry.dependent.replace("dependent_", "Dependent ")) : undefined}>
-                              <SelectValue placeholder="Select" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="principal">Principal</SelectItem>
-                              <SelectItem value="dependent_1">Dependent 1</SelectItem>
-                              <SelectItem value="dependent_2">Dependent 2</SelectItem>
-                              <SelectItem value="dependent_3">Dependent 3</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </Field>
-
-                        <div className="flex flex-col justify-end">
-                          {entry.enrollee_name ? (
-                            <div className="rounded-lg border border-[#d4e8dc] bg-[#f4f7f5] px-3 py-2 text-xs leading-5 text-[#0f3d2e] h-9 flex items-center" role="status">
-                              {extraHistoryLoading ? "Loading existing extra dependants…" : extraHistoryError ? (
-                                <span className="text-amber-700">{extraHistoryError}</span>
-                              ) : (
-                                <span className="font-semibold">Number of dependants: {extraProgress?.count ?? 0}</span>
+                        <div className="space-y-4">
+                          <div>
+                            <Field label="Search for Principal Enrollee" required>
+                              <SearchSelect
+                                options={visiblePrincipals.map((p) => ({ value: p.value, label: p.label, sub: p.sub }))}
+                                value={entry.principal_key}
+                                displayLabel={entry.enrollee_name ? `${entry.enrollee_name}${entry.principle_nhia_number ? ` · ${entry.principle_nhia_number}` : ""}` : undefined}
+                                onChange={applyPrincipal}
+                                placeholder={
+                                  principalsError
+                                    ? "Enrolment could not be loaded"
+                                    : principalsLoading
+                                      ? "Loading enrolment…"
+                                      : "Select from enrolment"
+                                }
+                                searchPlaceholder="Search name or number"
+                                disabled={!!principalsError || principalsLoading}
+                              />
+                              {principalsError && (
+                                <p className="text-xs text-red-600">{principalsError}</p>
                               )}
-                            </div>
+                              {!principalsError && !principalsLoading && visiblePrincipals.length === 0 && (
+                                <p className="text-xs text-slate-500">
+                                  No principal found in Enrolment Activity for this state. Submit an Enrolment
+                                  record with surname, first name, and enrolment type first — then select it here
+                                  to auto-fill enrolment type and identity fields.
+                                </p>
+                              )}
+                            </Field>
+                          </div>
+
+                          {entry.enrollee_name ? (
+                            <EnrolleeInfoView
+                              nhiaNumber={entry.principle_nhia_number}
+                              identity={entry.identity}
+                            />
                           ) : null}
+
+                          <div className="grid gap-4 sm:grid-cols-2">
+                            <Field label="Relationship" required>
+                              <Select
+                                value={entry.relationship_kind || undefined}
+                                onValueChange={(v) => {
+                                  const nextKind = v;
+                                  let nextEntity = entry.entity_type;
+                                  if (v === "spouse") nextEntity = "spouse";
+                                  else if (v === "child" && nextEntity === "spouse") nextEntity = "";
+                                  setEntry({
+                                    ...entry,
+                                    relationship_kind: nextKind,
+                                    entity_type: nextEntity,
+                                  });
+                                }}
+                              >
+                                <SelectTrigger displayValue={RELATIONSHIP_OPTIONS.find((o) => o.value === entry.relationship_kind)?.label}>
+                                  <SelectValue placeholder="Select" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {RELATIONSHIP_OPTIONS.map((o) => (
+                                    <SelectItem key={o.value} value={o.value}>
+                                      {o.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </Field>
+
+                            <Field label="Entity" required>
+                              <Select
+                                value={entry.entity_type || undefined}
+                                onValueChange={(v) => {
+                                  let nextKind = entry.relationship_kind;
+                                  if (v === "spouse") nextKind = "spouse";
+                                  else if (v.startsWith("child")) nextKind = "child";
+                                  setEntry({ ...entry, entity_type: v, relationship_kind: nextKind });
+                                }}
+                              >
+                                <SelectTrigger displayValue={ADDITIONAL_ENTITY_OPTIONS.find((o) => o.value === entry.entity_type)?.label}>
+                                  <SelectValue placeholder="Select Entity" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {ADDITIONAL_ENTITY_OPTIONS.map((o) => (
+                                    <SelectItem key={o.value} value={o.value}>
+                                      {o.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </Field>
+                          </div>
+
+                          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                            <Field label="State" required>
+                              <Select
+                                value={effectiveHcfStateId || undefined}
+                                onValueChange={(val) => {
+                                  setEntry((p) => p.kind === "dependant" ? {
+                                    ...p,
+                                    hcf_state_id: val,
+                                    hcf: "",
+                                    alternative_provider: "",
+                                  } : p);
+                                }}
+                              >
+                                <SelectTrigger displayValue={availableStates.find((s) => s.id === effectiveHcfStateId)?.label}>
+                                  <SelectValue placeholder="Select State" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {availableStates.map((s) => (
+                                    <SelectItem key={s.id} value={s.id}>
+                                      {s.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </Field>
+
+                            <ProviderSelect
+                              label="HCF"
+                              entityType="hcp"
+                              stateId={effectiveHcfStateId}
+                              value={entry.hcf}
+                              onChange={(name) => setEntry((p) => p.kind === "dependant" ? { ...p, hcf: name } : p)}
+                            />
+
+                            <ProviderSelect
+                              label="Alternative provider"
+                              entityType="hcp"
+                              stateId={effectiveHcfStateId}
+                              value={entry.alternative_provider}
+                              onChange={(name) => setEntry((p) => p.kind === "dependant" ? { ...p, alternative_provider: name } : p)}
+                            />
+
+                            <Field label="Date of request">
+                              <Input type="date" value={entry.request_date} onChange={(e) => setEntry({ ...entry, request_date: e.target.value })} />
+                            </Field>
+
+                            <Field label="Process end date">
+                              <Input type="date" value={entry.process_end_date} onChange={(e) => setEntry({ ...entry, process_end_date: e.target.value })} />
+                            </Field>
+
+                            <Field label="Status">
+                              <Select value={entry.line_status} onValueChange={(v) => setEntry({ ...entry, line_status: v })}>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  {EXTRA_DEPENDANT_STATUSES.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                                </SelectContent>
+                              </Select>
+                            </Field>
+
+                            <Field label="Supporting documents" className="sm:col-span-2 lg:col-span-3">
+                              <Input
+                                ref={fileRef}
+                                type="file"
+                                multiple
+                                onChange={(e) => setEntry({ ...entry, supportingFiles: Array.from(e.target.files ?? []) })}
+                              />
+                            </Field>
+                          </div>
                         </div>
+                      )}
 
-                        {IDENTITY_FIELDS.map((field) => (
-                          <Field key={field.key} label={field.label}>
-                            <Input value={entry.identity[field.key] || ""} readOnly placeholder="From enrolment record" />
-                          </Field>
-                        ))}
+                      {activity === "extra" && entry.kind === "dependant" && (
+                        <div className="space-y-4">
+                          <div>
+                            <Field label="Search for Principal Enrollee" required>
+                              <SearchSelect
+                                options={visiblePrincipals.map((p) => ({ value: p.value, label: p.label, sub: p.sub }))}
+                                value={entry.principal_key}
+                                displayLabel={entry.enrollee_name ? `${entry.enrollee_name}${entry.principle_nhia_number ? ` · ${entry.principle_nhia_number}` : ""}` : undefined}
+                                onChange={applyPrincipal}
+                                placeholder={
+                                  principalsError
+                                    ? "Enrolment could not be loaded"
+                                    : principalsLoading
+                                      ? "Loading enrolment…"
+                                      : "Select from enrolment"
+                                }
+                                searchPlaceholder="Search name or number"
+                                disabled={!!principalsError || principalsLoading}
+                              />
+                              {principalsError && (
+                                <p className="text-xs text-red-600">{principalsError}</p>
+                              )}
+                              {!principalsError && !principalsLoading && visiblePrincipals.length === 0 && (
+                                <p className="text-xs text-slate-500">
+                                  No principal found in Enrolment Activity for this state. Submit an Enrolment
+                                  record with surname, first name, and enrolment type first — then select it here
+                                  to auto-fill enrolment type and identity fields.
+                                </p>
+                              )}
+                            </Field>
+                          </div>
 
-                        <Field label="Organisation / MDA">
-                          <Input value="Unemployed" readOnly />
-                        </Field>
+                          {entry.enrollee_name ? (
+                            <EnrolleeInfoView
+                              nhiaNumber={entry.principle_nhia_number}
+                              identity={entry.identity}
+                            />
+                          ) : null}
 
-                        <Field label="HMO">
-                          <Input value={entry.identity.hmo || ""} readOnly placeholder="Inherited from principal" />
-                        </Field>
+                          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                            <Field label="Relationship" required>
+                              <Select
+                                value={entry.entity_type || undefined}
+                                onValueChange={(v) => setEntry({
+                                  ...entry,
+                                  entity_type: v,
+                                  relationship_kind: v.startsWith("child") ? "child" : v,
+                                })}
+                              >
+                                <SelectTrigger displayValue={EXTRA_ENTITY_TYPES.find((o) => o.value === entry.entity_type)?.label}>
+                                  <SelectValue placeholder="Select" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {EXTRA_ENTITY_TYPES.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                                </SelectContent>
+                              </Select>
+                            </Field>
 
-                        <ProviderSelect
-                          label="HCF"
-                          entityType="hcp"
-                          stateId={stateId}
-                          value={entry.hcf}
-                          onChange={(name) => setEntry((p) => p.kind === "dependant" ? { ...p, hcf: name } : p)}
-                        />
+                            <Field label="Dependent" required>
+                              <Select value={entry.dependent || undefined} onValueChange={(v) => setEntry({ ...entry, dependent: v })}>
+                                <SelectTrigger displayValue={formatDependentLabel(entry.dependent)}>
+                                  <SelectValue placeholder="Select" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {EXTRA_DEPENDENT_SLOTS.map((slot) => (
+                                    <SelectItem key={slot.value} value={slot.value}>
+                                      {slot.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </Field>
 
-                        <ProviderSelect
-                          label="Alternative provider"
-                          entityType="hcp"
-                          stateId={stateId}
-                          value={entry.alternative_provider}
-                          onChange={(name) => setEntry((p) => p.kind === "dependant" ? { ...p, alternative_provider: name } : p)}
-                        />
+                            <div className="flex flex-col justify-end">
+                              {entry.enrollee_name ? (
+                                <div className="rounded-lg border border-[#d4e8dc] bg-[#f4f7f5] px-3 py-2 text-xs leading-5 text-[#0f3d2e] h-9 flex items-center" role="status">
+                                  {extraHistoryLoading ? "Loading existing extra dependants…" : extraHistoryError ? (
+                                    <span className="text-amber-700">{extraHistoryError}</span>
+                                  ) : (
+                                    <span className="font-semibold">Number of dependants: {extraProgress?.count ?? 0}</span>
+                                  )}
+                                </div>
+                              ) : null}
+                            </div>
+                          </div>
 
-                        <Field label="Date of request">
-                          <Input type="date" value={entry.request_date} onChange={(e) => setEntry({ ...entry, request_date: e.target.value })} />
-                        </Field>
+                          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                            <Field label="State" required>
+                              <Select
+                                value={effectiveHcfStateId || undefined}
+                                onValueChange={(val) => {
+                                  setEntry((p) => p.kind === "dependant" ? {
+                                    ...p,
+                                    hcf_state_id: val,
+                                    hcf: "",
+                                    alternative_provider: "",
+                                  } : p);
+                                }}
+                              >
+                                <SelectTrigger displayValue={availableStates.find((s) => s.id === effectiveHcfStateId)?.label}>
+                                  <SelectValue placeholder="Select State" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {availableStates.map((s) => (
+                                    <SelectItem key={s.id} value={s.id}>
+                                      {s.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </Field>
 
-                        <Field label="Process end date">
-                          <Input type="date" value={entry.process_end_date} onChange={(e) => setEntry({ ...entry, process_end_date: e.target.value })} />
-                        </Field>
+                            <ProviderSelect
+                              label="HCF"
+                              entityType="hcp"
+                              stateId={effectiveHcfStateId}
+                              value={entry.hcf}
+                              onChange={(name) => setEntry((p) => p.kind === "dependant" ? { ...p, hcf: name } : p)}
+                            />
 
-                        <Field label="Status">
-                          <Select value={entry.line_status} onValueChange={(v) => setEntry({ ...entry, line_status: v })}>
-                            <SelectTrigger><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              {EXTRA_DEPENDANT_STATUSES.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-                            </SelectContent>
-                          </Select>
-                        </Field>
+                            <ProviderSelect
+                              label="Alternative provider"
+                              entityType="hcp"
+                              stateId={effectiveHcfStateId}
+                              value={entry.alternative_provider}
+                              onChange={(name) => setEntry((p) => p.kind === "dependant" ? { ...p, alternative_provider: name } : p)}
+                            />
 
-                        <Field label="Supporting documents" className="sm:col-span-2 lg:col-span-3">
-                          <Input
-                            ref={fileRef}
-                            type="file"
-                            multiple
-                            onChange={(e) => setEntry({ ...entry, supportingFiles: Array.from(e.target.files ?? []) })}
-                          />
-                        </Field>
-                      </div>
-                    )}
+                            <Field label="Date of request">
+                              <Input type="date" value={entry.request_date} onChange={(e) => setEntry({ ...entry, request_date: e.target.value })} />
+                            </Field>
+
+                            <Field label="Process end date">
+                              <Input type="date" value={entry.process_end_date} onChange={(e) => setEntry({ ...entry, process_end_date: e.target.value })} />
+                            </Field>
+
+                            <Field label="Status">
+                              <Select value={entry.line_status} onValueChange={(v) => setEntry({ ...entry, line_status: v })}>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  {EXTRA_DEPENDANT_STATUSES.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                                </SelectContent>
+                              </Select>
+                            </Field>
+
+                            <Field label="Supporting documents" className="sm:col-span-2 lg:col-span-3">
+                              <Input
+                                ref={fileRef}
+                                type="file"
+                                multiple
+                                onChange={(e) => setEntry({ ...entry, supportingFiles: Array.from(e.target.files ?? []) })}
+                              />
+                            </Field>
+                          </div>
+                        </div>
+                      )}
 
                     {activity === "provider" && entry.kind === "provider" && (
                       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -1648,10 +1833,12 @@ export default function BeneficiaryManagementForm({
 
 function rowCells(l: Line) {
   if (l.kind === "dependant") {
+    const depText = l.request === "extra" && l.dependent ? formatDependentLabel(l.dependent) : "";
+    const detailPrefix = depText ? `${depText} · ` : "";
     return {
       activity: l.request === "additional" ? "Additional Dependant" : "Extra Dependant",
       subject: l.enrollee_name,
-      detail: `${entityLabel(l.request, l.entity_type)} · ${l.principle_nhia_number}`,
+      detail: `${detailPrefix}${entityLabel(l.request, l.entity_type)} · ${l.principle_nhia_number}`,
       date: l.request_date || "—",
       status: labelOf(EXTRA_DEPENDANT_STATUSES, l.line_status, l.line_status),
     };

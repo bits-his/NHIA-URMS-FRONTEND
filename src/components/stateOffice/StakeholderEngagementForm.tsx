@@ -3,7 +3,6 @@ import { createPortal } from "react-dom";
 import {
   ChevronDown, Loader2, Plus, Save, Send, Trash2, Upload,
 } from "lucide-react";
-import { useSelector } from "react-redux";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -12,9 +11,8 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
-import type { RootState } from "@/src/store/store";
-import { stateOfficeApi, stockApi } from "@/lib/api";
-import { MONTHS, monthLabel, labelOf, parseSupportingDocuments } from "./constants";
+import { stateOfficeApi } from "@/lib/api";
+import { parseSupportingDocuments } from "./constants";
 import StateOfficeFormShell from "./StateOfficeFormShell";
 import ReportBasicInfo from "./shared/ReportBasicInfo";
 import {

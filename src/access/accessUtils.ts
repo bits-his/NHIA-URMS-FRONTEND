@@ -402,6 +402,21 @@ export function canAccessFunctionality(moduleTitle: string, functionalityTitle: 
 
   }
 
+  // Cross-module access for Ad-hoc / Special Assignment (SDO ↔ Zonal)
+  if (
+    (resolveModuleTitle(moduleTitle) === ZONAL_MODULE || resolveModuleTitle(moduleTitle) === SDO_MODULE)
+    && normalized === "Ad-hoc / Special Assignment"
+  ) {
+    const sdo = findEntry(user, SDO_MODULE);
+    if (sdo?.functionalities.some((f) => normalizeFunctionalityTitle(f, SDO_MODULE) === "Ad-hoc / Special Assignment")) {
+      return true;
+    }
+    const zonal = findEntry(user, ZONAL_MODULE);
+    if (zonal?.functionalities.some((f) => normalizeFunctionalityTitle(f, ZONAL_MODULE) === "Ad-hoc / Special Assignment")) {
+      return true;
+    }
+  }
+
   return false;
 
 }

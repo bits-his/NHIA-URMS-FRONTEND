@@ -16,6 +16,12 @@ import {
   COMPLIANCE_HUB_PATH,
   type ComplianceHubTabKey,
 } from "./complianceHubTypes";
+import {
+  HMO_INDEBTEDNESS_DEFAULT_TAB,
+  HMO_INDEBTEDNESS_NAV_TITLE,
+  HMO_INDEBTEDNESS_TABS,
+  type HmoIndebtednessTabKey,
+} from "./hmoIndebtednessTypes";
 import { COMPLIANCE_HUB_PRIVILEGES } from "@/src/access/hubPrivilegeConfig";
 import { useAllowedHubTabs } from "@/src/access/hubAccess";
 import ServicomComplaintsPage from "../servicom/ServicomComplaintsPage";
@@ -50,6 +56,18 @@ const ICON_MAP: Record<ComplianceHubTabKey, React.ElementType> = {
   "hmo-indebtedness": Wallet,
   "mystery-shopping": Search,
 };
+
+const HMO_TAB_KEYS = new Set<HmoIndebtednessTabKey>(
+  HMO_INDEBTEDNESS_TABS.map((t) => t.key),
+);
+
+function parseHmoTab(raw: string | null): HmoIndebtednessTabKey {
+  if (raw && HMO_TAB_KEYS.has(raw as HmoIndebtednessTabKey)) {
+    return raw as HmoIndebtednessTabKey;
+  }
+  if (raw === "reconciliation") return "phi";
+  return HMO_INDEBTEDNESS_DEFAULT_TAB;
+}
 
 export default function ComplianceHubPage({
   onBack,
@@ -112,14 +130,23 @@ export default function ComplianceHubPage({
   const visibleTabMeta = COMPLIANCE_HUB_TABS.filter((t) => allowedKeys.has(t.key));
   const activeTabMeta = visibleTabMeta.find((t) => t.key === activeTab);
   const inLeaf = chrome?.mode === "form" || chrome?.mode === "detail";
+  const onHmoModule = activeTab === "hmo-indebtedness";
+  const activeHmoTab = parseHmoTab(searchParams.get("hmoTab"));
+  const activeHmoMeta = HMO_INDEBTEDNESS_TABS.find((t) => t.key === activeHmoTab);
+  const hmoListTitle = `${HMO_INDEBTEDNESS_NAV_TITLE} - ${activeHmoMeta?.tabLabel ?? "Collation Sheet"}`;
   const pageTitle =
-    chrome?.title ||
-    activeTabMeta?.title ||
-    COMPLIANCE_HUB_NAV_TITLE;
+    chrome?.title
+    || (onHmoModule ? hmoListTitle : undefined)
+    || activeTabMeta?.title
+    || COMPLIANCE_HUB_NAV_TITLE;
 
   const handleHeaderBack = () => {
-    if (inLeaf && chrome?.onInnerBack) chrome.onInnerBack();
-    else onBack();
+    // Prefer inner navigation (form/detail → list) when the child registered a handler.
+    if (chrome?.onInnerBack) {
+      chrome.onInnerBack();
+      return;
+    }
+    onBack();
   };
 
   if (!activeTab || allowedTabs.length === 0) {
@@ -151,20 +178,26 @@ export default function ComplianceHubPage({
   return (
     <PageLayout
       title={pageTitle}
-      onBack={inLeaf ? handleHeaderBack : undefined}
+      onBack={handleHeaderBack}
+      maxWidth="full"
+      variant="fluid"
+      contentClassName="p-0 flex-1 min-h-0"
       actions={
-        chrome?.actions ?? (
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8.5 gap-1.5 border border-slate-300 text-slate-700 bg-white hover:bg-[#f4f7f5] text-xs font-bold rounded-sm shadow-2xs"
-            disabled={refreshing}
-            onClick={handleRefresh}
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`} />
-            <span>Refresh</span>
-          </Button>
-        )
+        // On form/detail, never fall back to the hub Refresh — only show child actions.
+        inLeaf
+          ? (chrome?.actions ?? undefined)
+          : (chrome?.actions ?? (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8.5 gap-1.5 border border-slate-300 text-slate-700 bg-white hover:bg-[#f4f7f5] text-xs font-bold rounded-sm shadow-2xs"
+              disabled={refreshing}
+              onClick={handleRefresh}
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`} />
+              <span>Refresh</span>
+            </Button>
+          ))
       }
       tabs={
         !hideTabStrip && !inLeaf ? (
@@ -181,7 +214,7 @@ export default function ComplianceHubPage({
         ) : undefined
       }
     >
-      <div className="flex-1 min-h-0 w-full">
+      <div className="flex-1 min-h-0 w-full h-full">
         {activeTab === "complaints" && (
           <ServicomComplaintsPage
             key={`complaints-${refreshKey}`}

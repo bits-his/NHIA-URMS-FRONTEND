@@ -1,17 +1,16 @@
 import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import {
-  ArrowLeft, ArrowRight, ClipboardList, Eye, FileText, Loader2, Pencil, Plus, RefreshCw, Send, Trash2,
+  ArrowLeft, ClipboardList, Eye, FileText, Pencil, Plus, RefreshCw, Send, Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useSelector } from "react-redux";
 import type { RootState } from "@/src/store/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import PageLayout from "../PageLayout";
@@ -19,8 +18,8 @@ import { UnderHeaderNavTabs } from "@/src/components/UnderHeaderNavTabs";
 import { ShadcnDataTable } from "@/components/common/ShadcnDataTable";
 import { apiFileUrl, meetingsApi as api } from "@/lib/api";
 import { Field, FieldSection } from "./EnrolmentActivityForm";
-import StateOfficeFormSteps from "./StateOfficeFormSteps";
-import { MONTHS, monthLabel } from "./constants";
+import ReportBasicInfo from "./shared/ReportBasicInfo";
+import { monthLabel } from "./constants";
 
 const inputClass = "w-full min-h-[4.5rem] rounded-xl px-3.5 py-2 text-sm bg-[#f4f7f5] border-2 border-[#1a7a52] text-slate-800 shadow-xs outline-none hover:border-[#0f3d2e] hover:bg-white focus-visible:border-[#0f3d2e] focus-visible:bg-white focus-visible:ring-3 focus-visible:ring-[#1a7a52]/25";
 const ACTION = "bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20";
@@ -43,17 +42,6 @@ const ITEM_STATUS_TONE: Record<string, string> = {
 };
 const QUARTERS = ["Q1", "Q2", "Q3", "Q4"];
 const quarterFromMonth = (m: number | string) => QUARTERS[Math.min(3, Math.floor(((Number(m) || 1) - 1) / 3))] || "Q1";
-
-const MEETING_STEPS = [
-  { id: "info", label: "Meeting information" },
-  { id: "agenda", label: "Agenda & decisions" },
-  { id: "submit", label: "Follow-up & submit" },
-];
-const ETMC_STEPS = [
-  { id: "cascade", label: "Cascade details" },
-  { id: "entries", label: "Updates & feedback" },
-  { id: "certify", label: "Evidence & submit" },
-];
 
 type Catalogue = {
   meeting_types: string[]; item_statuses: string[]; decision_statuses: string[];
@@ -200,8 +188,6 @@ export default function MeetingsWorkspace({ onBack, initialTab = "meetings" }: {
   const [etmcs, setEtmcs] = React.useState<any[]>([]);
   const [tab, setTab] = React.useState<TabKey>(initialTab === "etmc" ? "etmc" : "meetings");
   const [mode, setMode] = React.useState<Mode>("list");
-  const [step, setStep] = React.useState(0);
-  const [maxStep, setMaxStep] = React.useState(0);
   const [busy, setBusy] = React.useState(false);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState("");
@@ -253,53 +239,34 @@ export default function MeetingsWorkspace({ onBack, initialTab = "meetings" }: {
   const deptOptions = (cat?.departments || []).map((d) => d.description || d.department_code);
 
   const backToList = () => {
-    setMode("list"); setDraft(null); setDetail(null); setStep(0); setMaxStep(0);
+    setMode("list"); setDraft(null); setDetail(null);
     setLine(null); setLineKind(""); clearEvidenceSelection();
     setAgendaForm(blankAgenda()); setDecisionForm(blankDecision()); setFollowupForm(blankFollowup());
   };
-  const validateMeetingStep = (from: number): string | null => {
+  const validateMeeting = (): string | null => {
     if (!draft) return "Form is not ready";
-    if (from === 0) {
-      if (!draft.reporting_month) return "Select reporting month";
-      if (!draft.reporting_year) return "Enter reporting year";
-      if (!String(draft.meeting_date || "").trim()) return "Enter meeting date";
-      if (!String(draft.meeting_type || "").trim()) return "Select type of meeting";
-      if (draft.meeting_type === "Other (Specify)" && !String(draft.other_meeting_type || "").trim()) return "Specify the meeting type";
-      if (!String(draft.state_code || "").trim()) return "State is required";
-    }
-    if (from === 1) {
-      const agendas = (draft.agenda_items || []).filter((r: any) => r.subject?.trim() || r.detail?.trim() || r.outcome?.trim());
-      if (!agendas.length) return "Add at least one agenda item before continuing";
-      if (agendas.some((r: any) => !String(r.subject || "").trim())) return "Each agenda item needs an Agenda / subject";
-      const decisions = (draft.decisions || []).filter((r: any) => r.subject?.trim() || r.detail?.trim());
-      if (!decisions.length) return "Add at least one decision / resolution before continuing";
-      if (decisions.some((r: any) => !String(r.subject || "").trim())) return "Each decision needs a Decision / resolution";
-    }
+    if (!draft.reporting_month) return "Select reporting month";
+    if (!draft.reporting_year) return "Enter reporting year";
+    if (!String(draft.meeting_date || "").trim()) return "Enter meeting date";
+    if (!String(draft.meeting_type || "").trim()) return "Select type of meeting";
+    if (draft.meeting_type === "Other (Specify)" && !String(draft.other_meeting_type || "").trim()) return "Specify the meeting type";
+    if (!String(draft.state_code || "").trim()) return "State is required";
+    const agendas = (draft.agenda_items || []).filter((r: any) => r.subject?.trim() || r.detail?.trim() || r.outcome?.trim());
+    if (!agendas.length) return "Add at least one agenda item";
+    if (agendas.some((r: any) => !String(r.subject || "").trim())) return "Each agenda item needs an Agenda / subject";
+    const decisions = (draft.decisions || []).filter((r: any) => r.subject?.trim() || r.detail?.trim());
+    if (!decisions.length) return "Add at least one decision / resolution";
+    if (decisions.some((r: any) => !String(r.subject || "").trim())) return "Each decision needs a Decision / resolution";
     return null;
   };
-  const validateEtmcStep = (from: number): string | null => {
+  const validateEtmc = (): string | null => {
     if (!draft) return "Form is not ready";
-    if (from === 0) {
-      if (!draft.reporting_month) return "Select reporting month";
-      if (!draft.reporting_year) return "Enter reporting year";
-      if (!String(draft.etmc_meeting_date || "").trim()) return "Enter ETMC meeting date";
-      if (!String(draft.state_code || "").trim()) return "State is required";
-    }
+    if (!draft.reporting_month) return "Select reporting month";
+    if (!draft.reporting_year) return "Enter reporting year";
+    if (!String(draft.etmc_meeting_date || "").trim()) return "Enter ETMC meeting date";
+    if (!String(draft.state_code || "").trim()) return "State is required";
     return null;
   };
-  const goStep = (next: number, opts?: { skipValidate?: boolean }) => {
-    if (next > step && !opts?.skipValidate) {
-      const err = mode === "meeting-form" ? validateMeetingStep(step)
-        : mode === "etmc-form" ? validateEtmcStep(step)
-        : null;
-      if (err) { toast.error(err); setError(err); return; }
-    }
-    setError("");
-    setStep(next);
-    setMaxStep((m) => Math.max(m, next));
-  };
-  const continueMeeting = () => goStep(step + 1);
-  const continueEtmc = () => goStep(step + 1);
   const pushAgendaFromForm = () => {
     const row = { ...blankAgenda(), ...agendaForm, _key: uid() };
     if (!row.subject?.trim() && !row.detail?.trim() && !row.outcome?.trim()) {
@@ -338,7 +305,7 @@ export default function MeetingsWorkspace({ onBack, initialTab = "meetings" }: {
   });
 
   const startMeetingForm = async (row?: any) => {
-    setEditingId(row?.meeting_id || null); setStep(0); setMaxStep(0); setLine(null); setLineKind(""); setEditingLine(null);
+    setEditingId(row?.meeting_id || null); setLine(null); setLineKind(""); setEditingLine(null);
     setAgendaForm(blankAgenda()); setDecisionForm(blankDecision()); setFollowupForm(blankFollowup());
     clearEvidenceSelection();
     if (row) {
@@ -370,7 +337,7 @@ export default function MeetingsWorkspace({ onBack, initialTab = "meetings" }: {
     setMode("meeting-form");
   };
   const startEtmcForm = async (row?: any) => {
-    setEditingId(row?.etmc_id || null); setStep(0); setMaxStep(0); setLine(null); setLineKind(""); setEditingLine(null);
+    setEditingId(row?.etmc_id || null); setLine(null); setLineKind(""); setEditingLine(null);
     if (row) {
       const r = (await api.etmc(row.etmc_id)).data;
       const entries = r.entries || [];
@@ -398,17 +365,15 @@ export default function MeetingsWorkspace({ onBack, initialTab = "meetings" }: {
   const save = (kind: "meeting" | "etmc", status: string) => run(async () => {
     if (status === "submitted") {
       if (kind === "meeting") {
-        for (const s of [0, 1]) {
-          const err = validateMeetingStep(s);
-          if (err) throw new Error(err);
-        }
+        const err = validateMeeting();
+        if (err) throw new Error(err);
         if (openActionCount > 0 && !(draft.followups || []).length) {
           throw new Error("Record follow-up on previous meeting action points before submitting");
         }
         if (!String(draft.prepared_by || preparedFallback || "").trim()) throw new Error("Enter prepared by");
         if (!String(draft.submission_date || "").trim()) throw new Error("Enter submission date");
       } else {
-        const err = validateEtmcStep(0);
+        const err = validateEtmc();
         if (err) throw new Error(err);
         if (!String(draft.prepared_by || preparedFallback || "").trim()) throw new Error("Enter prepared by");
         if (!String(draft.submission_date || "").trim()) throw new Error("Enter submission date");
@@ -649,18 +614,46 @@ export default function MeetingsWorkspace({ onBack, initialTab = "meetings" }: {
     />
   ) : undefined;
 
-  /* ── Meeting form ── */
+  const lockGeo = Boolean(cat?.default_state) && !permissions.national;
+  const basicZones = (cat?.zones || []).map((z) => ({ id: z.zonal_code, label: z.description }));
+  const draftZoneId = draft
+    ? (stateZone(draft.state_code) || cat?.default_zone || "")
+    : "";
+  const basicStates = (cat?.states || [])
+    .filter((s) => !draftZoneId || s.zonal_code === draftZoneId)
+    .map((s) => ({ id: s.code, label: s.description }));
+  const reportBasicInfo = draft ? (
+    <ReportBasicInfo
+      zones={basicZones}
+      states={basicStates}
+      zoneId={draftZoneId}
+      setZoneId={(v) => {
+        setDraft((d: any) => {
+          const keep = (cat?.states || []).find((s) => s.code === d.state_code && s.zonal_code === v);
+          const fallback = (cat?.states || []).find((s) => s.zonal_code === v)?.code || "";
+          return { ...d, state_code: keep ? d.state_code : fallback };
+        });
+      }}
+      stateId={draft.state_code || ""}
+      setStateId={(v) => setDraft((d: any) => ({ ...d, state_code: v }))}
+      reportYear={String(draft.reporting_year || "")}
+      setReportYear={(v) => setDraft((d: any) => ({ ...d, reporting_year: Number(v) || v }))}
+      reportMonth={String(draft.reporting_month || "")}
+      setReportMonth={(v) => setDraft((d: any) => ({ ...d, reporting_month: Number(v) }))}
+      submitDate={draft.submission_date || ""}
+      setSubmitDate={(v) => setDraft((d: any) => ({ ...d, submission_date: v }))}
+      lockZone={lockGeo}
+      lockState={lockGeo}
+      showQuarter
+      embedded
+    />
+  ) : null;
+
+  /* ── Meeting form (single scrollable card, no steps) ── */
   const meetingForm = draft && mode === "meeting-form" && (
     <Card className="rounded-sm border-[#d4e8dc] shadow-sm overflow-visible"><CardContent className="p-4 md:p-5 space-y-5">
-      <StateOfficeFormSteps steps={MEETING_STEPS} activeIndex={step} maximumIndex={maxStep} onStepChange={(i) => goStep(i)} hideNumbers />
-      {step === 0 && <FieldSection title="Meeting information">
-        <Field label="Zone"><Input value={zoneName(stateZone(draft.state_code))} readOnly /></Field>
-        <Field label="State / FCT"><Input value={stateName(draft.state_code)} readOnly /></Field>
-        <Field label="Reporting month" required>
-          <Dropdown value={String(draft.reporting_month)} options={MONTHS.map((m: any, i: number) => ({ value: String(i + 1), label: m.label || m }))} onChange={(v) => setDraft((d: any) => ({ ...d, reporting_month: Number(v) }))} />
-        </Field>
-        <Field label="Year" required><Input type="number" value={draft.reporting_year} onChange={(e) => setDraft((d: any) => ({ ...d, reporting_year: e.target.value }))} /></Field>
-        <Field label="Quarter"><Input value={quarterFromMonth(draft.reporting_month)} readOnly /></Field>
+      {reportBasicInfo}
+      <FieldSection title="Meeting information">
         <Field label="Meeting date" required><Input type="date" value={draft.meeting_date} onChange={(e) => setDraft((d: any) => ({ ...d, meeting_date: e.target.value }))} /></Field>
         <Field label="Type of meeting" required><Dropdown value={draft.meeting_type} options={cat?.meeting_types || []} onChange={(v) => setDraft((d: any) => ({ ...d, meeting_type: v }))} /></Field>
         {draft.meeting_type === "Other (Specify)" && <Field label="Specify meeting type" required><Input value={draft.other_meeting_type} onChange={(e) => setDraft((d: any) => ({ ...d, other_meeting_type: e.target.value }))} /></Field>}
@@ -670,223 +663,208 @@ export default function MeetingsWorkspace({ onBack, initialTab = "meetings" }: {
         <Field label="Number of attendees"><Input type="number" value={draft.attendees} onChange={(e) => setDraft((d: any) => ({ ...d, attendees: e.target.value }))} placeholder="Number present" /></Field>
         <Field label="Attendance rate"><AutoField value={rate(draft.staff_strength, draft.attendees)} /></Field>
         <Field label="Purpose / objective" className="sm:col-span-2 lg:col-span-3"><textarea className={inputClass} rows={2} value={draft.purpose} onChange={(e) => setDraft((d: any) => ({ ...d, purpose: e.target.value }))} placeholder="Briefly state the purpose of the meeting" /></Field>
-      </FieldSection>}
-      {step === 1 && <>
-        <FieldSection title="Key issue items discussed">
-          <div className="sm:col-span-2 lg:col-span-3 space-y-4">
-            <div className="rounded-xl border border-[#d4e8dc] bg-[#f8fdfb] p-4 space-y-3">
-              <span className="inline-flex rounded-full bg-[#e8f6ee] px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#145c3f]">
-                Agenda item {String((draft.agenda_items || []).length + 1).padStart(2, "0")}
-              </span>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                <Field label="Agenda / subject" required>
-                  <Input value={agendaForm.subject} onChange={(e) => setAgendaForm((f) => ({ ...f, subject: e.target.value }))} placeholder="Enter agenda item" />
-                </Field>
-                <Field label="Key issue discussed">
-                  <Input value={agendaForm.detail} onChange={(e) => setAgendaForm((f) => ({ ...f, detail: e.target.value }))} placeholder="Summarise the key discussion" />
-                </Field>
-                <Field label="Key outcome / conclusion">
-                  <Input value={agendaForm.outcome} onChange={(e) => setAgendaForm((f) => ({ ...f, outcome: e.target.value }))} placeholder="State the outcome" />
-                </Field>
-                <Field label="Requires further action?">
-                  <Dropdown value={agendaForm.requires_action || "No"} options={["Yes", "No"]} onChange={(v) => setAgendaForm((f) => ({ ...f, requires_action: v }))} />
-                </Field>
-              </div>
-              <div className="flex justify-end">
-                <Button className={ACTION} onClick={pushAgendaFromForm}><Plus className="w-4 h-4" />Add agenda item</Button>
-              </div>
+      </FieldSection>
+      <FieldSection title="Key issue items discussed">
+        <div className="sm:col-span-2 lg:col-span-3 space-y-4">
+          <div className="rounded-xl border border-[#d4e8dc] bg-[#f8fdfb] p-4 space-y-3">
+            <span className="inline-flex rounded-full bg-[#e8f6ee] px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#145c3f]">
+              Agenda item {String((draft.agenda_items || []).length + 1).padStart(2, "0")}
+            </span>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <Field label="Agenda / subject" required>
+                <Input value={agendaForm.subject} onChange={(e) => setAgendaForm((f) => ({ ...f, subject: e.target.value }))} placeholder="Enter agenda item" />
+              </Field>
+              <Field label="Key issue discussed">
+                <Input value={agendaForm.detail} onChange={(e) => setAgendaForm((f) => ({ ...f, detail: e.target.value }))} placeholder="Summarise the key discussion" />
+              </Field>
+              <Field label="Key outcome / conclusion">
+                <Input value={agendaForm.outcome} onChange={(e) => setAgendaForm((f) => ({ ...f, outcome: e.target.value }))} placeholder="State the outcome" />
+              </Field>
+              <Field label="Requires further action?">
+                <Dropdown value={agendaForm.requires_action || "No"} options={["Yes", "No"]} onChange={(v) => setAgendaForm((f) => ({ ...f, requires_action: v }))} />
+              </Field>
             </div>
-            {(draft.agenda_items || []).length > 0 && (
-              <ItemsTable
-                rows={draft.agenda_items}
-                kind="agenda"
-                onRemove={(r) => setDraft((d: any) => ({ ...d, agenda_items: d.agenda_items.filter((x: any) => x !== r) }))}
-              />
-            )}
-          </div>
-        </FieldSection>
-        <FieldSection title="Decisions / resolutions">
-          <div className="sm:col-span-2 lg:col-span-3 space-y-4">
-            <div className="rounded-xl border border-[#d4e8dc] bg-[#f8fdfb] p-4 space-y-3">
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                <Field label="Decision / resolution" required>
-                  <Input value={decisionForm.subject} onChange={(e) => setDecisionForm((f) => ({ ...f, subject: e.target.value }))} placeholder="Decision summary" />
-                </Field>
-                <Field label="Responsible officer / unit">
-                  <Dropdown value={decisionForm.responsible_officer || ""} options={deptOptions} onChange={(v) => setDecisionForm((f) => ({ ...f, responsible_officer: v }))} placeholder="Select officer / unit" />
-                </Field>
-                <Field label="Deadline">
-                  <Input type="date" value={decisionForm.due_date || ""} onChange={(e) => setDecisionForm((f) => ({ ...f, due_date: e.target.value }))} />
-                </Field>
-                <Field label="Expected output">
-                  <Input value={decisionForm.expected_output || ""} onChange={(e) => setDecisionForm((f) => ({ ...f, expected_output: e.target.value }))} placeholder="Expected result" />
-                </Field>
-                <Field label="Status">
-                  <Dropdown value={decisionForm.status || "Pending"} options={cat?.decision_statuses || ["Pending", "In Progress", "Completed"]} onChange={(v) => setDecisionForm((f) => ({ ...f, status: v }))} />
-                </Field>
-              </div>
-              <p className="text-[11px] text-slate-400">Status options: Pending · In Progress · Completed</p>
-              <div className="flex justify-end">
-                <Button className={ACTION} onClick={pushDecisionFromForm}><Plus className="w-4 h-4" />Add decision / resolution</Button>
-              </div>
+            <div className="flex justify-end">
+              <Button className={ACTION} onClick={pushAgendaFromForm}><Plus className="w-4 h-4" />Add agenda item</Button>
             </div>
-            {(draft.decisions || []).length > 0 && (
-              <ItemsTable
-                rows={draft.decisions}
-                kind="decision"
-                onRemove={(r) => setDraft((d: any) => ({ ...d, decisions: d.decisions.filter((x: any) => x !== r) }))}
-              />
-            )}
           </div>
-        </FieldSection>
-      </>}
-      {step === 2 && <>
-        <FieldSection title="Follow-up on previous action points">
-          <div className="sm:col-span-2 lg:col-span-3 space-y-4">
-            {openActionCount > 0 && !(draft.followups || []).length && (
-              <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">Previous open action points must be followed up before submit.</p>
-            )}
-            <div className="rounded-xl border border-[#d4e8dc] bg-[#f8fdfb] p-4 space-y-3">
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                <Field label="Previous action" required>
-                  <Input value={followupForm.subject} onChange={(e) => setFollowupForm((f) => ({ ...f, subject: e.target.value }))} placeholder="Previous action" />
-                </Field>
-                <Field label="Responsible officer / unit">
-                  <Input value={followupForm.responsible_officer} onChange={(e) => setFollowupForm((f) => ({ ...f, responsible_officer: e.target.value }))} placeholder="Officer / unit" />
-                </Field>
-                <Field label="Due date">
-                  <Input type="date" value={followupForm.due_date || ""} onChange={(e) => setFollowupForm((f) => ({ ...f, due_date: e.target.value }))} />
-                </Field>
-                <Field label="Progress / action taken" className="sm:col-span-2">
-                  <Input value={followupForm.detail} onChange={(e) => setFollowupForm((f) => ({ ...f, detail: e.target.value }))} placeholder="Enter progress update" />
-                </Field>
-                <Field label="Status">
-                  <Dropdown value={followupForm.status || "Pending"} options={cat?.item_statuses || ["Pending", "In Progress", "Completed", "No longer Applicable"]} onChange={(v) => setFollowupForm((f) => ({ ...f, status: v }))} />
-                </Field>
-                <Field label="Remarks">
-                  <Input value={followupForm.remarks || ""} onChange={(e) => setFollowupForm((f) => ({ ...f, remarks: e.target.value }))} placeholder="Remarks" />
-                </Field>
-              </div>
-              <div className="flex justify-end">
-                <Button className={ACTION} onClick={pushFollowupFromForm}><Plus className="w-4 h-4" />Add previous action point</Button>
-              </div>
+          {(draft.agenda_items || []).length > 0 && (
+            <ItemsTable
+              rows={draft.agenda_items}
+              kind="agenda"
+              onRemove={(r) => setDraft((d: any) => ({ ...d, agenda_items: d.agenda_items.filter((x: any) => x !== r) }))}
+            />
+          )}
+        </div>
+      </FieldSection>
+      <FieldSection title="Decisions / resolutions">
+        <div className="sm:col-span-2 lg:col-span-3 space-y-4">
+          <div className="rounded-xl border border-[#d4e8dc] bg-[#f8fdfb] p-4 space-y-3">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <Field label="Decision / resolution" required>
+                <Input value={decisionForm.subject} onChange={(e) => setDecisionForm((f) => ({ ...f, subject: e.target.value }))} placeholder="Decision summary" />
+              </Field>
+              <Field label="Responsible officer / unit">
+                <Dropdown value={decisionForm.responsible_officer || ""} options={deptOptions} onChange={(v) => setDecisionForm((f) => ({ ...f, responsible_officer: v }))} placeholder="Select officer / unit" />
+              </Field>
+              <Field label="Deadline">
+                <Input type="date" value={decisionForm.due_date || ""} onChange={(e) => setDecisionForm((f) => ({ ...f, due_date: e.target.value }))} />
+              </Field>
+              <Field label="Expected output">
+                <Input value={decisionForm.expected_output || ""} onChange={(e) => setDecisionForm((f) => ({ ...f, expected_output: e.target.value }))} placeholder="Expected result" />
+              </Field>
+              <Field label="Status">
+                <Dropdown value={decisionForm.status || "Pending"} options={cat?.decision_statuses || ["Pending", "In Progress", "Completed"]} onChange={(v) => setDecisionForm((f) => ({ ...f, status: v }))} />
+              </Field>
             </div>
-            {(draft.followups || []).length > 0 && (
-              <ItemsTable
-                rows={draft.followups}
-                kind="followup"
-                onRemove={(r) => setDraft((d: any) => ({ ...d, followups: d.followups.filter((x: any) => x !== r) }))}
-              />
-            )}
-          </div>
-        </FieldSection>
-        <FieldSection title="Matters requiring Zonal / SDO attention">
-          <div className="sm:col-span-2 lg:col-span-3">
-            <a href={challengeHref(editingId || undefined)} className="inline-flex items-center gap-2 rounded-lg border border-[#d4e8dc] bg-[#f8fdfb] px-4 py-2.5 text-sm font-semibold text-[#145c3f] hover:bg-[#e8f6ee]">
-              <FileText className="w-4 h-4" />Open Challenge &amp; Support
-            </a>
-          </div>
-        </FieldSection>
-        <FieldSection title="Meeting effectiveness">
-          {([["eff_prev_reviewed", "Previous action points reviewed", true], ["eff_decisions_documented", "Decisions documented", false], ["eff_deadlines_assigned", "Deadlines assigned", false], ["eff_attendance_adequate", "Attendance adequate", true], ["eff_issues_discussed", "Key programme issues discussed", true], ["eff_officers_assigned", "Officers assigned to action points", false], ["eff_escalations_identified", "Escalation issues identified", false]] as const).map(([k, label, partial]) => (
-            <Field key={k} label={label}>
-              <RadioYesNo
-                name={k}
-                value={draft[k] || ""}
-                options={partial ? (cat?.yn || ["Yes", "No", "Partially"]) : ["Yes", "No"]}
-                onChange={(v) => setDraft((d: any) => ({ ...d, [k]: v }))}
-              />
-            </Field>
-          ))}
-        </FieldSection>
-        <FieldSection title="Supporting evidence & certification">
-          <Field label="Supporting evidence" className="sm:col-span-2 lg:col-span-3">
-            <div className="space-y-2">
-              <Input
-                key={evidenceInputKey}
-                type="file"
-                multiple
-                accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.webp,application/pdf,image/*"
-                onChange={(e) => setEvidenceFiles(Array.from(e.target.files || []))}
-              />
-              <p className="text-xs text-slate-500">Upload minutes, attendance sheet, photos, or other evidence (PDF, Word, Excel, or image).</p>
-              {(draft.documents || []).length > 0 && (
-                <ul className="space-y-1.5">
-                  {(draft.documents as any[]).map((doc) => (
-                    <li key={`${doc.sn}-${doc.path}`} className="flex items-center gap-2 rounded-lg bg-[#f4f7f5] px-3 py-2 text-sm">
-                      <a href={apiFileUrl(doc.path)} target="_blank" rel="noreferrer" className="flex-1 truncate text-[#145c3f] font-medium hover:underline">
-                        {doc.name}
-                      </a>
-                      <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0 text-slate-300 hover:text-rose-500" onClick={() => void removeSavedEvidence(doc)}>
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </Button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-              {evidenceFiles.length > 0 && (
-                <p className="text-xs text-slate-500">Selected: {evidenceFiles.map((f) => f.name).join(", ")}</p>
-              )}
+            <p className="text-[11px] text-slate-400">Status options: Pending · In Progress · Completed</p>
+            <div className="flex justify-end">
+              <Button className={ACTION} onClick={pushDecisionFromForm}><Plus className="w-4 h-4" />Add decision / resolution</Button>
             </div>
+          </div>
+          {(draft.decisions || []).length > 0 && (
+            <ItemsTable
+              rows={draft.decisions}
+              kind="decision"
+              onRemove={(r) => setDraft((d: any) => ({ ...d, decisions: d.decisions.filter((x: any) => x !== r) }))}
+            />
+          )}
+        </div>
+      </FieldSection>
+      <FieldSection title="Follow-up on previous action points">
+        <div className="sm:col-span-2 lg:col-span-3 space-y-4">
+          {openActionCount > 0 && !(draft.followups || []).length && (
+            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">Previous open action points must be followed up before submit.</p>
+          )}
+          <div className="rounded-xl border border-[#d4e8dc] bg-[#f8fdfb] p-4 space-y-3">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <Field label="Previous action" required>
+                <Input value={followupForm.subject} onChange={(e) => setFollowupForm((f) => ({ ...f, subject: e.target.value }))} placeholder="Previous action" />
+              </Field>
+              <Field label="Responsible officer / unit">
+                <Input value={followupForm.responsible_officer} onChange={(e) => setFollowupForm((f) => ({ ...f, responsible_officer: e.target.value }))} placeholder="Officer / unit" />
+              </Field>
+              <Field label="Due date">
+                <Input type="date" value={followupForm.due_date || ""} onChange={(e) => setFollowupForm((f) => ({ ...f, due_date: e.target.value }))} />
+              </Field>
+              <Field label="Progress / action taken" className="sm:col-span-2">
+                <Input value={followupForm.detail} onChange={(e) => setFollowupForm((f) => ({ ...f, detail: e.target.value }))} placeholder="Enter progress update" />
+              </Field>
+              <Field label="Status">
+                <Dropdown value={followupForm.status || "Pending"} options={cat?.item_statuses || ["Pending", "In Progress", "Completed", "No longer Applicable"]} onChange={(v) => setFollowupForm((f) => ({ ...f, status: v }))} />
+              </Field>
+              <Field label="Remarks">
+                <Input value={followupForm.remarks || ""} onChange={(e) => setFollowupForm((f) => ({ ...f, remarks: e.target.value }))} placeholder="Remarks" />
+              </Field>
+            </div>
+            <div className="flex justify-end">
+              <Button className={ACTION} onClick={pushFollowupFromForm}><Plus className="w-4 h-4" />Add previous action point</Button>
+            </div>
+          </div>
+          {(draft.followups || []).length > 0 && (
+            <ItemsTable
+              rows={draft.followups}
+              kind="followup"
+              onRemove={(r) => setDraft((d: any) => ({ ...d, followups: d.followups.filter((x: any) => x !== r) }))}
+            />
+          )}
+        </div>
+      </FieldSection>
+      <FieldSection title="Matters requiring Zonal / SDO attention">
+        <div className="sm:col-span-2 lg:col-span-3">
+          <a href={challengeHref(editingId || undefined)} className="inline-flex items-center gap-2 rounded-lg border border-[#d4e8dc] bg-[#f8fdfb] px-4 py-2.5 text-sm font-semibold text-[#145c3f] hover:bg-[#e8f6ee]">
+            <FileText className="w-4 h-4" />Open Challenge &amp; Support
+          </a>
+        </div>
+      </FieldSection>
+      <FieldSection title="Meeting effectiveness">
+        {([["eff_prev_reviewed", "Previous action points reviewed", true], ["eff_decisions_documented", "Decisions documented", false], ["eff_deadlines_assigned", "Deadlines assigned", false], ["eff_attendance_adequate", "Attendance adequate", true], ["eff_issues_discussed", "Key programme issues discussed", true], ["eff_officers_assigned", "Officers assigned to action points", false], ["eff_escalations_identified", "Escalation issues identified", false]] as const).map(([k, label, partial]) => (
+          <Field key={k} label={label}>
+            <RadioYesNo
+              name={k}
+              value={draft[k] || ""}
+              options={partial ? (cat?.yn || ["Yes", "No", "Partially"]) : ["Yes", "No"]}
+              onChange={(v) => setDraft((d: any) => ({ ...d, [k]: v }))}
+            />
           </Field>
-          <Field label="Prepared by"><Input value={draft.prepared_by || preparedFallback} onChange={(e) => setDraft((d: any) => ({ ...d, prepared_by: e.target.value }))} /></Field>
-          <Field label="Designation"><Input value={draft.designation} onChange={(e) => setDraft((d: any) => ({ ...d, designation: e.target.value }))} /></Field>
-          <Field label="Date"><Input type="date" value={draft.submission_date} onChange={(e) => setDraft((d: any) => ({ ...d, submission_date: e.target.value }))} /></Field>
-        </FieldSection>
-      </>}
+        ))}
+      </FieldSection>
+      <FieldSection title="Supporting evidence & certification">
+        <Field label="Supporting evidence" className="sm:col-span-2 lg:col-span-3">
+          <div className="space-y-2">
+            <Input
+              key={evidenceInputKey}
+              type="file"
+              multiple
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.webp,application/pdf,image/*"
+              onChange={(e) => setEvidenceFiles(Array.from(e.target.files || []))}
+            />
+            <p className="text-xs text-slate-500">Upload minutes, attendance sheet, photos, or other evidence (PDF, Word, Excel, or image).</p>
+            {(draft.documents || []).length > 0 && (
+              <ul className="space-y-1.5">
+                {(draft.documents as any[]).map((doc) => (
+                  <li key={`${doc.sn}-${doc.path}`} className="flex items-center gap-2 rounded-lg bg-[#f4f7f5] px-3 py-2 text-sm">
+                    <a href={apiFileUrl(doc.path)} target="_blank" rel="noreferrer" className="flex-1 truncate text-[#145c3f] font-medium hover:underline">
+                      {doc.name}
+                    </a>
+                    <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0 text-slate-300 hover:text-rose-500" onClick={() => void removeSavedEvidence(doc)}>
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {evidenceFiles.length > 0 && (
+              <p className="text-xs text-slate-500">Selected: {evidenceFiles.map((f) => f.name).join(", ")}</p>
+            )}
+          </div>
+        </Field>
+        <Field label="Prepared by"><Input value={draft.prepared_by || preparedFallback} onChange={(e) => setDraft((d: any) => ({ ...d, prepared_by: e.target.value }))} /></Field>
+        <Field label="Designation"><Input value={draft.designation} onChange={(e) => setDraft((d: any) => ({ ...d, designation: e.target.value }))} /></Field>
+        <Field label="Date"><Input type="date" value={draft.submission_date} onChange={(e) => setDraft((d: any) => ({ ...d, submission_date: e.target.value }))} /></Field>
+      </FieldSection>
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#e8f3ec] pt-4">
-        <Button variant="ghost" disabled={busy} onClick={() => step > 0 ? goStep(step - 1) : backToList()}>
-          <ArrowLeft className="w-4 h-4 mr-2" />{step > 0 ? "Back" : "Cancel"}
+        <Button variant="ghost" disabled={busy} onClick={backToList}>
+          <ArrowLeft className="w-4 h-4 mr-2" />Cancel
         </Button>
         <div className="flex flex-wrap justify-end gap-2">
           <Button variant="outline" disabled={busy} onClick={() => void save("meeting", "draft")}>Save Draft</Button>
-          {step < MEETING_STEPS.length - 1
-            ? <Button className={ACTION} disabled={busy} onClick={continueMeeting}>Continue<ArrowRight className="w-4 h-4 ml-1" /></Button>
-            : <Button className={ACTION} disabled={busy} onClick={() => void save("meeting", "submitted")}><Send className="w-4 h-4 mr-2" />Submit report</Button>}
+          <Button className={ACTION} disabled={busy} onClick={() => void save("meeting", "submitted")}><Send className="w-4 h-4 mr-2" />Submit report</Button>
         </div>
       </div>
     </CardContent></Card>
   );
 
-  /* ── ETMC form ── */
+  /* ── ETMC form (single scrollable card, no steps) ── */
   const etmcForm = draft && mode === "etmc-form" && (
     <Card className="rounded-sm border-[#d4e8dc] shadow-sm overflow-visible"><CardContent className="p-4 md:p-5 space-y-5">
-      <StateOfficeFormSteps steps={ETMC_STEPS} activeIndex={step} maximumIndex={maxStep} onStepChange={(i) => goStep(i)} hideNumbers />
-      {step === 0 && <>
-        <FieldSection title="Cascade details">
-          <Field label="Zone"><Input value={zoneName(stateZone(draft.state_code))} readOnly /></Field>
-          <Field label="State / FCT"><Input value={stateName(draft.state_code)} readOnly /></Field>
-          <Field label="Date of submission"><Input type="date" value={draft.submission_date} onChange={(e) => setDraft((d: any) => ({ ...d, submission_date: e.target.value }))} /></Field>
-          <Field label="Reporting month" required>
-            <Dropdown value={String(draft.reporting_month)} options={MONTHS.map((m: any, i: number) => ({ value: String(i + 1), label: m.label || m }))} onChange={(v) => setDraft((d: any) => ({ ...d, reporting_month: Number(v) }))} />
-          </Field>
-          <Field label="Year" required><Input type="number" value={draft.reporting_year} onChange={(e) => setDraft((d: any) => ({ ...d, reporting_year: e.target.value }))} /></Field>
-          <Field label="ETMC meeting date" required><Input type="date" value={draft.etmc_meeting_date} onChange={(e) => setDraft((d: any) => ({ ...d, etmc_meeting_date: e.target.value }))} /></Field>
-          <Field label="Cascade session date"><Input type="date" value={draft.cascade_session_date} onChange={(e) => setDraft((d: any) => ({ ...d, cascade_session_date: e.target.value }))} /></Field>
-          <Field label="ETMC session"><Dropdown value={draft.etmc_session} options={cat?.etmc_sessions || QUARTERS} onChange={(v) => setDraft((d: any) => ({ ...d, etmc_session: v }))} /></Field>
-          <Field label="Presiding officer"><Input value={draft.presiding_officer} onChange={(e) => setDraft((d: any) => ({ ...d, presiding_officer: e.target.value }))} placeholder="Name / designation" /></Field>
-          <Field label="Venue"><Dropdown value={draft.venue} options={cat?.venues || ["Physical", "Virtual"]} onChange={(v) => setDraft((d: any) => ({ ...d, venue: v }))} /></Field>
-          <Field label="Staff strength"><Input type="number" value={draft.staff_strength} onChange={(e) => setDraft((d: any) => ({ ...d, staff_strength: e.target.value }))} /></Field>
-          <Field label="Staff present"><Input type="number" value={draft.staff_present} onChange={(e) => setDraft((d: any) => ({ ...d, staff_present: e.target.value }))} /></Field>
-          <Field label="Attendance rate"><AutoField value={rate(draft.staff_strength, draft.staff_present)} /></Field>
-        </FieldSection>
-        <FieldSection title="ETMC highlights">
-          <div className="sm:col-span-2 lg:col-span-3 space-y-3">
-            <div className="flex gap-2">
-              <Input value={line?.detail || ""} onChange={(e) => setLine((l: any) => ({ detail: e.target.value }))} placeholder="Enter key highlight from the ETMC discussion" />
-              <Button variant="outline" className="shrink-0" onClick={() => { if (!line?.detail?.trim()) return; setDraft((d: any) => ({ ...d, highlights: [...d.highlights, { detail: line.detail, _key: uid() }] })); setLine(null); }}><Plus className="w-4 h-4 mr-1" />Add highlight</Button>
-            </div>
-            {draft.highlights.map((h: any, i: number) => (
-              <div key={h._key || h.entry_id || i} className="flex items-start gap-2 rounded-lg bg-slate-50 p-3 text-sm">
-                <span className="text-xs font-bold text-[#145c3f] mt-0.5">{i + 1}.</span>
-                <p className="flex-1">{h.detail}</p>
-                <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-slate-300 hover:text-rose-500" onClick={() => setDraft((d: any) => ({ ...d, highlights: d.highlights.filter((x: any) => x !== h) }))}><Trash2 className="w-3.5 h-3.5" /></Button>
-              </div>
-            ))}
+      {reportBasicInfo}
+      <FieldSection title="Cascade details">
+        <Field label="ETMC meeting date" required><Input type="date" value={draft.etmc_meeting_date} onChange={(e) => setDraft((d: any) => ({ ...d, etmc_meeting_date: e.target.value }))} /></Field>
+        <Field label="Cascade session date"><Input type="date" value={draft.cascade_session_date} onChange={(e) => setDraft((d: any) => ({ ...d, cascade_session_date: e.target.value }))} /></Field>
+        <Field label="ETMC session"><Dropdown value={draft.etmc_session} options={cat?.etmc_sessions || QUARTERS} onChange={(v) => setDraft((d: any) => ({ ...d, etmc_session: v }))} /></Field>
+        <Field label="Presiding officer"><Input value={draft.presiding_officer} onChange={(e) => setDraft((d: any) => ({ ...d, presiding_officer: e.target.value }))} placeholder="Name / designation" /></Field>
+        <Field label="Venue"><Dropdown value={draft.venue} options={cat?.venues || ["Physical", "Virtual"]} onChange={(v) => setDraft((d: any) => ({ ...d, venue: v }))} /></Field>
+        <Field label="Staff strength"><Input type="number" value={draft.staff_strength} onChange={(e) => setDraft((d: any) => ({ ...d, staff_strength: e.target.value }))} /></Field>
+        <Field label="Staff present"><Input type="number" value={draft.staff_present} onChange={(e) => setDraft((d: any) => ({ ...d, staff_present: e.target.value }))} /></Field>
+        <Field label="Attendance rate"><AutoField value={rate(draft.staff_strength, draft.staff_present)} /></Field>
+      </FieldSection>
+      <FieldSection title="ETMC highlights">
+        <div className="sm:col-span-2 lg:col-span-3 space-y-3">
+          <div className="flex gap-2">
+            <Input value={line?.detail || ""} onChange={(e) => setLine((l: any) => ({ detail: e.target.value }))} placeholder="Enter key highlight from the ETMC discussion" />
+            <Button variant="outline" className="shrink-0" onClick={() => { if (!line?.detail?.trim()) return; setDraft((d: any) => ({ ...d, highlights: [...d.highlights, { detail: line.detail, _key: uid() }] })); setLine(null); }}><Plus className="w-4 h-4 mr-1" />Add highlight</Button>
           </div>
-        </FieldSection>
-      </>}
-      {step === 1 && ([
+          {draft.highlights.map((h: any, i: number) => (
+            <div key={h._key || h.entry_id || i} className="flex items-start gap-2 rounded-lg bg-slate-50 p-3 text-sm">
+              <span className="text-xs font-bold text-[#145c3f] mt-0.5">{i + 1}.</span>
+              <p className="flex-1">{h.detail}</p>
+              <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-slate-300 hover:text-rose-500" onClick={() => setDraft((d: any) => ({ ...d, highlights: d.highlights.filter((x: any) => x !== h) }))}><Trash2 className="w-3.5 h-3.5" /></Button>
+            </div>
+          ))}
+        </div>
+      </FieldSection>
+      {([
         { key: "department_updates" as const, title: "Departmental updates", ph: "Department / unit", ph2: "Update / key information", dual: true },
         { key: "resolutions" as const, title: "Decisions / resolutions / action points", ph: "Decision / resolution", ph2: "Action owner / deadline", dual: true, owner: true },
         { key: "comments" as const, title: "Staff comments", ph2: "Capture comments or observations from staff", dual: false },
@@ -934,43 +912,39 @@ export default function MeetingsWorkspace({ onBack, initialTab = "meetings" }: {
           </div>
         </FieldSection>
       ))}
-      {step === 2 && <>
-        <FieldSection title="Supporting evidence checklist" gridClassName="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {([["ev_attendance_list", "Attendance list"], ["ev_minutes", "Minutes"], ["ev_presentation", "Presentation"], ["ev_photographs", "Photographs"], ["ev_action_tracker", "Action tracker"], ["ev_escalations_documented", "Escalation issues documented"]] as const).map(([k, label]) => (
-            <div key={k} className="rounded-xl border border-[#d4e8dc] bg-[#f8fdfb] p-3.5 space-y-2">
-              <p className="text-xs font-semibold text-slate-700">{label}</p>
-              <RadioYesNo
-                name={k}
-                value={draft[k] || ""}
-                options={["Yes", "No", "N/A"]}
-                onChange={(v) => setDraft((d: any) => ({ ...d, [k]: v }))}
-              />
-            </div>
-          ))}
-        </FieldSection>
-        <FieldSection title="Submission & certification">
-          <Field label="Prepared by"><Input value={draft.prepared_by || preparedFallback} onChange={(e) => setDraft((d: any) => ({ ...d, prepared_by: e.target.value }))} /></Field>
-          <Field label="Designation"><Input value={draft.designation} onChange={(e) => setDraft((d: any) => ({ ...d, designation: e.target.value }))} /></Field>
-          <Field label="Date"><Input type="date" value={draft.submission_date} onChange={(e) => setDraft((d: any) => ({ ...d, submission_date: e.target.value }))} /></Field>
-        </FieldSection>
-      </>}
+      <FieldSection title="Supporting evidence checklist" gridClassName="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {([["ev_attendance_list", "Attendance list"], ["ev_minutes", "Minutes"], ["ev_presentation", "Presentation"], ["ev_photographs", "Photographs"], ["ev_action_tracker", "Action tracker"], ["ev_escalations_documented", "Escalation issues documented"]] as const).map(([k, label]) => (
+          <div key={k} className="rounded-xl border border-[#d4e8dc] bg-[#f8fdfb] p-3.5 space-y-2">
+            <p className="text-xs font-semibold text-slate-700">{label}</p>
+            <RadioYesNo
+              name={k}
+              value={draft[k] || ""}
+              options={["Yes", "No", "N/A"]}
+              onChange={(v) => setDraft((d: any) => ({ ...d, [k]: v }))}
+            />
+          </div>
+        ))}
+      </FieldSection>
+      <FieldSection title="Submission & certification">
+        <Field label="Prepared by"><Input value={draft.prepared_by || preparedFallback} onChange={(e) => setDraft((d: any) => ({ ...d, prepared_by: e.target.value }))} /></Field>
+        <Field label="Designation"><Input value={draft.designation} onChange={(e) => setDraft((d: any) => ({ ...d, designation: e.target.value }))} /></Field>
+        <Field label="Date"><Input type="date" value={draft.submission_date} onChange={(e) => setDraft((d: any) => ({ ...d, submission_date: e.target.value }))} /></Field>
+      </FieldSection>
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#e8f3ec] pt-4">
-        <Button variant="ghost" disabled={busy} onClick={() => step > 0 ? goStep(step - 1) : backToList()}>
-          <ArrowLeft className="w-4 h-4 mr-2" />{step > 0 ? "Back" : "Cancel"}
+        <Button variant="ghost" disabled={busy} onClick={backToList}>
+          <ArrowLeft className="w-4 h-4 mr-2" />Cancel
         </Button>
         <div className="flex flex-wrap justify-end gap-2">
           <Button variant="outline" disabled={busy} onClick={() => void save("etmc", "draft")}>Save Draft</Button>
-          {step < ETMC_STEPS.length - 1
-            ? <Button className={ACTION} disabled={busy} onClick={continueEtmc}>Continue<ArrowRight className="w-4 h-4 ml-1" /></Button>
-            : <Button className={ACTION} disabled={busy} onClick={() => void save("etmc", "submitted")}><Send className="w-4 h-4 mr-2" />Submit report</Button>}
+          <Button className={ACTION} disabled={busy} onClick={() => void save("etmc", "submitted")}><Send className="w-4 h-4 mr-2" />Submit report</Button>
         </div>
       </div>
     </CardContent></Card>
   );
 
   const meetingDetail = detail && mode === "meeting-detail" && (
-    <div className="space-y-4">
-      <Card className="rounded-sm border-[#d4e8dc] shadow-sm"><CardContent className="p-4 md:p-5 space-y-4">
+    <Card className="rounded-sm border-[#d4e8dc] shadow-sm overflow-hidden">
+      <CardContent className="p-4 md:p-5 space-y-6">
         <ReviewSection title={`Meeting report ${detail.meeting_id}`}>
           <ReviewRow label="Zone" value={zoneName(detail.zonal_code)} />
           <ReviewRow label="State / FCT" value={stateName(detail.state_code)} />
@@ -1005,6 +979,20 @@ export default function MeetingsWorkspace({ onBack, initialTab = "meetings" }: {
             />
           </div>
         </ReviewSection>
+        {(["agenda", "decision", "followup"] as const).map((kind) => {
+          const rows = (detail.items || []).filter((i: any) => i.item_kind === kind);
+          if (!rows.length) return null;
+          const title = kind === "agenda" ? "Key issues discussed" : kind === "decision" ? "Decisions / resolutions" : "Follow-up";
+          return (
+            <section key={kind} className="space-y-3">
+              <div className="flex items-center gap-3">
+                <h3 className="shrink-0 text-[11px] font-bold uppercase tracking-[0.08em] text-[#145c3f]">{title} ({rows.length})</h3>
+                <div className="h-px flex-1 bg-[#d4e8dc]" />
+              </div>
+              <ItemsTable rows={rows} kind={kind} />
+            </section>
+          );
+        })}
         <div className="flex flex-wrap items-center justify-end gap-2 border-t border-[#e8f3ec] pt-4">
           {detail.status === "draft" && detail.created_by_user_id === permissions.user_id && <>
             <Button variant="outline" disabled={busy} onClick={() => void startMeetingForm(detail)}><Pencil className="w-4 h-4 mr-2" />Edit</Button>
@@ -1016,19 +1004,13 @@ export default function MeetingsWorkspace({ onBack, initialTab = "meetings" }: {
           </>}
           <a href={challengeHref(detail.meeting_id)} className="inline-flex items-center gap-2 rounded-lg border border-[#d4e8dc] px-3 py-2 text-sm font-semibold text-[#145c3f] hover:bg-[#e8f6ee]">Challenge &amp; Support</a>
         </div>
-      </CardContent></Card>
-      {(["agenda", "decision", "followup"] as const).map((kind) => {
-        const rows = (detail.items || []).filter((i: any) => i.item_kind === kind);
-        if (!rows.length) return null;
-        const title = kind === "agenda" ? "Key issues discussed" : kind === "decision" ? "Decisions / resolutions" : "Follow-up";
-        return <Card key={kind} className="rounded-sm border-[#d4e8dc] shadow-sm overflow-hidden"><CardHeader className="pb-3 border-b border-[#d4e8dc]"><CardTitle className="text-sm font-bold">{title} ({rows.length})</CardTitle></CardHeader><CardContent className="p-0"><ItemsTable rows={rows} kind={kind} /></CardContent></Card>;
-      })}
-    </div>
+      </CardContent>
+    </Card>
   );
 
   const etmcDetail = detail && mode === "etmc-detail" && (
-    <div className="space-y-4">
-      <Card className="rounded-sm border-[#d4e8dc] shadow-sm"><CardContent className="p-4 md:p-5 space-y-4">
+    <Card className="rounded-sm border-[#d4e8dc] shadow-sm overflow-hidden">
+      <CardContent className="p-4 md:p-5 space-y-6">
         <ReviewSection title={`ETMC cascading report ${detail.etmc_id}`}>
           <ReviewRow label="Zone" value={zoneName(detail.zonal_code)} />
           <ReviewRow label="State / FCT" value={stateName(detail.state_code)} />
@@ -1041,6 +1023,28 @@ export default function MeetingsWorkspace({ onBack, initialTab = "meetings" }: {
           <ReviewRow label="Prepared by" value={detail.prepared_by} />
           <ReviewRow label="Endorsed by" value={detail.endorsed_by} />
         </ReviewSection>
+        {(["highlight", "department_update", "resolution", "comment", "feedback"] as const).map((kind) => {
+          const rows = (detail.entries || []).filter((e: any) => e.entry_kind === kind);
+          if (!rows.length) return null;
+          const titles: Record<string, string> = { highlight: "ETMC highlights", department_update: "Departmental updates", resolution: "Decisions / resolutions", comment: "Staff comments", feedback: "Feedback to HQ" };
+          return (
+            <section key={kind} className="space-y-3">
+              <div className="flex items-center gap-3">
+                <h3 className="shrink-0 text-[11px] font-bold uppercase tracking-[0.08em] text-[#145c3f]">{titles[kind]} ({rows.length})</h3>
+                <div className="h-px flex-1 bg-[#d4e8dc]" />
+              </div>
+              <div className="space-y-2">
+                {rows.map((e: any) => (
+                  <div key={e.entry_id} className="rounded-lg bg-slate-50 p-3 text-sm">
+                    {e.subject && <strong className="mr-2">{e.subject}:</strong>}
+                    {e.detail}
+                    {e.owner_deadline && <em className="text-slate-500"> — {e.owner_deadline}</em>}
+                  </div>
+                ))}
+              </div>
+            </section>
+          );
+        })}
         <div className="flex flex-wrap items-center justify-end gap-2 border-t border-[#e8f3ec] pt-4">
           {detail.status === "draft" && detail.created_by_user_id === permissions.user_id && <>
             <Button variant="outline" disabled={busy} onClick={() => void startEtmcForm(detail)}><Pencil className="w-4 h-4 mr-2" />Edit</Button>
@@ -1051,19 +1055,8 @@ export default function MeetingsWorkspace({ onBack, initialTab = "meetings" }: {
             <Button className={ACTION} disabled={busy} onClick={() => void transition("etmc", detail.etmc_id, "approved")}>Endorse</Button>
           </>}
         </div>
-      </CardContent></Card>
-      {(["highlight", "department_update", "resolution", "comment", "feedback"] as const).map((kind) => {
-        const rows = (detail.entries || []).filter((e: any) => e.entry_kind === kind);
-        if (!rows.length) return null;
-        const titles: Record<string, string> = { highlight: "ETMC highlights", department_update: "Departmental updates", resolution: "Decisions / resolutions", comment: "Staff comments", feedback: "Feedback to HQ" };
-        return (
-          <Card key={kind} className="rounded-sm border-[#d4e8dc] shadow-sm overflow-hidden"><CardHeader className="pb-3 border-b border-[#d4e8dc]"><CardTitle className="text-sm font-bold">{titles[kind]} ({rows.length})</CardTitle></CardHeader>
-            <CardContent className="p-4 space-y-2">{rows.map((e: any) => (
-              <div key={e.entry_id} className="rounded-lg bg-slate-50 p-3 text-sm">{e.subject && <strong className="mr-2">{e.subject}:</strong>}{e.detail}{e.owner_deadline && <em className="text-slate-500"> — {e.owner_deadline}</em>}</div>
-            ))}</CardContent></Card>
-        );
-      })}
-    </div>
+      </CardContent>
+    </Card>
   );
 
   const listView = mode === "list" && (

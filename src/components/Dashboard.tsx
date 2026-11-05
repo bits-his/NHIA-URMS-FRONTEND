@@ -801,9 +801,21 @@ export default function Dashboard({ role, user, access = [], functionalities = "
               element={
                 <ComplianceHubPage
                   key="state-compliance-hub"
-                  onBack={() => setView("home")}
+                  onBack={() => {
+                    // Prefer browser history so we don't bounce to another module
+                    // (e.g. Enrolment) via home-access redirect.
+                    if (window.history.length > 1) navigate(-1);
+                    else {
+                      setView("home");
+                      navigate("/");
+                    }
+                  }}
                   defaultZoneId={user?.zonal_code ? String(user.zonal_code) : (user?.zone?.zonal_code ? String(user.zone.zonal_code) : (user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId))}
-                  defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId}
+                  defaultStateId={
+                    user?.state_code
+                      ? String(user.state_code)
+                      : (user?.state?.code ? String(user.state.code) : (user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId))
+                  }
                   userName={user?.name}
                   userStaffId={user?.staff_id}
                   userRole={user?.role}

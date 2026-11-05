@@ -356,7 +356,6 @@ export default function StakeholderReportDetail({ reportId, onBack, onEdit }: Pr
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <InfoField label="Reporting period" value={period} />
                   <InfoField label="State" value={report.state?.description ?? "—"} />
-                  <InfoField label="Reporting officer" value={report.submitted_by || "—"} />
                   <InfoField
                     label="Evidence"
                     value={line ? (hasEvidence ? "Attached" : "Missing") : "—"}

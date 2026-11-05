@@ -74,7 +74,10 @@ export default function AdminHrReportsList({
 }: Props) {
   const cfg = ADMIN_HR_CONFIG[reportType];
   const api = stateOfficeApi[reportType];
-  const { canCreate, createOnly } = useStateOfficeAccess();
+  const { canCreate, createOnly: baseCreateOnly } = useStateOfficeAccess();
+  const isVehicle = reportType === "vehicle-maintenance";
+  // Vehicle Maintenance: officers land on their own submissions list (not form-only).
+  const createOnly = isVehicle ? false : baseCreateOnly;
 
   const [mode, setMode] = React.useState<"list" | "create" | "view" | "edit">(createOnly ? "create" : "list");
   const [formKey, setFormKey] = React.useState(0);
@@ -100,7 +103,6 @@ export default function AdminHrReportsList({
   const [filterStatus, setFilterStatus] = React.useState("all");
   const [filterMaintenanceType, setFilterMaintenanceType] = React.useState("all");
   const [filterVehicleStatus, setFilterVehicleStatus] = React.useState("all");
-  const isVehicle = reportType === "vehicle-maintenance";
 
   React.useEffect(() => {
     setMode(createOnly ? "create" : "list");
@@ -131,7 +133,7 @@ export default function AdminHrReportsList({
     }
   }, [api, filterStatus, defaultZoneId, apiStateId, filterYear, filterMonth, createOnly, isVehicle, filterMaintenanceType, filterVehicleStatus]);
 
-  React.useEffect(() => { if (!createOnly) load(); }, [load, createOnly]);
+  React.useEffect(() => { if (!createOnly) void load(); }, [load, createOnly]);
 
   const leaveForm = React.useCallback(() => {
     if (createOnly) {
@@ -142,7 +144,7 @@ export default function AdminHrReportsList({
     }
     setSelectedId(null);
     setMode("list");
-    load();
+    void load();
   }, [createOnly, load]);
 
   const counts = React.useMemo(() => ({
