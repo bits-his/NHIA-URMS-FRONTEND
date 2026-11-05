@@ -166,7 +166,7 @@ export default function UtilityServicesDetail({ reportId, onBack, onEdit }: Prop
         <div className="w-full max-w-7xl mx-auto px-4 md:px-6 py-6 pb-16 space-y-4">
           <FormPageTitle title="Utility Services" />
 
-          <div className="bg-white rounded-2xl border border-[#d4e8dc] shadow-sm p-4 sm:p-6 space-y-6 print:border-none print:shadow-none">
+          <div className="bg-white rounded-sm border border-[#d4e8dc] shadow-sm p-4 sm:p-6 space-y-6 print:border-none print:shadow-none">
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 bg-[#f4f7f5] p-4 rounded-xl border border-[#d4e8dc]">
               {[
                 { label: "Zonal Office", value: data.zone?.description || "—" },

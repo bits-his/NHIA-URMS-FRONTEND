@@ -92,7 +92,7 @@ export default function AccreditationReportForm({ reportId, onBack, onCancel, on
       })}
     >
       {() => (
-        <Card className="rounded-2xl border-[#d4e8dc]">
+        <Card className="rounded-sm border-[#d4e8dc]">
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Accreditation</CardTitle>
             <CardDescription>

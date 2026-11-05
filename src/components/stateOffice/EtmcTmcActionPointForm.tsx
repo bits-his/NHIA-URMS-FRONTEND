@@ -170,7 +170,7 @@ export default function EtmcTmcActionPointForm({ reportId, onBack, onCancel, onS
     >
       {() => (
         <div className="space-y-4">
-          <Card className="rounded-2xl border-[#d4e8dc]">
+          <Card className="rounded-sm border-[#d4e8dc]">
             <CardHeader className="pb-2">
               <CardTitle className="text-xl font-bold text-[#145c3f]">ETMC/TMC Action-Point Register</CardTitle>
               <CardDescription>
@@ -213,7 +213,7 @@ export default function EtmcTmcActionPointForm({ reportId, onBack, onCancel, onS
             </CardContent>
           </Card>
 
-          <Card className="rounded-2xl border-[#d4e8dc] overflow-hidden">
+          <Card className="rounded-sm border-[#d4e8dc] overflow-hidden">
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>

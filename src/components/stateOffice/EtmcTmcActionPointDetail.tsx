@@ -73,7 +73,7 @@ export default function EtmcTmcActionPointDetail({ reportId, onBack, onEdit }: P
 
       <ScrollArea className="flex-1">
         <div className="w-full px-4 md:px-6 py-4 space-y-4 pb-8">
-          <Card className="rounded-2xl border-[#d4e8dc]">
+          <Card className="rounded-sm border-[#d4e8dc]">
             <CardHeader className="pb-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <CardTitle className="text-base">ETMC/TMC Action-Point Register</CardTitle>
@@ -136,7 +136,7 @@ export default function EtmcTmcActionPointDetail({ reportId, onBack, onEdit }: P
               const group = groups.get(key)!;
               const head = group[0];
               return (
-                <Card key={key} className="rounded-2xl border-[#d4e8dc]">
+                <Card key={key} className="rounded-sm border-[#d4e8dc]">
                   <CardHeader className="pb-2">
                     <p className="text-[11px] uppercase tracking-wide text-slate-500 font-semibold">Resolution</p>
                     <CardTitle className="text-lg font-mono text-[#145c3f]">{head.resolution_id}</CardTitle>
@@ -148,7 +148,7 @@ export default function EtmcTmcActionPointDetail({ reportId, onBack, onEdit }: P
                       <p className="text-sm whitespace-pre-wrap">{head.resolutions || "—"}</p>
                     </div>
                     {group.map((l: any, i: number) => (
-                      <div key={l.id ?? i} className="rounded-2xl border border-[#d4e8dc] bg-[#f8fdfb] p-4 space-y-3">
+                      <div key={l.id ?? i} className="rounded-sm border border-[#d4e8dc] bg-[#f8fdfb] p-4 space-y-3">
                         <p className="font-mono text-xs font-bold text-primary">{l.action_point_id}</p>
                         <div>
                           <p className="text-xs text-slate-500 font-semibold mb-1">Action Point</p>

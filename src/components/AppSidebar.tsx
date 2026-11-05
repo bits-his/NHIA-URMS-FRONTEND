@@ -272,7 +272,9 @@ const ICON_MAP: Record<string, React.ElementType> = {
   "State Complaints Register": Scale,
   "Customer Satisfaction Survey": TrendingUp,
   "HCF Customer Satisfaction Survey": TrendingUp,
+  "State Office HCF Customer Satisfaction Survey": TrendingUp,
   "Charter Performance": Megaphone,
+  "State Office Charter Performance": Megaphone,
   "Citizens' Comment Card": Megaphone,
   "Satisfaction Ratings": TrendingUp,
   "Comment Cards": Megaphone,
@@ -377,6 +379,7 @@ type TreeNode =
 const PRESERVE_FOLDER_TITLES = new Set<string>([
   "Special Project",
   SDO_SOC_NAV_GROUP,
+  "State Offices",
 ]);
 
 /** If a folder has only one child, promote that child (no redundant dropdown). */
@@ -410,7 +413,7 @@ function filterModuleTree(
         const hasZonal = zonalAllowed && zonalAllowed.size > 0;
         nested = [];
 
-        // SOC pages sit directly under State Office Coordination
+        // SOC pages sit directly under State Office Coordination (no "SOC/Zones" label)
         if (hasSoc) {
           const socMod = MODULE_CONFIG.find((m) => m.title === SOC_ZONES_MODULE);
           const socKids = collapseSingleChildFolders(
@@ -424,7 +427,7 @@ function filterModuleTree(
           nested.push(...socKids);
         }
 
-        // State Offices nest under State Office Coordination
+        // State Offices nest inside State Office Coordination
         if (hasZonal) {
           const zonalMod = MODULE_CONFIG.find((m) => m.title === ZONAL_MODULE);
           const zonalKids = collapseSingleChildFolders(
@@ -443,8 +446,6 @@ function filterModuleTree(
             });
           }
         }
-
-        nested = collapseSingleChildFolders(nested);
       } else {
         nested = filterModuleTree(child.children, allowedTitles, socAllowed, zonalAllowed);
       }

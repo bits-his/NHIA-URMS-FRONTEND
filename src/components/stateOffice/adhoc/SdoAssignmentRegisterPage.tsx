@@ -242,7 +242,7 @@ export default function SdoAssignmentRegisterPage({
             ) : (
               <Save className="w-3.5 h-3.5" />
             )}
-            Save Record
+            Save to Draft
           </Button>
           <Button
             size="sm"
@@ -263,7 +263,7 @@ export default function SdoAssignmentRegisterPage({
       {/* Main Form Body (Full Width matching URMS design) */}
       <div className="flex-1 overflow-y-auto p-4 md:p-6 pb-12 w-full">
         <div className="w-full space-y-6">
-          <Card className="rounded-2xl border-[#d4e8dc] shadow-xs bg-white overflow-hidden w-full">
+          <Card className="rounded-sm border-[#d4e8dc] shadow-xs bg-white overflow-hidden w-full">
             <CardContent className="p-6 md:p-8 space-y-8">
               {/* FieldSection 1: Assignment Registration */}
               <FieldSection
@@ -448,7 +448,7 @@ export default function SdoAssignmentRegisterPage({
                   <Label className="text-xs font-semibold text-slate-600">
                     Original Instruction Memo / Attachment
                   </Label>
-                  <div className="border-2 border-dashed border-[#1a7a52]/40 rounded-2xl p-6 bg-[#f4f7f5] hover:bg-[#e8f6ee]/30 transition text-center w-full">
+                  <div className="border-2 border-dashed border-[#1a7a52]/40 rounded-sm p-6 bg-[#f4f7f5] hover:bg-[#e8f6ee]/30 transition text-center w-full">
                     <input
                       type="file"
                       id="page_source_doc_file"
@@ -511,10 +511,7 @@ export default function SdoAssignmentRegisterPage({
           </Card>
 
           {/* Bottom Action Bar */}
-          <div className="flex items-center justify-between pt-4 pb-8 border-t border-slate-200 w-full">
-            <Button type="button" variant="outline" onClick={onBack} disabled={submitting}>
-              Back to Assignments
-            </Button>
+          <div className="flex items-center justify-end pt-4 pb-8 border-t border-slate-200 w-full">
             <div className="flex items-center gap-2">
               <Button
                 type="button"
@@ -528,7 +525,7 @@ export default function SdoAssignmentRegisterPage({
                 ) : (
                   <Save className="w-4 h-4" />
                 )}
-                Save Record
+                Save to Draft
               </Button>
               <Button
                 type="button"

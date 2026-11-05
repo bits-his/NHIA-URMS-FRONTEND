@@ -981,7 +981,7 @@ export default function BeneficiaryManagementForm({
 
         return (
           <div className="space-y-4 pb-2">
-            <Card className="rounded-2xl border-[#d4e8dc] shadow-sm overflow-hidden">
+            <Card className="rounded-sm border-[#d4e8dc] shadow-sm overflow-hidden">
               <CardContent className="p-4 md:p-5">
                 <ReportBasicInfo {...header} lockZone={header.lockZone} lockState={header.lockState} showQuarter embedded />
               </CardContent>
@@ -1005,7 +1005,7 @@ export default function BeneficiaryManagementForm({
                         key={item.key}
                         type="button"
                         onClick={() => pickActivity(item.key)}
-                        className="group flex items-center gap-4 rounded-2xl border border-[#d4e8dc] bg-white px-5 py-5 text-left shadow-sm transition-all hover:border-[#1a7a52] hover:bg-[#f7fcf9] hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1a7a52]/40"
+                        className="group flex items-center gap-4 rounded-sm border border-[#d4e8dc] bg-white px-5 py-5 text-left shadow-sm transition-all hover:border-[#1a7a52] hover:bg-[#f7fcf9] hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1a7a52]/40"
                       >
                         <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#e8f6ee] text-[#145c3f]">
                           <Icon className="h-6 w-6" strokeWidth={1.75} />

@@ -135,7 +135,7 @@ export default function SshiaFinancialReportPage({
             return (
               <div
                 key={h.prefix}
-                className={`rounded-2xl border bg-white p-4 md:p-5 space-y-4 ${
+                className={`rounded-sm border bg-white p-4 md:p-5 space-y-4 ${
                   active ? "border-[#25a872]/40 shadow-sm" : "border-[#d4e8dc]"
                 }`}
               >

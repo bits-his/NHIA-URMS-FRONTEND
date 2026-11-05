@@ -1129,7 +1129,7 @@ export default function OfficeProfileWorkspace({
                   {/* 1. Solvix 4-Card Metric Grid with Sparklines matching media_1793556856351_c64fb296.jpg */}
                   <SolvixStatCards items={solvixStatItems} loading={loading} />
 
-                  <Card className="rounded-2xl border-[#d4e8dc]">
+                  <Card className="rounded-sm border-[#d4e8dc]">
                     <CardContent className="pt-4 pb-4 space-y-3">
                       <div className="grid grid-flow-col auto-cols-fr gap-3">
                         {!stateScoped && (

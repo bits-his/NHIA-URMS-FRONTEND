@@ -85,6 +85,21 @@ const LEGACY_PROVIDER_TITLES = new Set([
 /** Legacy beneficiary screens → single Beneficiary Management leaf */
 const LEGACY_BENEFICIARY_TITLE_SET = new Set<string>(LEGACY_BENEFICIARY_TITLES);
 
+/** Aliases for Ad-hoc / Special Assignment across versions */
+const ADHOC_ASSIGNMENT_ALIASES = new Set<string>([
+  "Special Projects",
+  "Special Project",
+  "SPECIAL PROJECT",
+  "Ad-hoc Project",
+  "Ad-hoc project",
+  "Adhoc project",
+  "Adhoc Project",
+  "adhoc project",
+  "Special Assignments",
+  "Special Assignment",
+  "Ad-hoc / Special Assignment",
+]);
+
 
 
 /** Map retired module titles to current MODULE_CONFIG titles */
@@ -165,14 +180,27 @@ export function normalizeFunctionalityTitle(title: string, moduleTitle?: string)
 
     if (title === "Stock Verification") return "Physical Asset Verification";
 
-    if (title === "Special Projects" || title === "Special Project" || title === "SPECIAL PROJECT" || title === "Ad-hoc Project") {
+    if (ADHOC_ASSIGNMENT_ALIASES.has(title)) {
       return "Ad-hoc / Special Assignment";
+    }
+
+    if (title === "Citizens' Comment Card") return "Charter Performance";
+
+    if (
+      title === "Customer Satisfaction Survey"
+      || title === "HCF Customer Satisfaction Survey Survey"
+    ) {
+      return "HCF Customer Satisfaction Survey";
     }
   }
 
 
 
   if (mod === ZONAL_MODULE) {
+
+    if (ADHOC_ASSIGNMENT_ALIASES.has(title)) {
+      return "Ad-hoc / Special Assignment";
+    }
 
     if (title === "Compliance Monitoring") return "Monitoring Visits";
 
@@ -183,6 +211,23 @@ export function normalizeFunctionalityTitle(title: string, moduleTitle?: string)
     if (title === "State Office Meeting Report" || title === "ETMC Cascading Report") return "Meetings & Coordination";
 
     if (title === "ICT Support" || title === "Support") return "ICT Support Register";
+
+    // Distinct from standalone SDO SERVICOM privileges with the same display names
+    if (
+      title === "Charter Performance"
+      || title === "Citizens' Comment Card"
+      || title === "State Office Citizens' Comment Card"
+    ) {
+      return "State Office Charter Performance";
+    }
+    if (
+      title === "HCF Customer Satisfaction Survey"
+      || title === "Customer Satisfaction Survey"
+      || title === "HCF Customer Satisfaction Survey Survey"
+      || title === "State Office Customer Satisfaction Survey"
+    ) {
+      return "State Office HCF Customer Satisfaction Survey";
+    }
 
     if (LEGACY_ENROLMENT_DRIVE_TITLES.has(title)) return ENROLMENT_DRIVES_NAV_TITLE;
 
@@ -212,6 +257,8 @@ export function normalizeFunctionalityTitle(title: string, moduleTitle?: string)
 
   if (title === "My Submissions" || title === "New Annual Report") return "Annual Report";
 
+  // Without module context, keep SDO canonical names (legacy admin rows).
+  // Zonal-scoped grants are normalized above when moduleTitle is Zonal.
   if (title === "Citizens' Comment Card") return "Charter Performance";
 
   if (title === "Customer Satisfaction Survey" || title === "HCF Customer Satisfaction Survey Survey") {
@@ -236,7 +283,7 @@ export function normalizeFunctionalityTitle(title: string, moduleTitle?: string)
 
     if (title === "Overview" || title === "Statistics") return "Dashboard";
 
-    if (title === "Special Projects" || title === "Special Project" || title === "SPECIAL PROJECT" || title === "Ad-hoc Project") {
+    if (ADHOC_ASSIGNMENT_ALIASES.has(title)) {
       return "Ad-hoc / Special Assignment";
     }
 

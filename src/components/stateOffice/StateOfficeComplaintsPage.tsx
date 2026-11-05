@@ -184,7 +184,7 @@ export default function StateOfficeComplaintsPage({ onBack, defaultStateId, defa
             {drilldownLoading ? (
               <div className="flex justify-center py-16"><Loader2 className="w-5 h-5 animate-spin" /></div>
             ) : (
-              <Card className="rounded-2xl border-[#d4e8dc] overflow-hidden">
+              <Card className="rounded-sm border-[#d4e8dc] overflow-hidden">
                 <CardContent className="p-0">
                   <Table>
                     <TableHeader>
@@ -228,7 +228,7 @@ export default function StateOfficeComplaintsPage({ onBack, defaultStateId, defa
       <div className="flex flex-col h-full bg-slate-50/30">
         <ScrollArea className="flex-1">
           <div className="w-full px-4 md:px-6 py-4 pb-24">
-            <Card className="rounded-2xl border-[#d4e8dc] w-full overflow-visible py-0 gap-0">
+            <Card className="rounded-sm border-[#d4e8dc] w-full overflow-visible py-0 gap-0">
               <CardHeader className="pb-3 pt-4 px-4 md:px-6 border-b border-[#e6f2eb] bg-[#f6fbf8]">
                 <div className="flex items-center gap-2">
                   <Button
@@ -361,7 +361,7 @@ export default function StateOfficeComplaintsPage({ onBack, defaultStateId, defa
 
       <ScrollArea className="flex-1">
         <div className="w-full px-4 md:px-6 py-4 space-y-4">
-          <Card className="rounded-2xl border-[#d4e8dc]">
+          <Card className="rounded-sm border-[#d4e8dc]">
             <CardContent className="pt-4 pb-4 grid grid-flow-col auto-cols-fr gap-3">
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">Zone</Label>
@@ -418,7 +418,7 @@ export default function StateOfficeComplaintsPage({ onBack, defaultStateId, defa
             <div className="flex justify-center py-16"><Loader2 className="w-5 h-5 animate-spin text-slate-400" /></div>
           ) : (
             <>
-              <Card className="rounded-2xl border-[#d4e8dc] overflow-hidden">
+              <Card className="rounded-sm border-[#d4e8dc] overflow-hidden">
                 <CardHeader className="pb-3 border-b bg-[#f0fdf7]/50">
                   <CardTitle className="text-sm font-bold">Complaints Summary</CardTitle>
                 </CardHeader>
@@ -451,7 +451,7 @@ export default function StateOfficeComplaintsPage({ onBack, defaultStateId, defa
                 </CardContent>
               </Card>
 
-              <Card className="rounded-2xl border-[#d4e8dc] overflow-hidden">
+              <Card className="rounded-sm border-[#d4e8dc] overflow-hidden">
                 <CardHeader className="pb-3 border-b bg-[#f0fdf7]/50">
                   <CardTitle className="text-sm font-bold">Complaint Status</CardTitle>
                 </CardHeader>

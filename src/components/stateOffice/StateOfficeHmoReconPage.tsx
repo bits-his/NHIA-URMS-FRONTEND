@@ -721,7 +721,7 @@ export default function StateOfficeHmoReconPage({
   );
 
   const headerCard = (
-    <Card className="rounded-2xl border-[#d4e8dc]">
+    <Card className="rounded-sm border-[#d4e8dc]">
       <CardContent className="pt-4 pb-4">
         {hmoLocked ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -783,7 +783,7 @@ export default function StateOfficeHmoReconPage({
   );
 
   const hcfTable = (
-    <Card className="rounded-2xl border-[#d4e8dc] overflow-hidden">
+    <Card className="rounded-sm border-[#d4e8dc] overflow-hidden">
       <CardHeader className="pb-2 space-y-3">
         <CardTitle className="text-base text-[#145c3f] inline-flex items-center gap-2">
           HCFs under {hmoName || "selected HMO"}
@@ -1086,7 +1086,7 @@ export default function StateOfficeHmoReconPage({
             ]}
           />
 
-          <Card className="rounded-2xl border-[#d4e8dc]">
+          <Card className="rounded-sm border-[#d4e8dc]">
             <CardContent className="pt-4 pb-4 grid grid-flow-col auto-cols-fr gap-3">
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">Zone</Label>

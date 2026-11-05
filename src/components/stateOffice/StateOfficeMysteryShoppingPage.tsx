@@ -458,7 +458,7 @@ export default function StateOfficeMysteryShoppingPage({ onBack, defaultStateId,
   );
 
   const enrolleeCardForm = (cardKey: "enrollee_card_1" | "enrollee_card_2" | "enrollee_card_3", index: number) => (
-    <Card className="rounded-2xl border-[#d4e8dc] overflow-hidden">
+    <Card className="rounded-sm border-[#d4e8dc] overflow-hidden">
       <CardHeader className="pb-3 bg-[#f8fdfb] border-b border-[#d4e8dc]">
         <div className="flex items-center justify-between gap-3">
           <div>
@@ -498,7 +498,7 @@ export default function StateOfficeMysteryShoppingPage({ onBack, defaultStateId,
     <div className="space-y-4">
       {stepper}
       {step === 0 && (
-        <Card className="rounded-2xl border-[#d4e8dc] overflow-hidden">
+        <Card className="rounded-sm border-[#d4e8dc] overflow-hidden">
           <CardHeader className="pb-3 bg-[#f8fdfb] border-b border-[#d4e8dc]">
             <CardTitle className="text-base text-[#145c3f]">General Information</CardTitle>
             <CardDescription>Who visited, which facility, and when</CardDescription>
@@ -657,7 +657,7 @@ export default function StateOfficeMysteryShoppingPage({ onBack, defaultStateId,
       )}
 
       {step === 1 && (
-        <Card className="rounded-2xl border-[#d4e8dc] overflow-hidden">
+        <Card className="rounded-sm border-[#d4e8dc] overflow-hidden">
           <CardHeader className="pb-3 bg-[#f8fdfb] border-b border-[#d4e8dc]">
             <div className="flex items-center justify-between gap-3">
               <div>
@@ -698,7 +698,7 @@ export default function StateOfficeMysteryShoppingPage({ onBack, defaultStateId,
       {step === 4 && enrolleeCardForm("enrollee_card_3", 3)}
 
       {step === 5 && (
-        <Card className="rounded-2xl border-[#d4e8dc] overflow-hidden">
+        <Card className="rounded-sm border-[#d4e8dc] overflow-hidden">
           <CardHeader className="pb-3 bg-[#f8fdfb] border-b border-[#d4e8dc]">
             <CardTitle className="text-base text-[#145c3f]">Remarks & Follow-up</CardTitle>
             <CardDescription>Capture strengths, gaps, and next actions</CardDescription>
@@ -808,7 +808,7 @@ export default function StateOfficeMysteryShoppingPage({ onBack, defaultStateId,
         )}
         <ScrollArea className="flex-1">
           <div className="w-full px-4 md:px-6 py-4 space-y-4 pb-16">
-            <Card className="rounded-2xl border-[#d4e8dc] overflow-hidden">
+            <Card className="rounded-sm border-[#d4e8dc] overflow-hidden">
               <div className="bg-[#145c3f] text-white px-6 py-5 flex flex-wrap items-end justify-between gap-4">
                 <div>
                   <p className="text-xs uppercase tracking-wider text-white/70">{detailMeta.reference || "Mystery shopping visit"}</p>
@@ -832,7 +832,7 @@ export default function StateOfficeMysteryShoppingPage({ onBack, defaultStateId,
               </CardContent>
             </Card>
 
-            <Card className="rounded-2xl border-[#d4e8dc]">
+            <Card className="rounded-sm border-[#d4e8dc]">
               <CardHeader className="pb-2 flex flex-row items-center justify-between">
                 <CardTitle className="text-base text-[#145c3f]">Observations</CardTitle>
                 <ScoreBadge score={obsScore} max={OBS_MAX} />
@@ -845,7 +845,7 @@ export default function StateOfficeMysteryShoppingPage({ onBack, defaultStateId,
             </Card>
 
             {[f.enrollee_card_1, f.enrollee_card_2, f.enrollee_card_3].map((card, i) => (
-              <Card key={i} className="rounded-2xl border-[#d4e8dc]">
+              <Card key={i} className="rounded-sm border-[#d4e8dc]">
                 <CardHeader className="pb-2 flex flex-row items-center justify-between">
                   <CardTitle className="text-base text-[#145c3f]">Enrollee Experience Score Card {i + 1}</CardTitle>
                   <ScoreBadge score={cardScores[i]} max={ENROLLEE_MAX} />
@@ -858,7 +858,7 @@ export default function StateOfficeMysteryShoppingPage({ onBack, defaultStateId,
               </Card>
             ))}
 
-            <Card className="rounded-2xl border-[#d4e8dc]">
+            <Card className="rounded-sm border-[#d4e8dc]">
               <CardHeader className="pb-2"><CardTitle className="text-base text-[#145c3f]">Remarks</CardTitle></CardHeader>
               <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <InfoField label="Key Strengths" value={f.key_strengths} />
@@ -974,7 +974,7 @@ export default function StateOfficeMysteryShoppingPage({ onBack, defaultStateId,
             ]}
           />
 
-          <Card className="rounded-2xl border-[#d4e8dc]">
+          <Card className="rounded-sm border-[#d4e8dc]">
             <CardContent className="pt-4 pb-4 grid grid-flow-col auto-cols-fr gap-3">
               <div className="space-y-1">
                 <Label className="text-xs text-muted-foreground">Zone</Label>

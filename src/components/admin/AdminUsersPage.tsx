@@ -68,8 +68,11 @@ function grantedFromAccess(access?: { access_to: string; functionalities?: strin
   const keys = new Set<string>();
   (access || []).forEach((entry) => {
     if (!entry?.access_to) return;
-    keys.add(entry.access_to);
-    (entry.functionalities || []).forEach((t) => keys.add(t));
+    const modTitle = normalizeModuleTitle(entry.access_to);
+    keys.add(modTitle);
+    (entry.functionalities || []).forEach((t) => {
+      keys.add(normalizeFunctionalityTitle(t, modTitle));
+    });
   });
   return keys;
 }

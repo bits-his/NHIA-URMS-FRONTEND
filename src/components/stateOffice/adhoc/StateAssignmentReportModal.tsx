@@ -197,7 +197,7 @@ export default function StateAssignmentReportModal({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="w-[96vw] max-w-6xl max-h-[94vh] overflow-y-auto p-0 rounded-2xl border-[#d4e8dc]">
+      <DialogContent className="w-[96vw] max-w-6xl max-h-[94vh] overflow-y-auto p-0 rounded-sm border-[#d4e8dc]">
         <form onSubmit={handleSubmit} className="w-full">
           <DialogHeader className="p-6 pb-4 border-b bg-gradient-to-r from-emerald-50/70 to-white">
             <div className="flex items-center justify-between">
@@ -238,7 +238,7 @@ export default function StateAssignmentReportModal({
 
             {/* Read-Only Assignment Details from SDO */}
             <FieldSection title="Assignment Directive (from SDO Register)">
-              <div className="sm:col-span-2 p-4 rounded-2xl bg-[#f4f7f5] border border-[#d4e8dc] grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+              <div className="sm:col-span-2 p-4 rounded-sm bg-[#f4f7f5] border border-[#d4e8dc] grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
                 <div>
                   <span className="text-slate-400 block text-[10px] uppercase font-bold tracking-wider">Assignment Title</span>
                   <p className="font-bold text-slate-800 mt-0.5">{master?.assignment_title || "—"}</p>
@@ -353,7 +353,7 @@ export default function StateAssignmentReportModal({
             {/* Evidence & Supporting Documents */}
             <FieldSection title="Evidence & Supporting Documents" gridClassName="grid gap-3 sm:grid-cols-1">
               {!isClosed && (
-                <div className="border-2 border-dashed border-[#1a7a52]/40 rounded-2xl p-5 bg-[#f4f7f5] hover:bg-[#e8f6ee]/30 text-center transition">
+                <div className="border-2 border-dashed border-[#1a7a52]/40 rounded-sm p-5 bg-[#f4f7f5] hover:bg-[#e8f6ee]/30 text-center transition">
                   <input
                     type="file"
                     id="evidence_files_input"

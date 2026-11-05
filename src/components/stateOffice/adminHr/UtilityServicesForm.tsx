@@ -273,7 +273,7 @@ export default function UtilityServicesForm({
 
         return (
           <div className="w-full pb-4">
-            <div className="rounded-2xl border border-[#d4e8dc] bg-white shadow-sm p-4 sm:p-6 space-y-6">
+            <div className="rounded-sm border border-[#d4e8dc] bg-white shadow-sm p-4 sm:p-6 space-y-6">
               {/* Header meta — one grid, no section title */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <Field label="Zonal Office" required>

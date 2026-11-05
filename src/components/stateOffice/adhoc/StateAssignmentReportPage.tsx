@@ -6,6 +6,7 @@ import {
   Loader2,
   Calendar,
   Send,
+  Save,
   Download,
   AlertCircle,
   X,
@@ -146,29 +147,34 @@ export default function StateAssignmentReportPage({
     setFiles((prev) => prev.filter((_, i) => i !== idx));
   };
 
-  const handleSubmit = async (e?: React.FormEvent) => {
+  const handleSubmit = async (e?: React.FormEvent, isDraft = false) => {
     if (e) e.preventDefault();
-    if (!form.work_summary.trim()) {
-      toast.error("Please enter a summary of work carried out");
-      return;
-    }
-    if (!form.output_achieved.trim()) {
-      toast.error("Please specify output / outcome achieved");
-      return;
-    }
-    if (form.completion_status === "completed" && !form.date_completed) {
-      toast.error("Please specify date completed");
-      return;
+    if (!isDraft) {
+      if (!form.work_summary.trim()) {
+        toast.error("Please enter a summary of work carried out");
+        return;
+      }
+      if (!form.output_achieved.trim()) {
+        toast.error("Please specify output / outcome achieved");
+        return;
+      }
+      if (form.completion_status === "completed" && !form.date_completed) {
+        toast.error("Please specify date completed");
+        return;
+      }
     }
 
     setSubmitting(true);
     try {
       const data = new FormData();
-      data.append("completion_status", form.completion_status);
+      data.append("completion_status", form.completion_status || "ongoing");
       data.append("date_completed", form.completion_status === "completed" ? form.date_completed : "");
       data.append("work_summary", form.work_summary.trim());
       data.append("output_achieved", form.output_achieved.trim());
       data.append("challenges", form.challenges ? form.challenges.trim() : "");
+      if (isDraft) {
+        data.append("is_draft", "true");
+      }
 
       files.forEach((f) => {
         data.append("evidence_files", f);
@@ -179,10 +185,10 @@ export default function StateAssignmentReportPage({
       }
 
       await adhocAssignmentApi.submitStateReport(stateAssignment.state_assignment_id, data);
-      toast.success("Assignment report submitted successfully");
+      toast.success(isDraft ? "Assignment report saved to draft" : "Assignment report submitted successfully");
       onSuccess();
     } catch (err: any) {
-      toast.error("Failed to submit report", { description: err.message });
+      toast.error(isDraft ? "Failed to save draft" : "Failed to submit report", { description: err.message });
     } finally {
       setSubmitting(false);
     }
@@ -228,26 +234,31 @@ export default function StateAssignmentReportPage({
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
-          <Button variant="outline" size="sm" onClick={onBack} disabled={submitting}>
-            {isClosed ? "Back" : "Cancel"}
-          </Button>
           {!isClosed && (
-            <Button
-              size="sm"
-              onClick={() => handleSubmit()}
-              disabled={submitting}
-              className="gap-1.5 bg-[#145c3f] hover:bg-[#0f3d2e] text-white shadow-xs"
-            >
-              {submitting ? (
-                <>
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" /> Submitting…
-                </>
-              ) : (
-                <>
-                  <Send className="w-3.5 h-3.5" /> Submit Report
-                </>
-              )}
-            </Button>
+            <>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleSubmit(undefined, true)}
+                disabled={submitting}
+                className="gap-1.5 border-emerald-300 text-emerald-800 hover:bg-emerald-50"
+              >
+                <Save className="w-3.5 h-3.5" /> Save to Draft
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => handleSubmit(undefined, false)}
+                disabled={submitting}
+                className="gap-1.5 bg-[#145c3f] hover:bg-[#0f3d2e] text-white shadow-xs"
+              >
+                {submitting ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Send className="w-3.5 h-3.5" />
+                )}
+                Submit Report
+              </Button>
+            </>
           )}
         </div>
       </div>
@@ -255,7 +266,7 @@ export default function StateAssignmentReportPage({
       {/* Main Content Body */}
       <div className="flex-1 overflow-y-auto p-4 md:p-6 pb-12 w-full">
         <form onSubmit={handleSubmit} className="w-full space-y-6">
-          <Card className="rounded-2xl border-[#d4e8dc] shadow-xs bg-white overflow-hidden w-full">
+          <Card className="rounded-sm border-[#d4e8dc] shadow-xs bg-white overflow-hidden w-full">
             <CardContent className="p-6 md:p-8 space-y-8">
               {/* Review feedback alert banner if returned */}
               {latestReport?.review_status === "returned_for_clarification" && latestReport?.clarification_note && (
@@ -272,7 +283,7 @@ export default function StateAssignmentReportPage({
 
               {/* Read-Only Assignment Directive */}
               <FieldSection title="Assignment Directive">
-                <div className="sm:col-span-2 p-5 rounded-2xl bg-[#f4f7f5] border border-[#d4e8dc] grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                <div className="sm:col-span-2 p-5 rounded-sm bg-[#f4f7f5] border border-[#d4e8dc] grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
                   <div>
                     <span className="text-slate-400 block text-[10px] uppercase font-bold tracking-wider">
                       Assignment Title
@@ -405,7 +416,7 @@ export default function StateAssignmentReportPage({
               {/* Evidence & Supporting Documents */}
               <FieldSection title="Evidence & Supporting Documents" gridClassName="grid gap-3 sm:grid-cols-1">
                 {!isClosed && (
-                  <div className="border-2 border-dashed border-[#1a7a52]/40 rounded-2xl p-6 bg-[#f4f7f5] hover:bg-[#e8f6ee]/30 text-center transition">
+                  <div className="border-2 border-dashed border-[#1a7a52]/40 rounded-sm p-6 bg-[#f4f7f5] hover:bg-[#e8f6ee]/30 text-center transition">
                     <input
                       type="file"
                       id="evidence_files_input_page"
@@ -478,25 +489,33 @@ export default function StateAssignmentReportPage({
                   Submitting as: <strong className="text-slate-600">{userName}</strong> • {stateAssignment.state_assignment_id}
                 </span>
                 <div className="flex items-center gap-3">
-                  <Button type="button" variant="outline" onClick={onBack} disabled={submitting}>
-                    {isClosed ? "Back" : "Cancel"}
-                  </Button>
                   {!isClosed && (
-                    <Button
-                      type="submit"
-                      disabled={submitting}
-                      className="bg-[#145c3f] hover:bg-[#0f3d2e] gap-2 text-white shadow-xs px-5"
-                    >
-                      {submitting ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin" /> Submitting…
-                        </>
-                      ) : (
-                        <>
-                          <Send className="w-4 h-4" /> Submit Report
-                        </>
-                      )}
-                    </Button>
+                    <>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => handleSubmit(undefined, true)}
+                        disabled={submitting}
+                        className="gap-1.5 border-emerald-300 text-emerald-800 hover:bg-emerald-50"
+                      >
+                        <Save className="w-4 h-4" /> Save to Draft
+                      </Button>
+                      <Button
+                        type="submit"
+                        disabled={submitting}
+                        className="bg-[#145c3f] hover:bg-[#0f3d2e] gap-2 text-white shadow-xs px-5"
+                      >
+                        {submitting ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" /> Submitting…
+                          </>
+                        ) : (
+                          <>
+                            <Send className="w-4 h-4" /> Submit Report
+                          </>
+                        )}
+                      </Button>
+                    </>
                   )}
                 </div>
               </div>

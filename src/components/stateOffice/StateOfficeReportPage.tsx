@@ -352,7 +352,7 @@ export default function StateOfficeReportPage({
           <>
             {/* Section A — Basic Information */}
             <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-              <Card className="rounded-2xl border-[#d4e8dc]">
+              <Card className="rounded-sm border-[#d4e8dc]">
                 <CardContent className="pt-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                     <div className="space-y-2">
@@ -406,7 +406,7 @@ export default function StateOfficeReportPage({
 
             {/* Entry row — Add to table (create / edit only) */}
             <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
-              <Card className="rounded-2xl border-[#d4e8dc]">
+              <Card className="rounded-sm border-[#d4e8dc]">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base">Add Entry</CardTitle>
                   <CardDescription>Select {cfg.refLabel.toLowerCase()} and {cfg.countLabel.toLowerCase()}, then click Add.</CardDescription>
@@ -468,7 +468,7 @@ export default function StateOfficeReportPage({
 
             {/* Line items table */}
             <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-              <Card className="rounded-2xl border-[#d4e8dc]">
+              <Card className="rounded-sm border-[#d4e8dc]">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base">Report Entries</CardTitle>
                   <CardDescription>

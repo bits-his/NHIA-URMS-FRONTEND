@@ -175,8 +175,8 @@ export default function ReportBasicInfo({
   if (embedded) return fields;
 
   return (
-    <Card className="rounded-2xl border-[#d4e8dc]">
-      <CardContent className="pt-6">
+    <Card className="rounded-sm border-[#d4e8dc]">
+      <CardContent className="p-3 md:p-4">
         {fields}
       </CardContent>
     </Card>

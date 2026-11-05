@@ -89,7 +89,7 @@ export default function StateOfficeReportDetail({ reportType, reportId, onBack, 
           ) : (
             <>
               <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-                <Card className="rounded-2xl border-[#d4e8dc]">
+                <Card className="rounded-sm border-[#d4e8dc]">
                   <CardHeader className="pb-3 flex flex-row items-start justify-between">
                     <div>
                       <CardTitle className="text-base">Report Summary</CardTitle>
@@ -116,7 +116,7 @@ export default function StateOfficeReportDetail({ reportType, reportId, onBack, 
               </motion.div>
 
               <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
-                <Card className="rounded-2xl border-[#d4e8dc] overflow-hidden">
+                <Card className="rounded-sm border-[#d4e8dc] overflow-hidden">
                   <CardHeader className="pb-3 border-b border-[#d4e8dc] bg-[#f8fdfb]">
                     <CardTitle className="text-base">{cfg.title} Data</CardTitle>
                     <CardDescription>{lines.length} line item(s)</CardDescription>

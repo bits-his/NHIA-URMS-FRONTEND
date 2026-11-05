@@ -165,7 +165,7 @@ export default function ComplaintsReportForm({ reportId, onBack, onCancel, onSub
 
 function Section({ title, desc, children }: { title: string; desc: string; children: React.ReactNode }) {
   return (
-    <Card className="rounded-2xl border-[#d4e8dc]">
+    <Card className="rounded-sm border-[#d4e8dc]">
       <CardHeader className="pb-2"><CardTitle className="text-base">{title}</CardTitle><CardDescription>{desc}</CardDescription></CardHeader>
       <CardContent>{children}</CardContent>
     </Card>
