@@ -53,7 +53,7 @@ export const ADMIN_HR_CONFIG: Record<
   },
   "vehicle-maintenance": {
     title: "Vehicle Maintenance",
-    subtitle: "Vehicle maintenance register by zone / state / period",
+    subtitle: "One row per vehicle maintenance event — chassis links history across periods",
     formTitle: "Vehicle Maintenance",
     newLabel: "New Maintenance Entry",
   },
