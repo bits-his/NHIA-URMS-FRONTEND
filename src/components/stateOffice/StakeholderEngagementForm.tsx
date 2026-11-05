@@ -16,6 +16,7 @@ import type { RootState } from "@/src/store/store";
 import { stateOfficeApi, stockApi } from "@/lib/api";
 import { MONTHS, monthLabel, labelOf, parseSupportingDocuments } from "./constants";
 import StateOfficeFormShell from "./StateOfficeFormShell";
+import ReportBasicInfo from "./shared/ReportBasicInfo";
 import {
   STAKEHOLDER_CATEGORIES,
   STAKEHOLDER_ENGAGEMENT_CATEGORIES,
@@ -114,132 +115,6 @@ interface Props {
   activityFilter?: string[];
   allowModuleSelect?: boolean;
   moduleOptions?: { key: string; label: string; filter?: string[] }[];
-}
-
-/** Report info row — flat (no nested card), matches Enrolment embedded basic info. */
-function StakeholderReportInformation({ header }: { header: any }) {
-  const user = useSelector((s: RootState) => s.auth.user) as any;
-  const userRole = (user?.role || "").toLowerCase();
-  const isAdmin = ["admin", "sdo", "dg-ceo", "hq-department"].includes(userRole) || user?.role_config?.report_scope === "national";
-
-  const periodText = header.reportMonth && header.reportYear
-    ? `${monthLabel(header.reportMonth)} ${header.reportYear}`
-    : "—";
-  const [allStates, setAllStates] = React.useState<{ id: string; label: string; zoneId: string }[]>([]);
-
-  React.useEffect(() => {
-    stockApi.getStates().then((r) => {
-      setAllStates(
-        (r.data ?? []).map((s: any) => ({
-          id: String(s.id ?? s.code ?? ""),
-          label: s.description || s.label || String(s.id),
-          zoneId: String(s.zonal_code ?? s.zonal_id ?? s.zone_id ?? s.zone?.id ?? s.zone?.zonal_code ?? ""),
-        })).filter((s: { id: string }) => s.id),
-      );
-    }).catch(() => setAllStates([]));
-  }, []);
-
-  const stateOptions = allStates.length
-    ? allStates
-    : (header.states ?? []).map((s: { id: string | number; label: string }) => ({
-      id: String(s.id),
-      label: s.label,
-      zoneId: header.zoneId || "",
-    }));
-
-  const userStateCode = user?.state_code || user?.state?.code || (user?.state_id ? String(user.state_id) : "");
-  const matchedState = stateOptions.find((s) => s.id === header.stateId || s.id === userStateCode);
-  const stateLabel = labelOf(
-    stateOptions.map((s) => ({ value: s.id, label: s.label })),
-    header.stateId,
-    matchedState?.label || user?.state?.description || userStateCode || "—",
-  );
-
-  React.useEffect(() => {
-    if (!isAdmin && !header.stateId && userStateCode) {
-      header.setStateId(userStateCode);
-      const userZone = user?.zonal_code || user?.zone?.zonal_code || (user?.zone_id ? String(user.zone_id) : "");
-      if (userZone && header.setZoneId) header.setZoneId(userZone);
-    }
-  }, [isAdmin, header, userStateCode, user]);
-
-  const inputClass = "h-10 rounded-sm bg-[#f4f7f5] border-2 border-[#1a7a52] text-sm text-slate-800 shadow-xs hover:border-[#0f3d2e] hover:bg-white focus-visible:border-[#0f3d2e] focus-visible:bg-white";
-
-  const onStateChange = (v: string) => {
-    const match = stateOptions.find((s) => s.id === v);
-    if (header.hydratingRef) header.hydratingRef.current = true;
-    if (match?.zoneId && !header.lockZone) header.setZoneId(match.zoneId);
-    header.setStateId(v);
-    queueMicrotask(() => {
-      if (header.hydratingRef) header.hydratingRef.current = false;
-    });
-  };
-
-  return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-      <div className="space-y-1.5">
-        <Label className="text-xs font-semibold text-slate-600">Reporting period</Label>
-        <div className="grid grid-cols-2 gap-2">
-          <Select value={header.reportMonth} onValueChange={header.setReportMonth}>
-            <SelectTrigger className={inputClass} displayValue={monthLabel(header.reportMonth)}>
-              <SelectValue placeholder="Month" />
-            </SelectTrigger>
-            <SelectContent>
-              {MONTHS.map((m) => (
-                <SelectItem key={m.value} value={String(m.value)}>{m.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={header.reportYear} onValueChange={header.setReportYear}>
-            <SelectTrigger className={inputClass} displayValue={header.reportYear || "Year"}>
-              <SelectValue placeholder="Year" />
-            </SelectTrigger>
-            <SelectContent>
-              {Array.from({ length: 8 }, (_, i) => {
-                const y = String(new Date().getFullYear() - 2 + i);
-                return <SelectItem key={y} value={y}>{y}</SelectItem>;
-              })}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      <div className="space-y-1.5">
-        <Label className="text-xs font-semibold text-slate-600">
-          State {isAdmin && <span className="text-slate-400 font-normal">(required to send for review)</span>}
-        </Label>
-        {isAdmin && !header.lockState ? (
-          <Select
-            value={header.stateId}
-            onValueChange={onStateChange}
-          >
-            <SelectTrigger
-              className={inputClass}
-              displayValue={stateLabel}
-            >
-              <SelectValue placeholder="Select a state" />
-            </SelectTrigger>
-            <SelectContent>
-              {stateOptions.map((s) => (
-                <SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        ) : (
-          <Input
-            readOnly
-            value={stateLabel !== "Select when sending for review" ? stateLabel : (user?.state?.description || userStateCode || "—")}
-            className={cn(inputClass, "opacity-90 font-medium cursor-not-allowed")}
-          />
-        )}
-      </div>
-
-      <div className="space-y-1.5">
-        <Label className="text-xs font-semibold text-slate-600">Reporting month</Label>
-        <Input readOnly value={periodText} className={cn(inputClass, "opacity-90")} />
-      </div>
-    </div>
-  );
 }
 
 function Field({
@@ -733,7 +608,14 @@ export default function StakeholderEngagementForm({
         <div className="m-0 space-y-3 pb-2">
           <Card className="rounded-sm border-[#d4e8dc] shadow-sm overflow-visible m-0">
             <CardContent className="p-3 md:p-4 space-y-4">
-              <StakeholderReportInformation header={header} />
+              <ReportBasicInfo
+                {...header}
+                lockZone={header.lockZone}
+                lockState={header.lockState}
+                showQuarter
+                hideQuarter
+                embedded
+              />
 
               <fieldset disabled={!canEditContent} className="border-t border-[#e8f3ec] pt-4 space-y-5 disabled:opacity-90">
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -859,28 +741,7 @@ export default function StakeholderEngagementForm({
                   <Input className={inputClass} value={entry.location_specify} onChange={(e) => set("location_specify", e.target.value)} placeholder="Enter exact venue / location / address" />
                 </Field>
 
-                <Field label="Funding option" required error={fieldErrors.funding_option}>
-                  <Select value={entry.funding_option} onValueChange={(v) => set("funding_option", v)}>
-                    <SelectTrigger className={inputClass}><SelectValue placeholder="Select funding option" /></SelectTrigger>
-                    <SelectContent>
-                      {STAKEHOLDER_FUNDING_OPTIONS.map((o) => (
-                        <SelectItem key={o} value={o}>{o}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Field>
-                {isFunded && (
-                  <>
-                    <Field label="Funding amount" required error={fieldErrors.activity_budget}>
-                      <Input type="number" min={0} className={inputClass} value={entry.activity_budget} onChange={(e) => set("activity_budget", e.target.value)} />
-                    </Field>
-                    <Field label="Approved amount (₦)" required error={fieldErrors.approved_amount}>
-                      <Input type="number" min={0} className={inputClass} value={entry.approved_amount} onChange={(e) => set("approved_amount", e.target.value)} />
-                    </Field>
-                  </>
-                )}
-
-                {/* Row 5: Outcomes & Activity Status (3 on row) */}
+                {/* Outcomes & Activity Status (3 on row) */}
                 <Field label="Outcome category" required error={fieldErrors.outcome_category || fieldErrors.outcomes}>
                   <Select
                     value={draftOutcome.outcome_category}
@@ -1086,6 +947,27 @@ export default function StakeholderEngagementForm({
                   <p className="text-[11px] font-medium text-rose-600 sm:col-span-3">{fieldErrors.outcomes}</p>
                 )}
 
+                <Field label="Funding option" required error={fieldErrors.funding_option}>
+                  <Select value={entry.funding_option} onValueChange={(v) => set("funding_option", v)}>
+                    <SelectTrigger className={inputClass}><SelectValue placeholder="Select funding option" /></SelectTrigger>
+                    <SelectContent>
+                      {STAKEHOLDER_FUNDING_OPTIONS.map((o) => (
+                        <SelectItem key={o} value={o}>{o}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+                {isFunded && (
+                  <>
+                    <Field label="Funding amount" required error={fieldErrors.activity_budget}>
+                      <Input type="number" min={0} className={inputClass} value={entry.activity_budget} onChange={(e) => set("activity_budget", e.target.value)} />
+                    </Field>
+                    <Field label="Approved amount (₦)" required error={fieldErrors.approved_amount}>
+                      <Input type="number" min={0} className={inputClass} value={entry.approved_amount} onChange={(e) => set("approved_amount", e.target.value)} />
+                    </Field>
+                  </>
+                )}
+
                 <Field label="Supporting evidence" required error={fieldErrors.evidence} className="sm:col-span-2 lg:col-span-3">
                   <div className="rounded-sm border-2 border-dashed border-[#1a7a52] bg-white px-3 py-3">
                     <label className="flex flex-col gap-1.5 cursor-pointer">
@@ -1120,9 +1002,6 @@ export default function StakeholderEngagementForm({
 
                 </div>
 
-                <p className="text-[11px] text-slate-400">
-                  Engagement ID and Program ID are generated by the system.
-                </p>
               </fieldset>
 
               <div className="flex flex-wrap items-center justify-end gap-2 pt-2 border-t border-[#e8f3ec]">
