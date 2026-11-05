@@ -118,7 +118,13 @@ interface Props {
   defaultStateId?: string | null;
   /** When creating from an activity tab, skip the activity picker. */
   initialCategory?: string | null;
-  driveContext?: { reference_id: string; programs_supported: string[] };
+  driveContext?: {
+    reference_id: string;
+    programs_supported: string[];
+    /** Display-only totals from the linked drive activity (unused by the form). */
+    beneficiaries_recorded?: number;
+    registration_count?: number;
+  };
   /** Embed inside a parent dialog/workspace — hide FormShell page chrome. */
   embedded?: boolean;
 }

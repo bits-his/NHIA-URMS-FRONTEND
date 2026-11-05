@@ -242,7 +242,11 @@ export default function BeneficiaryReportView({ reportType, reportId, onBack, on
             Back
           </Button>
           <div className="min-w-0">
-            <h2 className="text-base font-bold tracking-tight truncate">{summary?.activity || "Beneficiary Management"}</h2>
+            <h2 className="text-base font-bold tracking-tight truncate">
+              {summary?.activity && summary.activity !== "—"
+                ? `Beneficiary Management - ${summary.activity}`
+                : "Beneficiary Management"}
+            </h2>
             <p className="text-[11px] text-slate-500 truncate">
               {report?.reference_id ? <span className="font-mono font-semibold text-[#145c3f]">{report.reference_id}</span> : "Report"}
               {summary?.subject ? ` · ${summary.subject}` : ""}
