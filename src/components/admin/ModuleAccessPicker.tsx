@@ -183,6 +183,15 @@ function NestedFolder({
   );
 }
 
+function sameNameSingleChild(folder: PrivilegeFolderNode): PrivilegeLeafNode | null {
+  if (folder.children.length !== 1) return null;
+  const only = folder.children[0];
+  if (only.kind !== "leaf") return null;
+  const label = only.navLabel && only.navLabel !== only.title ? only.navLabel : only.title;
+  if (only.title === folder.label || label === folder.label) return only;
+  return null;
+}
+
 function InnerNode({
   node, granted, onChange, depth,
 }: {
@@ -193,6 +202,10 @@ function InnerNode({
 }) {
   if (node.kind === "leaf") {
     return <LeafRow leaf={node} granted={granted} onChange={onChange} depth={depth} />;
+  }
+  const collapsed = sameNameSingleChild(node);
+  if (collapsed) {
+    return <LeafRow leaf={collapsed} granted={granted} onChange={onChange} depth={depth} />;
   }
   return <NestedFolder folder={node} granted={granted} onChange={onChange} depth={depth} />;
 }
@@ -223,6 +236,11 @@ function ModuleCard({
         </span>
       </label>
     );
+  }
+
+  const collapsed = sameNameSingleChild(node);
+  if (collapsed) {
+    return <ModuleCard node={collapsed} granted={granted} onChange={onChange} />;
   }
 
   return (

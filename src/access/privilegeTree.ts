@@ -47,6 +47,28 @@ export type PrivilegeSection = {
   nodes: PrivilegeNode[];
 };
 
+function leafDisplayLabel(leaf: PrivilegeLeafNode): string {
+  return leaf.navLabel && leaf.navLabel !== leaf.title ? leaf.navLabel : leaf.title;
+}
+
+/** Drop a folder when it only wraps one child with the same name. */
+function collapseSameNameFolder(folder: PrivilegeFolderNode): PrivilegeNode {
+  const children = folder.children.map((child) =>
+    child.kind === "folder" ? collapseSameNameFolder(child) : child,
+  );
+  if (children.length === 1) {
+    const only = children[0];
+    if (only.kind === "leaf") {
+      if (only.title === folder.label || leafDisplayLabel(only) === folder.label) {
+        return only;
+      }
+    } else if (only.label === folder.label) {
+      return only;
+    }
+  }
+  return { ...folder, children };
+}
+
 function convertChildren(
   nodes: (ChildModule | SubGroup)[],
   accessTo: string,
@@ -55,32 +77,38 @@ function convertChildren(
   const out: PrivilegeNode[] = [];
   for (const c of nodes) {
     if (isSubGroup(c)) {
-      out.push({
-        kind: "folder",
-        label: c.label,
-        accessTo,
-        alsoGrant,
-        children: convertChildren(c.children, accessTo, alsoGrant),
-      });
+      const children = convertChildren(c.children, accessTo, alsoGrant);
+      if (children.length === 0) continue;
+      out.push(
+        collapseSameNameFolder({
+          kind: "folder",
+          label: c.label,
+          accessTo,
+          alsoGrant,
+          children,
+        }),
+      );
       continue;
     }
     // Hub sidebar leaf → privilege folder of grantable tabs
     if (isHubNavTitle(c.title)) {
       const hub = hubConfigByTitle(c.title);
       if (hub) {
-        out.push({
-          kind: "folder",
-          label: hub.hubTitle,
-          accessTo,
-          alsoGrant,
-          children: hub.tabs.map((tab) => ({
-            kind: "leaf" as const,
-            title: tab.privilegeTitle,
-            navLabel: tab.tabLabel,
+        out.push(
+          collapseSameNameFolder({
+            kind: "folder",
+            label: hub.hubTitle,
             accessTo,
             alsoGrant,
-          })),
-        });
+            children: hub.tabs.map((tab) => ({
+              kind: "leaf" as const,
+              title: tab.privilegeTitle,
+              navLabel: tab.tabLabel,
+              accessTo,
+              alsoGrant,
+            })),
+          }),
+        );
         continue;
       }
     }
@@ -103,13 +131,14 @@ export function assignableLeavesForModule(mod: ParentModule): string[] {
   ])];
 }
 
-function moduleFolder(mod: ParentModule, label?: string): PrivilegeFolderNode {
-  return {
+function moduleFolder(mod: ParentModule, label?: string): PrivilegeNode {
+  const folderLabel = label ?? mod.title;
+  return collapseSameNameFolder({
     kind: "folder",
-    label: label ?? mod.title,
+    label: folderLabel,
     accessTo: mod.title,
     children: convertChildren(mod.children, mod.title),
-  };
+  });
 }
 
 function findMod(title: string): ParentModule {
@@ -163,13 +192,15 @@ export function buildPrivilegeSections(): PrivilegeSection[] {
       continue;
     }
     if (isSubGroup(c)) {
-      sdoTopCards.push({
-        kind: "folder",
-        label: c.label,
-        accessTo: SDO_MODULE,
-        alsoGrant: [SDO_MODULE],
-        children: convertChildren(c.children, SDO_MODULE, [SDO_MODULE]),
-      });
+      sdoTopCards.push(
+        collapseSameNameFolder({
+          kind: "folder",
+          label: c.label,
+          accessTo: SDO_MODULE,
+          alsoGrant: [SDO_MODULE],
+          children: convertChildren(c.children, SDO_MODULE, [SDO_MODULE]),
+        }),
+      );
     } else {
       sdoTopCards.push({
         kind: "leaf",

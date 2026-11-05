@@ -34,6 +34,9 @@ import {
   ENROLMENT_EQUITY_PROGRAMS,
   ENROLMENT_SSHIA_CHANNELS,
   ENROLMENT_STATUS_NEEDS_REASON,
+  ENROLMENT_ENTITY_TYPES,
+  ENROLMENT_BLOOD_GROUPS,
+  ENROLMENT_MARITAL_STATUSES,
   computeGifshipDates,
   isSshiaLikeChannel,
   modesOfRegistrationForProgram,
@@ -334,21 +337,45 @@ function renderProgramField(
   );
 }
 
+/** Always-visible NHIA identity fields (shown even before a program is chosen). */
+const NHIA_IDENTITY_FIELDS: EnrolmentProgramFieldDef[] = [
+  { key: "surname", label: "Surname", type: "text" },
+  { key: "first_name", label: "First Name", type: "text" },
+  { key: "middle_name", label: "Middle Name", type: "text" },
+  { key: "nin", label: "NIN", type: "text" },
+  { key: "organization_mda", label: "Organization/MDA", type: "text" },
+  { key: "entity_type", label: "Entity Type", type: "select", options: ENROLMENT_ENTITY_TYPES },
+  { key: "blood_group", label: "Blood Group", type: "select", options: ENROLMENT_BLOOD_GROUPS },
+  { key: "marital_status", label: "Marital Status", type: "select", options: ENROLMENT_MARITAL_STATUSES },
+  { key: "phone_number", label: "Phone Number", type: "text" },
+];
+
+const IDENTITY_FIELD_KEYS = new Set(NHIA_IDENTITY_FIELDS.map((f) => f.key));
+
+function mergeProgramFields(programFields: EnrolmentProgramFieldDef[]): EnrolmentProgramFieldDef[] {
+  const byKey = new Map<string, EnrolmentProgramFieldDef>();
+  NHIA_IDENTITY_FIELDS.forEach((f) => byKey.set(f.key, f));
+  programFields.forEach((f) => byKey.set(f.key, f));
+  const identity = NHIA_IDENTITY_FIELDS.map((f) => byKey.get(f.key)!);
+  const rest = programFields.filter((f) => !IDENTITY_FIELD_KEYS.has(f.key));
+  return [...identity, ...rest];
+}
+
 function ProgramFieldsGrid({
   fields,
   values,
   onChange,
   onChangeMany,
   reportStateId,
+  alwaysShowIdentity = false,
 }: {
   fields: EnrolmentProgramFieldDef[];
   values: ProgramDetails;
   onChange: (key: string, value: string) => void;
   onChangeMany: (patch: ProgramDetails) => void;
   reportStateId: string;
+  alwaysShowIdentity?: boolean;
 }) {
-  if (fields.length === 0) return null;
-
   const locationKeys = new Set(["state_of_origin", "lga_of_origin", "state_of_residence", "lga_of_residence"]);
   const providerKeys = new Set(["hmo", "hcf", "alternative_provider"]);
   const identityKeys = new Set([
@@ -356,10 +383,13 @@ function ProgramFieldsGrid({
     "blood_group", "marital_status", "phone_number", "program_type",
   ]);
 
-  const identity = fields.filter((f) => identityKeys.has(f.key));
-  const location = fields.filter((f) => locationKeys.has(f.key));
-  const providers = fields.filter((f) => providerKeys.has(f.key));
-  const other = fields.filter(
+  const merged = alwaysShowIdentity ? mergeProgramFields(fields) : fields;
+  if (merged.length === 0) return null;
+
+  const identity = merged.filter((f) => identityKeys.has(f.key));
+  const location = merged.filter((f) => locationKeys.has(f.key));
+  const providers = merged.filter((f) => providerKeys.has(f.key));
+  const other = merged.filter(
     (f) => !identityKeys.has(f.key) && !locationKeys.has(f.key) && !providerKeys.has(f.key),
   );
 
@@ -374,7 +404,7 @@ function ProgramFieldsGrid({
     <div className="space-y-4 rounded-sm border border-[#d4e8dc] bg-[#f8fbf9] p-3 md:p-4">
       {groups.map((g) => (
         <FieldSection key={g.title} title={g.title}>
-          {g.items.map((f) => renderProgramField(f, fields, values, onChange, onChangeMany, reportStateId))}
+          {g.items.map((f) => renderProgramField(f, merged, values, onChange, onChangeMany, reportStateId))}
         </FieldSection>
       ))}
     </div>
@@ -392,7 +422,6 @@ function stepsForCategory(category: string, channel = ""): { id: StepId; label: 
     }
     return [
       { id: "channel", label: "Enrolment Details" },
-      { id: "beneficiary", label: "Beneficiary" },
       { id: "details", label: "Details" },
       { id: "review", label: "Review" },
     ];
@@ -681,7 +710,9 @@ export default function EnrolmentActivityForm({
     }
 
     if (stepId === "channel") {
-      if (!e.activity_date) return fail("activity_date", "Enter the enrolment date");
+      if (!isSshiaLikeChannel(e.enrolment_channel) && !e.activity_date) {
+        return fail("activity_date", "Enter the enrolment date");
+      }
       if (!e.enrolment_channel) return fail("enrolment_channel", "Select enrolment channel");
       if (e.enrolment_channel === "NHIA" && !e.enrolment_type) {
         return fail("enrolment_type", "Select enrolment type");
@@ -703,6 +734,16 @@ export default function EnrolmentActivityForm({
           );
         }
         return null;
+      }
+      // NHIA: identity + count live on this same step
+      if (e.enrolment_count !== "" && Number(e.enrolment_count) < 0) {
+        return fail("enrolment_count", "Number enrolled must be a whole non-negative number");
+      }
+      if (!String(e.program_details?.surname ?? "").trim()) {
+        return fail("surname", "Enter surname");
+      }
+      if (!String(e.program_details?.first_name ?? "").trim()) {
+        return fail("first_name", "Enter first name");
       }
       return null;
     }
@@ -918,116 +959,123 @@ export default function EnrolmentActivityForm({
 
               {entry.category ? (
               <div className="border-t border-[#e8f3ec] pt-4 space-y-5">
-              {/* STEP: Channel & Program (Enrolment) */}
+              {/* STEP: Channel & Program (+ Beneficiary for NHIA) */}
               {currentStep?.id === "channel" && isEnrolment && (
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  <Field label="Enrolment Date" required error={fieldErrors.activity_date}>
-                    <Input
-                      type="date"
-                      value={entry.activity_date}
-                      onChange={(e) => set("activity_date", e.target.value)}
-                    />
-                  </Field>
-                  {!isSshiaLikeChannel(entry.enrolment_channel) && (
-                    <Field label="Enrolment Type" required error={fieldErrors.enrolment_type}>
+                <div className="space-y-5">
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    {!isSshiaChannel && (
+                      <Field label="Enrolment Date" required error={fieldErrors.activity_date}>
+                        <Input
+                          type="date"
+                          value={entry.activity_date}
+                          onChange={(e) => set("activity_date", e.target.value)}
+                        />
+                      </Field>
+                    )}
+                    {!isSshiaChannel && (
+                      <Field label="Enrolment Type" required error={fieldErrors.enrolment_type}>
+                        <Select
+                          value={entry.enrolment_type}
+                          onValueChange={(v) => setEntry((p) => ({
+                            ...p,
+                            enrolment_type: v,
+                            program_name: "",
+                            enrolment_category: "",
+                            program_details: {},
+                          }))}
+                          disabled={!entry.enrolment_channel}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder={!entry.enrolment_channel ? "Select channel first" : "Select type"} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {ENROLMENT_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </Field>
+                    )}
+                    <Field
+                      label={entry.enrolment_channel === "Equity Program" ? "Enrolment Type" : "Program"}
+                      required
+                      error={fieldErrors.program_name}
+                    >
                       <Select
-                        value={entry.enrolment_type}
+                        value={entry.program_name}
                         onValueChange={(v) => setEntry((p) => ({
                           ...p,
-                          enrolment_type: v,
-                          program_name: "",
+                          program_name: v,
                           enrolment_category: "",
                           program_details: {},
                         }))}
-                        disabled={!entry.enrolment_channel}
+                        disabled={
+                          !entry.enrolment_channel
+                          || (entry.enrolment_channel === "NHIA" && !entry.enrolment_type)
+                        }
                       >
                         <SelectTrigger>
-                          <SelectValue placeholder={!entry.enrolment_channel ? "Select channel first" : "Select type"} />
+                          <SelectValue
+                            placeholder={
+                              !entry.enrolment_channel
+                                ? "Select channel first"
+                                : entry.enrolment_channel === "NHIA" && !entry.enrolment_type
+                                  ? "Select enrolment type first"
+                                  : entry.enrolment_channel === "Equity Program"
+                                    ? "Select enrolment type"
+                                    : "Select program"
+                            }
+                          />
                         </SelectTrigger>
                         <SelectContent>
-                          {ENROLMENT_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                          {programOptions.map((p) => (
+                            <SelectItem key={p.label} value={p.label}>{p.label}</SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </Field>
-                  )}
-                  <Field
-                    label={entry.enrolment_channel === "Equity Program" ? "Enrolment Type" : "Program"}
-                    required
-                    error={fieldErrors.program_name}
-                  >
-                    <Select
-                      value={entry.program_name}
-                      onValueChange={(v) => setEntry((p) => ({
-                        ...p,
-                        program_name: v,
-                        enrolment_category: "",
-                        program_details: {},
-                      }))}
-                      disabled={
-                        !entry.enrolment_channel
-                        || (entry.enrolment_channel === "NHIA" && !entry.enrolment_type)
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue
-                          placeholder={
-                            !entry.enrolment_channel
-                              ? "Select channel first"
-                              : entry.enrolment_channel === "NHIA" && !entry.enrolment_type
-                                ? "Select enrolment type first"
-                                : entry.enrolment_channel === "Equity Program"
-                                  ? "Select enrolment type"
-                                  : "Select program"
-                          }
-                        />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {programOptions.map((p) => (
-                          <SelectItem key={p.label} value={p.label}>{p.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </Field>
-                  {!isSshiaLikeChannel(entry.enrolment_channel) && (
-                  <Field
-                    label="Enrolment Mode"
-                    required={modeOptions.length > 0}
-                    error={fieldErrors.enrolment_category}
-                  >
-                    <Select
-                      value={entry.enrolment_category}
-                      onValueChange={(v) => set("enrolment_category", v)}
-                      disabled={Boolean(driveContext) || !entry.program_name || modeOptions.length === 0}
-                    >
-                      <SelectTrigger>
-                        <SelectValue
-                          placeholder={
-                            !entry.program_name
-                              ? "Select program first"
-                              : modeOptions.length === 0
-                                ? "No mode for this program"
-                                : "Select mode"
-                          }
-                        />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {modeOptions.map((m) => (
-                          <SelectItem key={m} value={m}>{m}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </Field>
-                  )}
-                  {/* SSHIA / Equity: only the count is required — no status, evidence, or funding */}
-                  {isSshiaChannel && !!entry.program_name && (
+                    {!isSshiaChannel && (
                     <Field
-                      label={entry.enrolment_channel === "Equity Program" ? "Number of Beneficiaries" : "Number Enrolled"}
-                      required
+                      label="Enrolment Mode"
+                      required={modeOptions.length > 0}
+                      error={fieldErrors.enrolment_category}
+                    >
+                      <Select
+                        value={entry.enrolment_category}
+                        onValueChange={(v) => set("enrolment_category", v)}
+                        disabled={Boolean(driveContext) || !entry.program_name || modeOptions.length === 0}
+                      >
+                        <SelectTrigger>
+                          <SelectValue
+                            placeholder={
+                              !entry.program_name
+                                ? "Select program first"
+                                : modeOptions.length === 0
+                                  ? "No mode for this program"
+                                  : "Select mode"
+                            }
+                          />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {modeOptions.map((m) => (
+                            <SelectItem key={m} value={m}>{m}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </Field>
+                    )}
+                    <Field
+                      label={
+                        entry.enrolment_channel === "Equity Program"
+                          ? "Number of Beneficiaries"
+                          : entry.enrolment_channel === "SSHIA"
+                            ? "Number Enrolled"
+                            : "Number Enrolled / Beneficiaries"
+                      }
+                      required={isSshiaChannel || Boolean(driveContext)}
                       error={fieldErrors.enrolment_count}
                     >
                       <Input
                         type="number"
-                        min={1}
+                        min={isSshiaChannel ? 1 : 0}
                         step={1}
                         value={entry.enrolment_count}
                         onChange={(e) => set("enrolment_count", e.target.value)}
@@ -1038,6 +1086,16 @@ export default function EnrolmentActivityForm({
                         }
                       />
                     </Field>
+                  </div>
+                  {!isSshiaChannel && (
+                    <ProgramFieldsGrid
+                      fields={programFields}
+                      values={entry.program_details}
+                      onChange={setDetail}
+                      onChangeMany={setDetails}
+                      reportStateId={stateId}
+                      alwaysShowIdentity
+                    />
                   )}
                 </div>
               )}
@@ -1045,9 +1103,6 @@ export default function EnrolmentActivityForm({
               {/* STEP: Details & Funding (NHIA Enrolment only) */}
               {isEnrolment && !isSshiaChannel && currentStep?.id === "details" && (
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  <Field label="Number Enrolled / Beneficiaries" required={Boolean(driveContext)} error={fieldErrors.enrolment_count}>
-                    <Input type="number" min={0} value={entry.enrolment_count} onChange={(e) => set("enrolment_count", e.target.value)} />
-                  </Field>
                   <Field label="Activity Status" required error={fieldErrors.activity_status}>
                     <Select
                       value={entry.activity_status}
@@ -1103,23 +1158,6 @@ export default function EnrolmentActivityForm({
                     <Textarea rows={2} value={entry.remarks} onChange={(e) => set("remarks", e.target.value)} />
                   </Field>
                 </div>
-              )}
-
-              {/* STEP: Beneficiary (Enrolment) */}
-              {currentStep?.id === "beneficiary" && isEnrolment && (
-                programFields.length > 0 ? (
-                  <ProgramFieldsGrid
-                    fields={programFields}
-                    values={entry.program_details}
-                    onChange={setDetail}
-                    onChangeMany={setDetails}
-                    reportStateId={stateId}
-                  />
-                ) : (
-                  <p className="text-sm text-slate-500 py-6 text-center">
-                    No program-specific beneficiary fields for this selection. Continue to review.
-                  </p>
-                )
               )}
 
               {/* STEP: NIN Validation */}
@@ -1322,7 +1360,9 @@ export default function EnrolmentActivityForm({
 
                   <ReviewSection title="Activity summary">
                     <ReviewRow label="Activity" value={activityLabel} />
-                    <ReviewRow label="Date" value={entry.activity_date || entry.validation_date} />
+                    {!isSshiaChannel && (
+                      <ReviewRow label="Date" value={entry.activity_date || entry.validation_date} />
+                    )}
                     <ReviewRow label="Channel" value={entry.enrolment_channel} />
                     {!isSshiaChannel && <ReviewRow label="Enrolment type" value={entry.enrolment_type} />}
                     <ReviewRow
@@ -1373,7 +1413,8 @@ export default function EnrolmentActivityForm({
                     </ReviewSection>
                   )}
 
-                  {isEnrolment && programFields.length > 0 && (() => {
+                  {isEnrolment && !isSshiaChannel && (() => {
+                    const reviewFields = mergeProgramFields(programFields);
                     const locationKeys = new Set(["state_of_origin", "lga_of_origin", "state_of_residence", "lga_of_residence"]);
                     const providerKeys = new Set(["hmo", "hcf", "alternative_provider"]);
                     const identityKeys = new Set([
@@ -1381,12 +1422,12 @@ export default function EnrolmentActivityForm({
                       "blood_group", "marital_status", "phone_number", "program_type",
                     ]);
                     const groups = [
-                      { title: "Beneficiary identity", items: programFields.filter((f) => identityKeys.has(f.key)) },
-                      { title: "Location", items: programFields.filter((f) => locationKeys.has(f.key)) },
-                      { title: "Providers", items: programFields.filter((f) => providerKeys.has(f.key)) },
+                      { title: "Identity", items: reviewFields.filter((f) => identityKeys.has(f.key)) },
+                      { title: "Location", items: reviewFields.filter((f) => locationKeys.has(f.key)) },
+                      { title: "Providers", items: reviewFields.filter((f) => providerKeys.has(f.key)) },
                       {
                         title: "Program details",
-                        items: programFields.filter(
+                        items: reviewFields.filter(
                           (f) => !identityKeys.has(f.key) && !locationKeys.has(f.key) && !providerKeys.has(f.key),
                         ),
                       },
