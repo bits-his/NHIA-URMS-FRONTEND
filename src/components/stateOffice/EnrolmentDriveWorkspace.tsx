@@ -22,7 +22,6 @@ import {
 import { enrolmentDrivesApi as api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import PageLayout from "../PageLayout";
-import { UnderHeaderNavTabs } from "@/src/components/UnderHeaderNavTabs";
 import EnrolmentActivityForm, { Field, FieldSection } from "./EnrolmentActivityForm";
 import { MultiSelectField } from "./EnrolmentDriveForm";
 import StateOfficeFormSteps from "./StateOfficeFormSteps";
@@ -774,23 +773,6 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
             </Button>
           )}
         </>
-      }
-      tabs={
-        listMode ? (
-          <UnderHeaderNavTabs
-            tabs={[
-              {
-                id: "register",
-                label: "Enrolment Drives",
-                icon: ClipboardList,
-                count: batches.length,
-              },
-            ]}
-            activeTab="register"
-            onChange={() => void navigate("register")}
-            ariaLabel="Enrolment Drive sections"
-          />
-        ) : undefined
       }
       contentClassName="space-y-4 pb-8"
     >

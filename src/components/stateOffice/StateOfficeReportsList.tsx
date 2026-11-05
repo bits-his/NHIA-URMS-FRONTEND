@@ -24,6 +24,7 @@ import IgrReportDetail from "./IgrReportDetail";
 import SshiaFinancialReportPage from "./SshiaFinancialReportPage";
 import SshiaFinancialReportDetail from "./SshiaFinancialReportDetail";
 import PageLayout from "@/src/components/PageLayout";
+import { UnderHeaderNavTabs } from "@/src/components/UnderHeaderNavTabs";
 import ExpenditureProfileReportPage from "./ExpenditureProfileReportPage";
 import ExpenditureProfileReportDetail from "./ExpenditureProfileReportDetail";
 import {
@@ -639,7 +640,8 @@ export default function StateOfficeReportsList({
 
   return (
     <PageLayout
-      title={activeActivityTab?.label ?? listTitle ?? cfg.title}
+      title={listTitle ?? activeActivityTab?.label ?? cfg.title}
+      showBack={false}
       actions={
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-1.5 h-8 text-xs rounded-md">
@@ -656,55 +658,22 @@ export default function StateOfficeReportsList({
           )}
         </div>
       }
+      tabs={
+        hasActivityTabs ? (
+          <UnderHeaderNavTabs
+            tabs={activityTabs!.map((tab) => ({
+              id: tab.value,
+              label: tab.label,
+              icon: tab.icon,
+              count: activityTabCounts[tab.value] ?? 0,
+            }))}
+            activeTab={filterActivity}
+            onChange={(val) => setFilterActivity(val as any)}
+            ariaLabel="Enrolment activities"
+          />
+        ) : undefined
+      }
     >
-
-      {hasActivityTabs && (
-        <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 sticky top-[57px] z-20">
-          <div
-            className="flex gap-0 overflow-x-auto -mb-px"
-            role="tablist"
-            aria-label="Enrolment activities"
-          >
-            {activityTabs!.map((tab) => {
-              const active = filterActivity === tab.value;
-              const Icon = tab.icon;
-              const count = activityTabCounts[tab.value] ?? 0;
-              return (
-                <button
-                  key={tab.value}
-                  type="button"
-                  role="tab"
-                  aria-selected={active}
-                  onClick={() => setFilterActivity(tab.value)}
-                  className={`group relative shrink-0 inline-flex items-center gap-2 px-4 py-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors outline-none focus-visible:bg-[#f4f7f5] ${
-                    active
-                      ? "border-[#145c3f] text-[#145c3f]"
-                      : "border-transparent text-slate-500 hover:text-[#0f3d2e] hover:border-[#c5ddd0]"
-                  }`}
-                >
-                  {Icon && (
-                    <Icon
-                      className={`h-4 w-4 shrink-0 ${active ? "text-[#145c3f]" : "text-slate-400 group-hover:text-[#145c3f]"}`}
-                      strokeWidth={2}
-                    />
-                  )}
-                  <span>{tab.label}</span>
-                  <span
-                    className={`inline-flex min-w-[1.25rem] h-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold tabular-nums ${
-                      active
-                        ? "bg-[#e8f6ee] text-[#145c3f]"
-                        : "bg-slate-100 text-slate-500 group-hover:bg-[#e8f6ee] group-hover:text-[#145c3f]"
-                    }`}
-                  >
-                    {count}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
       <ScrollArea className="flex-1">
         <div className="w-full px-4 md:px-6 py-4 space-y-4">
           {activityRows ? (
