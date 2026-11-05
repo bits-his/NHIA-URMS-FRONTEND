@@ -1,8 +1,12 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 import type { AccessEntry } from "@/src/access/types";
 
-export interface AuthStateOffice  { code: string; description: string; zonal_code?: string; }
-export interface AuthZonalOffice  { zonal_code: string; description: string; }
+export interface AuthStateOffice  {
+  id?: string | number; code?: string; state_code?: string; description: string; zonal_code?: string; 
+}
+export interface AuthZonalOffice  {
+  id?: string | number; zonal_code?: string; description: string; 
+}
 export interface AuthDepartment   { department_code: string; name: string; }
 export interface AuthUnit         { unit_code: string; name: string; department_code?: string; }
 

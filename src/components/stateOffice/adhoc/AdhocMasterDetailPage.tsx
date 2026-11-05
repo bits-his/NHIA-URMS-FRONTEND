@@ -31,6 +31,8 @@ interface Props {
   masterId: string | null;
   canReview?: boolean;
   canClose?: boolean;
+  isOriginatingDept?: boolean;
+  userDepartment?: string;
   onSuccess?: () => void;
 }
 
@@ -51,6 +53,7 @@ const REVIEW_BADGES: Record<string, { label: string; cls: string }> = {
   under_review: { label: "Under Review", cls: "bg-purple-50 text-purple-700 border-purple-200" },
   returned_for_clarification: { label: "Returned for Clarification", cls: "bg-rose-50 text-rose-700 border-rose-200" },
   accepted: { label: "Accepted", cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+  acknowledged: { label: "Acknowledged", cls: "bg-teal-50 text-teal-800 border-teal-200" },
 };
 
 export default function AdhocMasterDetailPage({
@@ -58,11 +61,14 @@ export default function AdhocMasterDetailPage({
   masterId,
   canReview = true,
   canClose = true,
+  isOriginatingDept = false,
+  userDepartment,
   onSuccess,
 }: Props) {
   const [loading, setLoading] = React.useState(true);
   const [data, setData] = React.useState<any>(null);
   const [expandedState, setExpandedState] = React.useState<string | null>(null);
+  const isOriginatingReviewer = isOriginatingDept || (!canClose && !!userDepartment);
 
   // Review & Clarification state
   const [clarificationModal, setClarificationModal] = React.useState<{ reportId: number; open: boolean }>({
@@ -99,7 +105,10 @@ export default function AdhocMasterDetailPage({
     }
   }, [masterId, fetchDetail]);
 
-  const handleReviewAction = async (reportId: number, action: "accept" | "return_for_clarification") => {
+  const handleReviewAction = async (
+    reportId: number,
+    action: "accept" | "acknowledge" | "return_for_clarification"
+  ) => {
     if (action === "return_for_clarification") {
       setClarificationModal({ reportId, open: true });
       setClarificationNote("");
@@ -108,8 +117,12 @@ export default function AdhocMasterDetailPage({
 
     setReviewing(true);
     try {
-      await adhocAssignmentApi.reviewStateReport(reportId, { action: "accept" });
-      toast.success("State report accepted");
+      await adhocAssignmentApi.reviewStateReport(reportId, { action });
+      toast.success(
+        action === "acknowledge"
+          ? "State report acknowledged by originating department"
+          : "State report accepted"
+      );
       fetchDetail();
       onSuccess?.();
     } catch (err: any) {
@@ -456,23 +469,67 @@ export default function AdhocMasterDetailPage({
                                     <div className="flex items-center gap-2">
                                       {canReview && latestRep.review_status !== "accepted" && !isClosed && (
                                         <>
-                                          <Button
-                                            size="sm"
-                                            onClick={() => handleReviewAction(latestRep.id, "accept")}
-                                            disabled={reviewing}
-                                            className="h-8 bg-emerald-700 hover:bg-emerald-800 text-white text-xs gap-1.5"
-                                          >
-                                            <Check className="w-3.5 h-3.5" /> Accept Report
-                                          </Button>
-                                          <Button
-                                            size="sm"
-                                            variant="outline"
-                                            onClick={() => handleReviewAction(latestRep.id, "return_for_clarification")}
-                                            disabled={reviewing}
-                                            className="h-8 text-rose-700 border-rose-200 hover:bg-rose-50 text-xs gap-1.5"
-                                          >
-                                            <AlertCircle className="w-3.5 h-3.5" /> Return for Clarification
-                                          </Button>
+                                          {isOriginatingReviewer ? (
+                                            <>
+                                              {latestRep.review_status !== "acknowledged" && (
+                                                <Button
+                                                  size="sm"
+                                                  onClick={() => handleReviewAction(latestRep.id, "acknowledge")}
+                                                  disabled={reviewing}
+                                                  className="h-8 bg-sky-700 hover:bg-sky-800 text-white text-xs gap-1.5 shadow-xs"
+                                                  title="Acknowledge receipt and review of this report on behalf of the originating department"
+                                                >
+                                                  <CheckCircle2 className="w-3.5 h-3.5" /> Acknowledge Report
+                                                </Button>
+                                              )}
+                                              {latestRep.review_status === "acknowledged" && (
+                                                <Badge className="bg-sky-50 text-sky-700 border-sky-200 text-[10px] font-semibold">
+                                                  Acknowledged by Department
+                                                </Badge>
+                                              )}
+                                              <Button
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() => handleReviewAction(latestRep.id, "return_for_clarification")}
+                                                disabled={reviewing}
+                                                className="h-8 text-rose-700 border-rose-200 hover:bg-rose-50 text-xs gap-1.5"
+                                              >
+                                                <AlertCircle className="w-3.5 h-3.5" /> Return for Clarification
+                                              </Button>
+                                            </>
+                                          ) : (
+                                            <>
+                                              <Button
+                                                size="sm"
+                                                onClick={() => handleReviewAction(latestRep.id, "accept")}
+                                                disabled={reviewing}
+                                                className="h-8 bg-emerald-700 hover:bg-emerald-800 text-white text-xs gap-1.5 shadow-xs"
+                                              >
+                                                <Check className="w-3.5 h-3.5" /> Accept Report
+                                              </Button>
+                                              {latestRep.review_status !== "acknowledged" && (
+                                                <Button
+                                                  size="sm"
+                                                  variant="outline"
+                                                  onClick={() => handleReviewAction(latestRep.id, "acknowledge")}
+                                                  disabled={reviewing}
+                                                  className="h-8 text-sky-700 border-sky-200 hover:bg-sky-50 text-xs gap-1.5"
+                                                  title="Acknowledge receipt on behalf of department"
+                                                >
+                                                  <CheckCircle2 className="w-3.5 h-3.5" /> Acknowledge
+                                                </Button>
+                                              )}
+                                              <Button
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() => handleReviewAction(latestRep.id, "return_for_clarification")}
+                                                disabled={reviewing}
+                                                className="h-8 text-rose-700 border-rose-200 hover:bg-rose-50 text-xs gap-1.5"
+                                              >
+                                                <AlertCircle className="w-3.5 h-3.5" /> Return for Clarification
+                                              </Button>
+                                            </>
+                                          )}
                                         </>
                                       )}
                                     </div>

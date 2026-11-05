@@ -568,8 +568,8 @@ function getUserStateLabel(user?: import("@/src/store/authSlice").AuthUser): str
 /** Show zone/state only when the user is assigned to both. */
 function userHasZoneAndState(user?: import("@/src/store/authSlice").AuthUser): boolean {
   if (!user) return false;
-  const hasZone = !!(user.zone_id || user.zone?.id || getUserZoneLabel(user));
-  const hasState = !!(user.state_id || user.state?.id || getUserStateLabel(user));
+  const hasZone = !!(user.zone_id || (user.zone as any)?.id || getUserZoneLabel(user));
+  const hasState = !!(user.state_id || (user.state as any)?.id || getUserStateLabel(user));
   return hasZone && hasState;
 }
 
