@@ -801,7 +801,19 @@ const enrolmentDriveApis = Object.fromEntries(
 ) as Record<EnrolmentDriveReportType, ReturnType<typeof makeEnrolmentDriveApi>>;
 
 export const stateOfficeApi = {
-  enrolment: makeStateOfficeApi("enrolment"),
+  enrolment: {
+    ...makeStateOfficeApi("enrolment"),
+    getDashboard: (filters?: Record<string, string | number | undefined | null>) => {
+      const p = new URLSearchParams(
+        Object.entries(filters || {})
+          .filter(([, v]) => v != null && v !== "" && v !== "all")
+          .map(([k, v]) => [k, String(v)]),
+      ).toString();
+      return request<{ success: boolean; data: any }>(
+        `/state-office/enrolment/dashboard${p ? `?${p}` : ""}`,
+      );
+    },
+  },
   migration: makeStateOfficeApi("migration"),
   cemonc:    makeStateOfficeApi("cemonc"),
   complaints: makeStateOfficeApi("complaints"),

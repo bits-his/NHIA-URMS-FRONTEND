@@ -17,6 +17,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import type { RootState } from "@/src/store/store";
 import { isDeptStateCoordinator } from "@/src/access/departmentRoles";
 import EnrolmentDriveDashboard from "./EnrolmentDriveDashboard";
+import EnrolmentActivityDashboard from "./EnrolmentActivityDashboard";
 import ProviderManagementDashboard from "./ProviderManagementDashboard";
 import ChallengesSupportDashboard from "./ChallengesSupportDashboard";
 import ComplaintRegisterDashboard from "../servicom/ComplaintRegisterDashboard";
@@ -186,7 +187,11 @@ export default function StateOfficeDashboardHub({
       <div className="w-full">
 
         {activeTab === "enrolment" && (
-          <UnavailablePanel moduleLabel="Enrolment" registerPath="/zonal/enrolment" />
+          <EnrolmentActivityDashboard
+            key={`enrolment-dash-${refreshKey}`}
+            defaultZoneId={defaultZoneId}
+            defaultStateId={defaultStateId}
+          />
         )}
 
         {activeTab === "enrolment-drives" && canEdDash && (
