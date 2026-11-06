@@ -267,13 +267,27 @@ export function privilegeAccessTargets(node: PrivilegeNode): string[] {
 
 export type AccessEntry = { access_to: string; functionalities: string[] };
 
+export function isTitleGrantedForModule(modTitle: string, title: string, granted: Set<string>): boolean {
+  const scopedKey = `${modTitle}::${title}`;
+  if (granted.has(scopedKey)) return true;
+  if (granted.has(title)) {
+    const hasOtherScoped = Array.from(granted).some(
+      (k) => k.endsWith(`::${title}`) && !k.startsWith(`${modTitle}::`),
+    );
+    if (!hasOtherScoped) return true;
+  }
+  return false;
+}
+
 /** Build API payload from the granted title set (parents + leaf / hub-tab titles) */
 export function buildAccessPayload(granted: Set<string>): AccessEntry[] {
   return MODULE_CONFIG
     .filter((mod) => granted.has(mod.title))
     .map((mod) => ({
       access_to: mod.title,
-      functionalities: assignableLeavesForModule(mod).filter((t) => granted.has(t) && !isHubNavTitle(t)),
+      functionalities: assignableLeavesForModule(mod).filter(
+        (t) => !isHubNavTitle(t) && isTitleGrantedForModule(mod.title, t, granted),
+      ),
     }));
 }
 
@@ -287,7 +301,10 @@ export function selectAllPrivilegeKeys(): Set<string> {
     if (isPrivilegeUiHidden(m.title)) return;
     all.add(m.title);
     assignableLeavesForModule(m).forEach((t) => {
-      if (!isHubNavTitle(t)) all.add(t);
+      if (!isHubNavTitle(t)) {
+        all.add(`${m.title}::${t}`);
+        all.add(t);
+      }
     });
   });
   allHubAssignableTitles().forEach((t) => {

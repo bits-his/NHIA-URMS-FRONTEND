@@ -98,13 +98,13 @@ export function modulesVisibleToAdmin(): ParentModule[] {
 
 /**
  * Admin sidebar titles per module.
- * Ad-hoc / Special Assignment stays under State Offices → Challenges & Support.
+ * Ad-hoc / Special Assignment is available under State Office Coordination (Spot Check) and State Offices (Challenges & Support).
  */
 export function adminAllowedTitlesForModule(mod: ParentModule): Set<string> {
   return new Set(
     flatLeaves(mod).filter((t) => {
       if (isFunctionalityHiddenForAdmin(t)) return false;
-      if (t === "Ad-hoc / Special Assignment" && mod.title !== ZONAL_MODULE) return false;
+      if (t === "Ad-hoc / Special Assignment" && mod.title !== ZONAL_MODULE && mod.title !== SOC_ZONES_MODULE) return false;
       return true;
     }),
   );
@@ -251,6 +251,7 @@ export const MODULE_CONFIG: ParentModule[] = [
       { title: "Weekly Actionable", view: "state-weekly-actionable", path: "/soc/weekly-actionable", navLabel: "Escalated Issues" },
       { title: "Operation Monitoring Visit", view: "soc-operation-monitoring-visit", path: "/soc/operation-monitoring-visit", navLabel: "Operation Monitoring" },
       { title: "Spot Check Visit", view: "soc-spot-check-visit", path: "/soc/spot-check-visit", navLabel: "Spot Check" },
+      { title: "Ad-hoc / Special Assignment", view: "special-projects", path: "/sdo/projects", navLabel: "Adhoc project" },
     ],
   },
 

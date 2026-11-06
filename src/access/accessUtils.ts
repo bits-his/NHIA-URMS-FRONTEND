@@ -16,6 +16,8 @@ import {
 
   SDO_MODULE,
 
+  SOC_ZONES_MODULE,
+
   modulesVisibleToAdmin,
 
   adminVisibleChildrenForModule,
@@ -402,9 +404,11 @@ export function canAccessFunctionality(moduleTitle: string, functionalityTitle: 
 
   }
 
-  // Cross-module access for Ad-hoc / Special Assignment (SDO ↔ Zonal)
+  // Cross-module access for Ad-hoc / Special Assignment (SDO ↔ Zonal ↔ SOC/Zones)
   if (
-    (resolveModuleTitle(moduleTitle) === ZONAL_MODULE || resolveModuleTitle(moduleTitle) === SDO_MODULE)
+    (resolveModuleTitle(moduleTitle) === ZONAL_MODULE
+      || resolveModuleTitle(moduleTitle) === SDO_MODULE
+      || resolveModuleTitle(moduleTitle) === SOC_ZONES_MODULE)
     && normalized === "Ad-hoc / Special Assignment"
   ) {
     const sdo = findEntry(user, SDO_MODULE);
@@ -413,6 +417,10 @@ export function canAccessFunctionality(moduleTitle: string, functionalityTitle: 
     }
     const zonal = findEntry(user, ZONAL_MODULE);
     if (zonal?.functionalities.some((f) => normalizeFunctionalityTitle(f, ZONAL_MODULE) === "Ad-hoc / Special Assignment")) {
+      return true;
+    }
+    const soc = findEntry(user, SOC_ZONES_MODULE);
+    if (soc?.functionalities.some((f) => normalizeFunctionalityTitle(f, SOC_ZONES_MODULE) === "Ad-hoc / Special Assignment")) {
       return true;
     }
   }
