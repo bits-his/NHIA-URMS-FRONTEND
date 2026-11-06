@@ -18,6 +18,7 @@ interface Props {
   } | null) => void;
   disabled?: boolean;
   placeholder?: string;
+  className?: string;
 }
 
 type CachedOption = SearchSelectOption & {
@@ -35,7 +36,7 @@ function formatProviderLabel(name: string, code?: string | null) {
 }
 
 export default function AccreditedProviderSelect({
-  type, stateId, value, displayName, onChange, disabled, placeholder,
+  type, stateId, value, displayName, onChange, disabled, placeholder, className,
 }: Props) {
   const [options, setOptions] = React.useState<SearchSelectOption[]>([]);
   const [loading, setLoading] = React.useState(false);
@@ -135,6 +136,7 @@ export default function AccreditedProviderSelect({
         value={value}
         onChange={handleChange}
         disabled={blocked || loading}
+        className={className}
         displayLabel={
           value
             ? (cacheRef.current.get(value)?.label

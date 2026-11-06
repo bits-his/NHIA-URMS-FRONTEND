@@ -4,17 +4,37 @@ import { useListSearch } from "./useListSearch";
 import { ShadcnDataTable } from "@/components/common/ShadcnDataTable";
 import { RegisterStatsCards } from "./RegisterStatsCards";
 import {
-  ArrowLeft, Plus, Eye, Pencil, RefreshCw, Loader2, Search, Save,
-  Mail, Building2, CalendarDays, CheckCircle2,
+  ArrowLeft,
+  Plus,
+  Eye,
+  Pencil,
+  RefreshCw,
+  Loader2,
+  Search,
+  Save,
+  Mail,
+  Building2,
+  CalendarDays,
+  CheckCircle2,
 } from "lucide-react";
-import { motion } from "motion/react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import { stateOfficeMysteryShoppingApi, stockApi } from "@/lib/api";
@@ -23,10 +43,21 @@ import { useMonthlyStateFilter } from "../monthly/useMonthlyStateFilter";
 import { MONTHS, monthLabel } from "./constants";
 import AccreditedProviderSelect from "./AccreditedProviderSelect";
 import {
-  ENROLLEE_ITEMS, ENROLLEE_MAX, ENROLLEE_SCALE, FACILITY_TYPES, OBSERVATION_ITEMS, OBS_MAX,
-  STEPS, labelOf, mapHcfFacilityType, optionLabel, sumScoreMap, type ScoreMap,
+  ENROLLEE_ITEMS,
+  ENROLLEE_MAX,
+  ENROLLEE_SCALE,
+  FACILITY_TYPES,
+  OBSERVATION_ITEMS,
+  OBS_MAX,
+  STEPS,
+  labelOf,
+  mapHcfFacilityType,
+  optionLabel,
+  sumScoreMap,
+  type ScoreMap,
 } from "./mysteryShoppingConfig";
 import { useStateOfficeAccess } from "@/src/access/createReviewAccess";
+import { cn } from "@/lib/utils";
 
 interface Props {
   onBack: () => void;
@@ -88,6 +119,74 @@ const emptyForm = (defaultZoneId?: string | null, defaultStateId?: string | null
   follow_up_action_plan: "",
 });
 
+/** Match enrolment form controls: equal height, green border, filled surface. */
+const controlClass = cn(
+  "h-11 text-sm font-medium",
+  "bg-[#f4f7f5] border-2 border-[#1a7a52] rounded-sm px-3.5 shadow-none",
+  "hover:border-[#0f3d2e] hover:bg-white",
+  "focus-visible:border-[#0f3d2e] focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-[#1a7a52]/20"
+);
+const searchControlClass = "h-11 px-3.5 text-sm font-medium";
+
+function FieldSection({
+  title,
+  children,
+  gridClassName = "grid gap-3 sm:grid-cols-2 lg:grid-cols-3",
+}: {
+  title: string;
+  children: React.ReactNode;
+  gridClassName?: string;
+}) {
+  return (
+    <section className="space-y-3">
+      <div className="flex items-center gap-3">
+        <h3 className="shrink-0 text-[11px] font-bold uppercase tracking-[0.08em] text-[#145c3f]">
+          {title}
+        </h3>
+        <div className="h-px flex-1 bg-[#d4e8dc]" />
+      </div>
+      <div className={gridClassName}>{children}</div>
+    </section>
+  );
+}
+
+function Field({
+  label,
+  required,
+  error,
+  children,
+  className,
+}: {
+  label: string;
+  required?: boolean;
+  error?: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={cn("space-y-1.5", className)}>
+      <Label className="text-xs font-semibold text-slate-600">
+        {label.replace(/\s*\*$/, "")}
+        {required ? <span className="text-rose-500 ml-0.5">*</span> : null}
+      </Label>
+      {children}
+      {error ? <p className="text-[11px] font-medium text-rose-600">{error}</p> : null}
+    </div>
+  );
+}
+
+function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  return (
+    <textarea
+      {...props}
+      className={cn(
+        "w-full min-h-[5rem] rounded-sm px-3.5 py-2.5 text-sm bg-[#f4f7f5] border-2 border-[#1a7a52] text-slate-800 shadow-none outline-none hover:border-[#0f3d2e] hover:bg-white focus-visible:border-[#0f3d2e] focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-[#1a7a52]/20",
+        props.className
+      )}
+    />
+  );
+}
+
 function geoId(o: Geo) {
   return String(o.zonal_code ?? o.code ?? o.id ?? "");
 }
@@ -108,11 +207,15 @@ function safeDate(v: string | null | undefined) {
 function asScoreMap(v: unknown): ScoreMap {
   if (!v) return {};
   if (typeof v === "string") {
-    try { return JSON.parse(v) || {}; } catch { return {}; }
+    try {
+      return JSON.parse(v) || {};
+    } catch {
+      return {};
+    }
   }
   if (typeof v === "object") {
     return Object.fromEntries(
-      Object.entries(v as Record<string, unknown>).map(([k, val]) => [k, String(val ?? "")]),
+      Object.entries(v as Record<string, unknown>).map(([k, val]) => [k, String(val ?? "")])
     );
   }
   return {};
@@ -142,7 +245,10 @@ function rowToForm(row: any, fallbackZone?: string | null, fallbackState?: strin
 }
 
 function ScorePills({
-  value, onChange, options, disabled,
+  value,
+  onChange,
+  options,
+  disabled,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -159,17 +265,21 @@ function ScorePills({
             type="button"
             disabled={disabled}
             onClick={() => onChange(opt.value)}
-            className={`rounded-xl border px-3 py-2.5 text-left transition-colors disabled:opacity-60 ${
+            className={cn(
+              "rounded-sm border-2 px-3.5 py-2 text-left transition-all disabled:opacity-60",
               active
-                ? "border-[#145c3f] bg-[#145c3f] text-white shadow-sm"
-                : "border-slate-200 bg-white text-slate-700 hover:border-[#145c3f]/40 hover:bg-[#f0fdf7]"
-            }`}
+                ? "border-[#145c3f] bg-[#145c3f] text-white shadow-xs"
+                : "border-[#d4e8dc] bg-[#f8faf9] text-slate-700 hover:border-[#1a7a52] hover:bg-white"
+            )}
           >
             <div className="flex items-center justify-between gap-2">
-              <span className="text-sm font-semibold leading-snug">{opt.label}</span>
-              <span className={`shrink-0 rounded-md px-1.5 py-0.5 text-[11px] font-bold tabular-nums ${
-                active ? "bg-white/20" : "bg-slate-100 text-slate-600"
-              }`}>
+              <span className="text-xs font-semibold leading-snug">{opt.label}</span>
+              <span
+                className={cn(
+                  "shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold tabular-nums font-mono",
+                  active ? "bg-white/20 text-white" : "bg-[#e8f3ec] text-[#145c3f]"
+                )}
+              >
                 {opt.score}
               </span>
             </div>
@@ -183,8 +293,10 @@ function ScorePills({
 function InfoField({ label, value }: { label: string; value?: React.ReactNode }) {
   return (
     <div className="space-y-1">
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{label}</p>
-      <div className="text-sm font-semibold text-slate-800 break-words whitespace-pre-wrap">{value || "—"}</div>
+      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{label}</p>
+      <div className="text-xs font-semibold text-slate-800 break-words whitespace-pre-wrap">
+        {value || "—"}
+      </div>
     </div>
   );
 }
@@ -193,7 +305,7 @@ function ScoreBadge({ score, max }: { score: number; max: number }) {
   const pct = max > 0 ? Math.round((score / max) * 100) : 0;
   const tone = pct >= 75 ? "bg-emerald-600" : pct >= 50 ? "bg-amber-500" : "bg-rose-500";
   return (
-    <Badge className={`${tone} hover:${tone} text-white font-mono`}>
+    <Badge className={`${tone} hover:${tone} text-white font-mono text-[11px]`}>
       {score} / {max}
     </Badge>
   );
@@ -203,7 +315,13 @@ function answeredCount(map: ScoreMap, keys: readonly { key: string }[]) {
   return keys.filter((k) => map[k.key] !== undefined && map[k.key] !== "").length;
 }
 
-export default function StateOfficeMysteryShoppingPage({ onBack, defaultStateId, defaultZoneId, embedded = false, onChromeChange }: Props) {
+export default function StateOfficeMysteryShoppingPage({
+  onBack,
+  defaultStateId,
+  defaultZoneId,
+  embedded = false,
+  onChromeChange,
+}: Props) {
   const { canCreate, createOnly } = useStateOfficeAccess();
   const [mode, setMode] = React.useState<Mode>(createOnly ? "create" : "list");
   const [formKey, setFormKey] = React.useState(0);
@@ -214,12 +332,19 @@ export default function StateOfficeMysteryShoppingPage({ onBack, defaultStateId,
   const [loading, setLoading] = React.useState(!createOnly);
   const [saving, setSaving] = React.useState(false);
   const [editingId, setEditingId] = React.useState<string | null>(null);
-  const [detailMeta, setDetailMeta] = React.useState<{ zone?: string; state?: string; reference?: string }>({});
+  const [detailMeta, setDetailMeta] = React.useState<{
+    zone?: string;
+    state?: string;
+    reference?: string;
+  }>({});
   const [zones, setZones] = React.useState<Geo[]>([]);
   const [states, setStates] = React.useState<Geo[]>([]);
   const [f, setF] = React.useState<FormState>(emptyForm(defaultZoneId, defaultStateId));
 
-  const { filterState, setFilterState, apiStateId } = useMonthlyStateFilter(defaultStateId, defaultZoneId);
+  const { filterState, setFilterState, apiStateId } = useMonthlyStateFilter(
+    defaultStateId,
+    defaultZoneId
+  );
   const now = new Date();
   const [filterYear, setFilterYear] = React.useState(String(now.getFullYear()));
   const [filterMonth, setFilterMonth] = React.useState(String(now.getMonth() + 1));
@@ -228,15 +353,22 @@ export default function StateOfficeMysteryShoppingPage({ onBack, defaultStateId,
   const zoneLocked = !!defaultZoneId;
   const stateLocked = !!defaultStateId;
 
-  const apiFilters = React.useMemo(() => ({
-    zone_id: (filterZone && filterZone !== "all") ? filterZone : (defaultZoneId || undefined),
-    state_id: apiStateId || defaultStateId || undefined,
-    year: filterYear,
-    month: filterMonth,
-  }), [filterZone, defaultZoneId, apiStateId, defaultStateId, filterYear, filterMonth]);
+  const apiFilters = React.useMemo(
+    () => ({
+      zone_id: filterZone && filterZone !== "all" ? filterZone : defaultZoneId || undefined,
+      state_id: apiStateId || defaultStateId || undefined,
+      year: filterYear,
+      month: filterMonth,
+    }),
+    [filterZone, defaultZoneId, apiStateId, defaultStateId, filterYear, filterMonth]
+  );
 
   const obsScore = sumScoreMap(f.observations);
-  const cardScores = [sumScoreMap(f.enrollee_card_1), sumScoreMap(f.enrollee_card_2), sumScoreMap(f.enrollee_card_3)];
+  const cardScores = [
+    sumScoreMap(f.enrollee_card_1),
+    sumScoreMap(f.enrollee_card_2),
+    sumScoreMap(f.enrollee_card_3),
+  ];
   const enrolleeTotal = cardScores.reduce((a, b) => a + b, 0);
   const obsAnswered = answeredCount(f.observations, OBSERVATION_ITEMS);
   const cardAnswered = [
@@ -251,7 +383,12 @@ export default function StateOfficeMysteryShoppingPage({ onBack, defaultStateId,
     cardAnswered[0] === ENROLLEE_ITEMS.length,
     cardAnswered[1] === ENROLLEE_ITEMS.length,
     cardAnswered[2] === ENROLLEE_ITEMS.length,
-    !!(f.key_strengths.trim() || f.gaps_identified.trim() || f.recommendation.trim() || f.follow_up_action_plan.trim()),
+    !!(
+      f.key_strengths.trim() ||
+      f.gaps_identified.trim() ||
+      f.recommendation.trim() ||
+      f.follow_up_action_plan.trim()
+    ),
   ];
 
   const load = React.useCallback(async () => {
@@ -262,20 +399,41 @@ export default function StateOfficeMysteryShoppingPage({ onBack, defaultStateId,
       setRows(res.data);
     } catch (err: any) {
       toast.error("Failed to load mystery shopping visits", { description: err.message });
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   }, [apiFilters, createOnly]);
 
-  React.useEffect(() => { if (!createOnly && mode === "list") void load(); }, [load, mode, createOnly]);
-  React.useEffect(() => { stockApi.getZones().then((r) => setZones(r.data)).catch(() => {}); }, []);
-  React.useEffect(() => { if (defaultZoneId) setFilterZone(defaultZoneId); }, [defaultZoneId]);
   React.useEffect(() => {
-    const zid = filterZone !== "all" ? filterZone : (defaultZoneId || "");
-    if (!zid) { setDashboardStates([]); return; }
-    stockApi.getStates(zid).then((r) => setDashboardStates(r.data)).catch(() => setDashboardStates([]));
+    if (!createOnly && mode === "list") void load();
+  }, [load, mode, createOnly]);
+
+  React.useEffect(() => {
+    stockApi.getZones().then((r) => setZones(r.data)).catch(() => {});
+  }, []);
+
+  React.useEffect(() => {
+    if (defaultZoneId) setFilterZone(defaultZoneId);
+  }, [defaultZoneId]);
+
+  React.useEffect(() => {
+    const zid = filterZone !== "all" ? filterZone : defaultZoneId || "";
+    if (!zid) {
+      setDashboardStates([]);
+      return;
+    }
+    stockApi
+      .getStates(zid)
+      .then((r) => setDashboardStates(r.data))
+      .catch(() => setDashboardStates([]));
     if (!stateLocked) setFilterState("all");
   }, [filterZone, defaultZoneId, stateLocked, setFilterState]);
+
   React.useEffect(() => {
-    if (!f.zone_id) { setStates([]); return; }
+    if (!f.zone_id) {
+      setStates([]);
+      return;
+    }
     stockApi.getStates(f.zone_id).then((r) => setStates(r.data)).catch(() => setStates([]));
   }, [f.zone_id]);
 
@@ -288,7 +446,10 @@ export default function StateOfficeMysteryShoppingPage({ onBack, defaultStateId,
   };
 
   const leaveForm = () => {
-    if (createOnly) { onBack(); return; }
+    if (createOnly) {
+      onBack();
+      return;
+    }
     setMode("list");
   };
 
@@ -297,58 +458,98 @@ export default function StateOfficeMysteryShoppingPage({ onBack, defaultStateId,
     setFormKey((k) => k + 1);
   };
 
-  const openView = React.useCallback((row: any) => {
-    setF(rowToForm(row, defaultZoneId, defaultStateId));
-    setEditingId(String(row.reference_id ?? row.id));
-    setDetailMeta({
-      zone: row.zone?.description,
-      state: row.state?.description,
-      reference: row.reference_id,
-    });
-    setMode("view");
-  }, [defaultZoneId, defaultStateId]);
+  const openView = React.useCallback(
+    (row: any) => {
+      setF(rowToForm(row, defaultZoneId, defaultStateId));
+      setEditingId(String(row.reference_id ?? row.id));
+      setDetailMeta({
+        zone: row.zone?.description,
+        state: row.state?.description,
+        reference: row.reference_id,
+      });
+      setMode("view");
+    },
+    [defaultZoneId, defaultStateId]
+  );
 
-  const listColumns = React.useMemo((): ColumnDef<any>[] => [
-    {
-      id: "reference",
-      header: "Reference",
-      cell: ({ row }) => <span className="font-mono text-xs font-bold text-primary">{row.original.reference_id}</span>,
-    },
-    { id: "facility", header: "Facility", cell: ({ row }) => <span className="text-sm">{row.original.facility_name}</span> },
-    { id: "date", header: "Date", cell: ({ row }) => <span className="text-xs">{safeDate(row.original.visit_date)}</span> },
-    { id: "shopper", header: "Shopper", cell: ({ row }) => <span className="text-xs">{row.original.mystery_shopper_name || "—"}</span> },
-    {
-      id: "std_score",
-      header: "Std Score",
-      cell: ({ row }) => (
-        <span className="text-xs font-mono">{row.original.standard_expectations_score ?? 0}/{OBS_MAX}</span>
-      ),
-    },
-    {
-      id: "enrollee",
-      header: "Enrollee",
-      cell: ({ row }) => {
-        const v = row.original;
-        const total = (v.enrollee_score_1 || 0) + (v.enrollee_score_2 || 0) + (v.enrollee_score_3 || 0);
-        return <span className="text-xs font-mono">{total}/{ENROLLEE_MAX * 3}</span>;
+  const listColumns = React.useMemo(
+    (): ColumnDef<any>[] => [
+      {
+        id: "reference",
+        header: "Reference",
+        cell: ({ row }) => (
+          <span className="font-mono text-xs font-bold text-primary">
+            {row.original.reference_id}
+          </span>
+        ),
       },
-    },
-    { id: "state", header: "State", cell: ({ row }) => <span className="text-xs">{row.original.state?.description ?? "—"}</span> },
-    {
-      id: "view",
-      header: "View",
-      cell: ({ row }) => (
-        <Button
-          size="sm"
-          variant="ghost"
-          className="h-8 gap-1.5 px-2 text-[#145c3f]"
-          onClick={(e) => { e.stopPropagation(); openView(row.original); }}
-        >
-          <Eye className="w-4 h-4" /> View
-        </Button>
-      ),
-    },
-  ], [openView]);
+      {
+        id: "facility",
+        header: "Facility",
+        cell: ({ row }) => <span className="text-xs font-semibold">{row.original.facility_name}</span>,
+      },
+      {
+        id: "date",
+        header: "Date",
+        cell: ({ row }) => <span className="text-xs">{safeDate(row.original.visit_date)}</span>,
+      },
+      {
+        id: "shopper",
+        header: "Shopper",
+        cell: ({ row }) => (
+          <span className="text-xs">{row.original.mystery_shopper_name || "—"}</span>
+        ),
+      },
+      {
+        id: "std_score",
+        header: "Std Score",
+        cell: ({ row }) => (
+          <span className="text-xs font-mono font-semibold text-[#145c3f]">
+            {row.original.standard_expectations_score ?? 0}/{OBS_MAX}
+          </span>
+        ),
+      },
+      {
+        id: "enrollee",
+        header: "Enrollee",
+        cell: ({ row }) => {
+          const v = row.original;
+          const total =
+            (v.enrollee_score_1 || 0) + (v.enrollee_score_2 || 0) + (v.enrollee_score_3 || 0);
+          return (
+            <span className="text-xs font-mono font-semibold text-orange-700">
+              {total}/{ENROLLEE_MAX * 3}
+            </span>
+          );
+        },
+      },
+      {
+        id: "state",
+        header: "State",
+        cell: ({ row }) => (
+          <span className="text-xs">{row.original.state?.description ?? "—"}</span>
+        ),
+      },
+      {
+        id: "view",
+        header: "View",
+        cell: ({ row }) => (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-8 gap-1.5 px-2 text-[#145c3f] hover:bg-emerald-50"
+            onClick={(e) => {
+              e.stopPropagation();
+              openView(row.original);
+            }}
+          >
+            <Eye className="w-4 h-4" /> View
+          </Button>
+        ),
+      },
+    ],
+    [openView]
+  );
 
   const openEdit = () => {
     setStep(0);
@@ -368,7 +569,11 @@ export default function StateOfficeMysteryShoppingPage({ onBack, defaultStateId,
 
   const handleSave = async () => {
     const err = validateStep(0);
-    if (err) { toast.error(err); setStep(0); return; }
+    if (err) {
+      toast.error(err);
+      setStep(0);
+      return;
+    }
     setSaving(true);
     try {
       const payload = {
@@ -379,7 +584,9 @@ export default function StateOfficeMysteryShoppingPage({ onBack, defaultStateId,
         state_code: f.state_id,
         facility_type: f.facility_type || null,
         reporting_year: f.visit_date ? new Date(f.visit_date).getFullYear() : Number(filterYear),
-        reporting_month: f.visit_date ? new Date(f.visit_date).getMonth() + 1 : Number(filterMonth),
+        reporting_month: f.visit_date
+          ? new Date(f.visit_date).getMonth() + 1
+          : Number(filterMonth),
         status: "submitted",
       };
       if (mode === "edit" && editingId) {
@@ -393,42 +600,55 @@ export default function StateOfficeMysteryShoppingPage({ onBack, defaultStateId,
       else setMode("list");
     } catch (e: any) {
       toast.error("Failed to save visit", { description: e.message });
-    } finally { setSaving(false); }
+    } finally {
+      setSaving(false);
+    }
   };
 
   const setObs = (key: string, value: string) =>
     setF((p) => ({ ...p, observations: { ...p.observations, [key]: value } }));
-  const setCard = (card: "enrollee_card_1" | "enrollee_card_2" | "enrollee_card_3", key: string, value: string) =>
-    setF((p) => ({ ...p, [card]: { ...p[card], [key]: value } }));
+  const setCard = (
+    card: "enrollee_card_1" | "enrollee_card_2" | "enrollee_card_3",
+    key: string,
+    value: string
+  ) => setF((p) => ({ ...p, [card]: { ...p[card], [key]: value } }));
 
   const goNext = () => {
     const err = validateStep(step);
-    if (err) { toast.error(err); return; }
+    if (err) {
+      toast.error(err);
+      return;
+    }
     setStep((s) => Math.min(s + 1, STEPS.length - 1));
   };
-
-  const textareaCls = "flex w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm resize-y min-h-[110px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#145c3f]/30";
 
   const stepper = (
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Step {step + 1} of {STEPS.length}</p>
+          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+            Step {step + 1} of {STEPS.length}
+          </p>
           <p className="text-sm font-bold text-[#145c3f]">{STEPS[step]}</p>
         </div>
         <div className="flex items-center gap-2 text-xs">
-          <span className="rounded-full bg-[#f0fdf7] border border-[#d4e8dc] px-2.5 py-1 font-mono font-semibold text-[#145c3f]">
+          <span className="rounded-sm bg-[#e8f6ee] border border-emerald-300 px-2.5 py-1 font-mono font-bold text-[#145c3f]">
             Std {obsScore}/{OBS_MAX}
           </span>
-          <span className="rounded-full bg-orange-50 border border-orange-200 px-2.5 py-1 font-mono font-semibold text-orange-700">
+          <span className="rounded-sm bg-orange-50 border border-orange-200 px-2.5 py-1 font-mono font-bold text-orange-700">
             Enrollee {enrolleeTotal}/{ENROLLEE_MAX * 3}
           </span>
         </div>
       </div>
-      <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
-        <div className="h-full bg-[#145c3f] transition-all" style={{ width: `${((step + 1) / STEPS.length) * 100}%` }} />
+
+      <div className="h-1.5 rounded-sm bg-slate-200/70 overflow-hidden">
+        <div
+          className="h-full bg-[#145c3f] transition-all"
+          style={{ width: `${((step + 1) / STEPS.length) * 100}%` }}
+        />
       </div>
-      <div className="grid grid-cols-3 md:grid-cols-6 gap-1.5">
+
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
         {STEPS.map((label, i) => {
           const active = i === step;
           const done = stepDone[i];
@@ -436,20 +656,30 @@ export default function StateOfficeMysteryShoppingPage({ onBack, defaultStateId,
             <button
               key={label}
               type="button"
-              onClick={() => { if (i === 0 || !validateStep(0)) setStep(i); }}
-              className={`rounded-xl px-2 py-2 text-left transition-colors ${
+              onClick={() => {
+                if (i === 0 || !validateStep(0)) setStep(i);
+              }}
+              className={cn(
+                "rounded-sm px-2.5 py-2 text-left transition-all border-2",
                 active
-                  ? "bg-[#145c3f] text-white shadow-sm"
+                  ? "bg-[#145c3f] text-white border-[#145c3f] shadow-xs"
                   : done
-                    ? "bg-[#f0fdf7] text-[#145c3f] border border-[#d4e8dc]"
-                    : "bg-white text-slate-500 border border-slate-200 hover:border-slate-300"
-              }`}
+                    ? "bg-[#f0fdf7] text-[#145c3f] border-[#1a7a52]"
+                    : "bg-[#f8faf9] text-slate-600 border-[#d4e8dc] hover:border-[#1a7a52] hover:bg-white"
+              )}
             >
-              <div className="flex items-center gap-1 mb-0.5">
-                <span className="text-[10px] font-bold opacity-80">{i + 1}</span>
-                {done ? <CheckCircle2 className={`w-3 h-3 ${active ? "text-white/90" : "text-emerald-600"}`} /> : null}
+              <div className="flex items-center justify-between mb-0.5">
+                <span className="text-[10px] font-bold font-mono opacity-90">0{i + 1}</span>
+                {done ? (
+                  <CheckCircle2
+                    className={cn(
+                      "w-3.5 h-3.5",
+                      active ? "text-white" : "text-emerald-600"
+                    )}
+                  />
+                ) : null}
               </div>
-              <p className="text-[10px] font-semibold leading-tight line-clamp-2">{label}</p>
+              <p className="text-[11px] font-bold leading-tight line-clamp-1">{label}</p>
             </button>
           );
         })}
@@ -457,27 +687,38 @@ export default function StateOfficeMysteryShoppingPage({ onBack, defaultStateId,
     </div>
   );
 
-  const enrolleeCardForm = (cardKey: "enrollee_card_1" | "enrollee_card_2" | "enrollee_card_3", index: number) => (
-    <Card className="rounded-sm border-[#d4e8dc] overflow-hidden">
-      <CardHeader className="pb-3 bg-[#f8fdfb] border-b border-[#d4e8dc]">
+  const enrolleeCardForm = (
+    cardKey: "enrollee_card_1" | "enrollee_card_2" | "enrollee_card_3",
+    index: number
+  ) => (
+    <Card className="rounded-sm border-[#d4e8dc] shadow-sm overflow-hidden bg-white">
+      <CardHeader className="pb-3 bg-[#f8faf9] border-b border-[#e2efe7]">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <CardTitle className="text-base text-[#145c3f]">Enrollee Experience Score Card {index}</CardTitle>
-            <CardDescription>
-              Rate each item · {cardAnswered[index - 1]}/{ENROLLEE_ITEMS.length} answered · 0 Poor · 1 Good · 2 Excellent
+            <CardTitle className="text-sm font-bold text-[#145c3f]">
+              Enrollee Experience Score Card {index}
+            </CardTitle>
+            <CardDescription className="text-xs text-slate-500">
+              Rate patient experience across 10 touchpoints · {cardAnswered[index - 1]}/
+              {ENROLLEE_ITEMS.length} answered · 0 Poor · 1 Good · 2 Excellent
             </CardDescription>
           </div>
           <ScoreBadge score={cardScores[index - 1]} max={ENROLLEE_MAX} />
         </div>
       </CardHeader>
-      <CardContent className="space-y-5 pt-5">
+      <CardContent className="space-y-4 pt-5 p-4 md:p-6">
         {ENROLLEE_ITEMS.map((item, idx) => (
-          <div key={item.key} className="space-y-2.5 border-b border-slate-100 pb-4 last:border-0 last:pb-0">
+          <div
+            key={item.key}
+            className="space-y-2 border-b border-[#e8f3ec] pb-3.5 last:border-0 last:pb-0"
+          >
             <div className="flex items-start gap-2">
-              <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[10px] font-bold text-slate-500">
+              <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-sm bg-[#e8f3ec] text-[10px] font-bold font-mono text-[#145c3f]">
                 {idx + 1}
               </span>
-              <Label className="text-sm font-semibold text-slate-800 leading-snug">{item.label}</Label>
+              <Label className="text-xs font-semibold text-slate-800 leading-snug">
+                {item.label}
+              </Label>
             </div>
             <ScorePills
               value={f[cardKey][item.key] ?? ""}
@@ -486,9 +727,14 @@ export default function StateOfficeMysteryShoppingPage({ onBack, defaultStateId,
             />
           </div>
         ))}
-        <div className="rounded-xl bg-[#f0fdf7] border border-[#d4e8dc] px-4 py-3 flex items-center justify-between">
-          <span className="text-sm font-bold text-[#145c3f]">Card {index} score</span>
-          <span className="font-mono text-lg font-bold text-[#145c3f]">{cardScores[index - 1]} / {ENROLLEE_MAX}</span>
+
+        <div className="rounded-sm bg-[#f0fdf7] border border-[#d4e8dc] px-4 py-3 flex items-center justify-between">
+          <span className="text-xs font-bold uppercase tracking-wider text-[#145c3f]">
+            Card {index} Total Score
+          </span>
+          <span className="font-mono text-base font-bold text-[#145c3f]">
+            {cardScores[index - 1]} / {ENROLLEE_MAX}
+          </span>
         </div>
       </CardContent>
     </Card>
@@ -497,186 +743,262 @@ export default function StateOfficeMysteryShoppingPage({ onBack, defaultStateId,
   const formBody = (
     <div className="space-y-4">
       {stepper}
+
+      {/* Step 0: General Information */}
       {step === 0 && (
-        <Card className="rounded-sm border-[#d4e8dc] overflow-hidden">
-          <CardHeader className="pb-3 bg-[#f8fdfb] border-b border-[#d4e8dc]">
-            <CardTitle className="text-base text-[#145c3f]">General Information</CardTitle>
-            <CardDescription>Who visited, which facility, and when</CardDescription>
+        <Card className="rounded-sm border-[#d4e8dc] shadow-sm overflow-hidden bg-white">
+          <CardHeader className="pb-3 bg-[#f8faf9] border-b border-[#e2efe7]">
+            <CardTitle className="text-sm font-bold text-[#145c3f]">
+              General Information
+            </CardTitle>
+            <CardDescription className="text-xs text-slate-500">
+              Mystery shopper identity, jurisdiction, and healthcare facility profile
+            </CardDescription>
           </CardHeader>
-          <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-5">
-            <div className="space-y-2">
-              <Label>Email *</Label>
-              <Input
-                type="email"
-                placeholder="shopper@example.com"
-                value={f.email}
-                onChange={(e) => setF((p) => ({ ...p, email: e.target.value }))}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Mystery Shopper Name</Label>
-              <Input
-                placeholder="Full name"
-                value={f.mystery_shopper_name}
-                onChange={(e) => setF((p) => ({ ...p, mystery_shopper_name: e.target.value }))}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Zone *</Label>
-              <Select
-                value={f.zone_id}
-                disabled={zoneLocked}
-                onValueChange={(v) => setF((p) => ({
-                  ...p,
-                  zone_id: v,
-                  state_id: stateLocked ? p.state_id : "",
-                  facility_hcf_id: "",
-                  facility_name: "",
-                  facility_nhia_code: "",
-                  facility_type: "",
-                  facility_email: "",
-                }))}
-              >
-                <SelectTrigger displayValue={pickGeoLabel(zones, f.zone_id, "Select zone")}>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {zones.map((z) => {
-                    const id = geoId(z);
-                    return <SelectItem key={id} value={id}>{z.description}</SelectItem>;
-                  })}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>State *</Label>
-              <Select
-                value={f.state_id}
-                disabled={stateLocked || !f.zone_id}
-                onValueChange={(v) => setF((p) => ({
-                  ...p,
-                  state_id: v,
-                  facility_hcf_id: "",
-                  facility_name: "",
-                  facility_nhia_code: "",
-                  facility_type: "",
-                  facility_email: "",
-                }))}
-              >
-                <SelectTrigger displayValue={pickGeoLabel(states, f.state_id, f.zone_id ? "Select state" : "Select zone first")}>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {states.map((s) => {
-                    const id = geoId(s);
-                    return <SelectItem key={id} value={id}>{s.description}</SelectItem>;
-                  })}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2 md:col-span-2">
-              <Label>Name of Facility *</Label>
-              <AccreditedProviderSelect
-                type="hcp"
-                stateId={f.state_id || undefined}
-                value={f.facility_hcf_id}
-                displayName={f.facility_name || undefined}
-                placeholder={f.state_id ? "Search accredited healthcare facility" : "Select a state first"}
-                disabled={!f.state_id}
-                onChange={(fac) => {
-                  if (!fac) {
+          <CardContent className="p-4 md:p-6 space-y-6">
+            {/* Shopper & Visit Details */}
+            <FieldSection
+              title="Shopper & Visit Details"
+              gridClassName="grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
+            >
+              <Field label="Shopper Email" required>
+                <Input
+                  type="email"
+                  placeholder="shopper@nhia.gov.ng"
+                  value={f.email}
+                  onChange={(e) => setF((p) => ({ ...p, email: e.target.value }))}
+                  className={controlClass}
+                />
+              </Field>
+
+              <Field label="Mystery Shopper Name">
+                <Input
+                  placeholder="Full name of officer"
+                  value={f.mystery_shopper_name}
+                  onChange={(e) =>
+                    setF((p) => ({ ...p, mystery_shopper_name: e.target.value }))
+                  }
+                  className={controlClass}
+                />
+              </Field>
+
+              <Field label="Date of Visit" required>
+                <Input
+                  type="date"
+                  value={f.visit_date}
+                  max={new Date().toISOString().slice(0, 10)}
+                  onChange={(e) => setF((p) => ({ ...p, visit_date: e.target.value }))}
+                  className={controlClass}
+                />
+              </Field>
+
+              <Field label="Zone" required>
+                <Select
+                  value={f.zone_id}
+                  disabled={zoneLocked}
+                  onValueChange={(v) =>
                     setF((p) => ({
                       ...p,
+                      zone_id: v,
+                      state_id: stateLocked ? p.state_id : "",
                       facility_hcf_id: "",
                       facility_name: "",
                       facility_nhia_code: "",
                       facility_type: "",
-                    }));
-                    return;
+                      facility_email: "",
+                    }))
                   }
-                  setF((p) => ({
-                    ...p,
-                    facility_hcf_id: fac.id,
-                    facility_name: fac.name,
-                    facility_nhia_code: fac.code || p.facility_nhia_code,
-                    facility_type: mapHcfFacilityType(fac.facility_type) || p.facility_type,
-                  }));
-                }}
-              />
-              {!f.facility_hcf_id && f.facility_name ? (
-                <p className="text-xs text-amber-700">
-                  Saved facility: {f.facility_name}. Re-select from the list to refresh NHIA code and type.
-                </p>
-              ) : null}
-            </div>
-            <div className="space-y-2">
-              <Label>Facility NHIA Code</Label>
-              <Input
-                value={f.facility_nhia_code}
-                onChange={(e) => setF((p) => ({ ...p, facility_nhia_code: e.target.value }))}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Facility Type</Label>
-              <div className="flex flex-wrap gap-1.5">
-                {FACILITY_TYPES.map((t) => (
-                  <button
-                    key={t.value}
-                    type="button"
-                    onClick={() => setF((p) => ({ ...p, facility_type: t.value }))}
-                    className={`h-9 rounded-lg border px-3 text-xs font-medium transition-colors ${
-                      f.facility_type === t.value
-                        ? "border-[#145c3f] bg-[#145c3f] text-white"
-                        : "border-slate-200 bg-white text-slate-600 hover:border-[#145c3f]/40"
-                    }`}
+                >
+                  <SelectTrigger
+                    className={controlClass}
+                    displayValue={pickGeoLabel(zones, f.zone_id, "Select zone")}
                   >
-                    {t.label}
-                  </button>
-                ))}
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {zones.map((z) => {
+                      const id = geoId(z);
+                      return (
+                        <SelectItem key={id} value={id}>
+                          {z.description}
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              </Field>
+
+              <Field label="State" required>
+                <Select
+                  value={f.state_id}
+                  disabled={stateLocked || !f.zone_id}
+                  onValueChange={(v) =>
+                    setF((p) => ({
+                      ...p,
+                      state_id: v,
+                      facility_hcf_id: "",
+                      facility_name: "",
+                      facility_nhia_code: "",
+                      facility_type: "",
+                      facility_email: "",
+                    }))
+                  }
+                >
+                  <SelectTrigger
+                    className={controlClass}
+                    displayValue={pickGeoLabel(
+                      states,
+                      f.state_id,
+                      f.zone_id ? "Select state" : "Select zone first"
+                    )}
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {states.map((s) => {
+                      const id = geoId(s);
+                      return (
+                        <SelectItem key={id} value={id}>
+                          {s.description}
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              </Field>
+            </FieldSection>
+
+            {/* Healthcare Facility Profile */}
+            <FieldSection
+              title="Healthcare Facility Profile"
+              gridClassName="grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
+            >
+              <Field
+                label="Name of Facility"
+                required
+                className="sm:col-span-2 lg:col-span-3"
+              >
+                <AccreditedProviderSelect
+                  className={searchControlClass}
+                  type="hcp"
+                  stateId={f.state_id || undefined}
+                  value={f.facility_hcf_id}
+                  displayName={f.facility_name || undefined}
+                  placeholder={
+                    f.state_id
+                      ? "Search accredited healthcare facility"
+                      : "Select a state first"
+                  }
+                  disabled={!f.state_id}
+                  onChange={(fac) => {
+                    if (!fac) {
+                      setF((p) => ({
+                        ...p,
+                        facility_hcf_id: "",
+                        facility_name: "",
+                        facility_nhia_code: "",
+                        facility_type: "",
+                      }));
+                      return;
+                    }
+                    setF((p) => ({
+                      ...p,
+                      facility_hcf_id: fac.id,
+                      facility_name: fac.name,
+                      facility_nhia_code: fac.code || p.facility_nhia_code,
+                      facility_type: mapHcfFacilityType(fac.facility_type) || p.facility_type,
+                    }));
+                  }}
+                />
+                {!f.facility_hcf_id && f.facility_name ? (
+                  <p className="text-xs text-amber-700 mt-1">
+                    Saved facility: {f.facility_name}. Re-select from the list to refresh NHIA code and type.
+                  </p>
+                ) : null}
+              </Field>
+
+              <Field label="Facility NHIA Code">
+                <Input
+                  placeholder="e.g. NHIA/HCF/..."
+                  value={f.facility_nhia_code}
+                  onChange={(e) =>
+                    setF((p) => ({ ...p, facility_nhia_code: e.target.value }))
+                  }
+                  className={controlClass}
+                />
+              </Field>
+
+              <Field label="Facility Email">
+                <Input
+                  type="email"
+                  placeholder="facility@hospital.org"
+                  value={f.facility_email}
+                  onChange={(e) =>
+                    setF((p) => ({ ...p, facility_email: e.target.value }))
+                  }
+                  className={controlClass}
+                />
+              </Field>
+
+              <div className="sm:col-span-2 lg:col-span-3">
+                <Field label="Facility Accreditation Type">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    {FACILITY_TYPES.map((t) => {
+                      const active = f.facility_type === t.value;
+                      return (
+                        <button
+                          key={t.value}
+                          type="button"
+                          onClick={() => setF((p) => ({ ...p, facility_type: t.value }))}
+                          className={cn(
+                            "h-11 rounded-sm border-2 px-3 text-xs font-semibold transition-all flex items-center justify-center text-center",
+                            active
+                              ? "border-[#145c3f] bg-[#145c3f] text-white shadow-xs"
+                              : "border-[#1a7a52] bg-[#f4f7f5] text-slate-700 hover:border-[#0f3d2e] hover:bg-white"
+                          )}
+                        >
+                          {t.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </Field>
               </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Facility email</Label>
-              <Input
-                type="email"
-                value={f.facility_email}
-                onChange={(e) => setF((p) => ({ ...p, facility_email: e.target.value }))}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Date of visit *</Label>
-              <Input
-                type="date"
-                value={f.visit_date}
-                max={new Date().toISOString().slice(0, 10)}
-                onChange={(e) => setF((p) => ({ ...p, visit_date: e.target.value }))}
-              />
-            </div>
+            </FieldSection>
           </CardContent>
         </Card>
       )}
 
+      {/* Step 1: Standard Expectations */}
       {step === 1 && (
-        <Card className="rounded-sm border-[#d4e8dc] overflow-hidden">
-          <CardHeader className="pb-3 bg-[#f8fdfb] border-b border-[#d4e8dc]">
+        <Card className="rounded-sm border-[#d4e8dc] shadow-sm overflow-hidden bg-white">
+          <CardHeader className="pb-3 bg-[#f8faf9] border-b border-[#e2efe7]">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <CardTitle className="text-base text-[#145c3f]">Standard Expectations</CardTitle>
-                <CardDescription>
-                  Score each observation · {obsAnswered}/{OBSERVATION_ITEMS.length} answered
+                <CardTitle className="text-sm font-bold text-[#145c3f]">
+                  Standard Expectations (Observation Checklist)
+                </CardTitle>
+                <CardDescription className="text-xs text-slate-500">
+                  Score facility compliance against NHIA core operational standards ·{" "}
+                  {obsAnswered}/{OBSERVATION_ITEMS.length} answered
                 </CardDescription>
               </div>
               <ScoreBadge score={obsScore} max={OBS_MAX} />
             </div>
           </CardHeader>
-          <CardContent className="space-y-5 pt-5">
+          <CardContent className="space-y-4 pt-5 p-4 md:p-6">
             {OBSERVATION_ITEMS.map((item, idx) => (
-              <div key={item.key} className="space-y-2.5 border-b border-slate-100 pb-4 last:border-0 last:pb-0">
+              <div
+                key={item.key}
+                className="space-y-2 border-b border-[#e8f3ec] pb-3.5 last:border-0 last:pb-0"
+              >
                 <div className="flex items-start gap-2">
-                  <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[10px] font-bold text-slate-500">
+                  <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-sm bg-[#e8f3ec] text-[10px] font-bold font-mono text-[#145c3f]">
                     {idx + 1}
                   </span>
-                  <Label className="text-sm font-semibold text-slate-800 leading-snug">{item.label}</Label>
+                  <Label className="text-xs font-semibold text-slate-800 leading-snug">
+                    {item.label}
+                  </Label>
                 </div>
                 <ScorePills
                   value={f.observations[item.key] ?? ""}
@@ -685,57 +1007,108 @@ export default function StateOfficeMysteryShoppingPage({ onBack, defaultStateId,
                 />
               </div>
             ))}
-            <div className="rounded-xl bg-[#f0fdf7] border border-[#d4e8dc] px-4 py-3 flex items-center justify-between">
-              <span className="text-sm font-bold text-[#145c3f]">Standard Expectations Score</span>
-              <span className="font-mono text-lg font-bold text-[#145c3f]">{obsScore} / {OBS_MAX}</span>
+
+            <div className="rounded-sm bg-[#f0fdf7] border border-[#d4e8dc] px-4 py-3 flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-wider text-[#145c3f]">
+                Standard Expectations Score
+              </span>
+              <span className="font-mono text-base font-bold text-[#145c3f]">
+                {obsScore} / {OBS_MAX}
+              </span>
             </div>
           </CardContent>
         </Card>
       )}
 
+      {/* Steps 2, 3, 4: Enrollee Experience Cards */}
       {step === 2 && enrolleeCardForm("enrollee_card_1", 1)}
       {step === 3 && enrolleeCardForm("enrollee_card_2", 2)}
       {step === 4 && enrolleeCardForm("enrollee_card_3", 3)}
 
+      {/* Step 5: Remarks & Follow-up */}
       {step === 5 && (
-        <Card className="rounded-sm border-[#d4e8dc] overflow-hidden">
-          <CardHeader className="pb-3 bg-[#f8fdfb] border-b border-[#d4e8dc]">
-            <CardTitle className="text-base text-[#145c3f]">Remarks & Follow-up</CardTitle>
-            <CardDescription>Capture strengths, gaps, and next actions</CardDescription>
+        <Card className="rounded-sm border-[#d4e8dc] shadow-sm overflow-hidden bg-white">
+          <CardHeader className="pb-3 bg-[#f8faf9] border-b border-[#e2efe7]">
+            <CardTitle className="text-sm font-bold text-[#145c3f]">
+              Remarks & Follow-up Action Plan
+            </CardTitle>
+            <CardDescription className="text-xs text-slate-500">
+              Qualitative feedback, identified bottlenecks, and corrective interventions
+            </CardDescription>
           </CardHeader>
-          <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-5">
-            <div className="space-y-2">
-              <Label>Key Strengths</Label>
-              <textarea className={textareaCls} placeholder="What went well…" value={f.key_strengths} onChange={(e) => setF((p) => ({ ...p, key_strengths: e.target.value }))} />
-            </div>
-            <div className="space-y-2">
-              <Label>Gaps Identified</Label>
-              <textarea className={textareaCls} placeholder="Issues observed…" value={f.gaps_identified} onChange={(e) => setF((p) => ({ ...p, gaps_identified: e.target.value }))} />
-            </div>
-            <div className="space-y-2">
-              <Label>Recommendation</Label>
-              <textarea className={textareaCls} placeholder="Recommended actions…" value={f.recommendation} onChange={(e) => setF((p) => ({ ...p, recommendation: e.target.value }))} />
-            </div>
-            <div className="space-y-2">
-              <Label>Follow-up Action Plan</Label>
-              <textarea className={textareaCls} placeholder="Who does what, by when…" value={f.follow_up_action_plan} onChange={(e) => setF((p) => ({ ...p, follow_up_action_plan: e.target.value }))} />
-            </div>
-            <div className="md:col-span-2 rounded-xl border border-[#d4e8dc] bg-[#f8fdfb] px-4 py-3 grid grid-cols-2 md:grid-cols-4 gap-3">
+          <CardContent className="p-4 md:p-6 space-y-6">
+            <FieldSection
+              title="Qualitative Assessment & Recommendations"
+              gridClassName="grid gap-4 sm:grid-cols-2"
+            >
+              <Field label="Key Strengths">
+                <Textarea
+                  placeholder="What positive practices or compliant services were observed during the visit..."
+                  value={f.key_strengths}
+                  onChange={(e) => setF((p) => ({ ...p, key_strengths: e.target.value }))}
+                />
+              </Field>
+
+              <Field label="Gaps Identified">
+                <Textarea
+                  placeholder="Specific infractions, delays, drug shortages, or complaints noted..."
+                  value={f.gaps_identified}
+                  onChange={(e) => setF((p) => ({ ...p, gaps_identified: e.target.value }))}
+                />
+              </Field>
+
+              <Field label="Recommendation">
+                <Textarea
+                  placeholder="Actionable recommendations for facility management or HMOs..."
+                  value={f.recommendation}
+                  onChange={(e) => setF((p) => ({ ...p, recommendation: e.target.value }))}
+                />
+              </Field>
+
+              <Field label="Follow-up Action Plan">
+                <Textarea
+                  placeholder="Target corrective steps, responsible officer, and expected timeline..."
+                  value={f.follow_up_action_plan}
+                  onChange={(e) =>
+                    setF((p) => ({ ...p, follow_up_action_plan: e.target.value }))
+                  }
+                />
+              </Field>
+            </FieldSection>
+
+            {/* Assessment Recap Summary */}
+            <div className="rounded-sm border border-[#d4e8dc] bg-[#f8faf9] p-4 grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
               <div>
-                <p className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">Std score</p>
-                <p className="font-mono font-bold text-[#145c3f]">{obsScore}/{OBS_MAX}</p>
+                <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">
+                  Standard Score
+                </p>
+                <p className="font-mono font-bold text-sm text-[#145c3f] mt-0.5">
+                  {obsScore} / {OBS_MAX}
+                </p>
               </div>
               <div>
-                <p className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">Enrollee total</p>
-                <p className="font-mono font-bold text-orange-700">{enrolleeTotal}/{ENROLLEE_MAX * 3}</p>
+                <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">
+                  Enrollee Total
+                </p>
+                <p className="font-mono font-bold text-sm text-orange-700 mt-0.5">
+                  {enrolleeTotal} / {ENROLLEE_MAX * 3}
+                </p>
               </div>
               <div>
-                <p className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">Facility</p>
-                <p className="text-sm font-semibold text-slate-800 truncate">{f.facility_name || "—"}</p>
+                <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">
+                  Facility
+                </p>
+                <p className="font-semibold text-slate-800 mt-0.5 truncate">
+                  {f.facility_name || "—"}
+                </p>
               </div>
               <div>
-                <p className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold">Visit date</p>
-                <p className="text-sm font-semibold text-slate-800">{safeDate(f.visit_date)}</p>
+                <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">
+                  Visit Date
+                </p>
+                <p className="font-semibold text-slate-800 mt-0.5">
+                  {safeDate(f.visit_date)}
+                </p>
               </div>
             </div>
           </CardContent>
@@ -751,11 +1124,20 @@ export default function StateOfficeMysteryShoppingPage({ onBack, defaultStateId,
         mode: "list",
         actions: (
           <>
-            <Button variant="outline" size="sm" onClick={() => void load()} disabled={loading} className="gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => void load()}
+              disabled={loading}
+              className="gap-2"
+            >
               <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
             </Button>
             {canCreate && (
-              <Button className="bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20" onClick={openCreate}>
+              <Button
+                className="bg-orange-action hover:bg-orange-600 gap-2 shadow-sm"
+                onClick={openCreate}
+              >
                 <Plus className="w-4 h-4" /> New Visit
               </Button>
             )}
@@ -770,7 +1152,10 @@ export default function StateOfficeMysteryShoppingPage({ onBack, defaultStateId,
         title: "View Mystery Shopping",
         onInnerBack: () => setMode(createOnly ? "create" : "list"),
         actions: canCreate ? (
-          <Button className="bg-orange-action hover:bg-orange-600 gap-2" onClick={openEdit}>
+          <Button
+            className="bg-orange-action hover:bg-orange-600 gap-2"
+            onClick={openEdit}
+          >
             <Pencil className="w-4 h-4" /> Edit
           </Button>
         ) : undefined,
@@ -782,85 +1167,157 @@ export default function StateOfficeMysteryShoppingPage({ onBack, defaultStateId,
       title: mode === "edit" ? "Edit Mystery Shopping" : "New Mystery Shopping",
       onInnerBack: mode === "edit" ? () => setMode("view") : leaveForm,
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [embedded, onChromeChange, mode, loading, canCreate, createOnly]);
 
   React.useEffect(() => () => onChromeChange?.(null), [onChromeChange]);
 
+  // View Mode
   if (mode === "view") {
-    const stateName = detailMeta.state || pickGeoLabel(states.length ? states : dashboardStates, f.state_id, "—");
+    const stateName =
+      detailMeta.state ||
+      pickGeoLabel(states.length ? states : dashboardStates, f.state_id, "—");
+
     return (
       <div className="flex flex-col h-full bg-slate-50/30">
         {!embedded && (
           <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3.5 flex items-center justify-between sticky top-0 z-30">
             <div className="flex items-center gap-3">
-              <Button variant="ghost" size="icon" onClick={() => setMode(createOnly ? "create" : "list")} className="rounded-full">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setMode(createOnly ? "create" : "list")}
+                className="rounded-full hover:bg-emerald-50 text-slate-600"
+              >
                 <ArrowLeft className="w-5 h-5" />
               </Button>
-              <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e]">View Mystery Shopping</h2>
+              <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e]">
+                View Mystery Shopping
+              </h2>
             </div>
             {canCreate && (
-              <Button className="bg-orange-action hover:bg-orange-600 gap-2" onClick={openEdit}>
-                <Pencil className="w-4 h-4" /> Edit
+              <Button
+                className="bg-orange-action hover:bg-orange-600 gap-2 h-9 text-xs font-bold"
+                onClick={openEdit}
+              >
+                <Pencil className="w-4 h-4" /> Edit Visit
               </Button>
             )}
           </div>
         )}
         <ScrollArea className="flex-1">
           <div className="w-full px-4 md:px-6 py-4 space-y-4 pb-16">
-            <Card className="rounded-sm border-[#d4e8dc] overflow-hidden">
+            <Card className="rounded-sm border-[#d4e8dc] overflow-hidden shadow-2xs">
               <div className="bg-[#145c3f] text-white px-6 py-5 flex flex-wrap items-end justify-between gap-4">
                 <div>
-                  <p className="text-xs uppercase tracking-wider text-white/70">{detailMeta.reference || "Mystery shopping visit"}</p>
+                  <p className="text-xs uppercase tracking-wider text-white/70">
+                    {detailMeta.reference || "Mystery shopping visit"}
+                  </p>
                   <h3 className="text-2xl font-bold">{f.facility_name || "Facility"}</h3>
-                  <p className="text-sm text-white/80 mt-1">{stateName} · {safeDate(f.visit_date)}</p>
+                  <p className="text-xs text-white/80 mt-1">
+                    {stateName} · {safeDate(f.visit_date)}
+                  </p>
                 </div>
                 <div className="flex gap-2">
-                  <Badge className="bg-white text-[#145c3f] hover:bg-white">Std {obsScore}/{OBS_MAX}</Badge>
-                  <Badge className="bg-orange-action hover:bg-orange-action text-white">Enrollee {enrolleeTotal}/{ENROLLEE_MAX * 3}</Badge>
+                  <Badge className="bg-white text-[#145c3f] hover:bg-white font-mono text-xs">
+                    Std {obsScore}/{OBS_MAX}
+                  </Badge>
+                  <Badge className="bg-orange-action hover:bg-orange-action text-white font-mono text-xs">
+                    Enrollee {enrolleeTotal}/{ENROLLEE_MAX * 3}
+                  </Badge>
                 </div>
               </div>
-              <CardContent className="pt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                <InfoField label="Email" value={f.email ? <a className="inline-flex items-center gap-1.5 text-primary hover:underline" href={`mailto:${f.email}`}><Mail className="w-3.5 h-3.5" />{f.email}</a> : "—"} />
+              <CardContent className="pt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                <InfoField
+                  label="Email"
+                  value={
+                    f.email ? (
+                      <a
+                        className="inline-flex items-center gap-1.5 text-primary hover:underline"
+                        href={`mailto:${f.email}`}
+                      >
+                        <Mail className="w-3.5 h-3.5" />
+                        {f.email}
+                      </a>
+                    ) : (
+                      "—"
+                    )
+                  }
+                />
                 <InfoField label="Mystery Shopper Name" value={f.mystery_shopper_name} />
                 <InfoField label="State" value={stateName} />
-                <InfoField label="Name of Facility" value={<span className="inline-flex items-center gap-1.5"><Building2 className="w-3.5 h-3.5 text-primary" />{f.facility_name}</span>} />
+                <InfoField
+                  label="Name of Facility"
+                  value={
+                    <span className="inline-flex items-center gap-1.5">
+                      <Building2 className="w-3.5 h-3.5 text-primary" />
+                      {f.facility_name}
+                    </span>
+                  }
+                />
                 <InfoField label="Facility NHIA Code" value={f.facility_nhia_code} />
-                <InfoField label="Facility Type" value={labelOf(FACILITY_TYPES, f.facility_type)} />
-                <InfoField label="Facility email" value={f.facility_email} />
-                <InfoField label="Date of visit" value={<span className="inline-flex items-center gap-1.5"><CalendarDays className="w-3.5 h-3.5 text-primary" />{safeDate(f.visit_date)}</span>} />
+                <InfoField
+                  label="Facility Type"
+                  value={labelOf(FACILITY_TYPES, f.facility_type)}
+                />
+                <InfoField label="Facility Email" value={f.facility_email} />
+                <InfoField
+                  label="Date of Visit"
+                  value={
+                    <span className="inline-flex items-center gap-1.5">
+                      <CalendarDays className="w-3.5 h-3.5 text-primary" />
+                      {safeDate(f.visit_date)}
+                    </span>
+                  }
+                />
               </CardContent>
             </Card>
 
-            <Card className="rounded-sm border-[#d4e8dc]">
-              <CardHeader className="pb-2 flex flex-row items-center justify-between">
-                <CardTitle className="text-base text-[#145c3f]">Observations</CardTitle>
+            <Card className="rounded-sm border-[#d4e8dc] shadow-2xs">
+              <CardHeader className="pb-2 flex flex-row items-center justify-between border-b border-[#e2efe7]">
+                <CardTitle className="text-sm font-bold text-[#145c3f]">
+                  Observations
+                </CardTitle>
                 <ScoreBadge score={obsScore} max={OBS_MAX} />
               </CardHeader>
-              <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4">
                 {OBSERVATION_ITEMS.map((item) => (
-                  <InfoField key={item.key} label={item.label} value={optionLabel(OBSERVATION_ITEMS, item.key, f.observations[item.key])} />
+                  <InfoField
+                    key={item.key}
+                    label={item.label}
+                    value={optionLabel(OBSERVATION_ITEMS, item.key, f.observations[item.key])}
+                  />
                 ))}
               </CardContent>
             </Card>
 
             {[f.enrollee_card_1, f.enrollee_card_2, f.enrollee_card_3].map((card, i) => (
-              <Card key={i} className="rounded-sm border-[#d4e8dc]">
-                <CardHeader className="pb-2 flex flex-row items-center justify-between">
-                  <CardTitle className="text-base text-[#145c3f]">Enrollee Experience Score Card {i + 1}</CardTitle>
+              <Card key={i} className="rounded-sm border-[#d4e8dc] shadow-2xs">
+                <CardHeader className="pb-2 flex flex-row items-center justify-between border-b border-[#e2efe7]">
+                  <CardTitle className="text-sm font-bold text-[#145c3f]">
+                    Enrollee Experience Score Card {i + 1}
+                  </CardTitle>
                   <ScoreBadge score={cardScores[i]} max={ENROLLEE_MAX} />
                 </CardHeader>
-                <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4">
                   {ENROLLEE_ITEMS.map((item) => (
-                    <InfoField key={item.key} label={item.label} value={labelOf(ENROLLEE_SCALE, card[item.key])} />
+                    <InfoField
+                      key={item.key}
+                      label={item.label}
+                      value={labelOf(ENROLLEE_SCALE, card[item.key])}
+                    />
                   ))}
                 </CardContent>
               </Card>
             ))}
 
-            <Card className="rounded-sm border-[#d4e8dc]">
-              <CardHeader className="pb-2"><CardTitle className="text-base text-[#145c3f]">Remarks</CardTitle></CardHeader>
-              <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card className="rounded-sm border-[#d4e8dc] shadow-2xs">
+              <CardHeader className="pb-2 border-b border-[#e2efe7]">
+                <CardTitle className="text-sm font-bold text-[#145c3f]">
+                  Remarks & Follow-up
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-4">
                 <InfoField label="Key Strengths" value={f.key_strengths} />
                 <InfoField label="Gaps Identified" value={f.gaps_identified} />
                 <InfoField label="Recommendation" value={f.recommendation} />
@@ -873,40 +1330,80 @@ export default function StateOfficeMysteryShoppingPage({ onBack, defaultStateId,
     );
   }
 
+  // Create / Edit Form Mode
   if (mode !== "list") {
     return (
       <div key={formKey} className="flex flex-col h-full bg-slate-50/30">
         {!embedded && (
           <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3.5 flex items-center justify-between sticky top-0 z-30">
             <div className="flex items-center gap-3 min-w-0">
-              <Button variant="ghost" size="icon" onClick={mode === "edit" ? () => setMode("view") : leaveForm} className="rounded-full shrink-0">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={mode === "edit" ? () => setMode("view") : leaveForm}
+                className="rounded-full hover:bg-emerald-50 text-slate-600 shrink-0"
+              >
                 <ArrowLeft className="w-5 h-5" />
               </Button>
               <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">
-                {mode === "edit" ? "Edit Mystery Shopping" : "New Mystery Shopping"}
+                {mode === "edit" ? "Edit Mystery Shopping Visit" : "New Mystery Shopping Visit"}
               </h2>
             </div>
           </div>
         )}
         <ScrollArea className="flex-1">
-          <div className="w-full px-4 md:px-6 py-4 space-y-4 pb-28">{formBody}</div>
+          <div className="w-full px-4 md:px-6 py-5 space-y-5 pb-28">{formBody}</div>
         </ScrollArea>
-        <div className="sticky bottom-0 z-30 bg-white/95 backdrop-blur border-t border-border/50 px-4 md:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
-          <Button variant="outline" onClick={() => setStep((s) => Math.max(0, s - 1))} disabled={step === 0}>
+
+        {/* Sticky Action Footer */}
+        <div className="sticky bottom-0 z-30 bg-white border-t border-[#d4e8dc] px-4 md:px-6 py-3 flex flex-wrap items-center justify-between gap-3 shadow-lg">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setStep((s) => Math.max(0, s - 1))}
+            disabled={step === 0}
+            className="h-9 px-4 text-xs font-semibold border-slate-300 text-slate-700"
+          >
             Back
           </Button>
-          <div className="hidden sm:flex items-center gap-3 text-xs text-slate-500">
-            <span className="font-mono font-semibold text-[#145c3f]">Std {obsScore}/{OBS_MAX}</span>
+
+          <div className="hidden sm:flex items-center gap-3 text-xs">
+            <span className="font-mono font-bold text-[#145c3f] bg-[#e8f6ee] border border-emerald-300 px-2.5 py-1 rounded-sm">
+              Std {obsScore}/{OBS_MAX}
+            </span>
             <span className="text-slate-300">·</span>
-            <span className="font-mono font-semibold text-orange-700">Enrollee {enrolleeTotal}/{ENROLLEE_MAX * 3}</span>
+            <span className="font-mono font-bold text-orange-700 bg-orange-50 border border-orange-200 px-2.5 py-1 rounded-sm">
+              Enrollee {enrolleeTotal}/{ENROLLEE_MAX * 3}
+            </span>
           </div>
-          <div className="flex gap-3">
-            <Button variant="outline" onClick={mode === "edit" ? () => setMode("view") : leaveForm}>Cancel</Button>
+
+          <div className="flex items-center gap-2.5">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={mode === "edit" ? () => setMode("view") : leaveForm}
+              className="h-9 px-4 text-xs font-semibold border-slate-300 text-slate-700"
+            >
+              Cancel
+            </Button>
             {step < STEPS.length - 1 ? (
-              <Button className="bg-orange-action hover:bg-orange-600" onClick={goNext}>Next</Button>
+              <Button
+                className="h-9 px-5 bg-orange-action hover:bg-orange-600 text-white font-bold text-xs gap-1.5 shadow-xs"
+                onClick={goNext}
+              >
+                Next Step
+              </Button>
             ) : (
-              <Button className="bg-orange-action hover:bg-orange-600 gap-2" onClick={() => void handleSave()} disabled={saving}>
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              <Button
+                className="h-9 px-5 bg-orange-action hover:bg-orange-600 text-white font-bold text-xs gap-2 shadow-xs"
+                onClick={() => void handleSave()}
+                disabled={saving}
+              >
+                {saving ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Save className="w-4 h-4" />
+                )}
                 {mode === "edit" ? "Update Visit" : "Save Visit"}
               </Button>
             )}
@@ -916,17 +1413,29 @@ export default function StateOfficeMysteryShoppingPage({ onBack, defaultStateId,
     );
   }
 
+  // List Mode
   return (
     <div className={`flex flex-col h-full ${embedded ? "" : "bg-slate-50/30"}`}>
       {!embedded && (
         <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3.5 flex items-center justify-between sticky top-0 z-10 gap-3">
-          <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">Mystery Shopping</h2>
+          <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">
+            Mystery Shopping
+          </h2>
           <div className="flex items-center gap-3 shrink-0">
-            <Button variant="outline" size="sm" onClick={() => void load()} disabled={loading} className="gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => void load()}
+              disabled={loading}
+              className="gap-2 text-xs font-semibold"
+            >
               <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
             </Button>
             {canCreate && (
-              <Button className="bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20" onClick={openCreate}>
+              <Button
+                className="bg-orange-action hover:bg-orange-600 gap-2 shadow-sm text-xs font-bold"
+                onClick={openCreate}
+              >
                 <Plus className="w-4 h-4" /> New Visit
               </Button>
             )}
@@ -940,7 +1449,11 @@ export default function StateOfficeMysteryShoppingPage({ onBack, defaultStateId,
             loading={loading}
             className="grid grid-cols-2 md:grid-cols-4 gap-3"
             stats={[
-              { label: "Total visits", value: rows.length, tone: "text-[#0f3d2e] bg-white border-[#d4e8dc]" },
+              {
+                label: "Total visits",
+                value: rows.length,
+                tone: "text-[#0f3d2e] bg-white border-[#d4e8dc]",
+              },
               {
                 label: "Facilities",
                 value: new Set(rows.map((r) => r.facility_name || r.reference_id)).size,
@@ -950,7 +1463,10 @@ export default function StateOfficeMysteryShoppingPage({ onBack, defaultStateId,
                 label: "Avg std score",
                 value: rows.length
                   ? Math.round(
-                      rows.reduce((sum, r) => sum + Number(r.standard_expectations_score || 0), 0) / rows.length,
+                      rows.reduce(
+                        (sum, r) => sum + Number(r.standard_expectations_score || 0),
+                        0
+                      ) / rows.length
                     )
                   : 0,
                 tone: "text-teal-800 bg-teal-50/80 border-teal-100",
@@ -961,12 +1477,12 @@ export default function StateOfficeMysteryShoppingPage({ onBack, defaultStateId,
                   ? Math.round(
                       rows.reduce(
                         (sum, r) =>
-                          sum
-                          + Number(r.enrollee_score_1 || 0)
-                          + Number(r.enrollee_score_2 || 0)
-                          + Number(r.enrollee_score_3 || 0),
-                        0,
-                      ) / rows.length,
+                          sum +
+                          Number(r.enrollee_score_1 || 0) +
+                          Number(r.enrollee_score_2 || 0) +
+                          Number(r.enrollee_score_3 || 0),
+                        0
+                      ) / rows.length
                     )
                   : 0,
                 tone: "text-amber-800 bg-amber-50/80 border-amber-100",
@@ -977,51 +1493,112 @@ export default function StateOfficeMysteryShoppingPage({ onBack, defaultStateId,
           <Card className="rounded-sm border border-[#d4e8dc] py-0 gap-0 shadow-2xs bg-white">
             <CardContent className="py-1.5 px-3 grid grid-flow-col auto-cols-fr gap-2.5 items-end">
               <div className="space-y-0.5 min-w-0">
-                <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Zone</Label>
-                <Select value={filterZone} disabled={zoneLocked} onValueChange={(v) => { setFilterZone(v); if (!stateLocked) setFilterState("all"); }}>
-                  <SelectTrigger size="sm" className="w-full" displayValue={filterZone === "all" ? "All Zones" : pickGeoLabel(zones, filterZone, "Zone")}>
+                <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                  Zone
+                </Label>
+                <Select
+                  value={filterZone}
+                  disabled={zoneLocked}
+                  onValueChange={(v) => {
+                    setFilterZone(v);
+                    if (!stateLocked) setFilterState("all");
+                  }}
+                >
+                  <SelectTrigger
+                    size="sm"
+                    className="w-full"
+                    displayValue={
+                      filterZone === "all"
+                        ? "All Zones"
+                        : pickGeoLabel(zones, filterZone, "Zone")
+                    }
+                  >
                     <SelectValue placeholder="Zone" />
                   </SelectTrigger>
                   <SelectContent>
                     {!zoneLocked && <SelectItem value="all">All Zones</SelectItem>}
                     {zones.map((z) => {
                       const id = geoId(z);
-                      return <SelectItem key={id} value={id}>{z.description}</SelectItem>;
+                      return (
+                        <SelectItem key={id} value={id}>
+                          {z.description}
+                        </SelectItem>
+                      );
                     })}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-0.5 min-w-0">
-                <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">State</Label>
-                <Select value={filterState} disabled={stateLocked} onValueChange={setFilterState}>
-                  <SelectTrigger size="sm" className="w-full" displayValue={
-                    stateLocked
-                      ? pickGeoLabel(dashboardStates, filterState, "State")
-                      : (filterState === "all" ? "All States" : pickGeoLabel(dashboardStates, filterState, "State"))
-                  }>
+                <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                  State
+                </Label>
+                <Select
+                  value={filterState}
+                  disabled={stateLocked}
+                  onValueChange={setFilterState}
+                >
+                  <SelectTrigger
+                    size="sm"
+                    className="w-full"
+                    displayValue={
+                      stateLocked
+                        ? pickGeoLabel(dashboardStates, filterState, "State")
+                        : filterState === "all"
+                          ? "All States"
+                          : pickGeoLabel(dashboardStates, filterState, "State")
+                    }
+                  >
                     <SelectValue placeholder="State" />
                   </SelectTrigger>
                   <SelectContent>
                     {!stateLocked && <SelectItem value="all">All States</SelectItem>}
                     {dashboardStates.map((s) => {
                       const id = geoId(s);
-                      return <SelectItem key={id} value={id}>{s.description}</SelectItem>;
+                      return (
+                        <SelectItem key={id} value={id}>
+                          {s.description}
+                        </SelectItem>
+                      );
                     })}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-0.5 min-w-0">
-                <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Year</Label>
+                <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                  Year
+                </Label>
                 <Select value={filterYear} onValueChange={setFilterYear}>
-                  <SelectTrigger size="sm" className="w-full" displayValue={filterYear}><SelectValue /></SelectTrigger>
-                  <SelectContent>{buildReportingYearOptions().map((y) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}</SelectContent>
+                  <SelectTrigger size="sm" className="w-full" displayValue={filterYear}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {buildReportingYearOptions().map((y) => (
+                      <SelectItem key={y} value={String(y)}>
+                        {y}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
                 </Select>
               </div>
               <div className="space-y-0.5 min-w-0">
-                <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Month</Label>
+                <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                  Month
+                </Label>
                 <Select value={filterMonth} onValueChange={setFilterMonth}>
-                  <SelectTrigger size="sm" className="w-full" displayValue={monthLabel(filterMonth)}><SelectValue /></SelectTrigger>
-                  <SelectContent>{MONTHS.map((m) => <SelectItem key={m.value} value={String(m.value)}>{m.label}</SelectItem>)}</SelectContent>
+                  <SelectTrigger
+                    size="sm"
+                    className="w-full"
+                    displayValue={monthLabel(filterMonth)}
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {MONTHS.map((m) => (
+                      <SelectItem key={m.value} value={String(m.value)}>
+                        {m.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
                 </Select>
               </div>
             </CardContent>
