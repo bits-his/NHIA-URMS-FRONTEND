@@ -396,10 +396,7 @@ export default function OfficeProfileGeneralTab({
         </div>
       </CardContent>
 
-      <CardFooter className="bg-slate-50/50 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3 py-3 px-5 rounded-b-sm">
-        <span className="text-[11px] text-slate-400 text-center sm:text-left">
-          All changes are recorded in the central National Health Insurance Authority database.
-        </span>
+      <CardFooter className="bg-slate-50/50 border-t border-slate-100 flex items-center justify-end gap-2 py-3 px-5 rounded-b-sm">
         <div className="flex items-center gap-2 self-end sm:self-auto">
           {stateHistoryProfiles.length > 0 && (
             <Button
