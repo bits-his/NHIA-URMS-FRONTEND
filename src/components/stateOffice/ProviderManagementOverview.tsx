@@ -169,7 +169,7 @@ export type OverviewProps = {
 
 export default function ProviderManagementOverview(props: OverviewProps) {
   const {
-    level, scopeLabel, showPipelineDrill, isReacc, sdoPipeline, programme, kpis,
+    level, showPipelineDrill, isReacc, sdoPipeline, programme, kpis,
     byActivity, byStatus, byState, zoneChartData, monthlyTrend, hasMonthlyTrend,
     pipelineBars, programmeOutputs, execTrend, priorities, actionQueue,
     sdoZoneBarKey, sdoZoneBarLabel, trendSeries, onTrendSeriesChange,
@@ -183,10 +183,6 @@ export default function ProviderManagementOverview(props: OverviewProps) {
   const [focusStatus, setFocusStatus] = React.useState<string | null>(null);
   const [focusActivity, setFocusActivity] = React.useState<string | null>(null);
   const [openCard, setOpenCard] = React.useState<string>("completion");
-
-  const active = DESIGNS.find((d) => d.id === design) || DESIGNS[0];
-  const blurb = isState ? active.stateBlurb : active.blurb;
-  const title = isState && scopeLabel ? `Overview · ${scopeLabel}` : "Overview";
 
   const statusRows = focusStatus
     ? byStatus.filter((s) => s.name === focusStatus)
@@ -554,24 +550,11 @@ export default function ProviderManagementOverview(props: OverviewProps) {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <h3 className="text-lg font-bold tracking-tight text-slate-900 md:text-xl">{title}</h3>
-            {isState ? (
-              <span className="rounded-full border border-teal-200 bg-teal-50 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-teal-800">
-                State coordinator
-              </span>
-            ) : null}
-          </div>
-          <p className="mt-1 max-w-xl text-sm text-slate-500">{blurb}</p>
-        </div>
-        <div className="flex flex-col items-start gap-2 sm:items-end">
+      <div className="flex flex-col items-start gap-2 sm:items-end">
           <Segmented value={design} options={DESIGNS} onChange={chooseDesign} ariaLabel="Overview design" />
           {(design === "focus" || design === "compare") && level === 1 && !showPipelineDrill ? (
             <Segmented value={chart} options={CHARTS} onChange={chooseChart} ariaLabel="Overview chart style" />
           ) : null}
-        </div>
       </div>
 
       {(focusStatus || focusActivity) && (
