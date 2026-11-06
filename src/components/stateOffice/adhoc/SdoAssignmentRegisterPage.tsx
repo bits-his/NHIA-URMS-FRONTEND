@@ -139,11 +139,29 @@ export default function SdoAssignmentRegisterPage({
     }
   }, [initialData]);
 
+  const isLockedFromEdit = React.useMemo(() => {
+    if (!initialData) return false;
+    return !!(
+      initialData.stats?.hasSubmittedReports
+      || (initialData.stats?.completedStates || 0) > 0
+      || (initialData.stats?.submittedReportsCount || 0) > 0
+      || initialData.state_assignments?.some((sa: any) =>
+           sa.progress_status === "completed"
+           || sa.reports?.some((r: any) => r.review_status && r.review_status !== "draft")
+         )
+    );
+  }, [initialData]);
+
   const handleChange = (k: string, v: any) => {
+    if (isLockedFromEdit) return;
     setForm((prev) => ({ ...prev, [k]: v }));
   };
 
   const handleSave = async (andDispatch = false) => {
+    if (isLockedFromEdit) {
+      toast.error("This assignment cannot be modified because one or more State Offices have already submitted reports.");
+      return;
+    }
     if (!form.assignment_title.trim()) {
       toast.error("Please enter an assignment title");
       return;
@@ -230,6 +248,17 @@ export default function SdoAssignmentRegisterPage({
       {/* Main Form Body (Full Width matching URMS design) */}
       <div className="flex-1 overflow-y-auto p-4 md:p-6 pb-12 w-full">
         <div className="w-full space-y-6">
+          {isLockedFromEdit && (
+            <div className="p-4 rounded-sm bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-center gap-3">
+              <AlertCircle className="w-5 h-5 text-amber-700 shrink-0" />
+              <div>
+                <p className="font-bold text-amber-800 uppercase tracking-wide">Assignment Locked (Read-Only)</p>
+                <p className="text-amber-700 mt-0.5">
+                  This assignment cannot be modified because one or more recipient State Offices have already submitted their reports.
+                </p>
+              </div>
+            </div>
+          )}
           <Card className="rounded-sm border-[#d4e8dc] shadow-xs bg-white overflow-hidden w-full">
             <CardContent className="p-6 md:p-8 space-y-8">
               {/* FieldSection 1: Assignment Registration */}
@@ -478,7 +507,15 @@ export default function SdoAssignmentRegisterPage({
           </Card>
 
           {/* Bottom Action Bar */}
-          <div className="flex items-center justify-end pt-4 pb-8 border-t border-slate-200 w-full">
+          <div className="flex items-center justify-between pt-4 pb-8 border-t border-slate-200 w-full">
+            <div>
+              {isLockedFromEdit && (
+                <span className="text-xs font-semibold text-rose-600 flex items-center gap-1.5">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  Editing disabled: Report has been submitted by state office(s).
+                </span>
+              )}
+            </div>
             <div className="flex items-center gap-2">
               <Button
                 type="button"
@@ -486,35 +523,39 @@ export default function SdoAssignmentRegisterPage({
                 onClick={onBack}
                 disabled={submitting}
               >
-                Cancel
+                {isLockedFromEdit ? "Back" : "Cancel"}
               </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => handleSave(false)}
-                disabled={submitting}
-                className="gap-1.5 border-emerald-300 text-emerald-800 hover:bg-emerald-50"
-              >
-                {submitting && !proceedToDistribute ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Save className="w-4 h-4" />
-                )}
-                Save to Draft
-              </Button>
-              <Button
-                type="button"
-                onClick={() => handleSave(true)}
-                disabled={submitting}
-                className="gap-1.5 bg-[#145c3f] hover:bg-[#0f3d2e] text-white shadow-xs"
-              >
-                {submitting && proceedToDistribute ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Send className="w-4 h-4" />
-                )}
-                Save & Proceed to State Distribution
-              </Button>
+              {!isLockedFromEdit && (
+                <>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => handleSave(false)}
+                    disabled={submitting}
+                    className="gap-1.5 border-emerald-300 text-emerald-800 hover:bg-emerald-50"
+                  >
+                    {submitting && !proceedToDistribute ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Save className="w-4 h-4" />
+                    )}
+                    Save to Draft
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={() => handleSave(true)}
+                    disabled={submitting}
+                    className="gap-1.5 bg-[#145c3f] hover:bg-[#0f3d2e] text-white shadow-xs"
+                  >
+                    {submitting && proceedToDistribute ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Send className="w-4 h-4" />
+                    )}
+                    Save & Proceed to State Distribution
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         </div>

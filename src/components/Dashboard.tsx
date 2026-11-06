@@ -127,8 +127,7 @@ import AdjustmentsView from "../modules/store_management/pages/AdjustmentsView";
 import MovementLedgerView from "../modules/store_management/pages/MovementLedgerView";
 import StoreManagementWorkspace from "../modules/store_management/pages/StoreManagementWorkspace";
 import { getMonthlyReportContext } from "@/src/access/monthlyReportAccess";
-import { canAccessFunctionality, expandAccessEntries, getFirstAccessiblePath, canAccessHomeDashboard, isDgCeoUser, DASHBOARDS_ENABLED, ANNUAL_REPORTS_ENABLED } from "@/src/access/accessUtils";
-import { VIEW_MODULE_ACCESS } from "@/src/access/moduleConfig";
+import { canAccessFunctionality, expandAccessEntries, getFirstAccessiblePath, moduleAccessForPath, canAccessHomeDashboard, isDgCeoUser, DASHBOARDS_ENABLED, ANNUAL_REPORTS_ENABLED } from "@/src/access/accessUtils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 import AppSidebar from "./AppSidebar";
@@ -451,6 +450,7 @@ function AuditPanel() {
 // ─── Main Dashboard ───────────────────────────────────────────────────────────
 export default function Dashboard({ role, user, access = [], functionalities = "", onLogout }: DashboardProps) {
   const navigate = useNavigate();
+  const location = useLocation();
   const [view, setView] = React.useState<View>(role === "admin" ? "home" : "home");
   // Sidebar state is now managed by shadcn SidebarProvider
   const [selectedReportRef, setSelectedReportRef] = React.useState<string | null>(null);
@@ -461,20 +461,23 @@ export default function Dashboard({ role, user, access = [], functionalities = "
   React.useEffect(() => {
     if (role === "admin") return;
 
-    const viewAccess = VIEW_MODULE_ACCESS[view];
-    if (!viewAccess) return;
+    const pageAccess = moduleAccessForPath(location.pathname);
+    if (!pageAccess) return;
 
     const expanded = expandAccessEntries(access);
     const allowed = canAccessFunctionality(
-      viewAccess.module,
-      viewAccess.functionality,
+      pageAccess.module,
+      pageAccess.functionality,
       { role, access: expanded },
-    ) || (["servicom-comment-card", "servicom-satisfaction"].includes(view)
-      && canAccessFunctionality("SDO", viewAccess.functionality, { role, access: expanded }));
-    if (!allowed) {
-      navigate(getFirstAccessiblePath(expanded, role, user), { replace: true });
+    );
+    if (allowed) return;
+
+    const next = getFirstAccessiblePath(expanded, role, user);
+    const nextPath = next.split("?")[0];
+    if (nextPath && nextPath !== location.pathname) {
+      navigate(next, { replace: true });
     }
-  }, [view, role, access, navigate, user]);
+  }, [location.pathname, role, access, navigate, user]);
 
   return (
     <SidebarProvider>
@@ -711,7 +714,9 @@ export default function Dashboard({ role, user, access = [], functionalities = "
             <Route path="/soc/enrollee-register" element={<StateOfficeReportsList key="state-enrollee-register" reportType="enrollee-register" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
             <Route path="/soc/etmc-tmc-action-point" element={<StateOfficeReportsList key="state-etmc-tmc-action-point" reportType="etmc-tmc-action-point" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
             <Route path="/soc/ict-support-register" element={<Navigate to="/zonal/ict/support" replace />} />
-            <Route path="/soc/adhoc-special-assignment" element={<Navigate to="/sdo/projects" replace />} />
+            <Route path="/soc/projects/*" element={<AdhocAssignmentWorkspace onBack={() => setView("home")} user={user} userRole={role} />} />
+            <Route path="/soc/projects" element={<AdhocAssignmentWorkspace onBack={() => setView("home")} user={user} userRole={role} />} />
+            <Route path="/soc/adhoc-special-assignment" element={<Navigate to="/soc/projects" replace />} />
             <Route path="/soc/operation-monitoring-visit" element={<SocPlaceholderPage title="Operation Monitoring Visit" onBack={() => setView("home")} />} />
             <Route path="/soc/spot-check-visit" element={<SocPlaceholderPage title="Spot Check Visit" onBack={() => setView("home")} />} />
             <Route path="/soc/complaints" element={<StateOfficeComplaintsPage key="state-complaints" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />

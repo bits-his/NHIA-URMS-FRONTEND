@@ -88,6 +88,7 @@ interface Props {
   onSuccess: () => void;
   stateAssignment: any;
   userName?: string;
+  readOnly?: boolean;
 }
 
 export default function StateAssignmentReportPage({
@@ -95,6 +96,7 @@ export default function StateAssignmentReportPage({
   onSuccess,
   stateAssignment,
   userName = "State Reporting Officer",
+  readOnly = false,
 }: Props) {
   const [submitting, setSubmitting] = React.useState(false);
   const [files, setFiles] = React.useState<File[]>([]);
@@ -102,6 +104,7 @@ export default function StateAssignmentReportPage({
   const master = stateAssignment?.master_assignment;
   const latestReport = stateAssignment?.reports?.[0];
   const isClosed = stateAssignment?.closure_status === "closed";
+  const isLocked = isClosed || readOnly;
 
   const [form, setForm] = React.useState({
     completion_status: "completed",
@@ -223,6 +226,11 @@ export default function StateAssignmentReportPage({
                   {stateAssignment.state.description}
                 </Badge>
               )}
+              {readOnly && (
+                <Badge variant="outline" className="border-blue-300 text-blue-700 bg-blue-50 text-xs font-semibold">
+                  Read-only View
+                </Badge>
+              )}
             </div>
             {stateAssignment.state_due_date && (
               <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-1.5">
@@ -325,7 +333,7 @@ export default function StateAssignmentReportPage({
                   <Select
                     value={form.completion_status}
                     onValueChange={(val) => handleChange("completion_status", val)}
-                    disabled={isClosed}
+                    disabled={isLocked}
                   >
                     <SelectTrigger className="h-10 text-xs">
                       <SelectValue placeholder="Select completion status" />
@@ -346,7 +354,7 @@ export default function StateAssignmentReportPage({
                     type="date"
                     value={form.date_completed}
                     onChange={(e) => handleChange("date_completed", e.target.value)}
-                    disabled={isClosed || form.completion_status === "ongoing"}
+                    disabled={isLocked || form.completion_status === "ongoing"}
                     className="h-10 text-xs"
                   />
                 </Field>
@@ -357,7 +365,7 @@ export default function StateAssignmentReportPage({
                     placeholder="Briefly describe what the State Office did, facilities or communities visited, meetings held..."
                     value={form.work_summary}
                     onChange={(e) => handleChange("work_summary", e.target.value)}
-                    disabled={isClosed}
+                    disabled={isLocked}
                     required
                   />
                 </Field>
@@ -368,7 +376,7 @@ export default function StateAssignmentReportPage({
                     placeholder="State what was delivered, verified, resolved, or enrolled..."
                     value={form.output_achieved}
                     onChange={(e) => handleChange("output_achieved", e.target.value)}
-                    disabled={isClosed}
+                    disabled={isLocked}
                     required
                   />
                 </Field>
@@ -379,14 +387,14 @@ export default function StateAssignmentReportPage({
                     placeholder="Briefly state any operational, logistics, or stakeholder bottleneck that affected execution..."
                     value={form.challenges}
                     onChange={(e) => handleChange("challenges", e.target.value)}
-                    disabled={isClosed}
+                    disabled={isLocked}
                   />
                 </Field>
               </FieldSection>
 
               {/* Evidence & Supporting Documents */}
               <FieldSection title="Evidence & Supporting Documents" gridClassName="grid gap-3 sm:grid-cols-1">
-                {!isClosed && (
+                {!isLocked && (
                   <div className="border-2 border-dashed border-[#1a7a52]/40 rounded-sm p-6 bg-[#f4f7f5] hover:bg-[#e8f6ee]/30 text-center transition">
                     <input
                       type="file"
@@ -457,7 +465,9 @@ export default function StateAssignmentReportPage({
               {/* Bottom Action Bar */}
               <div className="pt-6 border-t border-[#d4e8dc] flex flex-wrap items-center justify-between gap-3">
                 <span className="text-xs text-slate-400">
-                  Submitting as: <strong className="text-slate-600">{userName}</strong> • {stateAssignment.state_assignment_id}
+                  {readOnly
+                    ? `Viewing report for: ${stateAssignment.state?.description || stateAssignment.state_code} • ${stateAssignment.state_assignment_id}`
+                    : `Submitting as: ${userName} • ${stateAssignment.state_assignment_id}`}
                 </span>
                 <div className="flex items-center gap-3">
                   <Button
@@ -466,9 +476,9 @@ export default function StateAssignmentReportPage({
                     onClick={onBack}
                     disabled={submitting}
                   >
-                    Cancel
+                    {readOnly ? "Back to Dispatches" : "Cancel"}
                   </Button>
-                  {!isClosed && (
+                  {!isLocked && (
                     <>
                       <Button
                         type="button"

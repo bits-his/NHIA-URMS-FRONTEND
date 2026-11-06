@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { cn } from "@/lib/utils";
 import type { ColumnDef } from "@tanstack/react-table";
 import PageLayout from "../PageLayout";
-import { UnderHeaderNavTabs } from "../UnderHeaderNavTabs";
+import { UnderHeaderNavTabs } from "@/src/components/UnderHeaderNavTabs";
 import { ShadcnDataTable } from "@/components/common/ShadcnDataTable";
 import { challengesSupportApi as api } from "@/lib/api";
 import { RegisterStatsCards } from "./RegisterStatsCards";
@@ -537,7 +537,7 @@ export default function ChallengesSupportWorkspace({ onBack, embedded = false, o
         <Button
           variant="outline"
           size="sm"
-          className="gap-1.5 h-8 text-xs rounded-md border-[#d4e8dc]"
+          className="gap-1.5 h-8 text-xs rounded-sm border-[#d4e8dc]"
           disabled={busy || loading}
           onClick={() => void run(refresh)}
         >
@@ -547,7 +547,7 @@ export default function ChallengesSupportWorkspace({ onBack, embedded = false, o
       {permissions.create && mode === "challenges" && (
         <Button
           size="sm"
-          className="bg-orange-action hover:bg-orange-600 gap-1.5 shadow-md shadow-orange-500/15 h-8 text-xs rounded-md"
+          className="bg-orange-action hover:bg-orange-600 gap-1.5 shadow-md shadow-orange-500/15 h-8 text-xs rounded-sm"
           disabled={busy}
           onClick={() => startChallengeForm()}
         >
@@ -557,7 +557,7 @@ export default function ChallengesSupportWorkspace({ onBack, embedded = false, o
       {permissions.create && mode === "support" && (
         <Button
           size="sm"
-          className="bg-orange-action hover:bg-orange-600 gap-1.5 shadow-md shadow-orange-500/15 h-8 text-xs rounded-md"
+          className="bg-orange-action hover:bg-orange-600 gap-1.5 shadow-md shadow-orange-500/15 h-8 text-xs rounded-sm"
           disabled={busy}
           onClick={() => startSupportForm(null)}
         >

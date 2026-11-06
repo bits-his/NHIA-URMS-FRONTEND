@@ -26,11 +26,15 @@ import {
   STAKEHOLDER_LOCATION_CATEGORIES,
   STAKEHOLDER_PROGRAMS,
   STAKEHOLDER_STATUSES,
+  STAKEHOLDER_OTHER,
   STAKEHOLDER_TARGET_AUDIENCES,
   STAKEHOLDER_YES_NO,
   outcomeCategoriesForEngagement,
   specificOutcomesFor,
+  isStakeholderOther,
   isValidStakeholderOutcome,
+  stakeholderOtherBase,
+  stakeholderOtherText,
   STAKEHOLDER_OTHER_OUTCOME_CATEGORY,
   STAKEHOLDER_OTHER_SPECIFIC_OUTCOME,
 } from "./stakeholderTypes";
@@ -42,6 +46,32 @@ function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
       className="w-full min-h-[4rem] rounded-sm px-3.5 py-2 text-sm bg-[#f4f7f5] border-2 border-[#1a7a52] text-slate-800 shadow-xs outline-none hover:border-[#0f3d2e] hover:bg-white focus-visible:border-[#0f3d2e] focus-visible:bg-white focus-visible:ring-3 focus-visible:ring-[#1a7a52]/25"
     />
   );
+}
+
+function readOtherList(values: string[], known: readonly string[]) {
+  const knownSet = new Set(known.filter((item) => !isStakeholderOther(item)));
+  const selected: string[] = [];
+  let other = "";
+  for (const raw of values) {
+    const text = stakeholderOtherText(raw);
+    if (isStakeholderOther(raw) || text || (raw && !knownSet.has(raw))) {
+      if (!selected.includes(STAKEHOLDER_OTHER)) selected.push(STAKEHOLDER_OTHER);
+      if (text) other = text;
+      else if (!isStakeholderOther(raw)) other = raw;
+    } else if (raw) {
+      selected.push(raw);
+    }
+  }
+  return { selected, other };
+}
+
+function writeOtherList(values: string[], text: string) {
+  const specified = text.trim();
+  return values.map((value) => (
+    isStakeholderOther(value)
+      ? (specified ? `${STAKEHOLDER_OTHER}: ${specified}` : STAKEHOLDER_OTHER)
+      : value
+  ));
 }
 
 const uid = () => Math.random().toString(36).slice(2);
@@ -285,6 +315,9 @@ export default function StakeholderEngagementForm({
   const [otherSpecificOutcome, setOtherSpecificOutcome] = React.useState("");
   const [otherLocationCategory, setOtherLocationCategory] = React.useState("");
   const [otherLocationName, setOtherLocationName] = React.useState("");
+  const [otherEngagement, setOtherEngagement] = React.useState("");
+  const [otherStakeholder, setOtherStakeholder] = React.useState("");
+  const [otherTargetAudience, setOtherTargetAudience] = React.useState("");
   const [fieldErrors, setFieldErrors] = React.useState<Record<string, string>>({});
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const followUpFileRef = React.useRef<HTMLInputElement>(null);
@@ -367,11 +400,20 @@ export default function StakeholderEngagementForm({
     if (!e.specific_activity.trim()) return fail("specific_activity", "Enter the specific engagement activity");
     if (!e.engagement_purpose.trim()) return fail("engagement_purpose", "Enter the engagement purpose");
 
+    if (isStakeholderOther(e.engagement_category) && !otherEngagement.trim()) {
+      return fail("engagement_category", "Please specify the engagement category");
+    }
+    if (e.stakeholder_categories.some(isStakeholderOther) && !otherStakeholder.trim()) {
+      return fail("stakeholder_categories", "Please specify the stakeholder");
+    }
+    if (e.target_audience_reached.some(isStakeholderOther) && !otherTargetAudience.trim()) {
+      return fail("target_audience", "Please specify the target audience");
+    }
     if (e.location_category === "Other" && !otherLocationCategory.trim()) {
       return fail("location_category", "Please specify the location category");
     }
     if (e.location_name === "Other" && !otherLocationName.trim()) {
-      return fail("location_name", "Please specify the location name");
+      return fail("location_name", "Please specify the location");
     }
 
     if (!e.outcomes.length && draftOutcome.outcome_category && draftOutcome.specific_outcome) {
@@ -379,7 +421,19 @@ export default function StakeholderEngagementForm({
     }
     if (!e.outcomes.length) return fail("outcomes", "Select outcome category and specific outcome");
     for (const o of e.outcomes) {
-      if (!isValidStakeholderOutcome(e.engagement_category, o.outcome_category, o.specific_outcome)) {
+      if (isStakeholderOther(o.outcome_category) && !otherOutcomeCategory.trim()) {
+        return fail("outcome_category", "Please specify the outcome category");
+      }
+      if (isStakeholderOther(o.specific_outcome) && !otherSpecificOutcome.trim()) {
+        return fail("specific_outcome", "Please specify the activity outcome");
+      }
+      const category = isStakeholderOther(o.outcome_category) && otherOutcomeCategory.trim()
+        ? `${STAKEHOLDER_OTHER}: ${otherOutcomeCategory.trim()}`
+        : o.outcome_category;
+      const specific = isStakeholderOther(o.specific_outcome) && otherSpecificOutcome.trim()
+        ? `${STAKEHOLDER_OTHER}: ${otherSpecificOutcome.trim()}`
+        : o.specific_outcome;
+      if (!isValidStakeholderOutcome(e.engagement_category, category, specific)) {
         return fail("outcomes", "Outcome combination is not valid for this engagement category");
       }
     }
@@ -485,6 +539,19 @@ export default function StakeholderEngagementForm({
     const first = (v.lines ?? [])[0];
     setLineKey(uid());
     const loaded = first ? rowToEntry(first) : blankEntry();
+    const audience = readOtherList(loaded.target_audience_reached, STAKEHOLDER_TARGET_AUDIENCES);
+    const stakeholders = readOtherList(loaded.stakeholder_categories, STAKEHOLDER_CATEGORIES);
+    loaded.target_audience_reached = audience.selected;
+    loaded.stakeholder_categories = stakeholders.selected;
+    const engagementText = stakeholderOtherText(loaded.engagement_category);
+    if (stakeholderOtherBase(loaded.engagement_category) === STAKEHOLDER_OTHER) {
+      setOtherEngagement(engagementText);
+      loaded.engagement_category = STAKEHOLDER_OTHER;
+    } else {
+      setOtherEngagement("");
+    }
+    setOtherStakeholder(stakeholders.other);
+    setOtherTargetAudience(audience.other);
     setEntry(loaded);
     if (loaded.location_category === "Other") {
       setOtherLocationCategory(first?.location_category ?? "");
@@ -497,9 +564,13 @@ export default function StakeholderEngagementForm({
       setOtherLocationName("");
     }
     if (loaded.outcomes && loaded.outcomes.length > 0) {
+      const savedCategory = loaded.outcomes[0].outcome_category;
+      const savedOutcome = loaded.outcomes[0].specific_outcome;
+      setOtherOutcomeCategory(stakeholderOtherText(savedCategory));
+      setOtherSpecificOutcome(stakeholderOtherText(savedOutcome));
       setDraftOutcome({
-        outcome_category: loaded.outcomes[0].outcome_category,
-        specific_outcome: loaded.outcomes[0].specific_outcome,
+        outcome_category: stakeholderOtherBase(savedCategory) || savedCategory,
+        specific_outcome: stakeholderOtherBase(savedOutcome) || savedOutcome,
       });
     } else {
       resetDraftOutcome();
@@ -529,7 +600,17 @@ export default function StakeholderEngagementForm({
   const toPayloadLine = (l: Line) => {
     const meta = activities.find((a) => a.label === l.engagement_category)
       ?? STAKEHOLDER_ENGAGEMENT_CATEGORIES.find((a) => a.label === l.engagement_category);
-    const first = l.outcomes.find((o) => o.outcome_category && o.specific_outcome) ?? l.outcomes[0];
+    const savedOutcomes = l.outcomes
+      .filter((o) => o.outcome_category && o.specific_outcome)
+      .map((o) => ({
+        outcome_category: isStakeholderOther(o.outcome_category) && otherOutcomeCategory.trim()
+          ? `${STAKEHOLDER_OTHER}: ${otherOutcomeCategory.trim()}`
+          : o.outcome_category,
+        specific_outcome: isStakeholderOther(o.specific_outcome) && otherSpecificOutcome.trim()
+          ? `${STAKEHOLDER_OTHER}: ${otherSpecificOutcome.trim()}`
+          : o.specific_outcome,
+      }));
+    const first = savedOutcomes[0];
     const isLineFunded = l.funding_option === STAKEHOLDER_FUNDED || l.funding_option === "Budgeted" || l.funding_option === "Budgeted (Approved Release)" || l.funding_option === "Yes";
     const finalLocationCat = l.location_category === "Other" && otherLocationCategory.trim()
       ? otherLocationCategory.trim()
@@ -541,16 +622,18 @@ export default function StakeholderEngagementForm({
     return {
       engagement_code: l.engagement_code ?? meta?.code ?? null,
       activity_date: l.activity_date || null,
-      engagement_category: l.engagement_category,
-      stakeholder_categories: l.stakeholder_categories,
-      stakeholder_names: l.stakeholder_categories.join(", ") || null,
+      engagement_category: isStakeholderOther(l.engagement_category) && otherEngagement.trim()
+        ? `${STAKEHOLDER_OTHER}: ${otherEngagement.trim()}`
+        : l.engagement_category,
+      stakeholder_categories: writeOtherList(l.stakeholder_categories, otherStakeholder),
+      stakeholder_names: writeOtherList(l.stakeholder_categories, otherStakeholder).join(", ") || null,
       specific_activity: l.specific_activity || null,
       engagement_purpose: l.engagement_purpose || null,
       funding_option: l.funding_option || null,
       activity_budget: isLineFunded ? numOrNull(l.activity_budget) : null,
       approved_amount: isLineFunded ? numOrNull(l.approved_amount) : null,
       planned_target_audience: numOrNull(l.planned_target_audience),
-      target_audience_reached: l.target_audience_reached,
+      target_audience_reached: writeOtherList(l.target_audience_reached, otherTargetAudience),
       location_category: finalLocationCat,
       location_name: finalLocationNm,
       location_specify: l.location_specify || null,
@@ -561,7 +644,7 @@ export default function StakeholderEngagementForm({
       supporting_documents: l.supporting_documents,
       outcome_category: first?.outcome_category || null,
       specific_outcome: first?.specific_outcome || null,
-      outcomes: l.outcomes.filter((o) => o.outcome_category && o.specific_outcome),
+      outcomes: savedOutcomes,
       activity_status: l.activity_status || null,
       remarks: l.remarks || null,
       activity_details: l.planned_target_audience
@@ -625,6 +708,7 @@ export default function StakeholderEngagementForm({
                     value={entry.engagement_category}
                     onValueChange={(v) => {
                       setEntry((p) => ({ ...p, engagement_category: v, outcomes: [] }));
+                      if (!isStakeholderOther(v)) setOtherEngagement("");
                       resetDraftOutcome();
                     }}
                   >
@@ -636,14 +720,37 @@ export default function StakeholderEngagementForm({
                     </SelectContent>
                   </Select>
                 </Field>
+                {isStakeholderOther(entry.engagement_category) && (
+                  <Field label="Specify engagement category" required error={fieldErrors.engagement_category}>
+                    <Input
+                      className={inputClass}
+                      value={otherEngagement}
+                      onChange={(e) => setOtherEngagement(e.target.value)}
+                      placeholder="Specify the engagement category"
+                    />
+                  </Field>
+                )}
                 <MultiSelectField
                   label="Stakeholder name(s)"
                   required
                   options={STAKEHOLDER_CATEGORIES}
                   value={entry.stakeholder_categories}
-                  onChange={(v) => set("stakeholder_categories", v)}
+                  onChange={(v) => {
+                    set("stakeholder_categories", v);
+                    if (!v.some(isStakeholderOther)) setOtherStakeholder("");
+                  }}
                   placeholder="Select stakeholders"
                 />
+                {entry.stakeholder_categories.some(isStakeholderOther) && (
+                  <Field label="Specify stakeholder" required error={fieldErrors.stakeholder_categories}>
+                    <Input
+                      className={inputClass}
+                      value={otherStakeholder}
+                      onChange={(e) => setOtherStakeholder(e.target.value)}
+                      placeholder="Specify the stakeholder"
+                    />
+                  </Field>
+                )}
                 {fieldErrors.stakeholder_categories && (
                   <p className="text-[11px] font-medium text-rose-600 sm:col-span-3 -mt-1">{fieldErrors.stakeholder_categories}</p>
                 )}
@@ -667,9 +774,22 @@ export default function StakeholderEngagementForm({
                   label="Target audience"
                   options={STAKEHOLDER_TARGET_AUDIENCES}
                   value={entry.target_audience_reached}
-                  onChange={(v) => set("target_audience_reached", v)}
+                  onChange={(v) => {
+                    set("target_audience_reached", v);
+                    if (!v.some(isStakeholderOther)) setOtherTargetAudience("");
+                  }}
                   placeholder="Select target audience"
                 />
+                {entry.target_audience_reached.some(isStakeholderOther) && (
+                  <Field label="Specify target audience" required error={fieldErrors.target_audience}>
+                    <Input
+                      className={inputClass}
+                      value={otherTargetAudience}
+                      onChange={(e) => setOtherTargetAudience(e.target.value)}
+                      placeholder="Specify the target audience"
+                    />
+                  </Field>
+                )}
                 <MultiSelectField
                   label="Programme supported"
                   options={STAKEHOLDER_PROGRAMS.map((p) => p.label)}
