@@ -178,7 +178,8 @@ export default function ComplianceHubPage({
   return (
     <PageLayout
       title={pageTitle}
-      onBack={handleHeaderBack}
+      onBack={inLeaf ? handleHeaderBack : undefined}
+      showBack={inLeaf}
       maxWidth="full"
       variant="fluid"
       contentClassName="p-0 flex-1 min-h-0"

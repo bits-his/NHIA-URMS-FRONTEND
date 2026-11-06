@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { ColumnDef } from "@tanstack/react-table";
 import PageLayout from "../PageLayout";
+import { UnderHeaderNavTabs } from "@/src/components/UnderHeaderNavTabs";
 import { ShadcnDataTable } from "@/components/common/ShadcnDataTable";
 import { challengesSupportApi as api } from "@/lib/api";
 import { RegisterStatsCards } from "./RegisterStatsCards";
@@ -470,7 +471,7 @@ export default function ChallengesSupportWorkspace({ onBack }: Props) {
         <Button
           variant="outline"
           size="sm"
-          className="gap-1.5 h-8 text-xs rounded-md border-[#d4e8dc]"
+          className="gap-1.5 h-8 text-xs rounded-sm border-[#d4e8dc]"
           disabled={busy || loading}
           onClick={() => void run(refresh)}
         >
@@ -480,7 +481,7 @@ export default function ChallengesSupportWorkspace({ onBack }: Props) {
       {permissions.create && mode === "challenges" && (
         <Button
           size="sm"
-          className="bg-orange-action hover:bg-orange-600 gap-1.5 shadow-md shadow-orange-500/15 h-8 text-xs rounded-md"
+          className="bg-orange-action hover:bg-orange-600 gap-1.5 shadow-md shadow-orange-500/15 h-8 text-xs rounded-sm"
           disabled={busy}
           onClick={() => startChallengeForm()}
         >
@@ -490,7 +491,7 @@ export default function ChallengesSupportWorkspace({ onBack }: Props) {
       {permissions.create && mode === "support" && (
         <Button
           size="sm"
-          className="bg-orange-action hover:bg-orange-600 gap-1.5 shadow-md shadow-orange-500/15 h-8 text-xs rounded-md"
+          className="bg-orange-action hover:bg-orange-600 gap-1.5 shadow-md shadow-orange-500/15 h-8 text-xs rounded-sm"
           disabled={busy}
           onClick={() => startSupportForm(null)}
         >
@@ -502,37 +503,15 @@ export default function ChallengesSupportWorkspace({ onBack }: Props) {
 
 
   const tabs = ["challenges", "support"].includes(mode) ? (
-    <div className="flex gap-0 overflow-x-auto -mb-px" role="tablist" aria-label="Challenges and Support">
-      {[
-        { key: "challenges", label: "Challenges Register", count: challenges.length, icon: AlertTriangle },
-        { key: "support", label: "Support Requests", count: supportList.length, icon: HandHelping },
-      ].map(({ key, label, count, icon: Icon }) => (
-        <button
-          key={key}
-          type="button"
-          role="tab"
-          aria-selected={mode === key}
-          onClick={() => setMode(key as any)}
-          className={`group relative shrink-0 inline-flex items-center gap-2 px-4 py-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors outline-none focus-visible:bg-[#f4f7f5] ${
-            mode === key
-              ? "border-[#145c3f] text-[#145c3f]"
-              : "border-transparent text-slate-500 hover:text-[#0f3d2e] hover:border-[#c5ddd0]"
-          }`}
-        >
-          <Icon className="w-4 h-4" />
-          <span>{label}</span>
-          {count !== null && (
-            <span
-              className={`inline-flex min-w-[1.25rem] h-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold tabular-nums ${
-                mode === key ? "bg-[#e8f6ee] text-[#145c3f]" : "bg-slate-100 text-slate-500"
-              }`}
-            >
-              {count}
-            </span>
-          )}
-        </button>
-      ))}
-    </div>
+    <UnderHeaderNavTabs
+      tabs={[
+        { id: "challenges", label: "Challenges Register", icon: AlertTriangle, count: challenges.length },
+        { id: "support", label: "Support Requests", icon: HandHelping, count: supportList.length },
+      ]}
+      activeTab={mode === "support" ? "support" : "challenges"}
+      onChange={(key) => setMode(key)}
+      ariaLabel="Challenges and Support"
+    />
   ) : undefined;
 
   /* ── Challenge form ── */
@@ -756,7 +735,7 @@ export default function ChallengesSupportWorkspace({ onBack }: Props) {
       }
       onBack={isViewOrForm ? handleBack : undefined}
       actions={actions}
-      filters={tabs}
+      tabs={tabs}
       loading={loading}
       error={error}
       contentClassName={isForm ? "w-full p-0 md:p-0 gap-0" : "space-y-3 pb-6"}

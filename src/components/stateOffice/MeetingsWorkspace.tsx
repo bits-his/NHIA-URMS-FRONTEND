@@ -589,12 +589,12 @@ export default function MeetingsWorkspace({ onBack, initialTab = "meetings" }: {
         </Button>
       )}
       {mode === "list" && permissions.create && tab === "meetings" && (
-        <Button className={ACTION} disabled={busy} onClick={() => void startMeetingForm()}>
+        <Button size="sm" className={ACTION} disabled={busy} onClick={() => void startMeetingForm()}>
           <Plus className="w-4 h-4" /> New Meeting Report
         </Button>
       )}
       {mode === "list" && permissions.create && tab === "etmc" && (
-        <Button className={ACTION} disabled={busy} onClick={() => void startEtmcForm()}>
+        <Button size="sm" className={ACTION} disabled={busy} onClick={() => void startEtmcForm()}>
           <Plus className="w-4 h-4" /> New ETMC Report
         </Button>
       )}

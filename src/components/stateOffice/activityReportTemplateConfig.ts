@@ -135,7 +135,7 @@ export const ACTIVITY_TEMPLATE_BY_MODULE: Record<string, ActivityReportTemplateC
   "stakeholder-others": stakeholderBase({
     activityModule: "stakeholder-others",
     pageTitle: "Other Stakeholder Activities",
-    activityFilter: ["Ad-Hoc Activity", "Others (specify)"],
+    activityFilter: ["Ad-Hoc Activity", "Other"],
     activitiesTitle: "Other stakeholder activities",
   }),
   accreditation: providerBase({

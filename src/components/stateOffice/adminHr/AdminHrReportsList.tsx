@@ -207,6 +207,7 @@ export default function AdminHrReportsList({
           </Button>
           {canCreate && (
           <Button
+            size="sm"
             className="bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20"
             onClick={() => { setSelectedId(null); setMode("create"); }}
           >
