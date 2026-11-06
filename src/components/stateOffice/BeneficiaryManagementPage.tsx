@@ -418,16 +418,16 @@ export default function BeneficiaryManagementPage({ onBack, defaultZoneId, defau
             ))}
           </div>
 
-          <Card className="rounded-lg border-[#d4e8dc] shadow-2xs">
-            <CardContent className="pt-4 pb-4 grid grid-flow-col auto-cols-fr gap-3">
+          <Card className="rounded-sm border border-[#d4e8dc] py-0 gap-0 shadow-2xs bg-white">
+            <CardContent className="py-1.5 px-3 grid grid-flow-col auto-cols-fr gap-2.5 items-end">
               {showStateFilter && (
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">State</Label>
+                <div className="space-y-0.5 min-w-0">
+                  <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">State</Label>
                   <Select
                     value={filterState === ALL_STATES ? "all" : filterState}
                     onValueChange={(v) => setFilterState(v === "all" ? ALL_STATES : v)}
                   >
-                    <SelectTrigger displayValue={filterState === ALL_STATES ? "All States" : (states.find((s) => String(s.id) === filterState)?.description || "State")}>
+                    <SelectTrigger size="sm" displayValue={filterState === ALL_STATES ? "All States" : (states.find((s) => String(s.id) === filterState)?.description || "State")}>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -439,10 +439,10 @@ export default function BeneficiaryManagementPage({ onBack, defaultZoneId, defau
                   </Select>
                 </div>
               )}
-              <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">Year</Label>
+              <div className="space-y-0.5 min-w-0">
+                <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Year</Label>
                 <Select value={filterYear} onValueChange={setFilterYear}>
-                  <SelectTrigger displayValue={filterYear === "all" ? "All Years" : filterYear}><SelectValue /></SelectTrigger>
+                  <SelectTrigger size="sm" displayValue={filterYear === "all" ? "All Years" : filterYear}><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Years</SelectItem>
                     {yearOptions.map((year) => (
@@ -451,10 +451,10 @@ export default function BeneficiaryManagementPage({ onBack, defaultZoneId, defau
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">Month</Label>
+              <div className="space-y-0.5 min-w-0">
+                <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Month</Label>
                 <Select value={filterMonth} onValueChange={setFilterMonth}>
-                  <SelectTrigger displayValue={filterMonth === "all" ? "All Months" : monthLabel(filterMonth)}><SelectValue /></SelectTrigger>
+                  <SelectTrigger size="sm" displayValue={filterMonth === "all" ? "All Months" : monthLabel(filterMonth)}><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Months</SelectItem>
                     {MONTHS.map((month) => (
@@ -463,10 +463,10 @@ export default function BeneficiaryManagementPage({ onBack, defaultZoneId, defau
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">Status</Label>
+              <div className="space-y-0.5 min-w-0">
+                <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Status</Label>
                 <Select value={filterStatus} onValueChange={setFilterStatus}>
-                  <SelectTrigger displayValue={
+                  <SelectTrigger size="sm" displayValue={
                     filterStatus === "all" ? "All Statuses"
                       : filterStatus === "draft" ? "Draft"
                       : filterStatus === "submitted" ? "In review"

@@ -232,35 +232,6 @@ export default function StateAssignmentReportPage({
             )}
           </div>
         </div>
-
-        <div className="flex items-center gap-2 shrink-0">
-          {!isClosed && (
-            <>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => handleSubmit(undefined, true)}
-                disabled={submitting}
-                className="gap-1.5 border-emerald-300 text-emerald-800 hover:bg-emerald-50"
-              >
-                <Save className="w-3.5 h-3.5" /> Save to Draft
-              </Button>
-              <Button
-                size="sm"
-                onClick={() => handleSubmit(undefined, false)}
-                disabled={submitting}
-                className="gap-1.5 bg-[#145c3f] hover:bg-[#0f3d2e] text-white shadow-xs"
-              >
-                {submitting ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <Send className="w-3.5 h-3.5" />
-                )}
-                Submit Report
-              </Button>
-            </>
-          )}
-        </div>
       </div>
 
       {/* Main Content Body */}
@@ -489,6 +460,14 @@ export default function StateAssignmentReportPage({
                   Submitting as: <strong className="text-slate-600">{userName}</strong> • {stateAssignment.state_assignment_id}
                 </span>
                 <div className="flex items-center gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={onBack}
+                    disabled={submitting}
+                  >
+                    Cancel
+                  </Button>
                   {!isClosed && (
                     <>
                       <Button

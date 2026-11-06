@@ -51,6 +51,8 @@ interface Props {
   showGeoIds?: boolean;
   /** Zone · State · Year · Month · Quarter header (ICT register) */
   showQuarter?: boolean;
+  /** Hide quarter when showQuarter is true */
+  hideQuarter?: boolean;
   /** With showQuarter: Zone · State · Year only (Expenditure year matrix). */
   yearOnly?: boolean;
   afterPersist?: (saved: { id: number | string }) => Promise<void>;
@@ -78,6 +80,7 @@ export default function StateOfficeFormShell({
   reportWeek, setReportWeek,
   showGeoIds,
   showQuarter,
+  hideQuarter,
   yearOnly = false,
   pageTitle,
   pageSubtitle,
@@ -240,6 +243,7 @@ export default function StateOfficeFormShell({
                   setReportWeek={setReportWeek}
                   showGeoIds={showGeoIds}
                   showQuarter={showQuarter}
+                  hideQuarter={hideQuarter}
                   yearOnly={yearOnly}
                   submitDateLabel={submitDateLabel}
                 />

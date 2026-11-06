@@ -202,13 +202,13 @@ export default function StockVerificationDashboard({ onBack, defaultStateId, def
       contentClassName="space-y-4 w-full pb-8"
     >
       <div className="w-full space-y-4">
-        <Card className="rounded-lg border-[#d4e8dc] shadow-2xs">
-          <CardContent className="pt-4 pb-4 space-y-3">
-            <div className={`grid gap-3 ${geoLocked ? "grid-cols-2 md:grid-cols-3 xl:grid-cols-6" : "grid-cols-2 md:grid-cols-3 xl:grid-cols-4"}`}>
-              <div className="space-y-1 min-w-0">
-                <Label className="text-xs text-muted-foreground">Year</Label>
+        <Card className="rounded-sm border border-[#d4e8dc] py-0 gap-0 shadow-2xs bg-white">
+          <CardContent className="py-1.5 px-3 space-y-1.5">
+            <div className={`grid gap-2.5 items-end ${geoLocked ? "grid-cols-2 md:grid-cols-3 xl:grid-cols-6" : "grid-cols-2 md:grid-cols-3 xl:grid-cols-4"}`}>
+              <div className="space-y-0.5 min-w-0">
+                <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Year</Label>
                 <Select value={year} onValueChange={setYear}>
-                  <SelectTrigger className="w-full" displayValue={year === "all" ? "All Years" : year}>
+                  <SelectTrigger size="sm" className="w-full" displayValue={year === "all" ? "All Years" : year}>
                     <SelectValue placeholder="Year" />
                   </SelectTrigger>
                   <SelectContent>
@@ -218,10 +218,10 @@ export default function StockVerificationDashboard({ onBack, defaultStateId, def
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1 min-w-0">
-                <Label className="text-xs text-muted-foreground">Quarter</Label>
+              <div className="space-y-0.5 min-w-0">
+                <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Quarter</Label>
                 <Select value={quarter} onValueChange={setQuarter}>
-                  <SelectTrigger className="w-full" displayValue={quarter === "all" ? "All Quarters" : `Q${quarter}`}>
+                  <SelectTrigger size="sm" className="w-full" displayValue={quarter === "all" ? "All Quarters" : `Q${quarter}`}>
                     <SelectValue placeholder="Quarter" />
                   </SelectTrigger>
                   <SelectContent>
@@ -232,10 +232,10 @@ export default function StockVerificationDashboard({ onBack, defaultStateId, def
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1 min-w-0">
-                <Label className="text-xs text-muted-foreground">Office</Label>
+              <div className="space-y-0.5 min-w-0">
+                <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Office</Label>
                 <Select value={office} onValueChange={setOffice}>
-                  <SelectTrigger className="w-full" displayValue={office === "all" ? "All Offices" : office.toUpperCase()}>
+                  <SelectTrigger size="sm" className="w-full" displayValue={office === "all" ? "All Offices" : office.toUpperCase()}>
                     <SelectValue placeholder="Office" />
                   </SelectTrigger>
                   <SelectContent>
@@ -246,10 +246,10 @@ export default function StockVerificationDashboard({ onBack, defaultStateId, def
               </div>
               {!geoLocked && (
                 <>
-                  <div className="space-y-1 min-w-0">
-                    <Label className="text-xs text-muted-foreground">Zone</Label>
+                  <div className="space-y-0.5 min-w-0">
+                    <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Zone</Label>
                     <Select value={filterZone} onValueChange={(v) => { setFilterZone(v); setFilterState("all"); }}>
-                      <SelectTrigger className="w-full" displayValue={zoneLabel}>
+                      <SelectTrigger size="sm" className="w-full" displayValue={zoneLabel}>
                         <SelectValue placeholder="Zone" />
                       </SelectTrigger>
                       <SelectContent>
@@ -260,10 +260,10 @@ export default function StockVerificationDashboard({ onBack, defaultStateId, def
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="space-y-1 min-w-0">
-                    <Label className="text-xs text-muted-foreground">State</Label>
+                  <div className="space-y-0.5 min-w-0">
+                    <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">State</Label>
                     <Select value={filterState} onValueChange={setFilterState}>
-                      <SelectTrigger className="w-full" displayValue={stateLabel}>
+                      <SelectTrigger size="sm" className="w-full" displayValue={stateLabel}>
                         <SelectValue placeholder="State" />
                       </SelectTrigger>
                       <SelectContent>
@@ -276,10 +276,10 @@ export default function StockVerificationDashboard({ onBack, defaultStateId, def
                   </div>
                 </>
               )}
-              <div className="space-y-1 min-w-0">
-                <Label className="text-xs text-muted-foreground">Category</Label>
+              <div className="space-y-0.5 min-w-0">
+                <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Category</Label>
                 <Select value={category} onValueChange={setCategory}>
-                  <SelectTrigger className="w-full" displayValue={category === "all" ? "All Categories" : category}>
+                  <SelectTrigger size="sm" className="w-full" displayValue={category === "all" ? "All Categories" : category}>
                     <SelectValue placeholder="Category" />
                   </SelectTrigger>
                   <SelectContent>
@@ -290,10 +290,10 @@ export default function StockVerificationDashboard({ onBack, defaultStateId, def
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1 min-w-0">
-                <Label className="text-xs text-muted-foreground">Status</Label>
+              <div className="space-y-0.5 min-w-0">
+                <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Status</Label>
                 <Select value={status} onValueChange={setStatus}>
-                  <SelectTrigger className="w-full" displayValue={status === "all" ? "All Statuses" : status}>
+                  <SelectTrigger size="sm" className="w-full" displayValue={status === "all" ? "All Statuses" : status}>
                     <SelectValue placeholder="Status" />
                   </SelectTrigger>
                   <SelectContent>
@@ -304,10 +304,10 @@ export default function StockVerificationDashboard({ onBack, defaultStateId, def
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1 min-w-0">
-                <Label className="text-xs text-muted-foreground">Condition</Label>
+              <div className="space-y-0.5 min-w-0">
+                <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Condition</Label>
                 <Select value={condition} onValueChange={setCondition}>
-                  <SelectTrigger className="w-full" displayValue={condition === "all" ? "All Conditions" : condition}>
+                  <SelectTrigger size="sm" className="w-full" displayValue={condition === "all" ? "All Conditions" : condition}>
                     <SelectValue placeholder="Condition" />
                   </SelectTrigger>
                   <SelectContent>
@@ -320,8 +320,8 @@ export default function StockVerificationDashboard({ onBack, defaultStateId, def
               </div>
             </div>
             {hasFilters && (
-              <div className="flex justify-end">
-                <Button variant="ghost" size="sm" className="text-slate-500 gap-1 shrink-0" onClick={clearFilters}>
+              <div className="flex justify-end pt-0.5">
+                <Button variant="ghost" size="sm" className="h-7 text-xs text-slate-500 gap-1 shrink-0" onClick={clearFilters}>
                   <XCircle className="w-3.5 h-3.5" /> Clear
                 </Button>
               </div>

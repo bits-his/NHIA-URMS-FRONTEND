@@ -1,3 +1,5 @@
+import { useSelector } from "react-redux";
+import type { RootState } from "@/src/store/store";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -31,6 +33,8 @@ interface Props {
   showGeoIds?: boolean;
   /** Zone · State · Year · Month · Quarter (hides submission date) */
   showQuarter?: boolean;
+  /** Hide Quarter when showQuarter is true */
+  hideQuarter?: boolean;
   /** With showQuarter: only Zone · State · Year (for year matrices like Expenditure). */
   yearOnly?: boolean;
   /** Render fields without an outer card (for embedding in a parent card) */
@@ -48,6 +52,7 @@ export default function ReportBasicInfo({
   reportWeek, setReportWeek,
   showGeoIds,
   showQuarter,
+  hideQuarter,
   yearOnly,
   embedded,
   dense = false,
@@ -58,40 +63,73 @@ export default function ReportBasicInfo({
   const showWeek = reportWeek !== undefined && setReportWeek !== undefined;
   const weekLabel = WEEKS_OF_MONTH.find(w => w.value === reportWeek)?.label ?? "Select Week";
   const quarter = String(quarterFromMonth(reportMonth || 1));
-  const stack = dense ? "space-y-1" : "space-y-2";
-  const labelCls = dense ? "text-xs font-semibold text-slate-600" : undefined;
-  const trigger = (extra = "") => `w-full ${dense ? "h-8 text-xs" : ""} ${extra}`.trim();
+  const stack = dense ? "space-y-1" : "space-y-1.5";
+  const labelCls = "text-xs font-semibold text-slate-700";
+  const trigger = (extra = "") => `w-full h-10 text-sm font-medium rounded-sm bg-[#f4f7f5] border-2 border-[#1a7a52] hover:border-[#0f3d2e] hover:bg-white focus-visible:border-[#0f3d2e] focus-visible:bg-white ${dense ? "h-8 text-xs" : ""} ${extra}`.trim();
+
+  const authUser = useSelector((s: RootState) => s.auth.user);
+  const userRole = (authUser?.role || "").toLowerCase();
+  const isAdmin = ["admin", "sdo", "dg-ceo", "hq-department"].includes(userRole) || authUser?.role_config?.report_scope === "national";
+  const showGeo = isAdmin;
+  const canSelectGeo = isAdmin && !lockZone && !lockState;
+
+  const displayZone = zoneLabel !== "—" ? zoneLabel : (authUser?.zone?.description || authUser?.zonal_code || "—");
+  const displayState = stateLabel !== "—" ? stateLabel : (authUser?.state?.description || authUser?.state_code || "—");
+
+  const gridCols = showGeo
+    ? (showWeek ? "grid-cols-2 md:grid-cols-3 lg:grid-cols-5" : (showQuarter && !hideQuarter ? "grid-cols-2 md:grid-cols-3 lg:grid-cols-5" : "grid-cols-2 md:grid-cols-4"))
+    : (showWeek ? "grid-cols-2 md:grid-cols-3" : (showQuarter && !hideQuarter ? "grid-cols-2 md:grid-cols-3" : "grid-cols-2 md:grid-cols-2"));
 
   const fields = (
-        <div className={`grid grid-cols-2 md:grid-cols-3 ${showWeek ? "lg:grid-cols-3" : "lg:grid-cols-5"} ${dense ? "gap-1.5" : "gap-4"}`}>
-          <div className={stack}>
-            <Label className={labelCls}>Zone <span className="text-red-500">*</span></Label>
-            <Select value={zoneId} onValueChange={setZoneId} disabled={lockZone}>
-              <SelectTrigger className={trigger(lockZone ? "opacity-70 bg-slate-50" : "")} displayValue={zoneLabel}>
-                <SelectValue placeholder="Select Zone" />
-              </SelectTrigger>
-              <SelectContent>
-                {zones.map(z => <SelectItem key={z.id} value={String(z.id)}>{z.label}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            {showGeoIds && (
-              <p className="text-[11px] text-slate-500">Zone ID: <span className="font-semibold tabular-nums text-slate-700">{zoneId || "—"}</span></p>
-            )}
-          </div>
-          <div className={stack}>
-            <Label className={labelCls}>State <span className="text-red-500">*</span></Label>
-            <Select value={stateId} onValueChange={setStateId} disabled={lockState || !zoneId}>
-              <SelectTrigger className={trigger(lockState ? "opacity-70 bg-slate-50" : "")} displayValue={stateLabel}>
-                <SelectValue placeholder="Select State" />
-              </SelectTrigger>
-              <SelectContent>
-                {states.map(s => <SelectItem key={s.id} value={String(s.id)}>{s.label}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            {showGeoIds && (
-              <p className="text-[11px] text-slate-500">State ID: <span className="font-semibold tabular-nums text-slate-700">{stateId || "—"}</span></p>
-            )}
-          </div>
+        <div className={`grid ${gridCols} ${dense ? "gap-1.5" : "gap-3"}`}>
+          {showGeo && (
+            <>
+              <div className={stack}>
+                <Label className={labelCls}>Zone <span className="text-red-500">*</span></Label>
+                {canSelectGeo ? (
+                  <Select value={zoneId} onValueChange={setZoneId} disabled={lockZone}>
+                    <SelectTrigger className={trigger(lockZone ? "opacity-70 bg-slate-50" : "")} displayValue={zoneLabel}>
+                      <SelectValue placeholder="Select Zone" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {zones.map(z => <SelectItem key={z.id} value={String(z.id)}>{z.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Input
+                    readOnly
+                    value={displayZone}
+                    className={trigger("opacity-90 bg-slate-100 font-medium cursor-not-allowed")}
+                  />
+                )}
+                {showGeoIds && (
+                  <p className="text-[11px] text-slate-500">Zone ID: <span className="font-semibold tabular-nums text-slate-700">{zoneId || "—"}</span></p>
+                )}
+              </div>
+              <div className={stack}>
+                <Label className={labelCls}>State <span className="text-red-500">*</span></Label>
+                {canSelectGeo ? (
+                  <Select value={stateId} onValueChange={setStateId} disabled={lockState || !zoneId}>
+                    <SelectTrigger className={trigger(lockState ? "opacity-70 bg-slate-50" : "")} displayValue={stateLabel}>
+                      <SelectValue placeholder="Select State" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {states.map(s => <SelectItem key={s.id} value={String(s.id)}>{s.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Input
+                    readOnly
+                    value={displayState}
+                    className={trigger("opacity-90 bg-slate-100 font-medium cursor-not-allowed")}
+                  />
+                )}
+                {showGeoIds && (
+                  <p className="text-[11px] text-slate-500">State ID: <span className="font-semibold tabular-nums text-slate-700">{stateId || "—"}</span></p>
+                )}
+              </div>
+            </>
+          )}
 
           {showQuarter ? (
             <>
@@ -119,15 +157,17 @@ export default function ReportBasicInfo({
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className={stack}>
-                    <Label className={labelCls}>Quarter</Label>
-                    <Input
-                      readOnly
-                      value={reportMonth ? `Q${quarter}` : "—"}
-                      className={`${dense ? "h-8 text-xs" : ""} opacity-70 bg-slate-50`}
-                      tabIndex={-1}
-                    />
-                  </div>
+                  {!hideQuarter && (
+                    <div className={stack}>
+                      <Label className={labelCls}>Quarter</Label>
+                      <Input
+                        readOnly
+                        value={reportMonth ? `Q${quarter}` : "—"}
+                        className={`${dense ? "h-8 text-xs" : "h-10 text-sm"} opacity-70 bg-slate-50 rounded-sm`}
+                        tabIndex={-1}
+                      />
+                    </div>
+                  )}
                 </>
               )}
             </>

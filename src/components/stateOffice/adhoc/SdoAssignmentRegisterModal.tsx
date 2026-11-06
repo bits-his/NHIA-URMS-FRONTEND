@@ -161,7 +161,7 @@ export default function SdoAssignmentRegisterModal({
                   SDO Form 1
                 </span>
                 <DialogTitle className="text-xl font-bold text-slate-800 mt-1">
-                  {initialData ? "Edit Master Assignment Register" : "SDO Assignment Register"}
+                  {initialData ? "Edit Adhoc Assignment Register" : "Adhoc Assignment Register"}
                 </DialogTitle>
                 <p className="text-xs text-slate-500 mt-0.5">
                   Record official departmental instruction and retain original memo document.

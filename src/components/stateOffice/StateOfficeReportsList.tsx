@@ -717,14 +717,14 @@ export default function StateOfficeReportsList({
           </div>
           )}
 
-          <Card className="rounded-sm border-[#d4e8dc]">
-            <CardContent className="pt-2.5 pb-2.5 space-y-2">
-              <div className="grid grid-flow-col auto-cols-fr gap-2.5">
+          <Card className="rounded-sm border border-[#d4e8dc] py-0 gap-0 shadow-2xs bg-white">
+            <CardContent className="py-1.5 px-3 space-y-1.5">
+              <div className="grid grid-flow-col auto-cols-fr gap-2.5 items-end">
                 {showStateFilter && (
-                  <div className="space-y-1 min-w-0">
-                    <Label className="text-xs text-muted-foreground">State</Label>
+                  <div className="space-y-0.5 min-w-0">
+                    <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">State</Label>
                     <Select value={filterState} onValueChange={setFilterState}>
-                      <SelectTrigger className="w-full"
+                      <SelectTrigger size="sm" className="w-full"
                         displayValue={filterState === ALL_STATES
                           ? "All States"
                           : (states.find(s => String(s.id) === filterState)?.description ?? filterState)}>
@@ -740,10 +740,10 @@ export default function StateOfficeReportsList({
                   </div>
                 )}
 
-                <div className="space-y-1 min-w-0">
-                  <Label className="text-xs text-muted-foreground">Year</Label>
+                <div className="space-y-0.5 min-w-0">
+                  <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Year</Label>
                   <Select value={filterYear} onValueChange={setFilterYear}>
-                    <SelectTrigger className="w-full" displayValue={filterYear === "all" ? "All Years" : filterYear}>
+                    <SelectTrigger size="sm" className="w-full" displayValue={filterYear === "all" ? "All Years" : filterYear}>
                       <SelectValue placeholder="All Years" />
                     </SelectTrigger>
                     <SelectContent>
@@ -753,10 +753,10 @@ export default function StateOfficeReportsList({
                   </Select>
                 </div>
 
-                <div className="space-y-1 min-w-0">
-                  <Label className="text-xs text-muted-foreground">Month</Label>
+                <div className="space-y-0.5 min-w-0">
+                  <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Month</Label>
                   <Select value={filterMonth} onValueChange={setFilterMonth}>
-                    <SelectTrigger className="w-full"
+                    <SelectTrigger size="sm" className="w-full"
                       displayValue={filterMonth === "all" ? "All Months" : monthLabel(filterMonth)}>
                       <SelectValue placeholder="All Months" />
                     </SelectTrigger>
@@ -769,10 +769,10 @@ export default function StateOfficeReportsList({
                   </Select>
                 </div>
 
-                <div className="space-y-1 min-w-0">
-                  <Label className="text-xs text-muted-foreground">Status</Label>
+                <div className="space-y-0.5 min-w-0">
+                  <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Status</Label>
                   <Select value={filterStatus} onValueChange={setFilterStatus}>
-                    <SelectTrigger className="w-full"
+                    <SelectTrigger size="sm" className="w-full"
                       displayValue={filterStatus === "all" ? "All Statuses" : STATUS_CONFIG[filterStatus as keyof typeof STATUS_CONFIG]?.label}>
                       <SelectValue placeholder="All Statuses" />
                     </SelectTrigger>
@@ -793,10 +793,10 @@ export default function StateOfficeReportsList({
                 </div>
 
                 {!hasActivityTabs && (reportType === "enrolment" || activityRows) && (
-                  <div className="space-y-1 min-w-0">
-                    <Label className="text-xs text-muted-foreground">Activity</Label>
+                  <div className="space-y-0.5 min-w-0">
+                    <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Activity</Label>
                     <Select value={filterActivity} onValueChange={setFilterActivity}>
-                      <SelectTrigger className="w-full"
+                      <SelectTrigger size="sm" className="w-full"
                         displayValue={
                           filterActivity === "all"
                             ? "All Activities"
@@ -815,8 +815,8 @@ export default function StateOfficeReportsList({
                 )}
               </div>
               {hasFilters && (
-                <div className="flex justify-end">
-                  <Button variant="ghost" size="sm" className="text-slate-500 gap-1 shrink-0" onClick={clearFilters}>
+                <div className="flex justify-end pt-0.5">
+                  <Button variant="ghost" size="sm" className="h-7 text-xs text-slate-500 gap-1 shrink-0" onClick={clearFilters}>
                     <XCircle className="w-3.5 h-3.5" /> Clear
                   </Button>
                 </div>

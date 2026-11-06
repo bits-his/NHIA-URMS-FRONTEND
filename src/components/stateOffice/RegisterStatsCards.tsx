@@ -19,7 +19,7 @@ export function RegisterStatsCards({
   return (
     <div className={className}>
       {stats.map((c) => (
-        <div key={c.label} className={`rounded-xl border px-4 py-3 ${c.tone}`}>
+        <div key={c.label} className={`rounded-sm border px-3 py-2.5 ${c.tone}`}>
           <p className="text-2xl font-bold tabular-nums">{loading ? "—" : c.value}</p>
           <p className="text-[11px] font-semibold text-slate-500 mt-0.5">{c.label}</p>
         </div>

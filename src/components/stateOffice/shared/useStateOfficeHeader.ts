@@ -1,4 +1,6 @@
 import * as React from "react";
+import { useSelector } from "react-redux";
+import type { RootState } from "@/src/store/store";
 import { stockApi } from "@/lib/api";
 
 interface DropdownOption { id: string | number; label: string; }
@@ -9,14 +11,21 @@ export function useStateOfficeHeader(
   defaultReportYear?: string | number | null,
   defaultReportMonth?: string | number | null,
 ) {
+  const authUser = useSelector((s: RootState) => s.auth.user);
+  const userRole = (authUser?.role || "").toLowerCase();
+  const isAdmin = ["admin", "sdo", "dg-ceo", "hq-department"].includes(userRole) || authUser?.role_config?.report_scope === "national";
+
+  const resolvedZoneId = defaultZoneId || (!isAdmin ? (authUser?.zonal_code || authUser?.zone?.zonal_code || (authUser?.zone_id ? String(authUser.zone_id) : "")) : "");
+  const resolvedStateId = defaultStateId || (!isAdmin ? (authUser?.state_code || authUser?.state?.code || (authUser?.state_id ? String(authUser.state_id) : "")) : "");
+
   const hydratingRef = React.useRef(false);
-  const lockZone  = !!defaultZoneId;
-  const lockState = !!defaultStateId;
+  const lockZone  = !!defaultZoneId || (!isAdmin && !!resolvedZoneId);
+  const lockState = !!defaultStateId || (!isAdmin && !!resolvedStateId);
 
   const [zones,  setZones]  = React.useState<DropdownOption[]>([]);
   const [states, setStates] = React.useState<DropdownOption[]>([]);
-  const [zoneId, setZoneId] = React.useState(defaultZoneId ?? "");
-  const [stateId, setStateId] = React.useState(defaultStateId ?? "");
+  const [zoneId, setZoneId] = React.useState(resolvedZoneId ?? "");
+  const [stateId, setStateId] = React.useState(resolvedStateId ?? "");
   const [reportYear, setReportYear] = React.useState(String(defaultReportYear || new Date().getFullYear()));
   const [reportMonth, setReportMonth] = React.useState(String(defaultReportMonth || new Date().getMonth() + 1));
   const [submitDate, setSubmitDate] = React.useState(new Date().toISOString().slice(0, 10));
@@ -35,15 +44,15 @@ export function useStateOfficeHeader(
     stockApi.getStates(zoneId).then(r => {
       const stateOpts = r.data.map((s: any) => ({ id: s.id, label: s.description }));
       setStates(stateOpts);
-      if (lockState && defaultStateId) setStateId(defaultStateId);
-      else if (defaultStateId && r.data.some((s: any) => String(s.id) === defaultStateId)) {
-        setStateId(defaultStateId);
+      if (lockState && resolvedStateId) setStateId(resolvedStateId);
+      else if (resolvedStateId && r.data.some((s: any) => String(s.id) === resolvedStateId || String(s.code) === resolvedStateId)) {
+        setStateId(resolvedStateId);
       }
     }).catch(() => {});
-  }, [zoneId, lockState, defaultStateId]);
+  }, [zoneId, lockState, resolvedStateId]);
 
-  React.useEffect(() => { if (defaultZoneId) setZoneId(defaultZoneId); }, [defaultZoneId]);
-  React.useEffect(() => { if (defaultStateId) setStateId(defaultStateId); }, [defaultStateId]);
+  React.useEffect(() => { if (resolvedZoneId) setZoneId(resolvedZoneId); }, [resolvedZoneId]);
+  React.useEffect(() => { if (resolvedStateId) setStateId(resolvedStateId); }, [resolvedStateId]);
   React.useEffect(() => {
     if (defaultReportYear != null && defaultReportYear !== "") setReportYear(String(defaultReportYear));
   }, [defaultReportYear]);
@@ -67,8 +76,8 @@ export function useStateOfficeHeader(
   };
 
   const resetHeader = () => {
-    setZoneId(defaultZoneId ?? "");
-    setStateId(defaultStateId ?? "");
+    setZoneId(resolvedZoneId ?? "");
+    setStateId(resolvedStateId ?? "");
     setReportYear(String(defaultReportYear || new Date().getFullYear()));
     setReportMonth(String(defaultReportMonth || new Date().getMonth() + 1));
     setSubmitDate(new Date().toISOString().slice(0, 10));

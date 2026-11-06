@@ -817,67 +817,69 @@ export default function ServicomSatisfactionSurveyPage({
           ]}
         />
 
-        <Card className="rounded-lg border-[#d4e8dc] shadow-2xs">
-            <CardContent className="pt-4 pb-4 grid grid-flow-col auto-cols-fr gap-3">
-              {!geoLocked && (
-                <>
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">Zone</Label>
-                    <Select
-                      value={filterZone}
-                      onValueChange={(v) => {
-                        setFilterZone(v);
-                        setFilterState("all");
-                      }}
+        <Card className="rounded-sm border border-[#d4e8dc] py-0 gap-0 shadow-2xs bg-white">
+          <CardContent className="py-1.5 px-3 grid grid-flow-col auto-cols-fr gap-2.5 items-end">
+            {!geoLocked && (
+              <>
+                <div className="space-y-0.5 min-w-0">
+                  <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Zone</Label>
+                  <Select
+                    value={filterZone}
+                    onValueChange={(v) => {
+                      setFilterZone(v);
+                      setFilterState("all");
+                    }}
+                  >
+                    <SelectTrigger size="sm" className="w-full" displayValue={filterZone === "all" ? "All Zones" : pickGeoLabel(zones, filterZone, "Zone")}>
+                      <SelectValue placeholder="All Zones" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Zones</SelectItem>
+                      {zones.map((z) => (
+                        <SelectItem key={z.zonal_code} value={z.zonal_code}>
+                          {z.description || z.name || z.zonal_code}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-0.5 min-w-0">
+                  <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">State</Label>
+                  <Select value={filterState} onValueChange={setFilterState}>
+                    <SelectTrigger
+                      size="sm"
+                      className="w-full"
+                      displayValue={
+                        filterState === "all"
+                          ? "All States"
+                          : pickGeoLabel(filterStates.length ? filterStates : states, filterState, "State")
+                      }
                     >
-                      <SelectTrigger className="w-full" displayValue={filterZone === "all" ? "All Zones" : pickGeoLabel(zones, filterZone, "Zone")}>
-                        <SelectValue placeholder="All Zones" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Zones</SelectItem>
-                        {zones.map((z) => (
-                          <SelectItem key={z.zonal_code} value={z.zonal_code}>
-                            {z.description || z.name || z.zonal_code}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">State</Label>
-                    <Select value={filterState} onValueChange={setFilterState}>
-                      <SelectTrigger
-                        className="w-full"
-                        displayValue={
-                          filterState === "all"
-                            ? "All States"
-                            : pickGeoLabel(filterStates.length ? filterStates : states, filterState, "State")
-                        }
-                      >
-                        <SelectValue placeholder="All States" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All States</SelectItem>
-                        {(filterStates.length ? filterStates : states).map((s) => (
-                          <SelectItem key={s.code} value={s.code}>
-                            {s.description || s.name || s.code}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </>
-              )}
-              <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">Survey date</Label>
-                <Input
-                  type="date"
-                  value={filterDate}
-                  onChange={(e) => setFilterDate(e.target.value)}
-                />
-              </div>
-            </CardContent>
-          </Card>
+                      <SelectValue placeholder="All States" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All States</SelectItem>
+                      {(filterStates.length ? filterStates : states).map((s) => (
+                        <SelectItem key={s.code} value={s.code}>
+                          {s.description || s.name || s.code}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
+            )}
+            <div className="space-y-0.5 min-w-0">
+              <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Survey date</Label>
+              <Input
+                className="h-8 text-xs rounded-sm"
+                type="date"
+                value={filterDate}
+                onChange={(e) => setFilterDate(e.target.value)}
+              />
+            </div>
+          </CardContent>
+        </Card>
 
           <ShadcnDataTable
             title="SURVEY SUBMISSIONS REGISTER"

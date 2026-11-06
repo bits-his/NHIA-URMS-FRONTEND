@@ -229,14 +229,14 @@ export default function AdminHrReportsList({
             ]}
           />
 
-          <Card className="rounded-sm border-[#d4e8dc]">
-            <CardContent className="pt-4 pb-4 space-y-3">
-              <div className="grid grid-flow-col auto-cols-fr gap-3">
+          <Card className="rounded-sm border border-[#d4e8dc] py-0 gap-0 shadow-2xs bg-white">
+            <CardContent className="py-1.5 px-3 space-y-1.5">
+              <div className="grid grid-flow-col auto-cols-fr gap-2.5 items-end">
                 {showStateFilter && (
-                  <div className="space-y-1 min-w-0">
-                    <Label className="text-xs text-muted-foreground">State</Label>
+                  <div className="space-y-0.5 min-w-0">
+                    <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">State</Label>
                     <Select value={filterState} onValueChange={setFilterState}>
-                      <SelectTrigger className="w-full" displayValue={filterState === ALL_STATES ? "All States" : (states.find((s) => String(s.id) === filterState)?.description ?? filterState)}>
+                      <SelectTrigger size="sm" className="w-full" displayValue={filterState === ALL_STATES ? "All States" : (states.find((s) => String(s.id) === filterState)?.description ?? filterState)}>
                         <SelectValue placeholder="All States" />
                       </SelectTrigger>
                       <SelectContent>
@@ -248,10 +248,10 @@ export default function AdminHrReportsList({
                     </Select>
                   </div>
                 )}
-                <div className="space-y-1 min-w-0">
-                  <Label className="text-xs text-muted-foreground">Year</Label>
+                <div className="space-y-0.5 min-w-0">
+                  <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Year</Label>
                   <Select value={filterYear} onValueChange={setFilterYear}>
-                    <SelectTrigger className="w-full" displayValue={filterYear === "all" ? "All Years" : filterYear}>
+                    <SelectTrigger size="sm" className="w-full" displayValue={filterYear === "all" ? "All Years" : filterYear}>
                       <SelectValue placeholder="All Years" />
                     </SelectTrigger>
                     <SelectContent>
@@ -260,10 +260,10 @@ export default function AdminHrReportsList({
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-1 min-w-0">
-                  <Label className="text-xs text-muted-foreground">Month</Label>
+                <div className="space-y-0.5 min-w-0">
+                  <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Month</Label>
                   <Select value={filterMonth} onValueChange={setFilterMonth}>
-                    <SelectTrigger className="w-full" displayValue={filterMonth === "all" ? "All Months" : monthLabel(filterMonth)}>
+                    <SelectTrigger size="sm" className="w-full" displayValue={filterMonth === "all" ? "All Months" : monthLabel(filterMonth)}>
                       <SelectValue placeholder="All Months" />
                     </SelectTrigger>
                     <SelectContent>
@@ -274,10 +274,10 @@ export default function AdminHrReportsList({
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-1 min-w-0">
-                  <Label className="text-xs text-muted-foreground">Status</Label>
+                <div className="space-y-0.5 min-w-0">
+                  <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Status</Label>
                   <Select value={filterStatus} onValueChange={setFilterStatus}>
-                    <SelectTrigger className="w-full" displayValue={filterStatus === "all" ? "All Statuses" : STATUS_CONFIG[filterStatus as keyof typeof STATUS_CONFIG]?.label}>
+                    <SelectTrigger size="sm" className="w-full" displayValue={filterStatus === "all" ? "All Statuses" : STATUS_CONFIG[filterStatus as keyof typeof STATUS_CONFIG]?.label}>
                       <SelectValue placeholder="All Statuses" />
                     </SelectTrigger>
                     <SelectContent>
@@ -290,10 +290,10 @@ export default function AdminHrReportsList({
                 </div>
                 {isVehicle && (
                   <>
-                    <div className="space-y-1 min-w-0">
-                      <Label className="text-xs text-muted-foreground">Maintenance Type</Label>
+                    <div className="space-y-0.5 min-w-0">
+                      <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Maintenance Type</Label>
                       <Select value={filterMaintenanceType} onValueChange={setFilterMaintenanceType}>
-                        <SelectTrigger className="w-full" displayValue={filterMaintenanceType === "all" ? "All Types" : filterMaintenanceType}>
+                        <SelectTrigger size="sm" className="w-full" displayValue={filterMaintenanceType === "all" ? "All Types" : filterMaintenanceType}>
                           <SelectValue placeholder="All Types" />
                         </SelectTrigger>
                         <SelectContent>
@@ -304,10 +304,10 @@ export default function AdminHrReportsList({
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="space-y-1 min-w-0">
-                      <Label className="text-xs text-muted-foreground">Vehicle Status</Label>
+                    <div className="space-y-0.5 min-w-0">
+                      <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Vehicle Status</Label>
                       <Select value={filterVehicleStatus} onValueChange={setFilterVehicleStatus}>
-                        <SelectTrigger className="w-full" displayValue={filterVehicleStatus === "all" ? "All Vehicle Statuses" : filterVehicleStatus}>
+                        <SelectTrigger size="sm" className="w-full" displayValue={filterVehicleStatus === "all" ? "All Vehicle Statuses" : filterVehicleStatus}>
                           <SelectValue placeholder="All Vehicle Statuses" />
                         </SelectTrigger>
                         <SelectContent>
@@ -322,8 +322,8 @@ export default function AdminHrReportsList({
                 )}
               </div>
               {hasFilters && (
-                <div className="flex justify-end">
-                  <Button variant="ghost" size="sm" className="text-slate-500 gap-1 shrink-0" onClick={clearFilters}>
+                <div className="flex justify-end pt-0.5">
+                  <Button variant="ghost" size="sm" className="h-7 text-xs text-slate-500 gap-1 shrink-0" onClick={clearFilters}>
                     <XCircle className="w-3.5 h-3.5" /> Clear
                   </Button>
                 </div>

@@ -39,7 +39,7 @@ function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return (
     <textarea
       {...props}
-      className="w-full min-h-[4rem] rounded-xl px-3.5 py-2 text-sm bg-[#f4f7f5] border-2 border-[#1a7a52] text-slate-800 shadow-xs outline-none hover:border-[#0f3d2e] hover:bg-white focus-visible:border-[#0f3d2e] focus-visible:bg-white focus-visible:ring-3 focus-visible:ring-[#1a7a52]/25"
+      className="w-full min-h-[4rem] rounded-sm px-3.5 py-2 text-sm bg-[#f4f7f5] border-2 border-[#1a7a52] text-slate-800 shadow-xs outline-none hover:border-[#0f3d2e] hover:bg-white focus-visible:border-[#0f3d2e] focus-visible:bg-white focus-visible:ring-3 focus-visible:ring-[#1a7a52]/25"
     />
   );
 }
@@ -193,14 +193,14 @@ function MultiSelectField({
         ref={btnRef}
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="w-full flex items-center justify-between gap-2 min-h-10 px-3 py-1.5 rounded-xl text-sm text-left bg-[#f4f7f5] border-2 border-[#1a7a52] hover:border-[#0f3d2e] hover:bg-white outline-none shadow-xs"
+        className="w-full flex items-center justify-between gap-2 h-10 min-h-10 px-3 py-1.5 rounded-sm text-sm text-left bg-[#f4f7f5] border-2 border-[#1a7a52] hover:border-[#0f3d2e] hover:bg-white outline-none shadow-xs"
       >
         {value.length ? (
           <span className="flex-1 flex flex-wrap gap-1 min-w-0">
             {value.map((v) => (
               <span
                 key={v}
-                className="inline-flex items-center max-w-full truncate rounded-md bg-[#e8f5ee] px-1.5 py-0.5 text-[11px] font-medium text-[#0f3d2e]"
+                className="inline-flex items-center max-w-full truncate rounded-sm bg-[#e8f5ee] px-1.5 py-0.5 text-[11px] font-medium text-[#0f3d2e]"
                 title={v}
               >
                 {v}
@@ -216,10 +216,10 @@ function MultiSelectField({
         <div
           ref={menuRef}
           style={{ position: "fixed", top: pos.top, left: pos.left, width: pos.width, zIndex: 9999 }}
-          className="rounded-xl border-2 border-[#1a7a52] bg-white shadow-xl overflow-hidden"
+          className="rounded-sm border-2 border-[#1a7a52] bg-white shadow-xl overflow-hidden"
         >
           <div className="p-2 border-b border-[#d4e8dc]">
-            <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search…" className="h-8 text-xs" autoFocus />
+            <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search…" className="h-8 text-xs rounded-sm" autoFocus />
           </div>
           <div className="overflow-y-auto p-1" style={{ maxHeight: pos.maxHeight - 48 }}>
             {filtered.length === 0 ? (
@@ -231,13 +231,13 @@ function MultiSelectField({
                   key={o}
                   type="button"
                   className={cn(
-                    "w-full text-left px-3 py-2 rounded-md text-sm flex items-center gap-2",
+                    "w-full text-left px-3 py-2 rounded-sm text-sm flex items-center gap-2",
                     checked ? "bg-[#eef6f1] text-[#0f3d2e]" : "hover:bg-slate-50",
                   )}
                   onClick={() => onChange(checked ? value.filter((x) => x !== o) : [...value, o])}
                 >
                   <span className={cn(
-                    "h-4 w-4 rounded border flex items-center justify-center text-[10px] shrink-0",
+                    "h-4 w-4 rounded-sm border flex items-center justify-center text-[10px] shrink-0",
                     checked ? "bg-[#145c3f] border-[#145c3f] text-white" : "border-slate-300",
                   )}>
                     {checked ? "✓" : ""}
@@ -283,6 +283,8 @@ export default function StakeholderEngagementForm({
   const [draftOutcome, setDraftOutcome] = React.useState<OutcomeRow>({ outcome_category: "", specific_outcome: "" });
   const [otherOutcomeCategory, setOtherOutcomeCategory] = React.useState("");
   const [otherSpecificOutcome, setOtherSpecificOutcome] = React.useState("");
+  const [otherLocationCategory, setOtherLocationCategory] = React.useState("");
+  const [otherLocationName, setOtherLocationName] = React.useState("");
   const [fieldErrors, setFieldErrors] = React.useState<Record<string, string>>({});
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const followUpFileRef = React.useRef<HTMLInputElement>(null);
@@ -296,9 +298,10 @@ export default function StakeholderEngagementForm({
     setOtherSpecificOutcome("");
   };
 
-  const isFunded = entry.funding_option === STAKEHOLDER_FUNDED;
+  const isFunded = entry.funding_option === STAKEHOLDER_FUNDED || entry.funding_option === "Budgeted" || entry.funding_option === "Budgeted (Approved Release)" || entry.funding_option === "Yes";
   const needsFollowUp = entry.follow_up_required === "Yes";
-  const locationNames = STAKEHOLDER_LOCATION_BY_CATEGORY[entry.location_category] ?? [];
+  const baseLocNames = STAKEHOLDER_LOCATION_BY_CATEGORY[entry.location_category] ?? [];
+  const locationNames = baseLocNames.includes("Other") ? baseLocNames : [...baseLocNames, "Other"];
   const outcomeCats = outcomeCategoriesForEngagement(entry.engagement_category);
   const draftSpecifics = draftOutcome.outcome_category
     ? specificOutcomesFor(entry.engagement_category, draftOutcome.outcome_category)
@@ -364,7 +367,17 @@ export default function StakeholderEngagementForm({
     if (!e.specific_activity.trim()) return fail("specific_activity", "Enter the specific engagement activity");
     if (!e.engagement_purpose.trim()) return fail("engagement_purpose", "Enter the engagement purpose");
 
-    if (!e.outcomes.length) return fail("outcomes", "Add at least one outcome");
+    if (e.location_category === "Other" && !otherLocationCategory.trim()) {
+      return fail("location_category", "Please specify the location category");
+    }
+    if (e.location_name === "Other" && !otherLocationName.trim()) {
+      return fail("location_name", "Please specify the location name");
+    }
+
+    if (!e.outcomes.length && draftOutcome.outcome_category && draftOutcome.specific_outcome) {
+      e.outcomes = [{ outcome_category: draftOutcome.outcome_category, specific_outcome: draftOutcome.specific_outcome }];
+    }
+    if (!e.outcomes.length) return fail("outcomes", "Select outcome category and specific outcome");
     for (const o of e.outcomes) {
       if (!isValidStakeholderOutcome(e.engagement_category, o.outcome_category, o.specific_outcome)) {
         return fail("outcomes", "Outcome combination is not valid for this engagement category");
@@ -375,10 +388,11 @@ export default function StakeholderEngagementForm({
     if (!hasFiles) return fail("evidence", "Upload supporting evidence");
 
     if (!e.funding_option) return fail("funding_option", "Select funding option");
-    if (e.funding_option === STAKEHOLDER_FUNDED && e.activity_budget === "") {
+    const eFunded = e.funding_option === STAKEHOLDER_FUNDED || e.funding_option === "Budgeted" || e.funding_option === "Budgeted (Approved Release)" || e.funding_option === "Yes";
+    if (eFunded && e.activity_budget === "") {
       return fail("activity_budget", "Enter funding amount");
     }
-    if (e.funding_option === STAKEHOLDER_FUNDED && e.approved_amount === "") {
+    if (eFunded && e.approved_amount === "") {
       return fail("approved_amount", "Enter approved amount");
     }
 
@@ -395,12 +409,13 @@ export default function StakeholderEngagementForm({
 
   const entryToLine = (e: Entry = entryRef.current): Line => {
     const meta = activities.find((a) => a.label === e.engagement_category);
+    const lineFunded = e.funding_option === STAKEHOLDER_FUNDED || e.funding_option === "Budgeted" || e.funding_option === "Budgeted (Approved Release)" || e.funding_option === "Yes";
     return {
       ...e,
       _key: lineKey,
       engagement_code: meta?.code ?? null,
       outcomes: e.outcomes.filter((o) => o.outcome_category && o.specific_outcome),
-      ...(e.funding_option === STAKEHOLDER_FUNDED ? {} : { activity_budget: "", approved_amount: "" }),
+      ...(lineFunded ? {} : { activity_budget: "", approved_amount: "" }),
       ...(e.follow_up_required === "Yes" ? {} : { follow_up_date: "", follow_up_details: blankFollowUp(), follow_up_files: [] }),
     };
   };
@@ -409,8 +424,10 @@ export default function StakeholderEngagementForm({
     let plannedText = "";
     try {
       const parsed = typeof row.activity_details === "string" ? JSON.parse(row.activity_details) : row.activity_details;
-      plannedText = parsed?.planned_target_audience_text ?? "";
-    } catch { /* ignore */ }
+      plannedText = parsed?.planned_target_audience_text ?? (row.planned_target_audience != null ? String(row.planned_target_audience) : "");
+    } catch {
+      plannedText = row.planned_target_audience != null ? String(row.planned_target_audience) : "";
+    }
     const docs = parseSupportingDocuments(row.supporting_documents).filter((d) => d.path) as SavedDoc[];
     const outcomes: OutcomeRow[] = Array.isArray(row.outcomes) && row.outcomes.length
       ? row.outcomes.map((o: any) => ({
@@ -421,6 +438,17 @@ export default function StakeholderEngagementForm({
         ? [{ outcome_category: row.outcome_category ?? "", specific_outcome: row.specific_outcome ?? "" }]
         : [];
     const fu = row.follow_up_details && typeof row.follow_up_details === "object" ? row.follow_up_details : {};
+
+    let locCat = row.location_category ?? "";
+    if (locCat && !STAKEHOLDER_LOCATION_CATEGORIES.includes(locCat as any)) {
+      locCat = "Other";
+    }
+    let locName = row.location_name ?? "";
+    const validLocs = locCat && STAKEHOLDER_LOCATION_BY_CATEGORY[locCat] ? STAKEHOLDER_LOCATION_BY_CATEGORY[locCat] : [];
+    if (locName && !validLocs.includes(locName as any)) {
+      locName = "Other";
+    }
+
     return {
       ...blankEntry(),
       activity_date: row.activity_date?.slice?.(0, 10) ?? todayIso(),
@@ -430,15 +458,15 @@ export default function StakeholderEngagementForm({
       engagement_purpose: row.engagement_purpose ?? "",
       planned_target_audience: plannedText,
       target_audience_reached: Array.isArray(row.target_audience_reached) ? row.target_audience_reached : [],
-      location_category: row.location_category ?? "",
-      location_name: row.location_name ?? "",
+      location_category: locCat,
+      location_name: locName,
       location_specify: row.location_specify ?? "",
       programs_supported: Array.isArray(row.programs_supported) ? row.programs_supported : [],
-      funding_option: row.funding_option === "Budgeted (Approved Release)" || row.funding_option === "Yes"
-        ? "Yes"
-        : row.funding_option === "Zero-Cost (Statutory Mandate)" || row.funding_option === "No"
-          ? "No"
-          : (row.funding_option ?? ""),
+      funding_option: row.funding_option === "Budgeted (Approved Release)" || row.funding_option === "Yes" || row.funding_option === "Budgeted"
+        ? "Budgeted"
+        : row.funding_option === "Zero-Cost (Statutory Mandate)" || row.funding_option === "No" || row.funding_option === "Zero-Cost"
+          ? "Zero-Cost"
+          : (row.funding_option ?? "Zero-Cost"),
       activity_budget: row.activity_budget != null ? String(Number(row.activity_budget)) : "",
       approved_amount: row.approved_amount != null ? String(Number(row.approved_amount)) : "",
       outcomes,
@@ -456,8 +484,26 @@ export default function StakeholderEngagementForm({
   const loadData = (v: any) => {
     const first = (v.lines ?? [])[0];
     setLineKey(uid());
-    setEntry(first ? rowToEntry(first) : blankEntry());
-    resetDraftOutcome();
+    const loaded = first ? rowToEntry(first) : blankEntry();
+    setEntry(loaded);
+    if (loaded.location_category === "Other") {
+      setOtherLocationCategory(first?.location_category ?? "");
+    } else {
+      setOtherLocationCategory("");
+    }
+    if (loaded.location_name === "Other") {
+      setOtherLocationName(first?.location_name ?? "");
+    } else {
+      setOtherLocationName("");
+    }
+    if (loaded.outcomes && loaded.outcomes.length > 0) {
+      setDraftOutcome({
+        outcome_category: loaded.outcomes[0].outcome_category,
+        specific_outcome: loaded.outcomes[0].specific_outcome,
+      });
+    } else {
+      resetDraftOutcome();
+    }
     setFieldErrors({});
     setReportStatus(v.status || "draft");
     if (v.activity_module && allowModuleSelect) setModuleKey(v.activity_module);
@@ -484,6 +530,14 @@ export default function StakeholderEngagementForm({
     const meta = activities.find((a) => a.label === l.engagement_category)
       ?? STAKEHOLDER_ENGAGEMENT_CATEGORIES.find((a) => a.label === l.engagement_category);
     const first = l.outcomes.find((o) => o.outcome_category && o.specific_outcome) ?? l.outcomes[0];
+    const isLineFunded = l.funding_option === STAKEHOLDER_FUNDED || l.funding_option === "Budgeted" || l.funding_option === "Budgeted (Approved Release)" || l.funding_option === "Yes";
+    const finalLocationCat = l.location_category === "Other" && otherLocationCategory.trim()
+      ? otherLocationCategory.trim()
+      : (l.location_category || null);
+    const finalLocationNm = l.location_name === "Other" && otherLocationName.trim()
+      ? otherLocationName.trim()
+      : (l.location_name || null);
+
     return {
       engagement_code: l.engagement_code ?? meta?.code ?? null,
       activity_date: l.activity_date || null,
@@ -493,12 +547,12 @@ export default function StakeholderEngagementForm({
       specific_activity: l.specific_activity || null,
       engagement_purpose: l.engagement_purpose || null,
       funding_option: l.funding_option || null,
-      activity_budget: l.funding_option === STAKEHOLDER_FUNDED ? numOrNull(l.activity_budget) : null,
-      approved_amount: l.funding_option === STAKEHOLDER_FUNDED ? numOrNull(l.approved_amount) : null,
-      planned_target_audience: null,
+      activity_budget: isLineFunded ? numOrNull(l.activity_budget) : null,
+      approved_amount: isLineFunded ? numOrNull(l.approved_amount) : null,
+      planned_target_audience: numOrNull(l.planned_target_audience),
       target_audience_reached: l.target_audience_reached,
-      location_category: l.location_category || null,
-      location_name: l.location_name || null,
+      location_category: finalLocationCat,
+      location_name: finalLocationNm,
       location_specify: l.location_specify || null,
       programs_supported: l.programs_supported,
       follow_up_required: l.follow_up_required || null,
@@ -516,7 +570,7 @@ export default function StakeholderEngagementForm({
     };
   };
 
-  const inputClass = "bg-[#f4f7f5] border-2 border-[#1a7a52] shadow-xs hover:border-[#0f3d2e] hover:bg-white";
+  const inputClass = "h-10 rounded-sm bg-[#f4f7f5] border-2 border-[#1a7a52] text-sm text-slate-800 shadow-xs hover:border-[#0f3d2e] hover:bg-white focus-visible:border-[#0f3d2e] focus-visible:bg-white";
 
   return (
     <StateOfficeFormShell
@@ -552,7 +606,14 @@ export default function StakeholderEngagementForm({
         <div className="m-0 space-y-3 pb-2">
           <Card className="rounded-sm border-[#d4e8dc] shadow-sm overflow-visible m-0">
             <CardContent className="p-3 md:p-4 space-y-4">
-              <ReportBasicInfo {...header} showQuarter embedded />
+              <ReportBasicInfo
+                {...header}
+                lockZone={header.lockZone}
+                lockState={header.lockState}
+                showQuarter
+                hideQuarter
+                embedded
+              />
 
               <fieldset disabled={!canEditContent} className="border-t border-[#e8f3ec] pt-4 space-y-5 disabled:opacity-90">
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -586,21 +647,28 @@ export default function StakeholderEngagementForm({
                 {fieldErrors.stakeholder_categories && (
                   <p className="text-[11px] font-medium text-rose-600 sm:col-span-3 -mt-1">{fieldErrors.stakeholder_categories}</p>
                 )}
-                <Field label="Specific engagement activity conducted" required error={fieldErrors.specific_activity} className="sm:col-span-1 lg:col-span-1">
+                <Field label="Specific engagement activity conducted" required error={fieldErrors.specific_activity}>
                   <Input className={inputClass} value={entry.specific_activity} onChange={(e) => set("specific_activity", e.target.value)} placeholder="Enter activity conducted" />
                 </Field>
-                <Field label="Engagement purpose" required error={fieldErrors.engagement_purpose} className="sm:col-span-1 lg:col-span-2">
+                <Field label="Engagement purpose" required error={fieldErrors.engagement_purpose}>
                   <Input className={inputClass} value={entry.engagement_purpose} onChange={(e) => set("engagement_purpose", e.target.value)} placeholder="Enter purpose" />
                 </Field>
-                <Field label="Planned target audience">
-                  <Input className={inputClass} value={entry.planned_target_audience} onChange={(e) => set("planned_target_audience", e.target.value)} placeholder="Enter planned audience" />
+                <Field label="Planned audience number">
+                  <Input
+                    type="number"
+                    min={0}
+                    className={inputClass}
+                    value={entry.planned_target_audience}
+                    onChange={(e) => set("planned_target_audience", e.target.value)}
+                    placeholder="Enter planned audience number"
+                  />
                 </Field>
                 <MultiSelectField
-                  label="Target audience reached"
+                  label="Target audience"
                   options={STAKEHOLDER_TARGET_AUDIENCES}
                   value={entry.target_audience_reached}
                   onChange={(v) => set("target_audience_reached", v)}
-                  placeholder="Select audiences reached"
+                  placeholder="Select target audience"
                 />
                 <MultiSelectField
                   label="Programme supported"
@@ -612,7 +680,11 @@ export default function StakeholderEngagementForm({
                 <Field label="Location category">
                   <Select
                     value={entry.location_category}
-                    onValueChange={(v) => setEntry((p) => ({ ...p, location_category: v, location_name: "" }))}
+                    onValueChange={(v) => {
+                      setEntry((p) => ({ ...p, location_category: v, location_name: "" }));
+                      if (v !== "Other") setOtherLocationCategory("");
+                      setOtherLocationName("");
+                    }}
                   >
                     <SelectTrigger className={inputClass} displayValue={entry.location_category ? entry.location_category.replace(/_/g, " ") : "Select…"}>
                       <SelectValue placeholder="Select…" />
@@ -624,10 +696,23 @@ export default function StakeholderEngagementForm({
                     </SelectContent>
                   </Select>
                 </Field>
+                {entry.location_category === "Other" && (
+                  <Field label="Specify location category" required>
+                    <Input
+                      className={inputClass}
+                      placeholder="Write location category..."
+                      value={otherLocationCategory}
+                      onChange={(e) => setOtherLocationCategory(e.target.value)}
+                    />
+                  </Field>
+                )}
                 <Field label="Location name">
                   <Select
                     value={entry.location_name}
-                    onValueChange={(v) => set("location_name", v)}
+                    onValueChange={(v) => {
+                      set("location_name", v);
+                      if (v !== "Other") setOtherLocationName("");
+                    }}
                     disabled={!entry.location_category || locationNames.length === 0}
                   >
                     <SelectTrigger className={inputClass}>
@@ -640,178 +725,106 @@ export default function StakeholderEngagementForm({
                     </SelectContent>
                   </Select>
                 </Field>
+                {entry.location_name === "Other" && (
+                  <Field label="Specify location name" required>
+                    <Input
+                      className={inputClass}
+                      placeholder="Write location name..."
+                      value={otherLocationName}
+                      onChange={(e) => setOtherLocationName(e.target.value)}
+                    />
+                  </Field>
+                )}
                 <Field label="Specify location (if needed)">
                   <Input className={inputClass} value={entry.location_specify} onChange={(e) => set("location_specify", e.target.value)} placeholder="Enter exact venue / location / address" />
                 </Field>
 
-                <div className="sm:col-span-2 lg:col-span-3 space-y-4">
-                  <div className="grid gap-4 md:grid-cols-2 items-start">
-                    <Field
-                      label="Outcome category"
-                      required
-                      className={draftOutcome.specific_outcome === STAKEHOLDER_OTHER_SPECIFIC_OUTCOME && draftOutcome.outcome_category !== STAKEHOLDER_OTHER_OUTCOME_CATEGORY ? "md:col-span-2" : undefined}
-                    >
-                      <Select
-                        value={draftOutcome.outcome_category}
-                        onValueChange={(v) => {
-                          setDraftOutcome({ outcome_category: v, specific_outcome: "" });
-                          setOtherOutcomeCategory("");
-                          setOtherSpecificOutcome("");
-                        }}
-                        disabled={!entry.engagement_category}
-                      >
-                        <SelectTrigger className={inputClass}>
-                          <SelectValue placeholder={!entry.engagement_category ? "Select an engagement category first" : "Select an outcome category"} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {outcomeCats.map((c) => (
-                            <SelectItem key={c} value={c}>{c}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </Field>
-                    {draftOutcome.outcome_category === STAKEHOLDER_OTHER_OUTCOME_CATEGORY && (
-                      <Field label="Specify outcome category" required>
-                        <Input
-                          className={inputClass}
-                          aria-label="Specify outcome category"
-                          placeholder="Please specify outcome category"
-                          value={otherOutcomeCategory}
-                          maxLength={160 - `${STAKEHOLDER_OTHER_OUTCOME_CATEGORY}: `.length}
-                          onChange={(e) => setOtherOutcomeCategory(e.target.value)}
-                          required
-                        />
-                      </Field>
-                    )}
-                    <Field
-                      label="Specific activity outcome"
-                      required
-                      className={draftOutcome.outcome_category === STAKEHOLDER_OTHER_OUTCOME_CATEGORY && draftOutcome.specific_outcome !== STAKEHOLDER_OTHER_SPECIFIC_OUTCOME ? "md:col-span-2" : undefined}
-                    >
-                      <Select
-                        value={draftOutcome.specific_outcome}
-                        onValueChange={(v) => {
-                          setDraftOutcome((d) => ({ ...d, specific_outcome: v }));
-                          setOtherSpecificOutcome("");
-                        }}
-                        disabled={!draftOutcome.outcome_category}
-                      >
-                        <SelectTrigger className={inputClass}>
-                          <SelectValue placeholder={!draftOutcome.outcome_category ? "Select an outcome category first" : "Select an outcome"} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {draftSpecifics.map((s) => (
-                            <SelectItem key={s} value={s}>{s}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </Field>
-                    {draftOutcome.specific_outcome === STAKEHOLDER_OTHER_SPECIFIC_OUTCOME && (
-                      <Field label="Specify activity outcome" required>
-                        <Input
-                          className={inputClass}
-                          aria-label="Specify activity outcome"
-                          placeholder="Please specify activity outcome"
-                          value={otherSpecificOutcome}
-                          maxLength={200 - `${STAKEHOLDER_OTHER_SPECIFIC_OUTCOME}: `.length}
-                          onChange={(e) => setOtherSpecificOutcome(e.target.value)}
-                          required
-                        />
-                      </Field>
-                    )}
-                  </div>
-                  <div className="flex justify-end border-t border-[#d4e8dc] pt-3">
-                    <Button
-                      type="button"
-                      className="w-full sm:w-auto gap-2 bg-[#145c3f] text-white hover:bg-[#0f3d2e] px-5"
-                      onClick={addOutcomeToTable}
-                    >
-                      <Plus className="w-4 h-4" /> Add Outcome
-                    </Button>
-                  </div>
-                </div>
-
-                {entry.outcomes.length > 0 && (
-                  <div className="sm:col-span-2 lg:col-span-3 rounded-xl border border-[#d4e8dc] overflow-hidden bg-white">
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="bg-[#eef6f1] hover:bg-[#eef6f1]">
-                          <TableHead className="text-[11px] font-bold text-[#0f3d2e]">Outcome category</TableHead>
-                          <TableHead className="text-[11px] font-bold text-[#0f3d2e]">Specific activity outcome</TableHead>
-                          <TableHead className="w-12" />
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {entry.outcomes.map((o, idx) => (
-                          <TableRow key={`${o.outcome_category}-${o.specific_outcome}-${idx}`}>
-                            <TableCell className="text-sm">{o.outcome_category}</TableCell>
-                            <TableCell className="text-sm">{o.specific_outcome}</TableCell>
-                            <TableCell>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7 text-rose-500"
-                                onClick={() => setEntry((p) => ({
-                                  ...p,
-                                  outcomes: p.outcomes.filter((_, i) => i !== idx),
-                                }))}
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                )}
-                {fieldErrors.outcomes && (
-                  <p className="text-[11px] font-medium text-rose-600 sm:col-span-3">{fieldErrors.outcomes}</p>
-                )}
-
-                <Field label="Supporting evidence" required error={fieldErrors.evidence} className="sm:col-span-2 lg:col-span-3">
-                  <div className="rounded-xl border-2 border-dashed border-[#1a7a52] bg-white px-3 py-3">
-                    <label className="flex flex-col gap-1.5 cursor-pointer">
-                      <span className="inline-flex items-center gap-1.5 text-sm font-medium text-[#0f3d2e]">
-                        <Upload className="w-4 h-4" /> Upload attachment (mandatory)
-                      </span>
-                      <Input
-                        ref={fileInputRef}
-                        type="file"
-                        multiple
-                        className="text-xs"
-                        onChange={(e) => set("supportingFiles", Array.from(e.target.files ?? []))}
-                      />
-                    </label>
-                    {(entry.supportingFiles.length > 0 || entry.supporting_documents.length > 0) && (
-                      <ul className="mt-2 text-xs text-slate-600 space-y-0.5">
-                        {entry.supporting_documents.map((d) => <li key={d.path}>{d.name}</li>)}
-                        {entry.supportingFiles.map((f) => <li key={f.name}>{f.name}</li>)}
-                      </ul>
-                    )}
-                  </div>
-                </Field>
-
-                <Field label="Funding option" required error={fieldErrors.funding_option}>
-                  <Select value={entry.funding_option} onValueChange={(v) => set("funding_option", v)}>
-                    <SelectTrigger className={inputClass}><SelectValue placeholder="Yes / No" /></SelectTrigger>
+                {/* Outcomes & Activity Status (3 on row) */}
+                <Field label="Outcome category" required error={fieldErrors.outcome_category || fieldErrors.outcomes}>
+                  <Select
+                    value={draftOutcome.outcome_category}
+                    onValueChange={(v) => {
+                      setDraftOutcome({ outcome_category: v, specific_outcome: "" });
+                      setOtherOutcomeCategory("");
+                      setOtherSpecificOutcome("");
+                      setEntry((p) => {
+                        const existing = p.outcomes.filter((o) => o.outcome_category !== draftOutcome.outcome_category);
+                        return {
+                          ...p,
+                          outcomes: v ? [...existing, { outcome_category: v, specific_outcome: "" }] : existing,
+                        };
+                      });
+                    }}
+                    disabled={!entry.engagement_category}
+                  >
+                    <SelectTrigger className={inputClass}>
+                      <SelectValue placeholder={!entry.engagement_category ? "Select engagement category first" : "Select an outcome category"} />
+                    </SelectTrigger>
                     <SelectContent>
-                      {STAKEHOLDER_FUNDING_OPTIONS.map((o) => (
-                        <SelectItem key={o} value={o}>{o}</SelectItem>
+                      {outcomeCats.map((c) => (
+                        <SelectItem key={c} value={c}>{c}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </Field>
-                {isFunded && (
-                  <>
-                    <Field label="Funding amount" required error={fieldErrors.activity_budget}>
-                      <Input type="number" min={0} className={inputClass} value={entry.activity_budget} onChange={(e) => set("activity_budget", e.target.value)} />
-                    </Field>
-                    <Field label="Approved amount (₦)" required error={fieldErrors.approved_amount}>
-                      <Input type="number" min={0} className={inputClass} value={entry.approved_amount} onChange={(e) => set("approved_amount", e.target.value)} />
-                    </Field>
-                  </>
+                {draftOutcome.outcome_category === STAKEHOLDER_OTHER_OUTCOME_CATEGORY && (
+                  <Field label="Specify outcome category" required>
+                    <Input
+                      className={inputClass}
+                      aria-label="Specify outcome category"
+                      placeholder="Please specify outcome category"
+                      value={otherOutcomeCategory}
+                      maxLength={160 - `${STAKEHOLDER_OTHER_OUTCOME_CATEGORY}: `.length}
+                      onChange={(e) => setOtherOutcomeCategory(e.target.value)}
+                      required
+                    />
+                  </Field>
+                )}
+
+                <Field label="Specific activity outcome" required error={fieldErrors.specific_outcome}>
+                  <Select
+                    value={draftOutcome.specific_outcome}
+                    onValueChange={(v) => {
+                      setDraftOutcome((d) => ({ ...d, specific_outcome: v }));
+                      setOtherSpecificOutcome("");
+                      const currentCat = draftOutcome.outcome_category;
+                      setEntry((p) => {
+                        if (!currentCat) return p;
+                        const existing = p.outcomes.filter((o) => o.outcome_category !== currentCat);
+                        return {
+                          ...p,
+                          outcomes: v ? [...existing, { outcome_category: currentCat, specific_outcome: v }] : existing,
+                        };
+                      });
+                      setFieldErrors((e) => {
+                        const { outcomes: _, ...rest } = e;
+                        return rest;
+                      });
+                    }}
+                    disabled={!draftOutcome.outcome_category}
+                  >
+                    <SelectTrigger className={inputClass}>
+                      <SelectValue placeholder={!draftOutcome.outcome_category ? "Select outcome category first" : "Select an outcome"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {draftSpecifics.map((s) => (
+                        <SelectItem key={s} value={s}>{s}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+                {draftOutcome.specific_outcome === STAKEHOLDER_OTHER_SPECIFIC_OUTCOME && (
+                  <Field label="Specify activity outcome" required>
+                    <Input
+                      className={inputClass}
+                      aria-label="Specify activity outcome"
+                      placeholder="Please specify activity outcome"
+                      value={otherSpecificOutcome}
+                      maxLength={200 - `${STAKEHOLDER_OTHER_SPECIFIC_OUTCOME}: `.length}
+                      onChange={(e) => setOtherSpecificOutcome(e.target.value)}
+                      required
+                    />
+                  </Field>
                 )}
 
                 <Field label="Original activity status" required error={fieldErrors.activity_status}>
@@ -824,6 +837,7 @@ export default function StakeholderEngagementForm({
                     </SelectContent>
                   </Select>
                 </Field>
+
                 <Field label="Follow-up required" required error={fieldErrors.follow_up_required}>
                   <Select value={entry.follow_up_required} onValueChange={(v) => set("follow_up_required", v)}>
                     <SelectTrigger className={inputClass}><SelectValue placeholder="Yes / No" /></SelectTrigger>
@@ -834,6 +848,7 @@ export default function StakeholderEngagementForm({
                     </SelectContent>
                   </Select>
                 </Field>
+
                 {needsFollowUp && (
                   <>
                     <Field label="Follow-up priority">
@@ -884,18 +899,107 @@ export default function StakeholderEngagementForm({
                         ref={followUpFileRef}
                         type="file"
                         multiple
-                        className="text-xs bg-white"
+                        className="text-xs bg-white rounded-sm h-10"
                         onChange={(e) => set("follow_up_files", Array.from(e.target.files ?? []))}
                       />
                     </Field>
                   </>
                 )}
 
+                {entry.outcomes.length > 1 && (
+                  <div className="sm:col-span-2 lg:col-span-3 rounded-sm border border-[#d4e8dc] overflow-hidden bg-white">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-[#eef6f1] hover:bg-[#eef6f1]">
+                          <TableHead className="text-[11px] font-bold text-[#0f3d2e]">Outcome category</TableHead>
+                          <TableHead className="text-[11px] font-bold text-[#0f3d2e]">Specific activity outcome</TableHead>
+                          <TableHead className="w-12" />
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {entry.outcomes.map((o, idx) => (
+                          <TableRow key={`${o.outcome_category}-${o.specific_outcome}-${idx}`}>
+                            <TableCell className="text-sm">{o.outcome_category}</TableCell>
+                            <TableCell className="text-sm">{o.specific_outcome}</TableCell>
+                            <TableCell>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-rose-500 rounded-sm"
+                                onClick={() => setEntry((p) => ({
+                                  ...p,
+                                  outcomes: p.outcomes.filter((_, i) => i !== idx),
+                                }))}
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+                {fieldErrors.outcomes && (
+                  <p className="text-[11px] font-medium text-rose-600 sm:col-span-3">{fieldErrors.outcomes}</p>
+                )}
+
+                <Field label="Funding option" required error={fieldErrors.funding_option}>
+                  <Select value={entry.funding_option} onValueChange={(v) => set("funding_option", v)}>
+                    <SelectTrigger className={inputClass}><SelectValue placeholder="Select funding option" /></SelectTrigger>
+                    <SelectContent>
+                      {STAKEHOLDER_FUNDING_OPTIONS.map((o) => (
+                        <SelectItem key={o} value={o}>{o}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+                {isFunded && (
+                  <>
+                    <Field label="Funding amount" required error={fieldErrors.activity_budget}>
+                      <Input type="number" min={0} className={inputClass} value={entry.activity_budget} onChange={(e) => set("activity_budget", e.target.value)} />
+                    </Field>
+                    <Field label="Approved amount (₦)" required error={fieldErrors.approved_amount}>
+                      <Input type="number" min={0} className={inputClass} value={entry.approved_amount} onChange={(e) => set("approved_amount", e.target.value)} />
+                    </Field>
+                  </>
+                )}
+
+                <Field label="Supporting evidence" required error={fieldErrors.evidence} className="sm:col-span-2 lg:col-span-3">
+                  <div className="rounded-sm border-2 border-dashed border-[#1a7a52] bg-white px-3 py-3">
+                    <label className="flex flex-col gap-1.5 cursor-pointer">
+                      <span className="inline-flex items-center gap-1.5 text-sm font-medium text-[#0f3d2e]">
+                        <Upload className="w-4 h-4" /> Upload attachment (mandatory)
+                      </span>
+                      <Input
+                        ref={fileInputRef}
+                        type="file"
+                        multiple
+                        className="text-xs rounded-sm h-10"
+                        onChange={(e) => set("supportingFiles", Array.from(e.target.files ?? []))}
+                      />
+                    </label>
+                    {(entry.supportingFiles.length > 0 || entry.supporting_documents.length > 0) && (
+                      <ul className="mt-2 text-xs text-slate-600 space-y-0.5">
+                        {entry.supporting_documents.map((d) => <li key={d.path}>{d.name}</li>)}
+                        {entry.supportingFiles.map((f) => <li key={f.name}>{f.name}</li>)}
+                      </ul>
+                    )}
+                  </div>
+                </Field>
+
+                <Field label="Remarks / Observations" className="sm:col-span-2 lg:col-span-3">
+                  <Textarea
+                    rows={2}
+                    value={entry.remarks}
+                    onChange={(e) => set("remarks", e.target.value)}
+                    placeholder="Enter any additional remarks or observations..."
+                  />
+                </Field>
+
                 </div>
 
-                <p className="text-[11px] text-slate-400">
-                  Engagement ID and Program ID are generated by the system.
-                </p>
               </fieldset>
 
               <div className="flex flex-wrap items-center justify-end gap-2 pt-2 border-t border-[#e8f3ec]">

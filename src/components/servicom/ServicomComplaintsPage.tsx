@@ -4245,38 +4245,39 @@ export default function ServicomComplaintsPage({
           </div>
         )}
 
-        <Card className="rounded-2xl border-[#d4e8dc]">
-          <CardContent className="pt-4 pb-4 space-y-3">
-            <div className={`grid gap-3 ${
+        <Card className="rounded-sm border border-[#d4e8dc] py-0 gap-0 shadow-2xs bg-white">
+          <CardContent className="py-1.5 px-3 space-y-1.5">
+            <div className={`grid gap-2.5 items-end ${
               geoLocked
                 ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
                 : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4"
             }`}>
-              <div className="space-y-1 min-w-0 sm:col-span-2">
-                <Label className="text-xs text-muted-foreground">Search</Label>
+              <div className="space-y-0.5 min-w-0 sm:col-span-2">
+                <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Search</Label>
                 <div className="relative">
                   <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none z-10" />
                   <Input
-                    className="pl-8"
+                    className="pl-8 h-8 text-xs rounded-sm"
                     placeholder="Search…"
                     value={filterSearch}
                     onChange={(e) => setFilterSearch(e.target.value)}
                   />
                 </div>
               </div>
-              <div className="space-y-1 min-w-0">
-                <Label className="text-xs text-muted-foreground">Date</Label>
+              <div className="space-y-0.5 min-w-0">
+                <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Date</Label>
                 <Input
+                  className="h-8 text-xs rounded-sm"
                   type="date"
                   value={filterDate}
                   onChange={(e) => setFilterDate(e.target.value)}
                 />
               </div>
               {!geoLocked && !isZonalCoordinator && (
-                <div className="space-y-1 min-w-0">
-                  <Label className="text-xs text-muted-foreground">Zone</Label>
+                <div className="space-y-0.5 min-w-0">
+                  <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Zone</Label>
                   <Select value={filterZone} onValueChange={(v) => { setFilterZone(v); setFilterState("all"); setFilterFacilityId(""); setFilterFacilityName(""); }}>
-                    <SelectTrigger displayValue={filterZone === "all" ? "All Zones" : pickGeoLabel(zones, filterZone, "Zone")}>
+                    <SelectTrigger size="sm" displayValue={filterZone === "all" ? "All Zones" : pickGeoLabel(zones, filterZone, "Zone")}>
                       <SelectValue placeholder="Zone" />
                     </SelectTrigger>
                     <SelectContent>
@@ -4287,10 +4288,10 @@ export default function ServicomComplaintsPage({
                 </div>
               )}
               {!geoLocked && (
-                <div className="space-y-1 min-w-0">
-                  <Label className="text-xs text-muted-foreground">State</Label>
+                <div className="space-y-0.5 min-w-0">
+                  <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">State</Label>
                   <Select value={filterState} onValueChange={(v) => { setFilterState(v); setFilterFacilityId(""); setFilterFacilityName(""); }}>
-                    <SelectTrigger displayValue={filterState === "all" ? "All States" : pickGeoLabel(filterStates, filterState, "State")}>
+                    <SelectTrigger size="sm" displayValue={filterState === "all" ? "All States" : pickGeoLabel(filterStates, filterState, "State")}>
                       <SelectValue placeholder="State" />
                     </SelectTrigger>
                     <SelectContent>
@@ -4300,10 +4301,10 @@ export default function ServicomComplaintsPage({
                   </Select>
                 </div>
               )}
-              <div className="space-y-1 min-w-0">
-                <Label className="text-xs text-muted-foreground">Status</Label>
+              <div className="space-y-0.5 min-w-0">
+                <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Status</Label>
                 <Select value={filterStatus} onValueChange={setFilterStatus}>
-                  <SelectTrigger displayValue={filterStatus === "all" ? "All Statuses" : (COMPLAINT_STATUSES.find((s) => s.value === filterStatus)?.label || filterStatus)}>
+                  <SelectTrigger size="sm" displayValue={filterStatus === "all" ? "All Statuses" : (COMPLAINT_STATUSES.find((s) => s.value === filterStatus)?.label || filterStatus)}>
                     <SelectValue placeholder="Status" />
                   </SelectTrigger>
                   <SelectContent>
@@ -4312,10 +4313,10 @@ export default function ServicomComplaintsPage({
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1 min-w-0">
-                <Label className="text-xs text-muted-foreground">Priority</Label>
+              <div className="space-y-0.5 min-w-0">
+                <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Priority</Label>
                 <Select value={filterPriority} onValueChange={setFilterPriority}>
-                  <SelectTrigger displayValue={filterPriority === "all" ? "All Priorities" : (PRIORITY_RATINGS.find((p) => p.value === filterPriority)?.label || filterPriority)}>
+                  <SelectTrigger size="sm" displayValue={filterPriority === "all" ? "All Priorities" : (PRIORITY_RATINGS.find((p) => p.value === filterPriority)?.label || filterPriority)}>
                     <SelectValue placeholder="Priority" />
                   </SelectTrigger>
                   <SelectContent>
@@ -4325,10 +4326,10 @@ export default function ServicomComplaintsPage({
                 </Select>
               </div>
               {!isServicomOnly && (
-                <div className="space-y-1 min-w-0">
-                  <Label className="text-xs text-muted-foreground">Channel</Label>
+                <div className="space-y-0.5 min-w-0">
+                  <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Channel</Label>
                   <Select value={filterTransmission} onValueChange={setFilterTransmission}>
-                    <SelectTrigger displayValue={filterTransmission === "all" ? "All channels" : (availableRoutes.find((r) => r.value === filterTransmission)?.label || filterTransmission)}>
+                    <SelectTrigger size="sm" displayValue={filterTransmission === "all" ? "All channels" : (availableRoutes.find((r) => r.value === filterTransmission)?.label || filterTransmission)}>
                       <SelectValue placeholder="Channel" />
                     </SelectTrigger>
                     <SelectContent>
@@ -4340,8 +4341,8 @@ export default function ServicomComplaintsPage({
                   </Select>
                 </div>
               )}
-              <div className="space-y-1 min-w-0">
-                <Label className="text-xs text-muted-foreground">HCF</Label>
+              <div className="space-y-0.5 min-w-0">
+                <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">HCF</Label>
                 <HcfFacilitySelect
                   requireState={false}
                   stateId={filterState !== "all" ? filterState : (defaultStateId ?? undefined)}
@@ -4354,8 +4355,8 @@ export default function ServicomComplaintsPage({
                   className="w-full"
                 />
               </div>
-              <div className="space-y-1 min-w-0">
-                <Label className="text-xs text-muted-foreground">HMO</Label>
+              <div className="space-y-0.5 min-w-0">
+                <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">HMO</Label>
                 <HmoProviderSelect
                   value={filterHmoId}
                   onChange={(hmo) => setFilterHmoId(hmo?.code || hmo?.id || "")}
@@ -4365,8 +4366,8 @@ export default function ServicomComplaintsPage({
               </div>
             </div>
             {hasFilters && (
-              <div className="flex justify-end">
-                <Button variant="ghost" size="sm" className="h-8 px-2 text-slate-500 gap-1 text-[11px]" onClick={clearFilters}>
+              <div className="flex justify-end pt-0.5">
+                <Button variant="ghost" size="sm" className="h-7 text-xs text-slate-500 gap-1 shrink-0" onClick={clearFilters}>
                   <XCircle className="w-3.5 h-3.5" /> Clear
                 </Button>
               </div>

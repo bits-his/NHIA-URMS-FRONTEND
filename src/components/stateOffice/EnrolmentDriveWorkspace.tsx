@@ -827,7 +827,7 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
               variant="outline"
               size="sm"
               disabled={busy || loading}
-              className="gap-2 border-[#d4e8dc]"
+              className="gap-1.5 h-8 text-xs rounded-sm border-[#d4e8dc]"
               onClick={() => void run(async () => {
                 if (mode === "view" && batch) await openBatch(batch.reference_id);
                 else if (mode === "batch" && batch) await openBatch(batch.reference_id, true);
@@ -836,37 +836,49 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
                 }
               })}
             >
-              <RefreshCw className={`w-4 h-4 ${busy ? "animate-spin" : ""}`} />Refresh
+              <RefreshCw className={`w-3.5 h-3.5 ${busy ? "animate-spin" : ""}`} /> Refresh
             </Button>
           )}
           {mode === "register" && permissions.create && (
             <Button
+              size="sm"
               disabled={busy}
-              className={ACTION}
+              className="bg-orange-action hover:bg-orange-600 gap-1.5 shadow-md shadow-orange-500/20 h-8 text-xs rounded-sm"
               onClick={() => void startNewReport()}
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-3.5 h-3.5" />
               New Enrolment Drive Report
             </Button>
           )}
         </>
       }
-      contentClassName="space-y-4 pb-8"
+      contentClassName="space-y-3 pb-6"
     >
-      <div className="w-full space-y-4">
+      <div className="w-full space-y-3">
     {error && <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700" role="alert">{error}</div>}
     {loading ? <div className="flex items-center justify-center py-16 gap-3 text-slate-400"><Loader2 className="w-5 h-5 animate-spin" /><span className="text-sm">Loading reports...</span></div> : !catalogue ? <Button onClick={() => void run(async () => { await refresh(); })}>Retry</Button> : <>
       {mode === "register" && <>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-            {[{ label: "Total", count: periodFiltered.length, tone: "text-[#0f3d2e] bg-white border-[#d4e8dc]" }, { label: "Draft / Returned", count: periodFiltered.filter((row) => ["draft", "returned"].includes(row.status)).length, tone: "text-slate-600 bg-white border-slate-200" }, { label: "Awaiting review", count: periodFiltered.filter((row) => row.status === "awaiting_review").length, tone: "text-amber-800 bg-amber-50/80 border-amber-100" }, { label: "Endorsed", count: periodFiltered.filter((row) => row.status === "endorsed").length, tone: "text-teal-800 bg-teal-50/80 border-teal-100" }, { label: "Submitted", count: periodFiltered.filter((row) => row.status === "submitted").length, tone: "text-emerald-700 bg-emerald-50/80 border-emerald-100" }].map((item) => <div className={`rounded-xl border px-4 py-3 ${item.tone}`} key={item.label}><p className="text-2xl font-bold tabular-nums">{item.count}</p><p className="text-[11px] font-semibold text-slate-500 mt-0.5">{item.label}</p></div>)}
+            {[
+              { label: "Total", count: periodFiltered.length, tone: "text-[#0f3d2e] bg-white border-[#d4e8dc]" },
+              { label: "Draft / Returned", count: periodFiltered.filter((row) => ["draft", "returned"].includes(row.status)).length, tone: "text-slate-600 bg-white border-slate-200" },
+              { label: "Awaiting review", count: periodFiltered.filter((row) => row.status === "awaiting_review").length, tone: "text-amber-800 bg-amber-50/80 border-amber-100" },
+              { label: "Endorsed", count: periodFiltered.filter((row) => row.status === "endorsed").length, tone: "text-teal-800 bg-teal-50/80 border-teal-100" },
+              { label: "Submitted", count: periodFiltered.filter((row) => row.status === "submitted").length, tone: "text-emerald-700 bg-emerald-50/80 border-emerald-100" },
+            ].map((item) => (
+              <div className={`rounded-sm border px-3 py-2.5 ${item.tone}`} key={item.label}>
+                <p className="text-2xl font-bold tabular-nums">{item.count}</p>
+                <p className="text-[11px] font-semibold text-slate-500 mt-0.5">{item.label}</p>
+              </div>
+            ))}
           </div>
-          <Card className="rounded-sm border-[#d4e8dc]">
-            <CardContent className="pt-4 pb-4 grid grid-flow-col auto-cols-fr gap-3">
+          <Card className="rounded-sm border border-[#d4e8dc] py-0 gap-0 shadow-2xs bg-white">
+            <CardContent className="py-1.5 px-3 grid grid-flow-col auto-cols-fr gap-2.5 items-end">
               {catalogue.states.length > 1 && (
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">State</Label>
+                <div className="space-y-0.5 min-w-0">
+                  <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">State</Label>
                   <Select value={filterState} onValueChange={setFilterState}>
-                    <SelectTrigger displayValue={filterState === "all" ? "All States" : (stateOptions.find((s) => s.value === filterState)?.label || "State")}>
+                    <SelectTrigger size="sm" className="w-full" displayValue={filterState === "all" ? "All States" : (stateOptions.find((s) => s.value === filterState)?.label || "State")}>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -878,10 +890,10 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
                   </Select>
                 </div>
               )}
-              <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">Year</Label>
+              <div className="space-y-0.5 min-w-0">
+                <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Year</Label>
                 <Select value={filterYear} onValueChange={setFilterYear}>
-                  <SelectTrigger displayValue={filterYear === "all" ? "All Years" : filterYear}>
+                  <SelectTrigger size="sm" className="w-full" displayValue={filterYear === "all" ? "All Years" : filterYear}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -892,10 +904,10 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">Month</Label>
+              <div className="space-y-0.5 min-w-0">
+                <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Month</Label>
                 <Select value={filterMonth} onValueChange={setFilterMonth}>
-                  <SelectTrigger displayValue={filterMonth === "all" ? "All Months" : monthLabel(filterMonth)}>
+                  <SelectTrigger size="sm" className="w-full" displayValue={filterMonth === "all" ? "All Months" : monthLabel(filterMonth)}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -906,10 +918,10 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">Status</Label>
+              <div className="space-y-0.5 min-w-0">
+                <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Status</Label>
                 <Select value={filterStatus} onValueChange={setFilterStatus}>
-                  <SelectTrigger displayValue={filterStatus === "all" ? "All Statuses" : statusLabel(filterStatus)}>
+                  <SelectTrigger size="sm" className="w-full" displayValue={filterStatus === "all" ? "All Statuses" : statusLabel(filterStatus)}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>

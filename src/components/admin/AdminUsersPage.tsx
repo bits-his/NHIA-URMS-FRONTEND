@@ -71,7 +71,9 @@ function grantedFromAccess(access?: { access_to: string; functionalities?: strin
     const modTitle = normalizeModuleTitle(entry.access_to);
     keys.add(modTitle);
     (entry.functionalities || []).forEach((t) => {
-      keys.add(normalizeFunctionalityTitle(t, modTitle));
+      const canonical = normalizeFunctionalityTitle(t, modTitle);
+      keys.add(`${modTitle}::${canonical}`);
+      keys.add(canonical);
     });
   });
   return keys;
@@ -199,7 +201,9 @@ export default function AdminUsersPage() {
       keys.add(modTitle);
       if (Array.isArray(entry.functionalities)) {
         entry.functionalities.forEach((funcTitle: string) => {
-          keys.add(normalizeFunctionalityTitle(funcTitle, modTitle));
+          const canonical = normalizeFunctionalityTitle(funcTitle, modTitle);
+          keys.add(`${modTitle}::${canonical}`);
+          keys.add(canonical);
         });
       }
     });
