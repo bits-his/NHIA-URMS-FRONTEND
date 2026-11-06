@@ -5,17 +5,17 @@ import { ShadcnDataTable } from "@/components/common/ShadcnDataTable";
 import { RegisterStatsCards } from "./RegisterStatsCards";
 import {
   ArrowLeft,
+  ArrowRight,
   Plus,
   Eye,
   Pencil,
   RefreshCw,
   Loader2,
-  Search,
   Save,
   Mail,
   Building2,
   CalendarDays,
-  CheckCircle2,
+  Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -128,28 +128,6 @@ const controlClass = cn(
 );
 const searchControlClass = "h-11 px-3.5 text-sm font-medium";
 
-function FieldSection({
-  title,
-  children,
-  gridClassName = "grid gap-3 sm:grid-cols-2 lg:grid-cols-3",
-}: {
-  title: string;
-  children: React.ReactNode;
-  gridClassName?: string;
-}) {
-  return (
-    <section className="space-y-3">
-      <div className="flex items-center gap-3">
-        <h3 className="shrink-0 text-[11px] font-bold uppercase tracking-[0.08em] text-[#145c3f]">
-          {title}
-        </h3>
-        <div className="h-px flex-1 bg-[#d4e8dc]" />
-      </div>
-      <div className={gridClassName}>{children}</div>
-    </section>
-  );
-}
-
 function Field({
   label,
   required,
@@ -180,7 +158,7 @@ function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
     <textarea
       {...props}
       className={cn(
-        "w-full min-h-[5rem] rounded-sm px-3.5 py-2.5 text-sm bg-[#f4f7f5] border-2 border-[#1a7a52] text-slate-800 shadow-none outline-none hover:border-[#0f3d2e] hover:bg-white focus-visible:border-[#0f3d2e] focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-[#1a7a52]/20",
+        "w-full min-h-[5.5rem] rounded-sm px-3.5 py-2.5 text-sm bg-[#f4f7f5] border-2 border-[#1a7a52] text-slate-800 shadow-none outline-none hover:border-[#0f3d2e] hover:bg-white focus-visible:border-[#0f3d2e] focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-[#1a7a52]/20",
         props.className
       )}
     />
@@ -315,6 +293,15 @@ function answeredCount(map: ScoreMap, keys: readonly { key: string }[]) {
   return keys.filter((k) => map[k.key] !== undefined && map[k.key] !== "").length;
 }
 
+const STEP_SHORT_LABELS = [
+  "General Info",
+  "Observations",
+  "Enrollee 1",
+  "Enrollee 2",
+  "Enrollee 3",
+  "Remarks",
+] as const;
+
 export default function StateOfficeMysteryShoppingPage({
   onBack,
   defaultStateId,
@@ -375,20 +362,6 @@ export default function StateOfficeMysteryShoppingPage({
     answeredCount(f.enrollee_card_1, ENROLLEE_ITEMS),
     answeredCount(f.enrollee_card_2, ENROLLEE_ITEMS),
     answeredCount(f.enrollee_card_3, ENROLLEE_ITEMS),
-  ];
-
-  const stepDone = [
-    !!(f.email.trim() && f.zone_id && f.state_id && f.facility_name.trim()),
-    obsAnswered === OBSERVATION_ITEMS.length,
-    cardAnswered[0] === ENROLLEE_ITEMS.length,
-    cardAnswered[1] === ENROLLEE_ITEMS.length,
-    cardAnswered[2] === ENROLLEE_ITEMS.length,
-    !!(
-      f.key_strengths.trim() ||
-      f.gaps_identified.trim() ||
-      f.recommendation.trim() ||
-      f.follow_up_action_plan.trim()
-    ),
   ];
 
   const load = React.useCallback(async () => {
@@ -558,7 +531,7 @@ export default function StateOfficeMysteryShoppingPage({
 
   const validateStep = (page: number) => {
     if (page === 0) {
-      if (!f.email.trim()) return "Email is required.";
+      if (!f.email.trim()) return "Shopper email is required.";
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email.trim())) return "Enter a valid email.";
       if (!f.zone_id || !f.state_id) return "Zone and state are required.";
       if (!f.facility_name.trim()) return "Name of facility is required.";
@@ -622,91 +595,123 @@ export default function StateOfficeMysteryShoppingPage({
     setStep((s) => Math.min(s + 1, STEPS.length - 1));
   };
 
-  const stepper = (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-            Step {step + 1} of {STEPS.length}
-          </p>
-          <p className="text-sm font-bold text-[#145c3f]">{STEPS[step]}</p>
+  // ── Unified Circle Stepper ──────────────────────────────────────────────────
+  const circleStepper = (
+    <div className="w-full py-4 px-2">
+      <div className="flex items-center justify-between max-w-4xl mx-auto relative px-3">
+        {/* Background Track Line */}
+        <div className="absolute top-5 left-6 right-6 h-0.5 bg-slate-200 z-0">
+          {/* Active Filled Track Line */}
+          <div
+            className="h-full bg-[#145c3f] transition-all duration-500"
+            style={{ width: `${(step / (STEPS.length - 1)) * 100}%` }}
+          />
         </div>
-        <div className="flex items-center gap-2 text-xs">
-          <span className="rounded-sm bg-[#e8f6ee] border border-emerald-300 px-2.5 py-1 font-mono font-bold text-[#145c3f]">
-            Std {obsScore}/{OBS_MAX}
-          </span>
-          <span className="rounded-sm bg-orange-50 border border-orange-200 px-2.5 py-1 font-mono font-bold text-orange-700">
-            Enrollee {enrolleeTotal}/{ENROLLEE_MAX * 3}
-          </span>
-        </div>
-      </div>
 
-      <div className="h-1.5 rounded-sm bg-slate-200/70 overflow-hidden">
-        <div
-          className="h-full bg-[#145c3f] transition-all"
-          style={{ width: `${((step + 1) / STEPS.length) * 100}%` }}
-        />
-      </div>
+        {STEPS.map((label, idx) => {
+          const isCompleted = idx < step;
+          const isActive = idx === step;
+          const shortLabel = STEP_SHORT_LABELS[idx] || label;
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
-        {STEPS.map((label, i) => {
-          const active = i === step;
-          const done = stepDone[i];
           return (
             <button
               key={label}
               type="button"
               onClick={() => {
-                if (i === 0 || !validateStep(0)) setStep(i);
+                if (idx <= step || !validateStep(0)) setStep(idx);
               }}
-              className={cn(
-                "rounded-sm px-2.5 py-2 text-left transition-all border-2",
-                active
-                  ? "bg-[#145c3f] text-white border-[#145c3f] shadow-xs"
-                  : done
-                    ? "bg-[#f0fdf7] text-[#145c3f] border-[#1a7a52]"
-                    : "bg-[#f8faf9] text-slate-600 border-[#d4e8dc] hover:border-[#1a7a52] hover:bg-white"
-              )}
+              className="relative z-10 flex flex-col items-center gap-2 group cursor-pointer focus:outline-none"
             >
-              <div className="flex items-center justify-between mb-0.5">
-                <span className="text-[10px] font-bold font-mono opacity-90">0{i + 1}</span>
-                {done ? (
-                  <CheckCircle2
-                    className={cn(
-                      "w-3.5 h-3.5",
-                      active ? "text-white" : "text-emerald-600"
-                    )}
-                  />
-                ) : null}
+              <div
+                className={cn(
+                  "w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all duration-300 font-bold text-xs",
+                  isCompleted
+                    ? "bg-[#145c3f] border-[#145c3f] text-white shadow-xs"
+                    : isActive
+                      ? "bg-white border-[#145c3f] text-[#145c3f] shadow-md shadow-[#145c3f]/20 ring-4 ring-[#145c3f]/10"
+                      : "bg-white border-slate-300 text-slate-400 group-hover:border-slate-400"
+                )}
+              >
+                {isCompleted ? <Check className="w-5 h-5 text-white" /> : <span>{idx + 1}</span>}
               </div>
-              <p className="text-[11px] font-bold leading-tight line-clamp-1">{label}</p>
+              <span
+                className={cn(
+                  "text-[11px] font-bold uppercase tracking-wider text-center max-w-[105px] leading-tight transition-colors hidden sm:block",
+                  isActive
+                    ? "text-[#145c3f]"
+                    : isCompleted
+                      ? "text-slate-700"
+                      : "text-slate-400"
+                )}
+              >
+                {shortLabel}
+              </span>
             </button>
           );
         })}
       </div>
+      {/* Mobile Step Heading */}
+      <div className="sm:hidden text-center mt-3">
+        <span className="text-xs font-bold text-[#145c3f] uppercase tracking-wider">
+          Step {step + 1} of {STEPS.length}: {STEPS[step]}
+        </span>
+      </div>
     </div>
   );
 
+  // ── Unified In-Card Bottom Navigation ───────────────────────────────────────
+  const formCardFooter = (
+    <div className="flex flex-wrap items-center justify-between gap-3 pt-6 border-t border-[#e8f3ec] mt-6">
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={step === 0 ? leaveForm : () => setStep((s) => s - 1)}
+        className="h-9 px-4 text-xs font-semibold border-slate-300 text-slate-700 gap-1.5"
+      >
+        <ArrowLeft className="w-4 h-4" />
+        {step === 0 ? "Cancel" : "Back"}
+      </Button>
+
+      <span className="text-xs text-slate-400 font-medium">
+        Step {step + 1} of {STEPS.length}
+      </span>
+
+      <div className="flex items-center gap-2.5">
+        {step < STEPS.length - 1 ? (
+          <Button
+            type="button"
+            className="h-9 px-5 bg-orange-action hover:bg-orange-600 text-white font-bold text-xs gap-1.5 shadow-xs"
+            onClick={goNext}
+          >
+            Next Step <ArrowRight className="w-4 h-4" />
+          </Button>
+        ) : (
+          <Button
+            type="button"
+            className="h-9 px-5 bg-orange-action hover:bg-orange-600 text-white font-bold text-xs gap-2 shadow-xs"
+            onClick={() => void handleSave()}
+            disabled={saving}
+          >
+            {saving ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Save className="w-4 h-4" />
+            )}
+            {mode === "edit" ? "Update Visit" : "Save Visit"}
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+
+  // ── Enrollee Experience Card Form ───────────────────────────────────────────
   const enrolleeCardForm = (
     cardKey: "enrollee_card_1" | "enrollee_card_2" | "enrollee_card_3",
     index: number
   ) => (
     <Card className="rounded-sm border-[#d4e8dc] shadow-sm overflow-hidden bg-white">
-      <CardHeader className="pb-3 bg-[#f8faf9] border-b border-[#e2efe7]">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <CardTitle className="text-sm font-bold text-[#145c3f]">
-              Enrollee Experience Score Card {index}
-            </CardTitle>
-            <CardDescription className="text-xs text-slate-500">
-              Rate patient experience across 10 touchpoints · {cardAnswered[index - 1]}/
-              {ENROLLEE_ITEMS.length} answered · 0 Poor · 1 Good · 2 Excellent
-            </CardDescription>
-          </div>
-          <ScoreBadge score={cardScores[index - 1]} max={ENROLLEE_MAX} />
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-4 pt-5 p-4 md:p-6">
+      <CardContent className="space-y-4 p-4 md:p-6">
         {ENROLLEE_ITEMS.map((item, idx) => (
           <div
             key={item.key}
@@ -730,391 +735,17 @@ export default function StateOfficeMysteryShoppingPage({
 
         <div className="rounded-sm bg-[#f0fdf7] border border-[#d4e8dc] px-4 py-3 flex items-center justify-between">
           <span className="text-xs font-bold uppercase tracking-wider text-[#145c3f]">
-            Card {index} Total Score
+            Card {index} Total Score ({cardAnswered[index - 1]}/{ENROLLEE_ITEMS.length} answered)
           </span>
           <span className="font-mono text-base font-bold text-[#145c3f]">
             {cardScores[index - 1]} / {ENROLLEE_MAX}
           </span>
         </div>
+
+        {/* Back & Next Navigation inside the card */}
+        {formCardFooter}
       </CardContent>
     </Card>
-  );
-
-  const formBody = (
-    <div className="space-y-4">
-      {stepper}
-
-      {/* Step 0: General Information */}
-      {step === 0 && (
-        <Card className="rounded-sm border-[#d4e8dc] shadow-sm overflow-hidden bg-white">
-          <CardHeader className="pb-3 bg-[#f8faf9] border-b border-[#e2efe7]">
-            <CardTitle className="text-sm font-bold text-[#145c3f]">
-              General Information
-            </CardTitle>
-            <CardDescription className="text-xs text-slate-500">
-              Mystery shopper identity, jurisdiction, and healthcare facility profile
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="p-4 md:p-6 space-y-6">
-            {/* Shopper & Visit Details */}
-            <FieldSection
-              title="Shopper & Visit Details"
-              gridClassName="grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
-            >
-              <Field label="Shopper Email" required>
-                <Input
-                  type="email"
-                  placeholder="shopper@nhia.gov.ng"
-                  value={f.email}
-                  onChange={(e) => setF((p) => ({ ...p, email: e.target.value }))}
-                  className={controlClass}
-                />
-              </Field>
-
-              <Field label="Mystery Shopper Name">
-                <Input
-                  placeholder="Full name of officer"
-                  value={f.mystery_shopper_name}
-                  onChange={(e) =>
-                    setF((p) => ({ ...p, mystery_shopper_name: e.target.value }))
-                  }
-                  className={controlClass}
-                />
-              </Field>
-
-              <Field label="Date of Visit" required>
-                <Input
-                  type="date"
-                  value={f.visit_date}
-                  max={new Date().toISOString().slice(0, 10)}
-                  onChange={(e) => setF((p) => ({ ...p, visit_date: e.target.value }))}
-                  className={controlClass}
-                />
-              </Field>
-
-              <Field label="Zone" required>
-                <Select
-                  value={f.zone_id}
-                  disabled={zoneLocked}
-                  onValueChange={(v) =>
-                    setF((p) => ({
-                      ...p,
-                      zone_id: v,
-                      state_id: stateLocked ? p.state_id : "",
-                      facility_hcf_id: "",
-                      facility_name: "",
-                      facility_nhia_code: "",
-                      facility_type: "",
-                      facility_email: "",
-                    }))
-                  }
-                >
-                  <SelectTrigger
-                    className={controlClass}
-                    displayValue={pickGeoLabel(zones, f.zone_id, "Select zone")}
-                  >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {zones.map((z) => {
-                      const id = geoId(z);
-                      return (
-                        <SelectItem key={id} value={id}>
-                          {z.description}
-                        </SelectItem>
-                      );
-                    })}
-                  </SelectContent>
-                </Select>
-              </Field>
-
-              <Field label="State" required>
-                <Select
-                  value={f.state_id}
-                  disabled={stateLocked || !f.zone_id}
-                  onValueChange={(v) =>
-                    setF((p) => ({
-                      ...p,
-                      state_id: v,
-                      facility_hcf_id: "",
-                      facility_name: "",
-                      facility_nhia_code: "",
-                      facility_type: "",
-                      facility_email: "",
-                    }))
-                  }
-                >
-                  <SelectTrigger
-                    className={controlClass}
-                    displayValue={pickGeoLabel(
-                      states,
-                      f.state_id,
-                      f.zone_id ? "Select state" : "Select zone first"
-                    )}
-                  >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {states.map((s) => {
-                      const id = geoId(s);
-                      return (
-                        <SelectItem key={id} value={id}>
-                          {s.description}
-                        </SelectItem>
-                      );
-                    })}
-                  </SelectContent>
-                </Select>
-              </Field>
-            </FieldSection>
-
-            {/* Healthcare Facility Profile */}
-            <FieldSection
-              title="Healthcare Facility Profile"
-              gridClassName="grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
-            >
-              <Field
-                label="Name of Facility"
-                required
-                className="sm:col-span-2 lg:col-span-3"
-              >
-                <AccreditedProviderSelect
-                  className={searchControlClass}
-                  type="hcp"
-                  stateId={f.state_id || undefined}
-                  value={f.facility_hcf_id}
-                  displayName={f.facility_name || undefined}
-                  placeholder={
-                    f.state_id
-                      ? "Search accredited healthcare facility"
-                      : "Select a state first"
-                  }
-                  disabled={!f.state_id}
-                  onChange={(fac) => {
-                    if (!fac) {
-                      setF((p) => ({
-                        ...p,
-                        facility_hcf_id: "",
-                        facility_name: "",
-                        facility_nhia_code: "",
-                        facility_type: "",
-                      }));
-                      return;
-                    }
-                    setF((p) => ({
-                      ...p,
-                      facility_hcf_id: fac.id,
-                      facility_name: fac.name,
-                      facility_nhia_code: fac.code || p.facility_nhia_code,
-                      facility_type: mapHcfFacilityType(fac.facility_type) || p.facility_type,
-                    }));
-                  }}
-                />
-                {!f.facility_hcf_id && f.facility_name ? (
-                  <p className="text-xs text-amber-700 mt-1">
-                    Saved facility: {f.facility_name}. Re-select from the list to refresh NHIA code and type.
-                  </p>
-                ) : null}
-              </Field>
-
-              <Field label="Facility NHIA Code">
-                <Input
-                  placeholder="e.g. NHIA/HCF/..."
-                  value={f.facility_nhia_code}
-                  onChange={(e) =>
-                    setF((p) => ({ ...p, facility_nhia_code: e.target.value }))
-                  }
-                  className={controlClass}
-                />
-              </Field>
-
-              <Field label="Facility Email">
-                <Input
-                  type="email"
-                  placeholder="facility@hospital.org"
-                  value={f.facility_email}
-                  onChange={(e) =>
-                    setF((p) => ({ ...p, facility_email: e.target.value }))
-                  }
-                  className={controlClass}
-                />
-              </Field>
-
-              <div className="sm:col-span-2 lg:col-span-3">
-                <Field label="Facility Accreditation Type">
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                    {FACILITY_TYPES.map((t) => {
-                      const active = f.facility_type === t.value;
-                      return (
-                        <button
-                          key={t.value}
-                          type="button"
-                          onClick={() => setF((p) => ({ ...p, facility_type: t.value }))}
-                          className={cn(
-                            "h-11 rounded-sm border-2 px-3 text-xs font-semibold transition-all flex items-center justify-center text-center",
-                            active
-                              ? "border-[#145c3f] bg-[#145c3f] text-white shadow-xs"
-                              : "border-[#1a7a52] bg-[#f4f7f5] text-slate-700 hover:border-[#0f3d2e] hover:bg-white"
-                          )}
-                        >
-                          {t.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </Field>
-              </div>
-            </FieldSection>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Step 1: Standard Expectations */}
-      {step === 1 && (
-        <Card className="rounded-sm border-[#d4e8dc] shadow-sm overflow-hidden bg-white">
-          <CardHeader className="pb-3 bg-[#f8faf9] border-b border-[#e2efe7]">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <CardTitle className="text-sm font-bold text-[#145c3f]">
-                  Standard Expectations (Observation Checklist)
-                </CardTitle>
-                <CardDescription className="text-xs text-slate-500">
-                  Score facility compliance against NHIA core operational standards ·{" "}
-                  {obsAnswered}/{OBSERVATION_ITEMS.length} answered
-                </CardDescription>
-              </div>
-              <ScoreBadge score={obsScore} max={OBS_MAX} />
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4 pt-5 p-4 md:p-6">
-            {OBSERVATION_ITEMS.map((item, idx) => (
-              <div
-                key={item.key}
-                className="space-y-2 border-b border-[#e8f3ec] pb-3.5 last:border-0 last:pb-0"
-              >
-                <div className="flex items-start gap-2">
-                  <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-sm bg-[#e8f3ec] text-[10px] font-bold font-mono text-[#145c3f]">
-                    {idx + 1}
-                  </span>
-                  <Label className="text-xs font-semibold text-slate-800 leading-snug">
-                    {item.label}
-                  </Label>
-                </div>
-                <ScorePills
-                  value={f.observations[item.key] ?? ""}
-                  options={item.options}
-                  onChange={(v) => setObs(item.key, v)}
-                />
-              </div>
-            ))}
-
-            <div className="rounded-sm bg-[#f0fdf7] border border-[#d4e8dc] px-4 py-3 flex items-center justify-between">
-              <span className="text-xs font-bold uppercase tracking-wider text-[#145c3f]">
-                Standard Expectations Score
-              </span>
-              <span className="font-mono text-base font-bold text-[#145c3f]">
-                {obsScore} / {OBS_MAX}
-              </span>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Steps 2, 3, 4: Enrollee Experience Cards */}
-      {step === 2 && enrolleeCardForm("enrollee_card_1", 1)}
-      {step === 3 && enrolleeCardForm("enrollee_card_2", 2)}
-      {step === 4 && enrolleeCardForm("enrollee_card_3", 3)}
-
-      {/* Step 5: Remarks & Follow-up */}
-      {step === 5 && (
-        <Card className="rounded-sm border-[#d4e8dc] shadow-sm overflow-hidden bg-white">
-          <CardHeader className="pb-3 bg-[#f8faf9] border-b border-[#e2efe7]">
-            <CardTitle className="text-sm font-bold text-[#145c3f]">
-              Remarks & Follow-up Action Plan
-            </CardTitle>
-            <CardDescription className="text-xs text-slate-500">
-              Qualitative feedback, identified bottlenecks, and corrective interventions
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="p-4 md:p-6 space-y-6">
-            <FieldSection
-              title="Qualitative Assessment & Recommendations"
-              gridClassName="grid gap-4 sm:grid-cols-2"
-            >
-              <Field label="Key Strengths">
-                <Textarea
-                  placeholder="What positive practices or compliant services were observed during the visit..."
-                  value={f.key_strengths}
-                  onChange={(e) => setF((p) => ({ ...p, key_strengths: e.target.value }))}
-                />
-              </Field>
-
-              <Field label="Gaps Identified">
-                <Textarea
-                  placeholder="Specific infractions, delays, drug shortages, or complaints noted..."
-                  value={f.gaps_identified}
-                  onChange={(e) => setF((p) => ({ ...p, gaps_identified: e.target.value }))}
-                />
-              </Field>
-
-              <Field label="Recommendation">
-                <Textarea
-                  placeholder="Actionable recommendations for facility management or HMOs..."
-                  value={f.recommendation}
-                  onChange={(e) => setF((p) => ({ ...p, recommendation: e.target.value }))}
-                />
-              </Field>
-
-              <Field label="Follow-up Action Plan">
-                <Textarea
-                  placeholder="Target corrective steps, responsible officer, and expected timeline..."
-                  value={f.follow_up_action_plan}
-                  onChange={(e) =>
-                    setF((p) => ({ ...p, follow_up_action_plan: e.target.value }))
-                  }
-                />
-              </Field>
-            </FieldSection>
-
-            {/* Assessment Recap Summary */}
-            <div className="rounded-sm border border-[#d4e8dc] bg-[#f8faf9] p-4 grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
-              <div>
-                <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">
-                  Standard Score
-                </p>
-                <p className="font-mono font-bold text-sm text-[#145c3f] mt-0.5">
-                  {obsScore} / {OBS_MAX}
-                </p>
-              </div>
-              <div>
-                <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">
-                  Enrollee Total
-                </p>
-                <p className="font-mono font-bold text-sm text-orange-700 mt-0.5">
-                  {enrolleeTotal} / {ENROLLEE_MAX * 3}
-                </p>
-              </div>
-              <div>
-                <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">
-                  Facility
-                </p>
-                <p className="font-semibold text-slate-800 mt-0.5 truncate">
-                  {f.facility_name || "—"}
-                </p>
-              </div>
-              <div>
-                <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">
-                  Visit Date
-                </p>
-                <p className="font-semibold text-slate-800 mt-0.5">
-                  {safeDate(f.visit_date)}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-    </div>
   );
 
   React.useEffect(() => {
@@ -1172,7 +803,7 @@ export default function StateOfficeMysteryShoppingPage({
 
   React.useEffect(() => () => onChromeChange?.(null), [onChromeChange]);
 
-  // View Mode
+  // ── View Mode ──────────────────────────────────────────────────────────────
   if (mode === "view") {
     const stateName =
       detailMeta.state ||
@@ -1257,7 +888,7 @@ export default function StateOfficeMysteryShoppingPage({
                 />
                 <InfoField label="Facility NHIA Code" value={f.facility_nhia_code} />
                 <InfoField
-                  label="Facility Type"
+                  label="Facility Accreditation Type"
                   value={labelOf(FACILITY_TYPES, f.facility_type)}
                 />
                 <InfoField label="Facility Email" value={f.facility_email} />
@@ -1330,7 +961,7 @@ export default function StateOfficeMysteryShoppingPage({
     );
   }
 
-  // Create / Edit Form Mode
+  // ── Create / Edit Form Mode ────────────────────────────────────────────────
   if (mode !== "list") {
     return (
       <div key={formKey} className="flex flex-col h-full bg-slate-50/30">
@@ -1349,71 +980,364 @@ export default function StateOfficeMysteryShoppingPage({
                 {mode === "edit" ? "Edit Mystery Shopping Visit" : "New Mystery Shopping Visit"}
               </h2>
             </div>
+            <div className="flex items-center gap-2">
+              <Badge className="bg-[#e8f6ee] text-[#145c3f] border border-emerald-300 font-mono text-xs">
+                Std {obsScore}/{OBS_MAX}
+              </Badge>
+              <Badge className="bg-orange-50 text-orange-700 border border-orange-200 font-mono text-xs">
+                Enrollee {enrolleeTotal}/{ENROLLEE_MAX * 3}
+              </Badge>
+            </div>
           </div>
         )}
+
         <ScrollArea className="flex-1">
-          <div className="w-full px-4 md:px-6 py-5 space-y-5 pb-28">{formBody}</div>
-        </ScrollArea>
+          <div className="w-full px-4 md:px-6 py-5 space-y-6 pb-20">
+            {/* 1. Circle Stepper at Top */}
+            {circleStepper}
 
-        {/* Sticky Action Footer */}
-        <div className="sticky bottom-0 z-30 bg-white border-t border-[#d4e8dc] px-4 md:px-6 py-3 flex flex-wrap items-center justify-between gap-3 shadow-lg">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setStep((s) => Math.max(0, s - 1))}
-            disabled={step === 0}
-            className="h-9 px-4 text-xs font-semibold border-slate-300 text-slate-700"
-          >
-            Back
-          </Button>
+            {/* 2. Step 0: General Information Card */}
+            {step === 0 && (
+              <Card className="rounded-sm border-[#d4e8dc] shadow-sm overflow-hidden bg-white">
+                <CardContent className="p-4 md:p-6 space-y-6">
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    <Field label="Shopper Email" required>
+                      <Input
+                        type="email"
+                        placeholder="shopper@nhia.gov.ng"
+                        value={f.email}
+                        onChange={(e) => setF((p) => ({ ...p, email: e.target.value }))}
+                        className={controlClass}
+                      />
+                    </Field>
 
-          <div className="hidden sm:flex items-center gap-3 text-xs">
-            <span className="font-mono font-bold text-[#145c3f] bg-[#e8f6ee] border border-emerald-300 px-2.5 py-1 rounded-sm">
-              Std {obsScore}/{OBS_MAX}
-            </span>
-            <span className="text-slate-300">·</span>
-            <span className="font-mono font-bold text-orange-700 bg-orange-50 border border-orange-200 px-2.5 py-1 rounded-sm">
-              Enrollee {enrolleeTotal}/{ENROLLEE_MAX * 3}
-            </span>
-          </div>
+                    <Field label="Mystery Shopper Name">
+                      <Input
+                        placeholder="Full name of officer"
+                        value={f.mystery_shopper_name}
+                        onChange={(e) =>
+                          setF((p) => ({ ...p, mystery_shopper_name: e.target.value }))
+                        }
+                        className={controlClass}
+                      />
+                    </Field>
 
-          <div className="flex items-center gap-2.5">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={mode === "edit" ? () => setMode("view") : leaveForm}
-              className="h-9 px-4 text-xs font-semibold border-slate-300 text-slate-700"
-            >
-              Cancel
-            </Button>
-            {step < STEPS.length - 1 ? (
-              <Button
-                className="h-9 px-5 bg-orange-action hover:bg-orange-600 text-white font-bold text-xs gap-1.5 shadow-xs"
-                onClick={goNext}
-              >
-                Next Step
-              </Button>
-            ) : (
-              <Button
-                className="h-9 px-5 bg-orange-action hover:bg-orange-600 text-white font-bold text-xs gap-2 shadow-xs"
-                onClick={() => void handleSave()}
-                disabled={saving}
-              >
-                {saving ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Save className="w-4 h-4" />
-                )}
-                {mode === "edit" ? "Update Visit" : "Save Visit"}
-              </Button>
+                    <Field label="Date of Visit" required>
+                      <Input
+                        type="date"
+                        value={f.visit_date}
+                        max={new Date().toISOString().slice(0, 10)}
+                        onChange={(e) => setF((p) => ({ ...p, visit_date: e.target.value }))}
+                        className={controlClass}
+                      />
+                    </Field>
+
+                    <Field label="Zone" required>
+                      <Select
+                        value={f.zone_id}
+                        disabled={zoneLocked}
+                        onValueChange={(v) =>
+                          setF((p) => ({
+                            ...p,
+                            zone_id: v,
+                            state_id: stateLocked ? p.state_id : "",
+                            facility_hcf_id: "",
+                            facility_name: "",
+                            facility_nhia_code: "",
+                            facility_type: "",
+                            facility_email: "",
+                          }))
+                        }
+                      >
+                        <SelectTrigger
+                          className={controlClass}
+                          displayValue={pickGeoLabel(zones, f.zone_id, "Select zone")}
+                        >
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {zones.map((z) => {
+                            const id = geoId(z);
+                            return (
+                              <SelectItem key={id} value={id}>
+                                {z.description}
+                              </SelectItem>
+                            );
+                          })}
+                        </SelectContent>
+                      </Select>
+                    </Field>
+
+                    <Field label="State" required>
+                      <Select
+                        value={f.state_id}
+                        disabled={stateLocked || !f.zone_id}
+                        onValueChange={(v) =>
+                          setF((p) => ({
+                            ...p,
+                            state_id: v,
+                            facility_hcf_id: "",
+                            facility_name: "",
+                            facility_nhia_code: "",
+                            facility_type: "",
+                            facility_email: "",
+                          }))
+                        }
+                      >
+                        <SelectTrigger
+                          className={controlClass}
+                          displayValue={pickGeoLabel(
+                            states,
+                            f.state_id,
+                            f.zone_id ? "Select state" : "Select zone first"
+                          )}
+                        >
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {states.map((s) => {
+                            const id = geoId(s);
+                            return (
+                              <SelectItem key={id} value={id}>
+                                {s.description}
+                              </SelectItem>
+                            );
+                          })}
+                        </SelectContent>
+                      </Select>
+                    </Field>
+
+                    <Field
+                      label="Name of Facility"
+                      required
+                      className="sm:col-span-2 lg:col-span-3"
+                    >
+                      <AccreditedProviderSelect
+                        className={searchControlClass}
+                        type="hcp"
+                        stateId={f.state_id || undefined}
+                        value={f.facility_hcf_id}
+                        displayName={f.facility_name || undefined}
+                        placeholder={
+                          f.state_id
+                            ? "Search accredited healthcare facility"
+                            : "Select a state first"
+                        }
+                        disabled={!f.state_id}
+                        onChange={(fac) => {
+                          if (!fac) {
+                            setF((p) => ({
+                              ...p,
+                              facility_hcf_id: "",
+                              facility_name: "",
+                              facility_nhia_code: "",
+                              facility_type: "",
+                            }));
+                            return;
+                          }
+                          setF((p) => ({
+                            ...p,
+                            facility_hcf_id: fac.id,
+                            facility_name: fac.name,
+                            facility_nhia_code: fac.code || p.facility_nhia_code,
+                            facility_type: mapHcfFacilityType(fac.facility_type) || p.facility_type,
+                          }));
+                        }}
+                      />
+                      {!f.facility_hcf_id && f.facility_name ? (
+                        <p className="text-xs text-amber-700 mt-1">
+                          Saved facility: {f.facility_name}. Re-select from the list to refresh NHIA code and type.
+                        </p>
+                      ) : null}
+                    </Field>
+
+                    <Field label="Facility NHIA Code">
+                      <Input
+                        placeholder="e.g. NHIA/HCF/..."
+                        value={f.facility_nhia_code}
+                        onChange={(e) =>
+                          setF((p) => ({ ...p, facility_nhia_code: e.target.value }))
+                        }
+                        className={controlClass}
+                      />
+                    </Field>
+
+                    <Field label="Facility Email">
+                      <Input
+                        type="email"
+                        placeholder="facility@hospital.org"
+                        value={f.facility_email}
+                        onChange={(e) =>
+                          setF((p) => ({ ...p, facility_email: e.target.value }))
+                        }
+                        className={controlClass}
+                      />
+                    </Field>
+
+                    {/* Facility Accreditation Type is now a Select */}
+                    <Field label="Facility Accreditation Type">
+                      <Select
+                        value={f.facility_type}
+                        onValueChange={(v) => setF((p) => ({ ...p, facility_type: v }))}
+                      >
+                        <SelectTrigger
+                          className={controlClass}
+                          displayValue={
+                            FACILITY_TYPES.find((t) => t.value === f.facility_type)?.label
+                          }
+                        >
+                          <SelectValue placeholder="Select accreditation type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {FACILITY_TYPES.map((t) => (
+                            <SelectItem key={t.value} value={t.value}>
+                              {t.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </Field>
+                  </div>
+
+                  {/* Back & Next Navigation inside the card */}
+                  {formCardFooter}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Step 1: Standard Expectations Checklist Card */}
+            {step === 1 && (
+              <Card className="rounded-sm border-[#d4e8dc] shadow-sm overflow-hidden bg-white">
+                <CardContent className="space-y-4 p-4 md:p-6">
+                  {OBSERVATION_ITEMS.map((item, idx) => (
+                    <div
+                      key={item.key}
+                      className="space-y-2 border-b border-[#e8f3ec] pb-3.5 last:border-0 last:pb-0"
+                    >
+                      <div className="flex items-start gap-2">
+                        <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-sm bg-[#e8f3ec] text-[10px] font-bold font-mono text-[#145c3f]">
+                          {idx + 1}
+                        </span>
+                        <Label className="text-xs font-semibold text-slate-800 leading-snug">
+                          {item.label}
+                        </Label>
+                      </div>
+                      <ScorePills
+                        value={f.observations[item.key] ?? ""}
+                        options={item.options}
+                        onChange={(v) => setObs(item.key, v)}
+                      />
+                    </div>
+                  ))}
+
+                  <div className="rounded-sm bg-[#f0fdf7] border border-[#d4e8dc] px-4 py-3 flex items-center justify-between">
+                    <span className="text-xs font-bold uppercase tracking-wider text-[#145c3f]">
+                      Standard Expectations Score ({obsAnswered}/{OBSERVATION_ITEMS.length} answered)
+                    </span>
+                    <span className="font-mono text-base font-bold text-[#145c3f]">
+                      {obsScore} / {OBS_MAX}
+                    </span>
+                  </div>
+
+                  {/* Back & Next Navigation inside the card */}
+                  {formCardFooter}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Steps 2, 3, 4: Enrollee Experience Cards */}
+            {step === 2 && enrolleeCardForm("enrollee_card_1", 1)}
+            {step === 3 && enrolleeCardForm("enrollee_card_2", 2)}
+            {step === 4 && enrolleeCardForm("enrollee_card_3", 3)}
+
+            {/* Step 5: Remarks & Follow-up Card */}
+            {step === 5 && (
+              <Card className="rounded-sm border-[#d4e8dc] shadow-sm overflow-hidden bg-white">
+                <CardContent className="p-4 md:p-6 space-y-6">
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <Field label="Key Strengths">
+                      <Textarea
+                        placeholder="What positive practices or compliant services were observed during the visit..."
+                        value={f.key_strengths}
+                        onChange={(e) => setF((p) => ({ ...p, key_strengths: e.target.value }))}
+                      />
+                    </Field>
+
+                    <Field label="Gaps Identified">
+                      <Textarea
+                        placeholder="Specific infractions, delays, drug shortages, or complaints noted..."
+                        value={f.gaps_identified}
+                        onChange={(e) => setF((p) => ({ ...p, gaps_identified: e.target.value }))}
+                      />
+                    </Field>
+
+                    <Field label="Recommendation">
+                      <Textarea
+                        placeholder="Actionable recommendations for facility management or HMOs..."
+                        value={f.recommendation}
+                        onChange={(e) => setF((p) => ({ ...p, recommendation: e.target.value }))}
+                      />
+                    </Field>
+
+                    <Field label="Follow-up Action Plan">
+                      <Textarea
+                        placeholder="Target corrective steps, responsible officer, and expected timeline..."
+                        value={f.follow_up_action_plan}
+                        onChange={(e) =>
+                          setF((p) => ({ ...p, follow_up_action_plan: e.target.value }))
+                        }
+                      />
+                    </Field>
+                  </div>
+
+                  {/* Assessment Recap Summary */}
+                  <div className="rounded-sm border border-[#d4e8dc] bg-[#f8faf9] p-4 grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">
+                        Standard Score
+                      </p>
+                      <p className="font-mono font-bold text-sm text-[#145c3f] mt-0.5">
+                        {obsScore} / {OBS_MAX}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">
+                        Enrollee Total
+                      </p>
+                      <p className="font-mono font-bold text-sm text-orange-700 mt-0.5">
+                        {enrolleeTotal} / {ENROLLEE_MAX * 3}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">
+                        Facility
+                      </p>
+                      <p className="font-semibold text-slate-800 mt-0.5 truncate">
+                        {f.facility_name || "—"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">
+                        Visit Date
+                      </p>
+                      <p className="font-semibold text-slate-800 mt-0.5">
+                        {safeDate(f.visit_date)}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Back & Save Visit Navigation inside the card */}
+                  {formCardFooter}
+                </CardContent>
+              </Card>
             )}
           </div>
-        </div>
+        </ScrollArea>
       </div>
     );
   }
 
-  // List Mode
+  // ── List Mode ──────────────────────────────────────────────────────────────
   return (
     <div className={`flex flex-col h-full ${embedded ? "" : "bg-slate-50/30"}`}>
       {!embedded && (
