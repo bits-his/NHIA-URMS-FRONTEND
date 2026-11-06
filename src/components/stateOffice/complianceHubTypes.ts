@@ -20,7 +20,7 @@ export const COMPLIANCE_HUB_TABS: {
   title: string;
 }[] = [
   { key: "complaints", tabLabel: "Complaints Register", title: "State Complaints Register" },
-  { key: "weekly-compliance", tabLabel: "Weekly Compliance", title: "Weekly Compliance Report" },
+  { key: "weekly-compliance", tabLabel: "HCF Compliance Monitoring", title: "HCF Compliance Monitoring" },
   { key: "hmo-indebtedness", tabLabel: "HMO Indebtedness", title: "HMO Indebtedness" },
   { key: "mystery-shopping", tabLabel: "Mystery Shopping", title: "Mystery Shopping" },
 ];
@@ -53,8 +53,8 @@ export const COMPLIANCE_HUB_CHILDREN: ComplianceHubChild[] = [
   },
   {
     key: "weekly-compliance",
-    title: "Weekly Compliance Report",
-    navLabel: "Weekly Compliance",
+    title: "HCF Compliance Monitoring",
+    navLabel: "HCF Compliance Monitoring",
     view: "state-weekly-compliance",
     path: "/zonal/weekly-compliance",
     tab: "weekly-compliance",
