@@ -45,22 +45,12 @@ function levelFromRole(role: string): 1 | 2 | 3 | 4 {
   return 1;
 }
 
-function levelMeta(level: 1 | 2 | 3 | 4) {
-  return ({
-    1: "Operational view for planning, execution and follow-up within the assigned state.",
-    2: "Compare state delivery and identify where coordination or follow-up is needed.",
-    3: "National monitoring across zones, programmes and activity types.",
-    4: "Executive overview with distinct programme and activity outputs, trends and priority decisions.",
-  } as const)[level];
-}
-
 export default function ProviderManagementDashboard({
   onBack, defaultZoneId, defaultStateId, embedded = false,
 }: Props) {
   const user = useSelector((s: RootState) => s.auth.user);
   const role = user?.role || "";
   const level = levelFromRole(role);
-  const blurb = levelMeta(level);
   const lockZone = !!(defaultZoneId && (level === 1 || level === 2 || isDeptZonalCoordinator(role) || isDeptStateCoordinator(role)));
   const lockState = !!(defaultStateId && level === 1);
 
@@ -178,11 +168,6 @@ export default function ProviderManagementDashboard({
     if (user?.state?.description) return String(user.state.description);
     return String(defaultStateId);
   }, [lockState, defaultStateId, states, user?.state?.description]);
-  const displayBlurb = sdoPipeline
-    ? "National monitoring by zone, programme and activity type, with distinct pipelines."
-    : level === 1 && lockedStateLabel
-      ? `Operational view for ${lockedStateLabel}: plan, execute and follow up. Other states appear at zonal and national levels as they report.`
-    : blurb;
 
   const monthlyTrend = React.useMemo(() => {
     return ((byMonth as any[]) || []).map((r) => ({
@@ -225,10 +210,7 @@ export default function ProviderManagementDashboard({
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <div className="min-w-0 flex-1">
-            <div className="min-w-0">
-              <h2 className="text-xl md:text-2xl font-bold tracking-tight text-slate-900">Provider Management Dashboard</h2>
-              <p className="text-sm text-slate-500 mt-1 max-w-3xl">{displayBlurb}</p>
-            </div>
+            <h2 className="text-xl md:text-2xl font-bold tracking-tight text-slate-900">Provider Management Dashboard</h2>
           </div>
           <Button variant="outline" size="sm" className="gap-2 shrink-0" onClick={() => void load()} disabled={loading}>
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
@@ -239,9 +221,6 @@ export default function ProviderManagementDashboard({
 
       <ScrollArea className="flex-1">
         <div className="w-full px-3 py-3 md:px-4 md:py-3.5 space-y-3.5 pb-12">
-          {embedded && (
-            <p className="text-xs text-slate-500 -mt-1 mb-1">{displayBlurb}</p>
-          )}
           <motion.div
             initial={{ opacity: 0, y: 4 }}
             animate={{ opacity: 1, y: 0 }}

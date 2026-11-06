@@ -74,6 +74,7 @@ export default function ComplaintRegisterDashboard({
   const [states, setStates] = React.useState<any[]>([]);
   const [year, setYear] = React.useState(String(currentYear));
   const [month, setMonth] = React.useState("all");
+  const [mainTab, setMainTab] = React.useState<"overview" | "analysis">("overview");
   const [date, setDate] = React.useState("");
   const [locationLevel, setLocationLevel] = React.useState<"all" | "hq" | "zone" | "state">(
     stateLocked ? "state" : zoneLocked ? "zone" : "all",
@@ -230,13 +231,13 @@ export default function ComplaintRegisterDashboard({
   }, [year, month, date, locationLevel, filterZone, filterState, domain, priority, category, type, route, status, stateLocked, zoneLocked]);
 
   const filters = stateLocked ? (
-    <div className="flex flex-wrap items-end gap-3">
+    <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
         <Filter label="Reporting year">
           <Select
             value={year}
             onValueChange={(v) => { setYear(v); if (v !== "all") setDate(""); }}
           >
-            <SelectTrigger className="h-8.5 text-xs rounded-sm border-[#d4e8dc] min-w-[120px] bg-white">
+            <SelectTrigger displayValue={year === "all" ? "All years" : year}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -252,7 +253,7 @@ export default function ComplaintRegisterDashboard({
             value={month}
             onValueChange={(v) => { setMonth(v); if (v !== "all") setDate(""); }}
           >
-            <SelectTrigger className="h-8.5 text-xs rounded-sm border-[#d4e8dc] min-w-[120px] bg-white">
+            <SelectTrigger displayValue={MONTHS.find((m) => m.value === month)?.label ?? month}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -263,7 +264,7 @@ export default function ComplaintRegisterDashboard({
 
         <Filter label="Specific date">
           <Input
-            className="h-8.5 text-xs rounded-sm border-[#d4e8dc] min-w-[140px] bg-white"
+            className="h-10 w-full rounded-sm border-2 border-[#1a7a52] bg-[#f4f7f5] px-3.5 text-sm font-medium text-slate-800"
             type="date"
             value={date}
             onChange={(e) => {
@@ -296,13 +297,13 @@ export default function ComplaintRegisterDashboard({
         </Filter>
     </div>
   ) : (
-    <div className="flex flex-wrap items-end gap-3">
+    <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
         <Filter label="Reporting year">
           <Select
             value={year}
             onValueChange={(v) => { setYear(v); if (v !== "all") setDate(""); }}
           >
-            <SelectTrigger className="h-8.5 text-xs rounded-sm border-[#d4e8dc] min-w-[120px] bg-white">
+            <SelectTrigger displayValue={year === "all" ? "All years" : year}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -318,7 +319,7 @@ export default function ComplaintRegisterDashboard({
             value={month}
             onValueChange={(v) => { setMonth(v); if (v !== "all") setDate(""); }}
           >
-            <SelectTrigger className="h-8.5 text-xs rounded-sm border-[#d4e8dc] min-w-[120px] bg-white">
+            <SelectTrigger displayValue={MONTHS.find((m) => m.value === month)?.label ?? month}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -329,7 +330,7 @@ export default function ComplaintRegisterDashboard({
 
         <Filter label="Specific date">
           <Input
-            className="h-8.5 text-xs rounded-sm border-[#d4e8dc] min-w-[140px] bg-white"
+            className="h-10 w-full rounded-sm border-2 border-[#1a7a52] bg-[#f4f7f5] px-3.5 text-sm font-medium text-slate-800"
             type="date"
             value={date}
             onChange={(e) => {
@@ -355,7 +356,7 @@ export default function ComplaintRegisterDashboard({
                 if (v === "zone") setFilterState("all");
               }}
             >
-              <SelectTrigger className="h-8.5 text-xs rounded-sm border-[#d4e8dc] min-w-[120px] bg-white">
+              <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -368,7 +369,7 @@ export default function ComplaintRegisterDashboard({
           </Filter>
         ) : (
           <Filter label="Location">
-            <div className="h-8.5 px-3 flex items-center text-xs bg-slate-100/70 border border-[#d4e8dc] rounded-sm text-slate-600 font-medium">
+            <div className="h-10 px-3.5 flex items-center text-sm font-medium bg-[#f4f7f5] border-2 border-[#1a7a52] rounded-sm text-slate-600">
               Zone Locked
             </div>
           </Filter>
@@ -381,7 +382,7 @@ export default function ComplaintRegisterDashboard({
               onValueChange={(v) => { setFilterZone(v); setFilterState("all"); }}
               disabled={zoneLocked}
             >
-              <SelectTrigger className="h-8.5 text-xs rounded-sm border-[#d4e8dc] min-w-[120px] bg-white" displayValue={zoneLabel}>
+              <SelectTrigger displayValue={zoneLabel}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -394,7 +395,7 @@ export default function ComplaintRegisterDashboard({
           </Filter>
         ) : (
           <Filter label="Zone">
-            <div className="h-8.5 px-3 flex items-center text-xs bg-slate-100/70 border border-[#d4e8dc] rounded-sm text-slate-400">
+            <div className="h-10 px-3.5 flex items-center text-sm font-medium bg-[#f4f7f5] border-2 border-[#1a7a52] rounded-sm text-slate-400">
               HQ (N/A)
             </div>
           </Filter>
@@ -403,7 +404,7 @@ export default function ComplaintRegisterDashboard({
         {locationLevel !== "hq" ? (
           <Filter label="State">
             <Select value={filterState} onValueChange={setFilterState}>
-              <SelectTrigger className="h-8.5 text-xs rounded-sm border-[#d4e8dc] min-w-[120px] bg-white" displayValue={stateLabel}>
+              <SelectTrigger displayValue={stateLabel}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -416,7 +417,7 @@ export default function ComplaintRegisterDashboard({
           </Filter>
         ) : (
           <Filter label="State">
-            <div className="h-8.5 px-3 flex items-center text-xs bg-slate-100/70 border border-[#d4e8dc] rounded-sm text-slate-400">
+            <div className="h-10 px-3.5 flex items-center text-sm font-medium bg-[#f4f7f5] border-2 border-[#1a7a52] rounded-sm text-slate-400">
               HQ (N/A)
             </div>
           </Filter>
@@ -446,20 +447,21 @@ export default function ComplaintRegisterDashboard({
     <div className="flex items-center justify-center py-20 gap-3 text-slate-400">
       <Loader2 className="w-5 h-5 animate-spin" /> Loading complaint dashboard…
     </div>
+  ) : mainTab === "analysis" ? (
+    <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 items-stretch">
+      <CountChart title="Complaints by respondent (complainant type)" data={data?.by_complainant} empty="No complainant types recorded." />
+      <CountChart title="Top recurring issues" data={data?.top_issues} empty="No issue categories yet." />
+      {!isSingleState && <CountChart title="Complaints by state" data={data?.by_state} empty="No state volumes yet." />}
+      {!isSingleState && <CountChart title="Complaints by zone" data={data?.by_zone} empty="No zone volumes yet." />}
+      {!isSingleState && <DaysChart title="Average resolution time by state" data={data?.avg_resolution_by_state} />}
+      {!isSingleState && <DaysChart title="Average resolution time by zone" data={data?.avg_resolution_by_zone} />}
+    </div>
   ) : (
-    <>
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 items-stretch">
-        <CountChart title="Complaints by programs" data={data?.by_domain} empty="No complaints in this filter." />
-        <CountChart title="Complaints by respondent (complainant type)" data={data?.by_complainant} empty="No complainant types recorded." />
-        <CountChart title="Complaints by resolution" data={data?.by_outcome} empty="No closed complaints in this filter." />
-        <CountChart title="Top recurring issues" data={data?.top_issues} empty="No issue categories yet." />
-        {!isSingleState && <CountChart title="Complaints by state" data={data?.by_state} empty="No state volumes yet." />}
-        {!isSingleState && <CountChart title="Complaints by zone" data={data?.by_zone} empty="No zone volumes yet." />}
-        {!isSingleState && <DaysChart title="Average resolution time by state" data={data?.avg_resolution_by_state} />}
-        {!isSingleState && <DaysChart title="Average resolution time by zone" data={data?.avg_resolution_by_zone} />}
-        <CountChart title="Open complaints by status" data={data?.open_by_status} empty="No open complaints." className="xl:col-span-2" />
-      </div>
-    </>
+    <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 items-stretch">
+      <CountChart title="Complaints by programs" data={data?.by_domain} empty="No complaints in this filter." />
+      <CountChart title="Complaints by resolution" data={data?.by_outcome} empty="No closed complaints in this filter." />
+      <CountChart title="Open complaints by status" data={data?.open_by_status} empty="No open complaints." className="xl:col-span-2" />
+    </div>
   );
 
   const drillPanel = (
@@ -510,33 +512,59 @@ export default function ComplaintRegisterDashboard({
           {subtitle && <p className="text-xs text-slate-500 mt-0.5">{subtitle}</p>}
         </div>
       )}
-      <div className="flex flex-wrap items-end gap-3">
-        <div className="flex-1 min-w-0">{filters}</div>
-        <div className="flex items-center gap-2">
-          {activeFiltersCount > 0 && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={clearFilters}
-              className="h-8.5 text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 gap-1 rounded-sm px-2"
-            >
-              <X className="w-3.5 h-3.5" />
-              <span>Reset</span>
-            </Button>
-          )}
-          {!embedded && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={load}
-              disabled={loading}
-              className="h-8.5 gap-1.5 border border-slate-300 text-slate-700 bg-white hover:bg-[#f4f7f5] text-xs font-bold rounded-sm shadow-2xs"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
-              <span>Sync</span>
-            </Button>
-          )}
-        </div>
+      <div className="rounded-lg border border-[#d4e8dc] bg-white p-3.5 shadow-2xs space-y-3">
+        {filters}
+        {(activeFiltersCount > 0 || !embedded) && (
+          <div className="flex justify-end gap-2">
+            {activeFiltersCount > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearFilters}
+                className="h-8 text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 gap-1 rounded-sm px-2"
+              >
+                <X className="w-3.5 h-3.5" />
+                <span>Reset</span>
+              </Button>
+            )}
+            {!embedded && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={load}
+                disabled={loading}
+                className="h-8 gap-1.5 border border-slate-300 text-slate-700 bg-white hover:bg-[#f4f7f5] text-xs font-bold rounded-sm shadow-2xs"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+                <span>Sync</span>
+              </Button>
+            )}
+          </div>
+        )}
+      </div>
+      <div className="flex items-center gap-1 rounded-lg border border-[#d4e8dc] bg-white p-1 shadow-2xs w-full sm:w-fit">
+        <button
+          type="button"
+          onClick={() => setMainTab("overview")}
+          className={`flex-1 sm:flex-none px-3.5 py-1.5 rounded-md text-xs font-bold transition-colors ${
+            mainTab === "overview"
+              ? "bg-[#145c3f] text-white shadow-xs"
+              : "text-slate-600 hover:bg-slate-50"
+          }`}
+        >
+          Overview
+        </button>
+        <button
+          type="button"
+          onClick={() => setMainTab("analysis")}
+          className={`flex-1 sm:flex-none px-3.5 py-1.5 rounded-md text-xs font-bold transition-colors ${
+            mainTab === "analysis"
+              ? "bg-[#145c3f] text-white shadow-xs"
+              : "text-slate-600 hover:bg-slate-50"
+          }`}
+        >
+          Activity analysis
+        </button>
       </div>
       {body}
       {drillPanel}
@@ -591,8 +619,8 @@ function DaysChart({ title, data }: { title: string; data?: { name: string; days
 
 function Filter({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="space-y-1 min-w-0">
-      <Label className="text-[11px] text-slate-500">{label}</Label>
+    <div className="space-y-1">
+      <Label className="text-[10px] uppercase tracking-wide text-slate-400">{label}</Label>
       {children}
     </div>
   );
@@ -609,7 +637,7 @@ function Choice({
   const label = value === "all" ? allLabel : (options.find((o) => o.value === value)?.label || value);
   return (
     <Select value={value} onValueChange={onChange}>
-      <SelectTrigger className="h-8.5 text-xs rounded-sm border-[#d4e8dc] min-w-[120px] bg-white" displayValue={label}>
+      <SelectTrigger displayValue={label}>
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
