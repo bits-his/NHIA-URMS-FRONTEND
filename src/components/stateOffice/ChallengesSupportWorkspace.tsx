@@ -9,13 +9,14 @@ import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 import type { ColumnDef } from "@tanstack/react-table";
 import PageLayout from "../PageLayout";
 import { UnderHeaderNavTabs } from "@/src/components/UnderHeaderNavTabs";
 import { ShadcnDataTable } from "@/components/common/ShadcnDataTable";
 import { challengesSupportApi as api } from "@/lib/api";
 import { RegisterStatsCards } from "./RegisterStatsCards";
-import { Field, FieldSection } from "./EnrolmentActivityForm";
+import { Field } from "./EnrolmentActivityForm";
 import {
   CHALLENGE_CATEGORIES, CHALLENGE_DEPARTMENTS, CHALLENGE_IMPACTS, CHALLENGE_PROGRAMS,
   CHALLENGE_RELATED_ACTIVITIES, CHALLENGE_SEVERITIES, CHALLENGE_STATUSES,
@@ -23,8 +24,25 @@ import {
   SUPPORT_STATUSES, severityToPriority, specificChallengesFor, specificSupportFor,
 } from "./challengesTypes";
 
-const inputClass = "w-full min-h-[4.5rem] rounded-sm px-3.5 py-2 text-sm bg-[#f4f7f5] border-2 border-[#1a7a52] text-slate-800 shadow-xs outline-none hover:border-[#0f3d2e] hover:bg-white focus-visible:border-[#0f3d2e] focus-visible:bg-white focus-visible:ring-3 focus-visible:ring-[#1a7a52]/25";
+const inputClass = "w-full min-h-[4.5rem] rounded-sm px-3.5 py-2 text-sm font-medium bg-[#f4f7f5] border-2 border-[#1a7a52] text-slate-800 shadow-none outline-none hover:border-[#0f3d2e] hover:bg-white focus-visible:border-[#0f3d2e] focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-[#1a7a52]/20";
+const controlClass = cn(
+  "h-11 w-full text-sm font-medium",
+  "bg-[#f4f7f5] border-2 border-[#1a7a52] rounded-sm px-3.5 shadow-none",
+  "hover:border-[#0f3d2e] hover:bg-white",
+  "focus-visible:border-[#0f3d2e] focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-[#1a7a52]/20",
+);
 const ACTION = "bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20";
+
+function FormInput({ readOnly, disabled, className, ...props }: React.ComponentProps<typeof Input>) {
+  return (
+    <Input
+      {...props}
+      readOnly={readOnly}
+      disabled={disabled}
+      className={cn(controlClass, (readOnly || disabled) && "bg-slate-50 text-slate-600", className)}
+    />
+  );
+}
 
 function ReviewRow({ label, value }: { label: string; value?: React.ReactNode }) {
   if (value == null || value === "") return null;
@@ -73,7 +91,7 @@ function Dropdown({ value, options, onChange, disabled, placeholder = "Select" }
   const items = options.map((o) => (typeof o === "string" ? { value: o, label: o } : o));
   return (
     <Select value={value} onValueChange={onChange} disabled={disabled}>
-      <SelectTrigger displayValue={items.find((o) => o.value === value)?.label}><SelectValue placeholder={placeholder} /></SelectTrigger>
+      <SelectTrigger className={controlClass} displayValue={items.find((o) => o.value === value)?.label}><SelectValue placeholder={placeholder} /></SelectTrigger>
       <SelectContent>{items.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
     </Select>
   );
@@ -95,9 +113,20 @@ const blankSupport = (catalogue: Catalogue | null, challenge?: Challenge | null)
   date_submitted: new Date().toISOString().slice(0, 10),
 });
 
-interface Props { onBack: () => void }
+interface Props {
+  onBack: () => void;
+  embedded?: boolean;
+  onSubmitted?: () => void;
+  seed?: {
+    related_activity?: string;
+    meeting_id?: string;
+    note?: string;
+    state_code?: string;
+    date_reported?: string;
+  };
+}
 
-export default function ChallengesSupportWorkspace({ onBack }: Props) {
+export default function ChallengesSupportWorkspace({ onBack, embedded = false, onSubmitted, seed }: Props) {
   const [catalogue, setCatalogue] = React.useState<Catalogue | null>(null);
   const [challenges, setChallenges] = React.useState<Challenge[]>([]);
   const [supportList, setSupportList] = React.useState<SupportRequest[]>([]);
@@ -163,9 +192,22 @@ export default function ChallengesSupportWorkspace({ onBack }: Props) {
     return () => { cancelled = true; };
   }, []);
 
+  const seeded = React.useRef(false);
+  React.useEffect(() => {
+    if (!embedded || loading || !catalogue || seeded.current) return;
+    seeded.current = true;
+    const next = blankChallenge(catalogue);
+    next.related_activity = seed?.related_activity || "Meetings & Coordination";
+    if (seed?.state_code) next.state_code = seed.state_code;
+    if (seed?.date_reported) next.date_reported = seed.date_reported;
+    setEditingId(null);
+    setDraft(next);
+    setMode("challenge-form");
+  }, [embedded, loading, catalogue, seed]);
+
   // Prefill from Meetings & Coordination handoff (?from=meeting&meeting_id=&related_activity=&note=)
   React.useEffect(() => {
-    if (loading || !catalogue) return;
+    if (embedded || loading || !catalogue) return;
     try {
       const q = new URLSearchParams(window.location.search);
       if (q.get("from") !== "meeting") return;
@@ -195,23 +237,46 @@ export default function ChallengesSupportWorkspace({ onBack }: Props) {
   });
   const startChallengeForm = (row?: Challenge) => {
     setEditingId(row?.challenge_id || null);
-    setDraft(row ? { ...blankChallenge(catalogue), ...row, challenge_category: row.category_label, date_reported: row.date_reported } : blankChallenge(catalogue));
+    const next = row
+      ? { ...blankChallenge(catalogue), ...row, challenge_category: row.category_label, date_reported: row.date_reported }
+      : blankChallenge(catalogue);
+    if (!row && embedded) {
+      next.related_activity = seed?.related_activity || "Meetings & Coordination";
+      if (seed?.state_code) next.state_code = seed.state_code;
+      if (seed?.date_reported) next.date_reported = seed.date_reported;
+    }
+    setDraft(next);
     setMode("challenge-form");
   };
   const startSupportForm = (challenge?: Challenge | null, existing?: SupportRequest) => {
     setEditingId(null);
-    setDraft(blankSupport(catalogue, challenge ?? null));
+    const next = blankSupport(catalogue, challenge ?? null);
+    if (embedded) {
+      if (seed?.state_code) next.state_code = seed.state_code;
+      if (seed?.date_reported) next.date_submitted = seed.date_reported;
+    }
+    setDraft(next);
     setMode("support-form");
   };
   const saveChallenge = () => run(async () => {
     const payload = { ...draft };
+    if (embedded && seed?.meeting_id && !String(payload.description || "").includes(seed.meeting_id)) {
+      const source = [seed.note, `Source meeting: ${seed.meeting_id}`].filter(Boolean).join("\n");
+      payload.description = [payload.description, source].filter(Boolean).join("\n");
+    }
     if (editingId) await api.updateChallenge(editingId, payload);
     else await api.createChallenge(payload);
-    await refresh(); toast.success(editingId ? "Challenge updated" : "Challenge recorded"); setMode("challenges");
+    await refresh();
+    toast.success(editingId ? "Challenge updated" : "Challenge recorded");
+    if (embedded) { onSubmitted?.(); return; }
+    setMode("challenges");
   });
   const saveSupport = () => run(async () => {
     await api.createSupport({ ...draft, challenge_id: draft.challenge_id || null });
-    await refresh(); toast.success("Support request submitted"); setMode("challenges");
+    await refresh();
+    toast.success("Support request submitted");
+    if (embedded) { onSubmitted?.(); return; }
+    setMode("support");
   });
   const postActivity = (kind: "challenge" | "support", payload: any) => run(async () => {
     const call = kind === "challenge" ? api.challengeActivity : api.supportActivity;
@@ -221,7 +286,8 @@ export default function ChallengesSupportWorkspace({ onBack }: Props) {
     await refresh(); toast.success("Saved");
   });
   const handleBack = () => {
-    if (["challenge-form", "support-form", "challenge-detail", "support-detail"].includes(mode)) setMode("challenges");
+    if (mode.includes("support")) setMode("support");
+    else if (mode.includes("challenge")) setMode("challenges");
     else onBack();
   };
 
@@ -502,30 +568,50 @@ export default function ChallengesSupportWorkspace({ onBack }: Props) {
   );
 
 
-  const tabs = ["challenges", "support"].includes(mode) ? (
+  const activeRegister: "challenges" | "support" = mode.includes("support") ? "support" : "challenges";
+  const openRegister = (key: "challenges" | "support") => {
+    if (key === activeRegister) return;
+    const onForm = mode === "challenge-form" || mode === "support-form";
+    if (onForm) {
+      if (key === "support") {
+        const linked = editingId
+          ? { challenge_id: editingId, severity: draft?.severity, impact: draft?.impact, state_code: draft?.state_code }
+          : null;
+        startSupportForm(linked);
+      } else {
+        startChallengeForm();
+      }
+      return;
+    }
+    setDraft(null);
+    setEditingId(null);
+    setDetail(null);
+    setMode(key);
+  };
+  const tabs = (
     <UnderHeaderNavTabs
-      tabs={[
-        { id: "challenges", label: "Challenges Register", icon: AlertTriangle, count: challenges.length },
-        { id: "support", label: "Support Requests", icon: HandHelping, count: supportList.length },
-      ]}
-      activeTab={mode === "support" ? "support" : "challenges"}
-      onChange={(key) => setMode(key)}
       ariaLabel="Challenges and Support"
+      activeTab={activeRegister}
+      onChange={(key) => openRegister(key as "challenges" | "support")}
+      tabs={[
+        { id: "challenges", label: "Challenges Register", count: challenges.length, icon: AlertTriangle },
+        { id: "support", label: "Support Requests", count: supportList.length, icon: HandHelping },
+      ]}
     />
-  ) : undefined;
+  );
 
   /* ── Challenge form ── */
   const challengeForm = draft && (
     <Card className="w-full rounded-sm border-[#d4e8dc] shadow-none ring-0 overflow-visible"><CardContent className="p-4 md:p-5 space-y-5">
-      <FieldSection title="Challenge details">
-        <Field label="State / FCT"><Input value={stateName(draft.state_code)} readOnly /></Field>
-        <Field label="Zone"><Input value={zoneName(catalogue?.states.find((s) => s.code === draft.state_code)?.zonal_code || catalogue?.default_zone || "")} readOnly /></Field>
-        <Field label="Date reported" required><Input type="date" value={draft.date_reported} onChange={(e) => setDraft((d: any) => ({ ...d, date_reported: e.target.value }))} /></Field>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {!embedded && <Field label="State / FCT"><FormInput value={stateName(draft.state_code)} readOnly /></Field>}
+        {!embedded && <Field label="Zone"><FormInput value={zoneName(catalogue?.states.find((s) => s.code === draft.state_code)?.zonal_code || catalogue?.default_zone || "")} readOnly /></Field>}
+        {!embedded && <Field label="Date reported" required><FormInput type="date" value={draft.date_reported} onChange={(e) => setDraft((d: any) => ({ ...d, date_reported: e.target.value }))} /></Field>}
         <Field label="Challenges category" required><Dropdown value={draft.challenge_category} options={[...CHALLENGE_CATEGORIES.map((c) => c.label), OTHER_OPTION]} onChange={(v) => setDraft((d: any) => ({ ...d, challenge_category: v, specific_challenge: "", other_challenge: "" }))} placeholder="Select category" /></Field>
-        {draft.challenge_category === OTHER_OPTION && <Field label="Specify category" required><Input value={draft.other_challenge} onChange={(e) => setDraft((d: any) => ({ ...d, other_challenge: e.target.value }))} placeholder="Enter category" /></Field>}
+        {draft.challenge_category === OTHER_OPTION && <Field label="Specify category" required><FormInput value={draft.other_challenge} onChange={(e) => setDraft((d: any) => ({ ...d, other_challenge: e.target.value }))} placeholder="Enter category" /></Field>}
         <Field label="Specific challenge" required={draft.challenge_category !== OTHER_OPTION}><Dropdown value={draft.specific_challenge} options={specificChallengesFor(draft.challenge_category)} onChange={(v) => setDraft((d: any) => ({ ...d, specific_challenge: v }))} disabled={!draft.challenge_category || draft.challenge_category === OTHER_OPTION} placeholder="Select specific challenge" /></Field>
-        {draft.specific_challenge === OTHER_OPTION && <Field label="Specify challenge" required><Input value={draft.other_challenge} onChange={(e) => setDraft((d: any) => ({ ...d, other_challenge: e.target.value }))} placeholder="Describe the challenge" /></Field>}
-        <Field label="Related activity"><Dropdown value={draft.related_activity} options={[...CHALLENGE_RELATED_ACTIVITIES]} onChange={(v) => setDraft((d: any) => ({ ...d, related_activity: v }))} placeholder="Select activity" /></Field>
+        {draft.specific_challenge === OTHER_OPTION && <Field label="Specify challenge" required><FormInput value={draft.other_challenge} onChange={(e) => setDraft((d: any) => ({ ...d, other_challenge: e.target.value }))} placeholder="Describe the challenge" /></Field>}
+        {!embedded && <Field label="Related activity"><Dropdown value={draft.related_activity} options={[...CHALLENGE_RELATED_ACTIVITIES]} onChange={(v) => setDraft((d: any) => ({ ...d, related_activity: v }))} placeholder="Select activity" /></Field>}
         <Field label="Programme"><Dropdown value={draft.programme} options={[...CHALLENGE_PROGRAMS]} onChange={(v) => setDraft((d: any) => ({ ...d, programme: v }))} placeholder="Select programme" /></Field>
         <Field label="Severity" required><Dropdown value={draft.severity} options={[...CHALLENGE_SEVERITIES]} onChange={(v) => setDraft((d: any) => ({ ...d, severity: v }))} placeholder="Select severity" /></Field>
         <Field label="Challenge impact / effect"><Dropdown value={draft.impact} options={[...CHALLENGE_IMPACTS]} onChange={(v) => setDraft((d: any) => ({ ...d, impact: v }))} placeholder="Select impact" /></Field>
@@ -534,12 +620,12 @@ export default function ChallengesSupportWorkspace({ onBack }: Props) {
         <Field label="Description of the challenge" required className="sm:col-span-2 lg:col-span-3"><textarea className={inputClass} rows={3} value={draft.description} onChange={(e) => setDraft((d: any) => ({ ...d, description: e.target.value }))} placeholder="Describe the challenge, how it arose and the operational effect" /></Field>
         <Field label="Key recommendation" className="sm:col-span-2 lg:col-span-3"><textarea className={inputClass} rows={2} value={draft.key_recommendation} onChange={(e) => setDraft((d: any) => ({ ...d, key_recommendation: e.target.value }))} placeholder="Recommended way forward" /></Field>
         <Field label="Remarks" className="sm:col-span-2 lg:col-span-3"><textarea className={inputClass} rows={2} value={draft.remarks} onChange={(e) => setDraft((d: any) => ({ ...d, remarks: e.target.value }))} placeholder="Additional remarks" /></Field>
-      </FieldSection>
+      </div>
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#e8f3ec] pt-4">
-        <Button variant="ghost" disabled={busy} onClick={() => setMode("challenges")}><ArrowLeft className="w-4 h-4 mr-2" />Cancel</Button>
+        <Button variant="ghost" disabled={busy} onClick={() => (embedded ? onBack() : setMode("challenges"))}><ArrowLeft className="w-4 h-4 mr-2" />Cancel</Button>
         <div className="flex flex-wrap justify-end gap-2">
           {editingId && permissions.create && <Button variant="outline" disabled={busy} onClick={() => startSupportForm(detail)}>Raise support request</Button>}
-          <Button className={ACTION} disabled={busy} onClick={() => void saveChallenge()}><Send className="w-4 h-4 mr-2" />{editingId ? "Update challenge" : "Record challenge"}</Button>
+          <Button className={ACTION} disabled={busy} onClick={() => void saveChallenge()}><Send className="w-4 h-4 mr-2" />{editingId ? "Update challenge" : "Submit challenge"}</Button>
         </div>
       </div>
     </CardContent></Card>
@@ -553,23 +639,23 @@ export default function ChallengesSupportWorkspace({ onBack }: Props) {
           Linked to challenge <strong>{draft.challenge_id}</strong>
         </div>
       )}
-      <FieldSection title="Support request">
-        <Field label="State / FCT"><Input value={stateName(draft.state_code)} readOnly /></Field>
-        <Field label="Zone"><Input value={zoneName(catalogue?.states.find((s) => s.code === draft.state_code)?.zonal_code || catalogue?.default_zone || "")} readOnly /></Field>
-        <Field label="Date submitted" required><Input type="date" value={draft.date_submitted} onChange={(e) => setDraft((d: any) => ({ ...d, date_submitted: e.target.value }))} /></Field>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {!embedded && <Field label="State / FCT"><FormInput value={stateName(draft.state_code)} readOnly /></Field>}
+        {!embedded && <Field label="Zone"><FormInput value={zoneName(catalogue?.states.find((s) => s.code === draft.state_code)?.zonal_code || catalogue?.default_zone || "")} readOnly /></Field>}
+        {!embedded && <Field label="Date submitted" required><FormInput type="date" value={draft.date_submitted} onChange={(e) => setDraft((d: any) => ({ ...d, date_submitted: e.target.value }))} /></Field>}
         <Field label="Action required from" required><Dropdown value={draft.action_required_from} options={[...SUPPORT_ACTION_OWNERS]} onChange={(v) => setDraft((d: any) => ({ ...d, action_required_from: v, nhia_department: "", other_action_owner: "" }))} placeholder="Select action owner" /></Field>
         {draft.action_required_from === "Other NHIA Departments" && <Field label="NHIA department" required><Dropdown value={draft.nhia_department} options={[...CHALLENGE_DEPARTMENTS]} onChange={(v) => setDraft((d: any) => ({ ...d, nhia_department: v }))} placeholder="Select department" /></Field>}
-        {draft.action_required_from === OTHER_OPTION && <Field label="Specify action owner" required><Input value={draft.other_action_owner} onChange={(e) => setDraft((d: any) => ({ ...d, other_action_owner: e.target.value }))} placeholder="Enter action owner" /></Field>}
+        {draft.action_required_from === OTHER_OPTION && <Field label="Specify action owner" required><FormInput value={draft.other_action_owner} onChange={(e) => setDraft((d: any) => ({ ...d, other_action_owner: e.target.value }))} placeholder="Enter action owner" /></Field>}
         <Field label="Support category" required><Dropdown value={draft.support_category} options={[...SUPPORT_CATEGORIES, OTHER_OPTION]} onChange={(v) => setDraft((d: any) => ({ ...d, support_category: v, specific_support: "", other_support: "" }))} placeholder="Select category" /></Field>
         {draft.support_category !== OTHER_OPTION && <Field label="Specific support required" required><Dropdown value={draft.specific_support} options={specificSupportFor(draft.support_category)} onChange={(v) => setDraft((d: any) => ({ ...d, specific_support: v }))} disabled={!draft.support_category} placeholder="Select support" /></Field>}
-        {(draft.support_category === OTHER_OPTION || draft.specific_support === OTHER_OPTION) && <Field label="Specify support" required><Input value={draft.other_support} onChange={(e) => setDraft((d: any) => ({ ...d, other_support: e.target.value }))} placeholder="Describe the support needed" /></Field>}
+        {(draft.support_category === OTHER_OPTION || draft.specific_support === OTHER_OPTION) && <Field label="Specify support" required><FormInput value={draft.other_support} onChange={(e) => setDraft((d: any) => ({ ...d, other_support: e.target.value }))} placeholder="Describe the support needed" /></Field>}
         <Field label="Priority"><Dropdown value={draft.priority} options={[...SUPPORT_PRIORITIES]} onChange={(v) => setDraft((d: any) => ({ ...d, priority: v }))} placeholder="Select priority" /></Field>
-        <Field label="Required-by date"><Input type="date" value={draft.required_by_date} onChange={(e) => setDraft((d: any) => ({ ...d, required_by_date: e.target.value }))} /></Field>
-        <Field label="Operational impact"><Input value={draft.operational_impact} onChange={(e) => setDraft((d: any) => ({ ...d, operational_impact: e.target.value }))} placeholder="Effect on operations" /></Field>
+        <Field label="Required-by date"><FormInput type="date" value={draft.required_by_date} onChange={(e) => setDraft((d: any) => ({ ...d, required_by_date: e.target.value }))} /></Field>
+        <Field label="Operational impact"><FormInput value={draft.operational_impact} onChange={(e) => setDraft((d: any) => ({ ...d, operational_impact: e.target.value }))} placeholder="Effect on operations" /></Field>
         <Field label="Description of support required" required className="sm:col-span-2 lg:col-span-3"><textarea className={inputClass} rows={3} value={draft.description} onChange={(e) => setDraft((d: any) => ({ ...d, description: e.target.value }))} placeholder="Describe the assistance expected, why it is needed and the outcome required" /></Field>
-      </FieldSection>
+      </div>
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#e8f3ec] pt-4">
-        <Button variant="ghost" disabled={busy} onClick={() => setMode("challenges")}><ArrowLeft className="w-4 h-4 mr-2" />Cancel</Button>
+        <Button variant="ghost" disabled={busy} onClick={() => (embedded ? onBack() : setMode("support"))}><ArrowLeft className="w-4 h-4 mr-2" />Cancel</Button>
         <Button className={ACTION} disabled={busy} onClick={() => void saveSupport()}><Send className="w-4 h-4 mr-2" />Submit request</Button>
       </div>
     </CardContent></Card>
@@ -722,25 +808,30 @@ export default function ChallengesSupportWorkspace({ onBack }: Props) {
   );
 
   const isViewOrForm = ["challenge-form", "support-form", "challenge-detail", "support-detail"].includes(mode);
-  const isForm = mode === "challenge-form" || mode === "support-form";
+  const pageTitle = activeRegister === "support" ? "Support Requests" : "Challenges Register";
+
+  if (embedded) {
+    return (
+      <div className="w-full space-y-3">
+        {tabs}
+        {error ? <p className="text-sm text-rose-600">{error}</p> : null}
+        {mode === "challenge-form" && challengeForm}
+        {mode === "support-form" && supportForm}
+      </div>
+    );
+  }
 
   return (
     <PageLayout
-      title={
-        mode === "challenge-form" ? (editingId ? "Edit Challenge" : "Record Challenge")
-        : mode === "support-form" ? (editingId ? "Edit Support Request" : "Request Support")
-        : mode === "challenge-detail" ? `Challenge ${detail?.challenge_id || ""}`
-        : mode === "support-detail" ? `Support Request ${detail?.support_id || ""}`
-        : "Challenges & Support"
-      }
+      title={pageTitle}
       onBack={isViewOrForm ? handleBack : undefined}
-      actions={actions}
+      actions={isViewOrForm ? undefined : actions}
       tabs={tabs}
       loading={loading}
       error={error}
-      contentClassName={isForm ? "w-full p-0 md:p-0 gap-0" : "space-y-3 pb-6"}
+      contentClassName="px-3 md:px-4 py-3 space-y-3"
     >
-      <div className={isForm ? "w-full" : "w-full space-y-3"}>
+      <div className="w-full space-y-3">
         {mode === "challenges" && (
           <>
           <RegisterStatsCards

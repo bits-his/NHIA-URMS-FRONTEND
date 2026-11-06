@@ -104,7 +104,7 @@ export default function ConflictInfractionForm({ reportId, onBack, onCancel, onS
             Where unresolved at Zonal level, escalate to the Director, Special Duties Office (SDO).
           </Notice>
           <Section title="1. REPORT IDENTIFICATION">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               <Field label="Reference No. (optional)"><TextInput value={refNo} onChange={(e) => setRefNo(e.target.value)} placeholder="Auto-generated if blank" /></Field>
               <Field label="Date of Report" required><TextInput type="date" value={dateOfReport} onChange={(e) => setDateOfReport(e.target.value)} /></Field>
               <Field label="Reporting Officer" required><TextInput value={reportingOfficer} onChange={(e) => setReportingOfficer(e.target.value)} /></Field>
@@ -113,14 +113,14 @@ export default function ConflictInfractionForm({ reportId, onBack, onCancel, onS
           </Section>
 
           <Section title="2. PARTIES INVOLVED">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               <Field label="State Office Staff (1) — Name / Designation"><TextInput value={staff1} onChange={(e) => setStaff1(e.target.value)} /></Field>
               <Field label="State Office Staff (2) — Name / Designation"><TextInput value={staff2} onChange={(e) => setStaff2(e.target.value)} /></Field>
             </div>
           </Section>
 
           <Section title="3. INCIDENT DETAILS">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               <Field label="Incident Date" required><TextInput type="date" value={incidentDate} onChange={(e) => setIncidentDate(e.target.value)} /></Field>
               <Field label="Location"><TextInput value={location} onChange={(e) => setLocation(e.target.value)} /></Field>
             </div>
@@ -155,7 +155,7 @@ export default function ConflictInfractionForm({ reportId, onBack, onCancel, onS
           </Section>
 
           <Section title="5. CERTIFICATION & SIGNATURES">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               <Field label="Prepared By"><TextInput value={preparedBy} onChange={(e) => setPreparedBy(e.target.value)} /></Field>
               <Field label="Designation"><TextInput value={designation} onChange={(e) => setDesignation(e.target.value)} /></Field>
               <Field label="Prepared Date"><TextInput type="date" value={preparedDate} onChange={(e) => setPreparedDate(e.target.value)} /></Field>

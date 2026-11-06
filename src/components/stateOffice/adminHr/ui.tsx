@@ -1,9 +1,19 @@
 import * as React from "react";
 import { Plus, Trash2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+/** Same field chrome as Beneficiary Management / Enrolment. */
+export const hrControlClass = cn(
+  "h-11 w-full text-sm font-medium",
+  "bg-[#f4f7f5] border-2 border-[#1a7a52] rounded-sm px-3.5 shadow-none",
+  "hover:border-[#0f3d2e] hover:bg-white",
+  "focus-visible:border-[#0f3d2e] focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-[#1a7a52]/20",
+);
+const controlClass = hrControlClass;
 
 export function Section({
   title,
@@ -16,12 +26,12 @@ export function Section({
 }) {
   const bar =
     accent === "yellow"
-      ? "bg-amber-200 text-amber-950 border-amber-300"
-      : "bg-[#e8f5ee] text-[#0f3d2e] border-[#25a872]/40";
+      ? "bg-amber-50 text-amber-950 border-amber-200"
+      : "bg-[#e8f5ee] text-[#0f3d2e] border-[#d4e8dc]";
   return (
-    <section className="rounded-xl border border-[#d4e8dc] overflow-hidden bg-white shadow-sm w-full">
-      <div className={`px-4 py-3 border-b text-sm font-bold tracking-wide ${bar}`}>{title}</div>
-      <div className="p-4 sm:p-5 space-y-4">{children}</div>
+    <section className="rounded-sm border border-[#d4e8dc] overflow-hidden bg-white shadow-sm w-full">
+      <div className={`px-4 py-2.5 border-b text-[12px] font-bold uppercase tracking-[0.06em] ${bar}`}>{title}</div>
+      <div className="p-4 md:p-5 space-y-4">{children}</div>
     </section>
   );
 }
@@ -37,24 +47,36 @@ export function Field({
 }) {
   return (
     <div className="space-y-1.5 min-w-0 w-full">
-      <Label className="text-[11px] font-semibold uppercase tracking-wider text-slate-600">
+      <Label className="text-xs font-semibold text-slate-600">
         {label}
-        {required ? <span className="text-rose-500"> *</span> : null}
+        {required ? <span className="text-rose-500 ml-0.5">*</span> : null}
       </Label>
       {children}
     </div>
   );
 }
 
-export function TextInput({ className, ...props }: React.ComponentProps<"input">) {
-  return <Input className={`h-10 text-sm w-full ${className || ""}`} {...props} />;
+export function TextInput({ className, readOnly, disabled, ...props }: React.ComponentProps<"input">) {
+  return (
+    <Input
+      {...props}
+      readOnly={readOnly}
+      disabled={disabled}
+      className={cn(controlClass, (readOnly || disabled) && "bg-slate-50 text-slate-600", className)}
+    />
+  );
 }
 
-export function TextArea(props: React.ComponentProps<"textarea">) {
+export function TextArea({ className, ...props }: React.ComponentProps<"textarea">) {
   return (
     <textarea
       {...props}
-      className={`flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm min-h-[80px] resize-y focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${props.className || ""}`}
+      className={cn(
+        "flex w-full min-h-[5rem] rounded-sm border-2 border-[#1a7a52] bg-[#f4f7f5] px-3.5 py-2 text-sm font-medium text-slate-800 shadow-none resize-y outline-none",
+        "hover:border-[#0f3d2e] hover:bg-white",
+        "focus-visible:border-[#0f3d2e] focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-[#1a7a52]/20",
+        className,
+      )}
     />
   );
 }
@@ -73,9 +95,10 @@ export function SelectField({
   const items = options.map((o) =>
     typeof o === "string" ? { value: o, label: o } : o
   );
+  const label = items.find((o) => o.value === value)?.label;
   return (
     <Select value={value || undefined} onValueChange={onChange}>
-      <SelectTrigger className="h-10 text-sm w-full" displayValue={value || placeholder}>
+      <SelectTrigger className={controlClass} displayValue={label || placeholder}>
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
       <SelectContent>

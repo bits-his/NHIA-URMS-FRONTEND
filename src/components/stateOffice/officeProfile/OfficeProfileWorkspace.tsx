@@ -234,6 +234,11 @@ export default function OfficeProfileWorkspace({
 
   // Handle Tab Switch
   const handleTabChange = (key: TabKey) => {
+    if (key === activeTab) return;
+    if (mode === "new" || mode === "edit") {
+      updateQueryParams({ tab: key, mode: "new", id: null, q: null });
+      return;
+    }
     updateQueryParams({ tab: key, mode: "list", id: null, q: null });
   };
 
@@ -936,30 +941,7 @@ export default function OfficeProfileWorkspace({
     updateQueryParams({ year: "all", zone: "all", state: "all", q: null });
   };
 
-  const getHeaderTitle = () => {
-    if (activeTab === "focal_persons") {
-      if (mode === "new") return "Appoint New Focal Person";
-      if (mode === "edit") return "Edit Focal Person Profile";
-      if (mode === "view") return "Focal Person Details";
-      return currentTabCfg.formTitle;
-    }
-    if (mode === "new") {
-      if (activeTab === "general") return "Create General Information";
-      if (activeTab === "accommodation") return "Register Office Accommodation";
-      if (activeTab === "utilities") return "New Utility Service Claim";
-      return currentTabCfg.newLabel;
-    }
-    if (mode === "edit") {
-      if (activeTab === "general") return "Edit General Information";
-      if (activeTab === "accommodation") return "Edit Office Accommodation";
-      if (activeTab === "utilities") return "Edit Utility Service Claim";
-      return `Edit ${currentTabCfg.label}`;
-    }
-    if (mode === "view") {
-      return `${currentTabCfg.label} Details`;
-    }
-    return currentTabCfg.formTitle;
-  };
+  const getHeaderTitle = () => currentTabCfg.label;
 
   return (
     <PageLayout
@@ -1005,7 +987,6 @@ export default function OfficeProfileWorkspace({
         </div>
       }
       tabs={
-        mode === "list" ? (
           <UnderHeaderNavTabs
             tabs={TAB_CONFIG.map((tab) => ({
               id: tab.key,
@@ -1024,7 +1005,6 @@ export default function OfficeProfileWorkspace({
             onChange={(key) => handleTabChange(key as any)}
             ariaLabel="State office profile sections"
           />
-        ) : undefined
       }
       contentClassName="space-y-5 pb-8"
     >

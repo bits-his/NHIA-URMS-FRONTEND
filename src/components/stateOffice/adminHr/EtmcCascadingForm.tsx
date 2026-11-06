@@ -133,7 +133,7 @@ export default function EtmcCascadingForm({ reportId, onBack, onCancel, onSubmit
             <div className="space-y-3">
               {highlights.map((row) => (
                 <div key={row._key} className="rounded-lg border border-slate-200 p-3 space-y-3 bg-slate-50/50">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     <Field label="Agenda Item"><TextInput value={row.agendaItem} onChange={(e) => updateRow(setHighlights, row._key, "agendaItem", e.target.value)} /></Field>
                     <Field label="Priority"><SelectField value={row.priority} onChange={(v) => updateRow(setHighlights, row._key, "priority", v)} options={PRIORITIES} /></Field>
                     <Field label="Highlight"><TextArea value={row.highlight} onChange={(e) => updateRow(setHighlights, row._key, "highlight", e.target.value)} /></Field>
@@ -151,7 +151,7 @@ export default function EtmcCascadingForm({ reportId, onBack, onCancel, onSubmit
             <div className="space-y-3">
               {departments.map((row) => (
                 <div key={row._key} className="rounded-lg border border-slate-200 p-3 space-y-3 bg-slate-50/50">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     <Field label="HQ Department"><TextInput value={row.hqDepartment} onChange={(e) => updateRow(setDepartments, row._key, "hqDepartment", e.target.value)} /></Field>
                     <Field label="Subject"><TextInput value={row.subject} onChange={(e) => updateRow(setDepartments, row._key, "subject", e.target.value)} /></Field>
                     <Field label="Summary"><TextArea value={row.summary} onChange={(e) => updateRow(setDepartments, row._key, "summary", e.target.value)} /></Field>
@@ -189,7 +189,7 @@ export default function EtmcCascadingForm({ reportId, onBack, onCancel, onSubmit
             <div className="space-y-3">
               {comments.map((row) => (
                 <div key={row._key} className="rounded-lg border border-slate-200 p-3 space-y-3 bg-slate-50/50">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     <Field label="Question"><TextArea value={row.question} onChange={(e) => updateRow(setComments, row._key, "question", e.target.value)} /></Field>
                     <Field label="Related Agenda"><TextInput value={row.relatedAgenda} onChange={(e) => updateRow(setComments, row._key, "relatedAgenda", e.target.value)} /></Field>
                     <Field label="Response"><TextArea value={row.response} onChange={(e) => updateRow(setComments, row._key, "response", e.target.value)} /></Field>
@@ -207,7 +207,7 @@ export default function EtmcCascadingForm({ reportId, onBack, onCancel, onSubmit
             <div className="space-y-3">
               {feedback.map((row) => (
                 <div key={row._key} className="rounded-lg border border-slate-200 p-3 space-y-3 bg-slate-50/50">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     <Field label="Feedback"><TextArea value={row.feedback} onChange={(e) => updateRow(setFeedback, row._key, "feedback", e.target.value)} /></Field>
                     <Field label="Related Agenda"><TextInput value={row.relatedAgenda} onChange={(e) => updateRow(setFeedback, row._key, "relatedAgenda", e.target.value)} /></Field>
                     <Field label="Reason"><TextInput value={row.reason} onChange={(e) => updateRow(setFeedback, row._key, "reason", e.target.value)} /></Field>
@@ -240,7 +240,7 @@ export default function EtmcCascadingForm({ reportId, onBack, onCancel, onSubmit
           </Section>
 
           <Section title="8. Submission">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               <Field label="Prepared By"><TextInput value={preparedBy} onChange={(e) => setPreparedBy(e.target.value)} /></Field>
               <Field label="Designation"><TextInput value={designation} onChange={(e) => setDesignation(e.target.value)} /></Field>
               <Field label="Prepared Date"><TextInput type="date" value={preparedDate} onChange={(e) => setPreparedDate(e.target.value)} /></Field>

@@ -2,6 +2,7 @@ import * as React from "react";
 import { useSelector } from "react-redux";
 import { Trash2 } from "lucide-react";
 import type { RootState } from "@/src/store/store";
+import { cn } from "@/lib/utils";
 import StateOfficeFormShell from "../StateOfficeFormShell";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -19,6 +20,7 @@ import {
   TextInput,
   TextArea,
   AddRowButton,
+  hrControlClass,
 } from "./ui";
 
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -98,12 +100,12 @@ function parseAmount(value: string) {
   return Number.isFinite(n) ? n : null;
 }
 
-/** Read-only system value as plain text (not an input look). */
+/** Read-only system value, same chrome as a locked Beneficiary field. */
 function SystemValue({ value, empty = "—" }: { value?: string | null; empty?: string }) {
   return (
-    <p className="min-h-10 flex items-center text-sm font-semibold text-slate-900">
+    <div className={cn(hrControlClass, "flex items-center bg-slate-50 text-slate-600")}>
       {value?.trim() ? value : <span className="font-normal text-slate-400">{empty}</span>}
-    </p>
+    </div>
   );
 }
 
@@ -275,7 +277,7 @@ export default function UtilityServicesForm({
           <div className="w-full pb-4">
             <div className="rounded-sm border border-[#d4e8dc] bg-white shadow-sm p-4 sm:p-6 space-y-6">
               {/* Header meta — one grid, no section title */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 <Field label="Zonal Office" required>
                   {header.lockZone ? (
                     <SystemValue value={zoneLabel || user?.zone?.description} />
@@ -285,7 +287,7 @@ export default function UtilityServicesForm({
                       onValueChange={header.setZoneId}
                     >
                       <SelectTrigger
-                        className="h-10 text-sm w-full"
+                        className={hrControlClass}
                         displayValue={zoneLabel || "Select zone"}
                       >
                         <SelectValue placeholder="Select zone" />
@@ -311,7 +313,7 @@ export default function UtilityServicesForm({
                       disabled={!header.zoneId}
                     >
                       <SelectTrigger
-                        className="h-10 text-sm w-full"
+                        className={hrControlClass}
                         displayValue={stateLabel || "Select state"}
                       >
                         <SelectValue placeholder="Select state" />
@@ -329,7 +331,7 @@ export default function UtilityServicesForm({
 
                 <Field label="Year" required>
                   <Select value={header.reportYear || undefined} onValueChange={header.setReportYear}>
-                    <SelectTrigger className="h-10 text-sm w-full">
+                    <SelectTrigger className={hrControlClass}>
                       <SelectValue placeholder="Select year" />
                     </SelectTrigger>
                     <SelectContent>
@@ -353,7 +355,7 @@ export default function UtilityServicesForm({
                     }}
                   >
                     <SelectTrigger
-                      className="h-10 text-sm w-full"
+                      className={hrControlClass}
                       displayValue={
                         header.reportMonth
                           ? monthLabel(header.reportMonth)
@@ -420,7 +422,7 @@ export default function UtilityServicesForm({
 
               {/* Service entry + list */}
               <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   <Field label="Service Location" required>
                     <SelectField
                       value={entry.serviceLocation}

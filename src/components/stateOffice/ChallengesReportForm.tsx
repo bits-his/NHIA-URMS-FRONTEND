@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { cn } from "@/lib/utils";
 import StateOfficeFormShell from "./StateOfficeFormShell";
 import {
   CHALLENGE_CATEGORIES,
@@ -20,11 +21,18 @@ import {
   CHALLENGE_SUPPORT_OPTIONS,
 } from "./challengesTypes";
 
+const controlClass = cn(
+  "h-11 w-full text-sm font-medium",
+  "bg-[#f4f7f5] border-2 border-[#1a7a52] rounded-sm px-3.5 shadow-none",
+  "hover:border-[#0f3d2e] hover:bg-white",
+  "focus-visible:border-[#0f3d2e] focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-[#1a7a52]/20",
+);
+
 function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return (
     <textarea
       {...props}
-      className="w-full min-h-[4.5rem] rounded-xl px-3.5 py-2 text-sm bg-[#f4f7f5] border-2 border-[#1a7a52] text-slate-800 shadow-xs outline-none hover:border-[#0f3d2e] hover:bg-white focus-visible:border-[#0f3d2e] focus-visible:bg-white focus-visible:ring-3 focus-visible:ring-[#1a7a52]/25"
+      className="w-full min-h-[4.5rem] rounded-sm px-3.5 py-2 text-sm font-medium bg-[#f4f7f5] border-2 border-[#1a7a52] text-slate-800 shadow-none outline-none hover:border-[#0f3d2e] hover:bg-white focus-visible:border-[#0f3d2e] focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-[#1a7a52]/20"
     />
   );
 }
@@ -168,14 +176,14 @@ export default function ChallengesReportForm({
             <CardTitle className="text-base">Challenges</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid md:grid-cols-3 gap-3">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               <div className="space-y-1">
-                <Label>Challenge Category *</Label>
+                <Label className="text-xs font-semibold text-slate-600">Challenge Category *</Label>
                 <Select
                   value={entry.challenge_category}
                   onValueChange={(v) => setEntry((p) => ({ ...p, challenge_category: v, specific_challenge: "" }))}
                 >
-                  <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                  <SelectTrigger className={controlClass}><SelectValue placeholder="Select" /></SelectTrigger>
                   <SelectContent>
                     {CHALLENGE_CATEGORIES.map((c) => (
                       <SelectItem key={c.code} value={c.label}>{c.code} — {c.label}</SelectItem>
@@ -184,95 +192,95 @@ export default function ChallengesReportForm({
                 </Select>
               </div>
               <div className="space-y-1">
-                <Label>Challenge ID</Label>
-                <Input value={categoryMeta?.code ?? ""} readOnly className="bg-slate-50" placeholder="Auto" />
+                <Label className="text-xs font-semibold text-slate-600">Challenge ID</Label>
+                <Input value={categoryMeta?.code ?? ""} readOnly className={cn(controlClass, "bg-slate-50 text-slate-600")} placeholder="Auto" />
               </div>
               <div className="space-y-1">
-                <Label>Specific Challenge</Label>
+                <Label className="text-xs font-semibold text-slate-600">Specific Challenge</Label>
                 <Select value={entry.specific_challenge} onValueChange={(v) => set("specific_challenge", v)}>
-                  <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                  <SelectTrigger className={controlClass}><SelectValue placeholder="Select" /></SelectTrigger>
                   <SelectContent>
                     {specificOptions.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1 md:col-span-3">
-                <Label>Challenge Details</Label>
+              <div className="space-y-1.5 sm:col-span-2 lg:col-span-3">
+                <Label className="text-xs font-semibold text-slate-600">Challenge Details</Label>
                 <Textarea rows={3} value={entry.challenge_details} onChange={(e) => set("challenge_details", e.target.value)} />
               </div>
               <div className="space-y-1">
-                <Label>Related Activity</Label>
+                <Label className="text-xs font-semibold text-slate-600">Related Activity</Label>
                 <Select value={entry.related_activity} onValueChange={(v) => set("related_activity", v)}>
-                  <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                  <SelectTrigger className={controlClass}><SelectValue placeholder="Select" /></SelectTrigger>
                   <SelectContent>
                     {CHALLENGE_RELATED_ACTIVITIES.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-1">
-                <Label>Related Program</Label>
+                <Label className="text-xs font-semibold text-slate-600">Related Program</Label>
                 <Select value={entry.related_program} onValueChange={(v) => set("related_program", v)}>
-                  <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                  <SelectTrigger className={controlClass}><SelectValue placeholder="Select" /></SelectTrigger>
                   <SelectContent>
                     {CHALLENGE_PROGRAMS.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-1">
-                <Label>Impact</Label>
+                <Label className="text-xs font-semibold text-slate-600">Impact</Label>
                 <Select value={entry.impact} onValueChange={(v) => set("impact", v)}>
-                  <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                  <SelectTrigger className={controlClass}><SelectValue placeholder="Select" /></SelectTrigger>
                   <SelectContent>
                     {CHALLENGE_IMPACTS.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-1">
-                <Label>Severity / Priority</Label>
+                <Label className="text-xs font-semibold text-slate-600">Severity / Priority</Label>
                 <Select value={entry.severity} onValueChange={(v) => set("severity", v)}>
-                  <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                  <SelectTrigger className={controlClass}><SelectValue placeholder="Select" /></SelectTrigger>
                   <SelectContent>
                     {CHALLENGE_SEVERITIES.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-1">
-                <Label>Support Required</Label>
+                <Label className="text-xs font-semibold text-slate-600">Support Required</Label>
                 <Select value={entry.support_required} onValueChange={(v) => set("support_required", v)}>
-                  <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                  <SelectTrigger className={controlClass}><SelectValue placeholder="Select" /></SelectTrigger>
                   <SelectContent>
                     {CHALLENGE_SUPPORT_OPTIONS.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-1">
-                <Label>Responsible Department / Unit</Label>
+                <Label className="text-xs font-semibold text-slate-600">Responsible Department / Unit</Label>
                 <Select value={entry.responsible_department} onValueChange={(v) => set("responsible_department", v)}>
-                  <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                  <SelectTrigger className={controlClass}><SelectValue placeholder="Select" /></SelectTrigger>
                   <SelectContent>
                     {CHALLENGE_DEPARTMENTS.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-1">
-                <Label>Status *</Label>
+                <Label className="text-xs font-semibold text-slate-600">Status *</Label>
                 <Select value={entry.status} onValueChange={(v) => set("status", v)}>
-                  <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                  <SelectTrigger className={controlClass}><SelectValue placeholder="Select" /></SelectTrigger>
                   <SelectContent>
                     {CHALLENGE_STATUSES.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1 md:col-span-3">
-                <Label>Provide context on required Support</Label>
+              <div className="space-y-1.5 sm:col-span-2 lg:col-span-3">
+                <Label className="text-xs font-semibold text-slate-600">Provide context on required Support</Label>
                 <Textarea rows={2} value={entry.support_context} onChange={(e) => set("support_context", e.target.value)} />
               </div>
-              <div className="space-y-1 md:col-span-3">
-                <Label>Key Recommendation</Label>
+              <div className="space-y-1.5 sm:col-span-2 lg:col-span-3">
+                <Label className="text-xs font-semibold text-slate-600">Key Recommendation</Label>
                 <Textarea rows={2} value={entry.key_recommendation} onChange={(e) => set("key_recommendation", e.target.value)} />
               </div>
-              <div className="space-y-1 md:col-span-3">
-                <Label>Remarks</Label>
+              <div className="space-y-1.5 sm:col-span-2 lg:col-span-3">
+                <Label className="text-xs font-semibold text-slate-600">Remarks</Label>
                 <Textarea rows={2} value={entry.remarks} onChange={(e) => set("remarks", e.target.value)} />
               </div>
             </div>
