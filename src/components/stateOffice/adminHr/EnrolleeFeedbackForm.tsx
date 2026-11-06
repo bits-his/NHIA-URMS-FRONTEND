@@ -1,11 +1,19 @@
 import * as React from "react";
+import { ArrowLeft, Loader2, Save, Send } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import StateOfficeFormShell from "../StateOfficeFormShell";
-import { Section, Field, TextInput, TextArea, SelectField } from "./ui";
+import ReportBasicInfo from "../shared/ReportBasicInfo";
+import { Field, TextInput, TextArea, SelectField } from "./ui";
 import {
   FEEDBACK_HEAR_ABOUT, FEEDBACK_VISIT_PURPOSE, RATING_AREAS, RATING_LEVELS,
   YES_NO_PARTIAL, ADMIN_HR_CONFIG,
 } from "./constants";
+
+const ACTION = "bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20";
+const choiceClass = "flex items-center gap-2 rounded-sm border-2 border-[#1a7a52] bg-[#f4f7f5] px-3 py-2.5 cursor-pointer hover:bg-white";
 
 interface Props {
   reportId?: number | null;
@@ -56,6 +64,8 @@ export default function EnrolleeFeedbackForm({ reportId, onBack, onCancel, onSub
       defaultZoneId={defaultZoneId}
       defaultStateId={defaultStateId}
       pageTitle={ADMIN_HR_CONFIG["enrollee-feedback"].formTitle}
+      hideBasicInfo
+      hideFooterActions
       onLoaded={onLoaded}
       buildPayload={(base) => ({
         ...base,
@@ -66,85 +76,103 @@ export default function EnrolleeFeedbackForm({ reportId, onBack, onCancel, onSub
         },
       })}
     >
-      {() => (
-        <div className="space-y-4">
-          <Section title="1. How did you hear about health insurance or this office?">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {FEEDBACK_HEAR_ABOUT.map((item) => (
-                <label key={item} className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 cursor-pointer hover:bg-slate-50">
-                  <Checkbox checked={hearAbout.includes(item)} onCheckedChange={(c) => toggle(hearAbout, setHearAbout, item, c === true)} />
-                  <span className="text-sm">{item}</span>
-                </label>
-              ))}
-            </div>
-            {hearAbout.includes("Other") && (
-              <Field label="Other (specify)"><TextInput value={hearOther} onChange={(e) => setHearOther(e.target.value)} /></Field>
-            )}
-          </Section>
-
-          <Section title="2. Purpose of today’s visit">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {FEEDBACK_VISIT_PURPOSE.map((item) => (
-                <label key={item} className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 cursor-pointer hover:bg-slate-50">
-                  <Checkbox checked={visitPurpose.includes(item)} onCheckedChange={(c) => toggle(visitPurpose, setVisitPurpose, item, c === true)} />
-                  <span className="text-sm">{item}</span>
-                </label>
-              ))}
-            </div>
-            {visitPurpose.includes("Other") && (
-              <Field label="Other (specify)"><TextInput value={purposeOther} onChange={(e) => setPurposeOther(e.target.value)} /></Field>
-            )}
-          </Section>
-
-          <Section title="3. How would you rate the following?">
-            <div className="overflow-x-auto rounded-lg border border-slate-200">
-              <table className="w-full text-sm min-w-[480px]">
-                <thead>
-                  <tr className="bg-[#145c3f] text-white">
-                    <th className="px-3 py-2.5 text-left font-semibold">Service Area</th>
-                    {RATING_LEVELS.map((level) => (
-                      <th key={level} className="px-3 py-2.5 text-center font-semibold whitespace-nowrap">{level}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {RATING_AREAS.map((area) => (
-                    <tr key={area} className="hover:bg-slate-50/80">
-                      <td className="px-3 py-2.5 font-medium text-slate-700">{area}</td>
-                      {RATING_LEVELS.map((level) => (
-                        <td key={level} className="px-3 py-2.5 text-center">
-                          <input
-                            type="radio"
-                            name={`rating-${area}`}
-                            checked={ratings[area] === level}
-                            onChange={() => setRatings((p) => ({ ...p, [area]: level }))}
-                            className="h-4 w-4 accent-[#0f3d2e]"
-                          />
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </Section>
-
-          <Section title="4. Was your issue or request resolved today?">
-            <Field label="Resolution">
-              <SelectField value={resolvedToday} onChange={setResolvedToday} options={YES_NO_PARTIAL} />
-            </Field>
-          </Section>
-
-          <Section title="5. Comments / Suggestions">
-            <Field label="Comments">
-              <TextArea value={comments} onChange={(e) => setComments(e.target.value)} />
-            </Field>
+      {({ header, saving, submitting, persist, requestSubmit }) => (
+        <Card className="rounded-sm border-[#d4e8dc] shadow-sm overflow-visible">
+          <CardContent className="p-4 md:p-5 space-y-5">
+            <ReportBasicInfo {...header} lockZone={header.lockZone} lockState={header.lockState} showQuarter embedded />
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              <Field label="Recorded By"><TextInput value={preparedBy} onChange={(e) => setPreparedBy(e.target.value)} /></Field>
+              <div className="sm:col-span-2 lg:col-span-3">
+                <Field label="How did you hear about health insurance or this office?">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {FEEDBACK_HEAR_ABOUT.map((item) => (
+                      <label key={item} className={choiceClass}>
+                        <Checkbox checked={hearAbout.includes(item)} onCheckedChange={(c) => toggle(hearAbout, setHearAbout, item, c === true)} />
+                        <span className="text-sm">{item}</span>
+                      </label>
+                    ))}
+                  </div>
+                </Field>
+              </div>
+              {hearAbout.includes("Other") && (
+                <Field label="Other (specify)"><TextInput value={hearOther} onChange={(e) => setHearOther(e.target.value)} /></Field>
+              )}
+              <div className="sm:col-span-2 lg:col-span-3">
+                <Field label="Purpose of today’s visit">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {FEEDBACK_VISIT_PURPOSE.map((item) => (
+                      <label key={item} className={choiceClass}>
+                        <Checkbox checked={visitPurpose.includes(item)} onCheckedChange={(c) => toggle(visitPurpose, setVisitPurpose, item, c === true)} />
+                        <span className="text-sm">{item}</span>
+                      </label>
+                    ))}
+                  </div>
+                </Field>
+              </div>
+              {visitPurpose.includes("Other") && (
+                <Field label="Other (specify)"><TextInput value={purposeOther} onChange={(e) => setPurposeOther(e.target.value)} /></Field>
+              )}
+              <div className="sm:col-span-2 lg:col-span-3">
+                <Field label="How would you rate the following?">
+                  <div className="overflow-x-auto rounded-sm border border-[#d4e8dc]">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-[#f0fdf7] hover:bg-[#f0fdf7]">
+                          <TableHead className="text-xs font-bold text-[#0f3d2e]">Service area</TableHead>
+                          {RATING_LEVELS.map((level) => (
+                            <TableHead key={level} className="text-xs font-bold text-[#0f3d2e] text-center whitespace-nowrap">{level}</TableHead>
+                          ))}
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {RATING_AREAS.map((area) => (
+                          <TableRow key={area} className="border-b border-[#e8f3ec] last:border-0">
+                            <TableCell className="text-sm font-medium text-slate-800">{area}</TableCell>
+                            {RATING_LEVELS.map((level) => (
+                              <TableCell key={level} className="text-center">
+                                <input
+                                  type="radio"
+                                  name={`rating-${area}`}
+                                  checked={ratings[area] === level}
+                                  onChange={() => setRatings((p) => ({ ...p, [area]: level }))}
+                                  className="h-4 w-4 accent-[#145c3f]"
+                                />
+                              </TableCell>
+                            ))}
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </Field>
+              </div>
+              <Field label="Was your issue or request resolved today?">
+                <SelectField value={resolvedToday} onChange={setResolvedToday} options={YES_NO_PARTIAL} placeholder="Select" />
+              </Field>
+              <div className="sm:col-span-2 lg:col-span-3">
+                <Field label="Comments / suggestions">
+                  <TextArea value={comments} onChange={(e) => setComments(e.target.value)} />
+                </Field>
+              </div>
+              <Field label="Recorded by"><TextInput value={preparedBy} onChange={(e) => setPreparedBy(e.target.value)} /></Field>
               <Field label="Date"><TextInput type="date" value={preparedDate} onChange={(e) => setPreparedDate(e.target.value)} /></Field>
             </div>
-          </Section>
-        </div>
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#e8f3ec] pt-4">
+              <Button type="button" variant="ghost" onClick={onCancel || onBack} disabled={saving || submitting}>
+                <ArrowLeft className="w-4 h-4 mr-2" />Cancel
+              </Button>
+              <div className="flex flex-wrap justify-end gap-2">
+                <Button type="button" variant="outline" disabled={saving || submitting} onClick={() => void persist("draft")}>
+                  {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                  Save Draft
+                </Button>
+                <Button type="button" className={ACTION} disabled={saving || submitting} onClick={() => requestSubmit(() => persist("submitted"))}>
+                  {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                  Submit
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       )}
     </StateOfficeFormShell>
   );
