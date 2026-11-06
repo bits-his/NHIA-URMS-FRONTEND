@@ -921,16 +921,17 @@ export default function FocalPersonsTab({
 
   return (
     <div className="w-full space-y-3.5 animate-in fade-in-50 duration-200">
-      <Card className="rounded-sm border-[#d4e8dc]">
-        <CardContent className="pt-4 pb-4 space-y-3">
-          <div className="grid grid-flow-col auto-cols-fr gap-3">
-            <div className="space-y-1 min-w-0">
-              <Label className="text-xs text-muted-foreground">State</Label>
+      <Card className="rounded-sm border border-[#d4e8dc] py-0 gap-0 shadow-2xs bg-white">
+        <CardContent className="py-1.5 px-3 space-y-1.5">
+          <div className="grid grid-flow-col auto-cols-fr gap-2.5 items-end">
+            <div className="space-y-0.5 min-w-0">
+              <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">State</Label>
               <Select
                 value={currentStateId ? String(currentStateId) : "all"}
                 onValueChange={handleStateChange}
               >
                 <SelectTrigger
+                  size="sm"
                   className="w-full"
                   displayValue={
                     !currentStateId
@@ -950,10 +951,11 @@ export default function FocalPersonsTab({
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1 min-w-0">
-              <Label className="text-xs text-muted-foreground">Domain</Label>
+            <div className="space-y-0.5 min-w-0">
+              <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Domain</Label>
               <Select value={domainFilter} onValueChange={setDomainFilter}>
                 <SelectTrigger
+                  size="sm"
                   className="w-full"
                   displayValue={
                     domainFilter === "all"
@@ -976,13 +978,14 @@ export default function FocalPersonsTab({
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1 min-w-0">
-              <Label className="text-xs text-muted-foreground">Year</Label>
+            <div className="space-y-0.5 min-w-0">
+              <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Year</Label>
               <Select
                 value={currentYear ? String(currentYear) : ""}
                 onValueChange={(v) => setCurrentYear(Number(v))}
               >
                 <SelectTrigger
+                  size="sm"
                   className="w-full"
                   displayValue={currentYear ? String(currentYear) : "Year"}
                 >
@@ -999,11 +1002,11 @@ export default function FocalPersonsTab({
             </div>
           </div>
           {activeFilterCount > 0 && (
-            <div className="flex justify-end">
+            <div className="flex justify-end pt-0.5">
               <Button
                 variant="ghost"
                 size="sm"
-                className="text-slate-500 gap-1 shrink-0"
+                className="h-7 text-xs text-slate-500 gap-1 shrink-0"
                 onClick={() => {
                   setCurrentStateId("");
                   setDomainFilter("all");

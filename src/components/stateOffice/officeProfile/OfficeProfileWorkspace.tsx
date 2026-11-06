@@ -1109,18 +1109,19 @@ export default function OfficeProfileWorkspace({
                   {/* 1. Solvix 4-Card Metric Grid with Sparklines matching media_1793556856351_c64fb296.jpg */}
                   <SolvixStatCards items={solvixStatItems} loading={loading} />
 
-                  <Card className="rounded-sm border-[#d4e8dc]">
-                    <CardContent className="pt-4 pb-4 space-y-3">
-                      <div className="grid grid-flow-col auto-cols-fr gap-3">
+                  <Card className="rounded-sm border border-[#d4e8dc] py-0 gap-0 shadow-2xs bg-white">
+                    <CardContent className="py-1.5 px-3 space-y-1.5">
+                      <div className="grid grid-flow-col auto-cols-fr gap-2.5 items-end">
                         {!stateScoped && (
                           <>
-                            <div className="space-y-1 min-w-0">
-                              <Label className="text-xs text-muted-foreground">Zone</Label>
+                            <div className="space-y-0.5 min-w-0">
+                              <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Zone</Label>
                               <Select
                                 value={selectedZoneId}
                                 onValueChange={(val) => updateQueryParams({ zone: val, state: "all" })}
                               >
                                 <SelectTrigger
+                                  size="sm"
                                   className="w-full"
                                   displayValue={
                                     selectedZoneId === "all"
@@ -1140,13 +1141,14 @@ export default function OfficeProfileWorkspace({
                                 </SelectContent>
                               </Select>
                             </div>
-                            <div className="space-y-1 min-w-0">
-                              <Label className="text-xs text-muted-foreground">State</Label>
+                            <div className="space-y-0.5 min-w-0">
+                              <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">State</Label>
                               <Select
                                 value={selectedStateId}
                                 onValueChange={(val) => updateQueryParams({ state: val })}
                               >
                                 <SelectTrigger
+                                  size="sm"
                                   className="w-full"
                                   displayValue={
                                     selectedStateId === "all"
@@ -1168,13 +1170,14 @@ export default function OfficeProfileWorkspace({
                             </div>
                           </>
                         )}
-                        <div className="space-y-1 min-w-0">
-                          <Label className="text-xs text-muted-foreground">Year</Label>
+                        <div className="space-y-0.5 min-w-0">
+                          <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Year</Label>
                           <Select
                             value={year}
                             onValueChange={(val) => updateQueryParams({ year: val })}
                           >
                             <SelectTrigger
+                              size="sm"
                               className="w-full"
                               displayValue={year === "all" ? "All Years" : year}
                             >
@@ -1192,11 +1195,11 @@ export default function OfficeProfileWorkspace({
                         </div>
                       </div>
                       {activeFilterCount > 0 && (
-                        <div className="flex justify-end">
+                        <div className="flex justify-end pt-0.5">
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="text-slate-500 gap-1 shrink-0"
+                            className="h-7 text-xs text-slate-500 gap-1 shrink-0"
                             onClick={handleClearAllFilters}
                           >
                             <XCircle className="w-3.5 h-3.5" /> Clear
