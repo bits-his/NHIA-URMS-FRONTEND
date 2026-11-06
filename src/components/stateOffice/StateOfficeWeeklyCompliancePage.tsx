@@ -431,7 +431,7 @@ export default function StateOfficeWeeklyCompliancePage({ onBack, defaultStateId
       const total = WEEKLY_COMPLIANCE_SECTIONS.flatMap((s) => s.indicators).length;
       onChromeChange({
         mode: "form",
-        title: editingId ? "Edit Weekly Compliance Report" : "Weekly Compliance Report",
+        title: editingId ? "Edit HCF Compliance Monitoring Report" : "HCF Compliance Monitoring Report",
         onInnerBack: () => leaveFormRef.current(),
         actions: (
           <Badge variant="outline" className="text-xs font-bold border border-[#1a7a52] text-[#1a7a52] shrink-0 bg-[#f4f7f5] rounded-sm">
@@ -444,7 +444,7 @@ export default function StateOfficeWeeklyCompliancePage({ onBack, defaultStateId
     if (mode === "view") {
       onChromeChange({
         mode: "detail",
-        title: selected?.facility_name ?? "Weekly Compliance Report",
+        title: selected?.facility_name ?? "HCF Compliance Monitoring Report",
         onInnerBack: () => backToListRef.current(),
         actions: selected && canCreate ? (
           <Button className="bg-orange-action hover:bg-orange-600 gap-2" onClick={() => openEdit(selected)}>
@@ -473,7 +473,7 @@ export default function StateOfficeWeeklyCompliancePage({ onBack, defaultStateId
                 <ArrowLeft className="w-5 h-5" />
               </Button>
               <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">
-                {editingId ? "Edit Weekly Compliance Report" : "Weekly Compliance Report"}
+                {editingId ? "Edit HCF Compliance Monitoring Report" : "HCF Compliance Monitoring Report"}
               </h2>
             </div>
             <Badge variant="outline" className="text-xs font-bold border border-[#1a7a52] text-[#1a7a52] shrink-0 bg-[#f4f7f5] rounded-sm">
@@ -747,7 +747,7 @@ export default function StateOfficeWeeklyCompliancePage({ onBack, defaultStateId
               <Button variant="ghost" size="icon" onClick={backToList} className="rounded-full shrink-0" aria-label="Back">
                 <ArrowLeft className="w-5 h-5" />
               </Button>
-              <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">{r?.facility_name ?? "Weekly Compliance Report"}</h2>
+              <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">{r?.facility_name ?? "HCF Compliance Monitoring Report"}</h2>
             </div>
             {r && canCreate && (
               <Button
@@ -879,7 +879,7 @@ export default function StateOfficeWeeklyCompliancePage({ onBack, defaultStateId
     <div className={`flex flex-col h-full ${embedded ? "" : "bg-slate-50/30"}`}>
       {!embedded && (
         <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3.5 flex items-center justify-between sticky top-0 z-10 gap-3">
-          <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">Weekly Compliance Reports</h2>
+          <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">HCF Compliance Monitoring Reports</h2>
           <div className="flex items-center gap-3 shrink-0">
             <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">
               <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
