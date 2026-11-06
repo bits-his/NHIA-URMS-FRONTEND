@@ -220,7 +220,7 @@ export default function ProviderManagementDashboard({
       )}
 
       <ScrollArea className="flex-1">
-        <div className="w-full px-3 py-3 md:px-4 md:py-3.5 space-y-3.5 pb-12">
+        <div className="w-full p-2 space-y-2 pb-6">
           <motion.div
             initial={{ opacity: 0, y: 4 }}
             animate={{ opacity: 1, y: 0 }}

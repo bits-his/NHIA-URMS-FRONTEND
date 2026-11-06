@@ -18,6 +18,8 @@ export interface UnderHeaderNavTabsProps<T extends string = string> {
   ariaLabel?: string;
   /** Larger labels and icons. */
   size?: "sm" | "lg";
+  /** Share the row equally so every tab stays on screen. */
+  fit?: boolean;
 }
 
 /**
@@ -31,14 +33,16 @@ export function UnderHeaderNavTabs<T extends string = string>({
   className,
   ariaLabel = "Navigation Tabs",
   size = "lg",
+  fit = false,
 }: UnderHeaderNavTabsProps<T>) {
-  const large = size === "lg";
+  const large = size === "lg" && !fit;
   return (
     <div
       role="tablist"
       aria-label={ariaLabel}
       className={cn(
-        "flex items-center gap-1 overflow-x-auto lg:overflow-x-visible -mb-px w-full",
+        "flex items-center -mb-px w-full",
+        fit ? "gap-0" : "gap-1",
         className
       )}
     >
@@ -56,8 +60,12 @@ export function UnderHeaderNavTabs<T extends string = string>({
             disabled={tab.disabled}
             onClick={() => !tab.disabled && onChange(tab.id)}
             className={cn(
-              "group relative shrink-0 inline-flex items-center font-semibold whitespace-nowrap border-b-2 transition-all outline-none cursor-pointer",
-              large ? "gap-2 px-4 py-3.5 text-sm" : "gap-1.5 px-3 py-2.5 text-xs",
+              "group relative inline-flex items-center font-semibold whitespace-nowrap border-b-2 transition-all outline-none cursor-pointer",
+              fit
+                ? "min-w-0 flex-1 justify-center gap-1 px-1 py-2 text-[11px]"
+                : large
+                  ? "shrink-0 gap-2 px-4 py-3.5 text-sm"
+                  : "shrink-0 gap-1.5 px-3 py-2.5 text-xs",
               active
                 ? "border-[#145c3f] text-[#145c3f]"
                 : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300",
@@ -68,7 +76,7 @@ export function UnderHeaderNavTabs<T extends string = string>({
               <Icon
                 className={cn(
                   "shrink-0 transition-colors",
-                  large ? "size-5" : "size-3.5",
+                  fit ? "size-3.5" : large ? "size-5" : "size-3.5",
                   active
                     ? "text-[#145c3f]"
                     : "text-slate-400 group-hover:text-slate-600"

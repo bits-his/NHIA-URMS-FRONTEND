@@ -41,8 +41,8 @@ export type StateOfficeDashTab =
 const TABS: { key: StateOfficeDashTab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { key: "enrolment", label: "Enrolment", icon: UserPlus },
   { key: "enrolment-drives", label: "Enrolment Drives", icon: Megaphone },
-  { key: "beneficiary", label: "Beneficiary Mgmt", icon: Users },
-  { key: "stakeholder", label: "Stakeholder", icon: Handshake },
+  { key: "beneficiary", label: "Beneficiary Management", icon: Users },
+  { key: "stakeholder", label: "Stakeholder Management", icon: Handshake },
   { key: "provider", label: "Provider Management", icon: Stethoscope },
   { key: "complaints", label: "Complaints", icon: Scale },
   { key: "challenges", label: "Challenges & Support", icon: AlertTriangle },
@@ -164,6 +164,7 @@ export default function StateOfficeDashboardHub({
     <PageLayout
       title="State Office Dashboard"
       showBack={false}
+      contentClassName="p-0 md:p-0 gap-0"
       actions={
         <Button
           variant="outline"
@@ -178,6 +179,7 @@ export default function StateOfficeDashboardHub({
       }
       tabs={
         <UnderHeaderNavTabs
+          fit
           tabs={visibleTabs.map((t) => ({
             id: t.key,
             label: t.label,
@@ -242,7 +244,7 @@ export default function StateOfficeDashboardHub({
 
         {activeTab === "complaints" && (
           <ScrollArea className="flex-1">
-            <div className="p-3 sm:p-4 w-full space-y-3.5">
+            <div className="p-2 w-full space-y-2">
               <ComplaintRegisterDashboard
                 key={`state-comp-dash-${refreshKey}`}
                 embedded

@@ -189,7 +189,7 @@ export default function ChallengesSupportDashboard({ embedded = false, defaultZo
   return (
     <div className="flex flex-col h-full">
       <ScrollArea className="flex-1">
-        <div className="w-full p-3 sm:p-4 space-y-3.5">
+        <div className="w-full p-2 space-y-2">
           <div className="rounded-lg border border-[#d4e8dc] bg-white p-3.5 shadow-2xs">
             <div className="grid gap-3 grid-cols-2 md:grid-cols-4 xl:grid-cols-7">
               <FilterField label="Period">
