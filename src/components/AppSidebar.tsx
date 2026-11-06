@@ -314,6 +314,7 @@ const VIEW_TO_PATH: Record<string, string> = {
   "state-etmc-tmc-action-point": "/soc/etmc-tmc-action-point",
   "state-ict-support-register": "/zonal/ict/support",
   "state-compliance-hub": COMPLIANCE_HUB_PATH,
+  "soc-adhoc-projects": "/soc/projects",
   "state-adhoc-special-assignment": "/sdo/projects",
   "state-extra-dependant": BENEFICIARY_MANAGEMENT_PATH,
   [BENEFICIARY_MANAGEMENT_VIEW]: BENEFICIARY_MANAGEMENT_PATH,

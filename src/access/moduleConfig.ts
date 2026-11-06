@@ -251,7 +251,7 @@ export const MODULE_CONFIG: ParentModule[] = [
       { title: "Weekly Actionable", view: "state-weekly-actionable", path: "/soc/weekly-actionable", navLabel: "Escalated Issues" },
       { title: "Operation Monitoring Visit", view: "soc-operation-monitoring-visit", path: "/soc/operation-monitoring-visit", navLabel: "Operation Monitoring" },
       { title: "Spot Check Visit", view: "soc-spot-check-visit", path: "/soc/spot-check-visit", navLabel: "Spot Check" },
-      { title: "Ad-hoc / Special Assignment", view: "special-projects", path: "/sdo/projects", navLabel: "Adhoc project" },
+      { title: "Ad-hoc / Special Assignment", view: "soc-adhoc-projects", path: "/soc/projects", navLabel: "Adhoc project" },
     ],
   },
 

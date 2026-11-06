@@ -293,9 +293,19 @@ export default function AdhocAssignmentWorkspace({ onBack, user, userRole }: Pro
         header: "Actions",
         cell: ({ row }) => {
           const m = row.original;
+          const hasStateSubmitted = !!(
+            m.stats?.hasSubmittedReports
+            || (m.stats?.completedStates || 0) > 0
+            || (m.stats?.submittedReportsCount || 0) > 0
+            || m.state_assignments?.some((sa: any) =>
+                 sa.progress_status === "completed"
+                 || sa.reports?.some((r: any) => r.review_status && r.review_status !== "draft")
+               )
+          );
+
           return (
             <div className="flex items-center justify-end gap-1.5">
-              {isSdo && m.status !== "closed" && (
+              {isSdo && m.status !== "closed" && !hasStateSubmitted && (
                 <Button
                   variant="ghost"
                   size="sm"
@@ -429,6 +439,36 @@ export default function AdhocAssignmentWorkspace({ onBack, user, userRole }: Pro
         cell: ({ row }) => {
           const sa = row.original;
           const latestRep = sa.reports?.[0];
+          const hasSubmittedReport = !!(
+            latestRep && latestRep.review_status && latestRep.review_status !== "draft"
+          );
+
+          if (isSdo) {
+            return (
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={!hasSubmittedReport}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (hasSubmittedReport) {
+                    setSelectedStateAssignment(sa);
+                    setViewMode("report");
+                  }
+                }}
+                className={`h-7 px-2.5 text-xs gap-1.5 font-semibold ${
+                  hasSubmittedReport
+                    ? "text-[#145c3f] hover:bg-emerald-50 cursor-pointer"
+                    : "text-slate-400 bg-slate-50 border border-slate-200 cursor-not-allowed opacity-50"
+                }`}
+                title={hasSubmittedReport ? "View State Execution Report" : "No report submitted yet"}
+              >
+                <Eye className="w-3.5 h-3.5" />
+                <span>View</span>
+              </Button>
+            );
+          }
+
           return (
             <Button
               variant="ghost"
@@ -441,13 +481,13 @@ export default function AdhocAssignmentWorkspace({ onBack, user, userRole }: Pro
               className="h-7 px-2.5 text-xs text-[#145c3f] hover:bg-emerald-50 gap-1.5 font-semibold"
             >
               <FileText className="w-3.5 h-3.5 text-emerald-600" />
-              {latestRep ? "View / Edit Report" : "Submit Report"}
+              {latestRep ? (latestRep.review_status === "draft" ? "Continue Draft" : "View / Edit Report") : "Submit Report"}
             </Button>
           );
         },
       },
     ],
-    []
+    [isSdo]
   );
 
   const hasListFilters = !!(deptFilter || statusFilter);
@@ -459,14 +499,14 @@ export default function AdhocAssignmentWorkspace({ onBack, user, userRole }: Pro
           setViewMode("list");
           setEditMasterData(null);
           if (location.pathname.endsWith("/register") || location.pathname.endsWith("/create")) {
-            navigate("/sdo/projects", { replace: true });
+            navigate(location.pathname.startsWith("/soc/projects") ? "/soc/projects" : "/sdo/projects", { replace: true });
           }
         }}
         onSuccess={(savedMaster, proceedToDispatch) => {
           setViewMode("list");
           setEditMasterData(null);
           if (location.pathname.endsWith("/register") || location.pathname.endsWith("/create")) {
-            navigate("/sdo/projects", { replace: true });
+            navigate(location.pathname.startsWith("/soc/projects") ? "/soc/projects" : "/sdo/projects", { replace: true });
           }
           fetchMasters();
           if (proceedToDispatch && savedMaster) {
@@ -515,6 +555,7 @@ export default function AdhocAssignmentWorkspace({ onBack, user, userRole }: Pro
         }}
         stateAssignment={selectedStateAssignment}
         userName={user?.name || user?.staff_id}
+        readOnly={isSdo}
       />
     );
   }
@@ -717,6 +758,11 @@ export default function AdhocAssignmentWorkspace({ onBack, user, userRole }: Pro
             onSearchChange={setSearch}
             emptyMessage="No assignments issued to your State at this time."
             onRowClick={(sa) => {
+              if (isSdo) {
+                const latestRep = sa.reports?.[0];
+                const hasSubmitted = !!(latestRep && latestRep.review_status && latestRep.review_status !== "draft");
+                if (!hasSubmitted) return;
+              }
               setSelectedStateAssignment(sa);
               setViewMode("report");
             }}
@@ -747,6 +793,7 @@ export default function AdhocAssignmentWorkspace({ onBack, user, userRole }: Pro
         }}
         stateAssignment={selectedStateAssignment}
         userName={user?.name || user?.staff_id}
+        readOnly={isSdo}
       />
 
       <AdhocMasterDetailModal

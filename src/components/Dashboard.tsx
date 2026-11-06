@@ -711,7 +711,9 @@ export default function Dashboard({ role, user, access = [], functionalities = "
             <Route path="/soc/enrollee-register" element={<StateOfficeReportsList key="state-enrollee-register" reportType="enrollee-register" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
             <Route path="/soc/etmc-tmc-action-point" element={<StateOfficeReportsList key="state-etmc-tmc-action-point" reportType="etmc-tmc-action-point" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
             <Route path="/soc/ict-support-register" element={<Navigate to="/zonal/ict/support" replace />} />
-            <Route path="/soc/adhoc-special-assignment" element={<Navigate to="/sdo/projects" replace />} />
+            <Route path="/soc/projects/*" element={<AdhocAssignmentWorkspace onBack={() => setView("home")} user={user} userRole={role} />} />
+            <Route path="/soc/projects" element={<AdhocAssignmentWorkspace onBack={() => setView("home")} user={user} userRole={role} />} />
+            <Route path="/soc/adhoc-special-assignment" element={<Navigate to="/soc/projects" replace />} />
             <Route path="/soc/operation-monitoring-visit" element={<SocPlaceholderPage title="Operation Monitoring Visit" onBack={() => setView("home")} />} />
             <Route path="/soc/spot-check-visit" element={<SocPlaceholderPage title="Spot Check Visit" onBack={() => setView("home")} />} />
             <Route path="/soc/complaints" element={<StateOfficeComplaintsPage key="state-complaints" onBack={() => setView("home")} defaultZoneId={user?.zone_id ? String(user.zone_id) : monthlyCtx.defaultZoneId} defaultStateId={user?.state_id ? String(user.state_id) : monthlyCtx.defaultStateId} />} />
