@@ -11,6 +11,7 @@ import {
   Scale,
   Stethoscope,
   UserPlus,
+  Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -20,6 +21,8 @@ import EnrolmentDriveDashboard from "./EnrolmentDriveDashboard";
 import EnrolmentActivityDashboard from "./EnrolmentActivityDashboard";
 import ProviderManagementDashboard from "./ProviderManagementDashboard";
 import ChallengesSupportDashboard from "./ChallengesSupportDashboard";
+import StakeholderDashboard from "./StakeholderDashboard";
+import BeneficiaryDashboard from "./BeneficiaryDashboard";
 import ComplaintRegisterDashboard from "../servicom/ComplaintRegisterDashboard";
 import { STAKEHOLDER_MANAGEMENT_PATH } from "./enrolmentPillarTypes";
 import { canAccessEnrolmentDriveDashboard } from "./enrolmentDriveTypes";
@@ -29,6 +32,7 @@ import { UnderHeaderNavTabs } from "@/src/components/UnderHeaderNavTabs";
 export type StateOfficeDashTab =
   | "enrolment"
   | "enrolment-drives"
+  | "beneficiary"
   | "stakeholder"
   | "provider"
   | "complaints"
@@ -37,6 +41,7 @@ export type StateOfficeDashTab =
 const TABS: { key: StateOfficeDashTab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { key: "enrolment", label: "Enrolment", icon: UserPlus },
   { key: "enrolment-drives", label: "Enrolment Drives", icon: Megaphone },
+  { key: "beneficiary", label: "Beneficiary Mgmt", icon: Users },
   { key: "stakeholder", label: "Stakeholder", icon: Handshake },
   { key: "provider", label: "Provider Management", icon: Stethoscope },
   { key: "complaints", label: "Complaints", icon: Scale },
@@ -213,7 +218,17 @@ export default function StateOfficeDashboardHub({
         )}
 
         {activeTab === "stakeholder" && (
-          <UnavailablePanel moduleLabel="Stakeholder Management" registerPath={STAKEHOLDER_MANAGEMENT_PATH} />
+          <StakeholderDashboard
+            key={`stk-dash-${refreshKey}`}
+            {...shared}
+          />
+        )}
+
+        {activeTab === "beneficiary" && (
+          <BeneficiaryDashboard
+            key={`bm-dash-${refreshKey}`}
+            {...shared}
+          />
         )}
 
         {activeTab === "provider" && (

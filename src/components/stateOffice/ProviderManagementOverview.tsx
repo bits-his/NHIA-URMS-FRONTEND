@@ -175,7 +175,6 @@ export default function ProviderManagementOverview(props: OverviewProps) {
     sdoZoneBarKey, sdoZoneBarLabel, trendSeries, onTrendSeriesChange,
   } = props;
 
-  const isState = level === 1;
   const designKey = `${DESIGN_KEY}.l${level}`;
   const chartKey = `${CHART_KEY}.l${level}`;
   const [design, setDesign] = React.useState<DesignId>(() => storedChoice(designKey, DESIGNS.map((d) => d.id), "focus"));
@@ -514,20 +513,6 @@ export default function ProviderManagementOverview(props: OverviewProps) {
         <p className="text-sm text-slate-600 leading-relaxed">
           Review zones with high pending workloads or low activity completion for the selected programme.
         </p>
-      ) : level === 3 && !sdoPipeline ? (
-        <ul className="space-y-2">
-          {[
-            "Identify zones with sustained low plan achievement",
-            "Separate accreditation and reaccreditation outputs",
-            "Review programme-specific BHCPF PHC counts",
-            "Escalate recurring operational barriers",
-          ].map((item) => (
-            <li key={item} className="text-sm text-slate-700 flex gap-2 leading-snug">
-              <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-teal-600 shrink-0" />
-              {item}
-            </li>
-          ))}
-        </ul>
       ) : (
         <ul className="space-y-2">
           {actionQueue.map((item: string) => (
@@ -654,10 +639,6 @@ export default function ProviderManagementOverview(props: OverviewProps) {
         </>
       )}
 
-      <p className="text-[11px] text-slate-400 text-center">
-        Rates use summed numerators ÷ summed denominators (not averages of percentages).
-        {isState ? " Scoped to your assigned state — other states appear at zonal and national levels as they report." : " Forms sold / returned are excluded from performance ranking."}
-      </p>
     </div>
   );
 }

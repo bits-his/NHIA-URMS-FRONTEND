@@ -2,20 +2,24 @@ import * as React from "react";
 import { useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { Loader2 } from "lucide-react";
+import { motion } from "motion/react";
+import {
+  Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
+} from "recharts";
 import { toast } from "sonner";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { DashKpi } from "@/components/dashboard/dashboardUi";
 import { stateOfficeApi, stockApi } from "@/lib/api";
 import type { RootState } from "@/src/store/store";
 
 type DashView = "state" | "zonal" | "national";
+type Face = "overview" | "cards" | "renewals" | "compliance" | "states";
 
 interface BarRow { label: string; value: number }
 interface ComplianceRow {
   code: string;
   office: string;
-  zone?: string;
   status: string;
   reporting: string;
   submitted: string;
@@ -24,7 +28,6 @@ interface ComplianceRow {
   enrolled: number;
   previous: number;
   current: number;
-  change: number;
   change_pct: number | null;
   id_card_ratio: number | null;
   flag: string;
@@ -33,7 +36,6 @@ interface ComplianceRow {
 interface DashboardData {
   view: DashView;
   period: { year: number; month: number; label: string; programme: string };
-  note: string;
   kpis: Record<string, number | null>;
   by_program: BarRow[];
   by_month: BarRow[];
@@ -43,13 +45,18 @@ interface DashboardData {
   by_state: BarRow[];
   by_zone: BarRow[];
   cards: { by_category: BarRow[]; pending_by_program: BarRow[] };
-  gifship: { by_month: BarRow[]; by_type: BarRow[]; queue: { beneficiary: string; gifship_type: string; expiry: string; days_left: number; phone: string }[] };
+  gifship: {
+    by_month: BarRow[];
+    by_type: BarRow[];
+    queue: { beneficiary: string; gifship_type: string; expiry: string; days_left: number; phone: string }[];
+  };
   compliance: ComplianceRow[];
   outliers: { state: string; value: number; flag: string }[];
   funding: { programme: string; zero_cost: number; budgeted: number }[];
-  performance: { state: string; change: string; attainment: number | null; submission: string; renewals_overdue: number | null; priority: string; earlier: number; previous: number; current: number }[];
+  performance: { state: string; change: string; submission: string; renewals_overdue: number | null; priority: string }[];
 }
 
+const BRAND = "#145c3f";
 const PROGRAMMES = ["FSSHIP", "BHCPF", "GIFSHIP", "TISHIP", "OPS", "Other"];
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -72,113 +79,8 @@ function fmtPct(value: number | null | undefined) {
   return `${n % 1 ? n.toFixed(1) : n}%`;
 }
 
-function flagClass(value: string) {
-  if (value === "On track" || value === "Accepted" || value === "Complete") return "bg-[#e8f5ee] text-[#0f3d2e]";
-  if (value === "Watch" || value === "Medium" || value === "Submitted" || value === "Above peer range") return "bg-amber-50 text-amber-800";
-  if (value === "Below peer range") return "bg-sky-50 text-sky-800";
-  return "bg-rose-50 text-rose-700";
-}
-
-function heatClass(value: number | null, kind: "reporting" | "cards") {
-  if (value == null) return "bg-slate-50 text-slate-400";
-  if (kind === "reporting") {
-    if (value >= 100) return "bg-[#d8f3e4] text-[#0f3d2e]";
-    if (value >= 90) return "bg-amber-50 text-amber-900";
-    return "bg-rose-50 text-rose-800";
-  }
-  if (value >= 90) return "bg-[#d8f3e4] text-[#0f3d2e]";
-  if (value >= 75) return "bg-amber-50 text-amber-900";
-  return "bg-rose-50 text-rose-800";
-}
-
-function Flag({ value }: { value: string }) {
-  return <span className={`inline-flex rounded-sm px-2 py-0.5 text-[11px] font-semibold ${flagClass(value)}`}>{value}</span>;
-}
-
-function Section({ id, kicker, title, children }: { id: string; kicker: string; title: string; children: React.ReactNode }) {
-  return (
-    <section id={id} className="scroll-mt-24 space-y-3">
-      <div className="border-b border-[#d4e8dc] pb-2">
-        <p className="text-[11px] font-bold uppercase tracking-wider text-[#1a7a52]">{kicker}</p>
-        <h3 className="text-base font-bold text-[#0f3d2e]">{title}</h3>
-      </div>
-      {children}
-    </section>
-  );
-}
-
-function Panel({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
-  return (
-    <div className="rounded-sm border border-[#d4e8dc] bg-white p-4 shadow-2xs h-full">
-      <div className="mb-3">
-        <h4 className="text-sm font-bold text-[#0f3d2e]">{title}</h4>
-        {hint ? <p className="text-xs text-slate-500 mt-0.5">{hint}</p> : null}
-      </div>
-      {children}
-    </div>
-  );
-}
-
-function HBars({ rows, onPick }: { rows: BarRow[]; onPick?: (label: string) => void }) {
-  const max = Math.max(1, ...rows.map((row) => row.value));
-  if (!rows.some((row) => row.value > 0)) {
-    return <p className="text-xs text-slate-500">No records in this period.</p>;
-  }
-  return (
-    <div className="space-y-2.5">
-      {rows.filter((row) => row.value > 0 || rows.length <= 6).map((row) => {
-        const inner = (
-          <>
-            <div className="mb-1 flex items-center justify-between gap-3 text-xs font-semibold text-slate-600">
-              <span className="truncate">{row.label}</span>
-              <span className="tabular-nums text-[#0f3d2e]">{fmt(row.value)}</span>
-            </div>
-            <div className="h-2 rounded-sm bg-[#e8f3ec]">
-              <div className="h-2 rounded-sm bg-[#1a7a52]" style={{ width: `${Math.max(2, (row.value / max) * 100)}%` }} />
-            </div>
-          </>
-        );
-        if (!onPick) return <div key={row.label}>{inner}</div>;
-        return (
-          <button key={row.label} type="button" className="block w-full text-left hover:opacity-80" onClick={() => onPick(row.label)}>
-            {inner}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-function MonthBars({ rows }: { rows: BarRow[] }) {
-  const max = Math.max(1, ...rows.map((row) => row.value));
-  return (
-    <div className="flex items-end gap-1.5 h-40">
-      {rows.map((row) => (
-        <div key={row.label} className="flex-1 flex flex-col items-center justify-end h-full gap-1">
-          <span className="text-[10px] font-semibold tabular-nums text-[#0f3d2e]">{row.value ? fmt(row.value) : ""}</span>
-          <div className="w-full rounded-sm bg-[#1a7a52]" style={{ height: `${Math.max(row.value ? 6 : 2, (row.value / max) * 100)}%` }} />
-          <span className="text-[10px] font-semibold text-slate-500">{row.label}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function DataTable({ headers, children }: { headers: string[]; children: React.ReactNode }) {
-  return (
-    <div className="overflow-x-auto rounded-sm border border-[#d4e8dc]">
-      <Table>
-        <TableHeader>
-          <TableRow className="bg-[#f4f7f5] hover:bg-[#f4f7f5]">
-            {headers.map((header) => (
-              <TableHead key={header} className="text-[11px] font-bold uppercase tracking-wide text-[#0f3d2e]">{header}</TableHead>
-            ))}
-          </TableRow>
-        </TableHeader>
-        <TableBody>{children}</TableBody>
-      </Table>
-    </div>
-  );
+function chartRows(rows: BarRow[]) {
+  return rows.filter((row) => row.value > 0).map((row) => ({ name: row.label, value: row.value }));
 }
 
 export default function EnrolmentActivityDashboard({
@@ -203,6 +105,30 @@ export default function EnrolmentActivityDashboard({
   const [states, setStates] = React.useState<{ id: string; label: string }[]>([]);
   const [data, setData] = React.useState<DashboardData | null>(null);
   const [loading, setLoading] = React.useState(true);
+  const [face, setFace] = React.useState<Face>("overview");
+
+  const faces: { id: Face; label: string }[] = view === "state"
+    ? [
+      { id: "overview", label: "Overview" },
+      { id: "cards", label: "ID cards" },
+      { id: "renewals", label: "Renewals" },
+    ]
+    : view === "zonal"
+      ? [
+        { id: "overview", label: "Overview" },
+        { id: "compliance", label: "Compliance" },
+        { id: "states", label: "States" },
+        { id: "renewals", label: "Renewals" },
+      ]
+      : [
+        { id: "overview", label: "Overview" },
+        { id: "states", label: "States" },
+        { id: "renewals", label: "Renewals" },
+      ];
+
+  React.useEffect(() => {
+    if (!faces.some((item) => item.id === face)) setFace("overview");
+  }, [view]); // eslint-disable-line react-hooks/exhaustive-deps
 
   React.useEffect(() => {
     stockApi.getZones().then((res) => {
@@ -235,8 +161,7 @@ export default function EnrolmentActivityDashboard({
       });
       setData(res.data);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Could not load the enrolment dashboard";
-      toast.error(message);
+      toast.error(err instanceof Error ? err.message : "Could not load the enrolment dashboard");
       setData(null);
     } finally {
       setLoading(false);
@@ -245,442 +170,434 @@ export default function EnrolmentActivityDashboard({
 
   React.useEffect(() => { void load(); }, [load]);
 
-  const openRecords = () => navigate("/zonal/enrolment");
-  const pickProgram = (label: string) => setProgramme((current) => (current === label ? "all" : label));
-
-  const sections = view === "state"
-    ? [
-      ["overview", "Performance"],
-      ["cards", "ID cards"],
-      ["renewals", "GIFSHIP renewals"],
-    ]
-    : view === "zonal"
-      ? [
-        ["compliance", "Compliance"],
-        ["overview", "Zonal overview"],
-        ["coverage", "Programmes"],
-        ["comparison", "Comparison"],
-        ["operations", "State operations"],
-      ]
-      : [
-        ["overview", "National overview"],
-        ["coverage", "Programmes"],
-        ["targets", "State performance"],
-        ["heatmap", "Heatmap"],
-        ["analysis", "Analysis"],
-        ["funding", "Funding"],
-        ["cards", "ID cards"],
-        ["renewals", "Renewals"],
-        ["performance", "Priorities"],
-        ["compliance", "Compliance"],
-      ];
-
+  const pickProgram = (name?: string) => {
+    if (!name || !PROGRAMMES.includes(name)) return;
+    setProgramme((current) => (current === name ? "all" : name));
+  };
   const kpis = data?.kpis || {};
-  const headline = view === "state"
-    ? "State enrolment"
-    : view === "zonal"
-      ? "Zonal enrolment"
-      : "National enrolment";
+  const years = Array.from({ length: 5 }, (_, i) => String(now.getFullYear() - i));
 
   return (
-    <div className="p-3 sm:p-4 space-y-4">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <p className="text-[11px] font-bold uppercase tracking-wider text-[#1a7a52]">{headline}</p>
-          <h2 className="text-lg font-bold text-[#0f3d2e]">
-            {view === "state" ? "State coordinator view" : view === "zonal" ? "Zonal director view" : "HQ / SOC view"}
-          </h2>
-          <p className="text-xs text-slate-500 mt-0.5">Click a programme to filter its records. Open a figure to go to the enrolment register.</p>
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
-          <Filter label="Year" value={year} onChange={setYear} options={Array.from({ length: 5 }, (_, i) => {
-            const value = String(now.getFullYear() - i);
-            return { value, label: value };
-          })} />
-          <Filter label="Month" value={month} onChange={setMonth} options={MONTHS.map((label, index) => ({ value: String(index + 1), label }))} />
-          <Filter label="Programme" value={programme} onChange={setProgramme} options={[{ value: "all", label: "All programmes" }, ...PROGRAMMES.map((label) => ({ value: label, label }))]} />
+    <div className="w-full p-3 sm:p-4 space-y-3.5">
+      <div className="rounded-lg border border-[#d4e8dc] bg-white p-3.5 shadow-2xs">
+        <div className="grid gap-3 grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
+          <FilterField label="Year">
+            <Select value={year} onValueChange={setYear}>
+              <SelectTrigger displayValue={year}><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {years.map((item) => <SelectItem key={item} value={item}>{item}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </FilterField>
+          <FilterField label="Month">
+            <Select value={month} onValueChange={setMonth}>
+              <SelectTrigger displayValue={MONTHS[Number(month) - 1]}><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {MONTHS.map((label, index) => (
+                  <SelectItem key={label} value={String(index + 1)}>{label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </FilterField>
+          <FilterField label="Programme">
+            <Select value={programme} onValueChange={setProgramme}>
+              <SelectTrigger displayValue={programme === "all" ? "All programmes" : programme}><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All programmes</SelectItem>
+                {PROGRAMMES.map((item) => <SelectItem key={item} value={item}>{item}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </FilterField>
           {view !== "state" && (
-            <Filter
-              label="Zone"
-              value={lockZone ? (defaultZoneId || zoneId) : zoneId}
-              onChange={(value) => { setZoneId(value); setStateId("all"); }}
-              disabled={lockZone}
-              options={[{ value: "all", label: "All zones" }, ...zones.map((zone) => ({ value: zone.id, label: zone.label }))]}
-            />
+            <FilterField label="Zone">
+              <Select
+                value={lockZone ? (defaultZoneId || zoneId) : zoneId}
+                onValueChange={(value) => { setZoneId(value); setStateId("all"); }}
+                disabled={lockZone}
+              >
+                <SelectTrigger displayValue={
+                  (lockZone ? defaultZoneId : zoneId) === "all" || !(lockZone ? defaultZoneId : zoneId)
+                    ? "All zones"
+                    : zones.find((zone) => zone.id === (lockZone ? defaultZoneId : zoneId))?.label || "Assigned zone"
+                }>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {!lockZone && <SelectItem value="all">All zones</SelectItem>}
+                  {zones.map((zone) => <SelectItem key={zone.id} value={zone.id}>{zone.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </FilterField>
           )}
-          {view !== "state" && (
-            <Filter
-              label="State"
-              value={lockState ? (defaultStateId || stateId) : stateId}
-              onChange={setStateId}
-              disabled={lockState}
-              options={[{ value: "all", label: "All states" }, ...states.map((state) => ({ value: state.id, label: state.label }))]}
-            />
-          )}
+          {lockState ? (
+            <FilterField label="State">
+              <div className="h-11 px-3.5 flex items-center rounded-sm border-2 border-[#1a7a52] bg-[#f4f7f5] text-sm font-medium text-[#0f3d2e]">
+                {states.find((state) => state.id === String(defaultStateId))?.label || "Assigned state"}
+              </div>
+            </FilterField>
+          ) : view !== "state" ? (
+            <FilterField label="State">
+              <Select value={stateId} onValueChange={setStateId}>
+                <SelectTrigger displayValue={stateId === "all" ? "All states" : states.find((state) => state.id === stateId)?.label || stateId}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All states</SelectItem>
+                  {states.map((state) => <SelectItem key={state.id} value={state.id}>{state.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </FilterField>
+          ) : null}
         </div>
       </div>
 
-      <div className="flex gap-1.5 overflow-x-auto pb-1">
-        {sections.map(([id, label]) => (
+      <div className="flex items-center gap-1 rounded-lg border border-[#d4e8dc] bg-white p-1 shadow-2xs w-full sm:w-fit">
+        {faces.map((item) => (
           <button
-            key={id}
+            key={item.id}
             type="button"
-            className="shrink-0 rounded-sm border border-[#d4e8dc] bg-white px-3 py-1.5 text-xs font-semibold text-[#0f3d2e] hover:border-[#1a7a52] hover:bg-[#f4f7f5]"
-            onClick={() => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" })}
+            onClick={() => setFace(item.id)}
+            className={`flex-1 sm:flex-none px-3.5 py-1.5 rounded-md text-xs font-bold transition-colors ${
+              face === item.id ? "bg-[#145c3f] text-white shadow-xs" : "text-slate-600 hover:bg-slate-50"
+            }`}
           >
-            {label}
+            {item.label}
           </button>
         ))}
       </div>
 
       {loading && !data ? (
-        <div className="flex items-center justify-center gap-2 py-16 text-sm text-slate-500">
-          <Loader2 className="h-4 w-4 animate-spin" /> Loading enrolment dashboard
+        <div className="flex items-center justify-center py-24 text-slate-500 gap-2 text-sm">
+          <Loader2 className="w-4 h-4 animate-spin" /> Loading dashboard…
         </div>
       ) : !data ? (
-        <div className="rounded-sm border border-[#d4e8dc] bg-white p-8 text-center text-sm text-slate-500">The enrolment dashboard could not be loaded.</div>
+        <p className="text-sm text-slate-500 text-center py-16">The enrolment dashboard could not be loaded.</p>
       ) : (
-        <div className={`space-y-8 ${loading ? "opacity-60" : ""}`}>
-          {data.note ? <p className="text-xs text-slate-500">{data.note}</p> : null}
-
-          {view === "state" && (
+        <motion.div
+          key={face}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.28 }}
+          className={`space-y-4 ${loading ? "opacity-60" : ""}`}
+        >
+          {face === "overview" && view === "state" && (
             <>
-              <Section id="overview" kicker="State coordinator · 1" title="Performance overview">
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-                  <DashKpi label="My submissions" value={fmt(kpis.submitted)} detail={`${fmt(kpis.activities)} activities in the register`} onClick={openRecords} />
-                  <DashKpi label="Activities reported" value={fmt(kpis.activities)} detail="All enrolment activities this month" onClick={openRecords} />
-                  <DashKpi label="Target coverage" value={fmtPct(kpis.coverage_pct)} detail={`${fmt(kpis.enrolled)} enrolled · no annual target set`} />
-                  <DashKpi label="GIFSHIP renewals due" value={fmt(kpis.gifship_renewals_due)} detail={`${fmt(kpis.gifship_overdue_over_14)} overdue more than 14 days`} />
-                  <DashKpi label="Reporting completeness" value={fmtPct(kpis.reporting_completeness)} detail={`${fmt(kpis.incomplete_activities)} activity types still empty`} />
-                </div>
-                <div className="grid gap-3 lg:grid-cols-2">
-                  <Panel title="Enrolment by programme" hint="Click a programme to filter this dashboard">
-                    <HBars rows={data.by_program} onPick={pickProgram} />
-                  </Panel>
-                  <Panel title="Monthly enrolment trend" hint={String(year)}>
-                    <MonthBars rows={data.by_month} />
-                    <p className="mt-3 text-xs text-slate-500">{fmt(kpis.enrolled)} enrolled in {data.period.label}. {fmt(kpis.annual_enrolled)} recorded this year.</p>
-                  </Panel>
-                  <Panel title="Enrolment by mode">
-                    <HBars rows={data.by_mode} />
-                  </Panel>
-                  <Panel title="Enrolment by channel">
-                    <HBars rows={data.by_channel} />
-                  </Panel>
-                </div>
-              </Section>
-              <IdCardSection data={data} kpis={kpis} />
-              <GifshipSection data={data} kpis={kpis} />
+              <KpiRow items={[
+                ["Submissions", fmt(kpis.submitted)],
+                ["Activities reported", fmt(kpis.activities)],
+                ["Enrolled", fmt(kpis.enrolled)],
+                ["Reporting completeness", fmtPct(kpis.reporting_completeness)],
+              ]} />
+              <div className="grid grid-cols-1 xl:grid-cols-5 gap-4">
+                <Panel title="Enrolment by programme" className="xl:col-span-2" subtitle="Select a bar to filter">
+                  <HBar data={chartRows(data.by_program)} onPick={pickProgram} />
+                </Panel>
+                <Panel title="Monthly enrolment" className="xl:col-span-3" subtitle={String(year)}>
+                  <Trend data={data.by_month.map((row) => ({ name: row.label, value: row.value }))} />
+                </Panel>
+              </div>
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                <Panel title="Enrolment by mode"><HBar data={chartRows(data.by_mode)} /></Panel>
+                <Panel title="Enrolment by channel"><HBar data={chartRows(data.by_channel)} /></Panel>
+              </div>
             </>
           )}
 
-          {view === "zonal" && (
+          {face === "overview" && view === "zonal" && (
             <>
-              <ComplianceSection data={data} kpis={kpis} title="Reporting compliance" kicker="Zonal director" />
-              <Section id="overview" kicker="Zonal director · 1" title="Zonal overview">
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                  <DashKpi label="States reporting" value={`${fmt(kpis.offices_submitted)} / ${fmt(kpis.offices_expected)}`} detail={`${fmt((kpis.offices_expected || 0) - (kpis.offices_submitted || 0))} not submitted`} />
-                  <DashKpi label="Enrolment records" value={fmt(kpis.enrolled)} detail={data.period.programme} onClick={openRecords} />
-                  <DashKpi label="Pending card requests" value={fmt(kpis.pending_cards)} detail={`${fmt(kpis.pending_cards_over_14)} older than 14 days`} />
-                  <DashKpi label="States flagged" value={fmt(kpis.flagged_states)} detail="Late, incomplete, or not sent" />
-                </div>
-                <div className="grid gap-3 lg:grid-cols-2">
-                  <Panel title="Enrolment by state"><HBars rows={data.by_state} /></Panel>
-                  <Panel title="Enrolment by programme" hint="Click a programme to filter"><HBars rows={data.by_program} onPick={pickProgram} /></Panel>
-                </div>
-              </Section>
-              <CoverageSection data={data} kicker="Zonal director" />
-              <ComparisonSection data={data} />
-              <Section id="operations" kicker="Zonal director" title="State operations inside this zone">
-                <p className="text-xs text-slate-500">Same operational figures a state coordinator sees, limited to the states in this zone. Choose a state above to narrow them.</p>
-                <IdCardSection data={data} kpis={kpis} embedded />
-                <GifshipSection data={data} kpis={kpis} embedded />
-              </Section>
+              <KpiRow items={[
+                ["States reporting", `${fmt(kpis.offices_submitted)} / ${fmt(kpis.offices_expected)}`],
+                ["Enrolled", fmt(kpis.enrolled)],
+                ["Pending card requests", fmt(kpis.pending_cards)],
+                ["States flagged", fmt(kpis.flagged_states)],
+              ]} />
+              <div className="grid grid-cols-1 xl:grid-cols-5 gap-4">
+                <Panel title="Enrolment by state" className="xl:col-span-3"><HBar data={chartRows(data.by_state)} /></Panel>
+                <Panel title="Enrolment by programme" className="xl:col-span-2" subtitle="Select a bar to filter">
+                  <HBar data={chartRows(data.by_program)} onPick={pickProgram} />
+                </Panel>
+              </div>
             </>
           )}
 
-          {view === "national" && (
+          {face === "overview" && view === "national" && (
             <>
-              <Section id="overview" kicker="HQ / SOC · 1" title="National overview">
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-                  <DashKpi label="Offices reporting" value={`${fmt(kpis.offices_submitted)} / ${fmt(kpis.offices_expected)}`} detail={`${fmt((kpis.offices_expected || 0) - (kpis.offices_submitted || 0))} not submitted`} />
-                  <DashKpi label="Enrolment records" value={fmt(kpis.enrolled)} detail={data.period.programme} onClick={openRecords} />
-                  <DashKpi label="NIN validation" value={fmtPct(kpis.nin_validation_pct)} detail="Validated of NIN checks recorded" />
-                  <DashKpi label="Pending card requests" value={fmt(kpis.pending_cards)} detail={`${fmt(kpis.pending_cards_over_14)} older than 14 days`} />
-                  <DashKpi label="States flagged" value={fmt(kpis.flagged_states)} detail="Below the reporting threshold" />
-                </div>
-                <div className="grid gap-3 lg:grid-cols-2">
-                  <Panel title="Enrolment by zone"><HBars rows={data.by_zone} /></Panel>
-                  <Panel title="Enrolment by channel"><HBars rows={data.by_channel} /></Panel>
-                </div>
-              </Section>
-              <CoverageSection data={data} kicker="HQ / SOC" />
-              <Section id="targets" kicker="HQ / SOC" title="State performance against the previous month">
-                <DataTable headers={["State", MONTHS[(Number(month) + 10) % 12] || "Period 1", MONTHS[Number(month) - 1] || "Period 2", "Change", "Reporting"]}>
-                  {data.compliance.map((row) => (
-                    <TableRow key={row.code}>
-                      <TableCell className="text-xs font-semibold">{row.office}</TableCell>
-                      <TableCell className="text-xs tabular-nums">{fmt(row.previous)}</TableCell>
-                      <TableCell className="text-xs tabular-nums">{fmt(row.current)}</TableCell>
-                      <TableCell className="text-xs tabular-nums">{row.change_pct == null ? "—" : `${row.change_pct > 0 ? "+" : ""}${row.change_pct}%`}</TableCell>
-                      <TableCell><Flag value={row.reporting} /></TableCell>
-                    </TableRow>
-                  ))}
-                </DataTable>
-              </Section>
-              <Section id="heatmap" kicker="HQ / SOC · 1" title="State performance heatmap">
-                <div className="grid gap-2 sm:grid-cols-3 text-xs">
-                  <LegendChip title="Enrolment target" body="Blank until an annual target is configured." />
-                  <LegendChip title="Reporting completion" body="Green 100% · Amber 90–99% · Red below 90%" />
-                  <LegendChip title="ID-card issuance" body="Green 90%+ · Amber 75–89% · Red below 75%" />
-                </div>
-                <DataTable headers={["State", "Enrolment target", "Reporting completion", "ID cards issued / received"]}>
-                  {data.compliance.map((row) => (
-                    <TableRow key={row.code}>
-                      <TableCell className="text-xs font-semibold">{row.office}</TableCell>
-                      <TableCell className="text-xs text-slate-400">—</TableCell>
-                      <TableCell className={`text-xs font-semibold ${heatClass(row.completeness, "reporting")}`}>{fmtPct(row.completeness)}</TableCell>
-                      <TableCell className={`text-xs font-semibold ${heatClass(row.id_card_ratio, "cards")}`}>{fmtPct(row.id_card_ratio)}</TableCell>
-                    </TableRow>
-                  ))}
-                </DataTable>
-              </Section>
-              <Section id="analysis" kicker="HQ / SOC · 2" title="State enrolment analysis">
-                {data.outliers.length === 0 ? (
-                  <p className="text-xs text-slate-500">No state sits outside the peer range for {data.period.label}.</p>
-                ) : (
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    {data.outliers.map((row) => (
-                      <div key={row.state} className="rounded-sm border border-[#d4e8dc] bg-white p-4">
-                        <Flag value={row.flag} />
-                        <p className="mt-2 text-sm font-bold text-[#0f3d2e]">{row.state}</p>
-                        <p className="text-2xl font-black tabular-nums">{fmt(row.value)}</p>
-                        <p className="text-xs text-slate-500">Enrolled this month, outside one standard deviation of peer states.</p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </Section>
-              <Section id="funding" kicker="HQ / SOC · 4" title="Total enrolment by funding option">
-                <div className="grid gap-3 sm:grid-cols-3">
-                  <DashKpi label="Total enrolments" value={fmt(kpis.funding_total)} />
-                  <DashKpi label="Zero-cost" value={fmt(kpis.zero_cost)} detail={fmtPct(kpis.funding_total ? ((kpis.zero_cost || 0) / (kpis.funding_total || 1)) * 100 : null)} />
-                  <DashKpi label="Budgeted" value={fmt(kpis.budgeted)} detail={fmtPct(kpis.funding_total ? ((kpis.budgeted || 0) / (kpis.funding_total || 1)) * 100 : null)} />
-                </div>
-                <DataTable headers={["Programme", "Zero-cost", "Budgeted"]}>
-                  {data.funding.map((row) => (
-                    <TableRow key={row.programme}>
-                      <TableCell className="text-xs font-semibold">{row.programme}</TableCell>
-                      <TableCell className="text-xs tabular-nums">{fmt(row.zero_cost)}</TableCell>
-                      <TableCell className="text-xs tabular-nums">{fmt(row.budgeted)}</TableCell>
-                    </TableRow>
-                  ))}
-                  <TableRow>
-                    <TableCell className="text-xs font-bold">Total</TableCell>
-                    <TableCell className="text-xs font-bold tabular-nums">{fmt(kpis.zero_cost)}</TableCell>
-                    <TableCell className="text-xs font-bold tabular-nums">{fmt(kpis.budgeted)}</TableCell>
-                  </TableRow>
-                </DataTable>
-              </Section>
-              <IdCardSection data={data} kpis={kpis} national />
-              <Section id="renewals" kicker="HQ / SOC" title="Enrolment and GIFSHIP renewals">
-                <div className="grid gap-3 lg:grid-cols-3">
-                  <Panel title="Enrolment by channel"><HBars rows={data.by_channel} /></Panel>
-                  <Panel title="Enrolment by type"><HBars rows={data.by_type} /></Panel>
-                  <Panel title="GIFSHIP renewals completed versus due">
-                    <p className="text-3xl font-black text-[#0f3d2e]">{fmtPct(kpis.renewal_rate)}</p>
-                    <p className="mt-1 text-xs text-slate-500">{fmt(kpis.renewal_started)} renewals recorded · {fmt(kpis.gifship_total)} GIFSHIP enrolments this month</p>
-                    <p className="mt-2 text-xs text-slate-500">{fmt(kpis.overdue)} overdue · {fmt(kpis.expire_30)} expire within 30 days</p>
-                  </Panel>
-                </div>
-              </Section>
-              <Section id="performance" kicker="HQ / SOC" title="Performance">
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                  <DashKpi label="Declining enrolment" value={fmt(kpis.declining_states)} detail="Two consecutive monthly decreases" />
-                  <DashKpi label="Below target" value="—" detail="No enrolment target is configured" />
-                  <DashKpi label="Submission gaps" value={fmt(kpis.submission_gaps)} detail="Late, returned, or not sent" />
-                  <DashKpi label="Renewal backlog" value={fmt(kpis.renewal_backlog_states)} detail="More than 20% of GIFSHIP overdue" />
-                </div>
-                <DataTable headers={["State", "Recent change", "Target attainment", "Submission", "Renewals overdue", "Priority"]}>
-                  {data.performance.length === 0 ? (
-                    <TableRow><TableCell colSpan={6} className="text-xs text-slate-500">No state is flagged for this period.</TableCell></TableRow>
-                  ) : data.performance.map((row) => (
-                    <TableRow key={row.state}>
-                      <TableCell className="text-xs font-semibold">{row.state}</TableCell>
-                      <TableCell className="text-xs tabular-nums">{row.change}</TableCell>
-                      <TableCell className="text-xs text-slate-400">—</TableCell>
-                      <TableCell className="text-xs">{row.submission}</TableCell>
-                      <TableCell className="text-xs tabular-nums">{fmtPct(row.renewals_overdue)}</TableCell>
-                      <TableCell><Flag value={row.priority} /></TableCell>
-                    </TableRow>
-                  ))}
-                </DataTable>
-              </Section>
-              <ComplianceSection data={data} kpis={kpis} title="Reporting compliance" kicker="HQ / SOC" />
+              <KpiRow items={[
+                ["Offices reporting", `${fmt(kpis.offices_submitted)} / ${fmt(kpis.offices_expected)}`],
+                ["Enrolled", fmt(kpis.enrolled)],
+                ["NIN validation", fmtPct(kpis.nin_validation_pct)],
+                ["Pending card requests", fmt(kpis.pending_cards)],
+              ]} />
+              <div className="grid grid-cols-1 xl:grid-cols-5 gap-4">
+                <Panel title="Enrolment by zone" className="xl:col-span-3"><HBar data={chartRows(data.by_zone)} /></Panel>
+                <Panel title="Enrolment by channel" className="xl:col-span-2"><HBar data={chartRows(data.by_channel)} /></Panel>
+              </div>
+              <div className="grid grid-cols-1 xl:grid-cols-5 gap-4">
+                <Panel title="Monthly enrolment" className="xl:col-span-3" subtitle={String(year)}>
+                  <Trend data={data.by_month.map((row) => ({ name: row.label, value: row.value }))} />
+                </Panel>
+                <Panel title="Enrolment by programme" className="xl:col-span-2" subtitle="Select a bar to filter">
+                  <HBar data={chartRows(data.by_program)} onPick={pickProgram} />
+                </Panel>
+              </div>
             </>
           )}
-        </div>
+
+          {face === "cards" && (
+            <>
+              <KpiRow items={[
+                ["Requests received", fmt(kpis.cards_received)],
+                ["Issued", fmt(kpis.cards_issued)],
+                ["Pending", fmt(kpis.pending_cards)],
+                ["Issuance rate", fmtPct(kpis.issuance_rate)],
+              ]} />
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                <Panel title="Requests by category"><HBar data={chartRows(data.cards.by_category)} color="#0ea5e9" /></Panel>
+                <Panel title="Pending by programme"><HBar data={chartRows(data.cards.pending_by_program)} color="#f59e0b" /></Panel>
+              </div>
+            </>
+          )}
+
+          {face === "renewals" && (
+            <>
+              <KpiRow items={[
+                ["GIFSHIP enrollees", fmt(kpis.gifship_total)],
+                ["Expire in 30 days", fmt(kpis.expire_30)],
+                ["Renewal started", fmt(kpis.renewal_started)],
+                ["Overdue", fmt(kpis.overdue)],
+              ]} />
+              <div className="grid grid-cols-1 xl:grid-cols-5 gap-4">
+                <Panel title="Renewal by GIFSHIP type" className="xl:col-span-2"><HBar data={chartRows(data.gifship.by_type)} /></Panel>
+                <Panel title="Upcoming expiry queue" className="xl:col-span-3">
+                  <SimpleTable
+                    headers={["Beneficiary", "Type", "Expiry", "Days left", "Telephone"]}
+                    rows={data.gifship.queue.map((row) => [row.beneficiary, row.gifship_type, row.expiry, row.days_left, row.phone])}
+                    empty="No GIFSHIP expiry dates in the next five months"
+                  />
+                </Panel>
+              </div>
+              {view === "national" && (
+                <div className="grid grid-cols-1 xl:grid-cols-5 gap-4">
+                  <Panel title="Enrolment by type" className="xl:col-span-2"><HBar data={chartRows(data.by_type)} /></Panel>
+                  <Panel title="Funding option" className="xl:col-span-3">
+                    <SimpleTable
+                      headers={["Programme", "Zero-cost", "Budgeted"]}
+                      rows={[
+                        ...data.funding.map((row) => [row.programme, fmt(row.zero_cost), fmt(row.budgeted)]),
+                        ["Total", fmt(kpis.zero_cost), fmt(kpis.budgeted)],
+                      ]}
+                      empty="No funding option recorded"
+                    />
+                  </Panel>
+                </div>
+              )}
+            </>
+          )}
+
+          {face === "compliance" && (
+            <>
+              <KpiRow items={[
+                ["Submitted", `${fmt(kpis.offices_submitted)} / ${fmt(kpis.offices_expected)}`],
+                ["On time", `${fmt(kpis.offices_on_time)} / ${fmt(kpis.offices_expected)}`],
+                ["Enrolled", fmt(kpis.enrolled)],
+                ["Flagged", fmt(kpis.flagged_states)],
+              ]} />
+              <Panel title="Submission status">
+                <SimpleTable
+                  headers={["Office", "Status", "Submitted", "Due"]}
+                  rows={data.compliance.map((row) => [row.office, <StatusPill key={row.code} status={row.status} />, row.submitted, row.due])}
+                  empty="No state offices in this scope"
+                />
+              </Panel>
+            </>
+          )}
+
+          {face === "states" && (
+            <>
+              <KpiRow items={[
+                ["States reporting", `${fmt(kpis.offices_submitted)} / ${fmt(kpis.offices_expected)}`],
+                ["Submission gaps", fmt(kpis.submission_gaps)],
+                ["Declining", fmt(kpis.declining_states)],
+                ["Renewal backlog", fmt(kpis.renewal_backlog_states)],
+              ]} />
+              <Panel title="State performance" subtitle={`${MONTHS[(Number(month) + 10) % 12]} compared with ${MONTHS[Number(month) - 1]} ${year}`}>
+                <SimpleTable
+                  headers={["State", "Previous", "This month", "Change", "Reporting", "ID cards", "Flag"]}
+                  rows={data.compliance.map((row) => [
+                    row.office,
+                    fmt(row.previous),
+                    fmt(row.current),
+                    row.change_pct == null ? "—" : `${row.change_pct > 0 ? "+" : ""}${row.change_pct}%`,
+                    fmtPct(row.completeness),
+                    fmtPct(row.id_card_ratio),
+                    <StatusPill key={row.code} status={row.flag} />,
+                  ])}
+                  empty="No states in this scope"
+                />
+              </Panel>
+              {view === "national" && data.performance.length > 0 && (
+                <Panel title="Priorities">
+                  <SimpleTable
+                    headers={["State", "Change", "Submission", "Renewals overdue", "Priority"]}
+                    rows={data.performance.map((row) => [
+                      row.state,
+                      row.change,
+                      row.submission,
+                      fmtPct(row.renewals_overdue),
+                      <StatusPill key={row.state} status={row.priority} />,
+                    ])}
+                    empty="No state is flagged"
+                  />
+                </Panel>
+              )}
+            </>
+          )}
+
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={() => navigate("/zonal/enrolment")}
+              className="text-[10px] font-bold text-[#145c3f] px-2.5 py-1 rounded-md bg-[#e8f5ee] hover:bg-[#d4e8dc] transition-colors"
+            >
+              View records
+            </button>
+          </div>
+        </motion.div>
       )}
     </div>
   );
 }
 
-function Filter({
-  label, value, onChange, options, disabled,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  options: { value: string; label: string }[];
-  disabled?: boolean;
-}) {
+function FilterField({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <label className="space-y-1">
-      <span className="block text-[10px] font-bold uppercase tracking-wide text-slate-500">{label}</span>
-      <Select value={value || "all"} onValueChange={onChange} disabled={disabled}>
-        <SelectTrigger className="h-9 text-xs">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {options.map((option) => (
-            <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </label>
-  );
-}
-
-function LegendChip({ title, body }: { title: string; body: string }) {
-  return (
-    <div className="rounded-sm border border-[#d4e8dc] bg-[#f8faf9] px-3 py-2">
-      <p className="font-bold text-[#0f3d2e]">{title}</p>
-      <p className="text-slate-500">{body}</p>
+    <div className="space-y-1 min-w-0">
+      <Label className="text-[10px] uppercase tracking-wide text-slate-400">{label}</Label>
+      {children}
     </div>
   );
 }
 
-function IdCardSection({ data, kpis, national, embedded }: { data: DashboardData; kpis: Record<string, number | null>; national?: boolean; embedded?: boolean }) {
-  const body = (
-    <>
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <DashKpi label="Requests received" value={fmt(kpis.cards_received)} />
-        <DashKpi label="Issued / completed" value={fmt(kpis.cards_issued)} detail={fmtPct(kpis.issuance_rate)} />
-        <DashKpi label="Pending" value={fmt(kpis.pending_cards)} detail={`${fmt(kpis.pending_cards_over_14)} older than 14 days`} />
-        <DashKpi label="Issuance rate" value={fmtPct(kpis.issuance_rate)} />
-      </div>
-      <div className="grid gap-3 lg:grid-cols-2">
-        <Panel title="Requests by category"><HBars rows={data.cards.by_category} /></Panel>
-        <Panel title="Pending requests by programme"><HBars rows={data.cards.pending_by_program} /></Panel>
-      </div>
-    </>
-  );
-  if (embedded) return <div className="space-y-3">{body}</div>;
+function KpiRow({ items }: { items: [string, string][] }) {
   return (
-    <Section id="cards" kicker={national ? "HQ / SOC · 3" : "State coordinator · 2"} title="ID-card requests received versus issued">
-      {body}
-    </Section>
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      {items.map(([label, value]) => (
+        <div
+          key={label}
+          className="rounded-sm border border-[#d4e8dc] border-l-4 border-l-[#145c3f] bg-white p-3.5 shadow-[0_1px_0_rgba(15,61,46,0.04)]"
+        >
+          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 leading-snug">{label}</p>
+          <p className="text-2xl font-black text-[#0f3d2e] tabular-nums mt-1.5 tracking-tight">{value}</p>
+        </div>
+      ))}
+    </div>
   );
 }
 
-function GifshipSection({ data, kpis, embedded }: { data: DashboardData; kpis: Record<string, number | null>; embedded?: boolean }) {
-  const body = (
-    <>
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
-        <DashKpi label="Total GIFSHIP enrollees" value={fmt(kpis.gifship_total)} />
-        <DashKpi label="Current active" value={fmt(kpis.gifship_active)} />
-        <DashKpi label="Expire in 30 days" value={fmt(kpis.expire_30)} />
-        <DashKpi label="Expire in 60 days" value={fmt(kpis.expire_60)} />
-        <DashKpi label="Renewal started" value={fmt(kpis.renewal_started)} />
-        <DashKpi label="Overdue / expired" value={fmt(kpis.overdue)} detail="Needs review" />
+function Panel({ title, subtitle, children, className = "" }: { title: string; subtitle?: string; children: React.ReactNode; className?: string }) {
+  return (
+    <div className={`bg-white border border-[#d4e8dc] rounded-sm overflow-hidden ${className}`}>
+      <div className="px-4 py-3 border-b border-[#d4e8dc] bg-gradient-to-r from-[#f8fdfb] to-white">
+        <h2 className="text-sm font-bold text-[#0f3d2e]">{title}</h2>
+        {subtitle ? <p className="text-[11px] text-slate-500 mt-0.5">{subtitle}</p> : null}
       </div>
-      <div className="grid gap-3 lg:grid-cols-2">
-        <Panel title="Expiry by month"><HBars rows={data.gifship.by_month} /></Panel>
-        <Panel title="Renewal by GIFSHIP type"><HBars rows={data.gifship.by_type} /></Panel>
-      </div>
-      <Panel title="Upcoming expiry queue">
-        <DataTable headers={["Beneficiary", "GIFSHIP type", "Expiry", "Days left", "Telephone"]}>
-          {data.gifship.queue.length === 0 ? (
-            <TableRow><TableCell colSpan={5} className="text-xs text-slate-500">No GIFSHIP expiry dates fall in the next five months.</TableCell></TableRow>
-          ) : data.gifship.queue.map((row) => (
-            <TableRow key={`${row.beneficiary}-${row.expiry}`}>
-              <TableCell className="text-xs font-semibold">{row.beneficiary}</TableCell>
-              <TableCell className="text-xs">{row.gifship_type}</TableCell>
-              <TableCell className="text-xs">{row.expiry}</TableCell>
-              <TableCell className="text-xs tabular-nums">{row.days_left}</TableCell>
-              <TableCell className="text-xs">{row.phone}</TableCell>
+      <div className="p-4">{children}</div>
+    </div>
+  );
+}
+
+function HBar({ data, onPick, color = BRAND }: { data: { name: string; value: number }[]; onPick?: (name?: string) => void; color?: string }) {
+  if (!data.length) return <EmptyChart message="No records for this period" />;
+  return (
+    <div className="h-[260px]">
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={data} layout="vertical" margin={{ top: 4, right: 16, left: 8, bottom: 4 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#e8f3ec" horizontal={false} />
+          <XAxis type="number" tick={{ fontSize: 10, fill: "#64748b" }} />
+          <YAxis type="category" dataKey="name" width={110} tick={{ fontSize: 10, fill: "#0f3d2e" }} />
+          <Tooltip content={<ChartTooltip />} />
+          <Bar
+            dataKey="value"
+            name="Enrolled"
+            fill={color}
+            radius={[0, 4, 4, 0]}
+            cursor={onPick ? "pointer" : undefined}
+            onClick={(entry) => onPick?.((entry as { name?: string })?.name)}
+          />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+function Trend({ data }: { data: { name: string; value: number }[] }) {
+  if (!data.some((row) => row.value > 0)) return <EmptyChart message="No enrolment trend for this year" />;
+  return (
+    <div className="h-[260px]">
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart data={data} margin={{ top: 8, right: 12, left: -10, bottom: 8 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#e8f3ec" />
+          <XAxis dataKey="name" tick={{ fontSize: 10, fill: "#64748b" }} />
+          <YAxis tick={{ fontSize: 10, fill: "#64748b" }} />
+          <Tooltip content={<ChartTooltip />} />
+          <Line type="monotone" dataKey="value" name="Enrolled" stroke={BRAND} strokeWidth={2.5} dot={{ r: 3 }} />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+function SimpleTable({ headers, rows, empty }: { headers: string[]; rows: React.ReactNode[][]; empty: string }) {
+  if (!rows.length) return <p className="text-sm text-slate-500 py-8 text-center">{empty}</p>;
+  return (
+    <div className="overflow-x-auto -mx-4 -mb-4">
+      <Table>
+        <TableHeader>
+          <TableRow className="bg-[#f4f7f5]">
+            {headers.map((header) => (
+              <TableHead key={header} className="text-xs font-bold text-[#0f3d2e]">{header}</TableHead>
+            ))}
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.map((row, i) => (
+            <TableRow key={i} className="hover:bg-[#f8fdfb]">
+              {row.map((cell, j) => (
+                <TableCell key={j} className={`text-sm ${j === 0 ? "font-semibold text-[#0f3d2e]" : "text-slate-700"}`}>{cell}</TableCell>
+              ))}
             </TableRow>
           ))}
-        </DataTable>
-      </Panel>
-    </>
-  );
-  if (embedded) return <div className="space-y-3">{body}</div>;
-  return (
-    <Section id="renewals" kicker="State coordinator · 3" title="GIFSHIP renewal and expiry">
-      {body}
-    </Section>
+        </TableBody>
+      </Table>
+    </div>
   );
 }
 
-function CoverageSection({ data, kicker }: { data: DashboardData; kicker: string }) {
-  return (
-    <Section id="coverage" kicker={kicker} title="Programme performance and coverage">
-      <div className="grid gap-3 lg:grid-cols-2">
-        <Panel title="Enrolment by programme"><HBars rows={data.by_program} /></Panel>
-        <Panel title="Monthly enrolment trend"><MonthBars rows={data.by_month} /></Panel>
-      </div>
-    </Section>
-  );
+function StatusPill({ status }: { status: string }) {
+  const tone = status === "Accepted" || status === "On track" || status === "Complete" || status === "On time"
+    ? "bg-emerald-50 text-emerald-700 border-emerald-100"
+    : status === "Watch" || status === "Medium" || status === "Submitted"
+      ? "bg-amber-50 text-amber-800 border-amber-100"
+      : status === "High" || status === "Escalate" || status === "Intervene" || status === "Returned" || status === "Not sent" || status === "Late"
+        ? "bg-rose-50 text-rose-700 border-rose-100"
+        : "bg-slate-50 text-slate-600 border-slate-200";
+  return <span className={`inline-flex px-2 py-0.5 rounded-sm border text-[11px] font-bold ${tone}`}>{status}</span>;
 }
 
-function ComparisonSection({ data }: { data: DashboardData }) {
-  return (
-    <Section id="comparison" kicker="Zonal director" title="State performance comparison">
-      <DataTable headers={["State", "Reporting", "Completeness", "Enrolled", "Flag"]}>
-        {data.compliance.map((row) => (
-          <TableRow key={row.code}>
-            <TableCell className="text-xs font-semibold">{row.office}</TableCell>
-            <TableCell className="text-xs">{row.reporting}</TableCell>
-            <TableCell className="text-xs tabular-nums">{fmtPct(row.completeness)}</TableCell>
-            <TableCell className="text-xs tabular-nums">{fmt(row.enrolled)}</TableCell>
-            <TableCell><Flag value={row.flag} /></TableCell>
-          </TableRow>
-        ))}
-      </DataTable>
-      <div className="grid gap-2 sm:grid-cols-3 text-xs text-slate-600">
-        <p><span className="font-semibold text-[#0f3d2e]">On track.</span> Submitted on time with every activity type present.</p>
-        <p><span className="font-semibold text-amber-800">Watch.</span> Submitted, with an activity type still empty.</p>
-        <p><span className="font-semibold text-rose-700">Intervene / Escalate.</span> Late, returned, or not sent.</p>
-      </div>
-    </Section>
-  );
+function EmptyChart({ message }: { message: string }) {
+  return <div className="h-[260px] flex items-center justify-center text-xs text-slate-400 text-center px-4">{message}</div>;
 }
 
-function ComplianceSection({
-  data, kpis, title, kicker,
-}: {
-  data: DashboardData;
-  kpis: Record<string, number | null>;
-  title: string;
-  kicker: string;
-}) {
+function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: { name?: string; value?: number }[]; label?: string }) {
+  if (!active || !payload?.length) return null;
   return (
-    <Section id="compliance" kicker={kicker} title={title}>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <DashKpi label="Submitted" value={`${fmt(kpis.offices_submitted)} / ${fmt(kpis.offices_expected)}`} detail="State offices" />
-        <DashKpi label="On time" value={`${fmt(kpis.offices_on_time)} / ${fmt(kpis.offices_expected)}`} detail="By the end of the reporting month" />
-      </div>
-      <DataTable headers={["Office", "Status", "Submitted", "Due"]}>
-        {data.compliance.map((row) => (
-          <TableRow key={row.code}>
-            <TableCell className="text-xs font-semibold">{row.office}</TableCell>
-            <TableCell><Flag value={row.status} /></TableCell>
-            <TableCell className="text-xs">{row.submitted}</TableCell>
-            <TableCell className="text-xs">{row.due}</TableCell>
-          </TableRow>
-        ))}
-      </DataTable>
-    </Section>
+    <div className="rounded-sm border border-[#d4e8dc] bg-white p-2.5 shadow-sm text-xs">
+      <p className="font-bold text-[#0f3d2e] mb-1">{label || payload[0].name}</p>
+      {payload.map((item, i) => (
+        <p key={i} className="text-slate-600 flex justify-between gap-4">
+          <span>{item.name}</span>
+          <span className="font-bold tabular-nums">{Number(item.value || 0).toLocaleString()}</span>
+        </p>
+      ))}
+    </div>
   );
 }

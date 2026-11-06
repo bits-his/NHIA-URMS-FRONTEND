@@ -3,7 +3,7 @@
  * Spec: volume, sources, issue patterns, resolution performance, SLA, escalation.
  */
 import * as React from "react";
-import { RefreshCw, Loader2, X, MapPin } from "lucide-react";
+import { RefreshCw, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -191,7 +191,6 @@ export default function ComplaintRegisterDashboard({
     : (states.find((s) => String(s.code) === filterState)?.description || filterState);
 
   const activeStateObj = states.find((s) => String(s.code) === defaultStateId || String(s.id) === defaultStateId);
-  const activeStateName = activeStateObj?.description || defaultStateId || "State Office";
   const isSingleState = stateLocked || (filterState !== "all" && filterState !== "");
 
   const clearFilters = () => {
@@ -477,35 +476,8 @@ export default function ComplaintRegisterDashboard({
     />
   );
 
-  const stateCoordinatorBanner = stateLocked ? (
-    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-gradient-to-r from-emerald-50 via-white to-emerald-50/50 border border-[#d4e8dc] px-4 py-3 rounded-sm shadow-2xs">
-      <div className="flex items-center gap-3">
-        <div className="w-9 h-9 rounded-sm bg-[#1a7a52] text-white flex items-center justify-center font-bold text-xs shadow-xs shrink-0">
-          <MapPin className="w-4 h-4" />
-        </div>
-        <div>
-          <div className="flex items-center gap-2">
-            <h3 className="text-sm font-black text-[#0f3d2e] tracking-tight">
-              {activeStateName} State Complaints Dashboard
-            </h3>
-            <Badge variant="outline" className="border-[#1a7a52] text-[#1a7a52] bg-emerald-50 text-[10px] font-bold">
-              State Office
-            </Badge>
-          </div>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Resolution performance, SLA tracking, and complaint patterns for {activeStateName} State
-          </p>
-        </div>
-      </div>
-      <Badge className="bg-[#1a7a52] text-white font-bold text-xs px-2.5 py-1 rounded-sm shrink-0">
-        {activeStateName} State
-      </Badge>
-    </div>
-  ) : null;
-
   return (
     <div className="space-y-4">
-      {stateCoordinatorBanner}
       {(title || subtitle) && (
         <div className="border-b border-[#d4e8dc] pb-1.5">
           <h2 className="text-sm font-bold text-slate-900 tracking-tight">{title}</h2>
