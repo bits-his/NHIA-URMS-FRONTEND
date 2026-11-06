@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import StateOfficeFormShell from "./StateOfficeFormShell";
+import ReportBasicInfo from "./shared/ReportBasicInfo";
 import {
   EXPENDITURE_SUB_HEADS, formatNaira, formatAllocationPct,
 } from "./constants";
@@ -48,6 +49,7 @@ export default function ExpenditureProfileReportPage({
       pageTitle={embedded ? undefined : "Expenditure Profile"}
       hidePageHeader={embedded}
       showQuarter
+      hideBasicInfo
       hideFooterActions
       returnOnDraft
       onLoaded={(data) => {
@@ -72,9 +74,18 @@ export default function ExpenditureProfileReportPage({
         return payload;
       }}
     >
-      {({ saving, submitting, persist, requestSubmit }) => (
+      {({ saving, submitting, persist, requestSubmit, header }) => (
         <div className="rounded-sm border border-[#d4e8dc] bg-white overflow-hidden">
-          <div className="px-4 md:px-5 py-3 border-b border-[#e6f0ea] bg-[#f8fbf9]">
+          <div className="p-4 md:p-5">
+            <ReportBasicInfo
+              {...header}
+              lockZone={header.lockZone}
+              lockState={header.lockState}
+              showQuarter
+              embedded
+            />
+          </div>
+          <div className="px-4 md:px-5 py-3 border-b border-t border-[#e6f0ea] bg-[#f8fbf9]">
             <p className="text-sm font-bold text-slate-800">Quarterly expenses</p>
             <p className="text-xs text-slate-500 mt-0.5">
               Enter amounts for categories spent this quarter. Leave blank if not spent.
@@ -105,7 +116,7 @@ export default function ExpenditureProfileReportPage({
                         min="0"
                         step="0.01"
                         placeholder="—"
-                        className="h-9 text-sm tabular-nums text-right bg-white border border-[#c5ddd0] rounded-lg"
+                        className="h-9 text-sm tabular-nums text-right bg-[#f4f7f5] border-2 border-[#1a7a52] rounded-lg outline-none hover:border-[#0f3d2e] hover:bg-white focus-visible:border-[#0f3d2e] focus-visible:ring-2 focus-visible:ring-[#1a7a52]/25"
                         value={amounts[h.value]}
                         onChange={(e) => setAmounts((prev) => ({ ...prev, [h.value]: e.target.value }))}
                       />

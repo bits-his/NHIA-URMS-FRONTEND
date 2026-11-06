@@ -15,6 +15,7 @@ import { isDeptStateCoordinator, isDeptZonalCoordinator } from "@/src/access/dep
 import { PROVIDER_FORM_TYPES, PROVIDER_RELATED_PROGRAMMES } from "./providerManagementTypes";
 import ActivityAnalysisPanel from "./ProviderManagementActivityAnalysis";
 import ProviderManagementOverview from "./ProviderManagementOverview";
+import { ChartTypeToggle, useChartType, type ChartType } from "./ChartTypeChart";
 
 interface Props {
   onBack: () => void;
@@ -69,6 +70,7 @@ export default function ProviderManagementDashboard({
   const [activity, setActivity] = React.useState("all");
   const [activityStatus, setActivityStatus] = React.useState("all");
   const [mainTab, setMainTab] = React.useState<"overview" | "analysis">("overview");
+  const [chartType, setChartType] = useChartType("provider-mgmt");
   /** SDO Level 3: national overview vs accreditation/reaccreditation pipeline (both mockups). */
   const [sdoView, setSdoView] = React.useState<"national" | "pipeline">("national");
   const [outputMeasure, setOutputMeasure] = React.useState<"accredited" | "reaccredited" | "awaiting" | "covered">("accredited");
@@ -488,6 +490,7 @@ export default function ProviderManagementDashboard({
             </div>
           </motion.div>
 
+          <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-1 rounded-lg border border-[#d4e8dc] bg-white p-1 shadow-2xs w-full sm:w-fit">
             <button
               type="button"
@@ -512,6 +515,8 @@ export default function ProviderManagementDashboard({
               Activity analysis
             </button>
           </div>
+          <ChartTypeToggle type={chartType} onChange={setChartType} />
+          </div>
 
           {loading ? (
             <div className="flex items-center justify-center py-20 gap-3 text-slate-400">
@@ -525,6 +530,8 @@ export default function ProviderManagementDashboard({
           ) : mainTab === "analysis" ? (
             <ActivityAnalysisPanel
               items={activityAnalysis}
+              chart={chartType}
+              onChartChange={setChartType}
               scope={{
                 level,
                 scopeLabel: lockedStateLabel
@@ -537,6 +544,8 @@ export default function ProviderManagementDashboard({
             />
           ) : (
             <ProviderManagementOverview
+              chart={chartType as "bar" | "line" | "area"}
+              onChartChange={setChartType}
               level={level}
               scopeLabel={lockedStateLabel
                 || (filterState !== "all"

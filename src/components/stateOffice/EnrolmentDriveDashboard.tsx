@@ -26,6 +26,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { enrolmentDrivesApi as api, stockApi } from "@/lib/api";
+import { ChartTypeToggle, SwitchableChart, useChartType } from "./ChartTypeChart";
 import type { RootState } from "@/src/store/store";
 import { isDeptStateCoordinator, isDeptZonalCoordinator } from "@/src/access/departmentRoles";
 import { canAccessEnrolmentDriveDashboard } from "./enrolmentDriveTypes";
@@ -147,6 +148,7 @@ export default function EnrolmentDriveDashboard({
   const [activityCategory, setActivityCategory] = React.useState("all");
   const [status, setStatus] = React.useState("all");
   const [face, setFace] = React.useState<Face>("action");
+  const [chartType, setChartType] = useChartType("enrolment-drives");
   const [followUpSeed, setFollowUpSeed] = React.useState<FollowUpSeed | null>(null);
 
   const [zones, setZones] = React.useState<any[]>([]);
@@ -545,7 +547,8 @@ export default function EnrolmentDriveDashboard({
         </div>
       </div>
 
-          <div className="flex items-center gap-1 rounded-lg border border-[#d4e8dc] bg-white p-1 shadow-2xs w-full sm:w-fit">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-1 rounded-lg border border-[#d4e8dc] bg-white p-1 shadow-2xs w-full sm:w-fit">
             {([
               { id: "action" as const, label: "Overview" },
               { id: "analysis" as const, label: "Activity analysis" },
@@ -564,6 +567,8 @@ export default function EnrolmentDriveDashboard({
                 {item.label}
               </button>
             ))}
+          </div>
+              <ChartTypeToggle type={chartType} onChange={setChartType} />
           </div>
 
           {loading && !data ? (
@@ -609,15 +614,7 @@ export default function EnrolmentDriveDashboard({
                   <Panel title="Enrolment by zone" className="xl:col-span-2" subtitle="Beneficiaries enrolled from drives">
                     <ChartFrame>
                       {sdoZoneChart.length ? (
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={sdoZoneChart} layout="vertical" margin={{ top: 4, right: 16, left: 8, bottom: 4 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#e8f3ec" horizontal={false} />
-                            <XAxis type="number" tick={{ fontSize: 10, fill: "#64748b" }} />
-                            <YAxis type="category" dataKey="name" width={100} tick={{ fontSize: 10, fill: "#0f3d2e" }} />
-                            <Tooltip content={<ChartTooltip />} />
-                            <Bar dataKey="enrolled" name="Enrolled" fill={BRAND} radius={[0, 4, 4, 0]} />
-                          </BarChart>
-                        </ResponsiveContainer>
+                        <SwitchableChart type={chartType} data={sdoZoneChart.map((d) => ({ name: d.name, value: d.enrolled }))} name="Enrolled" color={BRAND} />
                       ) : (
                         <EmptyChart message="No zone enrolment for this period" />
                       )}
@@ -650,15 +647,7 @@ export default function EnrolmentDriveDashboard({
                   <Panel title="Enrolment by activity category" className="xl:col-span-2">
                     <ChartFrame>
                       {byActivity.length ? (
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={byActivity.slice(0, 8)} layout="vertical" margin={{ top: 4, right: 16, left: 8, bottom: 4 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#e8f3ec" horizontal={false} />
-                            <XAxis type="number" tick={{ fontSize: 10, fill: "#64748b" }} />
-                            <YAxis type="category" dataKey="name" width={110} tick={{ fontSize: 10, fill: "#0f3d2e" }} />
-                            <Tooltip content={<ChartTooltip />} />
-                            <Bar dataKey="enrolled" name="Enrolled" fill={BRAND} radius={[0, 4, 4, 0]} />
-                          </BarChart>
-                        </ResponsiveContainer>
+                        <SwitchableChart type={chartType} data={byActivity.slice(0, 8).map((d) => ({ name: d.name, value: d.enrolled }))} name="Enrolled" color={BRAND} />
                       ) : (
                         <EmptyChart message="No activity categories recorded" />
                       )}
@@ -696,15 +685,7 @@ export default function EnrolmentDriveDashboard({
                   <Panel title="Enrolment by state" className="xl:col-span-2">
                     <ChartFrame>
                       {enrolmentsByState.length ? (
-                      <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={enrolmentsByState} layout="vertical" margin={{ top: 4, right: 16, left: 8, bottom: 4 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#e8f3ec" horizontal={false} />
-                            <XAxis type="number" tick={{ fontSize: 10, fill: "#64748b" }} />
-                            <YAxis type="category" dataKey="name" width={100} tick={{ fontSize: 10, fill: "#0f3d2e" }} />
-                            <Tooltip content={<ChartTooltip />} />
-                            <Bar dataKey="value" name="Enrolled" fill={BRAND} radius={[0, 4, 4, 0]} />
-                        </BarChart>
-                      </ResponsiveContainer>
+                      <SwitchableChart type={chartType} data={enrolmentsByState.map((d) => ({ name: d.name, value: d.value }))} name="Enrolled" color={BRAND} />
                       ) : (
                         <EmptyChart message="No state enrolment for this period" />
                       )}
@@ -738,15 +719,7 @@ export default function EnrolmentDriveDashboard({
                   <Panel title="Enrolment trend" className="xl:col-span-2" subtitle="Linked enrolments over time">
                     <ChartFrame>
                       {trend.length ? (
-                      <ResponsiveContainer width="100%" height="100%">
-                          <LineChart data={trend} margin={{ top: 8, right: 12, left: -10, bottom: 8 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#e8f3ec" />
-                            <XAxis dataKey="label" tick={{ fontSize: 10, fill: "#64748b" }} interval="preserveStartEnd" />
-                            <YAxis tick={{ fontSize: 10, fill: "#64748b" }} />
-                            <Tooltip content={<ChartTooltip />} />
-                            <Line type="monotone" dataKey="enrolled" name="Enrolled" stroke={BRAND} strokeWidth={2.5} dot={{ r: 3 }} />
-                          </LineChart>
-                        </ResponsiveContainer>
+                      <SwitchableChart type={chartType} data={trend.map((d) => ({ name: d.label, value: d.enrolled }))} name="Enrolled" color={BRAND} />
                       ) : (
                         <EmptyChart message="No enrolment trend for this scope" />
                       )}
@@ -861,15 +834,7 @@ export default function EnrolmentDriveDashboard({
                         <Panel title="Enrolment generated by activity type">
                           <ChartFrame>
                             {byActivity.length ? (
-                              <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={byActivity.slice(0, 8)} layout="vertical" margin={{ top: 4, right: 16, left: 8, bottom: 4 }}>
-                                  <CartesianGrid strokeDasharray="3 3" stroke="#e8f3ec" horizontal={false} />
-                                  <XAxis type="number" tick={{ fontSize: 10, fill: "#64748b" }} />
-                                  <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 10, fill: "#0f3d2e" }} />
-                                  <Tooltip content={<ChartTooltip />} />
-                                  <Bar dataKey="enrolled" name="Enrolled" fill={BRAND} radius={[0, 4, 4, 0]} />
-                                </BarChart>
-                              </ResponsiveContainer>
+                              <SwitchableChart type={chartType} data={byActivity.slice(0, 8).map((d) => ({ name: d.name, value: d.enrolled }))} name="Enrolled" color={BRAND} />
                             ) : (
                               <EmptyChart message="No activity types recorded" />
                             )}
@@ -880,15 +845,7 @@ export default function EnrolmentDriveDashboard({
                           <Panel title="Enrolment generated by location">
                             <ChartFrame>
                               {enrolmentByLocation.length ? (
-                                <ResponsiveContainer width="100%" height="100%">
-                                  <BarChart data={enrolmentByLocation} margin={{ top: 8, right: 8, left: -10, bottom: 40 }}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#e8f3ec" />
-                                    <XAxis dataKey="name" tick={{ fontSize: 10, fill: "#64748b" }} angle={-20} textAnchor="end" interval={0} height={50} />
-                                    <YAxis tick={{ fontSize: 10, fill: "#64748b" }} />
-                                    <Tooltip content={<ChartTooltip />} />
-                                    <Bar dataKey="value" name="Enrolled" fill="#0ea5e9" radius={[4, 4, 0, 0]} />
-                                  </BarChart>
-                                </ResponsiveContainer>
+                                <SwitchableChart type={chartType} data={enrolmentByLocation} name="Enrolled" color="#0ea5e9" />
                               ) : (
                                 <EmptyChart message="No location enrolments" />
                               )}
@@ -903,19 +860,7 @@ export default function EnrolmentDriveDashboard({
                           >
                             <ChartFrame>
                               {leadRateByZone.length ? (
-                                <ResponsiveContainer width="100%" height="100%">
-                                  <BarChart data={leadRateByZone} margin={{ top: 8, right: 8, left: -10, bottom: 40 }}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#e8f3ec" />
-                                    <XAxis dataKey="name" tick={{ fontSize: 10, fill: "#64748b" }} angle={-20} textAnchor="end" interval={0} height={50} />
-                                    <YAxis tick={{ fontSize: 10, fill: "#64748b" }} />
-                                    <Tooltip content={<ChartTooltip />} />
-                                    <Bar dataKey="rate" name="Lead rate" fill="#0ea5e9" radius={[4, 4, 0, 0]}>
-                                      {leadRateByZone.map((row, i) => (
-                                        <Cell key={row.name} fill={PALETTE[i % PALETTE.length]} />
-                                      ))}
-                                    </Bar>
-                                  </BarChart>
-                                </ResponsiveContainer>
+                                <SwitchableChart type={chartType} data={leadRateByZone.map((d) => ({ name: d.name, value: d.rate }))} name="Lead rate" color="#0ea5e9" />
                               ) : (
                                 <EmptyChart message="No zone lead rates for this period" />
                               )}

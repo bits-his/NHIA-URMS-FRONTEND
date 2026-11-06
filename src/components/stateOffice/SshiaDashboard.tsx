@@ -17,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { financeDashboardApi, stockApi } from "@/lib/api";
+import { ChartTypeToggle, SwitchableChart, useChartType } from "./ChartTypeChart";
 import { SSHIA_SUB_HEADS, formatNaira, formatNairaCompact } from "./constants";
 
 interface Props {
@@ -34,6 +35,7 @@ export default function SshiaDashboard({
   userRole,
   embedded = false,
 }: Props) {
+  const [chartType, setChartType] = useChartType("sshia");
   const [refreshKey, setRefreshKey] = React.useState(0);
   const [syncing, setSyncing] = React.useState(false);
   const currentYear = new Date().getFullYear();
@@ -238,6 +240,9 @@ export default function SshiaDashboard({
                   </div>
                 </div>
               </div>
+              <div className="flex justify-end">
+                <ChartTypeToggle type={chartType} onChange={setChartType} />
+              </div>
 
               {/* 6 PPT KPI Cards (Slide 6 & 7) */}
               <div className="grid grid-cols-2 md:grid-cols-6 gap-2.5">
@@ -413,6 +418,9 @@ export default function SshiaDashboard({
                   <CardContent className="p-2.5">
                     <div className="h-[200px] w-full">
                       {sshiaUtilisationByZoneData.length > 0 ? (
+                        chartType !== "bar" ? (
+                          <SwitchableChart type={chartType} data={sshiaUtilisationByZoneData.map((d) => ({ name: d.name, value: d.utilisation }))} name="Utilisation %" color="#0f766e" />
+                        ) : (
                         <ResponsiveContainer width="100%" height="100%">
                           <BarChart
                             data={sshiaUtilisationByZoneData}
@@ -431,6 +439,7 @@ export default function SshiaDashboard({
                             <Bar dataKey="utilisation" fill="#0f766e" radius={[2, 2, 0, 0]} cursor="pointer" />
                           </BarChart>
                         </ResponsiveContainer>
+                        )
                       ) : (
                         <div className="h-full flex items-center justify-center text-xs text-slate-400">
                           No utilisation data by zone
@@ -454,15 +463,7 @@ export default function SshiaDashboard({
                   <CardContent className="p-2.5">
                     <div className="h-[200px] w-full">
                       {sshiaQuarterTrendData.length > 0 ? (
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={sshiaQuarterTrendData} margin={{ top: 8, right: 10, left: 0, bottom: 10 }}>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                            <XAxis dataKey="quarter" tick={{ fontSize: 10 }} />
-                            <YAxis tick={{ fontSize: 9 }} unit="%" domain={[0, 100]} />
-                            <RechartsTooltip formatter={(v: any) => [`${Number(v).toFixed(1)}%`, "Utilisation"]} />
-                            <Bar dataKey="utilisation" fill="#0f766e" radius={[2, 2, 0, 0]} />
-                          </BarChart>
-                        </ResponsiveContainer>
+                        <SwitchableChart type={chartType} data={sshiaQuarterTrendData.map((d) => ({ name: d.quarter, value: d.utilisation }))} name="Total" color="#0f766e" />
                       ) : (
                         <div className="h-full flex items-center justify-center text-xs text-slate-400">
                           No quarterly trend data recorded

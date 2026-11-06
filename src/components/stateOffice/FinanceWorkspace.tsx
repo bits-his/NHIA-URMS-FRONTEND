@@ -87,7 +87,10 @@ export default function FinanceWorkspace({
     }
   }, [requested, defaultTab, allowedKeys, params, setParams]);
 
+  const [startInForm, setStartInForm] = React.useState(false);
+
   const selectTab = (tab: FinanceHubTabKey) => {
+    setStartInForm(chrome?.mode === "form");
     const next = new URLSearchParams(params);
     next.set("tab", tab);
     setParams(next, { replace: true });
@@ -99,6 +102,7 @@ export default function FinanceWorkspace({
     defaultStateId: params.get("state_id") || defaultStateId,
     userRole,
     embedded: true,
+    startMode: startInForm ? ("form" as const) : ("tabs" as const),
     onChromeChange: setChrome,
   };
 
@@ -143,7 +147,7 @@ export default function FinanceWorkspace({
         </div>
       }
       tabs={
-        !hideTabStrip && !inLeaf ? (
+        !hideTabStrip ? (
           <UnderHeaderNavTabs
             tabs={visibleTabs.map((t) => ({
               id: t.key,

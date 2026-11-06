@@ -1,9 +1,9 @@
 import * as React from "react";
 import {
-  AlertTriangle, BarChart3, Columns2, LayoutGrid, LineChart as LineChartIcon, Rows3, Table2,
+  AlertTriangle, AreaChart as AreaChartIcon, BarChart3, Columns2, LayoutGrid, LineChart as LineChartIcon, Rows3, Table2,
 } from "lucide-react";
 import {
-  Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, Pie, PieChart,
+  Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, Pie, PieChart,
   ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -24,6 +24,7 @@ const DESIGNS = [
 const CHARTS = [
   { id: "bar", label: "Bars", icon: BarChart3 },
   { id: "line", label: "Lines", icon: LineChartIcon },
+  { id: "area", label: "Area", icon: AreaChartIcon },
 ] as const;
 
 type DesignId = (typeof DESIGNS)[number]["id"];
@@ -66,6 +67,43 @@ function ChartEmpty({ message }: { message: string }) {
     <div className="flex h-full min-h-[220px] items-center justify-center px-4 text-center">
       <p className="text-xs text-slate-500">{message}</p>
     </div>
+  );
+}
+
+function MultiChart({ kind, data, series }: {
+  kind: ChartId;
+  data: any[];
+  series: { key: string; name: string; color: string }[];
+}) {
+  const rows = data.map((d) => ({ ...d, _cat: d.name ?? d.label ?? d.zone_name ?? d.state_name ?? d.key ?? "—" }));
+  const axes = (
+    <>
+      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+      <XAxis type="category" dataKey="_cat" tick={{ fontSize: 9 }} interval={0} angle={-15} textAnchor="end" height={48} />
+      <YAxis allowDecimals={false} tick={{ fontSize: 10 }} />
+      <Tooltip contentStyle={tooltipStyle()} />
+      <Legend />
+    </>
+  );
+  return (
+    <ResponsiveContainer width="100%" height="100%">
+      {kind === "line" ? (
+        <LineChart data={rows} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+          {axes}
+          {series.map((x) => <Line key={x.key} type="monotone" dataKey={x.key} name={x.name} stroke={x.color} strokeWidth={2.2} dot={{ r: 2.5 }} />)}
+        </LineChart>
+      ) : kind === "area" ? (
+        <AreaChart data={rows} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+          {axes}
+          {series.map((x) => <Area key={x.key} type="monotone" dataKey={x.key} name={x.name} stroke={x.color} fill={x.color} fillOpacity={0.16} strokeWidth={2} />)}
+        </AreaChart>
+      ) : (
+        <BarChart data={rows} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+          {axes}
+          {series.map((x) => <Bar key={x.key} dataKey={x.key} name={x.name} fill={x.color} radius={[4, 4, 0, 0]} maxBarSize={26} />)}
+        </BarChart>
+      )}
+    </ResponsiveContainer>
   );
 }
 
@@ -162,6 +200,8 @@ export type OverviewProps = {
   actionQueue: string[];
   sdoZoneBarKey: string;
   sdoZoneBarLabel: string;
+  chart?: "bar" | "line" | "area";
+  onChartChange?: (c: "bar" | "line" | "area") => void;
   statesInScope?: number;
   trendSeries: Record<string, boolean>;
   onTrendSeriesChange: (next: Record<string, boolean>) => void;
@@ -177,8 +217,9 @@ export default function ProviderManagementOverview(props: OverviewProps) {
 
   const designKey = `${DESIGN_KEY}.l${level}`;
   const chartKey = `${CHART_KEY}.l${level}`;
-  const [design, setDesign] = React.useState<DesignId>(() => storedChoice(designKey, DESIGNS.map((d) => d.id), "focus"));
-  const [chart, setChart] = React.useState<ChartId>(() => storedChoice(chartKey, CHARTS.map((c) => c.id), "bar"));
+  const design: DesignId = "focus";
+  const [chartState, setChartState] = React.useState<ChartId>(() => storedChoice(chartKey, CHARTS.map((c) => c.id), "bar"));
+  const chart: ChartId = props.chart ?? chartState;
   const [focusStatus, setFocusStatus] = React.useState<string | null>(null);
   const [focusActivity, setFocusActivity] = React.useState<string | null>(null);
   const [openCard, setOpenCard] = React.useState<string>("completion");
@@ -190,12 +231,9 @@ export default function ProviderManagementOverview(props: OverviewProps) {
     ? byActivity.filter((a) => a.name === focusActivity)
     : byActivity;
 
-  const chooseDesign = (id: DesignId) => {
-    setDesign(id);
-    remember(designKey, id);
-  };
   const chooseChart = (id: ChartId) => {
-    setChart(id);
+    setChartState(id);
+    props.onChartChange?.(id);
     remember(chartKey, id);
   };
 
@@ -254,7 +292,19 @@ export default function ProviderManagementOverview(props: OverviewProps) {
 
   const activityChart = (
     <DashChartCard title={focusActivity ? `Delivery · ${focusActivity}` : "Planned facilities vs facilities covered"}>
-      {activityRows.length === 0 ? <ChartEmpty message="No activity mix for this filter set" /> : chart === "line" ? (
+      {activityRows.length === 0 ? <ChartEmpty message="No activity mix for this filter set" /> : chart === "area" ? (
+        <ResponsiveContainer width="100%" height="100%">
+          <AreaChart data={activityRows}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+            <XAxis dataKey="name" tick={{ fontSize: 10 }} interval={0} angle={-15} textAnchor="end" height={50} />
+            <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+            <Tooltip contentStyle={tooltipStyle()} />
+            <Legend />
+            <Area type="monotone" dataKey="covered" name="Covered" stroke="#14b8a6" fill="#14b8a6" fillOpacity={0.16} strokeWidth={2} />
+            <Area type="monotone" dataKey="planned" name="Planned" stroke="#0ea5e9" fill="#0ea5e9" fillOpacity={0.16} strokeWidth={2} />
+          </AreaChart>
+        </ResponsiveContainer>
+      ) : chart === "line" ? (
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={activityRows}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
@@ -332,28 +382,12 @@ export default function ProviderManagementOverview(props: OverviewProps) {
         <div className="grid lg:grid-cols-2 gap-4">
           <DashChartCard title={`Accreditation pipeline${programme !== "all" ? ` — ${programme}` : ""}`}>
             {pipelineBars.every((b: any) => !b.value) ? <ChartEmpty message="No pipeline counts" /> : (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={[...pipelineBars].reverse()} layout="vertical" margin={{ top: 8, right: 16, left: 8, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                  <XAxis type="number" tick={{ fontSize: 11 }} />
-                  <YAxis type="category" dataKey="name" width={90} tick={{ fontSize: 11 }} />
-                  <Tooltip contentStyle={tooltipStyle()} />
-                  <Bar dataKey="value" name="Count" fill="#0ea5e9" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+              <MultiChart kind={chart} data={[...pipelineBars].reverse()} series={[{ key: "value", name: "Count", color: "#0ea5e9" }]} />
             )}
           </DashChartCard>
           <DashChartCard title="Period outputs by programme and activity">
             {programmeOutputs.every((b: any) => !b.value) ? <ChartEmpty message="No programme outputs" /> : (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={[...programmeOutputs].reverse()} layout="vertical" margin={{ top: 8, right: 16, left: 8, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                  <XAxis type="number" tick={{ fontSize: 11 }} />
-                  <YAxis type="category" dataKey="name" width={100} tick={{ fontSize: 11 }} />
-                  <Tooltip contentStyle={tooltipStyle()} />
-                  <Bar dataKey="value" name="Output" fill="#14b8a6" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+              <MultiChart kind={chart} data={[...programmeOutputs].reverse()} series={[{ key: "value", name: "Output", color: "#14b8a6" }]} />
             )}
           </DashChartCard>
         </div>
@@ -362,15 +396,7 @@ export default function ProviderManagementOverview(props: OverviewProps) {
         <div className="grid lg:grid-cols-2 gap-4">
           <DashChartCard title="State comparison — plan achievement">
             {byState.length === 0 ? <ChartEmpty message="No state comparison yet" /> : (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={[...byState].slice(0, 10).reverse()} layout="vertical" margin={{ top: 8, right: 16, left: 8, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                  <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 11 }} />
-                  <YAxis type="category" dataKey="name" width={110} tick={{ fontSize: 10 }} />
-                  <Tooltip contentStyle={tooltipStyle()} formatter={(v: any) => fmtPct(Number(v))} />
-                  <Bar dataKey="plan_achievement" name="Plan achievement %" fill="#0ea5e9" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+              <MultiChart kind={chart} data={[...byState].slice(0, 10).reverse()} series={[{ key: "plan_achievement", name: "Plan achievement %", color: "#0ea5e9" }]} />
             )}
           </DashChartCard>
           {statusChart}
@@ -395,26 +421,7 @@ export default function ProviderManagementOverview(props: OverviewProps) {
             {(sdoPipeline ? !monthlyTrend.some((r) => Number(r.accredited) > 0 || Number(r.reaccredited) > 0) : !hasMonthlyTrend) ? (
               <ChartEmpty message="No monthly trend data for this period. Seed Provider Management activities or widen filters." />
             ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={monthlyTrend} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                  <XAxis dataKey="label" tick={{ fontSize: 11 }} />
-                  <YAxis tick={{ fontSize: 11 }} allowDecimals={false} width={40} />
-                  <Tooltip contentStyle={tooltipStyle()} />
-                  <Legend />
-                  {sdoPipeline ? (
-                    <>
-                      <Line type="monotone" dataKey="accredited" name="Accredited" stroke="#0ea5e9" strokeWidth={2} dot={{ r: 3 }} />
-                      <Line type="monotone" dataKey="reaccredited" name="Re-accredited" stroke="#ef4444" strokeWidth={2} dot={{ r: 3 }} />
-                    </>
-                  ) : (
-                    <>
-                      <Line type="monotone" dataKey="planned" name="Planned" stroke="#0ea5e9" strokeWidth={2} dot={{ r: 3 }} />
-                      <Line type="monotone" dataKey="completed" name="Completed" stroke="#ef4444" strokeWidth={2} dot={{ r: 3 }} />
-                    </>
-                  )}
-                </LineChart>
-              </ResponsiveContainer>
+              <MultiChart kind={chart} data={monthlyTrend} series={[{ key: "accredited", name: "Accredited", color: "#0ea5e9" }, { key: "reaccredited", name: "Re-accredited", color: "#ef4444" }, { key: "planned", name: "Planned", color: "#0ea5e9" }, { key: "completed", name: "Completed", color: "#ef4444" }]} />
             )}
           </DashChartCard>
         </div>
@@ -443,19 +450,7 @@ export default function ProviderManagementOverview(props: OverviewProps) {
               ))}
             </div>
             {execTrend.length === 0 ? <ChartEmpty message="No executive trend" /> : (
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={execTrend}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                  <XAxis dataKey="label" tick={{ fontSize: 11 }} />
-                  <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
-                  <Tooltip contentStyle={tooltipStyle()} />
-                  <Legend />
-                  {trendSeries.bhcpf_accreditation && <Line type="monotone" dataKey="bhcpf_accreditation" name="BHCPF PHC accreditation" stroke="#14b8a6" strokeWidth={2} dot={{ r: 3 }} />}
-                  {trendSeries.bhcpf_reaccreditation && <Line type="monotone" dataKey="bhcpf_reaccreditation" name="BHCPF PHC reaccreditation" stroke="#8b5cf6" strokeWidth={2} dot={{ r: 3 }} />}
-                  {trendSeries.fsship_reaccreditation && <Line type="monotone" dataKey="fsship_reaccreditation" name="FSSHIP reaccreditation" stroke="#ef4444" strokeWidth={2} dot={{ r: 3 }} />}
-                  {trendSeries.fsship_accreditation && <Line type="monotone" dataKey="fsship_accreditation" name="FSSHIP accreditation" stroke="#0ea5e9" strokeWidth={2} dot={{ r: 3 }} />}
-                </LineChart>
-              </ResponsiveContainer>
+              <MultiChart kind={chart} data={execTrend} series={[{ key: "bhcpf_accreditation", name: "BHCPF PHC accreditation", color: "#14b8a6" }, { key: "bhcpf_reaccreditation", name: "BHCPF PHC reaccreditation", color: "#8b5cf6" }, { key: "fsship_reaccreditation", name: "FSSHIP reaccreditation", color: "#ef4444" }, { key: "fsship_accreditation", name: "FSSHIP accreditation", color: "#0ea5e9" }]} />
             )}
           </DashChartCard>
           <div className="rounded-lg border border-[#d4e8dc] bg-white overflow-hidden shadow-2xs">
@@ -535,13 +530,6 @@ export default function ProviderManagementOverview(props: OverviewProps) {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col items-start gap-2 sm:items-end">
-          <Segmented value={design} options={DESIGNS} onChange={chooseDesign} ariaLabel="Overview design" />
-          {(design === "focus" || design === "compare") && level === 1 && !showPipelineDrill ? (
-            <Segmented value={chart} options={CHARTS} onChange={chooseChart} ariaLabel="Overview chart style" />
-          ) : null}
-      </div>
-
       {(focusStatus || focusActivity) && (
         <div className="flex flex-wrap items-center gap-2 text-xs">
           <span className="text-slate-500">Pinned:</span>
@@ -620,17 +608,7 @@ export default function ProviderManagementOverview(props: OverviewProps) {
               {activityChart}
               <DashChartCard title="Monthly planned vs completed">
                 {!hasMonthlyTrend ? <ChartEmpty message="No monthly trend yet" /> : (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={monthlyTrend}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                      <XAxis dataKey="label" tick={{ fontSize: 11 }} />
-                      <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
-                      <Tooltip contentStyle={tooltipStyle()} />
-                      <Legend />
-                      <Line type="monotone" dataKey="planned" name="Planned" stroke="#0ea5e9" strokeWidth={2} />
-                      <Line type="monotone" dataKey="completed" name="Completed" stroke="#ef4444" strokeWidth={2} />
-                    </LineChart>
-                  </ResponsiveContainer>
+                  <MultiChart kind={chart} data={monthlyTrend} series={[{ key: "planned", name: "Planned", color: "#0ea5e9" }, { key: "completed", name: "Completed", color: "#ef4444" }]} />
                 )}
               </DashChartCard>
             </div>

@@ -2,18 +2,36 @@ import * as React from "react";
 import { ArrowLeft, Loader2, Save, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import StateOfficeFormShell from "../StateOfficeFormShell";
 import ReportBasicInfo from "../shared/ReportBasicInfo";
-import { Field, TextInput, TextArea, SelectField } from "./ui";
+import { Field, TextInput, TextArea } from "./ui";
 import {
   FEEDBACK_HEAR_ABOUT, FEEDBACK_VISIT_PURPOSE, RATING_AREAS, RATING_LEVELS,
   YES_NO_PARTIAL, ADMIN_HR_CONFIG,
 } from "./constants";
 
 const ACTION = "bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20";
-const choiceClass = "flex items-center gap-2 rounded-sm border-2 border-[#1a7a52] bg-[#f4f7f5] px-3 py-2.5 cursor-pointer hover:bg-white";
+
+function ChoicePill({ checked, onSelect, children }: { checked: boolean; onSelect: () => void; children: React.ReactNode }) {
+  return (
+    <label
+      className={`inline-flex cursor-pointer items-center gap-2 rounded-sm border-2 px-3 py-1.5 text-xs font-bold transition-all ${
+        checked
+          ? "border-[#1a7a52] bg-[#e8f5ee] text-[#1a7a52] shadow-xs"
+          : "border-slate-200 bg-white text-slate-600 hover:border-[#1a7a52] hover:bg-[#f4f7f5]"
+      }`}
+    >
+      <span
+        className={`h-3.5 w-3.5 shrink-0 rounded-full border-2 flex items-center justify-center ${
+          checked ? "border-[#1a7a52]" : "border-slate-300"
+        }`}
+      >
+        {checked && <span className="h-1.5 w-1.5 rounded-full bg-[#1a7a52]" />}
+      </span>
+      {children}
+    </label>
+  );
+}
 
 interface Props {
   reportId?: number | null;
@@ -83,12 +101,11 @@ export default function EnrolleeFeedbackForm({ reportId, onBack, onCancel, onSub
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               <div className="sm:col-span-2 lg:col-span-3">
                 <Field label="How did you hear about health insurance or this office?">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  <div className="flex flex-wrap gap-2">
                     {FEEDBACK_HEAR_ABOUT.map((item) => (
-                      <label key={item} className={choiceClass}>
-                        <Checkbox checked={hearAbout.includes(item)} onCheckedChange={(c) => toggle(hearAbout, setHearAbout, item, c === true)} />
-                        <span className="text-sm">{item}</span>
-                      </label>
+                      <ChoicePill key={item} checked={hearAbout.includes(item)} onSelect={() => toggle(hearAbout, setHearAbout, item, !hearAbout.includes(item))}>
+                        {item}
+                      </ChoicePill>
                     ))}
                   </div>
                 </Field>
@@ -98,12 +115,11 @@ export default function EnrolleeFeedbackForm({ reportId, onBack, onCancel, onSub
               )}
               <div className="sm:col-span-2 lg:col-span-3">
                 <Field label="Purpose of today’s visit">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  <div className="flex flex-wrap gap-2">
                     {FEEDBACK_VISIT_PURPOSE.map((item) => (
-                      <label key={item} className={choiceClass}>
-                        <Checkbox checked={visitPurpose.includes(item)} onCheckedChange={(c) => toggle(visitPurpose, setVisitPurpose, item, c === true)} />
-                        <span className="text-sm">{item}</span>
-                      </label>
+                      <ChoicePill key={item} checked={visitPurpose.includes(item)} onSelect={() => toggle(visitPurpose, setVisitPurpose, item, !visitPurpose.includes(item))}>
+                        {item}
+                      </ChoicePill>
                     ))}
                   </div>
                 </Field>
@@ -113,41 +129,50 @@ export default function EnrolleeFeedbackForm({ reportId, onBack, onCancel, onSub
               )}
               <div className="sm:col-span-2 lg:col-span-3">
                 <Field label="How would you rate the following?">
-                  <div className="overflow-x-auto rounded-sm border border-[#d4e8dc]">
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="bg-[#f0fdf7] hover:bg-[#f0fdf7]">
-                          <TableHead className="text-xs font-bold text-[#0f3d2e]">Service area</TableHead>
-                          {RATING_LEVELS.map((level) => (
-                            <TableHead key={level} className="text-xs font-bold text-[#0f3d2e] text-center whitespace-nowrap">{level}</TableHead>
-                          ))}
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {RATING_AREAS.map((area) => (
-                          <TableRow key={area} className="border-b border-[#e8f3ec] last:border-0">
-                            <TableCell className="text-sm font-medium text-slate-800">{area}</TableCell>
-                            {RATING_LEVELS.map((level) => (
-                              <TableCell key={level} className="text-center">
-                                <input
-                                  type="radio"
-                                  name={`rating-${area}`}
-                                  checked={ratings[area] === level}
-                                  onChange={() => setRatings((p) => ({ ...p, [area]: level }))}
-                                  className="h-4 w-4 accent-[#145c3f]"
-                                />
-                              </TableCell>
-                            ))}
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
+                  <div className="space-y-3">
+                    {RATING_AREAS.map((area, i) => {
+                      const val = ratings[area] ?? "";
+                      return (
+                        <div
+                          key={area}
+                          className={`rounded-sm border p-2 transition-colors ${
+                            val ? "border-slate-300 bg-white shadow-xs" : "border-slate-200 bg-[#f4f7f5]"
+                          }`}
+                        >
+                          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between md:gap-4">
+                            <div className="flex items-start gap-3 flex-1 min-w-0">
+                              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-sm bg-[#e8f5ee] text-xs font-bold text-[#1a7a52]">
+                                {i + 1}
+                              </span>
+                              <div className="min-w-0 flex-1">
+                                <p className="text-sm font-semibold text-slate-800 leading-snug">{area}</p>
+                              </div>
+                            </div>
+                            <div className="flex flex-wrap gap-2 md:justify-end shrink-0 md:pl-0 pl-10">
+                              {RATING_LEVELS.map((level) => (
+                                <ChoicePill key={level} checked={val === level} onSelect={() => setRatings((p) => ({ ...p, [area]: level }))}>
+                                  {level}
+                                </ChoicePill>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </Field>
               </div>
-              <Field label="Was your issue or request resolved today?">
-                <SelectField value={resolvedToday} onChange={setResolvedToday} options={YES_NO_PARTIAL} placeholder="Select" />
-              </Field>
+              <div className="sm:col-span-2 lg:col-span-3">
+                <Field label="Was your issue or request resolved today?">
+                  <div className="flex flex-wrap gap-2">
+                    {YES_NO_PARTIAL.map((opt) => (
+                      <ChoicePill key={opt} checked={resolvedToday === opt} onSelect={() => setResolvedToday(opt)}>
+                        {opt}
+                      </ChoicePill>
+                    ))}
+                  </div>
+                </Field>
+              </div>
               <div className="sm:col-span-2 lg:col-span-3">
                 <Field label="Comments / suggestions">
                   <TextArea value={comments} onChange={(e) => setComments(e.target.value)} />

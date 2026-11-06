@@ -16,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { financeDashboardApi, stockApi } from "@/lib/api";
+import { ChartTypeToggle, SwitchableChart, useChartType } from "./ChartTypeChart";
 import { IGR_SERVICE_TYPES, MONTHS, formatNaira, formatNairaCompact, labelOf } from "./constants";
 
 interface Props {
@@ -34,6 +35,7 @@ export default function IgrDashboard({
   userRole,
   embedded = false,
 }: Props) {
+  const [chartType, setChartType] = useChartType("igr");
   const [refreshKey, setRefreshKey] = React.useState(0);
   const [syncing, setSyncing] = React.useState(false);
 
@@ -242,6 +244,9 @@ export default function IgrDashboard({
                   </div>
                 </div>
               </div>
+              <div className="flex justify-end">
+                <ChartTypeToggle type={chartType} onChange={setChartType} />
+              </div>
 
               {/* 6 PPT KPI Cards (Slide 3 & 4) */}
               <div className="grid grid-cols-2 md:grid-cols-6 gap-2.5">
@@ -339,15 +344,7 @@ export default function IgrDashboard({
                   <CardContent className="p-2.5">
                     <div className="h-[200px] w-full">
                       {igrByMonthData.length > 0 ? (
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={igrByMonthData} margin={{ top: 8, right: 10, left: 0, bottom: 10 }}>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                            <XAxis dataKey="period" tick={{ fontSize: 10 }} />
-                            <YAxis tick={{ fontSize: 9 }} tickFormatter={(v) => `${(v / 1e6).toFixed(1)}M`} />
-                            <RechartsTooltip formatter={(v: any) => [formatNaira(Number(v)), "IGR"]} />
-                            <Bar dataKey="amount" fill="#1a7a52" radius={[2, 2, 0, 0]} />
-                          </BarChart>
-                        </ResponsiveContainer>
+                        <SwitchableChart type={chartType} data={igrByMonthData.map((d) => ({ name: d.period, value: d.amount }))} name="Total" color="#1a7a52" />
                       ) : (
                         <div className="h-full flex items-center justify-center text-xs text-slate-400">
                           No monthly transactions recorded
@@ -420,6 +417,9 @@ export default function IgrDashboard({
                   <CardContent className="p-2.5">
                     <div className="h-[280px] w-full">
                       {igrStateData.length > 0 ? (
+                        chartType !== "bar" ? (
+                          <SwitchableChart type={chartType} data={igrStateData.map((d) => ({ name: d.name, value: d.amount }))} name="IGR" color="#0284c7" />
+                        ) : (
                         <ResponsiveContainer width="100%" height="100%">
                           <BarChart
                             data={igrStateData}
@@ -449,6 +449,7 @@ export default function IgrDashboard({
                             <Bar dataKey="amount" fill="#0284c7" radius={[2, 2, 0, 0]} cursor="pointer" />
                           </BarChart>
                         </ResponsiveContainer>
+                        )
                       ) : (
                         <div className="h-full flex items-center justify-center text-xs text-slate-400">
                           No geographic records found

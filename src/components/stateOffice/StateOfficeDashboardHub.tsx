@@ -111,7 +111,7 @@ export default function StateOfficeDashboardHub({
   const initialTab: StateOfficeDashTab =
     tabParam && visibleTabs.some((t) => t.key === tabParam)
       ? tabParam
-      : (canEdDash ? "enrolment-drives" : fallbackTab);
+      : "enrolment";
 
   const isStateCoordinator =
     userRole === "state-coordinator" ||

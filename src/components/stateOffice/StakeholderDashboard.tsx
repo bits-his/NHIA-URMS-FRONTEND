@@ -12,6 +12,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { stateOfficeApi, stockApi } from "@/lib/api";
+import { ChartTypeToggle, SwitchableChart, useChartType } from "./ChartTypeChart";
 import type { RootState } from "@/src/store/store";
 import { isDeptStateCoordinator, isDeptZonalCoordinator } from "@/src/access/departmentRoles";
 import { formatCount, monthLabel } from "./constants";
@@ -71,6 +72,7 @@ export default function StakeholderDashboard({
   const [loading, setLoading] = React.useState(true);
   const [data, setData] = React.useState<any | null>(null);
   const [face, setFace] = React.useState<"overview" | "analysis">("overview");
+  const [chartType, setChartType] = useChartType("stakeholder");
 
   React.useEffect(() => {
     stockApi.getZones().then((res) => setZones(res.data || [])).catch(() => setZones([]));
@@ -267,22 +269,25 @@ export default function StakeholderDashboard({
           </div>
         </div>
 
-        <div className="flex items-center gap-1 rounded-lg border border-[#d4e8dc] bg-white p-1 shadow-2xs w-full sm:w-fit">
-          {([
-            { id: "overview" as const, label: "Overview" },
-            { id: "analysis" as const, label: "Analysis" },
-          ]).map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => setFace(item.id)}
-              className={`flex-1 sm:flex-none px-3.5 py-1.5 rounded-md text-xs font-bold transition-colors ${
-                face === item.id ? "bg-[#145c3f] text-white shadow-xs" : "text-slate-600 hover:bg-slate-50"
-              }`}
-            >
-              {item.label}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-1 rounded-lg border border-[#d4e8dc] bg-white p-1 shadow-2xs w-full sm:w-fit">
+            {([
+              { id: "overview" as const, label: "Overview" },
+              { id: "analysis" as const, label: "Analysis" },
+            ]).map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setFace(item.id)}
+                className={`flex-1 sm:flex-none px-3.5 py-1.5 rounded-md text-xs font-bold transition-colors ${
+                  face === item.id ? "bg-[#145c3f] text-white shadow-xs" : "text-slate-600 hover:bg-slate-50"
+                }`}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+          <ChartTypeToggle type={chartType} onChange={setChartType} />
         </div>
 
         {loading && !data ? (
@@ -308,15 +313,7 @@ export default function StakeholderDashboard({
                 <Panel title="Monthly activity trend" className="xl:col-span-2">
                   <ChartFrame>
                     {trend.some((t) => t.activities) ? (
-                      <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={trend} margin={{ top: 4, right: 16, left: 0, bottom: 4 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#e8f3ec" vertical={false} />
-                          <XAxis dataKey="label" tick={{ fontSize: 10, fill: "#64748b" }} />
-                          <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: "#64748b" }} />
-                          <Tooltip content={<ChartTooltip />} />
-                          <Line type="monotone" dataKey="activities" name="Activities" stroke={BRAND} strokeWidth={2.5} dot={{ r: 3 }} />
-                        </LineChart>
-                      </ResponsiveContainer>
+                      <SwitchableChart type={chartType} data={trend.map((t) => ({ name: t.label, value: t.activities }))} name="Activities" color={BRAND} />
                     ) : <EmptyChart message="No activity trend for this period" />}
                   </ChartFrame>
                 </Panel>
@@ -339,30 +336,14 @@ export default function StakeholderDashboard({
                   <Panel title="Activities by engagement category" className="xl:col-span-3">
                     <ChartFrame>
                       {byCategory.length ? (
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={byCategory.slice(0, 8)} layout="vertical" margin={{ top: 4, right: 16, left: 8, bottom: 4 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#e8f3ec" horizontal={false} />
-                            <XAxis type="number" tick={{ fontSize: 10, fill: "#64748b" }} />
-                            <YAxis type="category" dataKey="name" width={150} tick={{ fontSize: 10, fill: "#0f3d2e" }} />
-                            <Tooltip content={<ChartTooltip />} />
-                            <Bar dataKey="value" name="Activities" fill={BRAND} radius={[0, 4, 4, 0]} />
-                          </BarChart>
-                        </ResponsiveContainer>
+                        <SwitchableChart type={chartType} data={byCategory.slice(0, 8)} name="Activities" color={BRAND} />
                       ) : <EmptyChart message="No activities recorded for this period" />}
                     </ChartFrame>
                   </Panel>
                   <Panel title="Monthly activities recorded" className="xl:col-span-2">
                     <ChartFrame>
                       {trend.some((t) => t.activities) ? (
-                        <ResponsiveContainer width="100%" height="100%">
-                          <LineChart data={trend} margin={{ top: 4, right: 16, left: 0, bottom: 4 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#e8f3ec" vertical={false} />
-                            <XAxis dataKey="label" tick={{ fontSize: 10, fill: "#64748b" }} />
-                            <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: "#64748b" }} />
-                            <Tooltip content={<ChartTooltip />} />
-                            <Line type="monotone" dataKey="activities" name="Activities" stroke={BRAND} strokeWidth={2.5} dot={{ r: 3 }} />
-                          </LineChart>
-                        </ResponsiveContainer>
+                        <SwitchableChart type={chartType} data={trend.map((t) => ({ name: t.label, value: t.activities }))} name="Activities" color={BRAND} />
                       ) : <EmptyChart message="No monthly activity to chart" />}
                     </ChartFrame>
                   </Panel>
@@ -374,30 +355,14 @@ export default function StakeholderDashboard({
                   <Panel title="Activities by state" className="xl:col-span-3">
                     <ChartFrame>
                       {byState.length ? (
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={byState} layout="vertical" margin={{ top: 4, right: 16, left: 8, bottom: 4 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#e8f3ec" horizontal={false} />
-                            <XAxis type="number" tick={{ fontSize: 10, fill: "#64748b" }} />
-                            <YAxis type="category" dataKey="state_name" width={130} tick={{ fontSize: 10, fill: "#0f3d2e" }} />
-                            <Tooltip content={<ChartTooltip />} />
-                            <Bar dataKey="activities" name="Activities" fill={BRAND} radius={[0, 4, 4, 0]} />
-                          </BarChart>
-                        </ResponsiveContainer>
+                        <SwitchableChart type={chartType} data={byState.map((s) => ({ name: s.state_name, value: s.activities }))} name="Activities" color={BRAND} />
                       ) : <EmptyChart message="No state activity for this period" />}
                     </ChartFrame>
                   </Panel>
                   <Panel title="Follow-ups outstanding by state" className="xl:col-span-2">
                     <ChartFrame>
                       {byState.some((x) => x.followups_outstanding) ? (
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={[...byState].sort((a, b) => b.followups_outstanding - a.followups_outstanding)} margin={{ top: 4, right: 16, left: 0, bottom: 4 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#e8f3ec" vertical={false} />
-                            <XAxis dataKey="state_name" tick={{ fontSize: 9, fill: "#64748b" }} interval={0} angle={-20} textAnchor="end" height={50} />
-                            <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: "#64748b" }} />
-                            <Tooltip content={<ChartTooltip />} />
-                            <Bar dataKey="followups_outstanding" name="Outstanding" fill="#f59e0b" radius={[4, 4, 0, 0]} />
-                          </BarChart>
-                        </ResponsiveContainer>
+                        <SwitchableChart type={chartType} data={[...byState].sort((a, b) => b.followups_outstanding - a.followups_outstanding).map((s) => ({ name: s.state_name, value: s.followups_outstanding }))} name="Outstanding" color="#f59e0b" />
                       ) : <EmptyChart message="No outstanding follow-ups" />}
                     </ChartFrame>
                   </Panel>
@@ -409,30 +374,14 @@ export default function StakeholderDashboard({
                   <Panel title="Activities by zone" className="xl:col-span-3">
                     <ChartFrame>
                       {byZone.length ? (
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={byZone} layout="vertical" margin={{ top: 4, right: 16, left: 8, bottom: 4 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#e8f3ec" horizontal={false} />
-                            <XAxis type="number" tick={{ fontSize: 10, fill: "#64748b" }} />
-                            <YAxis type="category" dataKey="name" width={110} tick={{ fontSize: 10, fill: "#0f3d2e" }} />
-                            <Tooltip content={<ChartTooltip />} />
-                            <Bar dataKey="value" name="Activities" fill={BRAND} radius={[0, 4, 4, 0]} />
-                          </BarChart>
-                        </ResponsiveContainer>
+                        <SwitchableChart type={chartType} data={byZone} name="Activities" color={BRAND} />
                       ) : <EmptyChart message="No zone activity for this period" />}
                     </ChartFrame>
                   </Panel>
                   <Panel title="National engagement activity trend" className="xl:col-span-2">
                     <ChartFrame>
                       {trend.some((t) => t.activities) ? (
-                        <ResponsiveContainer width="100%" height="100%">
-                          <LineChart data={trend} margin={{ top: 4, right: 16, left: 0, bottom: 4 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#e8f3ec" vertical={false} />
-                            <XAxis dataKey="label" tick={{ fontSize: 10, fill: "#64748b" }} />
-                            <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: "#64748b" }} />
-                            <Tooltip content={<ChartTooltip />} />
-                            <Line type="monotone" dataKey="activities" name="Activities" stroke={BRAND} strokeWidth={2.5} dot={{ r: 3 }} />
-                          </LineChart>
-                        </ResponsiveContainer>
+                        <SwitchableChart type={chartType} data={trend.map((t) => ({ name: t.label, value: t.activities }))} name="Activities" color={BRAND} />
                       ) : <EmptyChart message="No activity trend for this period" />}
                     </ChartFrame>
                   </Panel>

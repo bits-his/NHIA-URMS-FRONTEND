@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { stateOfficeApi, stockApi } from "@/lib/api";
+import { ChartTypeToggle, SwitchableChart, useChartType, type ChartType } from "./ChartTypeChart";
 import type { RootState } from "@/src/store/store";
 
 type DashView = "state" | "zonal" | "national";
@@ -106,6 +107,7 @@ export default function EnrolmentActivityDashboard({
   const [data, setData] = React.useState<DashboardData | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [face, setFace] = React.useState<Face>("overview");
+  const [chartType, setChartType] = useChartType("enrolment");
 
   const faces: { id: Face; label: string }[] = view === "state"
     ? [
@@ -251,6 +253,7 @@ export default function EnrolmentActivityDashboard({
         </div>
       </div>
 
+      <div className="flex flex-wrap items-center justify-between gap-2">
       <div className="flex items-center gap-1 rounded-lg border border-[#d4e8dc] bg-white p-1 shadow-2xs w-full sm:w-fit">
         {faces.map((item) => (
           <button
@@ -265,6 +268,8 @@ export default function EnrolmentActivityDashboard({
           </button>
         ))}
       </div>
+      <ChartTypeToggle type={chartType} onChange={setChartType} />
+    </div>
 
       {loading && !data ? (
         <div className="flex items-center justify-center py-24 text-slate-500 gap-2 text-sm">
@@ -290,15 +295,15 @@ export default function EnrolmentActivityDashboard({
               ]} />
               <div className="grid grid-cols-1 xl:grid-cols-5 gap-4">
                 <Panel title="Enrolment by programme" className="xl:col-span-2" subtitle="Select a bar to filter">
-                  <HBar data={chartRows(data.by_program)} onPick={pickProgram} />
+                  <HBar type={chartType} data={chartRows(data.by_program)} onPick={pickProgram} />
                 </Panel>
                 <Panel title="Monthly enrolment" className="xl:col-span-3" subtitle={String(year)}>
-                  <Trend data={data.by_month.map((row) => ({ name: row.label, value: row.value }))} />
+                  <Trend data={data.by_month.map((row) => ({ name: row.label, value: row.value }))} type={chartType} />
                 </Panel>
               </div>
               <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-                <Panel title="Enrolment by mode"><HBar data={chartRows(data.by_mode)} /></Panel>
-                <Panel title="Enrolment by channel"><HBar data={chartRows(data.by_channel)} /></Panel>
+                <Panel title="Enrolment by mode"><HBar type={chartType} data={chartRows(data.by_mode)} /></Panel>
+                <Panel title="Enrolment by channel"><HBar type={chartType} data={chartRows(data.by_channel)} /></Panel>
               </div>
             </>
           )}
@@ -312,9 +317,9 @@ export default function EnrolmentActivityDashboard({
                 ["States flagged", fmt(kpis.flagged_states)],
               ]} />
               <div className="grid grid-cols-1 xl:grid-cols-5 gap-4">
-                <Panel title="Enrolment by state" className="xl:col-span-3"><HBar data={chartRows(data.by_state)} /></Panel>
+                <Panel title="Enrolment by state" className="xl:col-span-3"><HBar type={chartType} data={chartRows(data.by_state)} /></Panel>
                 <Panel title="Enrolment by programme" className="xl:col-span-2" subtitle="Select a bar to filter">
-                  <HBar data={chartRows(data.by_program)} onPick={pickProgram} />
+                  <HBar type={chartType} data={chartRows(data.by_program)} onPick={pickProgram} />
                 </Panel>
               </div>
             </>
@@ -329,15 +334,15 @@ export default function EnrolmentActivityDashboard({
                 ["Pending card requests", fmt(kpis.pending_cards)],
               ]} />
               <div className="grid grid-cols-1 xl:grid-cols-5 gap-4">
-                <Panel title="Enrolment by zone" className="xl:col-span-3"><HBar data={chartRows(data.by_zone)} /></Panel>
-                <Panel title="Enrolment by channel" className="xl:col-span-2"><HBar data={chartRows(data.by_channel)} /></Panel>
+                <Panel title="Enrolment by zone" className="xl:col-span-3"><HBar type={chartType} data={chartRows(data.by_zone)} /></Panel>
+                <Panel title="Enrolment by channel" className="xl:col-span-2"><HBar type={chartType} data={chartRows(data.by_channel)} /></Panel>
               </div>
               <div className="grid grid-cols-1 xl:grid-cols-5 gap-4">
                 <Panel title="Monthly enrolment" className="xl:col-span-3" subtitle={String(year)}>
-                  <Trend data={data.by_month.map((row) => ({ name: row.label, value: row.value }))} />
+                  <Trend data={data.by_month.map((row) => ({ name: row.label, value: row.value }))} type={chartType} />
                 </Panel>
                 <Panel title="Enrolment by programme" className="xl:col-span-2" subtitle="Select a bar to filter">
-                  <HBar data={chartRows(data.by_program)} onPick={pickProgram} />
+                  <HBar type={chartType} data={chartRows(data.by_program)} onPick={pickProgram} />
                 </Panel>
               </div>
             </>
@@ -352,8 +357,8 @@ export default function EnrolmentActivityDashboard({
                 ["Issuance rate", fmtPct(kpis.issuance_rate)],
               ]} />
               <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-                <Panel title="Requests by category"><HBar data={chartRows(data.cards.by_category)} color="#0ea5e9" /></Panel>
-                <Panel title="Pending by programme"><HBar data={chartRows(data.cards.pending_by_program)} color="#f59e0b" /></Panel>
+                <Panel title="Requests by category"><HBar type={chartType} data={chartRows(data.cards.by_category)} color="#0ea5e9" /></Panel>
+                <Panel title="Pending by programme"><HBar type={chartType} data={chartRows(data.cards.pending_by_program)} color="#f59e0b" /></Panel>
               </div>
             </>
           )}
@@ -367,7 +372,7 @@ export default function EnrolmentActivityDashboard({
                 ["Overdue", fmt(kpis.overdue)],
               ]} />
               <div className="grid grid-cols-1 xl:grid-cols-5 gap-4">
-                <Panel title="Renewal by GIFSHIP type" className="xl:col-span-2"><HBar data={chartRows(data.gifship.by_type)} /></Panel>
+                <Panel title="Renewal by GIFSHIP type" className="xl:col-span-2"><HBar type={chartType} data={chartRows(data.gifship.by_type)} /></Panel>
                 <Panel title="Upcoming expiry queue" className="xl:col-span-3">
                   <SimpleTable
                     headers={["Beneficiary", "Type", "Expiry", "Days left", "Telephone"]}
@@ -378,7 +383,7 @@ export default function EnrolmentActivityDashboard({
               </div>
               {view === "national" && (
                 <div className="grid grid-cols-1 xl:grid-cols-5 gap-4">
-                  <Panel title="Enrolment by type" className="xl:col-span-2"><HBar data={chartRows(data.by_type)} /></Panel>
+                  <Panel title="Enrolment by type" className="xl:col-span-2"><HBar type={chartType} data={chartRows(data.by_type)} /></Panel>
                   <Panel title="Funding option" className="xl:col-span-3">
                     <SimpleTable
                       headers={["Programme", "Zero-cost", "Budgeted"]}
@@ -505,8 +510,9 @@ function Panel({ title, subtitle, children, className = "" }: { title: string; s
   );
 }
 
-function HBar({ data, onPick, color = BRAND }: { data: { name: string; value: number }[]; onPick?: (name?: string) => void; color?: string }) {
+function HBar({ data, onPick, color = BRAND, type = "bar" }: { data: { name: string; value: number }[]; onPick?: (name?: string) => void; color?: string; type?: ChartType }) {
   if (!data.length) return <EmptyChart message="No records for this period" />;
+  if (type !== "bar") return <div className="h-[260px]"><SwitchableChart type={type} data={data} name="Enrolled" color={color} /></div>;
   return (
     <div className="h-[260px]">
       <ResponsiveContainer width="100%" height="100%">
@@ -529,19 +535,11 @@ function HBar({ data, onPick, color = BRAND }: { data: { name: string; value: nu
   );
 }
 
-function Trend({ data }: { data: { name: string; value: number }[] }) {
+function Trend({ data, type }: { data: { name: string; value: number }[]; type: ChartType }) {
   if (!data.some((row) => row.value > 0)) return <EmptyChart message="No enrolment trend for this year" />;
   return (
     <div className="h-[260px]">
-      <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={data} margin={{ top: 8, right: 12, left: -10, bottom: 8 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#e8f3ec" />
-          <XAxis dataKey="name" tick={{ fontSize: 10, fill: "#64748b" }} />
-          <YAxis tick={{ fontSize: 10, fill: "#64748b" }} />
-          <Tooltip content={<ChartTooltip />} />
-          <Line type="monotone" dataKey="value" name="Enrolled" stroke={BRAND} strokeWidth={2.5} dot={{ r: 3 }} />
-        </LineChart>
-      </ResponsiveContainer>
+      <SwitchableChart type={type} data={data.map((d) => ({ name: d.name, value: d.value }))} name="Enrolled" color={BRAND} />
     </div>
   );
 }

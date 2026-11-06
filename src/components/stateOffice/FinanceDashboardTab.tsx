@@ -24,6 +24,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { financeDashboardApi, stockApi } from "@/lib/api";
+import { ChartTypeToggle, SwitchableChart, useChartType } from "./ChartTypeChart";
 import { IGR_SERVICE_TYPES, MONTHS, formatNaira, formatNairaCompact, labelOf } from "./constants";
 
 interface Props {
@@ -40,6 +41,7 @@ export default function FinanceDashboardTab({
   lockZone,
 }: Props) {
   const currentYear = new Date().getFullYear();
+  const [chartType, setChartType] = useChartType("finance");
   const [year, setYear] = React.useState(String(currentYear));
   const [igrMonth, setIgrMonth] = React.useState("all");
   const [sshiaQuarter, setSshiaQuarter] = React.useState("all");
@@ -390,6 +392,10 @@ export default function FinanceDashboardTab({
         </div>
       </div>
 
+      <div className="flex justify-end">
+        <ChartTypeToggle type={chartType} onChange={setChartType} />
+      </div>
+
       {/* ── PANEL A: INTERNALLY GENERATED REVENUE (IGR) ── */}
       <section className="space-y-3">
         <div className="flex items-center justify-between border-b border-slate-200 pb-1.5">
@@ -501,15 +507,7 @@ export default function FinanceDashboardTab({
             <CardContent className="p-2.5">
               <div className="h-[200px] w-full">
                 {igrByMonthData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={igrByMonthData} margin={{ top: 8, right: 10, left: 0, bottom: 10 }}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                      <XAxis dataKey="period" tick={{ fontSize: 10 }} />
-                      <YAxis tick={{ fontSize: 9 }} tickFormatter={(v) => `${(v / 1e6).toFixed(1)}M`} />
-                      <RechartsTooltip formatter={(v: any) => [formatNaira(Number(v)), "IGR"]} />
-                      <Bar dataKey="amount" fill="#1a7a52" radius={[2, 2, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
+                  <SwitchableChart type={chartType} data={igrByMonthData.map((d) => ({ name: d.period, value: d.amount }))} name="IGR" color="#1a7a52" />
                 ) : (
                   <div className="h-full flex items-center justify-center text-xs text-slate-400">
                     No monthly transactions recorded for this period
@@ -582,6 +580,9 @@ export default function FinanceDashboardTab({
             <CardContent className="p-2.5">
               <div className="h-[280px] w-full">
                 {igrStateData.length > 0 ? (
+                  chartType !== "bar" ? (
+                    <SwitchableChart type={chartType} data={igrStateData.map((d) => ({ name: d.name, value: d.amount }))} name="IGR" color="#0284c7" />
+                  ) : (
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart
                       data={igrStateData}
@@ -611,6 +612,7 @@ export default function FinanceDashboardTab({
                       <Bar dataKey="amount" fill="#0284c7" radius={[2, 2, 0, 0]} cursor="pointer" />
                     </BarChart>
                   </ResponsiveContainer>
+                  )
                 ) : (
                   <div className="h-full flex items-center justify-center text-xs text-slate-400">
                     No geographic records found
@@ -831,8 +833,11 @@ export default function FinanceDashboardTab({
               <CardContent className="p-2.5">
                 <div className="h-[200px] w-full">
                   {sshiaUtilisationByZoneData.length > 0 ? (
+                    chartType !== "bar" ? (
+                      <SwitchableChart type={chartType} data={sshiaUtilisationByZoneData.map((d) => ({ name: d.name, value: d.utilisation }))} name="Utilisation %" color="#0f766e" />
+                    ) : (
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart
+                                            <BarChart
                         data={sshiaUtilisationByZoneData}
                         margin={{ top: 8, right: 10, left: 0, bottom: 28 }}
                         onClick={(e: any) => {
@@ -849,6 +854,7 @@ export default function FinanceDashboardTab({
                         <Bar dataKey="utilisation" fill="#0f766e" radius={[2, 2, 0, 0]} cursor="pointer" />
                       </BarChart>
                     </ResponsiveContainer>
+                    )
                   ) : (
                     <div className="h-full flex items-center justify-center text-xs text-slate-400">
                       No utilisation data by zone
@@ -872,15 +878,7 @@ export default function FinanceDashboardTab({
             <CardContent className="p-2.5">
               <div className="h-[200px] w-full">
                 {sshiaQuarterTrendData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={sshiaQuarterTrendData} margin={{ top: 8, right: 10, left: 0, bottom: 10 }}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                      <XAxis dataKey="quarter" tick={{ fontSize: 10 }} />
-                      <YAxis tick={{ fontSize: 9 }} unit="%" domain={[0, 100]} />
-                      <RechartsTooltip formatter={(v: any) => [`${Number(v).toFixed(1)}%`, "Utilisation"]} />
-                      <Bar dataKey="utilisation" fill="#0f766e" radius={[2, 2, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
+                  <SwitchableChart type={chartType} data={sshiaQuarterTrendData.map((d) => ({ name: d.quarter, value: d.utilisation }))} name="Utilisation %" color="#0f766e" />
                 ) : (
                   <div className="h-full flex items-center justify-center text-xs text-slate-400">
                     No quarterly trend data recorded

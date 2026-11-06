@@ -14,6 +14,7 @@ import {
 } from "recharts";
 import { toast } from "sonner";
 import { servicomApi } from "@/lib/api";
+import { ChartTypeToggle, SwitchableChart, useChartType, type ChartType } from "../stateOffice/ChartTypeChart";
 import { zonesApi, statesApi } from "@/lib/adminApi";
 import { DashChartCard } from "@/components/dashboard/dashboardUi";
 import DashboardDrillPanel from "@/components/dashboard/DashboardDrillPanel";
@@ -75,6 +76,7 @@ export default function ComplaintRegisterDashboard({
   const [year, setYear] = React.useState(String(currentYear));
   const [month, setMonth] = React.useState("all");
   const [mainTab, setMainTab] = React.useState<"overview" | "analysis">("overview");
+  const [chartType, setChartType] = useChartType("complaints");
   const [date, setDate] = React.useState("");
   const [locationLevel, setLocationLevel] = React.useState<"all" | "hq" | "zone" | "state">(
     stateLocked ? "state" : zoneLocked ? "zone" : "all",
@@ -448,18 +450,18 @@ export default function ComplaintRegisterDashboard({
     </div>
   ) : mainTab === "analysis" ? (
     <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 items-stretch">
-      <CountChart title="Complaints by respondent (complainant type)" data={data?.by_complainant} empty="No complainant types recorded." />
-      <CountChart title="Top recurring issues" data={data?.top_issues} empty="No issue categories yet." />
-      {!isSingleState && <CountChart title="Complaints by state" data={data?.by_state} empty="No state volumes yet." />}
-      {!isSingleState && <CountChart title="Complaints by zone" data={data?.by_zone} empty="No zone volumes yet." />}
-      {!isSingleState && <DaysChart title="Average resolution time by state" data={data?.avg_resolution_by_state} />}
-      {!isSingleState && <DaysChart title="Average resolution time by zone" data={data?.avg_resolution_by_zone} />}
+      <CountChart type={chartType} title="Complaints by respondent (complainant type)" data={data?.by_complainant} empty="No complainant types recorded." />
+      <CountChart type={chartType} title="Top recurring issues" data={data?.top_issues} empty="No issue categories yet." />
+      {!isSingleState && <CountChart type={chartType} title="Complaints by state" data={data?.by_state} empty="No state volumes yet." />}
+      {!isSingleState && <CountChart type={chartType} title="Complaints by zone" data={data?.by_zone} empty="No zone volumes yet." />}
+      {!isSingleState && <DaysChart type={chartType} title="Average resolution time by state" data={data?.avg_resolution_by_state} />}
+      {!isSingleState && <DaysChart type={chartType} title="Average resolution time by zone" data={data?.avg_resolution_by_zone} />}
     </div>
   ) : (
     <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 items-stretch">
-      <CountChart title="Complaints by programs" data={data?.by_domain} empty="No complaints in this filter." />
-      <CountChart title="Complaints by resolution" data={data?.by_outcome} empty="No closed complaints in this filter." />
-      <CountChart title="Open complaints by status" data={data?.open_by_status} empty="No open complaints." className="xl:col-span-2" />
+      <CountChart type={chartType} title="Complaints by programs" data={data?.by_domain} empty="No complaints in this filter." />
+      <CountChart type={chartType} title="Complaints by resolution" data={data?.by_outcome} empty="No closed complaints in this filter." />
+      <CountChart type={chartType} title="Open complaints by status" data={data?.open_by_status} empty="No open complaints." className="xl:col-span-2" />
     </div>
   );
 
@@ -514,6 +516,7 @@ export default function ComplaintRegisterDashboard({
           </div>
         )}
       </div>
+      <div className="flex flex-wrap items-center justify-between gap-2">
       <div className="flex items-center gap-1 rounded-lg border border-[#d4e8dc] bg-white p-1 shadow-2xs w-full sm:w-fit">
         <button
           type="button"
@@ -538,6 +541,8 @@ export default function ComplaintRegisterDashboard({
           Activity analysis
         </button>
       </div>
+      <ChartTypeToggle type={chartType} onChange={setChartType} />
+    </div>
       {body}
       {drillPanel}
     </div>
@@ -545,36 +550,34 @@ export default function ComplaintRegisterDashboard({
 }
 
 function CountChart({
-  title, data, empty, className = "",
+  title, data, empty, className = "", type = "bar",
 }: {
   title: string;
   data?: { name: string; count: number }[];
   empty: string;
   className?: string;
+  type?: ChartType;
 }) {
   const rows = data ?? [];
+  const chartType = type;
   return (
     <DashChartCard title={title} className={className}>
       {rows.length === 0 ? <ChartEmpty message={empty} /> : (
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={rows} layout="vertical" margin={{ left: 8, right: 12, top: 4 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-            <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
-            <YAxis type="category" dataKey="name" width={130} tick={{ fontSize: 10 }} />
-            <Tooltip />
-            <Bar dataKey="count" fill="#1a7a52" radius={[0, 4, 4, 0]} maxBarSize={16} />
-          </BarChart>
-        </ResponsiveContainer>
+        <SwitchableChart type={chartType} data={rows.map((r) => ({ name: r.name, value: r.count }))} name="Count" color="#1a7a52" />
       )}
     </DashChartCard>
   );
 }
 
-function DaysChart({ title, data }: { title: string; data?: { name: string; days: number | null }[] }) {
+function DaysChart({ title, data, type = "bar" }: { title: string; data?: { name: string; days: number | null }[]; type?: ChartType }) {
   const rows = (data ?? []).filter((row) => row.days != null);
+  const chartType = type;
   return (
     <DashChartCard title={title}>
       {rows.length === 0 ? <ChartEmpty message="No closed cases with a resolution time." /> : (
+        <SwitchableChart type={chartType} data={rows.map((r) => ({ name: r.name, value: r.days ?? 0 }))} name="Days" color="#1a7a52" />
+      )}
+      {false && (
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={rows} margin={{ left: 4, right: 8, bottom: 24 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />

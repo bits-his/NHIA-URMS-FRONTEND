@@ -12,6 +12,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { challengesSupportApi, stockApi } from "@/lib/api";
+import { ChartTypeToggle, SwitchableChart, useChartType } from "./ChartTypeChart";
 import type { RootState } from "@/src/store/store";
 import { isDeptStateCoordinator, isDeptZonalCoordinator } from "@/src/access/departmentRoles";
 import { formatCount, formatDate, monthLabel } from "./constants";
@@ -84,6 +85,7 @@ export default function ChallengesSupportDashboard({ embedded = false, defaultZo
   const [loading, setLoading] = React.useState(true);
   const [data, setData] = React.useState<any | null>(null);
   const [face, setFace] = React.useState<"overview" | "analysis">("overview");
+  const [chartType, setChartType] = useChartType("challenges");
 
   React.useEffect(() => {
     stockApi.getZones().then((res) => setZones(res.data || [])).catch(() => setZones([]));
@@ -321,7 +323,8 @@ export default function ChallengesSupportDashboard({ embedded = false, defaultZo
             </div>
           </div>
 
-          <div className="flex items-center gap-1 rounded-lg border border-[#d4e8dc] bg-white p-1 shadow-2xs w-full sm:w-fit">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-1 rounded-lg border border-[#d4e8dc] bg-white p-1 shadow-2xs w-full sm:w-fit">
             {([
               { id: "overview" as const, label: "Overview" },
               { id: "analysis" as const, label: "Analysis" },
@@ -337,6 +340,8 @@ export default function ChallengesSupportDashboard({ embedded = false, defaultZo
                 {item.label}
               </button>
             ))}
+          </div>
+            <ChartTypeToggle type={chartType} onChange={setChartType} />
           </div>
 
           {loading && !data ? (
@@ -360,7 +365,7 @@ export default function ChallengesSupportDashboard({ embedded = false, defaultZo
                     <RankList items={byOwner.map((x) => ({ name: x.name, value: x.value }))} empty="No support requests" />
                   </Panel>
                   <Panel title="Support requests by status" subtitle="Count of support records" className="xl:col-span-2">
-                    <ChartFrame>{bySuStatus.length ? <HBars data={bySuStatus} width={130} fill="#f59e0b" /> : <EmptyChart message="No support requests for this period" />}</ChartFrame>
+                    <ChartFrame>{bySuStatus.length ? <SwitchableChart type={chartType} data={bySuStatus} name="Count" color={"#f59e0b"} /> : <EmptyChart message="No support requests for this period" />}</ChartFrame>
                   </Panel>
                 </div>
               ) : (
@@ -388,30 +393,30 @@ export default function ChallengesSupportDashboard({ embedded = false, defaultZo
                 {dashRole === "state" && (
                   <>
                     <Panel title="Challenges by category" subtitle="Count of challenge records" className="xl:col-span-3">
-                      <ChartFrame>{byCategory.length ? <HBars data={byCategory} width={160} /> : <EmptyChart message="No challenges for this period" />}</ChartFrame>
+                      <ChartFrame>{byCategory.length ? <SwitchableChart type={chartType} data={byCategory} name="Count" color={BRAND} /> : <EmptyChart message="No challenges for this period" />}</ChartFrame>
                     </Panel>
                     <Panel title="Support requests by status" subtitle="Count of support records" className="xl:col-span-2">
-                      <ChartFrame>{bySuStatus.length ? <HBars data={bySuStatus} width={110} fill="#f59e0b" /> : <EmptyChart message="No support requests for this period" />}</ChartFrame>
+                      <ChartFrame>{bySuStatus.length ? <SwitchableChart type={chartType} data={bySuStatus} name="Count" color={"#f59e0b"} /> : <EmptyChart message="No support requests for this period" />}</ChartFrame>
                     </Panel>
                   </>
                 )}
                 {dashRole === "zd" && (
                   <>
                     <Panel title="Challenges by state" subtitle="Within assigned zone" className="xl:col-span-3">
-                      <ChartFrame>{byChState.length ? <HBars data={byChState.map((x) => ({ name: x.state_name, value: x.challenges }))} width={130} /> : <EmptyChart message="No challenges in zone" />}</ChartFrame>
+                      <ChartFrame>{byChState.length ? <SwitchableChart type={chartType} data={byChState.map((x) => ({ name: x.state_name, value: x.challenges }))} name="Count" color={BRAND} /> : <EmptyChart message="No challenges in zone" />}</ChartFrame>
                     </Panel>
                     <Panel title="Support requests by action owner" subtitle="Where intervention has been requested" className="xl:col-span-2">
-                      <ChartFrame>{byOwner.length ? <HBars data={byOwner} width={110} fill="#f59e0b" /> : <EmptyChart message="No support requests" />}</ChartFrame>
+                      <ChartFrame>{byOwner.length ? <SwitchableChart type={chartType} data={byOwner} name="Count" color={"#f59e0b"} /> : <EmptyChart message="No support requests" />}</ChartFrame>
                     </Panel>
                   </>
                 )}
                 {dashRole === "sdo" && (
                   <>
                     <Panel title="Challenges by zone" subtitle="Compare challenge volume and risk" className="xl:col-span-3">
-                      <ChartFrame>{byChZone.length ? <HBars data={byChZone.map((x) => ({ name: x.zone_name, value: x.challenges }))} width={110} /> : <EmptyChart message="No challenges recorded" />}</ChartFrame>
+                      <ChartFrame>{byChZone.length ? <SwitchableChart type={chartType} data={byChZone.map((x) => ({ name: x.zone_name, value: x.challenges }))} name="Count" color={BRAND} /> : <EmptyChart message="No challenges recorded" />}</ChartFrame>
                     </Panel>
                     <Panel title="Support requests by department" subtitle="Requests routed to each action owner" className="xl:col-span-2">
-                      <ChartFrame>{byDept.length ? <HBars data={byDept} width={110} fill="#f59e0b" /> : <EmptyChart message="No support requests" />}</ChartFrame>
+                      <ChartFrame>{byDept.length ? <SwitchableChart type={chartType} data={byDept} name="Count" color={"#f59e0b"} /> : <EmptyChart message="No support requests" />}</ChartFrame>
                     </Panel>
                   </>
                 )}

@@ -36,6 +36,7 @@ interface Props {
   userRole?: string;
   /** Parent Finance page owns the page title and tabs. */
   embedded?: boolean;
+  startMode?: "tabs" | "form" | "detail";
   onChromeChange?: (chrome: FinanceChrome | null) => void;
 }
 
@@ -45,10 +46,11 @@ export default function SshiaWorkspace({
   defaultStateId,
   userRole,
   embedded = false,
+  startMode = "tabs",
   onChromeChange,
 }: Props) {
   const { canCreate } = useStateOfficeAccess();
-  const [mode, setMode] = React.useState<"tabs" | "form" | "detail">("tabs");
+  const [mode, setMode] = React.useState<"tabs" | "form" | "detail">(startMode);
   const [selectedId, setSelectedId] = React.useState<string | number | null>(null);
   const [editingId, setEditingId] = React.useState<string | number | null>(null);
   const [detailStatus, setDetailStatus] = React.useState<string | null>(null);

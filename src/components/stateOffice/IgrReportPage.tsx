@@ -5,7 +5,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import StateOfficeFormShell from "./StateOfficeFormShell";
+import ReportBasicInfo from "./shared/ReportBasicInfo";
 import { IGR_SERVICE_TYPES, labelOf } from "./constants";
+
+const finCls = "h-10 w-full rounded-lg px-3 text-sm bg-[#f4f7f5] border-2 border-[#1a7a52] text-slate-800 shadow-xs outline-none hover:border-[#0f3d2e] hover:bg-white focus-visible:border-[#0f3d2e] focus-visible:ring-2 focus-visible:ring-[#1a7a52]/25";
 
 function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return (
@@ -61,6 +64,7 @@ export default function IgrReportPage({
       pageTitle={embedded ? undefined : "Internally Generated Revenue (IGR)"}
       hidePageHeader={embedded}
       submitDateLabel="Date"
+      hideBasicInfo
       hideFooterActions
       returnOnDraft
       onLoaded={(data) => {
@@ -96,9 +100,17 @@ export default function IgrReportPage({
         remarks: entry.remarks.trim() || null,
       })}
     >
-      {({ saving, submitting, persist, requestSubmit }) => (
+      {({ saving, submitting, persist, requestSubmit, header }) => (
         <div className="rounded-sm border border-[#d4e8dc] bg-white p-4 md:p-5 space-y-4">
-          <div>
+          <ReportBasicInfo
+            {...header}
+            lockZone={header.lockZone}
+            lockState={header.lockState}
+            submitDateLabel="Date"
+            embedded
+          />
+
+          <div className="border-t border-[#e8f3ec] pt-4">
             <h3 className="text-sm font-bold text-slate-800">Transaction details</h3>
           </div>
 
@@ -124,6 +136,7 @@ export default function IgrReportPage({
             <div className="space-y-1.5">
               <Label>Name of principal <span className="text-red-500">*</span></Label>
               <Input
+                      className={finCls}
                 placeholder="Full name"
                 value={entry.principal_name}
                 onChange={(e) => set("principal_name", e.target.value)}
@@ -134,6 +147,7 @@ export default function IgrReportPage({
             <div className="space-y-1.5">
               <Label>Receipt number <span className="text-red-500">*</span></Label>
               <Input
+                      className={finCls}
                 placeholder="Enter receipt"
                 value={entry.receipt_no}
                 onChange={(e) => set("receipt_no", e.target.value)}
@@ -144,6 +158,7 @@ export default function IgrReportPage({
             <div className="space-y-1.5">
               <Label>Bill / RRR number</Label>
               <Input
+                      className={finCls}
                 placeholder="Enter RRR"
                 value={entry.bill_rrr_no}
                 onChange={(e) => set("bill_rrr_no", e.target.value)}
@@ -154,6 +169,7 @@ export default function IgrReportPage({
             <div className="space-y-1.5">
               <Label>Amount (₦) <span className="text-red-500">*</span></Label>
               <Input
+                      className={finCls}
                 type="number"
                 min="0"
                 step="0.01"
@@ -167,6 +183,7 @@ export default function IgrReportPage({
             <div className="space-y-1.5">
               <Label>Payment date</Label>
               <Input
+                      className={finCls}
                 type="date"
                 value={entry.payment_date}
                 onChange={(e) => set("payment_date", e.target.value)}

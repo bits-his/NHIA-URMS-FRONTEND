@@ -4,9 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import StateOfficeFormShell from "./StateOfficeFormShell";
+import ReportBasicInfo from "./shared/ReportBasicInfo";
 import {
   SSHIA_SUB_HEADS, calcSshiaLine, formatNaira,
 } from "./constants";
+
+const finCls = "h-10 w-full rounded-lg px-3 text-sm bg-[#f4f7f5] border-2 border-[#1a7a52] text-slate-800 shadow-xs outline-none hover:border-[#0f3d2e] hover:bg-white focus-visible:border-[#0f3d2e] focus-visible:ring-2 focus-visible:ring-[#1a7a52]/25";
 
 interface Props {
   reportId?: number | string | null;
@@ -79,6 +82,7 @@ export default function SshiaFinancialReportPage({
       pageTitle={embedded ? undefined : "SSHIA Progress Report"}
       hidePageHeader={embedded}
       showQuarter
+      hideBasicInfo
       hideFooterActions
       returnOnDraft
       onLoaded={(data) => {
@@ -114,19 +118,21 @@ export default function SshiaFinancialReportPage({
         return payload;
       }}
     >
-      {({ saving, submitting, persist, requestSubmit }) => (
+      {({ saving, submitting, persist, requestSubmit, header }) => (
         <div className="space-y-4">
-          <div className="rounded-xl border border-[#d4e8dc] bg-white px-4 py-3 text-sm text-slate-600">
-            Fill one or more sub-heads for this quarter in one go.
-            {reportStatus === "returned" && (
-              <span className="block mt-1 text-rose-700 font-medium">
-                Returned for correction — update the sub-heads that need fixing, then send for review again.
-              </span>
-            )}
-            <span className="block mt-1 text-xs text-slate-400">
-              {filledCount} of {SSHIA_SUB_HEADS.length} sub-heads have figures
-            </span>
-          </div>
+          <div className="rounded-sm border border-[#d4e8dc] bg-white p-4 md:p-5 space-y-4">
+          <ReportBasicInfo
+            {...header}
+            lockZone={header.lockZone}
+            lockState={header.lockState}
+            showQuarter
+            embedded
+          />
+          {reportStatus === "returned" && (
+            <p className="text-sm text-rose-700 font-medium">
+              Returned for correction — update the sub-heads that need fixing, then send for review again.
+            </p>
+          )}
 
           {SSHIA_SUB_HEADS.map((h) => {
             const row = entries[h.prefix];
@@ -152,6 +158,7 @@ export default function SshiaFinancialReportPage({
                   <div className="space-y-1.5">
                     <Label>Opening balance (A)</Label>
                     <Input
+                      className={finCls}
                       type="number" min="0" step="0.01" placeholder="0.00"
                       value={row.opening_balance}
                       onChange={(e) => setField(h.prefix, "opening_balance", e.target.value)}
@@ -161,6 +168,7 @@ export default function SshiaFinancialReportPage({
                   <div className="space-y-1.5">
                     <Label>Allotted / receipts (B)</Label>
                     <Input
+                      className={finCls}
                       type="number" min="0" step="0.01" placeholder="0.00"
                       value={row.receipts}
                       onChange={(e) => setField(h.prefix, "receipts", e.target.value)}
@@ -170,6 +178,7 @@ export default function SshiaFinancialReportPage({
                   <div className="space-y-1.5">
                     <Label>Actual expenditure (D)</Label>
                     <Input
+                      className={finCls}
                       type="number" min="0" step="0.01" placeholder="0.00"
                       value={row.actual_expenditure}
                       onChange={(e) => setField(h.prefix, "actual_expenditure", e.target.value)}
@@ -179,6 +188,7 @@ export default function SshiaFinancialReportPage({
                   <div className="space-y-1.5">
                     <Label>Covered BHCPF lives</Label>
                     <Input
+                      className={finCls}
                       type="number" min="0" step="1" placeholder="0"
                       value={row.bhcpf_lives}
                       onChange={(e) => setField(h.prefix, "bhcpf_lives", e.target.value)}
@@ -260,6 +270,7 @@ export default function SshiaFinancialReportPage({
             {!canEdit && !canFinalSubmit && (
               <p className="text-xs text-slate-500">This report is {reportStatus.replace(/_/g, " ")}. Editing is locked.</p>
             )}
+          </div>
           </div>
         </div>
       )}

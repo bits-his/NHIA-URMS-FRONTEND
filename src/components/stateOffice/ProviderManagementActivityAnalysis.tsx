@@ -924,15 +924,20 @@ function LedgerView({ items }: { items: ActivityAnalysisItem[] }) {
 export default function ActivityAnalysisPanel({
   items,
   scope = { level: 1 },
+  chart: chartProp,
+  onChartChange,
 }: {
   items: ActivityAnalysisItem[];
   scope?: ActivityAnalysisScope;
+  chart?: ChartId;
+  onChartChange?: (c: ChartId) => void;
 }) {
   const isState = scope.level === 1;
   const designKey = `${DESIGN_KEY}.l${scope.level}`;
   const chartKey = `${CHART_KEY}.l${scope.level}`;
-  const [design, setDesign] = React.useState<DesignId>(() => storedChoice(designKey, DESIGNS.map((d) => d.id), "focus"));
-  const [chart, setChart] = React.useState<ChartId>(() => storedChoice(chartKey, CHARTS.map((c) => c.id), "bar"));
+  const design: DesignId = "focus";
+  const [chartState, setChartState] = React.useState<ChartId>(() => storedChoice(chartKey, CHARTS.map((c) => c.id), "bar"));
+  const chart: ChartId = chartProp ?? chartState;
   const [measure, setMeasure] = React.useState<MeasureId>("covered");
   const [pinned, setPinned] = React.useState<string | null>(null);
 
@@ -943,13 +948,9 @@ export default function ActivityAnalysisPanel({
     ? `Activity analysis · ${scope.scopeLabel}`
     : "Activity analysis";
 
-  const chooseDesign = (id: DesignId) => {
-    setDesign(id);
-    setPinned(null);
-    remember(designKey, id);
-  };
   const chooseChart = (id: ChartId) => {
-    setChart(id);
+    setChartState(id);
+    onChartChange?.(id);
     remember(chartKey, id);
   };
 
@@ -965,14 +966,9 @@ export default function ActivityAnalysisPanel({
               </span>
             ) : null}
           </div>
-          <p className="mt-1 max-w-xl text-sm text-slate-500">{blurb}</p>
+
         </div>
-        <div className="flex flex-col items-start gap-2 sm:items-end">
-          <Segmented value={design} options={DESIGNS} onChange={chooseDesign} ariaLabel="Analysis design" />
-          {showChartStyle ? (
-            <Segmented value={chart} options={CHARTS} onChange={chooseChart} ariaLabel="Chart style" />
-          ) : null}
-        </div>
+
       </div>
 
       {isState && (scope.actionQueue?.length || 0) > 0 ? (

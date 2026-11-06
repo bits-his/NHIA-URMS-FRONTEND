@@ -12,6 +12,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { beneficiaryDashboardApi, stockApi } from "@/lib/api";
+import { ChartTypeToggle, SwitchableChart, useChartType } from "./ChartTypeChart";
 import type { RootState } from "@/src/store/store";
 import { isDeptStateCoordinator, isDeptZonalCoordinator } from "@/src/access/departmentRoles";
 import { formatCount, monthLabel } from "./constants";
@@ -85,6 +86,7 @@ export default function BeneficiaryDashboard({
   const [loading, setLoading] = React.useState(true);
   const [data, setData] = React.useState<any | null>(null);
   const [face, setFace] = React.useState<"overview" | "analysis">("overview");
+  const [chartType, setChartType] = useChartType("beneficiary");
 
   const isChangeView = activityType === "hcp_change" || activityType === "hmo_change";
 
@@ -302,7 +304,8 @@ export default function BeneficiaryDashboard({
           )}
         </div>
 
-        <div className="flex items-center gap-1 rounded-lg border border-[#d4e8dc] bg-white p-1 shadow-2xs w-full sm:w-fit">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-1 rounded-lg border border-[#d4e8dc] bg-white p-1 shadow-2xs w-full sm:w-fit">
           {([
             { id: "overview" as const, label: "Overview" },
             { id: "analysis" as const, label: "Analysis" },
@@ -318,6 +321,8 @@ export default function BeneficiaryDashboard({
               {item.label}
             </button>
           ))}
+          </div>
+          <ChartTypeToggle type={chartType} onChange={setChartType} />
         </div>
 
         {loading && !data ? (
@@ -343,16 +348,8 @@ export default function BeneficiaryDashboard({
                 <Panel title="Monthly request trend" className="xl:col-span-2">
                   <ChartFrame>
                     {trend.some((t) => t.activities) ? (
-                      <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={trend} margin={{ top: 4, right: 16, left: 0, bottom: 4 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#e8f3ec" vertical={false} />
-                          <XAxis dataKey="label" tick={{ fontSize: 10, fill: "#64748b" }} />
-                          <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: "#64748b" }} />
-                          <Tooltip content={<ChartTooltip />} />
-                          <Line type="monotone" dataKey="activities" name="Requests" stroke={BRAND} strokeWidth={2.5} dot={{ r: 3 }} />
-                        </LineChart>
-                      </ResponsiveContainer>
-                    ) : <EmptyChart message="No activity trend for this period" />}
+                        <SwitchableChart type={chartType} data={trend.map((t) => ({ name: t.label, value: t.activities }))} name="Requests" color={BRAND} />
+                      ) : <EmptyChart message="No activity trend for this period" />}
                   </ChartFrame>
                 </Panel>
               </div>
@@ -382,30 +379,14 @@ export default function BeneficiaryDashboard({
                   <Panel title="Request mix" subtitle="Requests by activity type" className="xl:col-span-3">
                     <ChartFrame>
                       {byActivity.some((a) => a.value) ? (
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={byActivity} layout="vertical" margin={{ top: 4, right: 16, left: 8, bottom: 4 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#e8f3ec" horizontal={false} />
-                            <XAxis type="number" tick={{ fontSize: 10, fill: "#64748b" }} />
-                            <YAxis type="category" dataKey="label" width={170} tick={{ fontSize: 10, fill: "#0f3d2e" }} />
-                            <Tooltip content={<ChartTooltip />} />
-                            <Bar dataKey="value" name="Requests" fill={BRAND} radius={[0, 4, 4, 0]} />
-                          </BarChart>
-                        </ResponsiveContainer>
+                        <SwitchableChart type={chartType} data={byActivity.map((a) => ({ name: a.label, value: a.value }))} name="Requests" color={BRAND} />
                       ) : <EmptyChart message="No requests recorded for this period" />}
                     </ChartFrame>
                   </Panel>
                   <Panel title="Monthly request trend" className="xl:col-span-2">
                     <ChartFrame>
                       {trend.some((t) => t.activities) ? (
-                        <ResponsiveContainer width="100%" height="100%">
-                          <LineChart data={trend} margin={{ top: 4, right: 16, left: 0, bottom: 4 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#e8f3ec" vertical={false} />
-                            <XAxis dataKey="label" tick={{ fontSize: 10, fill: "#64748b" }} />
-                            <YAxis allowDecimals={false} tick={{ fontSize: 10, fill: "#64748b" }} />
-                            <Tooltip content={<ChartTooltip />} />
-                            <Line type="monotone" dataKey="activities" name="Requests" stroke={BRAND} strokeWidth={2.5} dot={{ r: 3 }} />
-                          </LineChart>
-                        </ResponsiveContainer>
+                        <SwitchableChart type={chartType} data={trend.map((t) => ({ name: t.label, value: t.activities }))} name="Requests" color={BRAND} />
                       ) : <EmptyChart message="No monthly activity to chart" />}
                     </ChartFrame>
                   </Panel>
@@ -417,15 +398,7 @@ export default function BeneficiaryDashboard({
                   <Panel title="Requests by state" className="xl:col-span-3">
                     <ChartFrame>
                       {byState.length ? (
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={byState} layout="vertical" margin={{ top: 4, right: 16, left: 8, bottom: 4 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#e8f3ec" horizontal={false} />
-                            <XAxis type="number" tick={{ fontSize: 10, fill: "#64748b" }} />
-                            <YAxis type="category" dataKey="state_name" width={130} tick={{ fontSize: 10, fill: "#0f3d2e" }} />
-                            <Tooltip content={<ChartTooltip />} />
-                            <Bar dataKey="activities" name="Requests" fill={BRAND} radius={[0, 4, 4, 0]} />
-                          </BarChart>
-                        </ResponsiveContainer>
+                        <SwitchableChart type={chartType} data={byState.map((x) => ({ name: x.state_name, value: x.activities }))} name="Requests" color={BRAND} />
                       ) : <EmptyChart message="No state activity for this period" />}
                     </ChartFrame>
                   </Panel>
@@ -440,15 +413,7 @@ export default function BeneficiaryDashboard({
                   <Panel title="Requests by zone" className="xl:col-span-3">
                     <ChartFrame>
                       {byZone.length ? (
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={byZone} layout="vertical" margin={{ top: 4, right: 16, left: 8, bottom: 4 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#e8f3ec" horizontal={false} />
-                            <XAxis type="number" tick={{ fontSize: 10, fill: "#64748b" }} />
-                            <YAxis type="category" dataKey="name" width={110} tick={{ fontSize: 10, fill: "#0f3d2e" }} />
-                            <Tooltip content={<ChartTooltip />} />
-                            <Bar dataKey="value" name="Requests" fill={BRAND} radius={[0, 4, 4, 0]} />
-                          </BarChart>
-                        </ResponsiveContainer>
+                        <SwitchableChart type={chartType} data={byZone} name="Requests" color={BRAND} />
                       ) : <EmptyChart message="No zone activity for this period" />}
                     </ChartFrame>
                   </Panel>

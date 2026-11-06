@@ -234,7 +234,7 @@ function ScorePills({
   disabled?: boolean;
 }) {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+    <div className="flex flex-wrap gap-2 md:justify-end">
       {options.map((opt) => {
         const active = value === opt.value;
         return (
@@ -244,23 +244,29 @@ function ScorePills({
             disabled={disabled}
             onClick={() => onChange(opt.value)}
             className={cn(
-              "rounded-sm border-2 px-3.5 py-2 text-left transition-all disabled:opacity-60",
+              "inline-flex cursor-pointer items-center gap-2 rounded-sm border-2 px-3.5 py-2 text-sm font-bold transition-all disabled:opacity-60",
               active
-                ? "border-[#145c3f] bg-[#145c3f] text-white shadow-xs"
-                : "border-[#d4e8dc] bg-[#f8faf9] text-slate-700 hover:border-[#1a7a52] hover:bg-white"
+                ? "border-[#1a7a52] bg-[#e8f5ee] text-[#1a7a52] shadow-xs"
+                : "border-slate-200 bg-white text-slate-600 hover:border-[#1a7a52] hover:bg-[#f4f7f5]"
             )}
           >
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-xs font-semibold leading-snug">{opt.label}</span>
-              <span
-                className={cn(
-                  "shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold tabular-nums font-mono",
-                  active ? "bg-white/20 text-white" : "bg-[#e8f3ec] text-[#145c3f]"
-                )}
-              >
-                {opt.score}
-              </span>
-            </div>
+            <span
+              className={cn(
+                "h-3.5 w-3.5 shrink-0 rounded-full border-2 flex items-center justify-center",
+                active ? "border-[#1a7a52]" : "border-slate-300"
+              )}
+            >
+              {active && <span className="h-1.5 w-1.5 rounded-full bg-[#1a7a52]" />}
+            </span>
+            {opt.label}
+            <span
+              className={cn(
+                "shrink-0 rounded px-1 py-px text-[10px] font-bold tabular-nums",
+                active ? "bg-white/70 text-[#145c3f]" : "bg-[#e8f3ec] text-[#145c3f]"
+              )}
+            >
+              {opt.score}
+            </span>
           </button>
         );
       })}
@@ -598,7 +604,7 @@ export default function StateOfficeMysteryShoppingPage({
   // ── Unified Circle Stepper ──────────────────────────────────────────────────
   const circleStepper = (
     <div className="w-full py-4 px-2">
-      <div className="flex items-center justify-between max-w-4xl mx-auto relative px-3">
+      <div className="flex items-center justify-between w-full relative px-3">
         {/* Background Track Line */}
         <div className="absolute top-5 left-6 right-6 h-0.5 bg-slate-200 z-0">
           {/* Active Filled Track Line */}
@@ -659,7 +665,7 @@ export default function StateOfficeMysteryShoppingPage({
     </div>
   );
 
-  // ── Unified In-Card Bottom Navigation ───────────────────────────────────────
+  // ── In-card bottom navigation ───────────────────────────────────────────────
   const formCardFooter = (
     <div className="flex flex-wrap items-center justify-between gap-3 pt-6 border-t border-[#e8f3ec] mt-6">
       <Button
@@ -677,31 +683,29 @@ export default function StateOfficeMysteryShoppingPage({
         Step {step + 1} of {STEPS.length}
       </span>
 
-      <div className="flex items-center gap-2.5">
-        {step < STEPS.length - 1 ? (
-          <Button
-            type="button"
-            className="h-9 px-5 bg-orange-action hover:bg-orange-600 text-white font-bold text-xs gap-1.5 shadow-xs"
-            onClick={goNext}
-          >
-            Next Step <ArrowRight className="w-4 h-4" />
-          </Button>
-        ) : (
-          <Button
-            type="button"
-            className="h-9 px-5 bg-orange-action hover:bg-orange-600 text-white font-bold text-xs gap-2 shadow-xs"
-            onClick={() => void handleSave()}
-            disabled={saving}
-          >
-            {saving ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Save className="w-4 h-4" />
-            )}
-            {mode === "edit" ? "Update Visit" : "Save Visit"}
-          </Button>
-        )}
-      </div>
+      {step < STEPS.length - 1 ? (
+        <Button
+          type="button"
+          className="h-9 px-5 bg-orange-action hover:bg-orange-600 text-white font-bold text-xs gap-1.5 shadow-xs"
+          onClick={goNext}
+        >
+          Next Step <ArrowRight className="w-4 h-4" />
+        </Button>
+      ) : (
+        <Button
+          type="button"
+          className="h-9 px-5 bg-orange-action hover:bg-orange-600 text-white font-bold text-xs gap-2 shadow-xs"
+          onClick={() => void handleSave()}
+          disabled={saving}
+        >
+          {saving ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <Save className="w-4 h-4" />
+          )}
+          {mode === "edit" ? "Update Visit" : "Save Visit"}
+        </Button>
+      )}
     </div>
   );
 
@@ -711,38 +715,46 @@ export default function StateOfficeMysteryShoppingPage({
     index: number
   ) => (
     <Card className="rounded-sm border-[#d4e8dc] shadow-sm overflow-hidden bg-white">
-      <CardContent className="space-y-4 p-4 md:p-6">
-        {ENROLLEE_ITEMS.map((item, idx) => (
-          <div
-            key={item.key}
-            className="space-y-2 border-b border-[#e8f3ec] pb-3.5 last:border-0 last:pb-0"
-          >
-            <div className="flex items-start gap-2">
-              <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-sm bg-[#e8f3ec] text-[10px] font-bold font-mono text-[#145c3f]">
-                {idx + 1}
-              </span>
-              <Label className="text-xs font-semibold text-slate-800 leading-snug">
-                {item.label}
-              </Label>
+      <CardContent className="space-y-3 p-4 md:p-6">
+        {ENROLLEE_ITEMS.map((item, idx) => {
+          const val = f[cardKey][item.key] ?? "";
+          return (
+            <div
+              key={item.key}
+              className={`rounded-sm border p-2 transition-colors ${
+                val ? "border-slate-300 bg-white shadow-xs" : "border-slate-200 bg-[#f4f7f5]"
+              }`}
+            >
+              <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between md:gap-4">
+                <div className="flex items-start gap-3 flex-1 min-w-0">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-sm bg-[#e8f5ee] text-xs font-bold text-[#1a7a52]">
+                    {idx + 1}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-base font-semibold text-slate-800 leading-snug">{item.label}</p>
+                  </div>
+                </div>
+                <div className="shrink-0 md:pl-0 pl-10">
+                  <ScorePills
+                    value={val}
+                    options={ENROLLEE_SCALE}
+                    onChange={(v) => setCard(cardKey, item.key, v)}
+                  />
+                </div>
+              </div>
             </div>
-            <ScorePills
-              value={f[cardKey][item.key] ?? ""}
-              options={ENROLLEE_SCALE}
-              onChange={(v) => setCard(cardKey, item.key, v)}
-            />
-          </div>
-        ))}
+          );
+        })}
 
         <div className="rounded-sm bg-[#f0fdf7] border border-[#d4e8dc] px-4 py-3 flex items-center justify-between">
           <span className="text-xs font-bold uppercase tracking-wider text-[#145c3f]">
-            Card {index} Total Score ({cardAnswered[index - 1]}/{ENROLLEE_ITEMS.length} answered)
+            Total Score ({cardAnswered[index - 1]}/{ENROLLEE_ITEMS.length} answered)
           </span>
           <span className="font-mono text-base font-bold text-[#145c3f]">
             {cardScores[index - 1]} / {ENROLLEE_MAX}
           </span>
         </div>
 
-        {/* Back & Next Navigation inside the card */}
         {formCardFooter}
       </CardContent>
     </Card>
@@ -1199,7 +1211,6 @@ export default function StateOfficeMysteryShoppingPage({
                     </Field>
                   </div>
 
-                  {/* Back & Next Navigation inside the card */}
                   {formCardFooter}
                 </CardContent>
               </Card>
@@ -1208,27 +1219,36 @@ export default function StateOfficeMysteryShoppingPage({
             {/* Step 1: Standard Expectations Checklist Card */}
             {step === 1 && (
               <Card className="rounded-sm border-[#d4e8dc] shadow-sm overflow-hidden bg-white">
-                <CardContent className="space-y-4 p-4 md:p-6">
-                  {OBSERVATION_ITEMS.map((item, idx) => (
-                    <div
-                      key={item.key}
-                      className="space-y-2 border-b border-[#e8f3ec] pb-3.5 last:border-0 last:pb-0"
-                    >
-                      <div className="flex items-start gap-2">
-                        <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-sm bg-[#e8f3ec] text-[10px] font-bold font-mono text-[#145c3f]">
-                          {idx + 1}
-                        </span>
-                        <Label className="text-xs font-semibold text-slate-800 leading-snug">
-                          {item.label}
-                        </Label>
+                <CardContent className="space-y-3 p-4 md:p-6">
+                  {OBSERVATION_ITEMS.map((item, idx) => {
+                    const val = f.observations[item.key] ?? "";
+                    return (
+                      <div
+                        key={item.key}
+                        className={`rounded-sm border p-2 transition-colors ${
+                          val ? "border-slate-300 bg-white shadow-xs" : "border-slate-200 bg-[#f4f7f5]"
+                        }`}
+                      >
+                        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between md:gap-4">
+                          <div className="flex items-start gap-3 flex-1 min-w-0">
+                            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-sm bg-[#e8f5ee] text-xs font-bold text-[#1a7a52]">
+                              {idx + 1}
+                            </span>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-base font-semibold text-slate-800 leading-snug">{item.label}</p>
+                            </div>
+                          </div>
+                          <div className="shrink-0 md:pl-0 pl-10">
+                            <ScorePills
+                              value={val}
+                              options={item.options}
+                              onChange={(v) => setObs(item.key, v)}
+                            />
+                          </div>
+                        </div>
                       </div>
-                      <ScorePills
-                        value={f.observations[item.key] ?? ""}
-                        options={item.options}
-                        onChange={(v) => setObs(item.key, v)}
-                      />
-                    </div>
-                  ))}
+                    );
+                  })}
 
                   <div className="rounded-sm bg-[#f0fdf7] border border-[#d4e8dc] px-4 py-3 flex items-center justify-between">
                     <span className="text-xs font-bold uppercase tracking-wider text-[#145c3f]">
@@ -1239,7 +1259,6 @@ export default function StateOfficeMysteryShoppingPage({
                     </span>
                   </div>
 
-                  {/* Back & Next Navigation inside the card */}
                   {formCardFooter}
                 </CardContent>
               </Card>
