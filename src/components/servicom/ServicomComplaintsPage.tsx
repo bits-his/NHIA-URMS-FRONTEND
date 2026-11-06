@@ -1231,6 +1231,7 @@ export default function ServicomComplaintsPage({
             </Button>
             {canRegister && (
               <Button
+                size="sm"
                 className="bg-orange-action hover:bg-orange-600 gap-2 shadow-md shadow-orange-500/15"
                 onClick={openRegister}
               >

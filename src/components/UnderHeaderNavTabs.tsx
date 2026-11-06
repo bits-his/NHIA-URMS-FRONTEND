@@ -30,7 +30,7 @@ export function UnderHeaderNavTabs<T extends string = string>({
   onChange,
   className,
   ariaLabel = "Navigation Tabs",
-  size = "sm",
+  size = "lg",
 }: UnderHeaderNavTabsProps<T>) {
   const large = size === "lg";
   return (

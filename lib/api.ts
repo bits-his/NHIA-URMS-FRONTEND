@@ -103,6 +103,7 @@ export const meetingsApi = {
 const CH_ROOT = "/state-office/challenges";
 export const challengesSupportApi = {
   catalogue: () => request<{ success: boolean; data: any }>(`${CH_ROOT}/catalogue`),
+  dashboard: (filters: Record<string, string> = {}) => request<{ success: boolean; data: any }>(`${CH_ROOT}/dashboard?${new URLSearchParams(filters)}`),
   challenges: (filters: Record<string, string> = {}) => request<{ success: boolean; data: any[] }>(`${CH_ROOT}/records?${new URLSearchParams(filters)}`),
   createChallenge: (payload: unknown) => request<{ success: boolean; data: any }>(`${CH_ROOT}/records`, { method: "POST", body: JSON.stringify(payload) }),
   challenge: (id: string) => request<{ success: boolean; data: any }>(`${CH_ROOT}/records/${encodeURIComponent(id)}`),
@@ -801,7 +802,19 @@ const enrolmentDriveApis = Object.fromEntries(
 ) as Record<EnrolmentDriveReportType, ReturnType<typeof makeEnrolmentDriveApi>>;
 
 export const stateOfficeApi = {
-  enrolment: makeStateOfficeApi("enrolment"),
+  enrolment: {
+    ...makeStateOfficeApi("enrolment"),
+    getDashboard: (filters?: Record<string, string | number | undefined | null>) => {
+      const p = new URLSearchParams(
+        Object.entries(filters || {})
+          .filter(([, v]) => v != null && v !== "" && v !== "all")
+          .map(([k, v]) => [k, String(v)]),
+      ).toString();
+      return request<{ success: boolean; data: any }>(
+        `/state-office/enrolment/dashboard${p ? `?${p}` : ""}`,
+      );
+    },
+  },
   migration: makeStateOfficeApi("migration"),
   cemonc:    makeStateOfficeApi("cemonc"),
   complaints: makeStateOfficeApi("complaints"),
@@ -867,6 +880,17 @@ export const stateOfficeApi = {
   },
   stakeholder: {
     ...makeStateOfficeApi("stakeholder"),
+    dashboard: (filters?: Record<string, string | undefined>) => {
+      const p = new URLSearchParams(
+        Object.entries(filters || {})
+          .filter(([, v]) => v !== undefined && v !== null && v !== "")
+          .map(([k, v]) => [k, String(v)])
+      ).toString();
+      return request<{ success: boolean; data: any }>(
+        `/state-office/stakeholder/dashboard${p ? `?${p}` : ""}`
+      );
+    },
+
     uploadLineFiles: (reportId: number | string, lineId: number | string, files: File[]) => {
       const token = tokenStore.get();
       const form = new FormData();
@@ -967,6 +991,19 @@ export const stateOfficeApi = {
         return json as { success: boolean; data: any };
       });
     },
+  },
+};
+
+export const beneficiaryDashboardApi = {
+  dashboard: (filters?: Record<string, string | undefined>) => {
+    const p = new URLSearchParams(
+      Object.entries(filters || {})
+        .filter(([, v]) => v !== undefined && v !== null && v !== "")
+        .map(([k, v]) => [k, String(v)])
+    ).toString();
+    return request<{ success: boolean; data: any }>(
+      `/state-office/beneficiary-management/dashboard${p ? `?${p}` : ""}`
+    );
   },
 };
 

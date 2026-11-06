@@ -17,13 +17,13 @@ export const STAKEHOLDER_ENGAGEMENT_CATEGORIES = [
   { code: "ENG-012", label: "Program Implementation/Monitoring" },
   { code: "ENG-013", label: "Program Promotion" },
   { code: "ENG-014", label: "Conflict Resolution/Reconciliation Meetings" },
-  { code: "ENG-015", label: "Others (specify)" },
+  { code: "ENG-015", label: "Other" },
 ] as const;
 
 /** Used as multi-select “Stakeholder name(s)” — Excel Stakeholders Category list */
 export const STAKEHOLDER_CATEGORIES = [
   "HCFs", "MDAs", "HMOs", "Enrolees", "State Ministry of Health",
-  "NHIA-Roche", "SSHIA", "Partners", "Others (Specify)",
+  "NHIA-Roche", "SSHIA", "Partners", "Other",
 ] as const;
 
 export const STAKEHOLDER_PROGRAMS = [
@@ -50,7 +50,7 @@ export const STAKEHOLDER_TARGET_AUDIENCES = [
   "Employers", "Desk Officers", "Students", "Private Company", "Market Association",
   "Artisan Group", "Religious Organisation", "Community Leaders", "Traditional Institution",
   "HMOs", "Healthcare Providers", "Civil Society", "NGOs", "General Public",
-  "Corp Members", "Enrolees", "Informal Sector", "Others (specify)",
+  "Corp Members", "Enrolees", "Informal Sector", "Other",
 ] as const;
 
 export const STAKEHOLDER_LOCATION_BY_CATEGORY: Record<string, readonly string[]> = {
@@ -94,7 +94,7 @@ export const STAKEHOLDER_EVIDENCE_TYPES = [
   "Radio Programme Recording", "TV Recording", "Social Media Report",
   "Signed Commitment Letter", "Nomination of Focal Person", "Follow-up Letter",
   "Field Report", "Enquiry Log", "NHIA Letter of Intent",
-  "Stakeholder Invitation Letter", "Other (Specify)",
+  "Stakeholder Invitation Letter", "Other",
 ] as const;
 
 export const STAKEHOLDER_STATUSES = [
@@ -199,9 +199,9 @@ export const STAKEHOLDER_OUTCOME_MAPPING: StakeholderOutcomeMapRow[] = [
     outcomeCategories: splitList("Organizations/groups/communities/Associations Mobilized; IEC Material Distributed"),
   },
   {
-    specificOutcome: "Others (Specify)",
-    engagementCategories: splitList("Ad-Hoc Activity; Others (specify)"),
-    outcomeCategories: splitList("Other (Specify)"),
+    specificOutcome: "Other",
+    engagementCategories: splitList("Ad-Hoc Activity; Other"),
+    outcomeCategories: splitList("Other"),
   },
   {
     specificOutcome: "No. of disputes resolved",
@@ -245,45 +245,75 @@ export const STAKEHOLDER_OUTCOME_MAPPING: StakeholderOutcomeMapRow[] = [
   },
 ];
 
-export const STAKEHOLDER_OTHER_OUTCOME_CATEGORY = "Other (Specify)";
-export const STAKEHOLDER_OTHER_SPECIFIC_OUTCOME = "Others (Specify)";
+export const STAKEHOLDER_OTHER = "Other";
+export const STAKEHOLDER_OTHER_OUTCOME_CATEGORY = STAKEHOLDER_OTHER;
+export const STAKEHOLDER_OTHER_SPECIFIC_OUTCOME = STAKEHOLDER_OTHER;
+
+const OTHER_LABEL = /^(?:others?|other)\s*(?:\(\s*specify\s*\))?$/i;
+const OTHER_PREFIX = /^(?:others?\s*(?:\(\s*specify\s*\))?|other)\s*:\s*(.*)$/i;
+
+/** Dropdown value written as Other, Other (Specify), or Others (specify). */
+export function isStakeholderOther(value: string) {
+  return OTHER_LABEL.test(String(value || "").trim());
+}
+
+/** Text after an "Other: …" or legacy "Other (Specify): …" value. */
+export function stakeholderOtherText(value: string) {
+  const match = String(value || "").trim().match(OTHER_PREFIX);
+  return match ? match[1].trim() : "";
+}
+
+/** Select value used in the form. Specified text stays in a separate field. */
+export function stakeholderOtherBase(value: string) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  if (isStakeholderOther(raw) || OTHER_PREFIX.test(raw)) return STAKEHOLDER_OTHER;
+  return raw;
+}
 
 export function outcomeCategoriesForEngagement(engagementCategory: string): string[] {
-  if (!STAKEHOLDER_ENGAGEMENT_CATEGORIES.some((category) => category.label === engagementCategory)) return [];
+  const engagement = stakeholderOtherBase(engagementCategory);
+  if (!STAKEHOLDER_ENGAGEMENT_CATEGORIES.some((category) => category.label === engagement)) return [];
   const set = new Set<string>();
   STAKEHOLDER_OUTCOME_MAPPING.forEach((row) => {
-    if (row.engagementCategories.includes(engagementCategory)) {
-      row.outcomeCategories.forEach((c) => set.add(c));
+    if (row.engagementCategories.includes(engagement)) {
+      row.outcomeCategories.forEach((c) => set.add(stakeholderOtherBase(c) || c));
     }
   });
-  set.delete("Other (Specify)");
-  return [...set].sort().concat("Other (Specify)");
+  set.delete(STAKEHOLDER_OTHER);
+  return [...set].sort().concat(STAKEHOLDER_OTHER);
 }
 
 export function specificOutcomesFor(engagementCategory: string, outcomeCategory: string): string[] {
-  if (!outcomeCategoriesForEngagement(engagementCategory).includes(outcomeCategory)) return [];
+  const engagement = stakeholderOtherBase(engagementCategory);
+  const category = stakeholderOtherBase(outcomeCategory);
+  if (!outcomeCategoriesForEngagement(engagement).includes(category)) return [];
   const outcomes = new Set(STAKEHOLDER_OUTCOME_MAPPING
     .filter((row) =>
-      row.engagementCategories.includes(engagementCategory)
-      && row.outcomeCategories.includes(outcomeCategory),
+      row.engagementCategories.includes(engagement)
+      && row.outcomeCategories.map((item) => stakeholderOtherBase(item) || item).includes(category),
     )
-    .map((row) => row.specificOutcome));
-  outcomes.delete("Others (Specify)");
-  return [...outcomes, "Others (Specify)"];
+    .map((row) => stakeholderOtherBase(row.specificOutcome) || row.specificOutcome));
+  outcomes.delete(STAKEHOLDER_OTHER);
+  return [...outcomes, STAKEHOLDER_OTHER];
+}
+
+function specifiedOther(value: string) {
+  const raw = String(value || "").trim();
+  const prefixed = raw.match(OTHER_PREFIX);
+  if (prefixed) return { selected: STAKEHOLDER_OTHER, text: prefixed[1].trim(), prefix: raw.slice(0, raw.length - prefixed[1].length) };
+  if (isStakeholderOther(raw)) return { selected: STAKEHOLDER_OTHER, text: "", prefix: "" };
+  return null;
 }
 
 export function isValidStakeholderOutcome(engagement: string, category: string, outcome: string): boolean {
   if (category.length > 160 || outcome.length > 200) return false;
-  const categoryPrefix = `${STAKEHOLDER_OTHER_OUTCOME_CATEGORY}: `;
-  const outcomePrefix = `${STAKEHOLDER_OTHER_SPECIFIC_OUTCOME}: `;
-  const selectedCategory = category.startsWith(categoryPrefix)
-    ? STAKEHOLDER_OTHER_OUTCOME_CATEGORY
-    : category;
-  if (category.startsWith(categoryPrefix) && !category.slice(categoryPrefix.length).trim()) return false;
-  const allowed = specificOutcomesFor(engagement, selectedCategory);
-  return allowed.includes(outcome)
-    || (allowed.includes(STAKEHOLDER_OTHER_SPECIFIC_OUTCOME)
-      && outcome.startsWith(outcomePrefix) && !!outcome.slice(outcomePrefix.length).trim());
+  const selectedCategory = specifiedOther(category);
+  const selectedOutcome = specifiedOther(outcome);
+  if (OTHER_PREFIX.test(category.trim()) && !selectedCategory?.text) return false;
+  const allowed = specificOutcomesFor(engagement, selectedCategory?.selected || category);
+  if (allowed.includes(outcome)) return true;
+  return allowed.includes(STAKEHOLDER_OTHER) && !!selectedOutcome?.text;
 }
 
 /** Flat lists kept for older template configs / filters */

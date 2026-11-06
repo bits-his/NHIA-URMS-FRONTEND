@@ -13,11 +13,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { SearchSelect } from "@/components/ui/search-select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
-import { stateOfficeApi, stockApi } from "@/lib/api";
+import { stateOfficeApi, stateOfficeAccreditedProvidersApi, stockApi } from "@/lib/api";
 import StateOfficeFormShell from "./StateOfficeFormShell";
 import ReportBasicInfo from "./shared/ReportBasicInfo";
 import { UnderHeaderNavTabs } from "@/src/components/UnderHeaderNavTabs";
 import { ProviderSelect } from "./HcpChangeForm";
+import { MultiSelectField } from "./EnrolmentDriveForm";
 import {
   EXTRA_DEPENDANT_STATUSES,
   HCP_CHANGE_STATUSES,
@@ -294,8 +295,8 @@ type MdaEntry = {
   mda: string;
   former_hmo: string;
   reason_for_change: string;
-  hmos_invited: string;
-  hmos_attended: string;
+  hmos_invited: string[];
+  hmos_attended: string[];
   compliance_guideline: string;
   transparent_process: string;
   selected_hmo: string;
@@ -361,8 +362,8 @@ const blankMda = (): MdaEntry => ({
   mda: "",
   former_hmo: "",
   reason_for_change: "",
-  hmos_invited: "",
-  hmos_attended: "",
+  hmos_invited: [],
+  hmos_attended: [],
   compliance_guideline: "",
   transparent_process: "",
   selected_hmo: "",
@@ -478,6 +479,44 @@ function FormInput({ className, readOnly, disabled, ...props }: React.ComponentP
       disabled={disabled}
       className={cn(controlClass, (readOnly || disabled) && "bg-slate-50 text-slate-600", className)}
     />
+  );
+}
+
+const namesList = (v: unknown): string[] => {
+  if (Array.isArray(v)) return v.filter((x): x is string => typeof x === "string" && !!x.trim());
+  if (typeof v === "string") return v.split(",").map((x) => x.trim()).filter(Boolean);
+  return [];
+};
+
+function HmoMultiSelect({
+  label, values, onChange,
+}: {
+  label: string;
+  values: string[];
+  onChange: (names: string[]) => void;
+}) {
+  const [options, setOptions] = React.useState<string[]>([]);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    stateOfficeAccreditedProvidersApi
+      .list({ type: "hmo", limit: "100" })
+      .then((res: any) => {
+        if (!cancelled) setOptions(res.data.map((p: any) => p.name).filter(Boolean));
+      })
+      .catch(() => !cancelled && setOptions([]));
+    return () => { cancelled = true; };
+  }, []);
+
+  const merged = React.useMemo(
+    () => Array.from(new Set([...options, ...values])),
+    [options, values],
+  );
+
+  return (
+    <Field label={label}>
+      <MultiSelectField label="" options={merged} value={values} onChange={onChange} placeholder="Select HMOs" />
+    </Field>
   );
 }
 
@@ -751,8 +790,8 @@ export default function BeneficiaryManagementForm({
         mda: l.mda ?? "",
         former_hmo: l.former_hmo ?? "",
         reason_for_change: l.reason_for_change ?? "",
-        hmos_invited: l.hmos_invited != null ? String(l.hmos_invited) : "",
-        hmos_attended: l.hmos_attended != null ? String(l.hmos_attended) : "",
+        hmos_invited: namesList(l.hmos_invited_names ?? l.hmos_invited_list),
+        hmos_attended: namesList(l.hmos_in_attendance),
         compliance_guideline: l.compliance_guideline ?? "",
         transparent_process: l.transparent_process ?? "",
         selected_hmo: l.selected_hmo ?? "",
@@ -1044,9 +1083,10 @@ export default function BeneficiaryManagementForm({
             mda: l.mda,
             former_hmo: l.former_hmo || null,
             reason_for_change: l.reason_for_change || null,
-            hmos_invited: l.hmos_invited === "" ? null : Number(l.hmos_invited),
-            hmos_attended: l.hmos_attended === "" ? null : Number(l.hmos_attended),
-            hmos_in_attendance: l.hmos_attended,
+            hmos_invited: l.hmos_invited.length,
+            hmos_invited_names: l.hmos_invited.join(", ") || null,
+            hmos_attended: l.hmos_attended.length,
+            hmos_in_attendance: l.hmos_attended.join(", ") || null,
             compliance_guideline: l.compliance_guideline || null,
             transparent_process: l.transparent_process || null,
             selected_hmo: l.selected_hmo || null,
@@ -1790,15 +1830,19 @@ export default function BeneficiaryManagementForm({
                           <FormInput value={entry.reason_for_change} onChange={(e) => setEntry({ ...entry, reason_for_change: e.target.value })} />
                         </Field>
 
-                        <Field label="HMOs invited">
-                          <FormInput type="number" min={0} value={entry.hmos_invited} onChange={(e) => setEntry({ ...entry, hmos_invited: e.target.value })} />
-                        </Field>
+                        <HmoMultiSelect
+                          label="HMOs invited"
+                          values={entry.hmos_invited}
+                          onChange={(v) => setEntry({ ...entry, hmos_invited: v })}
+                        />
 
-                        <Field label="HMOs attended">
-                          <FormInput type="number" min={0} value={entry.hmos_attended} onChange={(e) => setEntry({ ...entry, hmos_attended: e.target.value })} />
-                        </Field>
+                        <HmoMultiSelect
+                          label="HMOs attended"
+                          values={entry.hmos_attended}
+                          onChange={(v) => setEntry({ ...entry, hmos_attended: v })}
+                        />
 
-                        <Field label="NHIA guideline complied?">
+                        <Field label="Complied with NHIA Guideline?">
                           <Select value={entry.compliance_guideline || undefined} onValueChange={(v) => setEntry({ ...entry, compliance_guideline: v })}>
                             <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
                             <SelectContent>

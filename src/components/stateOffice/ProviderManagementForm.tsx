@@ -23,7 +23,6 @@ import {
   PROVIDER_FUNDING_OPTIONS,
   PROVIDER_RELATED_PROGRAMMES,
   PROVIDER_REPORT_STATUS_LABELS,
-  coverageRates,
   formMeta,
   providerFormIsReady,
   providerLinkedMetricLabel,
@@ -62,6 +61,8 @@ type Entry = {
   engagement_code: string;
   related_programme: string;
   bhcpf_activity_type: string;
+  primary_facilities: string;
+  secondary_facilities: string;
   total_facilities_in_state: string;
   facilities_planned: string;
   activity_date: string;
@@ -85,6 +86,8 @@ const blank = (formKey: ProviderFormKey): Entry => {
     engagement_code: meta.code,
     related_programme: "",
     bhcpf_activity_type: "",
+    primary_facilities: "",
+    secondary_facilities: "",
     total_facilities_in_state: "",
     facilities_planned: "",
     activity_date: "",
@@ -166,9 +169,6 @@ export default function ProviderManagementForm({
     bhcpfType,
   });
   const covered = Number(entry.facilities_covered) || 0;
-  const planned = Number(entry.facilities_planned) || 0;
-  const totalState = Number(entry.total_facilities_in_state) || 0;
-  const rates = coverageRates(totalState, planned, covered);
 
   const nextPmId = React.useCallback((seq: number) => {
     const year = new Date().getFullYear();
@@ -195,7 +195,14 @@ export default function ProviderManagementForm({
         || (Array.isArray(merged.programs_supported) ? merged.programs_supported[0] : "")
         || "",
       bhcpf_activity_type: merged.bhcpf_activity_type || "",
-      total_facilities_in_state: numStr(merged.total_facilities_in_state),
+      primary_facilities: numStr(merged.primary_facilities)
+        || ((merged.related_programme === "FSSHIP" && merged.secondary_facilities == null)
+          ? numStr(merged.total_facilities_in_state)
+          : ""),
+      secondary_facilities: numStr(merged.secondary_facilities),
+      total_facilities_in_state: merged.related_programme === "FSSHIP"
+        ? ""
+        : numStr(merged.total_facilities_in_state),
       facilities_planned: numStr(merged.facilities_planned ?? merged.planned_target_stakeholders),
       activity_date: merged.activity_date ? String(merged.activity_date).slice(0, 10) : "",
       facilities_covered: numStr(merged.facilities_covered ?? merged.stakeholders_engaged),
@@ -231,10 +238,17 @@ export default function ProviderManagementForm({
   };
 
   const validateActivity = (e: Entry = entryRef.current): string | null => {
-    if (!e.related_programme) return "Select Related Programme";
+    if (!e.related_programme) return "Select programme";
     if (!e.activity_date) return "Enter the activity date";
     if (!e.activity_status) return "Select the activity status";
-    if (e.total_facilities_in_state === "") return "Enter total facilities in the state";
+    if (e.related_programme === "FSSHIP") {
+      if (e.primary_facilities === "") return "Enter total primary facilities in the state";
+      if (e.secondary_facilities === "") return "Enter total secondary facilities in the state";
+    } else if (e.related_programme === "BHCPF") {
+      if (e.total_facilities_in_state === "") return "Enter total PHCs in the state";
+    } else if (e.total_facilities_in_state === "") {
+      return "Enter total facilities in the state";
+    }
     if (e.facilities_planned === "") return "Enter facilities planned this period";
     if (e.facilities_covered === "") return "Enter facilities covered from this plan's period";
     return null;
@@ -263,8 +277,14 @@ export default function ProviderManagementForm({
       metricMap[label] = e.metrics[label] ?? "";
     }
     const funded = PROVIDER_FUNDED_OPTIONS.has(e.funding_option);
+    const facilityTotal = e.related_programme === "FSSHIP"
+      ? String((Number(e.primary_facilities) || 0) + (Number(e.secondary_facilities) || 0))
+      : e.total_facilities_in_state;
     return {
       ...e,
+      primary_facilities: e.related_programme === "FSSHIP" ? e.primary_facilities : "",
+      secondary_facilities: e.related_programme === "FSSHIP" ? e.secondary_facilities : "",
+      total_facilities_in_state: facilityTotal,
       provider_management_id: pmId,
       form_type: formKey,
       engagement_category: formMeta(formKey).activity,
@@ -349,6 +369,8 @@ export default function ProviderManagementForm({
             engagement_category: l.engagement_category,
             related_programme: l.related_programme,
             bhcpf_activity_type: l.bhcpf_activity_type || null,
+            primary_facilities: l.related_programme === "FSSHIP" ? numOrNull(l.primary_facilities) : null,
+            secondary_facilities: l.related_programme === "FSSHIP" ? numOrNull(l.secondary_facilities) : null,
             total_facilities_in_state: numOrNull(l.total_facilities_in_state),
             facilities_planned: numOrNull(l.facilities_planned),
             activity_date: l.activity_date || null,
@@ -451,13 +473,16 @@ export default function ProviderManagementForm({
               <fieldset disabled={!canEdit} className="border-t border-[#e8f3ec] pt-4 space-y-5 disabled:opacity-90">
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold text-slate-600">Related Programme <span className="text-rose-500">*</span></Label>
+                    <Label className="text-xs font-semibold text-slate-600">Programme <span className="text-rose-500">*</span></Label>
                       <Select
                         value={entry.related_programme}
                         onValueChange={(v) => setEntry((p) => ({
                           ...p,
                           related_programme: v,
                           bhcpf_activity_type: "",
+                          primary_facilities: "",
+                          secondary_facilities: "",
+                          total_facilities_in_state: "",
                           metrics: {},
                         }))}
                       >
@@ -467,6 +492,34 @@ export default function ProviderManagementForm({
                         </SelectContent>
                       </Select>
                     </div>
+                    {entry.related_programme === "FSSHIP" && (
+                      <>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-semibold text-slate-600">Total primary facilities <span className="text-rose-500">*</span></Label>
+                          <Input type="number" min={0} className={inputClass} value={entry.primary_facilities}
+                            onChange={(e) => set("primary_facilities", e.target.value)} />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-semibold text-slate-600">Total secondary facilities <span className="text-rose-500">*</span></Label>
+                          <Input type="number" min={0} className={inputClass} value={entry.secondary_facilities}
+                            onChange={(e) => set("secondary_facilities", e.target.value)} />
+                        </div>
+                      </>
+                    )}
+                    {entry.related_programme === "BHCPF" && (
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-semibold text-slate-600">Total PHCs in state <span className="text-rose-500">*</span></Label>
+                        <Input type="number" min={0} className={inputClass} value={entry.total_facilities_in_state}
+                          onChange={(e) => set("total_facilities_in_state", e.target.value)} />
+                      </div>
+                    )}
+                    {entry.related_programme === "Other" && (
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-semibold text-slate-600">Total facilities in state <span className="text-rose-500">*</span></Label>
+                        <Input type="number" min={0} className={inputClass} value={entry.total_facilities_in_state}
+                          onChange={(e) => set("total_facilities_in_state", e.target.value)} />
+                      </div>
+                    )}
                     {manualMetrics.map((label) => (
                       <div key={label} className="space-y-1.5">
                         <Label className="text-xs font-semibold text-slate-600 leading-tight">{label}</Label>
@@ -488,11 +541,6 @@ export default function ProviderManagementForm({
                         <Input value={String(covered)} readOnly className={cn(inputClass, "bg-slate-50 opacity-90")} />
                       </div>
                     )}
-                    <div className="space-y-1.5">
-                      <Label className="text-xs font-semibold text-slate-600">Total Facilities in State <span className="text-rose-500">*</span></Label>
-                      <Input type="number" min={0} className={inputClass} value={entry.total_facilities_in_state}
-                        onChange={(e) => set("total_facilities_in_state", e.target.value)} />
-                    </div>
                     <div className="space-y-1.5">
                       <Label className="text-xs font-semibold text-slate-600">Number of Facilities Planned this Period <span className="text-rose-500">*</span></Label>
                       <Input type="number" min={0} className={inputClass} value={entry.facilities_planned}
@@ -552,19 +600,6 @@ export default function ProviderManagementForm({
                       <Label className="text-xs font-semibold text-slate-600">Remarks</Label>
                       <Textarea rows={2} value={entry.remarks}
                         onChange={(e) => set("remarks", e.target.value)} />
-                    </div>
-
-                    <div className="sm:col-span-2 lg:col-span-3 grid sm:grid-cols-2 gap-3 text-sm rounded-sm border border-[#d4e8dc] bg-[#f8fdfb] p-3">
-                      <div>
-                        <p className="text-[11px] uppercase text-slate-400 font-semibold">Period Coverage Rate</p>
-                        <p className="font-semibold tabular-nums">{rates.periodCoverage != null ? `${rates.periodCoverage}%` : "—"}</p>
-                        <p className="text-[11px] text-slate-500">Covered ÷ total state facilities × 100</p>
-                      </div>
-                      <div>
-                        <p className="text-[11px] uppercase text-slate-400 font-semibold">Plan Achievement Rate</p>
-                        <p className="font-semibold tabular-nums">{rates.planAchievement != null ? `${rates.planAchievement}%` : "—"}</p>
-                        <p className="text-[11px] text-slate-500">Covered ÷ facilities planned × 100</p>
-                      </div>
                     </div>
                   </div>
                 </fieldset>

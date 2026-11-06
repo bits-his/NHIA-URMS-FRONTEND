@@ -367,6 +367,18 @@ export function canAccessFunctionality(moduleTitle: string, functionalityTitle: 
 
   const entry = findEntry(user, moduleTitle);
 
+  const funcs = Array.isArray(entry?.functionalities) ? entry.functionalities : [];
+  // An empty list on a module means the whole module was granted.
+  // SDO is the exception: it is stored empty only so State Office Coordination can nest under it.
+  if (entry && funcs.length === 0) {
+    const moduleKey = resolveModuleTitle(moduleTitle);
+    const hostsStateOffice = userAccessEntries(user).some((e) => {
+      const key = resolveModuleTitle(e.access_to);
+      return key === SOC_ZONES_MODULE || key === ZONAL_MODULE;
+    });
+    if (!(moduleKey === SDO_MODULE && hostsStateOffice)) return true;
+  }
+
   const normalized = normalizeFunctionalityTitle(functionalityTitle, moduleTitle);
 
   if (entry?.functionalities.some(f => normalizeFunctionalityTitle(f, moduleTitle) === normalized)) {
@@ -427,6 +439,30 @@ export function canAccessFunctionality(moduleTitle: string, functionalityTitle: 
 
   return false;
 
+}
+
+/** Longest MODULE_CONFIG path that owns this URL, ignoring query strings. */
+export function moduleAccessForPath(pathname: string): { module: string; functionality: string } | null {
+  let best: { module: string; functionality: string; length: number } | null = null;
+
+  const walk = (modTitle: string, nodes: ParentModule["children"]) => {
+    for (const node of nodes) {
+      if (isSubGroup(node)) {
+        walk(modTitle, node.children);
+        continue;
+      }
+      const path = String(node.path || "").split("?")[0];
+      if (!path) continue;
+      const matches = pathname === path || (path !== "/" && pathname.startsWith(`${path}/`));
+      if (!matches) continue;
+      if (!best || path.length > best.length) {
+        best = { module: modTitle, functionality: node.title, length: path.length };
+      }
+    }
+  };
+
+  for (const mod of MODULE_CONFIG) walk(mod.title, mod.children);
+  return best ? { module: best.module, functionality: best.functionality } : null;
 }
 
 

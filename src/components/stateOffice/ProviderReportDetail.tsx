@@ -116,12 +116,30 @@ function ActivityDetail({ line }: { line: any }) {
       <InfoField label="Activity date" value={line.activity_date} />
       <InfoField label="Status" value={line.activity_status} />
       <InfoField label="Funding" value={line.funding_option} />
-      <InfoField
-        label="Total facilities in state"
-        value={line.total_facilities_in_state != null && line.total_facilities_in_state !== ""
-          ? formatCount(line.total_facilities_in_state)
-          : null}
-      />
+      {line.related_programme === "FSSHIP"
+        && (line.primary_facilities != null || line.secondary_facilities != null) ? (
+        <>
+          <InfoField
+            label="Total primary facilities"
+            value={line.primary_facilities != null && line.primary_facilities !== ""
+              ? formatCount(line.primary_facilities)
+              : null}
+          />
+          <InfoField
+            label="Total secondary facilities"
+            value={line.secondary_facilities != null && line.secondary_facilities !== ""
+              ? formatCount(line.secondary_facilities)
+              : null}
+          />
+        </>
+      ) : (
+        <InfoField
+          label={line.related_programme === "BHCPF" ? "Total PHCs in state" : "Total facilities in state"}
+          value={line.total_facilities_in_state != null && line.total_facilities_in_state !== ""
+            ? formatCount(line.total_facilities_in_state)
+            : null}
+        />
+      )}
       <InfoField
         label="Facilities planned"
         value={line.facilities_planned != null && line.facilities_planned !== ""
