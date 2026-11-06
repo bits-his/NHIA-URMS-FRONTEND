@@ -17,6 +17,8 @@ import { buildReportingYearOptions } from "../monthly/reportingYears";
 import { ALL_STATES, useMonthlyStateFilter } from "../monthly/useMonthlyStateFilter";
 import { useStateOfficeAccess } from "@/src/access/createReviewAccess";
 
+const inputClass = "h-10 text-sm font-medium bg-[#f4f7f5] border-2 border-[#1a7a52] rounded-sm px-3.5 shadow-none hover:border-[#0f3d2e] hover:bg-white focus-visible:border-[#0f3d2e] focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-[#1a7a52]/20";
+
 interface Props {
   onBack: () => void;
   defaultStateId?: string | null;
@@ -327,7 +329,7 @@ export default function StateZonalFocalPersonsPage({ onBack, defaultStateId, def
             </div>
             <div className="space-y-2">
               <Label>Name of Office <span className="text-red-500">*</span></Label>
-              <Input disabled={readOnly} value={f.officer_name} onChange={(e) => setField("officer_name", e.target.value)} />
+              <Input className={inputClass} disabled={readOnly} value={f.officer_name} onChange={(e) => setField("officer_name", e.target.value)} />
             </div>
             <div className="space-y-2">
               <Label>Designation <span className="text-red-500">*</span></Label>
@@ -342,11 +344,11 @@ export default function StateZonalFocalPersonsPage({ onBack, defaultStateId, def
             </div>
             <div className="space-y-2">
               <Label>E-mail</Label>
-              <Input type="email" disabled={readOnly} value={f.email} onChange={(e) => setField("email", e.target.value)} />
+              <Input className={inputClass} type="email" disabled={readOnly} value={f.email} onChange={(e) => setField("email", e.target.value)} />
             </div>
             <div className="space-y-2">
               <Label>Phone Number</Label>
-              <Input type="tel" disabled={readOnly} value={f.phone} onChange={(e) => setField("phone", e.target.value)} />
+              <Input className={inputClass} type="tel" disabled={readOnly} value={f.phone} onChange={(e) => setField("phone", e.target.value)} />
             </div>
           </div>
         </CardContent>

@@ -171,7 +171,7 @@ export default function StakeholderDashboard({
 
   return (
     <ScrollArea className="flex-1">
-      <div className="w-full p-3 sm:p-4 space-y-3.5">
+      <div className="w-full p-2 space-y-2">
         <div className="rounded-lg border border-[#d4e8dc] bg-white p-3.5 shadow-2xs">
           <div className="grid gap-3 grid-cols-2 md:grid-cols-3 xl:grid-cols-5">
             <FilterField label="Period">

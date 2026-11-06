@@ -44,9 +44,9 @@ export const COMPLIANCE_HUB_PRIVILEGES: HubPrivilegeConfig<ComplianceHubTabKey> 
     },
     {
       key: "weekly-compliance",
-      tabLabel: "Weekly Compliance",
+      tabLabel: "HCF Compliance Monitoring",
       privilegeTitle: "Weekly Compliance Report",
-      aliases: ["Weekly Compliance"],
+      aliases: ["Weekly Compliance", "HCF Compliance Monitoring", "HCF Compliance Monitoring Report"],
     },
     {
       key: "hmo-indebtedness",

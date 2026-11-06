@@ -32,7 +32,7 @@ import { utilityServiceReportApi, stockApi } from "@/lib/api";
 import ReportBasicInfo from "../shared/ReportBasicInfo";
 
 const controlClass = cn(
-  "h-11 text-sm font-medium",
+  "h-10 text-sm font-medium",
   "bg-[#f4f7f5] border-2 border-[#1a7a52] rounded-sm px-3.5 shadow-none",
   "hover:border-[#0f3d2e] hover:bg-white",
   "focus-visible:border-[#0f3d2e] focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-[#1a7a52]/20",

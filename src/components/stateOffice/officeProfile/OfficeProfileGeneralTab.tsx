@@ -14,6 +14,9 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
+
+const inputClass = "h-10 text-sm font-medium bg-[#f4f7f5] border-2 border-[#1a7a52] rounded-sm px-3.5 shadow-none hover:border-[#0f3d2e] hover:bg-white focus-visible:border-[#0f3d2e] focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-[#1a7a52]/20";
 import { Label } from "@/components/ui/label";
 import {
   Card,
@@ -235,7 +238,7 @@ export default function OfficeProfileGeneralTab({
               }
               placeholder="e.g. 24"
               disabled={readOnly}
-              className="h-9 bg-white border-slate-200 text-xs rounded-sm focus-visible:ring-1 focus-visible:ring-[#1a7a52]"
+              className={inputClass}
             />
           </div>
 
@@ -246,7 +249,7 @@ export default function OfficeProfileGeneralTab({
               onChange={(e) => onChange({ coordinator_name: e.target.value })}
               placeholder="e.g. Dr. Aminu Bello"
               disabled={readOnly}
-              className="h-9 bg-white border-slate-200 text-xs rounded-sm focus-visible:ring-1 focus-visible:ring-[#1a7a52]"
+              className={inputClass}
             />
           </div>
 
@@ -258,7 +261,7 @@ export default function OfficeProfileGeneralTab({
               onChange={(e) => onChange({ coordinator_phone: e.target.value })}
               placeholder="0803 000 0000"
               disabled={readOnly}
-              className="h-9 bg-white border-slate-200 text-xs rounded-sm focus-visible:ring-1 focus-visible:ring-[#1a7a52]"
+              className={inputClass}
             />
           </div>
         </div>
@@ -273,7 +276,7 @@ export default function OfficeProfileGeneralTab({
               onChange={(e) => onChange({ coordinator_email: e.target.value })}
               placeholder="coordinator@gmail.com"
               disabled={readOnly}
-              className="h-9 bg-white border-slate-200 text-xs rounded-sm focus-visible:ring-1 focus-visible:ring-[#1a7a52]"
+              className={inputClass}
             />
           </div>
 
@@ -285,7 +288,7 @@ export default function OfficeProfileGeneralTab({
               onChange={(e) => onChange({ office_email: e.target.value })}
               placeholder="stateoffice@nhia.gov.ng"
               disabled={readOnly}
-              className="h-9 bg-white border-slate-200 text-xs rounded-sm focus-visible:ring-1 focus-visible:ring-[#1a7a52]"
+              className={inputClass}
             />
           </div>
 
@@ -296,7 +299,7 @@ export default function OfficeProfileGeneralTab({
               onChange={(e) => onChange({ office_address: e.target.value })}
               placeholder="e.g. Plot 12, Federal Secretariat Complex"
               disabled={readOnly}
-              className="h-9 bg-white border-slate-200 text-xs rounded-sm focus-visible:ring-1 focus-visible:ring-[#1a7a52]"
+              className={inputClass}
             />
           </div>
         </div>
@@ -316,7 +319,7 @@ export default function OfficeProfileGeneralTab({
               }
               placeholder="e.g. 50000"
               disabled={readOnly}
-              className="h-9 bg-white border-slate-200 text-xs rounded-sm focus-visible:ring-1 focus-visible:ring-[#1a7a52]"
+              className={inputClass}
             />
           </div>
 
@@ -333,15 +336,15 @@ export default function OfficeProfileGeneralTab({
               }
               placeholder="e.g. 25000000"
               disabled={readOnly}
-              className="h-9 bg-white border-slate-200 text-xs rounded-sm focus-visible:ring-1 focus-visible:ring-[#1a7a52]"
+              className={inputClass}
             />
           </div>
 
           <div className="space-y-1.5">
             <Label className="text-xs font-semibold text-slate-700">Annual Operational Plan (AOP)</Label>
             <div className="relative">
-              <label className="flex items-center justify-between h-9 px-3 bg-white border border-slate-200 rounded-sm cursor-pointer hover:border-[#1a7a52] transition-colors">
-                <span className="text-xs text-slate-500 truncate pr-2">
+              <label className="flex items-center justify-between h-10 px-3.5 bg-[#f4f7f5] border-2 border-[#1a7a52] rounded-sm cursor-pointer hover:border-[#0f3d2e] hover:bg-white transition-colors">
+                <span className={cn("text-sm font-medium truncate pr-2", selectedFile || profile?.aop_original_name ? "text-slate-800" : "text-slate-400")}>
                   {selectedFile
                     ? selectedFile.name
                     : profile?.aop_original_name
@@ -349,8 +352,8 @@ export default function OfficeProfileGeneralTab({
                     : "Upload PDF attachment"}
                 </span>
                 <div className="flex items-center gap-1.5 shrink-0">
-                  <Upload className="size-3.5 text-[#1a7a52]" />
-                  <span className="text-[11px] font-semibold text-[#1a7a52]">Browse</span>
+                  <Upload className="size-4 text-[#1a7a52]" />
+                  <span className="text-xs font-semibold text-[#1a7a52]">Browse</span>
                 </div>
                 <input
                   type="file"
@@ -393,10 +396,7 @@ export default function OfficeProfileGeneralTab({
         </div>
       </CardContent>
 
-      <CardFooter className="bg-slate-50/50 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3 py-3 px-5 rounded-b-sm">
-        <span className="text-[11px] text-slate-400 text-center sm:text-left">
-          All changes are recorded in the central National Health Insurance Authority database.
-        </span>
+      <CardFooter className="bg-slate-50/50 border-t border-slate-100 flex items-center justify-end gap-2 py-3 px-5 rounded-b-sm">
         <div className="flex items-center gap-2 self-end sm:self-auto">
           {stateHistoryProfiles.length > 0 && (
             <Button

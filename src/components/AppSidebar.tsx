@@ -193,6 +193,8 @@ const ICON_MAP: Record<string, React.ElementType> = {
   "Complaints Dashboard": LayoutDashboard,
   "Complaints Management": Scale,
   "Weekly Compliance Report": ClipboardCheck,
+  "HCF Compliance Monitoring": ClipboardCheck,
+  "HCF Compliance Monitoring Report": ClipboardCheck,
   "Advocacy / Courtesy Visits": Landmark,
   "Community Sensitization": Users,
   "Informal Sector Mobilization": Store,
