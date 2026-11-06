@@ -235,16 +235,6 @@ export default function StateOfficeDashboardHub({
                 defaultZoneId={isStateLocked ? defaultZoneId : undefined}
                 lockLocation={isStateLocked}
                 excludeServicom
-                title={
-                  isStateLocked
-                    ? "State Complaints Dashboard"
-                    : "State Office Complaints Analytics"
-                }
-                subtitle={
-                  isStateLocked
-                    ? `Complaint resolution, SLA tracking, and trends for ${defaultStateId || "your state"}`
-                    : "State-level complaint resolution, SLA performance, and trends across states"
-                }
               />
             </div>
           </ScrollArea>

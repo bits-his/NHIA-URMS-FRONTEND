@@ -127,6 +127,7 @@ export default function ChallengesSupportDashboardTab({
   const [filterSeverity, setFilterSeverity] = React.useState<string>("all");
   const [filterStatus, setFilterStatus] = React.useState<string>("all");
   const [filterCategory, setFilterCategory] = React.useState<string>("all");
+  const [mainTab, setMainTab] = React.useState<"overview" | "analysis">("overview");
 
   const zones: { zonal_code: string; description: string }[] = catalogue?.zones || [];
   const states: { code: string; description: string; zonal_code: string }[] =
@@ -544,12 +545,11 @@ export default function ChallengesSupportDashboardTab({
       )}
 
       {/* ── Filters Bar (Matching Select style: h-11, rounded-sm, border-2 border-[#1a7a52], bg-[#f4f7f5]) ── */}
-      <Card className="rounded-sm border border-slate-200/80 bg-white shadow-xs">
-        <CardContent className="p-2.5">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+      <div className="rounded-lg border border-[#d4e8dc] bg-white p-3.5 shadow-2xs">
+          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3">
             {/* Period */}
             <div className="space-y-1">
-              <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wide">
+              <label className="text-[10px] uppercase tracking-wide text-slate-400">
                 Reporting Period
               </label>
               <Select value={filterPeriod} onValueChange={setFilterPeriod}>
@@ -566,7 +566,7 @@ export default function ChallengesSupportDashboardTab({
 
             {/* Zone Filter (Locked to assigned zone for zonal user, selectable for national) */}
             <div className="space-y-1">
-              <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wide">
+              <label className="text-[10px] uppercase tracking-wide text-slate-400">
                 Zone {isZonalUser && "• Assigned"}
               </label>
               <Select
@@ -609,7 +609,7 @@ export default function ChallengesSupportDashboardTab({
 
             {/* State Filter */}
             <div className="space-y-1">
-              <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wide">
+              <label className="text-[10px] uppercase tracking-wide text-slate-400">
                 State Office {isStateUser && "• Assigned"}
               </label>
               <Select
@@ -639,7 +639,7 @@ export default function ChallengesSupportDashboardTab({
 
             {/* Severity Filter */}
             <div className="space-y-1">
-              <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wide">
+              <label className="text-[10px] uppercase tracking-wide text-slate-400">
                 Severity Level
               </label>
               <Select value={filterSeverity} onValueChange={setFilterSeverity}>
@@ -658,7 +658,7 @@ export default function ChallengesSupportDashboardTab({
 
             {/* Status Filter */}
             <div className="space-y-1">
-              <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wide">
+              <label className="text-[10px] uppercase tracking-wide text-slate-400">
                 Status
               </label>
               <Select value={filterStatus} onValueChange={setFilterStatus}>
@@ -677,9 +677,31 @@ export default function ChallengesSupportDashboardTab({
               </Select>
             </div>
           </div>
-        </CardContent>
-      </Card>
+      </div>
 
+      <div className="flex items-center gap-1 rounded-lg border border-[#d4e8dc] bg-white p-1 shadow-2xs w-full sm:w-fit">
+        <button
+          type="button"
+          onClick={() => setMainTab("overview")}
+          className={`flex-1 sm:flex-none px-3.5 py-1.5 rounded-md text-xs font-bold transition-colors ${
+            mainTab === "overview" ? "bg-[#145c3f] text-white shadow-xs" : "text-slate-600 hover:bg-slate-50"
+          }`}
+        >
+          Overview
+        </button>
+        <button
+          type="button"
+          onClick={() => setMainTab("analysis")}
+          className={`flex-1 sm:flex-none px-3.5 py-1.5 rounded-md text-xs font-bold transition-colors ${
+            mainTab === "analysis" ? "bg-[#145c3f] text-white shadow-xs" : "text-slate-600 hover:bg-slate-50"
+          }`}
+        >
+          Activity analysis
+        </button>
+      </div>
+
+      {mainTab === "overview" ? (
+      <>
       {/* ── 4 Top KPI Cards (Matching PPT Slides 3, 4, 5, 6) ── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
         {/* KPI 1 */}
@@ -871,7 +893,9 @@ export default function ChallengesSupportDashboardTab({
           </CardContent>
         </Card>
       </div>
-
+      </>
+      ) : (
+      <>
       {/* ── Row 3: Challenge & Support Detailed Breakdown (Slides 7 & 8) ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-2.5">
         {/* Severity Profile */}
@@ -977,7 +1001,11 @@ export default function ChallengesSupportDashboardTab({
           </CardContent>
         </Card>
       </div>
+      </>
+      )}
 
+      {mainTab === "overview" && (
+      <>
       {/* ── Row 4: Priority Alerts & Operational Queue (Slide 9 - ShadcnDataTable) ── */}
       <ShadcnDataTable
         title="PRIORITY ALERTS, OUTSTANDING REQUESTS & ACTION QUEUE"
@@ -993,6 +1021,8 @@ export default function ChallengesSupportDashboardTab({
         pageSize={10}
         showTableOptions={false}
       />
+      </>
+      )}
     </div>
   );
 }
