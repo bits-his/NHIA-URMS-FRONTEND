@@ -37,7 +37,7 @@ function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return (
     <textarea
       {...props}
-      className="w-full min-h-[4.5rem] rounded-xl px-3.5 py-2 text-sm bg-[#f4f7f5] border-2 border-[#1a7a52] text-slate-800 shadow-xs outline-none hover:border-[#0f3d2e] hover:bg-white focus-visible:border-[#0f3d2e] focus-visible:bg-white focus-visible:ring-3 focus-visible:ring-[#1a7a52]/25"
+      className="w-full min-h-[4.5rem] rounded-sm px-3.5 py-2 text-sm bg-[#f4f7f5] border-2 border-[#1a7a52] text-slate-800 shadow-xs outline-none hover:border-[#0f3d2e] hover:bg-white focus-visible:border-[#0f3d2e] focus-visible:bg-white focus-visible:ring-3 focus-visible:ring-[#1a7a52]/25"
     />
   );
 }
@@ -117,6 +117,7 @@ function ReviewSection({ title, children }: { title: string; children: React.Rea
   );
 }
 
+const controlClass = "h-11 text-sm font-medium bg-[#f4f7f5] border-2 border-[#1a7a52] rounded-sm px-3.5 shadow-none hover:border-[#0f3d2e] hover:bg-white focus-visible:border-[#0f3d2e] focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-[#1a7a52]/20";
 const uid = () => Math.random().toString(36).slice(2);
 
 type SavedDoc = { name: string; path: string };
@@ -224,13 +225,13 @@ export function MultiSelectField({
   );
 
   return (
-    <div className={cn("space-y-1.5 md:col-span-2", className)} ref={rootRef}>
+    <div className={cn("space-y-1.5", className)} ref={rootRef}>
       {label ? <Label className="text-[11px] font-semibold text-slate-600">{label}</Label> : null}
       <button
         ref={btnRef}
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="w-full flex items-center justify-between gap-2 min-h-10 px-3 py-1.5 rounded-xl text-sm text-left bg-[#f4f7f5] border-2 border-[#1a7a52] hover:border-[#0f3d2e] hover:bg-white outline-none shadow-xs"
+        className="w-full flex items-center justify-between gap-2 h-11 px-3.5 rounded-sm text-sm font-medium text-left bg-[#f4f7f5] border-2 border-[#1a7a52] hover:border-[#0f3d2e] hover:bg-white outline-none shadow-none"
       >
         {value.length ? (
           <span className="flex-1 flex flex-wrap gap-1 min-w-0">
@@ -531,7 +532,7 @@ export default function EnrolmentDriveForm({ reportType, reportId, onBack, onCan
                     {/* 1. Drive & Activity Details */}
                     <FieldSection title="Drive & Activity Details">
                       <Field label="Activity Date" required error={fieldErrors.activity_date}>
-                        <Input type="date" value={entry.activity_date} onChange={(e) => set("activity_date", e.target.value)} />
+                        <Input className={controlClass} type="date" value={entry.activity_date} onChange={(e) => set("activity_date", e.target.value)} />
                       </Field>
                       <Field label="Activity Category" required error={fieldErrors.activity_category}>
                         <Select
@@ -553,7 +554,7 @@ export default function EnrolmentDriveForm({ reportType, reportId, onBack, onCan
                         </Select>
                       </Field>
                       <Field label="Specific Activity Carried Out">
-                        <Input value={entry.specific_activity} placeholder="Describe specific activity" onChange={(e) => set("specific_activity", e.target.value)} />
+                        <Input className={controlClass} value={entry.specific_activity} placeholder="Describe specific activity" onChange={(e) => set("specific_activity", e.target.value)} />
                       </Field>
                       <MultiSelectField
                         label="Program Supported"
@@ -561,7 +562,6 @@ export default function EnrolmentDriveForm({ reportType, reportId, onBack, onCan
                         value={entry.programs_supported}
                         onChange={(v) => set("programs_supported", v)}
                         placeholder="Select programs"
-                        className="sm:col-span-2 lg:col-span-3"
                       />
                     </FieldSection>
 
@@ -592,19 +592,19 @@ export default function EnrolmentDriveForm({ reportType, reportId, onBack, onCan
                         value={entry.target_audience}
                         onChange={(v) => set("target_audience", v)}
                         placeholder="Select target audience"
-                        className="sm:col-span-2 lg:col-span-1"
                       />
                       <Field label="Planned Target Audience">
-                        <Input type="number" min={0} value={entry.planned_target_audience} onChange={(e) => set("planned_target_audience", e.target.value)} placeholder="0" />
+                        <Input className={controlClass} type="number" min={0} value={entry.planned_target_audience} onChange={(e) => set("planned_target_audience", e.target.value)} placeholder="0" />
                       </Field>
                       <Field label="Target Audience Reached">
-                        <Input type="number" min={0} value={entry.target_audience_reached} onChange={(e) => set("target_audience_reached", e.target.value)} placeholder="0" />
+                        <Input className={controlClass} type="number" min={0} value={entry.target_audience_reached} onChange={(e) => set("target_audience_reached", e.target.value)} placeholder="0" />
                       </Field>
                       <Field label="Number of Leads Generated">
-                        <Input type="number" min={0} value={entry.leads_generated} onChange={(e) => set("leads_generated", e.target.value)} placeholder="0" />
+                        <Input className={controlClass} type="number" min={0} value={entry.leads_generated} onChange={(e) => set("leads_generated", e.target.value)} placeholder="0" />
                       </Field>
                       <Field label="Linked enrolments (auto)">
                         <Input
+                          className={controlClass}
                           type="number"
                           min={0}
                           value={entry.new_enrolments}
@@ -629,10 +629,10 @@ export default function EnrolmentDriveForm({ reportType, reportId, onBack, onCan
                       {isBudgeted && (
                         <>
                           <Field label="Activity Budget (₦)" required error={fieldErrors.activity_budget}>
-                            <Input type="number" min={0} value={entry.activity_budget} onChange={(e) => set("activity_budget", e.target.value)} placeholder="0.00" />
+                            <Input className={controlClass} type="number" min={0} value={entry.activity_budget} onChange={(e) => set("activity_budget", e.target.value)} placeholder="0.00" />
                           </Field>
                           <Field label="Approved Amount (₦)" required error={fieldErrors.approved_amount}>
-                            <Input type="number" min={0} value={entry.approved_amount} onChange={(e) => set("approved_amount", e.target.value)} placeholder="0.00" />
+                            <Input className={controlClass} type="number" min={0} value={entry.approved_amount} onChange={(e) => set("approved_amount", e.target.value)} placeholder="0.00" />
                           </Field>
                         </>
                       )}
@@ -644,12 +644,13 @@ export default function EnrolmentDriveForm({ reportType, reportId, onBack, onCan
                           </SelectContent>
                         </Select>
                       </Field>
-                      <Field label="Activity Details" className="sm:col-span-2 lg:col-span-3">
+                      <Field label="Activity Details">
                         <Textarea rows={2} value={entry.activity_details} placeholder="Describe details of the activity..." onChange={(e) => set("activity_details", e.target.value)} />
                       </Field>
-                      <Field label="Supporting Evidence" className="sm:col-span-2 lg:col-span-3">
+                      <Field label="Supporting Evidence">
                         <Input
                           ref={fileInputRef}
+                          className={controlClass}
                           type="file"
                           multiple
                           onChange={(e) => set("supportingFiles", Array.from(e.target.files ?? []))}

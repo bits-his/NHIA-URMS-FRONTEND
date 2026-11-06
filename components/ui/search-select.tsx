@@ -46,6 +46,7 @@ export function SearchSelect({
   const menuRef = React.useRef<HTMLDivElement>(null);
   const searchRef = React.useRef<HTMLInputElement>(null);
 
+  const yesNoOnly = options.length > 0 && options.every((option) => /^(yes|no)$/i.test((option.label.trim() || option.value).trim()));
   const selected = options.find(o => o.value === value);
   const shownLabel = selected?.label || displayLabel || "";
   const hasSelection = Boolean(selected || (displayLabel && displayLabel.trim()));
@@ -98,13 +99,15 @@ export function SearchSelect({
     const onReflow = () => updateMenuPosition();
     window.addEventListener("resize", onReflow);
     window.addEventListener("scroll", onReflow, true);
-    const t = setTimeout(() => searchRef.current?.focus(), 50);
+    const t = setTimeout(() => {
+      if (!yesNoOnly) searchRef.current?.focus();
+    }, 50);
     return () => {
       window.removeEventListener("resize", onReflow);
       window.removeEventListener("scroll", onReflow, true);
       clearTimeout(t);
     };
-  }, [open, updateMenuPosition]);
+  }, [open, updateMenuPosition, yesNoOnly]);
 
   const handleSelect = (val: string) => {
     onChange(val);
@@ -128,27 +131,29 @@ export function SearchSelect({
         "overflow-hidden",
       )}
     >
-      <div className="shrink-0 p-1.5 border-b border-[#e8f5ee]">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#5a7a6a]" />
-          <input
-            ref={searchRef}
-            type="text"
-            value={query}
-            onChange={e => {
-              setQuery(e.target.value);
-              onSearchChange?.(e.target.value);
-            }}
-            placeholder={searchPlaceholder}
-            className={cn(
-              "w-full pl-9 pr-3 h-9 rounded-sm text-sm",
-              "bg-[#f4f7f5] border border-[#c8e6d8]",
-              "text-slate-800 placeholder:text-slate-400",
-              "outline-none focus:border-[#1a7a52] focus:ring-2 focus:ring-[#1a7a52]/20",
-            )}
-          />
+      {!yesNoOnly && (
+        <div className="shrink-0 p-1.5 border-b border-[#e8f5ee]">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#5a7a6a]" />
+            <input
+              ref={searchRef}
+              type="text"
+              value={query}
+              onChange={e => {
+                setQuery(e.target.value);
+                onSearchChange?.(e.target.value);
+              }}
+              placeholder={searchPlaceholder}
+              className={cn(
+                "w-full pl-9 pr-3 h-9 rounded-sm text-sm",
+                "bg-[#f4f7f5] border border-[#c8e6d8]",
+                "text-slate-800 placeholder:text-slate-400",
+                "outline-none focus:border-[#1a7a52] focus:ring-2 focus:ring-[#1a7a52]/20",
+              )}
+            />
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="overflow-y-auto flex-1 min-h-0 p-1">
         {filtered.length === 0 ? (

@@ -90,6 +90,8 @@ type Batch = {
   reviews?: { reference_id: string; action: string; actor_name: string; note: string; createdAt?: string; created_at?: string; revision: number }[];
 };
 const emptyActivity = (): Activity => ({ drive_type: "", activity_date: "", activity_category: "", specific_activity: "", location_category: "", location_name: "", exact_location: "", programs_supported: [], target_audience: [], other_audience: "", planned_target_audience: "", target_audience_reached: "", leads_generated: "", activity_status: "", status_reason: "", funding_option: "", activity_budget: "", approved_amount: "", activity_details: "", evidence_type: "", remarks: "" });
+const needsSpecifiedAudience = (audiences: string[] | undefined) =>
+  (audiences || []).some((item) => /^others?\s*\(specify\)/i.test(String(item).trim()));
 const toDraft = (row: Activity): Activity => {
   const draft = Object.fromEntries(
     Object.entries({ ...emptyActivity(), ...row }).map(([key, value]) => [key, value ?? ""]),
@@ -102,7 +104,8 @@ const toDraft = (row: Activity): Activity => {
 };
 const editable = (batch: Batch | null) => !!batch && ["draft", "returned"].includes(batch.status);
 const statusLabel = (value: string) => ({ awaiting_review: "Awaiting review", final_submit: "Final submission", send_for_review: "Sent for review", returned: "Returned", endorsed: "Endorsed", submitted: "Submitted", draft: "Draft", endorse: "Endorsed", return: "Returned" }[value] || value);
-const inputClass = "w-full min-h-[4.5rem] rounded-xl px-3.5 py-2 text-sm bg-[#f4f7f5] border-2 border-[#1a7a52] text-slate-800 shadow-xs outline-none hover:border-[#0f3d2e] hover:bg-white focus-visible:border-[#0f3d2e] focus-visible:bg-white focus-visible:ring-3 focus-visible:ring-[#1a7a52]/25";
+const controlClass = "h-11 text-sm font-medium bg-[#f4f7f5] border-2 border-[#1a7a52] rounded-sm px-3.5 shadow-none hover:border-[#0f3d2e] hover:bg-white focus-visible:border-[#0f3d2e] focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-[#1a7a52]/20";
+const inputClass = "w-full min-h-[4.5rem] rounded-sm px-3.5 py-2 text-sm bg-[#f4f7f5] border-2 border-[#1a7a52] text-slate-800 shadow-xs outline-none hover:border-[#0f3d2e] hover:bg-white focus-visible:border-[#0f3d2e] focus-visible:bg-white focus-visible:ring-3 focus-visible:ring-[#1a7a52]/25";
 const ACTION = "bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20";
 const STATUS_TONES: Record<string, string> = { draft: "bg-slate-100 text-slate-600 border-slate-200", returned: "bg-rose-100 text-rose-700 border-rose-200", awaiting_review: "bg-amber-100 text-amber-800 border-amber-200", endorsed: "bg-teal-100 text-teal-800 border-teal-200", submitted: "bg-emerald-100 text-emerald-700 border-emerald-200" };
 function StatusBadge({ status }: { status: string }) {
@@ -113,7 +116,7 @@ export function Dropdown({ value, options, onChange, disabled, placeholder = "Se
   return <Select value={value} onValueChange={onChange} disabled={disabled}><SelectTrigger displayValue={items.find((option) => option.value === value)?.label}><SelectValue placeholder={placeholder} /></SelectTrigger><SelectContent>{items.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}</SelectContent></Select>;
 }
 function MultiPicker({ value, options, onChange, label }: { value: string[]; options: string[]; onChange: (value: string[]) => void; label: string }) {
-  return <MultiSelectField label="" value={value} options={options} onChange={onChange} placeholder={`Select ${label}`} className="md:col-span-1" />;
+  return <MultiSelectField label="" value={value} options={options} onChange={onChange} placeholder={`Select ${label}`} className="col-span-1 md:col-span-1" />;
 }
 function FormGrid({ children, className = "grid gap-3 sm:grid-cols-2 lg:grid-cols-3" }: { children: React.ReactNode; className?: string }) {
   return <div className={className}>{children}</div>;
@@ -277,8 +280,8 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
     if (!draft.target_audience || draft.target_audience.length === 0) {
       errs.target_audience = "Select at least one target audience";
     }
-    if (draft.target_audience?.includes("Others (specify)") && !draft.other_audience.trim()) {
-      errs.other_audience = "Please specify other audience";
+    if (needsSpecifiedAudience(draft.target_audience) && !draft.other_audience.trim()) {
+      errs.other_audience = "Specify the target audience";
     }
 
     if (!draft.funding_option) errs.funding_option = "Funding option is required";
@@ -573,25 +576,11 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
   };
   const pageTitle = mode === "batch" ? "Enrolment Drive Report" : "Enrolment Drives";
   const geoInfo = (current?: Batch) => {
-    const stateCode = current?.state_code || period.state_code;
-    const zoneCode = current?.zonal_code || catalogue?.states.find((state) => state.code === stateCode)?.zonal_code || "";
-    const zoneName = catalogue?.zones?.find((zone) => zone.zonal_code === zoneCode)?.description || zoneCode;
     return (
-      <FormGrid className="grid gap-3 sm:grid-cols-2">
-        <Field label="State / FCT" required>
-          <Dropdown
-            value={stateCode}
-            options={stateOptions}
-            onChange={(value) => setPeriod((previous) => ({ ...previous, state_code: value }))}
-            disabled={!!current || catalogue?.states.length === 1}
-            placeholder="Select State / FCT"
-          />
-        </Field>
-        <Field label="Zone">
-          <Input value={zoneName} readOnly placeholder="Auto-derived from State" />
-        </Field>
+      <FormGrid>
         <Field label="Reporting month" required>
           <Input
+            className={controlClass}
             type="month"
             min="2000-01"
             max="2100-12"
@@ -602,6 +591,7 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
         </Field>
         <Field label="Number of planned activities" required error={activityErrors.planned_activities}>
           <Input
+            className={controlClass}
             type="number"
             min={0}
             step={1}
@@ -621,6 +611,9 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
             }}
             placeholder="Enter number"
           />
+        </Field>
+        <Field label="Activity date" required error={activityErrors.activity_date}>
+          <Input className={controlClass} type="date" value={draft.activity_date} onChange={(event) => set("activity_date", event.target.value)} />
         </Field>
       </FormGrid>
     );
@@ -738,7 +731,7 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
                               ["Location category", activity.location_category],
                               ["Location name", activity.location_name],
                               ["Exact location", activity.exact_location],
-                              ["Target audience", activity.target_audience?.join(", ")],
+                              ["Target audience", [activity.target_audience?.join(", "), needsSpecifiedAudience(activity.target_audience) ? activity.other_audience : ""].filter(Boolean).join(" — ")],
                               ["Number of planned audience (if any)", activity.planned_target_audience != null ? formatCount(activity.planned_target_audience) : null],
                               ["Number of audience reached", activity.target_audience_reached != null ? formatCount(activity.target_audience_reached) : null],
                               ["Number of leads generated", activity.leads_generated != null ? formatCount(activity.leads_generated) : null],
@@ -1029,9 +1022,6 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
                 <fieldset disabled={busy || !canEdit} className="space-y-6">
                   {geoInfo(batch)}
                   <FormGrid>
-                    <Field label="Activity date" required error={activityErrors.activity_date}>
-                      <Input type="date" value={draft.activity_date} onChange={(event) => set("activity_date", event.target.value)} />
-                    </Field>
                     <Field label="Activity Category" required error={activityErrors.activity_category}>
                       <Dropdown
                         value={draft.activity_category}
@@ -1056,9 +1046,9 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
                       />
                     </Field>
                     <Field label="Specify activity" required error={activityErrors.specific_activity}>
-                      <Input value={draft.specific_activity} maxLength={255} placeholder="Enter the activity conducted" onChange={(event) => set("specific_activity", event.target.value)} />
+                      <Input className={controlClass} value={draft.specific_activity} maxLength={255} placeholder="Enter the activity conducted" onChange={(event) => set("specific_activity", event.target.value)} />
                     </Field>
-                    <Field label="Programmes supported" required error={activityErrors.programs_supported} className="sm:col-span-2 lg:col-span-3">
+                    <Field label="Programmes supported" required error={activityErrors.programs_supported}>
                       <MultiPicker value={draft.programs_supported} options={catalogue?.programmes || []} onChange={(value) => set("programs_supported", value)} label="programmes" />
                     </Field>
                     <Field label="Location category" required error={activityErrors.location_category}>
@@ -1079,25 +1069,39 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
                       />
                     </Field>
                     <Field label="Specify exact location" required error={activityErrors.exact_location}>
-                      <Input value={draft.exact_location} maxLength={500} onChange={(event) => set("exact_location", event.target.value)} placeholder="Enter the venue or address" />
+                      <Input className={controlClass} value={draft.exact_location} maxLength={500} onChange={(event) => set("exact_location", event.target.value)} placeholder="Enter the venue or address" />
                     </Field>
-                    <Field label="Target audience" required error={activityErrors.target_audience} className="sm:col-span-2 lg:col-span-3">
-                      <MultiPicker value={draft.target_audience} options={catalogue?.audiences || []} onChange={(value) => set("target_audience", value)} label="audiences" />
+                    <Field label="Target audience" required error={activityErrors.target_audience || activityErrors.other_audience}>
+                      <div className="space-y-2">
+                        <MultiPicker
+                          value={draft.target_audience}
+                          options={catalogue?.audiences || []}
+                          onChange={(value) => {
+                            set("target_audience", value);
+                            if (!needsSpecifiedAudience(value)) set("other_audience", "");
+                          }}
+                          label="audiences"
+                        />
+                        {needsSpecifiedAudience(draft.target_audience) && (
+                          <Input
+                            className={controlClass}
+                            value={draft.other_audience}
+                            maxLength={255}
+                            onChange={(event) => set("other_audience", event.target.value)}
+                            placeholder="Specify the target audience"
+                          />
+                        )}
+                      </div>
                     </Field>
-                    {draft.target_audience.includes("Others (specify)") && (
-                      <Field label="Specify audience" required error={activityErrors.other_audience} className="sm:col-span-2 lg:col-span-3">
-                        <Input value={draft.other_audience} maxLength={255} onChange={(event) => set("other_audience", event.target.value)} placeholder="Enter the target audience" />
-                      </Field>
-                    )}
                     <Field label="Number of planned audience (if any)">
-                      <Input type="number" min={0} step={1} value={draft.planned_target_audience} onChange={(event) => set("planned_target_audience", event.target.value)} placeholder="Optional" />
+                      <Input className={controlClass} type="number" min={0} step={1} value={draft.planned_target_audience} onChange={(event) => set("planned_target_audience", event.target.value)} placeholder="Optional" />
                     </Field>
                     <Field label="Number of audience reached">
-                      <Input type="number" min={0} step={1} value={draft.target_audience_reached} onChange={(event) => set("target_audience_reached", event.target.value)} />
+                      <Input className={controlClass} type="number" min={0} step={1} value={draft.target_audience_reached} onChange={(event) => set("target_audience_reached", event.target.value)} />
                     </Field>
                     <Field label="Number of leads generated">
                       <div className="space-y-2">
-                        <Input type="number" min={0} step={1} value={draft.leads_generated} onChange={(event) => set("leads_generated", event.target.value)} />
+                        <Input className={controlClass} type="number" min={0} step={1} value={draft.leads_generated} onChange={(event) => set("leads_generated", event.target.value)} />
                         {canEdit ? (
                           <Button
                             type="button"
@@ -1130,14 +1134,14 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
                         <textarea className={inputClass} value={draft.status_reason} onChange={(event) => set("status_reason", event.target.value)} placeholder="Explain the activity status" />
                       </Field>
                     )}
-                    <Field label="Activity details" required error={activityErrors.activity_details} className="sm:col-span-2 lg:col-span-3">
-                      <textarea className={inputClass} rows={3} value={draft.activity_details} onChange={(event) => set("activity_details", event.target.value)} placeholder="Describe the activity" />
+                    <Field label="Activity details" required error={activityErrors.activity_details}>
+                      <textarea className={inputClass} rows={2} value={draft.activity_details} onChange={(event) => set("activity_details", event.target.value)} placeholder="Describe the activity" />
                     </Field>
                     <Field label="Supporting evidence type" required error={activityErrors.evidence_type}>
                       <Dropdown value={draft.evidence_type} options={catalogue?.evidence_types || []} onChange={(value) => set("evidence_type", value)} placeholder="Select evidence type" />
                     </Field>
                     <Field label="Supporting evidence" required={draft.activity_status === "Completed"} error={activityErrors.evidence}>
-                      <Input key={activityFormKey} type="file" multiple onChange={(event) => setFiles(Array.from(event.target.files || []))} />
+                      <Input key={activityFormKey} className={controlClass} type="file" multiple onChange={(event) => setFiles(Array.from(event.target.files || []))} />
                       <p className="text-xs text-slate-500">Up to 10 files, 15 MB each.</p>
                     </Field>
                     {!!draft.evidence?.length && (
@@ -1146,7 +1150,7 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
                         <EvidenceFiles files={draft.evidence} />
                       </div>
                     )}
-                    <Field label="Funding option" required error={activityErrors.funding_option} className={draft.funding_option === catalogue?.funding[1] ? "" : "sm:col-span-2 lg:col-span-3"}>
+                    <Field label="Funding option" required error={activityErrors.funding_option}>
                       <Dropdown
                         value={draft.funding_option}
                         options={catalogue?.funding || []}
@@ -1157,10 +1161,10 @@ export default function EnrolmentDriveWorkspace({ onBack, defaultStateId, defaul
                     {draft.funding_option === catalogue?.funding[1] && (
                       <>
                         <Field label="Activity budget (₦)" required error={activityErrors.activity_budget}>
-                          <Input type="number" min={0} step="0.01" value={draft.activity_budget} onChange={(event) => set("activity_budget", event.target.value)} />
+                          <Input className={controlClass} type="number" min={0} step="0.01" value={draft.activity_budget} onChange={(event) => set("activity_budget", event.target.value)} />
                         </Field>
                         <Field label="Approved amount (₦)" required error={activityErrors.approved_amount}>
-                          <Input type="number" min={0} step="0.01" value={draft.approved_amount} onChange={(event) => set("approved_amount", event.target.value)} />
+                          <Input className={controlClass} type="number" min={0} step="0.01" value={draft.approved_amount} onChange={(event) => set("approved_amount", event.target.value)} />
                         </Field>
                       </>
                     )}

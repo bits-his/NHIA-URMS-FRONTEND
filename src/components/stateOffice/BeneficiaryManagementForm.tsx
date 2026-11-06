@@ -442,6 +442,15 @@ function EnrolleeInfoView({
   );
 }
 
+/** Match enrolment form controls: equal height, green border, filled surface. */
+const controlClass = cn(
+  "h-11 text-sm font-medium",
+  "bg-[#f4f7f5] border-2 border-[#1a7a52] rounded-sm px-3.5 shadow-none",
+  "hover:border-[#0f3d2e] hover:bg-white",
+  "focus-visible:border-[#0f3d2e] focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-[#1a7a52]/20",
+);
+const searchControlClass = "h-11 px-3.5 text-sm font-medium";
+
 function Field({
   label, required, children, className,
 }: {
@@ -451,13 +460,37 @@ function Field({
   className?: string;
 }) {
   return (
-    <div className={cn("space-y-1", className)}>
-      <Label className="text-sm font-semibold text-slate-600">
+    <div className={cn("space-y-1.5", className)}>
+      <Label className="text-xs font-semibold text-slate-600">
         {label}
         {required ? <span className="text-rose-500 ml-0.5">*</span> : null}
       </Label>
       {children}
     </div>
+  );
+}
+
+function FormInput({ className, readOnly, disabled, ...props }: React.ComponentProps<typeof Input>) {
+  return (
+    <Input
+      {...props}
+      readOnly={readOnly}
+      disabled={disabled}
+      className={cn(controlClass, (readOnly || disabled) && "bg-slate-50 text-slate-600", className)}
+    />
+  );
+}
+
+function FetchEnroleesButton() {
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      className="h-10 shrink-0 border-[#1a7a52] text-[#145c3f] hover:bg-[#e8f6ee]"
+      onClick={() => toast.info("Waiting for handshake with NHIA API")}
+    >
+      Fetch enrolees
+    </Button>
   );
 }
 
@@ -1101,7 +1134,7 @@ export default function BeneficiaryManagementForm({
                     </span>
                   )}
                 </div>
-                <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid gap-3 sm:grid-cols-2">
                   {BENEFICIARY_ACTIVITIES.map((item) => {
                     const Icon = BENEFICIARY_ACTIVITY_ICONS[item.key];
                     return (
@@ -1275,6 +1308,11 @@ export default function BeneficiaryManagementForm({
               <>
                 <Card className="rounded-sm border-[#d4e8dc] shadow-sm overflow-hidden">
                   <CardContent className="p-4 md:p-5 space-y-6">
+                    {(activity === "additional" || activity === "extra") && (
+                      <div className="flex justify-end">
+                        <FetchEnroleesButton />
+                      </div>
+                    )}
                     <ReportBasicInfo {...header} lockZone={header.lockZone} lockState={header.lockState} showQuarter embedded />
 
                     <div className="border-t border-[#e8f3ec] pt-6">
@@ -1282,7 +1320,7 @@ export default function BeneficiaryManagementForm({
                         <div className="space-y-4">
                           <div>
                             <Field label="Search for Principal Enrollee" required>
-                              <SearchSelect
+                              <SearchSelect className={searchControlClass}
                                 options={visiblePrincipals.map((p) => ({ value: p.value, label: p.label, sub: p.sub }))}
                                 value={entry.principal_key}
                                 displayLabel={entry.enrollee_name ? `${entry.enrollee_name}${entry.principle_nhia_number ? ` · ${entry.principle_nhia_number}` : ""}` : undefined}
@@ -1317,7 +1355,7 @@ export default function BeneficiaryManagementForm({
                             />
                           ) : null}
 
-                          <div className="grid gap-4 sm:grid-cols-2">
+                          <div className="grid gap-3 sm:grid-cols-2">
                             <Field label="Relationship" required>
                               <Select
                                 value={entry.relationship_kind || undefined}
@@ -1370,7 +1408,7 @@ export default function BeneficiaryManagementForm({
                             </Field>
                           </div>
 
-                          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                             <Field label="State" required>
                               <Select
                                 value={effectiveHcfStateId || undefined}
@@ -1413,11 +1451,11 @@ export default function BeneficiaryManagementForm({
                             />
 
                             <Field label="Date of request">
-                              <Input type="date" value={entry.request_date} onChange={(e) => setEntry({ ...entry, request_date: e.target.value })} />
+                              <FormInput type="date" value={entry.request_date} onChange={(e) => setEntry({ ...entry, request_date: e.target.value })} />
                             </Field>
 
                             <Field label="Process end date">
-                              <Input type="date" value={entry.process_end_date} onChange={(e) => setEntry({ ...entry, process_end_date: e.target.value })} />
+                              <FormInput type="date" value={entry.process_end_date} onChange={(e) => setEntry({ ...entry, process_end_date: e.target.value })} />
                             </Field>
 
                             <Field label="Status">
@@ -1430,7 +1468,7 @@ export default function BeneficiaryManagementForm({
                             </Field>
 
                             <Field label="Supporting documents" className="sm:col-span-2 lg:col-span-3">
-                              <Input
+                              <FormInput
                                 ref={fileRef}
                                 type="file"
                                 multiple
@@ -1445,7 +1483,7 @@ export default function BeneficiaryManagementForm({
                         <div className="space-y-4">
                           <div>
                             <Field label="Search for Principal Enrollee" required>
-                              <SearchSelect
+                              <SearchSelect className={searchControlClass}
                                 options={visiblePrincipals.map((p) => ({ value: p.value, label: p.label, sub: p.sub }))}
                                 value={entry.principal_key}
                                 displayLabel={entry.enrollee_name ? `${entry.enrollee_name}${entry.principle_nhia_number ? ` · ${entry.principle_nhia_number}` : ""}` : undefined}
@@ -1480,7 +1518,7 @@ export default function BeneficiaryManagementForm({
                             />
                           ) : null}
 
-                          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                             <Field label="Relationship" required>
                               <Select
                                 value={entry.entity_type || undefined}
@@ -1527,7 +1565,7 @@ export default function BeneficiaryManagementForm({
                             </div>
                           </div>
 
-                          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                             <Field label="State" required>
                               <Select
                                 value={effectiveHcfStateId || undefined}
@@ -1570,11 +1608,11 @@ export default function BeneficiaryManagementForm({
                             />
 
                             <Field label="Date of request">
-                              <Input type="date" value={entry.request_date} onChange={(e) => setEntry({ ...entry, request_date: e.target.value })} />
+                              <FormInput type="date" value={entry.request_date} onChange={(e) => setEntry({ ...entry, request_date: e.target.value })} />
                             </Field>
 
                             <Field label="Process end date">
-                              <Input type="date" value={entry.process_end_date} onChange={(e) => setEntry({ ...entry, process_end_date: e.target.value })} />
+                              <FormInput type="date" value={entry.process_end_date} onChange={(e) => setEntry({ ...entry, process_end_date: e.target.value })} />
                             </Field>
 
                             <Field label="Status">
@@ -1587,7 +1625,7 @@ export default function BeneficiaryManagementForm({
                             </Field>
 
                             <Field label="Supporting documents" className="sm:col-span-2 lg:col-span-3">
-                              <Input
+                              <FormInput
                                 ref={fileRef}
                                 type="file"
                                 multiple
@@ -1599,13 +1637,13 @@ export default function BeneficiaryManagementForm({
                       )}
 
                     {activity === "provider" && entry.kind === "provider" && (
-                      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                         <Field label="Date of request">
-                          <Input type="date" value={entry.record_date} onChange={(e) => setEntry({ ...entry, record_date: e.target.value })} />
+                          <FormInput type="date" value={entry.record_date} onChange={(e) => setEntry({ ...entry, record_date: e.target.value })} />
                         </Field>
 
                         <Field label="Enrollee" required className="sm:col-span-2">
-                          <SearchSelect
+                          <SearchSelect className={searchControlClass}
                             options={visiblePrincipals.map((p) => ({ value: p.value, label: p.label, sub: p.sub }))}
                             value={entry.enrollee_key}
                             displayLabel={entry.enrollee_name ? `${entry.enrollee_name}${entry.nhia_number ? ` · ${entry.nhia_number}` : ""}` : undefined}
@@ -1630,11 +1668,11 @@ export default function BeneficiaryManagementForm({
                         </Field>
 
                         <Field label="NHIA number">
-                          <Input value={entry.nhia_number} readOnly placeholder="From the enrollee record" />
+                          <FormInput value={entry.nhia_number} readOnly placeholder="From the enrollee record" />
                         </Field>
 
                         <Field label="Programme">
-                          <Input value={entry.program} readOnly placeholder="From the enrollee record" />
+                          <FormInput value={entry.program} readOnly placeholder="From the enrollee record" />
                         </Field>
 
                         <Field label="Request type" required>
@@ -1658,7 +1696,7 @@ export default function BeneficiaryManagementForm({
                         </Field>
 
                         <Field label="MDA (if applicable)">
-                          <Input value={entry.mda} onChange={(e) => setEntry({ ...entry, mda: e.target.value })} />
+                          <FormInput value={entry.mda} onChange={(e) => setEntry({ ...entry, mda: e.target.value })} />
                         </Field>
 
                         <ProviderSelect
@@ -1693,7 +1731,7 @@ export default function BeneficiaryManagementForm({
                         </Field>
 
                         <Field label="Additional explanation" required={entry.reason_category === OTHER_REASON} className="sm:col-span-2">
-                          <Input
+                          <FormInput
                             value={entry.reason_other}
                             disabled={entry.reason_category !== OTHER_REASON}
                             placeholder={entry.reason_category === OTHER_REASON ? "Required for Other" : "Only when reason is Other"}
@@ -1720,7 +1758,7 @@ export default function BeneficiaryManagementForm({
                         </Field>
 
                         <Field label="Supporting documents" className="sm:col-span-2 lg:col-span-3">
-                          <Input
+                          <FormInput
                             ref={fileRef}
                             type="file"
                             multiple
@@ -1731,13 +1769,13 @@ export default function BeneficiaryManagementForm({
                     )}
 
                     {activity === "mda" && entry.kind === "mda" && (
-                      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                         <Field label="Date">
-                          <Input type="date" value={entry.selection_date} onChange={(e) => setEntry({ ...entry, selection_date: e.target.value })} />
+                          <FormInput type="date" value={entry.selection_date} onChange={(e) => setEntry({ ...entry, selection_date: e.target.value })} />
                         </Field>
 
                         <Field label="Name of MDA" required className="sm:col-span-2">
-                          <Input value={entry.mda} onChange={(e) => setEntry({ ...entry, mda: e.target.value })} />
+                          <FormInput value={entry.mda} onChange={(e) => setEntry({ ...entry, mda: e.target.value })} />
                         </Field>
 
                         <ProviderSelect
@@ -1749,15 +1787,15 @@ export default function BeneficiaryManagementForm({
                         />
 
                         <Field label="Reason for change" className="sm:col-span-2">
-                          <Input value={entry.reason_for_change} onChange={(e) => setEntry({ ...entry, reason_for_change: e.target.value })} />
+                          <FormInput value={entry.reason_for_change} onChange={(e) => setEntry({ ...entry, reason_for_change: e.target.value })} />
                         </Field>
 
                         <Field label="HMOs invited">
-                          <Input type="number" min={0} value={entry.hmos_invited} onChange={(e) => setEntry({ ...entry, hmos_invited: e.target.value })} />
+                          <FormInput type="number" min={0} value={entry.hmos_invited} onChange={(e) => setEntry({ ...entry, hmos_invited: e.target.value })} />
                         </Field>
 
                         <Field label="HMOs attended">
-                          <Input type="number" min={0} value={entry.hmos_attended} onChange={(e) => setEntry({ ...entry, hmos_attended: e.target.value })} />
+                          <FormInput type="number" min={0} value={entry.hmos_attended} onChange={(e) => setEntry({ ...entry, hmos_attended: e.target.value })} />
                         </Field>
 
                         <Field label="NHIA guideline complied?">
@@ -1787,12 +1825,12 @@ export default function BeneficiaryManagementForm({
                         />
 
                         <Field label="Evidence of selection">
-                          <Input type="file" onChange={(e) => setEntry({ ...entry, evidenceFile: e.target.files?.[0] ?? null })} />
+                          <FormInput type="file" onChange={(e) => setEntry({ ...entry, evidenceFile: e.target.files?.[0] ?? null })} />
                           {entry.evidence_name ? <p className="text-xs text-slate-600">{entry.evidence_name}</p> : null}
                         </Field>
 
                         <Field label="Full selection report">
-                          <Input type="file" onChange={(e) => setEntry({ ...entry, reportFile: e.target.files?.[0] ?? null })} />
+                          <FormInput type="file" onChange={(e) => setEntry({ ...entry, reportFile: e.target.files?.[0] ?? null })} />
                           {entry.report_name ? <p className="text-xs text-slate-600">{entry.report_name}</p> : null}
                         </Field>
 
@@ -1806,7 +1844,7 @@ export default function BeneficiaryManagementForm({
                         </Field>
 
                         <Field label="Remarks" className="sm:col-span-2 lg:col-span-3">
-                          <Input value={entry.remarks} onChange={(e) => setEntry({ ...entry, remarks: e.target.value })} />
+                          <FormInput value={entry.remarks} onChange={(e) => setEntry({ ...entry, remarks: e.target.value })} />
                         </Field>
                       </div>
                     )}
