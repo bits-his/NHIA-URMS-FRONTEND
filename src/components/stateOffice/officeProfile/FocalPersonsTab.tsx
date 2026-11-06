@@ -23,6 +23,8 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+
+const inputClass = "h-10 text-sm font-medium bg-[#f4f7f5] border-2 border-[#1a7a52] rounded-sm px-3.5 shadow-none hover:border-[#0f3d2e] hover:bg-white focus-visible:border-[#0f3d2e] focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-[#1a7a52]/20";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -709,7 +711,7 @@ export default function FocalPersonsTab({
                   onChange={(e) => setOfficerName(e.target.value)}
                   placeholder="e.g. Dr. Aminu Bello"
                   disabled={readOnly}
-                  className="h-9 bg-white border-slate-200 text-xs rounded-sm focus-visible:ring-1 focus-visible:ring-[#1a7a52]"
+                  className={inputClass}
                 />
               </div>
 
@@ -722,21 +724,21 @@ export default function FocalPersonsTab({
                   onChange={(e) => setDesignation(e.target.value)}
                   placeholder="e.g. Senior ICT Officer / Focal Officer"
                   disabled={readOnly}
-                  className="h-9 bg-white border-slate-200 text-xs rounded-sm focus-visible:ring-1 focus-visible:ring-[#1a7a52]"
+                  className={inputClass}
                 />
               </div>
 
               <div className="space-y-1.5">
                 <Label className="text-xs font-semibold text-slate-700">Official Email</Label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
+                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-[#1a7a52]" />
                   <Input
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="officer@nhia.gov.ng"
                     disabled={readOnly}
-                    className="pl-9 h-9 bg-white border-slate-200 text-xs rounded-sm focus-visible:ring-1 focus-visible:ring-[#1a7a52]"
+                    className={cn(inputClass, "pl-10")}
                   />
                 </div>
               </div>
@@ -744,14 +746,14 @@ export default function FocalPersonsTab({
               <div className="space-y-1.5">
                 <Label className="text-xs font-semibold text-slate-700">Official Phone Number</Label>
                 <div className="relative">
-                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
+                  <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-[#1a7a52]" />
                   <Input
                     type="tel"
                     value={phoneNumber}
                     onChange={(e) => setPhoneNumber(e.target.value)}
                     placeholder="0803 000 0000"
                     disabled={readOnly}
-                    className="pl-9 h-9 bg-white border-slate-200 text-xs rounded-sm focus-visible:ring-1 focus-visible:ring-[#1a7a52]"
+                    className={cn(inputClass, "pl-10")}
                   />
                 </div>
               </div>

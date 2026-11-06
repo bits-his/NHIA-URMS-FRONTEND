@@ -27,6 +27,9 @@ import { toast } from "sonner";
 import { officeAccommodationApi, stockApi } from "@/lib/api";
 import { buildReportingYearOptions } from "../../monthly/reportingYears";
 
+const inputClass = "h-10 text-sm font-medium bg-[#f4f7f5] border-2 border-[#1a7a52] rounded-sm px-3.5 shadow-none hover:border-[#0f3d2e] hover:bg-white focus-visible:border-[#0f3d2e] focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-[#1a7a52]/20";
+const textareaClass = "w-full rounded-sm border-2 border-[#1a7a52] bg-[#f4f7f5] p-3 text-sm font-medium text-slate-800 placeholder:text-slate-400 outline-none hover:border-[#0f3d2e] hover:bg-white focus:border-[#0f3d2e] focus:bg-white focus:ring-2 focus:ring-[#1a7a52]/20 resize-y transition-colors";
+
 const OFFICE_TYPES = ["Rented", "NHIA-owned", "Co-habiting"] as const;
 const CONDITIONS = ["Good", "Fair", "Poor", "Requires Major Repairs"] as const;
 
@@ -335,6 +338,7 @@ export default function OfficeAccommodationTab({
               onChange={(e) => setRentAmount(e.target.value)}
               placeholder={officeType === "Rented" ? "e.g. 5000000" : "N/A (Owned)"}
               disabled={readOnly || officeType !== "Rented"}
+              className={inputClass}
             />
           </div>
 
@@ -347,6 +351,7 @@ export default function OfficeAccommodationTab({
               value={rentExpiryDate}
               onChange={(e) => setRentExpiryDate(e.target.value)}
               disabled={readOnly || officeType !== "Rented"}
+              className={inputClass}
             />
           </div>
 
@@ -384,7 +389,7 @@ export default function OfficeAccommodationTab({
             onChange={(e) => setIssueDescription(e.target.value)}
             placeholder="Describe facility defects, structural maintenance, or repair requirements..."
             disabled={readOnly}
-            className="w-full rounded-sm border border-slate-200 bg-white p-3 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#1a7a52] resize-y"
+            className={textareaClass}
           />
         </div>
 
@@ -396,7 +401,7 @@ export default function OfficeAccommodationTab({
             onChange={(e) => setRemarks(e.target.value)}
             placeholder="Additional notes on lease renewal or landlord liaison..."
             disabled={readOnly}
-            className="h-9 bg-white border-slate-200 text-xs rounded-sm focus-visible:ring-1 focus-visible:ring-[#1a7a52]"
+            className={inputClass}
           />
         </div>
       </CardContent>

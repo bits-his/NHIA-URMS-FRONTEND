@@ -20,6 +20,8 @@ import PageLayout from "@/src/components/PageLayout";
 
 const BASE = "/soc/office-profile";
 
+const inputClass = "h-10 text-sm font-medium bg-[#f4f7f5] border-2 border-[#1a7a52] rounded-sm px-3.5 shadow-none hover:border-[#0f3d2e] hover:bg-white focus-visible:border-[#0f3d2e] focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-[#1a7a52]/20";
+
 interface Props {
   defaultStateId?: string | null;
   defaultZoneId?: string | null;
@@ -808,7 +810,7 @@ export default function StateZonalOfficeProfilePage({ defaultStateId, defaultZon
           <div className="space-y-1">
             <Label className="text-xs">Zone <span className="text-red-500">*</span></Label>
             <Select value={f.zone_id} onValueChange={(v) => setField("zone_id", v)} disabled={lockGeo}>
-              <SelectTrigger className={`h-9 w-full ${lockGeo ? "opacity-70 bg-slate-50" : ""}`} displayValue={zoneLabel}>
+              <SelectTrigger className={`w-full ${lockGeo ? "opacity-70 bg-slate-50" : ""}`} displayValue={zoneLabel}>
                 <SelectValue placeholder="Select Zone" />
               </SelectTrigger>
               <SelectContent>
@@ -819,7 +821,7 @@ export default function StateZonalOfficeProfilePage({ defaultStateId, defaultZon
           <div className="space-y-1">
             <Label className="text-xs">State <span className="text-red-500">*</span></Label>
             <Select value={f.state_id} onValueChange={(v) => setField("state_id", v)} disabled={lockStateField}>
-              <SelectTrigger className={`h-9 w-full ${lockStateField ? "opacity-70 bg-slate-50" : ""}`} displayValue={stateLabel}>
+              <SelectTrigger className={`w-full ${lockStateField ? "opacity-70 bg-slate-50" : ""}`} displayValue={stateLabel}>
                 <SelectValue placeholder="Select State" />
               </SelectTrigger>
               <SelectContent>
@@ -830,7 +832,7 @@ export default function StateZonalOfficeProfilePage({ defaultStateId, defaultZon
           <div className="space-y-1">
             <Label className="text-xs">Reporting Year <span className="text-red-500">*</span></Label>
             <Select value={f.reporting_year} onValueChange={(v) => setField("reporting_year", v)}>
-              <SelectTrigger className="h-9 w-full" displayValue={f.reporting_year}>
+              <SelectTrigger className="w-full" displayValue={f.reporting_year}>
                 <SelectValue placeholder="Select Year" />
               </SelectTrigger>
               <SelectContent>
@@ -846,20 +848,20 @@ export default function StateZonalOfficeProfilePage({ defaultStateId, defaultZon
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-2 items-end">
             <div className="space-y-1 lg:col-span-1">
               <Label className="text-xs">Staff Name <span className="text-red-500">*</span></Label>
-              <Input className="h-9" placeholder="Full name" value={staffDraft.name} onChange={(e) => setStaffDraft((d) => ({ ...d, name: e.target.value }))} />
+              <Input className={inputClass} placeholder="Full name" value={staffDraft.name} onChange={(e) => setStaffDraft((d) => ({ ...d, name: e.target.value }))} />
             </div>
             <div className="space-y-1">
               <Label className="text-xs">Email</Label>
-              <Input className="h-9" type="email" placeholder="email@example.com" value={staffDraft.email} onChange={(e) => setStaffDraft((d) => ({ ...d, email: e.target.value }))} />
+              <Input className={inputClass} type="email" placeholder="email@example.com" value={staffDraft.email} onChange={(e) => setStaffDraft((d) => ({ ...d, email: e.target.value }))} />
             </div>
             <div className="space-y-1">
               <Label className="text-xs">File Number</Label>
-              <Input className="h-9" placeholder="File no." value={staffDraft.file_number} onChange={(e) => setStaffDraft((d) => ({ ...d, file_number: e.target.value }))} />
+              <Input className={inputClass} placeholder="File no." value={staffDraft.file_number} onChange={(e) => setStaffDraft((d) => ({ ...d, file_number: e.target.value }))} />
             </div>
             <div className="space-y-1">
               <Label className="text-xs">Unit</Label>
               <Select value={staffDraft.unit} onValueChange={(v) => setStaffDraft((d) => ({ ...d, unit: v }))}>
-                <SelectTrigger className="h-9 w-full" displayValue={staffDraft.unit || "Select Unit"}>
+                <SelectTrigger className="w-full" displayValue={staffDraft.unit || "Select Unit"}>
                   <SelectValue placeholder="Select Unit" />
                 </SelectTrigger>
                 <SelectContent>
@@ -867,7 +869,7 @@ export default function StateZonalOfficeProfilePage({ defaultStateId, defaultZon
                 </SelectContent>
               </Select>
             </div>
-            <Button type="button" size="sm" className="h-9 bg-orange-action hover:bg-orange-600 gap-1" onClick={addStaffToTable}>
+            <Button type="button" size="sm" className="h-10 bg-orange-action hover:bg-orange-600 gap-1" onClick={addStaffToTable}>
               <Plus className="w-3.5 h-3.5" /> Add
             </Button>
           </div>
@@ -915,11 +917,11 @@ export default function StateZonalOfficeProfilePage({ defaultStateId, defaultZon
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
           <div className="space-y-1 md:col-span-2">
             <Label className="text-xs">Office Address</Label>
-            <Input className="h-9" value={f.office_address} onChange={(e) => setField("office_address", e.target.value)} />
+            <Input className={inputClass} value={f.office_address} onChange={(e) => setField("office_address", e.target.value)} />
           </div>
           <div className="space-y-1">
             <Label className="text-xs">Office E-mail</Label>
-            <Input className="h-9" type="email" value={f.office_email} onChange={(e) => setField("office_email", e.target.value)} />
+            <Input className={inputClass} type="email" value={f.office_email} onChange={(e) => setField("office_email", e.target.value)} />
           </div>
         </div>
       </Section>
@@ -928,11 +930,11 @@ export default function StateZonalOfficeProfilePage({ defaultStateId, defaultZon
         <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
           <div className="space-y-1">
             <Label className="text-xs">Enrolment Target</Label>
-            <Input className="h-9" type="number" min={0} value={f.enrolment_target} onChange={(e) => setField("enrolment_target", e.target.value)} />
+            <Input className={inputClass} type="number" min={0} value={f.enrolment_target} onChange={(e) => setField("enrolment_target", e.target.value)} />
           </div>
           <div className="space-y-1">
             <Label className="text-xs">Annual Budget (NGN)</Label>
-            <Input className="h-9" type="number" min={0} step="0.01" value={f.annual_budget} onChange={(e) => setField("annual_budget", e.target.value)} />
+            <Input className={inputClass} type="number" min={0} step="0.01" value={f.annual_budget} onChange={(e) => setField("annual_budget", e.target.value)} />
           </div>
           <div className="space-y-1">
             <Label className="text-xs">AOP</Label>
@@ -947,8 +949,8 @@ export default function StateZonalOfficeProfilePage({ defaultStateId, defaultZon
                 if (file) setField("remove_aop", "");
               }}
             />
-            <div className="flex flex-wrap items-center gap-1.5 min-h-9">
-              <Button type="button" variant="outline" size="sm" className="h-9 gap-1.5 text-xs" onClick={() => fileRef.current?.click()}>
+            <div className="flex flex-wrap items-center gap-1.5 min-h-10">
+              <Button type="button" variant="outline" size="sm" className="h-10 gap-1.5 text-xs border-2 border-[#1a7a52] text-[#0f3d2e] bg-[#f4f7f5] hover:bg-white" onClick={() => fileRef.current?.click()}>
                 <Paperclip className="w-3.5 h-3.5" />
                 {aopFile ? "Replace" : "Attach"}
               </Button>
@@ -977,7 +979,7 @@ export default function StateZonalOfficeProfilePage({ defaultStateId, defaultZon
                   ...(isOwnedStatus(v) ? { rentAmount: "", rentExpiryDate: "" } : {}),
                 }))}
               >
-                <SelectTrigger className="h-9 w-full" displayValue={accomDraft.ownershipStatus || "Select"}>
+                <SelectTrigger className="w-full" displayValue={accomDraft.ownershipStatus || "Select"}>
                   <SelectValue placeholder="Select" />
                 </SelectTrigger>
                 <SelectContent>
@@ -989,18 +991,18 @@ export default function StateZonalOfficeProfilePage({ defaultStateId, defaultZon
               <>
                 <div className="space-y-1">
                   <Label className="text-xs">Rent (NGN)</Label>
-                  <Input className="h-9" type="number" min={0} value={accomDraft.rentAmount} onChange={(e) => setAccomDraft((d) => ({ ...d, rentAmount: e.target.value }))} />
+                  <Input className={inputClass} type="number" min={0} value={accomDraft.rentAmount} onChange={(e) => setAccomDraft((d) => ({ ...d, rentAmount: e.target.value }))} />
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Rent Expiry</Label>
-                  <Input className="h-9" type="date" value={accomDraft.rentExpiryDate} onChange={(e) => setAccomDraft((d) => ({ ...d, rentExpiryDate: e.target.value }))} />
+                  <Input className={inputClass} type="date" value={accomDraft.rentExpiryDate} onChange={(e) => setAccomDraft((d) => ({ ...d, rentExpiryDate: e.target.value }))} />
                 </div>
               </>
             )}
             <div className="space-y-1">
               <Label className="text-xs">Condition</Label>
               <Select value={accomDraft.currentCondition} onValueChange={(v) => setAccomDraft((d) => ({ ...d, currentCondition: v }))}>
-                <SelectTrigger className="h-9 w-full" displayValue={accomDraft.currentCondition || "Select"}>
+                <SelectTrigger className="w-full" displayValue={accomDraft.currentCondition || "Select"}>
                   <SelectValue placeholder="Select" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1010,9 +1012,9 @@ export default function StateZonalOfficeProfilePage({ defaultStateId, defaultZon
             </div>
             <div className="space-y-1">
               <Label className="text-xs">Remarks</Label>
-              <Input className="h-9" value={accomDraft.remarks} onChange={(e) => setAccomDraft((d) => ({ ...d, remarks: e.target.value }))} />
+              <Input className={inputClass} value={accomDraft.remarks} onChange={(e) => setAccomDraft((d) => ({ ...d, remarks: e.target.value }))} />
             </div>
-            <Button type="button" size="sm" className="h-9 bg-orange-action hover:bg-orange-600 gap-1" onClick={addAccommodationToTable}>
+            <Button type="button" size="sm" className="h-10 bg-orange-action hover:bg-orange-600 gap-1" onClick={addAccommodationToTable}>
               <Plus className="w-3.5 h-3.5" /> Add
             </Button>
           </div>
