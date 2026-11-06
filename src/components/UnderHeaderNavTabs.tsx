@@ -16,6 +16,8 @@ export interface UnderHeaderNavTabsProps<T extends string = string> {
   onChange: (id: T) => void;
   className?: string;
   ariaLabel?: string;
+  /** Larger labels and icons. */
+  size?: "sm" | "lg";
 }
 
 /**
@@ -28,7 +30,9 @@ export function UnderHeaderNavTabs<T extends string = string>({
   onChange,
   className,
   ariaLabel = "Navigation Tabs",
+  size = "sm",
 }: UnderHeaderNavTabsProps<T>) {
+  const large = size === "lg";
   return (
     <div
       role="tablist"
@@ -52,7 +56,8 @@ export function UnderHeaderNavTabs<T extends string = string>({
             disabled={tab.disabled}
             onClick={() => !tab.disabled && onChange(tab.id)}
             className={cn(
-              "group relative shrink-0 inline-flex items-center gap-1.5 px-3 py-2.5 text-xs font-semibold whitespace-nowrap border-b-2 transition-all outline-none cursor-pointer",
+              "group relative shrink-0 inline-flex items-center font-semibold whitespace-nowrap border-b-2 transition-all outline-none cursor-pointer",
+              large ? "gap-2 px-4 py-3.5 text-sm" : "gap-1.5 px-3 py-2.5 text-xs",
               active
                 ? "border-[#145c3f] text-[#145c3f]"
                 : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300",
@@ -62,7 +67,8 @@ export function UnderHeaderNavTabs<T extends string = string>({
             {Icon && (
               <Icon
                 className={cn(
-                  "size-3.5 shrink-0 transition-colors",
+                  "shrink-0 transition-colors",
+                  large ? "size-5" : "size-3.5",
                   active
                     ? "text-[#145c3f]"
                     : "text-slate-400 group-hover:text-slate-600"

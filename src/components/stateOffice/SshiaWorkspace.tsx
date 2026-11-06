@@ -274,7 +274,7 @@ export default function SshiaWorkspace({
     </>
   );
 
-  React.useEffect(() => {
+  React.useLayoutEffect(() => {
     if (!embedded || !onChromeChange) return;
     onChromeChange({
       mode: mode === "tabs" ? "list" : mode,
@@ -296,7 +296,7 @@ export default function SshiaWorkspace({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [embedded, onChromeChange, mode, editingId, detailStatus, canCreate, syncing, pageTitle]);
 
-  React.useEffect(() => () => onChromeChange?.(null), [onChromeChange]);
+  React.useLayoutEffect(() => () => onChromeChange?.(null), [onChromeChange]);
 
   return (
     <div className={`flex flex-col h-full min-h-0 ${embedded ? "" : "bg-[#f4f7f5]"}`}>

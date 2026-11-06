@@ -127,9 +127,10 @@ export function ProviderSelect({
   const entityLabel = entityType === "hmo" ? "HMO" : "HCP";
 
   return (
-    <div className="space-y-1">
-      <Label>{label}</Label>
+    <div className="space-y-1.5">
+      <Label className="text-xs font-semibold text-slate-600">{label}</Label>
       <SearchSelect
+        className="h-11 px-3.5 text-sm font-medium"
         options={displayOptions}
         value={selectedValue}
         onChange={(id) => {

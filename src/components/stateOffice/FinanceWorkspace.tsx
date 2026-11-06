@@ -72,10 +72,11 @@ export default function FinanceWorkspace({
   const activeMeta = TAB_META.find((t) => t.key === activeTab);
 
   const [chrome, setChrome] = React.useState<FinanceChrome | null>(null);
-
-  React.useEffect(() => {
+  const [chromeTab, setChromeTab] = React.useState(activeTab);
+  if (chromeTab !== activeTab) {
+    setChromeTab(activeTab);
     setChrome(null);
-  }, [activeTab]);
+  }
 
   React.useEffect(() => {
     if (!defaultTab) return;

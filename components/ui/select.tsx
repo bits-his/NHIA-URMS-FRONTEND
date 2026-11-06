@@ -185,6 +185,18 @@ interface SelectContentProps {
   alignItemWithTrigger?: boolean;
 }
 
+function isYesNoChoice(text: string) {
+  return /^(yes|no)$/i.test(text.trim());
+}
+
+function isYesNoList(items: Array<{ value: string; label: string }>) {
+  return items.length > 0 && items.every((item) => {
+    const label = item.label.trim();
+    const text = label && label !== "[object Object]" ? label : String(item.value ?? "");
+    return isYesNoChoice(text);
+  });
+}
+
 function SelectContent({ children, className }: SelectContentProps) {
   const { open, setOpen, query, setQuery, triggerRef } = useCtx();
   const searchRef  = React.useRef<HTMLInputElement>(null);
@@ -259,31 +271,33 @@ function SelectContent({ children, className }: SelectContentProps) {
     return () => document.removeEventListener("mousedown", handler);
   }, [open, setOpen, setQuery, triggerRef]);
 
-  // Focus search on open
+  const allItems = React.useMemo(() => {
+    const items: Array<{ value: string; label: string }> = [];
+    const collectItems = (nodes: React.ReactNode) => {
+      React.Children.forEach(nodes, child => {
+        if (!React.isValidElement(child)) return;
+        if (child.type === SelectItem) {
+          items.push({
+            value: (child.props as { value?: string }).value ?? "",
+            label: String((child.props as { children?: React.ReactNode }).children ?? ""),
+          });
+        } else if ((child.props as { children?: React.ReactNode })?.children) {
+          collectItems((child.props as { children?: React.ReactNode }).children);
+        }
+      });
+    };
+    collectItems(children);
+    return items;
+  }, [children]);
+  const hideSearch = isYesNoList(allItems);
+
   React.useEffect(() => {
-    if (open) setTimeout(() => searchRef.current?.focus(), 40);
-  }, [open]);
+    if (open && !hideSearch) setTimeout(() => searchRef.current?.focus(), 40);
+  }, [open, hideSearch]);
 
   if (!open) return null;
 
-  // Collect all items for filtering
-  const allItems: Array<{ value: string; label: string }> = [];
-  const collectItems = (nodes: React.ReactNode) => {
-    React.Children.forEach(nodes, child => {
-      if (!React.isValidElement(child)) return;
-      if (child.type === SelectItem) {
-        allItems.push({
-          value: (child.props as any).value,
-          label: String((child.props as any).children ?? ""),
-        });
-      } else if ((child.props as any)?.children) {
-        collectItems((child.props as any).children);
-      }
-    });
-  };
-  collectItems(children);
-
-  const filtered = query.trim()
+  const filtered = !hideSearch && query.trim()
     ? allItems.filter(i => i.label.toLowerCase().includes(query.toLowerCase()))
     : allItems;
   const filteredSet = new Set(filtered.map(i => i.value));
@@ -309,7 +323,7 @@ function SelectContent({ children, className }: SelectContentProps) {
         top: pos.openUp ? undefined : pos.top,
         bottom: pos.openUp ? pos.bottom : undefined,
         left: pos.left,
-        width: Math.max(pos.width, 220),
+        width: hideSearch ? pos.width : Math.max(pos.width, 220),
         maxHeight: pos.maxHeight,
         zIndex: 9999,
       }}
@@ -319,20 +333,21 @@ function SelectContent({ children, className }: SelectContentProps) {
         className,
       )}
     >
-      {/* Search */}
-      <div className="shrink-0 p-2 border-b border-[#e8f5ee] bg-white">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-[#1a7a52]" />
-          <input
-            ref={searchRef}
-            type="text"
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-            placeholder="Search…"
-            className="w-full pl-9 pr-3 h-10 rounded-sm text-sm bg-[#f4f7f5] border border-[#c8e6d8] text-slate-800 placeholder:text-slate-400 outline-none focus:border-[#1a7a52] focus:bg-white transition-colors"
-          />
+      {!hideSearch && (
+        <div className="shrink-0 p-2 border-b border-[#e8f5ee] bg-white">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-[#1a7a52]" />
+            <input
+              ref={searchRef}
+              type="text"
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              placeholder="Search…"
+              className="w-full pl-9 pr-3 h-10 rounded-sm text-sm bg-[#f4f7f5] border border-[#c8e6d8] text-slate-800 placeholder:text-slate-400 outline-none focus:border-[#1a7a52] focus:bg-white transition-colors"
+            />
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Options */}
       <div className="overflow-y-auto flex-1 min-h-0 p-1.5 space-y-0.5">

@@ -9,7 +9,7 @@ import {
   labelOf, IGR_SERVICE_TYPES, reportLineTotal, reportLineCount, ENROLLEE_REGISTER_SCHEMES,
   type StateOfficeReportType,
 } from "./constants";
-import { enrolmentLineListSummary } from "./enrolmentPillarTypes";
+import { enrolmentLineListSummary, normalizeEnrolmentType } from "./enrolmentPillarTypes";
 
 export interface Report {
   id: number;
@@ -316,24 +316,21 @@ export function useStateOfficeReportsListTable(input: TableConfigInput) {
             return <span className="text-sm text-slate-700">{summary.program}</span>;
           },
         },
-      );
-      if (hasActivityTabs) {
-        cols.push({
-          id: "detail",
-          header: "Detail",
-          cell: ({ row }) => {
-            const summary = enrolmentLineListSummary((row.original as Report).lines?.[0]);
-            return <span className="text-sm text-slate-600 max-w-[220px] truncate block" title={summary.detail}>{summary.detail}</span>;
-          },
-        });
-      }
-      cols.push(
         {
-          id: "outcome",
-          header: "Outcome",
+          id: "enrolment_type",
+          header: "Enrolment Type",
           cell: ({ row }) => {
-            const summary = enrolmentLineListSummary((row.original as Report).lines?.[0]);
-            return <span className="text-sm font-medium text-slate-800">{summary.outcome}</span>;
+            const line = (row.original as Report).lines?.[0];
+            const value = normalizeEnrolmentType(line?.enrolment_type) || line?.enrolment_type || "—";
+            return <span className="text-sm text-slate-700">{value}</span>;
+          },
+        },
+        {
+          id: "enrolment_mode",
+          header: "Enrolment Mode",
+          cell: ({ row }) => {
+            const line = (row.original as Report).lines?.[0];
+            return <span className="text-sm text-slate-700">{line?.enrolment_category || "—"}</span>;
           },
         },
         { id: "status", header: "Status", cell: ({ row }) => statusBadge((row.original as Report).status) },

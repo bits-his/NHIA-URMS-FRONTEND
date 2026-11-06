@@ -1,7 +1,7 @@
 import * as React from "react";
 import {
-  ArrowLeft, ChevronRight, ClipboardCheck, IdCard,
-  Loader2, Plus, Save, Send, ShieldCheck, Trash2, UserPlus, type LucideIcon,
+  ArrowLeft, Building2, ChevronRight, ClipboardCheck, HeartHandshake, IdCard,
+  Landmark, Loader2, Plus, Save, Send, ShieldCheck, Trash2, UserPlus, type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
@@ -899,9 +899,15 @@ export default function EnrolmentActivityForm({
   const activityMeta = enrolmentActivityMeta(entry.category);
   const categoryLocked = Boolean(seededCategory) || Boolean(driveContext);
 
+  const channelIcons: Record<(typeof ENROLMENT_CHANNELS)[number], LucideIcon> = {
+    NHIA: Building2,
+    SSHIA: Landmark,
+    "Equity Program": HeartHandshake,
+  };
   const channelTabItems = ENROLMENT_CHANNELS.map((channel) => ({
     id: channel,
     label: channel,
+    icon: channelIcons[channel],
   }));
 
   const channelTabs = isEnrolment && entry.category && !embedded && !driveContext ? (
@@ -910,6 +916,7 @@ export default function EnrolmentActivityForm({
       activeTab={(entry.enrolment_channel || "NHIA") as (typeof ENROLMENT_CHANNELS)[number]}
       onChange={setEnrolmentChannel}
       ariaLabel="Enrolment channel"
+      size="lg"
     />
   ) : undefined;
 
@@ -1020,6 +1027,7 @@ export default function EnrolmentActivityForm({
                 activeTab={(entry.enrolment_channel || "NHIA") as (typeof ENROLMENT_CHANNELS)[number]}
                 onChange={setEnrolmentChannel}
                 ariaLabel="Enrolment channel"
+                size="lg"
               />
             </div>
           ) : null}
