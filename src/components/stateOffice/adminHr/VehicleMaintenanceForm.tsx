@@ -236,7 +236,7 @@ export default function VehicleMaintenanceForm({ reportId, onBack, onCancel, onS
               )}
               <Button
                 type="button"
-                className="bg-[#145c3f] hover:bg-[#0f3d2e] text-white gap-2 text-xs font-semibold"
+                className="bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20"
                 onClick={addToList}
               >
                 <Plus className="w-4 h-4" />
@@ -326,7 +326,7 @@ export default function VehicleMaintenanceForm({ reportId, onBack, onCancel, onS
               </Button>
               <Button
                 type="button"
-                className="bg-[#145c3f] hover:bg-[#0f3d2e] text-white gap-2 shadow-sm"
+                className="bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20"
                 disabled={saving || submitting}
                 onClick={() => requestSubmit(() => persist("submitted"))}
               >

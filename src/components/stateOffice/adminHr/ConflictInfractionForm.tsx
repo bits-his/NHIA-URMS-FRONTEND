@@ -1,8 +1,15 @@
 import * as React from "react";
+import { ArrowLeft, Loader2, Save, Send } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import StateOfficeFormShell from "../StateOfficeFormShell";
-import { Section, Field, TextInput, TextArea, Notice } from "./ui";
+import ReportBasicInfo from "../shared/ReportBasicInfo";
+import { Field, TextInput, TextArea, Notice } from "./ui";
 import { CONFLICT_NATURES, ADMIN_HR_CONFIG } from "./constants";
+
+const ACTION = "bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20";
+const choiceClass = "flex items-start gap-2 rounded-sm border-2 border-[#1a7a52] bg-[#f4f7f5] px-3 py-2.5 cursor-pointer hover:bg-white";
 
 interface Props {
   reportId?: number | null;
@@ -75,6 +82,8 @@ export default function ConflictInfractionForm({ reportId, onBack, onCancel, onS
       defaultZoneId={defaultZoneId}
       defaultStateId={defaultStateId}
       pageTitle={ADMIN_HR_CONFIG["conflict-infraction"].formTitle}
+      hideBasicInfo
+      hideFooterActions
       onLoaded={onLoaded}
       validate={() => {
         if (!dateOfReport) return "Enter date of report";
@@ -97,72 +106,76 @@ export default function ConflictInfractionForm({ reportId, onBack, onCancel, onS
         },
       })}
     >
-      {() => (
-        <div className="space-y-4">
-          <Notice>
-            Escalation Path: Forward to the Zonal Coordinator within 48 hours of filing.
-            Where unresolved at Zonal level, escalate to the Director, Special Duties Office (SDO).
-          </Notice>
-          <Section title="1. REPORT IDENTIFICATION">
+      {({ header, saving, submitting, persist, requestSubmit }) => (
+        <Card className="rounded-sm border-[#d4e8dc] shadow-sm overflow-visible">
+          <CardContent className="p-4 md:p-5 space-y-5">
+            <ReportBasicInfo {...header} lockZone={header.lockZone} lockState={header.lockState} showQuarter embedded />
+            <Notice>
+              Escalation path: forward to the Zonal Coordinator within 48 hours of filing.
+              Where unresolved at zonal level, escalate to the Director, Special Duties Office (SDO).
+            </Notice>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              <Field label="Reference No. (optional)"><TextInput value={refNo} onChange={(e) => setRefNo(e.target.value)} placeholder="Auto-generated if blank" /></Field>
-              <Field label="Date of Report" required><TextInput type="date" value={dateOfReport} onChange={(e) => setDateOfReport(e.target.value)} /></Field>
-              <Field label="Reporting Officer" required><TextInput value={reportingOfficer} onChange={(e) => setReportingOfficer(e.target.value)} /></Field>
-              <Field label="Office Location"><TextInput value={officeLocation} onChange={(e) => setOfficeLocation(e.target.value)} /></Field>
-            </div>
-          </Section>
-
-          <Section title="2. PARTIES INVOLVED">
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              <Field label="State Office Staff (1) — Name / Designation"><TextInput value={staff1} onChange={(e) => setStaff1(e.target.value)} /></Field>
-              <Field label="State Office Staff (2) — Name / Designation"><TextInput value={staff2} onChange={(e) => setStaff2(e.target.value)} /></Field>
-            </div>
-          </Section>
-
-          <Section title="3. INCIDENT DETAILS">
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              <Field label="Incident Date" required><TextInput type="date" value={incidentDate} onChange={(e) => setIncidentDate(e.target.value)} /></Field>
+              <Field label="Reference No."><TextInput value={refNo} onChange={(e) => setRefNo(e.target.value)} placeholder="Auto-generated if blank" /></Field>
+              <Field label="Date of report" required><TextInput type="date" value={dateOfReport} onChange={(e) => setDateOfReport(e.target.value)} /></Field>
+              <Field label="Reporting officer" required><TextInput value={reportingOfficer} onChange={(e) => setReportingOfficer(e.target.value)} /></Field>
+              <Field label="Office location"><TextInput value={officeLocation} onChange={(e) => setOfficeLocation(e.target.value)} /></Field>
+              <Field label="State office staff (1)"><TextInput value={staff1} onChange={(e) => setStaff1(e.target.value)} placeholder="Name / designation" /></Field>
+              <Field label="State office staff (2)"><TextInput value={staff2} onChange={(e) => setStaff2(e.target.value)} placeholder="Name / designation" /></Field>
+              <Field label="Incident date" required><TextInput type="date" value={incidentDate} onChange={(e) => setIncidentDate(e.target.value)} /></Field>
               <Field label="Location"><TextInput value={location} onChange={(e) => setLocation(e.target.value)} /></Field>
-            </div>
-            <Field label="Nature of Conflict / Infraction">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-1">
-                {CONFLICT_NATURES.map((nature) => (
-                  <label key={nature} className="flex items-start gap-2 rounded-lg border border-slate-200 px-3 py-2 cursor-pointer hover:bg-slate-50">
-                    <Checkbox
-                      checked={natures.includes(nature)}
-                      onCheckedChange={(c) => toggleNature(nature, c === true)}
-                      className="mt-0.5"
-                    />
-                    <span className="text-sm leading-snug">{nature}</span>
-                  </label>
-                ))}
+              <div className="sm:col-span-2 lg:col-span-3">
+                <Field label="Nature of conflict / infraction">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {CONFLICT_NATURES.map((nature) => (
+                      <label key={nature} className={choiceClass}>
+                        <Checkbox
+                          checked={natures.includes(nature)}
+                          onCheckedChange={(c) => toggleNature(nature, c === true)}
+                          className="mt-0.5"
+                        />
+                        <span className="text-sm leading-snug">{nature}</span>
+                      </label>
+                    ))}
+                  </div>
+                </Field>
               </div>
-            </Field>
-            {natures.includes("Other") && (
-              <Field label="Other (specify)"><TextInput value={otherSpecify} onChange={(e) => setOtherSpecify(e.target.value)} /></Field>
-            )}
-            <Field label="Description" required><TextArea value={description} onChange={(e) => setDescription(e.target.value)} /></Field>
-            <Field label="Immediate Action Taken"><TextArea value={immediateAction} onChange={(e) => setImmediateAction(e.target.value)} /></Field>
-            <Field label="Recommended Resolution"><TextArea value={recommendedResolution} onChange={(e) => setRecommendedResolution(e.target.value)} /></Field>
-          </Section>
-
-          <Section title="4. ESCALATION">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <Field label="Escalated To (Zonal Coordinator — Name)"><TextInput value={escalatedTo} onChange={(e) => setEscalatedTo(e.target.value)} /></Field>
-              <Field label="Date Escalated"><TextInput type="date" value={dateEscalated} onChange={(e) => setDateEscalated(e.target.value)} /></Field>
-              <Field label="Expected Response Date"><TextInput type="date" value={expectedResponseDate} onChange={(e) => setExpectedResponseDate(e.target.value)} /></Field>
-            </div>
-          </Section>
-
-          <Section title="5. CERTIFICATION & SIGNATURES">
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              <Field label="Prepared By"><TextInput value={preparedBy} onChange={(e) => setPreparedBy(e.target.value)} /></Field>
+              {natures.includes("Other") && (
+                <Field label="Other (specify)"><TextInput value={otherSpecify} onChange={(e) => setOtherSpecify(e.target.value)} /></Field>
+              )}
+              <div className="sm:col-span-2 lg:col-span-3">
+                <Field label="Description" required><TextArea value={description} onChange={(e) => setDescription(e.target.value)} /></Field>
+              </div>
+              <div className="sm:col-span-2 lg:col-span-3">
+                <Field label="Immediate action taken"><TextArea value={immediateAction} onChange={(e) => setImmediateAction(e.target.value)} /></Field>
+              </div>
+              <div className="sm:col-span-2 lg:col-span-3">
+                <Field label="Recommended resolution"><TextArea value={recommendedResolution} onChange={(e) => setRecommendedResolution(e.target.value)} /></Field>
+              </div>
+              <Field label="Escalated to"><TextInput value={escalatedTo} onChange={(e) => setEscalatedTo(e.target.value)} placeholder="Zonal coordinator name" /></Field>
+              <Field label="Date escalated"><TextInput type="date" value={dateEscalated} onChange={(e) => setDateEscalated(e.target.value)} /></Field>
+              <Field label="Expected response date"><TextInput type="date" value={expectedResponseDate} onChange={(e) => setExpectedResponseDate(e.target.value)} /></Field>
+              <Field label="Prepared by"><TextInput value={preparedBy} onChange={(e) => setPreparedBy(e.target.value)} /></Field>
               <Field label="Designation"><TextInput value={designation} onChange={(e) => setDesignation(e.target.value)} /></Field>
-              <Field label="Prepared Date"><TextInput type="date" value={preparedDate} onChange={(e) => setPreparedDate(e.target.value)} /></Field>
-              <Field label="Endorsed By"><TextInput value={endorsedBy} onChange={(e) => setEndorsedBy(e.target.value)} /></Field>
+              <Field label="Prepared date"><TextInput type="date" value={preparedDate} onChange={(e) => setPreparedDate(e.target.value)} /></Field>
+              <Field label="Endorsed by"><TextInput value={endorsedBy} onChange={(e) => setEndorsedBy(e.target.value)} /></Field>
             </div>
-          </Section>
-        </div>
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#e8f3ec] pt-4">
+              <Button type="button" variant="ghost" onClick={onCancel || onBack} disabled={saving || submitting}>
+                <ArrowLeft className="w-4 h-4 mr-2" />Cancel
+              </Button>
+              <div className="flex flex-wrap justify-end gap-2">
+                <Button type="button" variant="outline" disabled={saving || submitting} onClick={() => void persist("draft")}>
+                  {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                  Save Draft
+                </Button>
+                <Button type="button" className={ACTION} disabled={saving || submitting} onClick={() => requestSubmit(() => persist("submitted"))}>
+                  {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                  Submit
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       )}
     </StateOfficeFormShell>
   );
