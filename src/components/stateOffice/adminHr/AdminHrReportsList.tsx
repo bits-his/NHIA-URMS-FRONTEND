@@ -10,7 +10,6 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RegisterStatsCards } from "../RegisterStatsCards";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import { stateOfficeApi } from "@/lib/api";
 import { buildReportingYearOptions } from "../../monthly/reportingYears";
@@ -19,6 +18,7 @@ import { MONTHS, monthLabel } from "../constants";
 import { ADMIN_HR_CONFIG, MAINTENANCE_TYPES, VEHICLE_STATUSES, type AdminHrReportType } from "./constants";
 import { AdminHrFormRouter, AdminHrDetailRouter } from "./registry";
 import { useStateOfficeAccess } from "@/src/access/createReviewAccess";
+import PageLayout from "../../PageLayout";
 
 function vehicleSummary(report: Report): string {
   const rows = Array.isArray(report.payload?.rows) ? report.payload!.rows : [];
@@ -198,26 +198,28 @@ export default function AdminHrReportsList({
   }
 
   return (
-    <div className="flex flex-col h-full bg-slate-50/30">
-      <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3.5 flex items-center justify-between sticky top-0 z-30 gap-3">
-        <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">{cfg.title}</h2>
+    <PageLayout
+      title={cfg.title}
+      onBack={onBack}
+      actions={
         <div className="flex items-center gap-2 shrink-0">
-          <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-2">
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} /> Refresh
+          <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-1.5 h-8 text-xs rounded-md border-[#d4e8dc]">
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh
           </Button>
           {canCreate && (
-          <Button
-            className="bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20"
-            onClick={() => { setSelectedId(null); setMode("create"); }}
-          >
-            <Plus className="w-4 h-4" /> {cfg.newLabel}
-          </Button>
+            <Button
+              size="sm"
+              className="bg-orange-action hover:bg-orange-600 gap-1.5 shadow-md shadow-orange-500/20 h-8 text-xs rounded-md"
+              onClick={() => { setSelectedId(null); setMode("create"); }}
+            >
+              <Plus className="w-3.5 h-3.5" /> {cfg.newLabel}
+            </Button>
           )}
         </div>
-      </div>
-
-      <ScrollArea className="flex-1">
-        <div className="w-full px-4 md:px-6 py-4 space-y-4">
+      }
+      contentClassName="space-y-4"
+    >
+        <div className="w-full space-y-4">
           <RegisterStatsCards
             loading={loading}
             className="grid grid-cols-2 md:grid-cols-4 gap-3"
@@ -424,7 +426,6 @@ export default function AdminHrReportsList({
             </CardContent>
           </Card>
         </div>
-      </ScrollArea>
-    </div>
+    </PageLayout>
   );
 }

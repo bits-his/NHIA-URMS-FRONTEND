@@ -13,15 +13,24 @@ import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
 import PageLayout from "../PageLayout";
 import { UnderHeaderNavTabs } from "@/src/components/UnderHeaderNavTabs";
 import { ShadcnDataTable } from "@/components/common/ShadcnDataTable";
 import { apiFileUrl, meetingsApi as api } from "@/lib/api";
-import { Field, FieldSection } from "./EnrolmentActivityForm";
+import { Field } from "./EnrolmentActivityForm";
+import ChallengesSupportWorkspace from "./ChallengesSupportWorkspace";
 import ReportBasicInfo from "./shared/ReportBasicInfo";
 import { monthLabel } from "./constants";
 
-const inputClass = "w-full min-h-[4.5rem] rounded-xl px-3.5 py-2 text-sm bg-[#f4f7f5] border-2 border-[#1a7a52] text-slate-800 shadow-xs outline-none hover:border-[#0f3d2e] hover:bg-white focus-visible:border-[#0f3d2e] focus-visible:bg-white focus-visible:ring-3 focus-visible:ring-[#1a7a52]/25";
+const inputClass = "w-full min-h-[4.5rem] rounded-sm px-3.5 py-2 text-sm font-medium bg-[#f4f7f5] border-2 border-[#1a7a52] text-slate-800 shadow-none outline-none hover:border-[#0f3d2e] hover:bg-white focus-visible:border-[#0f3d2e] focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-[#1a7a52]/20";
+const controlClass = cn(
+  "h-11 w-full text-sm font-medium",
+  "bg-[#f4f7f5] border-2 border-[#1a7a52] rounded-sm px-3.5 shadow-none",
+  "hover:border-[#0f3d2e] hover:bg-white",
+  "focus-visible:border-[#0f3d2e] focus-visible:bg-white focus-visible:ring-2 focus-visible:ring-[#1a7a52]/20",
+);
 const ACTION = "bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-orange-500/20";
 const uid = () => Math.random().toString(36).slice(2);
 const STATUSES: Record<string, string> = {
@@ -63,9 +72,19 @@ function Dropdown({ value, options, onChange, disabled, placeholder = "Select" }
   const items = options.map((o) => (typeof o === "string" ? { value: o, label: o } : o));
   return (
     <Select value={value} onValueChange={onChange} disabled={disabled}>
-      <SelectTrigger displayValue={items.find((o) => o.value === value)?.label}><SelectValue placeholder={placeholder} /></SelectTrigger>
+      <SelectTrigger className={controlClass} displayValue={items.find((o) => o.value === value)?.label}><SelectValue placeholder={placeholder} /></SelectTrigger>
       <SelectContent>{items.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
     </Select>
+  );
+}
+function FormInput({ readOnly, disabled, className, ...props }: React.ComponentProps<typeof Input>) {
+  return (
+    <Input
+      {...props}
+      readOnly={readOnly}
+      disabled={disabled}
+      className={cn(controlClass, (readOnly || disabled) && "bg-slate-50 text-slate-600", className)}
+    />
   );
 }
 function ReviewRow({ label, value }: { label: string; value?: React.ReactNode }) {
@@ -93,26 +112,69 @@ function ReviewSection({ title, children }: { title: string; children: React.Rea
 function AutoField({ value }: { value: string }) {
   return (
     <div className="relative">
-      <Input value={value} readOnly className="pr-14 bg-[#eef6f1]" />
+      <FormInput value={value} readOnly className="pr-14 bg-slate-50 text-slate-600" />
       <span className="absolute right-2 top-1/2 -translate-y-1/2 rounded bg-[#145c3f] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white">AUTO</span>
     </div>
   );
 }
-function RadioYesNo({ name, value, options, onChange }: { name: string; value: string; options: string[]; onChange: (v: string) => void }) {
+function LineTable({
+  headers,
+  rows,
+  fields,
+  addLabel,
+  onAdd,
+  onRemove,
+}: {
+  headers: string[];
+  rows: any[];
+  fields: React.ReactNode;
+  addLabel: string;
+  onAdd: () => void;
+  onRemove: (row: any) => void;
+}) {
   return (
-    <div className="flex flex-wrap gap-4 pt-1" role="radiogroup" aria-label={name}>
-      {options.map((opt) => (
-        <label key={opt} className="inline-flex items-center gap-2 cursor-pointer text-sm text-slate-700">
-          <input
-            type="radio"
-            className="h-4 w-4 accent-[#145c3f]"
-            name={name}
-            checked={value === opt}
-            onChange={() => onChange(opt)}
-          />
-          {opt}
-        </label>
-      ))}
+    <div className="space-y-4">
+      <div className="rounded-xl border border-[#d4e8dc] bg-[#f8fdfb] p-4 space-y-3">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{fields}</div>
+        <div className="flex justify-end">
+          <Button type="button" className={ACTION} onClick={onAdd}><Plus className="w-4 h-4" />{addLabel}</Button>
+        </div>
+      </div>
+      {rows.length > 0 && (
+        <div className="overflow-x-auto rounded-lg border border-[#d4e8dc]">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-[#f0fdf7] hover:bg-[#f0fdf7]">
+                <TableHead className="w-10 text-xs font-bold">#</TableHead>
+                {headers.map((header) => (
+                  <TableHead key={header} className="text-xs font-bold whitespace-nowrap">{header}</TableHead>
+                ))}
+                <TableHead className="w-14" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {rows.map((row, index) => (
+                <TableRow key={row._key || row.entry_id || index} className="border-b border-[#e8f3ec] last:border-0">
+                  <TableCell className="text-xs font-bold tabular-nums text-[#145c3f]">{index + 1}</TableCell>
+                  {headers.length > 1 ? (
+                    <>
+                      <TableCell className="text-sm font-medium text-slate-800">{row.subject || "—"}</TableCell>
+                      <TableCell className="text-sm text-slate-800">{row.owner_deadline || row.detail || "—"}</TableCell>
+                    </>
+                  ) : (
+                    <TableCell className="text-sm text-slate-800">{row.detail || row.subject || "—"}</TableCell>
+                  )}
+                  <TableCell>
+                    <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0 text-slate-300 hover:text-rose-500" onClick={() => onRemove(row)}>
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
     </div>
   );
 }
@@ -192,6 +254,7 @@ export default function MeetingsWorkspace({ onBack, initialTab = "meetings" }: {
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState("");
   const [draft, setDraft] = React.useState<any>(null);
+  const [challengeOpen, setChallengeOpen] = React.useState(false);
   const [editingId, setEditingId] = React.useState<string | null>(null);
   const [detail, setDetail] = React.useState<any>(null);
   const [line, setLine] = React.useState<any>(null);
@@ -308,33 +371,41 @@ export default function MeetingsWorkspace({ onBack, initialTab = "meetings" }: {
     setEditingId(row?.meeting_id || null); setLine(null); setLineKind(""); setEditingLine(null);
     setAgendaForm(blankAgenda()); setDecisionForm(blankDecision()); setFollowupForm(blankFollowup());
     clearEvidenceSelection();
-    if (row) {
+    let next = blankMeeting(cat);
+    if (row?.meeting_id) {
       const r = (await api.meeting(row.meeting_id)).data;
-      setDraft({
+      next = {
         ...blankMeeting(cat), ...r,
         documents: r.documents || [],
         agenda_items: (r.items || []).filter((i: any) => i.item_kind === "agenda"),
         decisions: (r.items || []).filter((i: any) => i.item_kind === "decision"),
         followups: (r.items || []).filter((i: any) => i.item_kind === "followup"),
-      });
+      };
       setOpenActionCount(0);
     } else {
-      setDraft(blankMeeting(cat));
-      const open = await run(api.openActionPoints);
-      const rows = open?.data || [];
-      setOpenActionCount(rows.length);
-      if (rows.length) setDraft((d: any) => ({
-        ...d,
-        followups: rows.map((i: any) => ({
-          ...blankFollowup(),
-          subject: `${i.action_ref || ""} — ${i.subject || ""}`.replace(/^ — /, ""),
-          responsible_officer: i.responsible_officer,
-          due_date: i.due_date,
-          parent_item_id: i.item_id,
-        })),
-      }));
+      try {
+        const open = await api.openActionPoints();
+        const rows = open?.data || [];
+        setOpenActionCount(rows.length);
+        if (rows.length) {
+          next = {
+            ...next,
+            followups: rows.map((i: any) => ({
+              ...blankFollowup(),
+              subject: `${i.action_ref || ""} — ${i.subject || ""}`.replace(/^ — /, ""),
+              responsible_officer: i.responsible_officer,
+              due_date: i.due_date,
+              parent_item_id: i.item_id,
+            })),
+          };
+        }
+      } catch {
+        setOpenActionCount(0);
+      }
     }
+    setDraft(next);
     setMode("meeting-form");
+    setTab("meetings");
   };
   const startEtmcForm = async (row?: any) => {
     setEditingId(row?.etmc_id || null); setLine(null); setLineKind(""); setEditingLine(null);
@@ -351,6 +422,7 @@ export default function MeetingsWorkspace({ onBack, initialTab = "meetings" }: {
       });
     } else setDraft(blankEtmc(cat));
     setMode("etmc-form");
+    setTab("etmc");
   };
 
   const addLine = (listKey: string, blank: () => any) => {
@@ -383,10 +455,17 @@ export default function MeetingsWorkspace({ onBack, initialTab = "meetings" }: {
       ? {
           ...draft,
           status,
+          prepared_by: draft.prepared_by || preparedFallback,
+          designation: draft.designation || cat?.role_label || "",
           agenda_items: (draft.agenda_items || []).filter((r: any) => r.subject?.trim() || r.detail?.trim() || r.outcome?.trim()),
           decisions: (draft.decisions || []).filter((r: any) => r.subject?.trim() || r.detail?.trim()),
         }
-      : { ...draft, status };
+      : {
+          ...draft,
+          status,
+          prepared_by: draft.prepared_by || preparedFallback,
+          designation: draft.designation || cat?.role_label || "",
+        };
     if (kind === "meeting") {
       const saved = editingId
         ? await api.updateMeeting(editingId, payload)
@@ -415,11 +494,13 @@ export default function MeetingsWorkspace({ onBack, initialTab = "meetings" }: {
     toast.success("Evidence removed");
   });
 
-  const challengeHref = (meetingId?: string) => {
-    const q = new URLSearchParams({ from: "meeting", related_activity: "Meetings & Coordination" });
-    if (meetingId) q.set("meeting_id", meetingId);
-    if (draft?.meeting_type) q.set("note", `Escalated from Meeting Report (${draft.meeting_type})`);
-    return `/zonal/challenges?${q.toString()}`;
+  const challengeSource = mode === "meeting-detail" ? detail : draft;
+  const challengeSeed = {
+    related_activity: "Meetings & Coordination",
+    meeting_id: challengeSource?.meeting_id || editingId || "",
+    note: challengeSource?.meeting_type ? `Escalated from Meeting Report (${challengeSource.meeting_type})` : "",
+    state_code: challengeSource?.state_code || "",
+    date_reported: challengeSource?.meeting_date || challengeSource?.submission_date || "",
   };
 
   const stateOptions = (cat?.states || []).map((s) => ({ value: s.code, label: s.description }));
@@ -574,12 +655,7 @@ export default function MeetingsWorkspace({ onBack, initialTab = "meetings" }: {
     else onBack();
   };
 
-  const pageTitle =
-    mode === "meeting-form" ? (editingId ? "Edit Meeting Report" : "New Meeting Report")
-      : mode === "etmc-form" ? (editingId ? "Edit ETMC Cascading Report" : "New ETMC Cascading Report")
-        : mode === "meeting-detail" ? "Meeting Report"
-          : mode === "etmc-detail" ? "ETMC Cascading Report"
-            : "Meetings & Coordination";
+  const pageTitle = tab === "etmc" ? "ETMC Cascading Report" : "Meeting Report";
 
   const actions = (
     <div className="flex items-center gap-2 shrink-0">
@@ -602,17 +678,32 @@ export default function MeetingsWorkspace({ onBack, initialTab = "meetings" }: {
   );
 
 
-  const navTabs = mode === "list" ? (
+  const openTab = (key: "meetings" | "etmc") => {
+    const onThisForm = (key === "meetings" && mode === "meeting-form") || (key === "etmc" && mode === "etmc-form");
+    if (key === tab && (mode === "list" || onThisForm)) return;
+    const onForm = mode === "meeting-form" || mode === "etmc-form";
+    if (onForm) {
+      if (key === "etmc") void startEtmcForm();
+      else void startMeetingForm();
+      return;
+    }
+    setDraft(null);
+    setDetail(null);
+    setEditingId(null);
+    setMode("list");
+    setTab(key);
+  };
+  const navTabs = (
     <UnderHeaderNavTabs
       tabs={[
         { id: "meetings", label: "Meeting Report", icon: ClipboardList, count: meetings.length },
         { id: "etmc", label: "ETMC Cascading Report", icon: FileText, count: etmcs.length },
       ]}
       activeTab={tab}
-      onChange={(k) => setTab(k as any)}
+      onChange={(k) => openTab(k as "meetings" | "etmc")}
       ariaLabel="Meetings templates"
     />
-  ) : undefined;
+  );
 
   const lockGeo = Boolean(cat?.default_state) && !permissions.national;
   const basicZones = (cat?.zones || []).map((z) => ({ id: z.zonal_code, label: z.description }));
@@ -653,18 +744,18 @@ export default function MeetingsWorkspace({ onBack, initialTab = "meetings" }: {
   const meetingForm = draft && mode === "meeting-form" && (
     <Card className="rounded-sm border-[#d4e8dc] shadow-sm overflow-visible"><CardContent className="p-4 md:p-5 space-y-5">
       {reportBasicInfo}
-      <FieldSection title="Meeting information">
-        <Field label="Meeting date" required><Input type="date" value={draft.meeting_date} onChange={(e) => setDraft((d: any) => ({ ...d, meeting_date: e.target.value }))} /></Field>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <Field label="Meeting date" required><FormInput type="date" value={draft.meeting_date} onChange={(e) => setDraft((d: any) => ({ ...d, meeting_date: e.target.value }))} /></Field>
         <Field label="Type of meeting" required><Dropdown value={draft.meeting_type} options={cat?.meeting_types || []} onChange={(v) => setDraft((d: any) => ({ ...d, meeting_type: v }))} /></Field>
-        {draft.meeting_type === "Other (Specify)" && <Field label="Specify meeting type" required><Input value={draft.other_meeting_type} onChange={(e) => setDraft((d: any) => ({ ...d, other_meeting_type: e.target.value }))} /></Field>}
-        <Field label="Presiding officer"><Input value={draft.presiding_officer} onChange={(e) => setDraft((d: any) => ({ ...d, presiding_officer: e.target.value }))} placeholder="Name / designation" /></Field>
+        {draft.meeting_type === "Other (Specify)" && <Field label="Specify meeting type" required><FormInput value={draft.other_meeting_type} onChange={(e) => setDraft((d: any) => ({ ...d, other_meeting_type: e.target.value }))} /></Field>}
+        <Field label="Presiding officer"><FormInput value={draft.presiding_officer} onChange={(e) => setDraft((d: any) => ({ ...d, presiding_officer: e.target.value }))} placeholder="Name / designation" /></Field>
         <Field label="Venue / platform"><Dropdown value={draft.venue} options={cat?.venues || ["Physical", "Virtual"]} onChange={(v) => setDraft((d: any) => ({ ...d, venue: v }))} /></Field>
-        <Field label="Staff strength"><Input type="number" value={draft.staff_strength} onChange={(e) => setDraft((d: any) => ({ ...d, staff_strength: e.target.value }))} placeholder="Number expected" /></Field>
-        <Field label="Number of attendees"><Input type="number" value={draft.attendees} onChange={(e) => setDraft((d: any) => ({ ...d, attendees: e.target.value }))} placeholder="Number present" /></Field>
+        <Field label="Staff strength"><FormInput type="number" value={draft.staff_strength} onChange={(e) => setDraft((d: any) => ({ ...d, staff_strength: e.target.value }))} placeholder="Number expected" /></Field>
+        <Field label="Number of attendees"><FormInput type="number" value={draft.attendees} onChange={(e) => setDraft((d: any) => ({ ...d, attendees: e.target.value }))} placeholder="Number present" /></Field>
         <Field label="Attendance rate"><AutoField value={rate(draft.staff_strength, draft.attendees)} /></Field>
         <Field label="Purpose / objective" className="sm:col-span-2 lg:col-span-3"><textarea className={inputClass} rows={2} value={draft.purpose} onChange={(e) => setDraft((d: any) => ({ ...d, purpose: e.target.value }))} placeholder="Briefly state the purpose of the meeting" /></Field>
-      </FieldSection>
-      <FieldSection title="Key issue items discussed">
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <div className="sm:col-span-2 lg:col-span-3 space-y-4">
           <div className="rounded-xl border border-[#d4e8dc] bg-[#f8fdfb] p-4 space-y-3">
             <span className="inline-flex rounded-full bg-[#e8f6ee] px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#145c3f]">
@@ -672,13 +763,13 @@ export default function MeetingsWorkspace({ onBack, initialTab = "meetings" }: {
             </span>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <Field label="Agenda / subject" required>
-                <Input value={agendaForm.subject} onChange={(e) => setAgendaForm((f) => ({ ...f, subject: e.target.value }))} placeholder="Enter agenda item" />
+                <FormInput value={agendaForm.subject} onChange={(e) => setAgendaForm((f) => ({ ...f, subject: e.target.value }))} placeholder="Enter agenda item" />
               </Field>
               <Field label="Key issue discussed">
-                <Input value={agendaForm.detail} onChange={(e) => setAgendaForm((f) => ({ ...f, detail: e.target.value }))} placeholder="Summarise the key discussion" />
+                <FormInput value={agendaForm.detail} onChange={(e) => setAgendaForm((f) => ({ ...f, detail: e.target.value }))} placeholder="Summarise the key discussion" />
               </Field>
               <Field label="Key outcome / conclusion">
-                <Input value={agendaForm.outcome} onChange={(e) => setAgendaForm((f) => ({ ...f, outcome: e.target.value }))} placeholder="State the outcome" />
+                <FormInput value={agendaForm.outcome} onChange={(e) => setAgendaForm((f) => ({ ...f, outcome: e.target.value }))} placeholder="State the outcome" />
               </Field>
               <Field label="Requires further action?">
                 <Dropdown value={agendaForm.requires_action || "No"} options={["Yes", "No"]} onChange={(v) => setAgendaForm((f) => ({ ...f, requires_action: v }))} />
@@ -696,22 +787,22 @@ export default function MeetingsWorkspace({ onBack, initialTab = "meetings" }: {
             />
           )}
         </div>
-      </FieldSection>
-      <FieldSection title="Decisions / resolutions">
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <div className="sm:col-span-2 lg:col-span-3 space-y-4">
           <div className="rounded-xl border border-[#d4e8dc] bg-[#f8fdfb] p-4 space-y-3">
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               <Field label="Decision / resolution" required>
-                <Input value={decisionForm.subject} onChange={(e) => setDecisionForm((f) => ({ ...f, subject: e.target.value }))} placeholder="Decision summary" />
+                <FormInput value={decisionForm.subject} onChange={(e) => setDecisionForm((f) => ({ ...f, subject: e.target.value }))} placeholder="Decision summary" />
               </Field>
               <Field label="Responsible officer / unit">
                 <Dropdown value={decisionForm.responsible_officer || ""} options={deptOptions} onChange={(v) => setDecisionForm((f) => ({ ...f, responsible_officer: v }))} placeholder="Select officer / unit" />
               </Field>
               <Field label="Deadline">
-                <Input type="date" value={decisionForm.due_date || ""} onChange={(e) => setDecisionForm((f) => ({ ...f, due_date: e.target.value }))} />
+                <FormInput type="date" value={decisionForm.due_date || ""} onChange={(e) => setDecisionForm((f) => ({ ...f, due_date: e.target.value }))} />
               </Field>
               <Field label="Expected output">
-                <Input value={decisionForm.expected_output || ""} onChange={(e) => setDecisionForm((f) => ({ ...f, expected_output: e.target.value }))} placeholder="Expected result" />
+                <FormInput value={decisionForm.expected_output || ""} onChange={(e) => setDecisionForm((f) => ({ ...f, expected_output: e.target.value }))} placeholder="Expected result" />
               </Field>
               <Field label="Status">
                 <Dropdown value={decisionForm.status || "Pending"} options={cat?.decision_statuses || ["Pending", "In Progress", "Completed"]} onChange={(v) => setDecisionForm((f) => ({ ...f, status: v }))} />
@@ -730,8 +821,8 @@ export default function MeetingsWorkspace({ onBack, initialTab = "meetings" }: {
             />
           )}
         </div>
-      </FieldSection>
-      <FieldSection title="Follow-up on previous action points">
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <div className="sm:col-span-2 lg:col-span-3 space-y-4">
           {openActionCount > 0 && !(draft.followups || []).length && (
             <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">Previous open action points must be followed up before submit.</p>
@@ -739,22 +830,22 @@ export default function MeetingsWorkspace({ onBack, initialTab = "meetings" }: {
           <div className="rounded-xl border border-[#d4e8dc] bg-[#f8fdfb] p-4 space-y-3">
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               <Field label="Previous action" required>
-                <Input value={followupForm.subject} onChange={(e) => setFollowupForm((f) => ({ ...f, subject: e.target.value }))} placeholder="Previous action" />
+                <FormInput value={followupForm.subject} onChange={(e) => setFollowupForm((f) => ({ ...f, subject: e.target.value }))} placeholder="Previous action" />
               </Field>
               <Field label="Responsible officer / unit">
-                <Input value={followupForm.responsible_officer} onChange={(e) => setFollowupForm((f) => ({ ...f, responsible_officer: e.target.value }))} placeholder="Officer / unit" />
+                <FormInput value={followupForm.responsible_officer} onChange={(e) => setFollowupForm((f) => ({ ...f, responsible_officer: e.target.value }))} placeholder="Officer / unit" />
               </Field>
               <Field label="Due date">
-                <Input type="date" value={followupForm.due_date || ""} onChange={(e) => setFollowupForm((f) => ({ ...f, due_date: e.target.value }))} />
+                <FormInput type="date" value={followupForm.due_date || ""} onChange={(e) => setFollowupForm((f) => ({ ...f, due_date: e.target.value }))} />
               </Field>
               <Field label="Progress / action taken" className="sm:col-span-2">
-                <Input value={followupForm.detail} onChange={(e) => setFollowupForm((f) => ({ ...f, detail: e.target.value }))} placeholder="Enter progress update" />
+                <FormInput value={followupForm.detail} onChange={(e) => setFollowupForm((f) => ({ ...f, detail: e.target.value }))} placeholder="Enter progress update" />
               </Field>
               <Field label="Status">
                 <Dropdown value={followupForm.status || "Pending"} options={cat?.item_statuses || ["Pending", "In Progress", "Completed", "No longer Applicable"]} onChange={(v) => setFollowupForm((f) => ({ ...f, status: v }))} />
               </Field>
               <Field label="Remarks">
-                <Input value={followupForm.remarks || ""} onChange={(e) => setFollowupForm((f) => ({ ...f, remarks: e.target.value }))} placeholder="Remarks" />
+                <FormInput value={followupForm.remarks || ""} onChange={(e) => setFollowupForm((f) => ({ ...f, remarks: e.target.value }))} placeholder="Remarks" />
               </Field>
             </div>
             <div className="flex justify-end">
@@ -769,30 +860,37 @@ export default function MeetingsWorkspace({ onBack, initialTab = "meetings" }: {
             />
           )}
         </div>
-      </FieldSection>
-      <FieldSection title="Matters requiring Zonal / SDO attention">
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <div className="sm:col-span-2 lg:col-span-3">
-          <a href={challengeHref(editingId || undefined)} className="inline-flex items-center gap-2 rounded-lg border border-[#d4e8dc] bg-[#f8fdfb] px-4 py-2.5 text-sm font-semibold text-[#145c3f] hover:bg-[#e8f6ee]">
-            <FileText className="w-4 h-4" />Open Challenge &amp; Support
-          </a>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-8 w-full gap-1.5 border-[#1a7a52] text-[#0f3d2e]"
+            onClick={() => setChallengeOpen(true)}
+          >
+            <FileText className="w-3.5 h-3.5" />
+            Open Challenge &amp; Support
+          </Button>
         </div>
-      </FieldSection>
-      <FieldSection title="Meeting effectiveness">
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {([["eff_prev_reviewed", "Previous action points reviewed", true], ["eff_decisions_documented", "Decisions documented", false], ["eff_deadlines_assigned", "Deadlines assigned", false], ["eff_attendance_adequate", "Attendance adequate", true], ["eff_issues_discussed", "Key programme issues discussed", true], ["eff_officers_assigned", "Officers assigned to action points", false], ["eff_escalations_identified", "Escalation issues identified", false]] as const).map(([k, label, partial]) => (
           <Field key={k} label={label}>
-            <RadioYesNo
-              name={k}
+            <Dropdown
               value={draft[k] || ""}
               options={partial ? (cat?.yn || ["Yes", "No", "Partially"]) : ["Yes", "No"]}
               onChange={(v) => setDraft((d: any) => ({ ...d, [k]: v }))}
+              placeholder="Select"
             />
           </Field>
         ))}
-      </FieldSection>
-      <FieldSection title="Supporting evidence & certification">
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <Field label="Supporting evidence" className="sm:col-span-2 lg:col-span-3">
           <div className="space-y-2">
-            <Input
+            <FormInput
               key={evidenceInputKey}
               type="file"
               multiple
@@ -819,10 +917,7 @@ export default function MeetingsWorkspace({ onBack, initialTab = "meetings" }: {
             )}
           </div>
         </Field>
-        <Field label="Prepared by"><Input value={draft.prepared_by || preparedFallback} onChange={(e) => setDraft((d: any) => ({ ...d, prepared_by: e.target.value }))} /></Field>
-        <Field label="Designation"><Input value={draft.designation} onChange={(e) => setDraft((d: any) => ({ ...d, designation: e.target.value }))} /></Field>
-        <Field label="Date"><Input type="date" value={draft.submission_date} onChange={(e) => setDraft((d: any) => ({ ...d, submission_date: e.target.value }))} /></Field>
-      </FieldSection>
+      </div>
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#e8f3ec] pt-4">
         <Button variant="ghost" disabled={busy} onClick={backToList}>
           <ArrowLeft className="w-4 h-4 mr-2" />Cancel
@@ -839,97 +934,124 @@ export default function MeetingsWorkspace({ onBack, initialTab = "meetings" }: {
   const etmcForm = draft && mode === "etmc-form" && (
     <Card className="rounded-sm border-[#d4e8dc] shadow-sm overflow-visible"><CardContent className="p-4 md:p-5 space-y-5">
       {reportBasicInfo}
-      <FieldSection title="Cascade details">
-        <Field label="ETMC meeting date" required><Input type="date" value={draft.etmc_meeting_date} onChange={(e) => setDraft((d: any) => ({ ...d, etmc_meeting_date: e.target.value }))} /></Field>
-        <Field label="Cascade session date"><Input type="date" value={draft.cascade_session_date} onChange={(e) => setDraft((d: any) => ({ ...d, cascade_session_date: e.target.value }))} /></Field>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <Field label="ETMC meeting date" required><FormInput type="date" value={draft.etmc_meeting_date} onChange={(e) => setDraft((d: any) => ({ ...d, etmc_meeting_date: e.target.value }))} /></Field>
+        <Field label="Cascade session date"><FormInput type="date" value={draft.cascade_session_date} onChange={(e) => setDraft((d: any) => ({ ...d, cascade_session_date: e.target.value }))} /></Field>
         <Field label="ETMC session"><Dropdown value={draft.etmc_session} options={cat?.etmc_sessions || QUARTERS} onChange={(v) => setDraft((d: any) => ({ ...d, etmc_session: v }))} /></Field>
-        <Field label="Presiding officer"><Input value={draft.presiding_officer} onChange={(e) => setDraft((d: any) => ({ ...d, presiding_officer: e.target.value }))} placeholder="Name / designation" /></Field>
+        <Field label="Presiding officer"><FormInput value={draft.presiding_officer} onChange={(e) => setDraft((d: any) => ({ ...d, presiding_officer: e.target.value }))} placeholder="Name / designation" /></Field>
         <Field label="Venue"><Dropdown value={draft.venue} options={cat?.venues || ["Physical", "Virtual"]} onChange={(v) => setDraft((d: any) => ({ ...d, venue: v }))} /></Field>
-        <Field label="Staff strength"><Input type="number" value={draft.staff_strength} onChange={(e) => setDraft((d: any) => ({ ...d, staff_strength: e.target.value }))} /></Field>
-        <Field label="Staff present"><Input type="number" value={draft.staff_present} onChange={(e) => setDraft((d: any) => ({ ...d, staff_present: e.target.value }))} /></Field>
+        <Field label="Staff strength"><FormInput type="number" value={draft.staff_strength} onChange={(e) => setDraft((d: any) => ({ ...d, staff_strength: e.target.value }))} /></Field>
+        <Field label="Staff present"><FormInput type="number" value={draft.staff_present} onChange={(e) => setDraft((d: any) => ({ ...d, staff_present: e.target.value }))} /></Field>
         <Field label="Attendance rate"><AutoField value={rate(draft.staff_strength, draft.staff_present)} /></Field>
-      </FieldSection>
-      <FieldSection title="ETMC highlights">
-        <div className="sm:col-span-2 lg:col-span-3 space-y-3">
-          <div className="flex gap-2">
-            <Input value={line?.detail || ""} onChange={(e) => setLine((l: any) => ({ detail: e.target.value }))} placeholder="Enter key highlight from the ETMC discussion" />
-            <Button variant="outline" className="shrink-0" onClick={() => { if (!line?.detail?.trim()) return; setDraft((d: any) => ({ ...d, highlights: [...d.highlights, { detail: line.detail, _key: uid() }] })); setLine(null); }}><Plus className="w-4 h-4 mr-1" />Add highlight</Button>
-          </div>
-          {draft.highlights.map((h: any, i: number) => (
-            <div key={h._key || h.entry_id || i} className="flex items-start gap-2 rounded-lg bg-slate-50 p-3 text-sm">
-              <span className="text-xs font-bold text-[#145c3f] mt-0.5">{i + 1}.</span>
-              <p className="flex-1">{h.detail}</p>
-              <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-slate-300 hover:text-rose-500" onClick={() => setDraft((d: any) => ({ ...d, highlights: d.highlights.filter((x: any) => x !== h) }))}><Trash2 className="w-3.5 h-3.5" /></Button>
-            </div>
-          ))}
-        </div>
-      </FieldSection>
-      {([
-        { key: "department_updates" as const, title: "Departmental updates", ph: "Department / unit", ph2: "Update / key information", dual: true },
-        { key: "resolutions" as const, title: "Decisions / resolutions / action points", ph: "Decision / resolution", ph2: "Action owner / deadline", dual: true, owner: true },
-        { key: "comments" as const, title: "Staff comments", ph2: "Capture comments or observations from staff", dual: false },
-        { key: "feedback" as const, title: "Feedback to HQ", ph2: "Feedback, clarification or issues for HQ", dual: false },
-      ]).map((meta) => (
-        <FieldSection key={meta.key} title={meta.title}>
-          <div className="sm:col-span-2 lg:col-span-3 space-y-3">
-            {meta.dual ? (
-              <div className="grid gap-2 sm:grid-cols-2">
-                <Input value={line?.[`${meta.key}_s`] || ""} onChange={(e) => setLine((l: any) => ({ ...l, [`${meta.key}_s`]: e.target.value }))} placeholder={meta.ph} />
-                <div className="flex gap-2">
-                  <Input value={line?.[`${meta.key}_d`] || ""} onChange={(e) => setLine((l: any) => ({ ...l, [`${meta.key}_d`]: e.target.value }))} placeholder={meta.ph2} className="flex-1" />
-                  <Button variant="outline" className="shrink-0" onClick={() => {
-                    const s = line?.[`${meta.key}_s`], d2 = line?.[`${meta.key}_d`];
-                    if (!s?.trim() && !d2?.trim()) return;
-                    const row = meta.owner
-                      ? { subject: s || "", detail: s || "", owner_deadline: d2 || "", _key: uid() }
-                      : { subject: s || "", detail: d2 || "", _key: uid() };
-                    setDraft((d: any) => ({ ...d, [meta.key]: [...d[meta.key], row] }));
-                    setLine((l: any) => ({ ...l, [`${meta.key}_s`]: "", [`${meta.key}_d`]: "" }));
-                  }}><Plus className="w-4 h-4 mr-1" />Add</Button>
-                </div>
-              </div>
-            ) : (
-              <div className="flex gap-2">
-                <Input value={line?.[`${meta.key}_d`] || ""} onChange={(e) => setLine((l: any) => ({ ...l, [`${meta.key}_d`]: e.target.value }))} placeholder={meta.ph2} className="flex-1" />
-                <Button variant="outline" className="shrink-0" onClick={() => {
-                  const d2 = line?.[`${meta.key}_d`];
-                  if (!d2?.trim()) return;
-                  setDraft((d: any) => ({ ...d, [meta.key]: [...d[meta.key], { detail: d2, _key: uid() }] }));
-                  setLine((l: any) => ({ ...l, [`${meta.key}_d`]: "" }));
-                }}><Plus className="w-4 h-4 mr-1" />Add</Button>
-              </div>
-            )}
-            {draft[meta.key].map((e: any, ix: number) => (
-              <div key={e._key || e.entry_id || ix} className="flex items-start gap-2 rounded-lg bg-slate-50 p-3 text-sm">
-                <span className="flex-1">
-                  {e.subject && <strong className="mr-2">{e.subject}:</strong>}
-                  {meta.owner ? null : e.detail}
-                  {e.owner_deadline && <em className="text-slate-500"> — {e.owner_deadline}</em>}
-                </span>
-                <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-slate-300 hover:text-rose-500" onClick={() => setDraft((d: any) => ({ ...d, [meta.key]: d[meta.key].filter((x: any) => x !== e) }))}><Trash2 className="w-3.5 h-3.5" /></Button>
-              </div>
-            ))}
-          </div>
-        </FieldSection>
-      ))}
-      <FieldSection title="Supporting evidence checklist" gridClassName="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {([["ev_attendance_list", "Attendance list"], ["ev_minutes", "Minutes"], ["ev_presentation", "Presentation"], ["ev_photographs", "Photographs"], ["ev_action_tracker", "Action tracker"], ["ev_escalations_documented", "Escalation issues documented"]] as const).map(([k, label]) => (
-          <div key={k} className="rounded-xl border border-[#d4e8dc] bg-[#f8fdfb] p-3.5 space-y-2">
-            <p className="text-xs font-semibold text-slate-700">{label}</p>
-            <RadioYesNo
-              name={k}
+          <Field key={k} label={label}>
+            <Dropdown
               value={draft[k] || ""}
               options={["Yes", "No", "N/A"]}
               onChange={(v) => setDraft((d: any) => ({ ...d, [k]: v }))}
+              placeholder="Select"
             />
-          </div>
+          </Field>
         ))}
-      </FieldSection>
-      <FieldSection title="Submission & certification">
-        <Field label="Prepared by"><Input value={draft.prepared_by || preparedFallback} onChange={(e) => setDraft((d: any) => ({ ...d, prepared_by: e.target.value }))} /></Field>
-        <Field label="Designation"><Input value={draft.designation} onChange={(e) => setDraft((d: any) => ({ ...d, designation: e.target.value }))} /></Field>
-        <Field label="Date"><Input type="date" value={draft.submission_date} onChange={(e) => setDraft((d: any) => ({ ...d, submission_date: e.target.value }))} /></Field>
-      </FieldSection>
+      </div>
+      <LineTable
+        headers={["Highlight"]}
+        rows={draft.highlights || []}
+        addLabel="Add highlight"
+        fields={(
+          <Field label="Highlight" className="sm:col-span-2 lg:col-span-3">
+            <FormInput value={line?.detail || ""} onChange={(e) => setLine((l: any) => ({ ...l, detail: e.target.value }))} placeholder="Enter key highlight from the ETMC discussion" />
+          </Field>
+        )}
+        onAdd={() => {
+          if (!line?.detail?.trim()) return;
+          setDraft((d: any) => ({ ...d, highlights: [...(d.highlights || []), { detail: line.detail, _key: uid() }] }));
+          setLine((l: any) => ({ ...l, detail: "" }));
+        }}
+        onRemove={(row) => setDraft((d: any) => ({ ...d, highlights: (d.highlights || []).filter((x: any) => x !== row) }))}
+      />
+      <LineTable
+        headers={["Department / unit", "Update / key information"]}
+        rows={draft.department_updates || []}
+        addLabel="Add departmental update"
+        fields={(
+          <>
+            <Field label="Department / unit">
+              <FormInput value={line?.department_updates_s || ""} onChange={(e) => setLine((l: any) => ({ ...l, department_updates_s: e.target.value }))} placeholder="Department / unit" />
+            </Field>
+            <Field label="Update / key information" className="sm:col-span-2">
+              <FormInput value={line?.department_updates_d || ""} onChange={(e) => setLine((l: any) => ({ ...l, department_updates_d: e.target.value }))} placeholder="Update / key information" />
+            </Field>
+          </>
+        )}
+        onAdd={() => {
+          const subject = line?.department_updates_s;
+          const detailText = line?.department_updates_d;
+          if (!subject?.trim() && !detailText?.trim()) return;
+          setDraft((d: any) => ({ ...d, department_updates: [...(d.department_updates || []), { subject: subject || "", detail: detailText || "", _key: uid() }] }));
+          setLine((l: any) => ({ ...l, department_updates_s: "", department_updates_d: "" }));
+        }}
+        onRemove={(row) => setDraft((d: any) => ({ ...d, department_updates: (d.department_updates || []).filter((x: any) => x !== row) }))}
+      />
+      <LineTable
+        headers={["Decision / resolution", "Action owner / deadline"]}
+        rows={draft.resolutions || []}
+        addLabel="Add decision / resolution"
+        fields={(
+          <>
+            <Field label="Decision / resolution" className="sm:col-span-2">
+              <FormInput value={line?.resolutions_s || ""} onChange={(e) => setLine((l: any) => ({ ...l, resolutions_s: e.target.value }))} placeholder="Decision / resolution" />
+            </Field>
+            <Field label="Action owner / deadline">
+              <FormInput value={line?.resolutions_d || ""} onChange={(e) => setLine((l: any) => ({ ...l, resolutions_d: e.target.value }))} placeholder="Action owner / deadline" />
+            </Field>
+          </>
+        )}
+        onAdd={() => {
+          const subject = line?.resolutions_s;
+          const owner = line?.resolutions_d;
+          if (!subject?.trim() && !owner?.trim()) return;
+          setDraft((d: any) => ({ ...d, resolutions: [...(d.resolutions || []), { subject: subject || "", detail: subject || "", owner_deadline: owner || "", _key: uid() }] }));
+          setLine((l: any) => ({ ...l, resolutions_s: "", resolutions_d: "" }));
+        }}
+        onRemove={(row) => setDraft((d: any) => ({ ...d, resolutions: (d.resolutions || []).filter((x: any) => x !== row) }))}
+      />
+      <LineTable
+        headers={["Staff comment"]}
+        rows={draft.comments || []}
+        addLabel="Add staff comment"
+        fields={(
+          <Field label="Staff comment" className="sm:col-span-2 lg:col-span-3">
+            <FormInput value={line?.comments_d || ""} onChange={(e) => setLine((l: any) => ({ ...l, comments_d: e.target.value }))} placeholder="Capture comments or observations from staff" />
+          </Field>
+        )}
+        onAdd={() => {
+          const detailText = line?.comments_d;
+          if (!detailText?.trim()) return;
+          setDraft((d: any) => ({ ...d, comments: [...(d.comments || []), { detail: detailText, _key: uid() }] }));
+          setLine((l: any) => ({ ...l, comments_d: "" }));
+        }}
+        onRemove={(row) => setDraft((d: any) => ({ ...d, comments: (d.comments || []).filter((x: any) => x !== row) }))}
+      />
+      <LineTable
+        headers={["Feedback to HQ"]}
+        rows={draft.feedback || []}
+        addLabel="Add feedback"
+        fields={(
+          <Field label="Feedback to HQ" className="sm:col-span-2 lg:col-span-3">
+            <FormInput value={line?.feedback_d || ""} onChange={(e) => setLine((l: any) => ({ ...l, feedback_d: e.target.value }))} placeholder="Feedback, clarification or issues for HQ" />
+          </Field>
+        )}
+        onAdd={() => {
+          const detailText = line?.feedback_d;
+          if (!detailText?.trim()) return;
+          setDraft((d: any) => ({ ...d, feedback: [...(d.feedback || []), { detail: detailText, _key: uid() }] }));
+          setLine((l: any) => ({ ...l, feedback_d: "" }));
+        }}
+        onRemove={(row) => setDraft((d: any) => ({ ...d, feedback: (d.feedback || []).filter((x: any) => x !== row) }))}
+      />
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#e8f3ec] pt-4">
         <Button variant="ghost" disabled={busy} onClick={backToList}>
           <ArrowLeft className="w-4 h-4 mr-2" />Cancel
@@ -1002,7 +1124,9 @@ export default function MeetingsWorkspace({ onBack, initialTab = "meetings" }: {
             <Button variant="outline" disabled={busy} onClick={() => void transition("meeting", detail.meeting_id, "draft")}>Return</Button>
             <Button className={ACTION} disabled={busy} onClick={() => void transition("meeting", detail.meeting_id, "approved")}>Endorse</Button>
           </>}
-          <a href={challengeHref(detail.meeting_id)} className="inline-flex items-center gap-2 rounded-lg border border-[#d4e8dc] px-3 py-2 text-sm font-semibold text-[#145c3f] hover:bg-[#e8f6ee]">Challenge &amp; Support</a>
+          <Button type="button" variant="outline" className="h-8 gap-1.5 border-[#1a7a52] text-[#0f3d2e]" onClick={() => setChallengeOpen(true)}>
+            <FileText className="w-3.5 h-3.5" />Challenge &amp; Support
+          </Button>
         </div>
       </CardContent>
     </Card>
@@ -1170,11 +1294,11 @@ export default function MeetingsWorkspace({ onBack, initialTab = "meetings" }: {
     <PageLayout
       title={pageTitle}
       onBack={isViewOrForm ? handleBack : undefined}
-      actions={actions}
+      actions={mode === "list" ? actions : undefined}
       tabs={navTabs}
       loading={loading}
       error={error}
-      contentClassName="space-y-4 pb-8"
+      contentClassName="px-3 md:px-4 py-3 space-y-4"
     >
       <div className="w-full space-y-4">
         {listView}
@@ -1183,6 +1307,30 @@ export default function MeetingsWorkspace({ onBack, initialTab = "meetings" }: {
         {meetingDetail}
         {etmcDetail}
       </div>
+      <Dialog open={challengeOpen} onOpenChange={setChallengeOpen}>
+        <DialogContent
+          showCloseButton
+          className="flex max-h-[92vh] w-[min(96vw,72rem)] max-w-5xl flex-col overflow-hidden p-0"
+        >
+          <DialogHeader className="shrink-0 border-b border-[#d4e8dc] px-6 pt-5 pb-3">
+            <DialogTitle>Challenges &amp; Support</DialogTitle>
+            <DialogDescription>
+              Record a challenge or support request for this meeting. You stay on the meeting report.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3 md:px-4">
+            {challengeOpen ? (
+              <ChallengesSupportWorkspace
+                key={`${challengeSeed.meeting_id || "new"}:${challengeSeed.state_code}`}
+                embedded
+                onBack={() => setChallengeOpen(false)}
+                onSubmitted={() => setChallengeOpen(false)}
+                seed={challengeSeed}
+              />
+            ) : null}
+          </div>
+        </DialogContent>
+      </Dialog>
     </PageLayout>
   );
 }

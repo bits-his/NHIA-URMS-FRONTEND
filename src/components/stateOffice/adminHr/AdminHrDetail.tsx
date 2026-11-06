@@ -1,15 +1,15 @@
 import * as React from "react";
-import { ArrowLeft, Loader2, FileText, Clock, CheckCircle2, Pencil } from "lucide-react";
+import { Loader2, FileText, Clock, CheckCircle2, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
 import { stateOfficeApi } from "@/lib/api";
 import { monthLabel } from "../constants";
 import { ADMIN_HR_CONFIG, type AdminHrReportType } from "./constants";
 import { normalizePayload } from "./normalizePayload";
+import PageLayout from "../../PageLayout";
 
 interface Props {
   reportType: AdminHrReportType;
@@ -191,36 +191,22 @@ export default function AdminHrDetail({ reportType, reportId, onBack, onEdit }: 
   const payload = normalizePayload(report?.payload);
 
   return (
-    <div className="flex flex-col h-full bg-slate-50/30">
-      <div className="bg-white border-b border-border/50 px-4 md:px-6 py-3 flex items-center justify-between sticky top-0 z-30 gap-3">
-        <div className="min-w-0">
-          <h2 className="text-xl font-bold tracking-tight truncate">{cfg.formTitle}</h2>
-          <p className="text-xs text-slate-500 truncate">
-            {report?.reference_id ? (
-              <span className="font-mono font-semibold text-[#145c3f]">{report.reference_id}</span>
-            ) : (
-              cfg.subtitle
-            )}
-          </p>
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          {onEdit && (
-            <Button
-              size="sm"
-              onClick={onEdit}
-              className="gap-2 shrink-0 bg-[#145c3f] hover:bg-[#0f3d2e] text-white"
-            >
-              <Pencil className="w-4 h-4" /> Edit
-            </Button>
-          )}
-          <Button variant="outline" size="sm" onClick={onBack} className="gap-1.5 font-semibold">
-            <ArrowLeft className="w-4 h-4" /> Back
-          </Button>
-        </div>
-      </div>
-
-      <ScrollArea className="flex-1">
-        <div className="w-full px-4 md:px-6 py-4 space-y-4 pb-8">
+    <PageLayout
+      title={cfg.formTitle}
+      description={report?.reference_id || cfg.subtitle}
+      onBack={onBack}
+      actions={onEdit ? (
+        <Button
+          size="sm"
+          onClick={onEdit}
+          className="gap-1.5 h-8 text-xs rounded-md bg-[#145c3f] hover:bg-[#0f3d2e] text-white"
+        >
+          <Pencil className="w-3.5 h-3.5" /> Edit
+        </Button>
+      ) : undefined}
+      contentClassName="space-y-4"
+    >
+        <div className="w-full space-y-4">
           {loading ? (
             <div className="flex items-center justify-center py-24 gap-3 text-slate-400">
               <Loader2 className="w-6 h-6 animate-spin" /><span className="text-sm">Loading report…</span>
@@ -261,7 +247,6 @@ export default function AdminHrDetail({ reportType, reportId, onBack, onEdit }: 
             </Card>
           )}
         </div>
-      </ScrollArea>
-    </div>
+    </PageLayout>
   );
 }

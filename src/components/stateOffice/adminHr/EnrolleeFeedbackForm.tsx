@@ -139,7 +139,7 @@ export default function EnrolleeFeedbackForm({ reportId, onBack, onCancel, onSub
             <Field label="Comments">
               <TextArea value={comments} onChange={(e) => setComments(e.target.value)} />
             </Field>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               <Field label="Recorded By"><TextInput value={preparedBy} onChange={(e) => setPreparedBy(e.target.value)} /></Field>
               <Field label="Date"><TextInput type="date" value={preparedDate} onChange={(e) => setPreparedDate(e.target.value)} /></Field>
             </div>

@@ -84,7 +84,7 @@ export default function OfficeAccommodationForm({ reportId, onBack, onCancel, on
                   removeDisabled={rows.length <= 1}
                   onRemove={() => setRows((p) => (p.length <= 1 ? p : p.filter((r) => r._key !== row._key)))}
                 >
-                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     <FieldLike label="Ownership Status">
                       <SelectField value={row.ownershipStatus} onChange={(v) => updateRow(row._key, "ownershipStatus", v)} options={OWNERSHIP_STATUSES} />
                     </FieldLike>

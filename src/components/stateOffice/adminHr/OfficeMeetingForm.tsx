@@ -163,7 +163,7 @@ export default function OfficeMeetingForm({ reportId, onBack, onCancel, onSubmit
             <div className="space-y-3">
               {keyIssues.map((row) => (
                 <div key={row._key} className="rounded-lg border border-slate-200 p-3 space-y-3 bg-slate-50/50">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     <Field label="Agenda Item"><TextInput value={row.agenda} onChange={(e) => updateRow(setKeyIssues, row._key, "agenda", e.target.value)} /></Field>
                     <Field label="Requires Action"><SelectField value={row.requiresAction} onChange={(v) => updateRow(setKeyIssues, row._key, "requiresAction", v)} options={YES_NO} /></Field>
                     <Field label="Key Issue"><TextArea value={row.keyIssue} onChange={(e) => updateRow(setKeyIssues, row._key, "keyIssue", e.target.value)} /></Field>
@@ -266,7 +266,7 @@ export default function OfficeMeetingForm({ reportId, onBack, onCancel, onSubmit
           </Section>
 
           <Section title="7. SUBMISSION AND CERTIFICATION">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               <Field label="Prepared By"><TextInput value={preparedBy} onChange={(e) => setPreparedBy(e.target.value)} /></Field>
               <Field label="Designation"><TextInput value={designation} onChange={(e) => setDesignation(e.target.value)} /></Field>
               <Field label="Prepared Date"><TextInput type="date" value={preparedDate} onChange={(e) => setPreparedDate(e.target.value)} /></Field>
