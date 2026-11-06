@@ -216,17 +216,19 @@ export default function VehicleMaintenanceForm({ reportId, onBack, onCancel, onS
                   options={VEHICLE_STATUSES}
                 />
               </Field>
-              <Field label="Remarks">
-                <TextArea
-                  value={entry.remarks}
-                  onChange={(e) => set("remarks", e.target.value)}
-                  className="min-h-[42px]"
-                  placeholder="Enter remarks"
-                />
-              </Field>
+              <div className="md:col-span-2 lg:col-span-2">
+                <Field label="Remarks">
+                  <TextArea
+                    value={entry.remarks}
+                    onChange={(e) => set("remarks", e.target.value)}
+                    rows={2}
+                    placeholder="Enter remarks"
+                  />
+                </Field>
+              </div>
             </div>
 
-            <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-[#e8f3ec]">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               {editingKey ? (
                 <Button type="button" variant="ghost" size="sm" className="text-slate-600" onClick={resetEntry}>
                   Cancel edit

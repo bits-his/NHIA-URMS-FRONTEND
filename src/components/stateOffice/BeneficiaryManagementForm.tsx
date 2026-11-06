@@ -1899,8 +1899,8 @@ export default function BeneficiaryManagementForm({
               <div className="flex flex-wrap items-center justify-end gap-2">
                 <Button variant="ghost" onClick={backToRegister}>Cancel</Button>
                 {canEdit && (
-                  <Button variant="outline" className="gap-2" onClick={saveActivity}>
-                    <Save className="w-4 h-4" /> Save Activity
+                  <Button className="bg-orange-action hover:bg-orange-600 gap-2 shadow-md shadow-orange-500/20" onClick={saveActivity}>
+                    <Send className="w-4 h-4" /> Submit
                   </Button>
                 )}
               </div>
