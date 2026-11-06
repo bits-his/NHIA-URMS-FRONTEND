@@ -1,6 +1,6 @@
 import * as React from "react";
 import {
-  Award, ClipboardCheck, Loader2, RefreshCw,
+  Award, Building2, ClipboardCheck, Loader2, RefreshCw,
   Save, Send, Stethoscope, type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -25,6 +25,7 @@ import {
   PROVIDER_REPORT_STATUS_LABELS,
   coverageRates,
   formMeta,
+  providerFormIsReady,
   providerLinkedMetricLabel,
   providerManualMetrics,
   type ProviderFormKey,
@@ -37,6 +38,7 @@ const PROVIDER_ACTIVITY_ICONS: Record<ProviderFormKey, LucideIcon> = {
   reaccreditation: RefreshCw,
   "qa-inspections": ClipboardCheck,
   "medical-audits": Stethoscope,
+  empanelment: Building2,
 };
 
 function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
@@ -148,7 +150,11 @@ export default function ProviderManagementForm({
 
   const isFunded = PROVIDER_FUNDED_OPTIONS.has(entry.funding_option);
   // Accreditation vs Reaccreditation tabs already imply BHCPF activity type.
-  const bhcpfType = formKey === "reaccreditation" ? "Reaccreditation" : "Accreditation";
+  const bhcpfType = formKey === "reaccreditation"
+    ? "Reaccreditation"
+    : formKey === "accreditation"
+      ? "Accreditation"
+      : "";
   const manualMetrics = providerManualMetrics({
     formKey,
     programme: entry.related_programme,
@@ -215,7 +221,7 @@ export default function ProviderManagementForm({
     let maxSeq = 0;
     for (const row of v.lines ?? []) {
       const id = String(row.provider_management_id || row.reference_id || row.id || "");
-      const m = id.match(/(?:PM|PACC|PREC|PQA|PMED)-\d+-(\d+)/i);
+      const m = id.match(/(?:PM|PACC|PREC|PQA|PMED|PEMP)-\d+-(\d+)/i);
       if (m) maxSeq = Math.max(maxSeq, Number(m[1]) || 0);
     }
     setPmSeq(Math.max(maxSeq + 1, 1));
@@ -242,7 +248,11 @@ export default function ProviderManagementForm({
       seq += 1;
       setPmSeq(seq);
     }
-    const derivedBhcpfType = formKey === "reaccreditation" ? "Reaccreditation" : "Accreditation";
+    const derivedBhcpfType = formKey === "reaccreditation"
+      ? "Reaccreditation"
+      : formKey === "accreditation"
+        ? "Accreditation"
+        : "";
     const metricLabels = providerManualMetrics({
       formKey,
       programme: e.related_programme,
@@ -289,7 +299,7 @@ export default function ProviderManagementForm({
 
   const formTabs = (
     <UnderHeaderNavTabs
-      tabs={PROVIDER_FORM_TYPES.map((f) => ({
+      tabs={PROVIDER_FORM_TYPES.filter((f) => providerFormIsReady(f.key)).map((f) => ({
         id: f.key,
         label: f.tabLabel,
         icon: PROVIDER_ACTIVITY_ICONS[f.key],
@@ -330,7 +340,7 @@ export default function ProviderManagementForm({
           form_type: formKey,
           planned_activities: 1,
           lines: [{
-            id: l.provider_management_id?.match(/^(PACC|PREC|PQA|PMED)-/i)
+            id: l.provider_management_id?.match(/^(PACC|PREC|PQA|PMED|PEMP)-/i)
               ? l.provider_management_id
               : undefined,
             provider_management_id: l.provider_management_id,

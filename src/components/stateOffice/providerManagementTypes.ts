@@ -39,9 +39,23 @@ export const PROVIDER_FORM_TYPES = [
     activity: "Medical Audit",
     description: "Conduct medical audits and document compliance outcomes.",
   },
+  {
+    key: "empanelment",
+    label: "Empanelment",
+    tabLabel: "Empanelment",
+    newLabel: "New Empanelment",
+    code: "PM-0005",
+    activity: "Empanelment",
+    description: "Record facilities empaneled onto NHIA programmes.",
+  },
 ] as const;
 
 export type ProviderFormKey = (typeof PROVIDER_FORM_TYPES)[number]["key"];
+
+/** Activities listed on the hub that do not have a data-entry form yet. */
+export function providerFormIsReady(key: ProviderFormKey) {
+  return key !== "empanelment";
+}
 
 export const PROVIDER_MANAGEMENT_ACTIVITIES = PROVIDER_FORM_TYPES.map((f) => ({
   code: f.code,
@@ -106,7 +120,7 @@ export function providerManualMetrics(opts: {
   bhcpfType?: string | null;
 }): string[] {
   const { formKey, programme, bhcpfType } = opts;
-  if (formKey === "qa-inspections" || formKey === "medical-audits") return [];
+  if (formKey === "qa-inspections" || formKey === "medical-audits" || formKey === "empanelment") return [];
 
   if (programme === "BHCPF") {
     const type = bhcpfType || (formKey === "reaccreditation" ? "Reaccreditation" : "Accreditation");
@@ -139,6 +153,7 @@ export function providerLinkedMetricLabel(opts: {
 }): string | null {
   const { formKey, programme, bhcpfType } = opts;
   if (formKey === "qa-inspections" || formKey === "medical-audits") return null;
+  if (formKey === "empanelment") return "Number of Facilities Empaneled";
   if (programme === "BHCPF") {
     const type = bhcpfType || (formKey === "reaccreditation" ? "Reaccreditation" : "Accreditation");
     return type === "Reaccreditation"
@@ -183,4 +198,5 @@ export const PROVIDER_METRICS_BY_ACTIVITY: Record<string, Partial<Record<string,
   },
   "Quality Assurance": {},
   "Medical Audit": {},
+  Empanelment: {},
 };

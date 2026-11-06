@@ -162,6 +162,12 @@ export const ACTIVITY_TEMPLATE_BY_MODULE: Record<string, ActivityReportTemplateC
     activityFilter: ["Quality Assurance"],
     metricsByActivity: { "Quality Assurance": {} },
   }),
+  empanelment: providerBase({
+    activityModule: "empanelment",
+    pageTitle: "Empanelment",
+    activityFilter: ["Empanelment"],
+    metricsByActivity: { Empanelment: {} },
+  }),
 };
 
 export function resolvedActivities(cfg: ActivityReportTemplateConfig): ActivityOption[] {

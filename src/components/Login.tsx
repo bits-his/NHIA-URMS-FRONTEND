@@ -73,18 +73,17 @@ export default function Login({ onLogin }: LoginProps) {
 
         <div className="relative z-10 flex max-w-[22rem] flex-col items-center text-center">
           <NhiaCrest size="lg" />
-          <p className="mt-7 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6ddba8]">
+          {/* <p className="mt-7 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6ddba8]">
             National Health Insurance Authority
-          </p>
+          </p> */}
           <h1 className="mt-2 text-[1.7rem] font-black leading-[1.15] text-white">
-            Unit Reporting
+            <span className="text-[#6ddba8]">NHIA</span>
             <br />
-            Management System
+            Unified Reporting & Performance Management System
+            <br />
           </h1>
           <div className="mt-5 h-px w-16 rounded-full bg-[#25a872]/50" />
-          <p className="mt-5 text-sm leading-relaxed text-white/55">
-            Secure staff access for state, zonal and headquarters reporting.
-          </p>
+          <p className="mt-5 text-sm leading-relaxed text-white/55">Secure staff access for reporting and performance management.</p>
         </div>
 
         <p className="absolute bottom-7 text-[10px] font-medium uppercase tracking-[0.18em] text-white/30">

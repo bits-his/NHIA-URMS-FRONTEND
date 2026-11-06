@@ -32,6 +32,7 @@ const ACTIVITY_COLOR: Record<string, string> = {
   reaccreditation: "#14b8a6",
   "qa-inspections": "#f59e0b",
   "medical-audits": "#8b5cf6",
+  empanelment: "#145c3f",
 };
 
 const PROGRAMME_COLOR: Record<string, string> = {

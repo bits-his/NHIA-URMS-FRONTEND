@@ -1,6 +1,6 @@
 import * as React from "react";
 import {
-  Award, CheckCircle2, ClipboardCheck, Clock, Eye, FileText,
+  Award, Building2, CheckCircle2, ClipboardCheck, Clock, Eye, FileText,
   Plus, RefreshCw, Stethoscope, type LucideIcon, XCircle,
 } from "lucide-react";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -25,6 +25,7 @@ import PageLayout from "@/src/components/PageLayout";
 import { UnderHeaderNavTabs } from "@/src/components/UnderHeaderNavTabs";
 import {
   PROVIDER_FORM_TYPES,
+  providerFormIsReady,
   type ProviderFormKey,
 } from "./providerManagementTypes";
 import { useStateOfficeAccess } from "@/src/access/createReviewAccess";
@@ -51,6 +52,7 @@ const TAB_ICONS: Record<ProviderFormKey, LucideIcon> = {
   reaccreditation: RefreshCw,
   "qa-inspections": ClipboardCheck,
   "medical-audits": Stethoscope,
+  empanelment: Building2,
 };
 
 type Mode = "list" | "create" | "edit" | "view";
@@ -78,6 +80,7 @@ export default function ProviderManagementPage({ onBack, defaultZoneId, defaultS
   const { showStateFilter, filterState, setFilterState, states, apiStateId } = useMonthlyStateFilter(defaultStateId);
 
   const activeMeta = PROVIDER_FORM_TYPES.find((f) => f.key === activeTab) ?? PROVIDER_FORM_TYPES[0];
+  const activeReady = providerFormIsReady(activeTab);
   const newButtonLabel = activeMeta.newLabel;
 
   const load = React.useCallback(async () => {
@@ -230,6 +233,7 @@ export default function ProviderManagementPage({ onBack, defaultZoneId, defaultS
   };
 
   const openCreate = () => {
+    if (!providerFormIsReady(activeTab)) return;
     setSelectedId(null);
     setSelectedModule(activeTab);
     setFormKey((k) => k + 1);
@@ -285,7 +289,7 @@ export default function ProviderManagementPage({ onBack, defaultZoneId, defaultS
           <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-1.5 h-8 text-xs rounded-md border-[#d4e8dc]">
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh
           </Button>
-          {canCreate && (
+          {canCreate && activeReady && (
             <Button
               size="sm"
               className="bg-orange-action hover:bg-orange-600 gap-1.5 shadow-md shadow-orange-500/20 h-8 text-xs rounded-md"
@@ -302,7 +306,7 @@ export default function ProviderManagementPage({ onBack, defaultZoneId, defaultS
             id: tab.key,
             label: tab.tabLabel,
             icon: TAB_ICONS[tab.key],
-            count: tabCounts[tab.key] ?? 0,
+            count: providerFormIsReady(tab.key) ? (tabCounts[tab.key] ?? 0) : null,
           }))}
           activeTab={activeTab}
           onChange={(key) => setActiveTab(key as any)}
@@ -311,6 +315,20 @@ export default function ProviderManagementPage({ onBack, defaultZoneId, defaultS
       }
     >
       <div className="w-full space-y-4">
+        {!activeReady ? (
+          <Card className="rounded-sm border-[#d4e8dc] bg-white shadow-2xs">
+            <CardContent className="py-16 px-6 text-center space-y-3">
+              <div className="mx-auto w-12 h-12 rounded-full bg-[#e8f5ee] flex items-center justify-center">
+                <Clock className="w-6 h-6 text-[#145c3f]" />
+              </div>
+              <h3 className="text-lg font-bold text-slate-800">Coming soon</h3>
+              <p className="text-sm text-slate-500 leading-relaxed max-w-md mx-auto">
+                The empanelment form is not available yet.
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+        <>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
             {[
               { label: "Total", value: counts.total, tone: "text-[#0f3d2e] bg-white border-[#d4e8dc]" },
@@ -402,6 +420,8 @@ export default function ProviderManagementPage({ onBack, defaultZoneId, defaultS
             pageSize={50}
             showTableOptions={false}
           />
+        </>
+        )}
         </div>
     </PageLayout>
   );
