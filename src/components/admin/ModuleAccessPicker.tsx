@@ -21,11 +21,30 @@ function collectLeaves(node: PrivilegeNode): PrivilegeLeafNode[] {
   return node.children.flatMap(collectLeaves);
 }
 
+function leafKey(leaf: PrivilegeLeafNode) {
+  return `${leaf.accessTo}::${leaf.title}`;
+}
+
+function isLeafGranted(leaf: PrivilegeLeafNode, granted: Set<string>): boolean {
+  const scoped = leafKey(leaf);
+  if (granted.has(scoped)) return true;
+  if (granted.has(leaf.title)) {
+    const hasOtherScoped = Array.from(granted).some(
+      (k) => k.endsWith(`::${leaf.title}`) && !k.startsWith(`${leaf.accessTo}::`),
+    );
+    if (!hasOtherScoped) return true;
+  }
+  return false;
+}
+
 function dropOrphanParents(next: Set<string>) {
   for (const mod of MODULE_CONFIG) {
     if (!next.has(mod.title)) continue;
     const leaves = assignableLeavesForModule(mod);
-    if (leaves.length > 0 && !leaves.some((t) => next.has(t))) {
+    const hasAnyLeaf = leaves.some(
+      (t) => next.has(`${mod.title}::${t}`) || next.has(t),
+    );
+    if (leaves.length > 0 && !hasAnyLeaf) {
       next.delete(mod.title);
     }
   }
@@ -33,10 +52,18 @@ function dropOrphanParents(next: Set<string>) {
 
 function toggleLeaf(granted: Set<string>, leaf: PrivilegeLeafNode): Set<string> {
   const next = new Set(granted);
-  if (next.has(leaf.title)) {
-    next.delete(leaf.title);
+  const scoped = leafKey(leaf);
+  const isChecked = isLeafGranted(leaf, next);
+
+  if (isChecked) {
+    next.delete(scoped);
+    const otherHasIt = Array.from(next).some((k) => k.endsWith(`::${leaf.title}`));
+    if (!otherHasIt) {
+      next.delete(leaf.title);
+    }
     dropOrphanParents(next);
   } else {
+    next.add(scoped);
     next.add(leaf.title);
     next.add(leaf.accessTo);
     leaf.alsoGrant?.forEach((p) => next.add(p));
@@ -47,10 +74,9 @@ function toggleLeaf(granted: Set<string>, leaf: PrivilegeLeafNode): Set<string> 
 function toggleFolder(granted: Set<string>, folder: PrivilegeFolderNode): Set<string> {
   const next = new Set(granted);
   const leaves = collectLeaves(folder);
-  const titles = leaves.map((l) => l.title);
-  const allOn = titles.length > 0 && titles.every((t) => next.has(t));
+  const allOn = leaves.length > 0 && leaves.every((l) => isLeafGranted(l, next));
 
-  if (titles.length === 0 && folder.accessTo) {
+  if (leaves.length === 0 && folder.accessTo) {
     if (next.has(folder.accessTo)) next.delete(folder.accessTo);
     else {
       next.add(folder.accessTo);
@@ -60,11 +86,16 @@ function toggleFolder(granted: Set<string>, folder: PrivilegeFolderNode): Set<st
   }
 
   if (allOn) {
-    titles.forEach((t) => next.delete(t));
+    leaves.forEach((l) => {
+      next.delete(leafKey(l));
+      const otherHasIt = Array.from(next).some((k) => k.endsWith(`::${l.title}`));
+      if (!otherHasIt) next.delete(l.title);
+    });
     dropOrphanParents(next);
   } else {
-    titles.forEach((t) => next.add(t));
     leaves.forEach((l) => {
+      next.add(leafKey(l));
+      next.add(l.title);
       next.add(l.accessTo);
       l.alsoGrant?.forEach((p) => next.add(p));
     });
@@ -75,20 +106,16 @@ function toggleFolder(granted: Set<string>, folder: PrivilegeFolderNode): Set<st
 }
 
 function folderState(folder: PrivilegeFolderNode, granted: Set<string>) {
-  const titles = privilegeLeafTitles(folder);
-  if (titles.length === 0) {
+  const leaves = collectLeaves(folder);
+  if (leaves.length === 0) {
     const checked = !!(folder.accessTo && granted.has(folder.accessTo));
     return { checked, indeterminate: false };
   }
-  const count = titles.filter((t) => granted.has(t)).length;
+  const count = leaves.filter((l) => isLeafGranted(l, granted)).length;
   return {
-    checked: count === titles.length && count > 0,
-    indeterminate: count > 0 && count < titles.length,
+    checked: count === leaves.length && count > 0,
+    indeterminate: count > 0 && count < leaves.length,
   };
-}
-
-function leafKey(leaf: PrivilegeLeafNode) {
-  return `${leaf.accessTo}::${leaf.title}`;
 }
 
 function LeafRow({
@@ -99,7 +126,7 @@ function LeafRow({
   onChange: (next: Set<string>) => void;
   depth: number;
 }) {
-  const checked = granted.has(leaf.title);
+  const checked = isLeafGranted(leaf, granted);
   return (
     <label
       className={`flex items-center gap-2 rounded-sm px-2 py-1.5 cursor-pointer ${
@@ -130,7 +157,7 @@ function NestedFolder({
   defaultOpen?: boolean;
 }) {
   const { checked, indeterminate } = folderState(folder, granted);
-  const titles = privilegeLeafTitles(folder);
+  const leaves = collectLeaves(folder);
   const [open, setOpen] = React.useState(defaultOpen || checked || indeterminate);
   const ref = React.useRef<HTMLInputElement>(null);
   React.useEffect(() => {
@@ -158,9 +185,9 @@ function NestedFolder({
           <span className={`text-[11px] font-bold tracking-wide truncate ${checked || indeterminate ? "text-[#145c3f]" : "text-slate-600"}`}>
             {folder.label}
           </span>
-          {titles.length > 0 && (
+          {leaves.length > 0 && (
             <span className="text-[10px] tabular-nums text-slate-400 shrink-0">
-              {titles.filter((t) => granted.has(t)).length}/{titles.length}
+              {leaves.filter((l) => isLeafGranted(l, granted)).length}/{leaves.length}
             </span>
           )}
           {open ? <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" /> : <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />}
@@ -218,7 +245,7 @@ function ModuleCard({
   onChange: (next: Set<string>) => void;
 }) {
   if (node.kind === "leaf") {
-    const checked = granted.has(node.title);
+    const checked = isLeafGranted(node, granted);
     return (
       <label
         className={`flex items-center gap-2.5 px-3 py-2.5 rounded-sm border cursor-pointer ${

@@ -72,7 +72,9 @@ export default function AdminPrivilegesPage() {
       keys.add(modTitle);
       if (Array.isArray(entry.functionalities)) {
         entry.functionalities.forEach((funcTitle: string) => {
-          keys.add(normalizeFunctionalityTitle(funcTitle, modTitle));
+          const canonical = normalizeFunctionalityTitle(funcTitle, modTitle);
+          keys.add(`${modTitle}::${canonical}`);
+          keys.add(canonical);
         });
       }
     });
