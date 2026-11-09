@@ -226,6 +226,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
   "Utility Services": Zap,
   "Vehicle Maintenance": Car,
   "Conflict / Infraction Report": ShieldAlert,
+  "Conflict / Infraction": ShieldAlert,
   "Enrollee Feedback Survey": MessageSquare,
   Meetings: Users,
   "ETMC Cascading": ClipboardCheck,

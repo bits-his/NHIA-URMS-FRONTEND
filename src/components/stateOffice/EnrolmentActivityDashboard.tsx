@@ -112,8 +112,8 @@ export default function EnrolmentActivityDashboard({
   const faces: { id: Face; label: string }[] = view === "state"
     ? [
       { id: "overview", label: "Overview" },
-      { id: "cards", label: "ID cards" },
       { id: "renewals", label: "Renewals" },
+      { id: "cards", label: "ID cards" },
     ]
     : view === "zonal"
       ? [
@@ -288,10 +288,9 @@ export default function EnrolmentActivityDashboard({
           {face === "overview" && view === "state" && (
             <>
               <KpiRow items={[
-                ["Submissions", fmt(kpis.submitted)],
                 ["Activities reported", fmt(kpis.activities)],
-                ["Enrolled", fmt(kpis.enrolled)],
-                ["Reporting completeness", fmtPct(kpis.reporting_completeness)],
+                ["Total enrolled", fmt(kpis.enrolled)],
+                ["Cumulative enrolment", fmt(kpis.cumulative_enrolled)],
               ]} />
               <div className="grid grid-cols-1 xl:grid-cols-5 gap-4">
                 <Panel title="Enrolment by programme" className="xl:col-span-2" subtitle="Select a bar to filter">
@@ -484,7 +483,7 @@ function FilterField({ label, children }: { label: string; children: React.React
 
 function KpiRow({ items }: { items: [string, string][] }) {
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+    <div className={`grid grid-cols-2 gap-3 ${items.length === 3 ? "lg:grid-cols-3" : "lg:grid-cols-4"}`}>
       {items.map(([label, value]) => (
         <div
           key={label}

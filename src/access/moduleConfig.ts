@@ -298,18 +298,16 @@ export const MODULE_CONFIG: ParentModule[] = [
           { title: "IGR, SSHIA & Expenditure", view: "state-finance", path: "/zonal/finance/records", navLabel: "Finance" },
         ]},
         { type: "group", label: "Human Resources / Admin", children: [
-          { title: "Meetings & Coordination", view: "state-meetings", path: "/zonal/meetings" },
           { title: "State Office Profile", view: "state-admin-office-profile", path: "/zonal/admin-hr/office-profile", navLabel: "State Office Profile" },
+          { title: "Meetings & Coordination", view: "state-meetings", path: "/zonal/meetings" },
           { title: "Vehicle Maintenance", view: "state-vehicle-maintenance", path: "/zonal/admin-hr/vehicle-maintenance" },
-          { title: "Conflict / Infraction Report", view: "state-conflict-infraction", path: "/zonal/admin-hr/conflict-infraction" },
-          { title: "Enrollee Feedback Survey", view: "state-enrollee-feedback", path: "/zonal/admin-hr/enrollee-feedback" },
-        ]},
-        { type: "group", label: "ICT", children: [
           { title: "ICT Support Register", view: "state-ict-support", path: "/zonal/ict/support", navLabel: "ICT Support Register" },
-        ]},
-        { type: "group", label: "SERVICOM", children: [
-          { title: "State Office Charter Performance", view: "servicom-comment-card", path: "/zonal/servicom/comment-card", navLabel: "Citizens' Comment Card" },
-          { title: "State Office HCF Customer Satisfaction Survey", view: "servicom-satisfaction", path: "/zonal/servicom/satisfaction", navLabel: "HCF Customer Satisfaction Survey" },
+          { title: "Enrollee Feedback Survey", view: "state-enrollee-feedback", path: "/zonal/admin-hr/enrollee-feedback" },
+          { type: "group", label: "SERVICOM", children: [
+            { title: "State Office Charter Performance", view: "servicom-comment-card", path: "/zonal/servicom/comment-card", navLabel: "Citizens' Comment Card" },
+            { title: "State Office HCF Customer Satisfaction Survey", view: "servicom-satisfaction", path: "/zonal/servicom/satisfaction", navLabel: "HCF Customer Satisfaction Survey" },
+          ]},
+          { title: "Conflict / Infraction Report", view: "state-conflict-infraction", path: "/zonal/admin-hr/conflict-infraction", navLabel: "Conflict / Infraction" },
         ]},
       ]},
       {
