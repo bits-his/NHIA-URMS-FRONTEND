@@ -42,7 +42,7 @@ export default function StoreManagementWorkspace() {
 
   return (
     <div className="flex flex-col h-full bg-[#f4f7f5]">
-      <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3.5 flex items-center justify-between sticky top-0 z-30 gap-3">
+      <div className="bg-white border-b border-[#d4e8dc] px-2 md:px-3 py-2 flex items-center justify-between sticky top-0 z-30 gap-2">
         <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">Store Management</h2>
         <div className="flex items-center gap-2 shrink-0">
           <Button
@@ -54,6 +54,7 @@ export default function StoreManagementWorkspace() {
             <RefreshCw className="w-4 h-4" /> Refresh
           </Button>
           <Button
+            size="sm"
             className="bg-orange-action hover:bg-orange-600 gap-2 shadow-md shadow-orange-500/15"
             onClick={handleCreate}
           >
@@ -62,7 +63,7 @@ export default function StoreManagementWorkspace() {
         </div>
       </div>
 
-      <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 sticky top-[57px] z-20">
+      <div className="bg-white border-b border-[#d4e8dc] px-2 md:px-3 sticky top-[49px] z-20">
         <div className="flex gap-2 overflow-x-auto -mb-px" role="tablist">
           {TABS.map((tab) => {
             const active = activeTab === tab.key;
@@ -91,7 +92,7 @@ export default function StoreManagementWorkspace() {
       </div>
 
       <ScrollArea className="flex-1">
-        <div className="w-full px-4 md:px-6 py-5">
+        <div className="w-full px-2 py-2">
           {activeTab === "inventory" ? (
             <InventoryItemsView embedded refreshSignal={refreshSignal} />
           ) : (

@@ -372,7 +372,7 @@ export default function PhysicalAssetVerificationListView() {
 
   return (
     <div className="flex flex-col h-full bg-[#f4f7f5]">
-      <div className="bg-white border-b border-[#d4e8dc] px-4 md:px-6 py-3.5 flex items-center justify-between sticky top-0 z-30 gap-3">
+      <div className="bg-white border-b border-[#d4e8dc] px-2 md:px-3 py-2 flex items-center justify-between sticky top-0 z-30 gap-2">
         <h2 className="text-xl font-bold tracking-tight text-[#0f3d2e] truncate">Physical Asset Verification</h2>
         <div className="flex items-center gap-2 shrink-0">
           <Button variant="outline" size="sm" onClick={fetchAssets} disabled={loading} className="gap-2 border-[#d4e8dc]">
@@ -380,6 +380,7 @@ export default function PhysicalAssetVerificationListView() {
           </Button>
           {canCreate && (
             <Button
+              size="sm"
               className="bg-orange-action hover:bg-orange-600 gap-2 shadow-md shadow-orange-500/15"
               onClick={() => navigate("/store-management/assets/register")}
             >
@@ -390,7 +391,7 @@ export default function PhysicalAssetVerificationListView() {
       </div>
 
       <ScrollArea className="flex-1">
-        <div className="w-full px-4 md:px-6 py-5 space-y-4">
+        <div className="w-full px-2 py-2 space-y-2">
           {error && (
             <div role="alert" className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-800">
               {error}

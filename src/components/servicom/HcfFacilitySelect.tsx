@@ -20,6 +20,7 @@ interface Props {
   disabled?: boolean;
   placeholder?: string;
   className?: string;
+  size?: "sm" | "default";
   /** When false, search works without selecting a state first (default true for form flows). */
   requireState?: boolean;
   /** When false, option labels are name-only (use when HCF code has its own field). Default true. */
@@ -52,6 +53,7 @@ export default function HcfFacilitySelect({
   disabled,
   placeholder,
   className,
+  size,
   requireState = true,
   includeCodeInLabel = true,
   fallbackLabel,
@@ -179,6 +181,7 @@ export default function HcfFacilitySelect({
         onChange={handleChange}
         disabled={blocked || loading}
         className={className ?? "w-full"}
+        size={size}
         displayLabel={fallbackLabel}
         placeholder={
           requireState && !stateId

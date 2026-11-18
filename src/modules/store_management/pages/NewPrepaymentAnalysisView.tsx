@@ -237,9 +237,6 @@ export default function NewPrepaymentAnalysisView() {
             <FieldLabel htmlFor="prepay-ref" required>Invoice / delivery note</FieldLabel>
             <Input id="prepay-ref" className="font-mono" value={form.refInvoiceDeliveryNote} onChange={(e) => set("refInvoiceDeliveryNote", e.target.value)} placeholder="e.g. INV-2026-0041" />
           </div>
-        </section>
-
-        <section className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
           <div>
             <FieldLabel htmlFor="prepay-contractor" required>Contractor&apos;s name</FieldLabel>
             <Input id="prepay-contractor" value={form.contractorName} onChange={(e) => set("contractorName", e.target.value)} placeholder="Supplier / contractor" />
@@ -248,10 +245,7 @@ export default function NewPrepaymentAnalysisView() {
             <FieldLabel htmlFor="prepay-address" required>Contractor&apos;s address</FieldLabel>
             <Input id="prepay-address" value={form.contractorAddress} onChange={(e) => set("contractorAddress", e.target.value)} placeholder="Registered address" />
           </div>
-        </section>
-
-        <section className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full">
-          <div className="md:col-span-3">
+          <div>
             <FieldLabel htmlFor="prepay-item" required>Item description</FieldLabel>
             <Input id="prepay-item" value={form.itemDescription} onChange={(e) => set("itemDescription", e.target.value)} placeholder="Goods covered by this prepayment" />
           </div>
@@ -334,9 +328,6 @@ export default function NewPrepaymentAnalysisView() {
             <FieldLabel htmlFor="prepay-rate" required>Rate (NGN)</FieldLabel>
             <Input id="prepay-rate" type="number" min={0} step="0.01" className="tabular-nums" value={form.rate} onChange={(e) => set("rate", e.target.value)} placeholder="0.00" />
           </div>
-        </section>
-
-        <section className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
           <div>
             <FieldLabel htmlFor="awardLetter">Award letter</FieldLabel>
             <label
@@ -364,6 +355,7 @@ export default function NewPrepaymentAnalysisView() {
               placeholder="Additional notes"
             />
           </div>
+
         </section>
 
         </div>

@@ -95,7 +95,6 @@ import ReportReviewPage from "./ReportReviewPage";
 import NotificationsPage from "./NotificationsPage";
 import DashboardView from "../modules/store_management/pages/DashboardView";
 import CategoriesView from "../modules/store_management/pages/CategoriesView";
-import AssetListView from "../modules/store_management/pages/AssetListView";
 import AssetRegisterView from "../modules/store_management/pages/AssetRegisterView";
 import AssetDetailView from "../modules/store_management/pages/assets/AssetDetailView";
 import QrLabelsView from "../modules/store_management/pages/assets/QrLabelsView";
@@ -947,7 +946,7 @@ export default function Dashboard({ role, user, access = [], functionalities = "
             <Route path="/store-management" element={<StoreManagementWorkspace />} />
             <Route path="/store-management/workspace" element={<StoreManagementWorkspace />} />
             <Route path="/store-management/assets/register" element={<AssetRegisterView />} />
-            <Route path="/store-management/assets/list" element={<AssetListView />} />
+            <Route path="/store-management/assets/list" element={<Navigate to="/store-management/verification/verify" replace />} />
             <Route path="/store-management/assets/detail/:id" element={<AssetDetailView />} />
             <Route path="/store-management/assets/detail/*" element={<AssetDetailView />} />
             <Route path="/store-management/assets/categories" element={<CategoriesView />} />

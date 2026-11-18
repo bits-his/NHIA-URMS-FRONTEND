@@ -170,7 +170,7 @@ export default function AddStockView() {
           </p>
         ) : null}
 
-        <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 w-full">
+        <section className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full">
           <Field
             id="stock-code"
             label="Stock code"
@@ -219,9 +219,6 @@ export default function AddStockView() {
               </SelectContent>
             </Select>
           </Field>
-        </section>
-
-        <section className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
           <Field id="stock-zone" label="Zone" required>
             <Select
               value={zoneId}
@@ -262,9 +259,6 @@ export default function AddStockView() {
               </SelectContent>
             </Select>
           </Field>
-        </section>
-
-        <section className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full">
           <Field id="stock-qty" label="Quantity on hand" required>
             <Input
               id="stock-qty"

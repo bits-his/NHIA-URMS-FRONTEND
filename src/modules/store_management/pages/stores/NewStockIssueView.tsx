@@ -378,7 +378,7 @@ export function NewStockIssueView() {
           )}
 
           {currentStep === 3 && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-3xl">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full">
               <div>
                 <p className={LABEL_CLS}>Issued by</p>
                 <p className="h-10 flex items-center px-3 rounded-lg border border-slate-200 bg-slate-50 text-sm font-semibold text-slate-900">{user?.name || "Store Officer"}</p>
@@ -387,7 +387,7 @@ export function NewStockIssueView() {
                 <p className={LABEL_CLS}>Store</p>
                 <p className="h-10 flex items-center px-3 rounded-lg border border-slate-200 bg-slate-50 text-sm font-semibold text-slate-900">{fromLocation}</p>
               </div>
-              <div className="sm:col-span-2">
+              <div>
                 <label className={LABEL_CLS} htmlFor="remarks">Remarks</label>
                 <textarea id="remarks" name="remarks" className="h-24 w-full rounded-xl border-2 border-[#1a7a52] bg-[#f4f7f5] px-3.5 py-2.5 text-sm text-slate-800 outline-none hover:bg-white focus-visible:bg-white focus-visible:ring-3 focus-visible:ring-[#1a7a52]/25" value={form.remarks} onChange={(e) => setForm((p) => ({ ...p, remarks: e.target.value }))} placeholder="Optional note…" />
               </div>

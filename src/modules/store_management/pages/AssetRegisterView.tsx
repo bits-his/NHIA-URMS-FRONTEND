@@ -402,7 +402,7 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
         } else if (onNavigate) {
           onNavigate("store-assets-list");
         } else {
-          navigate("/store-management/assets/list");
+          navigate("/store-management/verification/verify");
         }
       }, 1200);
     } catch (err: any) {
@@ -441,7 +441,7 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
           ? "/store-management/transfers/requests?tab=capitalise"
           : fromSupply
             ? "/store-management/verification/supply"
-            : "/store-management/assets/list"
+            : "/store-management/verification/verify"
       }
     >
       <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden flex flex-col min-h-[600px] w-full">
@@ -514,24 +514,23 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
           {/* STEP 1: IDENTIFICATION & CLASSIFICATION */}
           {currentStep === 1 && (
             <div className="space-y-4">
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">
-                  Asset Name / Item Description <span className="text-rose-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => {
-                    setFormData({ ...formData, name: e.target.value });
-                    if (validationError) setValidationError(null);
-                  }}
-                  className="w-full px-3 py-2 rounded border border-slate-300 font-semibold focus:ring-1 focus:ring-[#25a872]"
-                  placeholder="e.g. HP LaserJet Enterprise MFP Printer"
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">
+                    Asset Name / Item Description <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.name}
+                    onChange={(e) => {
+                      setFormData({ ...formData, name: e.target.value });
+                      if (validationError) setValidationError(null);
+                    }}
+                    className="w-full px-3 py-2 rounded border border-slate-300 font-semibold focus:ring-1 focus:ring-[#25a872]"
+                    placeholder="e.g. HP LaserJet Enterprise MFP Printer"
+                    required
+                  />
+                </div>
                 <div>
                   <label className="block font-bold text-slate-700 mb-1">
                     NHIA Tag <span className="text-rose-500">*</span>
@@ -640,7 +639,7 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
                     );
                   }
                   return (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 bg-[#f4f7f5] p-3.5 rounded-lg border border-slate-200">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 bg-[#f4f7f5] p-3.5 rounded-lg border border-slate-200">
                       {fields.map((field) => (
                         <div key={field.key}>
                           <label className="block font-bold text-slate-700 mb-1">{field.label}</label>
@@ -682,7 +681,7 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
               {(() => {
                 const hqOffice = Boolean(states.find((s) => String(s.id) === String(formData.state_id))?.isHq);
                 return (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="block font-bold text-slate-800 mb-1">
                     Zone <span className="text-rose-500">*</span>
@@ -782,7 +781,7 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
                   </Select>
                 </div>
 
-                <div className="md:col-span-2">
+                <div>
                   <label className="block font-bold text-slate-800 mb-1">
                     Specific Location (Floor / Room) <span className="text-rose-500">*</span>
                   </label>
@@ -802,7 +801,7 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
                 );
               })()}
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="block font-bold text-slate-800 mb-1">
                     Tracking Officer Name <span className="text-rose-500">*</span>
@@ -979,7 +978,7 @@ export function AssetRegisterView({ onNavigate }: { onNavigate?: (view: string) 
           {/* LIFECYCLE & MAINTENANCE */}
           {currentStep === LAST_STEP && (
             <div className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="block font-bold text-slate-700 mb-1">
                     Physical Condition <span className="text-rose-500">*</span>

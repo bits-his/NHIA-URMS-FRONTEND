@@ -14,22 +14,7 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
-import {
-  ArrowLeft,
-  ClipboardCheck,
-  Loader2,
-  AlertCircle,
-  CheckCircle2,
-  ShieldCheck,
-  MapPin,
-  User,
-  Tag,
-  Calendar,
-  Building,
-  FileText,
-  AlertTriangle,
-  Info,
-} from "lucide-react";
+import { ClipboardCheck, Loader2, AlertCircle, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { PHYSICAL_CONDITIONS } from "../../lib/storeOptions";
 
@@ -42,13 +27,34 @@ function toItemCondition(label: string) {
   return "GOOD";
 }
 
-function conditionTone(raw: string) {
-  const v = String(raw || "").toLowerCase();
-  if (/\bretir|\bdispos/.test(v)) return { label: "Retired", className: "bg-slate-200 text-slate-800 border-slate-300" };
-  if (/\bobsolete/.test(v)) return { label: "Obsolete", className: "bg-amber-100 text-amber-950 border-amber-300" };
-  if (/\bmissing|\blost/.test(v)) return { label: "Missing", className: "bg-rose-100 text-rose-900 border-rose-300" };
-  if (/\bdefect|\bpoor|\bdamaged|\brepair/.test(v)) return { label: "Defective", className: "bg-rose-50 text-rose-800 border-rose-200" };
-  return { label: raw || "Good", className: "bg-[#e8f5ee] text-[#0f3d2e] border-[#25a872]/40" };
+function SectionBand({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section className="rounded-sm border border-[#d4e8dc] bg-white overflow-hidden shadow-sm">
+      <div className="bg-[#e8f5ee] px-3 py-2 border-b border-[#d4e8dc]">
+        <h3 className="text-[12px] font-bold uppercase tracking-[0.06em] text-[#0f3d2e]">{title}</h3>
+      </div>
+      <div className="p-3 bg-[#f4f7f5]">{children}</div>
+    </section>
+  );
+}
+
+function InfoField({ label, value, mono = false }: { label: string; value: React.ReactNode; mono?: boolean }) {
+  if (value == null || value === "" || value === "—") return null;
+  return (
+    <div className="space-y-1 min-w-0">
+      <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{label}</p>
+      <p className={`text-sm font-medium text-slate-800 break-words ${mono ? "font-mono" : ""}`}>{value}</p>
+    </div>
+  );
+}
+
+function FieldLabel({ htmlFor, children, required }: { htmlFor?: string; children: React.ReactNode; required?: boolean }) {
+  return (
+    <label htmlFor={htmlFor} className="block text-[10px] font-semibold uppercase tracking-wide text-slate-400 mb-1">
+      {children}
+      {required ? <span className="text-rose-600"> *</span> : null}
+    </label>
+  );
 }
 
 export default function VerifyAssetView() {
@@ -166,12 +172,9 @@ export default function VerifyAssetView() {
   if (loading) {
     return (
       <PageLayout title="Physical Asset Verification" description="Loading asset details…">
-        <div className="space-y-4 animate-pulse">
-          <div className="h-28 rounded-2xl bg-slate-200/70" />
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="h-96 rounded-2xl bg-slate-100" />
-            <div className="h-96 rounded-2xl bg-slate-100" />
-          </div>
+        <div className="space-y-2 animate-pulse">
+          <div className="h-24 rounded-sm bg-slate-200/70" />
+          <div className="h-24 rounded-sm bg-slate-100" />
         </div>
       </PageLayout>
     );
@@ -181,22 +184,20 @@ export default function VerifyAssetView() {
     return (
       <PageLayout
         title="Asset Not Found"
-        description="Cannot verify this asset record"
-        actions={
-          <Button variant="outline" size="sm" className="text-xs" onClick={() => navigate("/store-management/verification/verify")}>
-            <ArrowLeft className="h-3.5 w-3.5 mr-1" aria-hidden="true" /> Back to List
-          </Button>
-        }
+        description="This record is not on Physical Asset Verification"
+        back
+        backTo="/store-management/verification/verify"
       >
-        <div className="p-12 text-center bg-white rounded-2xl border border-slate-200">
-          <AlertTriangle className="h-12 w-12 text-amber-500 mx-auto mb-3" />
-          <h3 className="text-lg font-bold text-slate-800">Asset Record Not Found</h3>
-          <p className="text-sm text-slate-500 mt-1">No asset matches reference: {assetId}</p>
+        <div className="p-6 text-center bg-white rounded-sm border border-[#d4e8dc]">
+          <AlertTriangle className="h-10 w-10 text-amber-500 mx-auto mb-2" />
+          <h3 className="text-base font-bold text-slate-800">No Asset Found</h3>
+          <p className="text-xs text-slate-500 mt-0.5">No asset matches reference: {assetId}</p>
           <Button
+            size="sm"
             onClick={() => navigate("/store-management/verification/verify")}
-            className="mt-5 bg-[#145c3f] hover:bg-[#0f3d2e] text-white"
+            className="mt-4 bg-[#145c3f] hover:bg-[#0f3d2e] text-white text-xs"
           >
-            Return to Verification List
+            Back to Physical Asset Verification
           </Button>
         </div>
       </PageLayout>
@@ -204,301 +205,162 @@ export default function VerifyAssetView() {
   }
 
   const tag = asset.assetId || asset.assetNumber || asset.nhiaTagNumber || `AST-${asset.id}`;
-  const recordedCond = conditionTone(asset.physicalCondition || "Good");
+  const varianceLabel = variance > 0 ? `-${variance}` : variance < 0 ? `+${Math.abs(variance)}` : "0";
 
   return (
     <PageLayout
-      title="Physical Asset Verification"
-      description={`Conduct physical stocktaking and condition assessment for ${tag}`}
-      actions={
-        <Button
-          variant="outline"
-          size="sm"
-          className="text-xs h-8 font-semibold border-slate-300 hover:bg-slate-50"
-          onClick={() => navigate("/store-management/verification/verify")}
-        >
-          <ArrowLeft className="h-3.5 w-3.5 mr-1" aria-hidden="true" /> Back to List
-        </Button>
-      }
-      contentClassName="gap-3.5"
+      title={asset.name || "Asset"}
+      description={tag}
+      back
+      backTo="/store-management/verification/verify"
+      contentClassName="p-2 md:p-2 gap-2"
     >
-      {/* ─── Compact Asset Information Profile Banner ──────────────────────── */}
-      <div className="bg-white border border-slate-200/90 rounded-xl shadow-sm px-4 py-3">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-          <div className="space-y-1 min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="px-2.5 py-0.5 rounded-lg text-xs font-mono font-bold bg-[#e8f5ee] text-[#145c3f] border border-[#25a872]/40">
-                {tag}
-              </span>
-              <span className="px-2.5 py-0.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200">
-                {asset.primaryCategory || "General Asset"}
-              </span>
-              <span className={`inline-flex items-center rounded-lg border px-2 py-0.5 text-[11px] font-bold ${recordedCond.className}`}>
-                Current: {recordedCond.label}
-              </span>
-            </div>
-
-            <h1 className="text-lg sm:text-xl font-bold tracking-tight text-slate-900 truncate">
-              {asset.name || "Asset"}
-            </h1>
-
-            <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-xs text-slate-600">
-              <span className="flex items-center gap-1">
-                <User className="w-3.5 h-3.5 text-slate-400" />
-                <strong>Custodian:</strong> {asset.assignedCustodian || asset.custodian || "Unassigned"}
-              </span>
-              <span className="flex items-center gap-1">
-                <Building className="w-3.5 h-3.5 text-slate-400" />
-                <strong>Dept:</strong> {asset.department_name || asset.officeDeptUnit || asset.location || "—"}
-              </span>
-              <span className="flex items-center gap-1">
-                <MapPin className="w-3.5 h-3.5 text-slate-400" />
-                <strong>Spot:</strong> {asset.specificLocation || "—"}
-              </span>
-            </div>
-          </div>
-
-          <div className="shrink-0 bg-slate-50 px-3.5 py-2 rounded-lg border border-slate-200/70 text-right">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Last Verified</p>
-            <p className="text-xs font-bold text-slate-800 tabular-nums">
-              {asset.lastVerificationDate || "Never Verified"}
-            </p>
-            <p className="text-[10px] text-slate-500">Status: {asset.verificationStatus || "Unverified"}</p>
-          </div>
+      <SectionBand title="Identification">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-3">
+          <InfoField label="Asset name" value={asset.name} />
+          <InfoField label="Tag number" value={asset.nhiaTagNumber || tag} mono />
+          <InfoField label="Condition" value={asset.physicalCondition} />
+          <InfoField label="Category" value={asset.primaryCategory || asset.category} />
+          <InfoField label="Subcategory" value={asset.subCategory} />
+          <InfoField label="Item type" value={asset.specificType} />
+          <InfoField label="Serial number" value={asset.serialNumber || asset.barcodeQrCode} mono />
+          <InfoField label="Last verified" value={asset.lastVerificationDate} />
+          <InfoField label="Verification status" value={asset.verificationStatus} />
         </div>
-      </div>
+      </SectionBand>
 
-      {/* ─── Main Form: 2-Column Balanced Compact Layout ───────────────────── */}
-      <form onSubmit={handleSubmit} className="space-y-3.5">
+      <SectionBand title="Location and custody">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-3">
+          <InfoField label="Custodian" value={asset.assignedCustodian || asset.custodian} />
+          <InfoField label="Zone" value={asset.zone_name || (asset.facilitySite === "HQ" ? "Headquarters" : asset.facilitySite)} />
+          <InfoField label="State office" value={asset.state_name || asset.location} />
+          <InfoField label="Department" value={asset.department_name || asset.officeDeptUnit} />
+          <InfoField label="Unit" value={asset.unit_name} />
+          <InfoField label="Room / spot" value={asset.specificLocation} />
+        </div>
+      </SectionBand>
+
+      <form onSubmit={handleSubmit} className="space-y-2">
         {error && (
-          <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-semibold text-rose-800 flex items-center gap-2.5 shadow-sm">
-            <AlertCircle className="h-4 w-4 shrink-0 text-rose-600" aria-hidden="true" />
-            <div>{error}</div>
+          <div role="alert" className="rounded-sm border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-800 flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
+            {error}
+          </div>
+        )}
+        {hasException && (
+          <div className="rounded-sm border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900 flex items-start gap-2">
+            <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" aria-hidden="true" />
+            <span>Variance or a missing condition was recorded. Add the reason in remarks.</span>
           </div>
         )}
 
-        {hasException && (
-          <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs font-semibold text-amber-900 flex items-start gap-2.5 shadow-sm">
-            <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-amber-600" aria-hidden="true" />
+        <SectionBand title="Verification">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <p className="font-bold">Verification Exception Detected</p>
-              <p className="font-normal text-amber-800 mt-0.5">
-                Variance or missing condition logged. Please state reason in remarks below.
+              <FieldLabel htmlFor="book-balance">Book balance</FieldLabel>
+              <Input
+                id="book-balance"
+                name="bookBalance"
+                type="number"
+                min={0}
+                inputMode="numeric"
+                value={form.bookBalance}
+                onChange={(e) => setForm((p) => ({ ...p, bookBalance: Number(e.target.value) || 0 }))}
+                className="tabular-nums"
+              />
+            </div>
+            <div>
+              <FieldLabel htmlFor="physical-count" required>Physical count</FieldLabel>
+              <Input
+                id="physical-count"
+                name="physicalCount"
+                type="number"
+                min={0}
+                inputMode="numeric"
+                value={form.physicalCount}
+                onChange={(e) => setForm((p) => ({ ...p, physicalCount: Number(e.target.value) || 0 }))}
+                className="tabular-nums"
+                required
+              />
+            </div>
+            <div>
+              <FieldLabel>Count variance</FieldLabel>
+              <p className={`h-10 flex items-center px-3 rounded-sm border text-sm font-semibold tabular-nums ${
+                variance === 0 ? "border-[#d4e8dc] bg-[#e8f5ee] text-[#0f3d2e]" : "border-amber-300 bg-amber-50 text-amber-950"
+              }`}>
+                {varianceLabel}
               </p>
             </div>
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3.5">
-          {/* Column 1: Physical Count & Assessment */}
-          <div className="bg-white border border-slate-200/90 rounded-xl shadow-sm p-4 space-y-3.5">
-            <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
-              <div className="p-1.5 bg-[#e8f5ee] rounded-lg text-[#145c3f]">
-                <Tag className="w-4 h-4" />
-              </div>
-              <div>
-                <h2 className="text-xs font-bold uppercase tracking-wider text-slate-900">Physical Count & Condition</h2>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1" htmlFor="book-balance">
-                  Book Balance
-                </label>
-                <Input
-                  id="book-balance"
-                  name="bookBalance"
-                  type="number"
-                  min={0}
-                  inputMode="numeric"
-                  value={form.bookBalance}
-                  onChange={(e) => setForm((p) => ({ ...p, bookBalance: Number(e.target.value) || 0 }))}
-                  className="w-full h-10 px-3.5 rounded-lg border border-slate-300 bg-slate-50 font-semibold text-slate-800 tabular-nums focus:outline-none focus:ring-2 focus:ring-[#25a872]/40 text-sm"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1" htmlFor="physical-count">
-                  Physical Count <span className="text-rose-500">*</span>
-                </label>
-                <Input
-                  id="physical-count"
-                  name="physicalCount"
-                  type="number"
-                  min={0}
-                  inputMode="numeric"
-                  value={form.physicalCount}
-                  onChange={(e) => setForm((p) => ({ ...p, physicalCount: Number(e.target.value) || 0 }))}
-                  className="w-full h-10 px-3.5 rounded-lg border-2 border-[#145c3f] bg-white font-bold text-slate-900 tabular-nums focus:outline-none focus:ring-2 focus:ring-[#25a872]/40 text-sm"
-                  required
-                />
-              </div>
-            </div>
-
-            {/* Dynamic Variance Banner */}
-            <div className={`p-2.5 rounded-lg border flex items-center justify-between ${
-              variance === 0
-                ? "bg-emerald-50 border-emerald-200 text-emerald-900"
-                : "bg-amber-50 border-amber-300 text-amber-950"
-            }`}>
-              <div className="flex items-center gap-2">
-                {variance === 0 ? (
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                ) : (
-                  <AlertCircle className="w-4 h-4 text-amber-600" />
-                )}
-                <div>
-                  <p className="text-[11px] font-bold uppercase tracking-wider">Count Variance</p>
-                  <p className="text-xs font-medium opacity-85">
-                    {variance === 0 ? "Book balance matches physical count" : `Variance: Book (${form.bookBalance}) vs Actual (${form.physicalCount})`}
-                  </p>
-                </div>
-              </div>
-              <span className={`text-base font-extrabold tabular-nums px-2.5 py-0.5 rounded-md ${
-                variance === 0 ? "bg-emerald-100 text-emerald-800" : "bg-amber-200 text-amber-900"
-              }`}>
-                {variance > 0 ? `-${variance}` : variance < 0 ? `+${Math.abs(variance)}` : "0"}
-              </span>
-            </div>
-
-            {/* Condition Selection with Custom Select */}
             <div>
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1">
-                Physical Condition Assessment <span className="text-rose-500">*</span>
-              </label>
-              <Select
-                value={form.physicalCondition}
-                onValueChange={(val) => setForm((p) => ({ ...p, physicalCondition: val }))}
-              >
-                <SelectTrigger displayValue={form.physicalCondition} className="bg-white border-slate-300 h-10">
-                  <SelectValue placeholder="Select Condition" />
+              <FieldLabel required>Physical condition</FieldLabel>
+              <Select value={form.physicalCondition} onValueChange={(val) => setForm((p) => ({ ...p, physicalCondition: val }))}>
+                <SelectTrigger size="sm" displayValue={form.physicalCondition}>
+                  <SelectValue placeholder="Select condition" />
                 </SelectTrigger>
                 <SelectContent>
                   {PHYSICAL_CONDITIONS.map((c) => (
-                    <SelectItem key={c} value={c}>
-                      {c}
-                    </SelectItem>
+                    <SelectItem key={c} value={c}>{c}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-
-            {/* Verification Status Selection with Custom Select */}
             <div>
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1">
-                Verification Verdict
-              </label>
+              <FieldLabel>Verification verdict</FieldLabel>
               <Select
                 value={hasException ? "Exception" : form.verificationStatus}
                 disabled={hasException}
                 onValueChange={(val) => setForm((p) => ({ ...p, verificationStatus: val }))}
               >
-                <SelectTrigger
-                  displayValue={hasException ? "Exception (Auto-flagged)" : form.verificationStatus}
-                  className="bg-white border-slate-300 h-10"
-                >
-                  <SelectValue placeholder="Select Status" />
+                <SelectTrigger size="sm" displayValue={hasException ? "Exception" : form.verificationStatus}>
+                  <SelectValue placeholder="Select status" />
                 </SelectTrigger>
                 <SelectContent>
                   {VERIFY_STATUSES.map((s) => (
-                    <SelectItem key={s} value={s}>
-                      {s}
-                    </SelectItem>
+                    <SelectItem key={s} value={s}>{s}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-          </div>
-
-          {/* Column 2: Sign-Off, Officer & Remarks */}
-          <div className="bg-white border border-slate-200/90 rounded-xl shadow-sm p-4 space-y-3.5 flex flex-col justify-between">
-            <div className="space-y-3.5">
-              <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
-                <div className="p-1.5 bg-[#e8f5ee] rounded-lg text-[#145c3f]">
-                  <ShieldCheck className="w-4 h-4" />
-                </div>
-                <div>
-                  <h2 className="text-xs font-bold uppercase tracking-wider text-slate-900">Sign-Off & Remarks</h2>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1" htmlFor="verify-date">
-                    Verification Date <span className="text-rose-500">*</span>
-                  </label>
-                  <input
-                    id="verify-date"
-                    name="verificationDate"
-                    type="date"
-                    value={form.verificationDate}
-                    onChange={(e) => setForm((p) => ({ ...p, verificationDate: e.target.value }))}
-                    className="w-full h-10 px-3.5 rounded-lg border border-slate-300 bg-white font-medium text-slate-900 text-xs focus:outline-none focus:ring-2 focus:ring-[#25a872]/40"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1">
-                    Verifying Officer
-                  </label>
-                  <div className="h-10 px-3.5 rounded-lg border border-slate-200 bg-slate-50 flex items-center gap-2 text-xs font-bold text-slate-800 truncate">
-                    <User className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                    <span className="truncate">{user?.name || "Verifying Officer"}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1" htmlFor="remarks">
-                  Remarks {hasException ? <span className="text-rose-500">* (Required)</span> : <span className="text-slate-400 font-normal">(Optional)</span>}
-                </label>
-                <textarea
-                  id="remarks"
-                  name="remarks"
-                  rows={3}
-                  value={form.remarks}
-                  onChange={(e) => setForm((p) => ({ ...p, remarks: e.target.value }))}
-                  placeholder="Record observations regarding physical condition, defects, or reasons for count variance..."
-                  className="w-full p-3 rounded-lg border border-slate-300 bg-white text-xs font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#25a872]/40 resize-none"
-                  required={hasException}
-                />
-              </div>
+            <div>
+              <FieldLabel htmlFor="verify-date" required>Verification date</FieldLabel>
+              <Input
+                id="verify-date"
+                name="verificationDate"
+                type="date"
+                value={form.verificationDate}
+                onChange={(e) => setForm((p) => ({ ...p, verificationDate: e.target.value }))}
+                required
+              />
             </div>
-
-            {/* Action CTAs */}
-            <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2.5">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => navigate("/store-management/verification/verify")}
-                className="h-10 px-5 rounded-lg font-semibold border-slate-300 hover:bg-slate-50 text-slate-700 text-xs"
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                disabled={saving}
-                size="sm"
-                className="h-10 px-6 rounded-lg font-bold bg-[#145c3f] hover:bg-[#0f3d2e] text-white shadow-sm flex items-center gap-1.5 text-xs"
-              >
-                {saving ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                    Saving…
-                  </>
-                ) : (
-                  <>
-                    <ClipboardCheck className="h-4 w-4" aria-hidden="true" />
-                    Save & Submit Verification
-                  </>
-                )}
-              </Button>
+            <div>
+              <FieldLabel>Verifying officer</FieldLabel>
+              <p className="h-8 flex items-center px-2.5 rounded-sm border border-[#d4e8dc] bg-white text-xs font-medium text-slate-800 truncate">
+                {user?.name || "Verifying officer"}
+              </p>
+            </div>
+            <div>
+              <FieldLabel htmlFor="remarks" required={hasException}>Remarks</FieldLabel>
+              <textarea
+                id="remarks"
+                name="remarks"
+                value={form.remarks}
+                onChange={(e) => setForm((p) => ({ ...p, remarks: e.target.value }))}
+                placeholder={hasException ? "Reason for the variance or missing condition" : "Observations"}
+                className="min-h-[72px] w-full rounded-sm border-2 border-[#1a7a52] bg-white px-2.5 py-2 text-xs text-slate-800 outline-none focus-visible:ring-2 focus-visible:ring-[#1a7a52]/20"
+                required={hasException}
+              />
             </div>
           </div>
-        </div>
+          <div className="mt-3 flex items-center justify-end gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={() => navigate("/store-management/verification/verify")}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={saving} size="sm" className="bg-[#145c3f] hover:bg-[#0f3d2e] text-white">
+              {saving ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" aria-hidden="true" /> : <ClipboardCheck className="h-3.5 w-3.5 mr-1.5" aria-hidden="true" />}
+              {saving ? "Saving…" : "Save verification"}
+            </Button>
+          </div>
+        </SectionBand>
       </form>
     </PageLayout>
   );

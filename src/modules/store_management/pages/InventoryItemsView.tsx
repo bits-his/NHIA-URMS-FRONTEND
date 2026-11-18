@@ -264,13 +264,13 @@ export default function InventoryItemsView({ embedded = false, refreshSignal = 0
         ))}
       </div>
 
-      <Card className="rounded-2xl border-[#d4e8dc]">
-        <CardContent className="pt-4 pb-4 space-y-3">
-          <div className="grid grid-flow-col auto-cols-fr gap-3">
-            <div className="space-y-1 min-w-0">
-              <Label className="text-xs text-muted-foreground">Zone</Label>
+      <Card className="rounded-sm border border-[#d4e8dc] py-0 gap-0 shadow-2xs bg-white">
+        <CardContent className="py-1.5 px-3 space-y-1.5">
+          <div className="grid grid-flow-col auto-cols-fr gap-2.5 items-end">
+            <div className="space-y-0.5 min-w-0">
+              <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Zone</Label>
               <Select value={zoneFilter || "ALL"} onValueChange={(val) => setParams({ zone: val === "ALL" ? "" : val, state: "" })}>
-                <SelectTrigger displayValue={zones.find((z) => String(z.id) === zoneFilter)?.label || "All zones"}>
+                <SelectTrigger size="sm" displayValue={zones.find((z) => String(z.id) === zoneFilter)?.label || "All zones"}>
                   <SelectValue placeholder="All zones" />
                 </SelectTrigger>
                 <SelectContent>
@@ -281,14 +281,15 @@ export default function InventoryItemsView({ embedded = false, refreshSignal = 0
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1 min-w-0">
-              <Label className="text-xs text-muted-foreground">State store</Label>
+            <div className="space-y-0.5 min-w-0">
+              <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">State store</Label>
               <Select
                 value={stateFilter || "ALL"}
                 disabled={!zoneFilter}
                 onValueChange={(val) => setParams({ state: val === "ALL" ? "" : val })}
               >
                 <SelectTrigger
+                  size="sm"
                   displayValue={
                     !zoneFilter
                       ? "Select zone first"
@@ -307,10 +308,11 @@ export default function InventoryItemsView({ embedded = false, refreshSignal = 0
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1 min-w-0">
-              <Label className="text-xs text-muted-foreground">Status</Label>
+            <div className="space-y-0.5 min-w-0">
+              <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Status</Label>
               <Select value={statusFilter || "ALL"} onValueChange={(val) => setParams({ status: val === "ALL" ? "" : val })}>
                 <SelectTrigger
+                  size="sm"
                   displayValue={
                     statusFilter === "in" ? "In stock" : statusFilter === "low" ? "Low stock" : statusFilter === "out" ? "Out of stock" : "All statuses"
                   }
@@ -327,8 +329,8 @@ export default function InventoryItemsView({ embedded = false, refreshSignal = 0
             </div>
           </div>
           {hasActiveFilters && (
-            <div className="flex justify-end">
-              <Button variant="ghost" size="sm" className="text-slate-500 gap-1 shrink-0" onClick={resetFilters}>
+            <div className="flex justify-end pt-0.5">
+              <Button variant="ghost" size="sm" className="h-7 text-xs text-slate-500 gap-1 shrink-0" onClick={resetFilters}>
                 <XCircle className="w-3.5 h-3.5" /> Clear
               </Button>
             </div>

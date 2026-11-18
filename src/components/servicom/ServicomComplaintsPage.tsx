@@ -766,7 +766,6 @@ export default function ServicomComplaintsPage({
   const [filterStatus, setFilterStatus] = React.useState("all");
   const [filterPriority, setFilterPriority] = React.useState("all");
   const [filterSearch, setFilterSearch] = React.useState("");
-  const [filterDate, setFilterDate] = React.useState("");
   const [filterFacilityId, setFilterFacilityId] = React.useState("");
   const [filterFacilityName, setFilterFacilityName] = React.useState("");
   const [filterHmoId, setFilterHmoId] = React.useState("");
@@ -971,7 +970,6 @@ export default function ServicomComplaintsPage({
   }, [filterZone, geoLocked]);
 
   const hasFilters = filterSearch.trim() !== ""
-    || filterDate !== ""
     || (!geoLocked && filterZone !== (defaultZoneId ?? "all"))
     || (!geoLocked && filterState !== (defaultStateId ?? "all"))
     || filterStatus !== "all"
@@ -983,7 +981,6 @@ export default function ServicomComplaintsPage({
 
   const clearFilters = () => {
     setFilterSearch("");
-    setFilterDate("");
     if (!geoLocked) {
       setFilterZone(defaultZoneId ?? "all");
       setFilterState(defaultStateId ?? "all");
@@ -1014,14 +1011,13 @@ export default function ServicomComplaintsPage({
         ].filter(Boolean).join(" ").toLowerCase();
         if (!hay.includes(q)) return false;
       }
-      if (filterDate && (c.date_received || c.complaint_date) !== filterDate) return false;
       if (showAssignedFilter && filterAssigned === "mine" && userName) {
         const officer = c.officer_assigned ?? c.assigned_officer;
         if (!officerMatchesUser(officer, userName, userStaffId)) return false;
       }
       return true;
     });
-  }, [complaints, filterSearch, filterDate, filterAssigned, showAssignedFilter, userName, userStaffId, isServicomOnly, isExcludeServicom]);
+  }, [complaints, filterSearch, filterAssigned, showAssignedFilter, userName, userStaffId, isServicomOnly, isExcludeServicom]);
 
   const assignedToMeCount = React.useMemo(
     () => (showAssignedFilter
@@ -4265,15 +4261,6 @@ export default function ServicomComplaintsPage({
                   />
                 </div>
               </div>
-              <div className="space-y-0.5 min-w-0">
-                <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Date</Label>
-                <Input
-                  className="h-8 text-xs rounded-sm"
-                  type="date"
-                  value={filterDate}
-                  onChange={(e) => setFilterDate(e.target.value)}
-                />
-              </div>
               {!geoLocked && !isZonalCoordinator && (
                 <div className="space-y-0.5 min-w-0">
                   <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Zone</Label>
@@ -4346,6 +4333,7 @@ export default function ServicomComplaintsPage({
                 <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">HCF</Label>
                 <HcfFacilitySelect
                   requireState={false}
+                  size="sm"
                   stateId={filterState !== "all" ? filterState : (defaultStateId ?? undefined)}
                   value={filterFacilityId}
                   onChange={(fac) => {
@@ -4359,6 +4347,7 @@ export default function ServicomComplaintsPage({
               <div className="space-y-0.5 min-w-0">
                 <Label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">HMO</Label>
                 <HmoProviderSelect
+                  size="sm"
                   value={filterHmoId}
                   onChange={(hmo) => setFilterHmoId(hmo?.code || hmo?.id || "")}
                   placeholder="All HMOs"

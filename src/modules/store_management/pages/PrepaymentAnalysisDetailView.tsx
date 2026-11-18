@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import PageLayout from "../components/PageLayout";
 import { storeManagementApi } from "@/src/services/storeManagementApi";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, ArrowLeft, ExternalLink, FileSpreadsheet, Paperclip } from "lucide-react";
+import { AlertTriangle, ExternalLink, Paperclip } from "lucide-react";
 
 const API_ORIGIN = ((import.meta.env?.VITE_API_URL as string) || "http://localhost:3001/api").replace(/\/api\/?$/, "");
 
@@ -16,11 +16,23 @@ function formatDate(value: string | null | undefined) {
   return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 }
 
-function Fact({ label, children }: { label: string; children: React.ReactNode }) {
+function SectionBand({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="min-w-0">
-      <p className="text-xs font-semibold text-slate-500 mb-1">{label}</p>
-      <div className="text-sm font-semibold text-slate-900 break-words leading-snug">{children ?? "—"}</div>
+    <section className="rounded-sm border border-[#d4e8dc] bg-white overflow-hidden shadow-sm">
+      <div className="bg-[#e8f5ee] px-3 py-2 border-b border-[#d4e8dc]">
+        <h3 className="text-[12px] font-bold uppercase tracking-[0.06em] text-[#0f3d2e]">{title}</h3>
+      </div>
+      <div className="p-3 bg-[#f4f7f5]">{children}</div>
+    </section>
+  );
+}
+
+function InfoField({ label, value, mono = false }: { label: string; value: React.ReactNode; mono?: boolean }) {
+  if (value == null || value === "" || value === "—") return null;
+  return (
+    <div className="space-y-1 min-w-0">
+      <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{label}</p>
+      <p className={`text-sm font-medium text-slate-800 break-words ${mono ? "font-mono" : ""}`}>{value}</p>
     </div>
   );
 }
@@ -70,13 +82,10 @@ export default function PrepaymentAnalysisDetailView() {
       <PageLayout
         title="Entry Not Found"
         description="This record is not on the Stock Prepayment Register"
-        actions={
-          <Button variant="outline" size="sm" onClick={() => navigate(-1)} className="text-xs">
-            <ArrowLeft className="h-3.5 w-3.5 mr-1" aria-hidden="true" /> Back
-          </Button>
-        }
+        back
+        backTo="/store-management/prepayment-analysis"
       >
-        <div className="p-8 text-center bg-white rounded-xl border border-slate-200">
+        <div className="p-6 text-center bg-white rounded-sm border border-[#d4e8dc]">
           <AlertTriangle className="h-10 w-10 text-amber-500 mx-auto mb-2" />
           <h3 className="text-base font-bold text-slate-800">No Entry Found</h3>
           <p className="text-xs text-slate-500 mt-0.5">No stock prepayment register entry matches ID: {id || "—"}</p>
@@ -101,36 +110,44 @@ export default function PrepaymentAnalysisDetailView() {
 
   return (
     <PageLayout
-      title="Stock Prepayment Register Entry"
-      description={`Register record ${row.controlNumber || ""}`}
+      title={row.controlNumber || "Stock Prepayment Register Entry"}
+      description={matched ? "Qty matched" : "Qty variance"}
       back
       backTo="/store-management/prepayment-analysis"
-      contentClassName="flex-1 min-h-0"
+      contentClassName="p-2 md:p-2 gap-2"
     >
-      <div className="bg-white border border-slate-200 rounded-lg w-full p-4">
-        <div className="flex flex-wrap items-center gap-2 mb-3">
-          <span className="font-mono text-base font-bold text-[#145c3f]" translate="no">{row.controlNumber}</span>
-          <span className={`rounded-md px-2 py-0.5 text-xs font-semibold ${matched ? "bg-[#e8f5ee] text-[#0f3d2e]" : "bg-amber-50 text-amber-900"}`}>
-            {matched ? "Qty matched" : "Qty variance"}
-          </span>
+      <SectionBand title="Entry">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-3">
+          <InfoField label="Control number" value={row.controlNumber} mono />
+          <InfoField label="Date" value={formatDate(row.entryDate)} />
+          <InfoField label="Status" value={matched ? "Qty matched" : "Qty variance"} />
+          <InfoField label="Instrument" value={row.procurementInstrument} />
+          <InfoField label="Invoice / delivery note" value={row.refInvoiceDeliveryNote} mono />
+          <InfoField label="Category" value={row.category} />
         </div>
+      </SectionBand>
 
-        <dl className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-x-4 gap-y-3 w-full">
-          <Fact label="Date">{formatDate(row.entryDate)}</Fact>
-          <Fact label="Instrument">{row.procurementInstrument || "—"}</Fact>
-          <Fact label="Invoice / delivery note"><span className="font-mono">{row.refInvoiceDeliveryNote || "—"}</span></Fact>
-          <Fact label="Contractor">{row.contractorName || "—"}</Fact>
-          <Fact label="Address">{row.contractorAddress || "—"}</Fact>
-          <Fact label="Zone">{row.zone_name || "—"}</Fact>
-          <Fact label="Store">{row.state_name || "—"}</Fact>
-          <Fact label="Item">{row.itemDescription || "—"}</Fact>
-          <Fact label="Ordered"><span className="tabular-nums">{ordered}</span></Fact>
-          <Fact label="Supplied"><span className="tabular-nums">{supplied}</span></Fact>
-          <Fact label="Variance"><span className="tabular-nums">{variance === 0 ? "0" : variance > 0 ? `−${variance}` : `+${Math.abs(variance)}`}</span></Fact>
-          <Fact label="Rate">{naira.format(rate)}</Fact>
-          <Fact label="Line value">{naira.format(lineValue)}</Fact>
-          <Fact label="Award letter">
-            {row.awardLetterPath ? (
+      <SectionBand title="Contractor and item">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-3">
+          <InfoField label="Contractor" value={row.contractorName} />
+          <InfoField label="Address" value={row.contractorAddress} />
+          <InfoField label="Item" value={row.itemDescription} />
+          <InfoField label="Zone" value={row.zone_name} />
+          <InfoField label="Store" value={row.storeLocation || row.state_name} />
+          <InfoField label="Unit" value={row.unitOfMeasure} />
+        </div>
+      </SectionBand>
+
+      <SectionBand title="Quantities">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-3">
+          <InfoField label="Ordered" value={String(ordered)} />
+          <InfoField label="Supplied" value={String(supplied)} />
+          <InfoField label="Variance" value={variance === 0 ? "0" : variance > 0 ? `−${variance}` : `+${Math.abs(variance)}`} />
+          <InfoField label="Rate" value={naira.format(rate)} />
+          <InfoField label="Line value" value={naira.format(lineValue)} />
+          <InfoField
+            label="Award letter"
+            value={row.awardLetterPath ? (
               <a
                 href={`${API_ORIGIN}${row.awardLetterPath}`}
                 target="_blank"
@@ -141,15 +158,16 @@ export default function PrepaymentAnalysisDetailView() {
                 <span className="truncate">{row.awardLetterName || "View attachment"}</span>
                 <ExternalLink className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
               </a>
-            ) : (
-              "—"
-            )}
-          </Fact>
-          <div className="col-span-2">
-            <Fact label="Remarks">{row.remarks?.trim() || "—"}</Fact>
-          </div>
-        </dl>
-      </div>
+            ) : null}
+          />
+        </div>
+      </SectionBand>
+
+      {row.remarks?.trim() ? (
+        <SectionBand title="Remarks">
+          <p className="text-sm text-slate-800 whitespace-pre-wrap">{row.remarks.trim()}</p>
+        </SectionBand>
+      ) : null}
     </PageLayout>
   );
 }

@@ -21,6 +21,7 @@ interface SearchSelectProps {
   className?: string;
   id?: string;
   clearable?: boolean;
+  size?: "sm" | "default";
   onSearchChange?: (query: string) => void;
   /** Shown when value is empty or not present in options (e.g. auto-filled name). */
   displayLabel?: string;
@@ -36,6 +37,7 @@ export function SearchSelect({
   className,
   id,
   clearable = false,
+  size = "default",
   onSearchChange,
   displayLabel,
 }: SearchSelectProps) {
@@ -215,14 +217,14 @@ export function SearchSelect({
         onClick={() => !disabled && setOpen(o => !o)}
         className={cn(
           "w-full flex items-center justify-between gap-2",
-          "h-10 px-3 rounded-sm text-sm",
-          "bg-[#f4f7f5] border-2 border-[#1a7a52]",
+          "bg-[#f4f7f5] border-2 border-[#1a7a52] rounded-sm",
           "text-left transition-colors outline-none",
           "hover:border-[#0f3d2e] hover:bg-white",
           "focus-visible:border-[#0f3d2e] focus-visible:ring-2 focus-visible:ring-[#1a7a52]/25",
           open && "border-[#0f3d2e] bg-white ring-2 ring-[#1a7a52]/20",
           disabled && "opacity-50 cursor-not-allowed bg-slate-100",
           className,
+          size === "sm" ? "h-8 text-xs font-medium px-2.5" : "h-10 px-3 text-sm",
         )}
       >
         <span className={cn("flex-1 min-w-0 truncate", !hasSelection && "text-slate-400")}>
@@ -240,7 +242,8 @@ export function SearchSelect({
             </span>
           )}
           <ChevronDown className={cn(
-            "w-4 h-4 text-[#1a7a52] transition-transform duration-200",
+            size === "sm" ? "size-3.5" : "w-4 h-4",
+            "text-[#1a7a52] transition-transform duration-200",
             open && "rotate-180"
           )} />
         </span>

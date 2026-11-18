@@ -280,9 +280,9 @@ export default function PrepaymentAnalysisListView() {
           )}
         </div>
       }
-      contentClassName="space-y-4 pb-8"
+      contentClassName="p-2 md:p-2 gap-2"
     >
-        <div className="w-full px-4 md:px-6 py-5 space-y-4">
+        <div className="w-full space-y-2">
           {error && (
             <div role="alert" className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-800">
               {error}

@@ -9,6 +9,7 @@ interface Props {
   disabled?: boolean;
   placeholder?: string;
   className?: string;
+  size?: "sm" | "default";
 }
 
 type CachedOption = SearchSelectOption & { name?: string; code?: string };
@@ -20,7 +21,7 @@ function formatPartyLabel(name: string, code?: string | null) {
   return n || c;
 }
 
-export default function HmoProviderSelect({ value, onChange, disabled, placeholder, className }: Props) {
+export default function HmoProviderSelect({ value, onChange, disabled, placeholder, className, size }: Props) {
   const [options, setOptions] = React.useState<SearchSelectOption[]>([]);
   const [loading, setLoading] = React.useState(false);
   const cacheRef = React.useRef<Map<string, CachedOption>>(new Map());
@@ -77,6 +78,7 @@ export default function HmoProviderSelect({ value, onChange, disabled, placehold
       onChange={handleChange}
       disabled={disabled || loading}
       className={className}
+      size={size}
       placeholder={loading ? "Loading HMOs..." : (placeholder ?? "Select HMO")}
       searchPlaceholder="Search accredited HMOs..."
       clearable

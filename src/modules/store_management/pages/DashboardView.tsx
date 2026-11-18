@@ -206,7 +206,7 @@ export function DashboardView() {
               Active Master Asset Register Items
             </h3>
             <Link
-              to="/store-management/assets/list"
+              to="/store-management/verification/verify"
               className="text-xs font-semibold text-sky-600 hover:text-sky-700"
             >
               View All Assets →

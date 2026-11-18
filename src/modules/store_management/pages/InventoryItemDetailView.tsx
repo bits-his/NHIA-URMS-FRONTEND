@@ -6,11 +6,23 @@ import { Button } from "@/components/ui/button";
 import { Send } from "lucide-react";
 import { toast } from "sonner";
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function SectionBand({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="min-w-0">
-      <p className="text-[11px] font-semibold text-slate-500 mb-0.5">{label}</p>
-      <div className="text-sm font-semibold text-slate-900 break-words">{children ?? "—"}</div>
+    <section className="rounded-sm border border-[#d4e8dc] bg-white overflow-hidden shadow-sm">
+      <div className="bg-[#e8f5ee] px-3 py-2 border-b border-[#d4e8dc]">
+        <h3 className="text-[12px] font-bold uppercase tracking-[0.06em] text-[#0f3d2e]">{title}</h3>
+      </div>
+      <div className="p-3 bg-[#f4f7f5]">{children}</div>
+    </section>
+  );
+}
+
+function InfoField({ label, value, mono = false }: { label: string; value: React.ReactNode; mono?: boolean }) {
+  if (value == null || value === "" || value === "—") return null;
+  return (
+    <div className="space-y-1 min-w-0">
+      <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{label}</p>
+      <p className={`text-sm font-medium text-slate-800 break-words ${mono ? "font-mono" : ""}`}>{value}</p>
     </div>
   );
 }
@@ -107,6 +119,7 @@ export default function InventoryItemDetailView() {
       description={item.itemCode}
       back
       backTo="/store-management/inventory/items"
+      contentClassName="p-2 md:p-2 gap-2"
       actions={
         <Button
           variant="outline"
@@ -118,25 +131,22 @@ export default function InventoryItemDetailView() {
         </Button>
       }
     >
-      <div className="w-full space-y-5">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className={`rounded-md px-2 py-0.5 text-[11px] font-semibold ${tone.className}`}>
-            {tone.label}
-          </span>
+      <SectionBand title="Item">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-3">
+          <InfoField label="Stock code" value={item.itemCode} mono />
+          <InfoField label="Item name" value={item.name} />
+          <InfoField label="Status" value={tone.label} />
+          <InfoField label="Category" value={item.category} />
+          <InfoField label="Unit" value={item.unitOfMeasure} />
+          <InfoField label="Store" value={item.storeLocation} />
+          <InfoField label="On hand" value={String(qty)} />
+          <InfoField label="Reorder" value={item.reorderLevel != null ? String(item.reorderLevel) : null} />
+          <InfoField label="Unit price" value={naira.format(unitPrice)} />
+          <InfoField label="Stock value" value={naira.format(stockValue)} />
         </div>
+      </SectionBand>
 
-        <dl className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-4">
-          <Field label="Category">{item.category}</Field>
-          <Field label="Unit">{item.unitOfMeasure || "—"}</Field>
-          <Field label="Store">{item.storeLocation || "—"}</Field>
-          <Field label="On hand"><span className="tabular-nums">{qty}</span></Field>
-          <Field label="Reorder"><span className="tabular-nums">{item.reorderLevel ?? "—"}</span></Field>
-          <Field label="Unit price">{naira.format(unitPrice)}</Field>
-          <Field label="Stock value">{naira.format(stockValue)}</Field>
-        </dl>
-
-        <section>
-          <h2 className="text-sm font-bold text-slate-900 mb-2">Movements</h2>
+      <SectionBand title="Movements">
           {movements.length === 0 ? (
             <p className="text-sm text-slate-600">No movements recorded yet.</p>
           ) : (
@@ -185,8 +195,7 @@ export default function InventoryItemDetailView() {
               </table>
             </div>
           )}
-        </section>
-      </div>
+      </SectionBand>
     </PageLayout>
   );
 }
