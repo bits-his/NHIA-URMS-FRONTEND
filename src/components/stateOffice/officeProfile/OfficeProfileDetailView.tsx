@@ -43,11 +43,11 @@ function InfoItem({ label, value }: { label: string; value: React.ReactNode }) {
 
 function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-lg border border-[#d4e8dc] bg-white overflow-hidden shadow-xs">
-      <div className="bg-[#e8f5ee] px-4 py-2.5 border-b border-[#d4e8dc]">
+    <div className="rounded-sm border border-[#d4e8dc] bg-white overflow-hidden shadow-sm">
+      <div className="bg-[#e8f5ee] px-3 py-2 border-b border-[#d4e8dc]">
         <h3 className="text-[12px] font-bold uppercase tracking-[0.06em] text-[#0f3d2e]">{title}</h3>
       </div>
-      <div className="p-5">{children}</div>
+      <div className="p-3 bg-[#f4f7f5]">{children}</div>
     </div>
   );
 }
@@ -68,9 +68,8 @@ export default function OfficeProfileDetailView({
   };
 
   return (
-    <div className="space-y-5">
-      {/* Detail View Top Header */}
-      <div className="bg-white rounded-lg border border-[#d4e8dc] p-4 shadow-xs flex items-center justify-between gap-3">
+    <div className="space-y-2">
+      <div className="bg-white rounded-sm border border-[#d4e8dc] px-2 py-2 shadow-sm flex items-center justify-between gap-2">
         <div className="flex items-center gap-3 min-w-0">
           <Button
             variant="ghost"
@@ -113,21 +112,21 @@ export default function OfficeProfileDetailView({
 
       {/* Tab 1: General Info View */}
       {tab === "general" && (
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className="rounded-lg border border-[#d4e8dc] bg-white p-4 shadow-2xs">
+        <div className="space-y-2">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <div className="rounded-sm border border-[#d4e8dc] bg-white px-3 py-2 shadow-sm">
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Staff Strength</p>
               <p className="text-2xl font-bold text-[#0f3d2e] mt-1">
                 {data.staff_members?.length || data.staff_strength || 0}
               </p>
             </div>
-            <div className="rounded-lg border border-[#d4e8dc] bg-white p-4 shadow-2xs">
+            <div className="rounded-sm border border-[#d4e8dc] bg-white px-3 py-2 shadow-sm">
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Annual Enrolment Target</p>
               <p className="text-2xl font-bold text-[#0f3d2e] mt-1">
                 {data.enrolment_target ? Number(data.enrolment_target).toLocaleString() : "—"}
               </p>
             </div>
-            <div className="rounded-lg border border-[#d4e8dc] bg-white p-4 shadow-2xs">
+            <div className="rounded-sm border border-[#d4e8dc] bg-white px-3 py-2 shadow-sm">
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Annual Budget</p>
               <p className="text-2xl font-bold text-[#0f3d2e] mt-1">
                 {formatCurrency(data.annual_budget)}
@@ -136,7 +135,7 @@ export default function OfficeProfileDetailView({
           </div>
 
           <SectionCard title="State Coordinator & Contact Details">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-3">
               <InfoItem label="State Coordinator" value={data.coordinator_name} />
               <InfoItem label="Coordinator Phone" value={data.coordinator_phone} />
               <InfoItem label="Coordinator Email" value={data.coordinator_email} />
@@ -291,9 +290,9 @@ export default function OfficeProfileDetailView({
 
       {/* Tab 4: Focal Person View */}
       {tab === "focal_persons" && (
-        <div className="space-y-4">
+        <div className="space-y-2">
           <SectionCard title="Designated Officer Details">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-3">
               <InfoItem label="Officer Name" value={data.officer_name} />
               <InfoItem label="Functional Domain" value={data.domain} />
               <InfoItem label="Official Designation" value={data.designation} />

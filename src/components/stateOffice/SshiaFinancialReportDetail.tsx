@@ -1,7 +1,6 @@
 import * as React from "react";
 import { ArrowLeft, Loader2, Pencil, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { stateOfficeApi } from "@/lib/api";
 import {
@@ -22,11 +21,23 @@ interface Props {
   onStatusChange?: (status: string | null) => void;
 }
 
-function InfoField({ label, value }: { label: string; value: string }) {
+function SectionBand({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="space-y-1">
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{label}</p>
-      <p className="text-sm font-semibold text-slate-800 tabular-nums">{value}</p>
+    <section className="rounded-sm border border-[#d4e8dc] bg-white overflow-hidden shadow-sm">
+      <div className="bg-[#e8f5ee] px-3 py-2 border-b border-[#d4e8dc]">
+        <h3 className="text-[12px] font-bold uppercase tracking-[0.06em] text-[#0f3d2e]">{title}</h3>
+      </div>
+      <div className="p-3 bg-[#f4f7f5]">{children}</div>
+    </section>
+  );
+}
+
+function InfoField({ label, value }: { label: string; value: string }) {
+  if (!value || value === "—") return null;
+  return (
+    <div className="space-y-1 min-w-0">
+      <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{label}</p>
+      <p className="text-sm font-medium text-slate-800 tabular-nums break-words">{value}</p>
     </div>
   );
 }
@@ -179,31 +190,23 @@ export default function SshiaFinancialReportDetail({
         </div>
       )}
 
-      <div className={`flex-1 space-y-4 ${embedded ? "pt-1" : "overflow-auto p-4 md:p-6"}`}>
-        <Card className="rounded-xl border border-[#d4e8dc] bg-white shadow-xs">
-          <CardHeader className="px-5 pt-5 pb-3">
-            <CardTitle className="text-base font-bold text-[#0f3d2e]">Reporting context</CardTitle>
-          </CardHeader>
-          <CardContent className="px-5 pb-5 grid grid-cols-2 md:grid-cols-4 gap-4">
-            <InfoField label="Zone" value={String((report.zone as any)?.description || report.zonal_code || "—")} />
-            <InfoField label="State" value={String((report.state as any)?.description || report.state_code || "—")} />
+      <div className={`flex-1 space-y-2 ${embedded ? "" : "overflow-auto p-2"}`}>
+        <SectionBand title="Reporting context">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-3">
+            <InfoField label="Zone" value={String((report.zone as any)?.description || report.zonal_code || "")} />
+            <InfoField label="State" value={String((report.state as any)?.description || report.state_code || "")} />
             <InfoField label="Quarter" value={`Q${report.reporting_quarter}`} />
-            <InfoField label="Submitted by" value={String(report.submitted_by || "—")} />
-          </CardContent>
-        </Card>
+            <InfoField label="Submitted by" value={String(report.submitted_by || "")} />
+          </div>
+        </SectionBand>
 
         {filled.length === 0 ? (
-          <Card className="rounded-xl border border-[#d4e8dc] bg-white shadow-xs">
-            <CardContent className="px-5 py-8 text-center text-sm text-slate-500">
-              No sub-head filled yet. Use Update to add figures.
-            </CardContent>
-          </Card>
+          <SectionBand title="Sub-heads">
+            <p className="text-sm text-slate-500">No sub-head filled yet. Use Update to add figures.</p>
+          </SectionBand>
         ) : filled.map((row) => (
-          <Card key={row.label} className="rounded-xl border border-[#d4e8dc] bg-white shadow-xs">
-            <CardHeader className="px-5 pt-5 pb-3">
-              <CardTitle className="text-base font-bold text-[#0f3d2e]">{row.label}</CardTitle>
-            </CardHeader>
-            <CardContent className="px-5 pb-5 grid grid-cols-2 md:grid-cols-3 gap-4">
+          <SectionBand key={row.label} title={row.label}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-3">
               <InfoField label="Opening (A)" value={money(row.opening)} />
               <InfoField label="Receipts (B)" value={money(row.receipts)} />
               <InfoField label="Available (C = A + B)" value={money(row.total_budget)} />
@@ -213,9 +216,9 @@ export default function SshiaFinancialReportDetail({
                 label="Variance (F = D ÷ C × 100)"
                 value={row.variance_pct == null ? "N/A" : `${Number(row.variance_pct).toFixed(1)}%`}
               />
-              <InfoField label="BHCPF lives" value={row.lives == null ? "—" : String(row.lives)} />
-            </CardContent>
-          </Card>
+              <InfoField label="BHCPF lives" value={row.lives == null ? "" : String(row.lives)} />
+            </div>
+          </SectionBand>
         ))}
 
         <FinanceReviewPanel
