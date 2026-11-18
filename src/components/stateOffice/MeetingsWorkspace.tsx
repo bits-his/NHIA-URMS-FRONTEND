@@ -696,8 +696,8 @@ export default function MeetingsWorkspace({ onBack, initialTab = "meetings" }: {
   const navTabs = (
     <UnderHeaderNavTabs
       tabs={[
-        { id: "meetings", label: "Meeting Report", icon: ClipboardList, count: meetings.length },
-        { id: "etmc", label: "ETMC Cascading Report", icon: FileText, count: etmcs.length },
+        { id: "meetings", label: "Meeting Report", icon: ClipboardList },
+        { id: "etmc", label: "ETMC Cascading Report", icon: FileText },
       ]}
       activeTab={tab}
       onChange={(k) => openTab(k as "meetings" | "etmc")}
@@ -1124,9 +1124,6 @@ export default function MeetingsWorkspace({ onBack, initialTab = "meetings" }: {
             <Button variant="outline" disabled={busy} onClick={() => void transition("meeting", detail.meeting_id, "draft")}>Return</Button>
             <Button className={ACTION} disabled={busy} onClick={() => void transition("meeting", detail.meeting_id, "approved")}>Endorse</Button>
           </>}
-          <Button type="button" variant="outline" className="h-8 gap-1.5 border-[#1a7a52] text-[#0f3d2e]" onClick={() => setChallengeOpen(true)}>
-            <FileText className="w-3.5 h-3.5" />Challenge &amp; Support
-          </Button>
         </div>
       </CardContent>
     </Card>
@@ -1147,24 +1144,47 @@ export default function MeetingsWorkspace({ onBack, initialTab = "meetings" }: {
           <ReviewRow label="Prepared by" value={detail.prepared_by} />
           <ReviewRow label="Endorsed by" value={detail.endorsed_by} />
         </ReviewSection>
-        {(["highlight", "department_update", "resolution", "comment", "feedback"] as const).map((kind) => {
-          const rows = (detail.entries || []).filter((e: any) => e.entry_kind === kind);
+        {([
+          { kind: "highlight" as const, title: "ETMC highlights", headers: ["Highlight"] },
+          { kind: "department_update" as const, title: "Departmental updates", headers: ["Department / unit", "Update / key information"] },
+          { kind: "resolution" as const, title: "Decisions / resolutions", headers: ["Decision / resolution", "Action owner / deadline"] },
+          { kind: "comment" as const, title: "Staff comments", headers: ["Staff comment"] },
+          { kind: "feedback" as const, title: "Feedback to HQ", headers: ["Feedback to HQ"] },
+        ]).map((section) => {
+          const rows = (detail.entries || []).filter((e: any) => e.entry_kind === section.kind);
           if (!rows.length) return null;
-          const titles: Record<string, string> = { highlight: "ETMC highlights", department_update: "Departmental updates", resolution: "Decisions / resolutions", comment: "Staff comments", feedback: "Feedback to HQ" };
           return (
-            <section key={kind} className="space-y-3">
+            <section key={section.kind} className="space-y-3">
               <div className="flex items-center gap-3">
-                <h3 className="shrink-0 text-[11px] font-bold uppercase tracking-[0.08em] text-[#145c3f]">{titles[kind]} ({rows.length})</h3>
+                <h3 className="shrink-0 text-[11px] font-bold uppercase tracking-[0.08em] text-[#145c3f]">{section.title} ({rows.length})</h3>
                 <div className="h-px flex-1 bg-[#d4e8dc]" />
               </div>
-              <div className="space-y-2">
-                {rows.map((e: any) => (
-                  <div key={e.entry_id} className="rounded-lg bg-slate-50 p-3 text-sm">
-                    {e.subject && <strong className="mr-2">{e.subject}:</strong>}
-                    {e.detail}
-                    {e.owner_deadline && <em className="text-slate-500"> — {e.owner_deadline}</em>}
-                  </div>
-                ))}
+              <div className="overflow-x-auto rounded-lg border border-[#d4e8dc]">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-[#f0fdf7] hover:bg-[#f0fdf7]">
+                      <TableHead className="w-10 text-xs font-bold">#</TableHead>
+                      {section.headers.map((header) => (
+                        <TableHead key={header} className="text-xs font-bold whitespace-nowrap">{header}</TableHead>
+                      ))}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {rows.map((e: any, index: number) => (
+                      <TableRow key={e.entry_id || index} className="border-b border-[#e8f3ec] last:border-0">
+                        <TableCell className="text-xs font-bold tabular-nums text-[#145c3f]">{index + 1}</TableCell>
+                        {section.headers.length > 1 ? (
+                          <>
+                            <TableCell className="text-sm font-medium text-slate-800">{e.subject || "—"}</TableCell>
+                            <TableCell className="text-sm text-slate-800">{e.owner_deadline || e.detail || "—"}</TableCell>
+                          </>
+                        ) : (
+                          <TableCell className="text-sm text-slate-800">{e.detail || e.subject || "—"}</TableCell>
+                        )}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               </div>
             </section>
           );

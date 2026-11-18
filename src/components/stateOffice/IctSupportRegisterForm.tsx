@@ -40,7 +40,7 @@ interface FormState {
 }
 
 interface Props {
-  reportId?: number | null;
+  reportId?: number | string | null;
   onBack: () => void;
   onSubmitted?: () => void;
   defaultZoneId?: string | null;
@@ -80,7 +80,7 @@ export default function IctSupportRegisterForm({ reportId, onBack, onSubmitted, 
   const [form, setForm] = React.useState<FormState>(blank());
   const [loading, setLoading] = React.useState(!!reportId);
   const [submitting, setSubmitting] = React.useState(false);
-  const [savedId, setSavedId] = React.useState<number | null>(reportId ?? null);
+  const [savedId, setSavedId] = React.useState<number | string | null>(reportId ?? null);
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));

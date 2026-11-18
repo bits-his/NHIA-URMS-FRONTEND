@@ -75,7 +75,7 @@ function SectionCard({ title, children }: { title: string; children: React.React
 }
 
 interface Props {
-  reportId: number;
+  reportId: number | string;
   onBack: () => void;
   onEdit?: () => void;
 }

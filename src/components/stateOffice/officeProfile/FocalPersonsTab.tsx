@@ -551,19 +551,6 @@ export default function FocalPersonsTab({
      VIEW MODE 1: ON-PAGE FORM (1 CARD, ZONE FIRST AS SELECT, STATE FILTERED)
      ========================================================================= */
   if (viewMode === "form") {
-    const previewInitials = officerName
-      ? officerName
-          .split(" ")
-          .map((n) => n[0])
-          .filter(Boolean)
-          .slice(0, 2)
-          .join("")
-          .toUpperCase()
-      : "?";
-
-    const hasEmail = Boolean(email && email.includes("@"));
-    const hasPhone = Boolean(phoneNumber && phoneNumber.trim().length >= 6);
-
     return (
       <div className="w-full space-y-4 animate-in fade-in-50 duration-200">
         {/* ONE SINGLE CARD FOR FOCAL PERSON FORM */}
@@ -664,44 +651,7 @@ export default function FocalPersonsTab({
               </div>
             </div>
 
-            {/* 2. LIVE OFFICER PROFILE PREVIEW BANNER */}
-            <div className="p-3.5 rounded-sm bg-gradient-to-r from-slate-50 to-slate-100/80 border border-slate-200/80 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="size-11 rounded-full bg-[#1a7a52] text-white flex items-center justify-center text-sm font-bold shadow-xs">
-                  {previewInitials}
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-bold text-slate-900 leading-tight">
-                      {officerName.trim() || "Officer Full Name"}
-                    </p>
-                    <span className="px-2 py-0.5 rounded-sm text-[10px] font-semibold bg-white border border-slate-200 text-[#1a7a52]">
-                      {domain}
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    {designation.trim() || "Official Designation / Role"} • {selectedState?.description || "State Office"} {selectedZone ? `(${selectedZone.description})` : ""}
-                  </p>
-                </div>
-              </div>
-              <div>
-                {hasEmail && hasPhone ? (
-                  <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-sm text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                    <CheckCircle2 className="size-3 text-emerald-600" /> Fully Verified
-                  </span>
-                ) : hasEmail || hasPhone ? (
-                  <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-sm text-[10px] font-semibold bg-sky-50 text-sky-700 border border-sky-200">
-                    Active Reach
-                  </span>
-                ) : (
-                  <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-sm text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-                    Pending Contact
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {/* 3. OFFICER DETAILS & OFFICIAL CONTACT */}
+            {/* 2. OFFICER DETAILS & OFFICIAL CONTACT */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label className="text-xs font-semibold text-slate-700">

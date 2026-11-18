@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import StateOfficeFormShell from "../StateOfficeFormShell";
 import ReportBasicInfo from "../shared/ReportBasicInfo";
-import { Field, SelectField, TextInput, TextArea } from "./ui";
+import { Field, SelectField, TextInput } from "./ui";
 import { MAINTENANCE_TYPES, VEHICLE_STATUSES, ADMIN_HR_CONFIG } from "./constants";
 
 const uid = () => Math.random().toString(36).slice(2);
@@ -163,6 +163,7 @@ export default function VehicleMaintenanceForm({ reportId, onBack, onCancel, onS
               lockZone={header.lockZone}
               lockState={header.lockState}
               showQuarter
+              hideQuarter
               embedded
             />
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -216,12 +217,11 @@ export default function VehicleMaintenanceForm({ reportId, onBack, onCancel, onS
                   options={VEHICLE_STATUSES}
                 />
               </Field>
-              <div className="md:col-span-2 lg:col-span-2">
+              <div className="md:col-span-1 lg:col-span-2">
                 <Field label="Remarks">
-                  <TextArea
+                  <TextInput
                     value={entry.remarks}
                     onChange={(e) => set("remarks", e.target.value)}
-                    rows={2}
                     placeholder="Enter remarks"
                   />
                 </Field>

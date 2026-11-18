@@ -81,7 +81,7 @@ export default function AdminHrReportsList({
 
   const [mode, setMode] = React.useState<"list" | "create" | "view" | "edit">(createOnly ? "create" : "list");
   const [formKey, setFormKey] = React.useState(0);
-  const [selectedId, setSelectedId] = React.useState<number | null>(null);
+  const [selectedId, setSelectedId] = React.useState<number | string | null>(null);
   const [reports, setReports] = React.useState<Report[]>([]);
   const { matchesSearch, searchInput } = useListSearch();
   const filteredReports = reports.filter((r) => {

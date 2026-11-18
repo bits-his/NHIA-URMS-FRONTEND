@@ -948,18 +948,17 @@ export default function OfficeProfileWorkspace({
       title={getHeaderTitle()}
       onBack={mode === "list" ? undefined : handleBackToList}
       actions={
-        <div className="flex items-center gap-2 shrink-0">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={loadData}
-            disabled={loading}
-            className="h-8.5 gap-1.5 border-slate-300 text-xs font-medium text-slate-700 hover:bg-slate-50 rounded-sm"
-          >
-            <RefreshCw className={`size-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh
-          </Button>
-
-          {mode === "list" && (
+        mode === "list" ? (
+          <div className="flex items-center gap-2 shrink-0">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={loadData}
+              disabled={loading}
+              className="h-8.5 gap-1.5 border-slate-300 text-xs font-medium text-slate-700 hover:bg-slate-50 rounded-sm"
+            >
+              <RefreshCw className={`size-3.5 ${loading ? "animate-spin" : ""}`} /> Refresh
+            </Button>
             <Button
               className="h-8.5 bg-orange-action hover:bg-orange-600 text-white text-xs gap-1.5 font-bold shadow-md shadow-orange-500/15 rounded-sm"
               onClick={() => {
@@ -972,19 +971,8 @@ export default function OfficeProfileWorkspace({
             >
               <Plus className="size-3.5" /> {currentTabCfg.newLabel}
             </Button>
-          )}
-
-          {mode !== "list" && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleBackToList}
-              className="h-8.5 gap-1.5 border-slate-300 text-xs font-medium text-slate-700 rounded-sm"
-            >
-              Back to Table
-            </Button>
-          )}
-        </div>
+          </div>
+        ) : undefined
       }
       tabs={
           <UnderHeaderNavTabs
@@ -992,14 +980,6 @@ export default function OfficeProfileWorkspace({
               id: tab.key,
               label: tab.label,
               icon: tab.icon,
-              count:
-                tab.key === "general"
-                  ? profiles.length
-                  : tab.key === "accommodation"
-                  ? accommodations.length
-                  : tab.key === "utilities"
-                  ? utilities.length
-                  : focalPersons.length,
             }))}
             activeTab={activeTab}
             onChange={(key) => handleTabChange(key as any)}

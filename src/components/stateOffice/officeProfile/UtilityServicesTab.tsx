@@ -29,7 +29,12 @@ import {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { utilityServiceReportApi, stockApi } from "@/lib/api";
-import ReportBasicInfo from "../shared/ReportBasicInfo";
+import { MONTHS, monthLabel } from "../constants";
+
+const YEAR_OPTIONS = Array.from({ length: 8 }, (_, i) => {
+  const year = new Date().getFullYear() - 2 + i;
+  return String(year);
+});
 
 const controlClass = cn(
   "h-10 text-sm font-medium",
@@ -56,18 +61,6 @@ function Field({
         {required ? <span className="text-rose-500 ml-0.5">*</span> : null}
       </Label>
       {children}
-    </div>
-  );
-}
-
-function SectionHeading({ title, hint }: { title: string; hint?: string }) {
-  return (
-    <div className="space-y-1">
-      <div className="flex items-center gap-3">
-        <h3 className="shrink-0 text-[11px] font-bold uppercase tracking-[0.08em] text-[#145c3f]">{title}</h3>
-        <div className="h-px flex-1 bg-[#d4e8dc]" />
-      </div>
-      {hint ? <p className="text-xs text-slate-500">{hint}</p> : null}
     </div>
   );
 }
@@ -359,29 +352,68 @@ export default function UtilityServicesTab({
   return (
     <Card className="rounded-sm border-[#d4e8dc] shadow-sm bg-white overflow-visible">
       <CardContent className="space-y-5 p-3 md:p-4">
-        <ReportBasicInfo
-          embedded
-          showQuarter
-          zones={zones.map((z) => ({ id: z.id, label: z.description }))}
-          states={availableStates.map((s) => ({ id: s.id, label: s.description }))}
-          zoneId={selectedZoneVal}
-          setZoneId={handleZoneChange}
-          stateId={selectedStateVal}
-          setStateId={handleStateChange}
-          reportYear={selectedYearVal ? String(selectedYearVal) : ""}
-          setReportYear={(value) => setSelectedYearVal(Number(value))}
-          reportMonth={selectedMonthVal}
-          setReportMonth={setSelectedMonthVal}
-          submitDate=""
-          setSubmitDate={() => undefined}
-          lockZone={readOnly}
-          lockState={readOnly}
-        />
-
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          <Field label="Period from">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <Field label="Zone" required>
+            <Select value={selectedZoneVal} onValueChange={handleZoneChange} disabled={readOnly}>
+              <SelectTrigger
+                className={controlClass}
+                displayValue={zones.find((z) => String(z.id) === selectedZoneVal || z.zonal_code === selectedZoneVal)?.description}
+              >
+                <SelectValue placeholder="Select zone" />
+              </SelectTrigger>
+              <SelectContent>
+                {zones.map((z) => (
+                  <SelectItem key={z.id} value={String(z.id)}>{z.description}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+          <Field label="State" required>
+            <Select value={selectedStateVal} onValueChange={handleStateChange} disabled={readOnly || !selectedZoneVal}>
+              <SelectTrigger
+                className={controlClass}
+                displayValue={availableStates.find((s) => String(s.id) === selectedStateVal || s.code === selectedStateVal)?.description}
+              >
+                <SelectValue placeholder="Select state" />
+              </SelectTrigger>
+              <SelectContent>
+                {availableStates.map((s) => (
+                  <SelectItem key={s.id} value={String(s.id)}>{s.description}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+          <Field label="Year" required>
+            <Select
+              value={selectedYearVal ? String(selectedYearVal) : ""}
+              onValueChange={(value) => setSelectedYearVal(Number(value))}
+              disabled={readOnly}
+            >
+              <SelectTrigger className={controlClass} displayValue={selectedYearVal ? String(selectedYearVal) : undefined}>
+                <SelectValue placeholder="Select year" />
+              </SelectTrigger>
+              <SelectContent>
+                {YEAR_OPTIONS.map((year) => (
+                  <SelectItem key={year} value={year}>{year}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+          <Field label="Month" required>
+            <Select value={selectedMonthVal} onValueChange={setSelectedMonthVal} disabled={readOnly}>
+              <SelectTrigger className={controlClass} displayValue={monthLabel(selectedMonthVal)}>
+                <SelectValue placeholder="Select month" />
+              </SelectTrigger>
+              <SelectContent>
+                {MONTHS.map((month) => (
+                  <SelectItem key={month.value} value={String(month.value)}>{month.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+          <Field label="Period from" className="lg:col-span-2">
             <Select value={periodFrom} onValueChange={setPeriodFrom} disabled={readOnly}>
-              <SelectTrigger displayValue={periodFrom}><SelectValue /></SelectTrigger>
+              <SelectTrigger className={controlClass} displayValue={periodFrom}><SelectValue /></SelectTrigger>
               <SelectContent>
                 {SHORT_MONTHS.map((month) => (
                   <SelectItem key={month} value={month}>{month}</SelectItem>
@@ -389,9 +421,9 @@ export default function UtilityServicesTab({
               </SelectContent>
             </Select>
           </Field>
-          <Field label="Period to">
+          <Field label="Period to" className="lg:col-span-2">
             <Select value={periodTo} onValueChange={setPeriodTo} disabled={readOnly}>
-              <SelectTrigger displayValue={periodTo}><SelectValue /></SelectTrigger>
+              <SelectTrigger className={controlClass} displayValue={periodTo}><SelectValue /></SelectTrigger>
               <SelectContent>
                 {SHORT_MONTHS.map((month) => (
                   <SelectItem key={`to-${month}`} value={month}>{month}</SelectItem>
@@ -402,10 +434,6 @@ export default function UtilityServicesTab({
         </div>
 
         <section className="space-y-3">
-          <SectionHeading
-            title="Service record"
-            hint="Generator servicing is reported twice a year. Security and cleaning are reported monthly."
-          />
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               <Field label="Service location" required>
                 <Select
@@ -569,15 +597,7 @@ export default function UtilityServicesTab({
           )}
         </section>
 
-        {/* ═══════════════════════════════════════════════════════════════════════
-            SECTION 2: MANDATORY AUDIT VERIFICATION UPLOADS (SLIDE 05)
-            All 3 documents must accompany the payment request
-        ═══════════════════════════════════════════════════════════════════════ */}
         <section className="space-y-3">
-          <SectionHeading
-            title="Required documents"
-            hint="All three documents must accompany the payment request."
-          />
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <Field label="Job completion certificate" required>
               <label className={cn(controlClass, "flex items-center justify-between gap-2 cursor-pointer")}>

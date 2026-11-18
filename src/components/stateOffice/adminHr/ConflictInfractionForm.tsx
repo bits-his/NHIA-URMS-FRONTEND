@@ -12,7 +12,7 @@ const ACTION = "bg-orange-action hover:bg-orange-600 gap-2 shadow-lg shadow-oran
 const choiceClass = "flex items-start gap-2 rounded-sm border-2 border-[#1a7a52] bg-[#f4f7f5] px-3 py-2.5 cursor-pointer hover:bg-white";
 
 interface Props {
-  reportId?: number | null;
+  reportId?: number | string | null;
   onBack: () => void;
   onCancel?: () => void;
   onSubmitted?: () => void;

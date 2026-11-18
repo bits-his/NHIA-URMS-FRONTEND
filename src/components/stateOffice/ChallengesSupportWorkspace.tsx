@@ -594,8 +594,8 @@ export default function ChallengesSupportWorkspace({ onBack, embedded = false, o
       activeTab={activeRegister}
       onChange={(key) => openRegister(key as "challenges" | "support")}
       tabs={[
-        { id: "challenges", label: "Challenges Register", count: challenges.length, icon: AlertTriangle },
-        { id: "support", label: "Support Requests", count: supportList.length, icon: HandHelping },
+        { id: "challenges", label: "Challenges Register", icon: AlertTriangle },
+        { id: "support", label: "Support Requests", icon: HandHelping },
       ]}
     />
   );
